@@ -1,6 +1,10 @@
 # Project Definition
 
-[#TODO][3-5 lines of description of the project]
+Learn to Tell은 함께 작업하는 AI agent가 skill로 제공하는 짧고 상호작용적인 학습 도구다.
+공통 지식 기반(common knowledge base)의 차이와 사용자가 아직 모르는 지식을 다루며, tacit knowledge는 범위에서 제외한다.
+한 회 15–20분 내외의 시각 자료·코드 기반 시뮬레이션·실제 예시로 작업의 핵심 결정 변수를 익히도록 돕는다.
+목표는 사용자가 적절한 질문을 하고, agent의 도움으로 결정 변수를 선택하며, 그 선택의 의미를 설명할 수 있게 하는 것이다.
+이해 여부를 수행으로 확인하는 장치를 제공하고, 학습 상태를 로컬 personal knowledge map에 기록하며 다음 학습 경로를 제시한다.
 
 <!-- harness:begin 0.15.1 -->
 # Documentation Guide
