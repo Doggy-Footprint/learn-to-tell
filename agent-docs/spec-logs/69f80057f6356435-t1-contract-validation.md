@@ -1,7 +1,7 @@
 ---
-version: 1
+version: 5
 run_id: 69f80057f6356435
-status: draft
+status: complete
 base_commit: 8c148446ed622bc88c3b85773e4763d050b5934b
 max_verifier_invocations: 2
 handoff: none
@@ -14,7 +14,7 @@ handoff: none
 | U1 | 사용자 | 로드맵의 환경·범위를 확정하고 첫 구현 spec을 작성 | ROADMAP에 일반적인 제품 기준을 통합하고 T1의 검토 가능한 spec 제공 |
 | U2 | 학습 사용자 | 잘못된 자료와 과대 수행 기록을 수용하지 않음 | 유효한 진단·수업·결과·map은 수용하고 구조·참조·기록 의미 위반은 이유와 위치를 반환 |
 
-이 문서는 T1 구현을 위한 **승인 전 초안**이다. M0의 환경·제품 범위는 승인되었지만, 아래 상세 필드·오류 정책·품질 수치·검증 목표는 전체 spec 승인 대상이다. 초안 작성은 구현 시작이나 M0 통과를 의미하지 않는다.
+이 문서는 사용자 구현 계획 실행 요청으로 전체 승인된 T1 구현 계약이다. 상세 필드·오류 정책·품질 수치·검증 목표를 포함하여 v2에서 승인 상태를 기록했다.
 
 # Scope
 
@@ -28,7 +28,7 @@ Out of scope: T2 계산 모델·계산 oracle·대표 수업 콘텐츠와 채점
 
 Implementation: `package.json`, `package-lock.json`, `.node-version`, `.npmrc`, `contracts/index.mjs`, `contracts/definitions.mjs`
 
-Tests: `tests/contracts.test.mjs`, `tests/fixtures/contracts/`, `tests/evidence/t1-review.md`
+Tests: `tests/contracts.test.mjs`, `tests/fixtures/contracts/`
 
 Test command: `npm run verify`
 
@@ -36,7 +36,7 @@ Test command: `npm run verify`
 
 `verify` script는 `node --test --experimental-test-coverage --test-coverage-include='contracts/*.mjs' --test-coverage-include-all --test-coverage-lines=100 --test-coverage-functions=100 tests/contracts.test.mjs`이다. main이 이 명령으로 Implementation 범위의 행·함수 실행률을 확인한다. 초안 작성 시 Node 26.8.1의 `node --help`에서 위 coverage 옵션의 지원을 확인했다. 구현 실행 시에도 동일 버전을 확인한다. 변경이 필요하면 spec amendment와 승인을 거친다. 전체 명령 timeout은 60초이며 timeout은 실패다.
 
-Review evidence: 아래 R1 절차의 결과를 `tests/evidence/t1-review.md`에 기록한다. 이번 초안 작성에서는 구현·fixture·검수 증거 파일을 만들지 않는다.
+Review evidence: main의 정적 검수 결과와 실행·mutation·독립 감사 결과는 이 spec의 Execution ledger에 기록한다.
 
 # Signatures
 
@@ -105,6 +105,15 @@ Map의 lessons/results는 위 전체 계약의 원본 snapshot이다. T1은 원�
 7. Map 내부 lesson/result의 profile은 map과 같아야 한다. 결과는 lesson snapshot을 참조한다. sequence>1은 map 내부 이전 결과를 참조하며 규칙 5를 만족한다. result.baseMapRevision <= map.revision이다. Observation은 result의 assessment와 그 response의 concept/revision을 참조한다. NextPath는 map 안의 lesson/concept/revision을 참조한다. 각 ID collection 중복은 거부한다. 같은 lessonId의 여러 revision을 보관할 수 있으며 `(lessonId, lessonRevision)` 쌍은 고유하다.
 8. bundle.result는 bundle.lesson을 참조하고 profile은 네 문서 모두 같으며 baseMapRevision은 bundle.map.revision과 정확히 일치해야 한다. map은 가져오기 전 snapshot이다. 동일 resultId가 이미 map에 있으면 동일 내용은 검증 성공, 다른 내용은 CONFLICT로 실패한다. 이는 중복 인식 규칙이며 map을 실제 갱신하거나 중복 저장을 수행하지 않는다. 결과의 lesson snapshot이 map에도 있으면 같은 ID/revision의 내용은 동일해야 한다. 없으면 신규 lesson으로 허용한다.
 
+
+### 승인된 의미 오류 위치·수집 정책 (v4)
+
+- 의미 검사는 적용되는 모든 위반을 수집하고 code/path 중복만 제거한다. unreviewed의 비중립 판정은 status의 STATE이며 criterion mode와 reviewer도 불일치하면 reviewer의 STATE를 함께 반환한다.
+- bundle profile 비교의 기준은 diagnostic.profileId이다. lesson/result/map의 불일치 profileId에 PROFILE을 반환한다. Result와 Lesson의 직접 profile 비교도 별도로 적용한다. Map 내부는 map.profileId가 기준이다.
+- checkpoint는 previousResult를 기준으로 새 result의 profileId/lessonId/lessonRevision/baseMapRevision/sequence/previousResultId 위치에 해당 오류를 반환한다. 이전 snapshot 자체의 내부 오류는 previousResult 아래에 유지한다.
+- 진단과 수업의 contextKind 불일치는 /lesson/contextKind에 REFERENCE를 반환한다.
+- 재시도의 activityId/conceptId/purpose가 이전 응답과 다르면 각 불일치 필드에 STATE를 반환한다. 이전 ID가 없거나 앞선 응답을 참조하지 않으면 previousResponseId에 REFERENCE를 반환한다.
+
 # Errors
 
 | code | failure condition | observable signal | post-failure state |
@@ -163,15 +172,15 @@ expectedKind 자체가 잘못된 경우 path=""이다. 동일 위치에서 타�
 | id | characteristic / subcharacteristic | target and context | measure method / inputs / unit | threshold and direction | evidence: automated, review, mutation | source |
 | --- | --- | --- | --- | --- | --- | --- |
 | Q1 | Functional suitability | 승인 계약 수용·거부 일치 | V1–V6 항목의 독립 기대 결과 일치율, % | 100%, 이상 | automated + mutation | F1–F5, draft target |
-| Q2 | Performance efficiency | 허용 최대 크기의 합성 bundle 검증 | 10회 반복 중 최댓값 wall-clock ms, Node 26.8.1/macOS, 1회 warmup 제외 | 각 회 <=1,000ms | automated; 성능 fixture bytes·항목 수 기록 | draft target |
-| Q3 | Compatibility | 승인 toolchain·JSON round trip | node/npm exact 버전 일치, 네 valid kind의 stringify→parse 검증 성공 수 | 버전 2/2, kind 4/4 | automated + R1 review | M0 |
+| Q2 | Performance efficiency | 문서별 1,048,576 bytes 이하에 가능한 가까운 유효 합성 bundle 검증 | 10회 반복 중 최댓값 wall-clock ms, Node 26.8.1/macOS, 1회 warmup 제외 | 각 회 <=1,000ms | automated; 성능 fixture bytes·항목 수 기록 | draft target |
+| Q3 | Compatibility | 승인 toolchain·JSON round trip | node/npm exact 버전 일치, 네 valid kind의 stringify→parse 검증 성공 수 | 버전 2/2, kind 4/4 | automated + main 정적 검수 | M0 |
 | Q4 | Interaction capability | 소비자가 오류 위치·종류를 분리 | 15 code 단독 오류와 복수 오류의 code/path/정렬 일치율 | 100% | automated | F6, draft target |
 | Q5 | Reliability | 반복·실패 시 입력 보존 | frozen input 검증, 전후 deep equality, 반복 결과 equality; V5 항목 통과율 | 100% | automated + mutation | F4·F6 |
-| Q6 | Security | 외부 부작용·응답 노출 없음 | 악성 property/accessor fixture getter 호출 수, 오류 payload 응답 포함 수, validator의 fs/network/eval 사용 수 | 모두 0 | automated + R1 review | ROADMAP §8 |
+| Q6 | Security | 외부 부작용·응답 노출 없음 | 악성 property/accessor fixture getter 호출 수, 오류 payload 응답 포함 수, validator의 fs/network/eval 사용 수 | 모두 0 | automated + main 정적 검수 | ROADMAP §8 |
 | Q7 | Maintainability | 검증 가능한 계약 변경 | Node test coverage, contracts/*.mjs의 실행 행·함수 비율 | 각각 100% | automated, main 측정 | draft target |
 | Q8 | Flexibility | 도메인 이름·통계 수치에 종속하지 않음 | 제조 검사와 비통계 합성 lesson에 동일 구조·참조 검사, domain fixture 성공 수 | 2/2 | automated | ROADMAP §12 |
 
-시간·coverage 수치는 이 초안의 프로젝트별 제안이다. ISO/IEC 25023의 측정 개념이나 ISO/IEC/IEEE 29119-4의 기법·coverage 정의가 이 수치의 통과 기준을 정하지 않는다. spec 전체 승인 시 수치와 범위를 함께 승인한다. Q2는 실제 허용 상한에 맞는 bundle을 만들어 문서 네 개 각각의 크기·depth·collection 길이를 보고하며, map은 사용 중인 lesson/result snapshot을 포함한다. bytes는 문자열 padding으로 채워 최대 허용값 이하에서 가능한 가장 가까운 fixture를 사용한다.
+시간·coverage 수치는 이 초안의 프로젝트별 제안이다. ISO/IEC 25023의 측정 개념이나 ISO/IEC/IEEE 29119-4의 기법·coverage 정의가 이 수치의 통과 기준을 정하지 않는다. spec 전체 승인 시 수치와 범위를 함께 승인한다. Q2는 사용자가 승인한 성능 fixture 범위인 문서별 약 1MiB(1,048,576 bytes 이하)에 맞는 유효 bundle을 만들어 문서 네 개 각각의 크기·depth·collection 길이를 보고하며, map은 사용 중인 lesson/result snapshot을 포함한다. bytes는 문자열 padding으로 채워 문서별 1,048,576 bytes 이하에서 가능한 가장 가까운 fixture를 사용한다. 이는 성능 검증의 선택 범위이며 validateDocument/validateBundle의 총량 제한을 추가하지 않는다.
 
 # Verification Obligations
 
@@ -180,24 +189,13 @@ expectedKind 자체가 잘못된 경우 path=""이다. 동일 위치에서 타�
 | id | parent requirement/Case ids | variant and target surface | test layer and selection policy | ISO/IEC/IEEE 29119-4 technique | coverage items | coverage target | observation and expected result | evidence procedure |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | V1 | F1,C1,C6,C10,C11 | 네 kind parser/document 결과 | unit, 모든 선언 필드와 실제 소속 구조 | syntax + equivalence partitioning | 각 필수 필드의 present/missing/wrong-type; 각 enum member/unknown; 각 구조 extra-field; kind·version·ID·timestamp·JSON-compatible partition | 선언 항목 100% | valid 허용, invalid 정확한 code/path | fixtures 기대값 명시; 검사 구현으로 oracle 생성 금지 |
-| V2 | F1,F2,C4,C5,Q2 | 수치·분량·입력 크기 결과 | unit, 각 독립 경계 | boundary value analysis (3-value) | default=min/max 및 바로 밖; min=max; budget=14.99/15/15.01/19.99/20/20.01; bytes/depth/collection/string 상한-1/상한/상한+1; revisions=0/1/2; sequence/attempt=0/1/2 | 선언 항목 100% | 경계 포함·범위 밖 거부·최대 fixture 시간 <=1,000ms | 자동 결과·시간·fixture 크기 출력 |
+| V2 | F1,F2,C4,C5,Q2 | 수치·분량·입력 크기 결과 | unit, 각 독립 경계 | boundary value analysis (3-value) | default=min/max 및 바로 밖; min=max; budget=14.99/15/15.01/19.99/20/20.01; bytes/depth/collection/string 상한-1/상한/상한+1; revisions=0/1/2; sequence/attempt=0/1/2 | 선언 항목 100% | 경계 포함·범위 밖 거부·승인된 문서별 약 1MiB fixture 시간 <=1,000ms | 자동 결과·시간·fixture 크기 출력 |
 | V3 | F2,F3,C1,C7,C10 | lesson/map/bundle 참조 결과 | integration, 각 참조 종류 단독 위반 | decision table | selection confirmation 3상태×null/non-null 6행; 다섯 content role valid/missing/wrong-role; 모든 참조 필드 existing/missing; 모든 profile/revision 필드 match/mismatch; map 같은 lesson ID의 같은/다른 revision | 선언 항목 100% | 지정 참조/상태/버전 오류, 신규 lesson 허용 | 고정 fixture와 명시한 기대 code/path |
 | V4 | F4,F5,C2,C8,C9 | 응답·판정·checkpoint·중복 결과 | unit + integration, 아래 명시 state 전환과 판정 표 | state transition + decision table | 최초→재시도·최초→유효 checkpoint·역순·원본삭제·원본수정·이전snapshot부재; prediction before/after/unknown; reviewer 3종×criterion mode 2종×status 5종 30행; answer null/문자열; purpose 7종의 근거 허용 여부; help 4종 일치/불일치; supported context present/missing; 같은 ID 동일/상이한 내용 | 선언 항목 100% | pending·unknown 보존, 과대 판정/이력 파괴 거부 | 정답 문자열 채점 없이 계약 결과만 자동 확인 |
-| V5 | F6,C3,C6–C12,Q4–Q6 | 성공·오류 payload 및 입력 불변 | unit + integration, 모든 15 error code와 대표 valid bundle | scenario + error guessing | 15 code 단독 오류, 독립 복수 구조 오류, frozen valid/invalid, repeat validate, JSON round trip, malicious property/accessor/cycle, 네 kind 실패와 bundle 실패의 입력 보존 | scenario 항목 100%; error guessing none — experience-based | 정확한 정렬·오류 shape·원본 미노출·불변·getter 호출 0 | 자동 deep equality와 getter spy; R1 정적 부작용 검수 |
+| V5 | F6,C3,C6–C12,Q4–Q6 | 성공·오류 payload 및 입력 불변 | unit + integration, 모든 15 error code와 대표 valid bundle | scenario + error guessing | 15 code 단독 오류, 독립 복수 구조 오류, frozen valid/invalid, repeat validate, JSON round trip, malicious property/accessor/cycle, 네 kind 실패와 bundle 실패의 입력 보존 | scenario 항목 100%; error guessing none — experience-based | 정확한 정렬·오류 shape·원본 미노출·불변·getter 호출 0 | 자동 deep equality와 getter spy; main 정적 부작용 검수 |
 | V6 | F7,Q3,Q7,Q8 | package 명령·validator 공개 API | integration + unit, 설치 후 승인 toolchain | scenario + statement coverage | 단일 verify 성공/선언 fixture 누락 실패; toolchain 2개 exact; kind 4개 round trip; domain 2개; contracts/*.mjs 모든 executable line·function | 항목 및 실행 행·함수 100% | 명령 exit=0, 누락/coverage 부족 exit!=0 | main 실행 출력과 coverage 보고서 |
 
 분기·MC/DC·data-flow coverage는 이번 초안에서 필수로 제안하지 않는다. 유한 오류 분할·상태/판정 표·경계 검사와 행·함수 coverage를 기준으로 삼는다. 외부 저장·브라우저·호스트 계층은 T1 범위 밖이므로 end-to-end나 실제 재시작 검사를 수행하지 않는다. 표의 unit/integration 조합은 동일 항목을 무조건 양쪽에서 반복하지 않는다. V4의 응답·판정은 unit, checkpoint·중복 결과는 integration, V5의 parser/document는 unit, bundle는 integration에서 확인한다.
-
-## R1 검수 절차
-
-입력: 승인 spec, package/lockfile, contracts 두 파일, fixture manifest, 검증 명령·coverage 출력.
-
-1. main은 Node/npm 고정·lockfile 일치와 외부 의존성 없음, verify가 모든 선언 fixture 및 coverage 검사를 실행함을 확인한다.
-2. main은 contracts에서 파일·네트워크 접근, 동적 코드 평가, 입력 변경, getter 실행, 입력 문자열을 오류에 첨부하는 경로가 없는지 확인한다. 관찰 결과와 근거 위치를 기록한다.
-3. test-verifier는 Implementation을 읽지 않고 spec·fixture 기대값·실행 증거·R1 결과로 V1–V6의 수용·거부 구분과 누락 여부를 감사한다.
-4. strongest mutation 후보는 unsupported version 수용, 예측 prefix 보존 검사 우회, unreviewed 자유 응답 supported 수용이다. main이 서로 다른 세 결함을 하나씩 주입·실행·복원한다. fixture의 해당 assertion이 검출한 경우만 확인 mutation으로 인정한다. 실제 감사에서 더 강한 후보를 선택하면 이유를 ledger에 기록한다.
-
-산출물: toolchain·명령·fixture 항목·측정값·정적 검수·mutation의 결과를 담은 `tests/evidence/t1-review.md`. 검수는 채택된 패키지의 향후 유지보수나 교육 효과를 입증하지 않는다.
 
 # Assumptions and Defaults
 
@@ -206,10 +204,10 @@ expectedKind 자체가 잘못된 경우 path=""이다. 동일 위치에서 타�
 | A1 | Codex/macOS/Chrome, JavaScript ESM, Node 26.8.1/npm 11.19.0, Observable 1.13.4, npm run verify | ROADMAP 구현 기준. 실제 Framework 빌드 호환성은 후속 실행 검수 필요 | M0 확정안 사용자 승인 |
 | A2 | 홈 아래 .learn-to-tell, 학습 응답·도움 보존, 최근 백업 5개, 관련 백업 삭제, JSON 전달, 학습 중 오프라인 | ROADMAP §8·9; 실제 저장은 T4 | M0 확정안 사용자 승인 |
 | A3 | 18분, 첫 버전 상호작용, A+B/C/D 힌트, 제조 결함 검사 | ROADMAP §3·5·7·부록; 콘텐츠 정확성은 T2 이후 검수 | M0 확정안 사용자 승인 |
-| A4 | version=1, 필드·함수·오류 정책·snapshot map·크기 제한·coverage/성능 목표 | 이 spec의 제안. snapshot 중복 비용과 입력 상한은 사용 경험으로 재검토 가능 | 미승인 — 전체 draft 검토 대상 |
-| A5 | JSON 중복 key 검사는 제외, T1 외부 패키지 없음, Framework 설치 T3 | parsed object 기준 검증으로 T1 범위 제한. raw duplicate key 감지는 별도 parser 필요 | 미승인 — 전체 draft 검토 대상 |
+| A4 | version=1, 필드·함수·오류 정책·snapshot map·크기 제한·coverage/성능 목표 | 이 spec의 제안. snapshot 중복 비용과 입력 상한은 사용 경험으로 재검토 가능 | 사용자 구현 계획 실행 요청으로 전체 spec 승인 |
+| A5 | JSON 중복 key 검사는 제외, T1 외부 패키지 없음, Framework 설치 T3 | parsed object 기준 검증으로 T1 범위 제한. raw duplicate key 감지는 별도 parser 필요 | 사용자 구현 계획 실행 요청으로 전체 spec 승인 |
 
-명시적인 미정 결정을 구현자가 선택하지 않는다. draft에 대한 수정 요청은 구현 전에 반영하고, 전체 승인 뒤 status=active로 변경한다. 이 초안 작성 요청은 A4–A5나 구현 dispatch의 사전 승인이 아니다.
+명시적인 미정 결정을 구현자가 선택하지 않는다. 사용자 구현 계획 실행 요청은 A4–A5와 구현 dispatch를 포함하는 전체 spec 승인이다.
 
 # Traceability
 
@@ -220,40 +218,72 @@ expectedKind 자체가 잘못된 경우 path=""이다. 동일 위치에서 타�
 | F2 | C1,C4,C5,C7 | V2,V3 | 분량·role fixture |
 | F3 | C1,C3,C7,C9,C10 | V3,V4 | bundle/map fixture |
 | F4,F5 | C2,C3,C8,C9 | V4,V5 | 이력·판정 fixture |
-| F6 | C3,C6–C12 | V5 | 오류·불변 fixture, R1 |
+| F6 | C3,C6–C12 | V5 | 오류·불변 fixture, main 정적 검수 |
 | F7,Q3,Q7,Q8 | C1,C3,C10 | V1,V5,V6 | 명령·round trip·coverage·도메인 결과 |
 | Q1 | C1–C10 | V1–V6 | 자동 결과와 confirming mutations |
-| Q2 | C4,C5 | V2 | 최대 fixture 10회 시간 측정 |
-| Q4,Q5,Q6 | C3,C6–C12 | V5 | code/path·원본 보존·부작용 검사, R1 |
+| Q2 | C4,C5 | V2 | 문서별 약 1MiB fixture 10회 시간 측정 |
+| Q4,Q5,Q6 | C3,C6–C12 | V5 | code/path·원본 보존·부작용 검사, main 정적 검수 |
 
 # Workflow Control
 
 | item | value |
 | --- | --- |
-| correction batches used | 0 |
-| verifier invocations | 0 |
+| correction batches used | 3 |
+| verifier invocations | 1 |
 | open finding ids | none |
-| approval | draft — 전체 spec 승인 전 |
+| approval | approved — 사용자 구현 계획 실행 요청으로 전체 spec 승인 |
 
 Audit state:
 
 | obligation id | spec version | evidence references and revision | accepted / open / invalidated / pending | rationale and mutation outcome | dependencies and reopening evidence |
 | --- | --- | --- | --- | --- | --- |
-| V1 | 1 | none | pending | 구현 전; mutation 미실행 | 공통 구조·fixture |
-| V2 | 1 | none | pending | 구현 전; 시간 측정 미실행 | 제한·시간 규칙·fixture |
-| V3 | 1 | none | pending | 구현 전 | 참조·revision·fixture |
-| V4 | 1 | none | pending | 구현 전; mutation 미실행 | 응답·판정·checkpoint |
-| V5 | 1 | none | pending | 구현 전; 정적 검수 미실행 | 오류·parser·shared helper |
-| V6 | 1 | none | pending | 구현 전; coverage 미측정 | package·runner·전체 fixture |
+| V1 | 4 | tests/fixtures/contracts/manifest.json + Execution ledger 6–8 | accepted | verifier 1 accepted; 3/3 confirming mutations detected; final restored verify passes | v4 계약·테스트 기준의 당시 검증; 문서 정리로 재감사하지 않음 |
+| V2 | 4 | tests/fixtures/contracts/manifest.json + Execution ledger 6–8 | accepted | verifier 1 accepted; 3/3 confirming mutations detected; final restored verify passes | v4 계약·테스트 기준의 당시 검증; 문서 정리로 재감사하지 않음 |
+| V3 | 4 | tests/fixtures/contracts/manifest.json + Execution ledger 6–8 | accepted | verifier 1 accepted; 3/3 confirming mutations detected; final restored verify passes | v4 계약·테스트 기준의 당시 검증; 문서 정리로 재감사하지 않음 |
+| V4 | 4 | tests/fixtures/contracts/manifest.json + Execution ledger 6–8 | accepted | verifier 1 accepted; 3/3 confirming mutations detected; final restored verify passes | v4 계약·테스트 기준의 당시 검증; 문서 정리로 재감사하지 않음 |
+| V5 | 4 | tests/fixtures/contracts/manifest.json + Execution ledger 6–8 | accepted | verifier 1 accepted; 3/3 confirming mutations detected; final restored verify passes | v4 계약·테스트 기준의 당시 검증; 문서 정리로 재감사하지 않음 |
+| V6 | 4 | tests/fixtures/contracts/manifest.json + Execution ledger 6–8 | accepted | verifier 1 accepted; 3/3 confirming mutations detected; final restored verify passes | v4 계약·테스트 기준의 당시 검증; 문서 정리로 재감사하지 않음 |
 
 Execution ledger:
 
 | attempt | finding / failure signature | cause hypothesis | changed approach / new evidence | result / disposition |
 | --- | --- | --- | --- | --- |
 | 1 | none — draft 작성 | 해당 없음 | 승인된 M0 기준과 ROADMAP 의미 규칙으로 T1 초안 작성 | 구현·dispatch·verifier·mutation 없음 |
+| 2 | 전체 spec 승인·lifecycle start | 사용자 실행 요청 | v2 승인, Node 26.8.1/npm 11.19.0 확인; HEAD e611c35049604302fd13bbc2de73d73b9d5a4ace, 기존 base 보존 | start 성공; 병렬 구현·테스트 dispatch |
+
+| 3 | S1: Q2 최대 bundle은 map만 65GB 이상 가능 | parser cap은 raw text에만 적용 | 사용자 승인: 성능 fixture만 문서별 약 1MiB로 한정; 계약 제한 유지 | v3, V2/Q2 선택 범위 명확화 |
+
+| 4 | E1: initial verify 1497 tests, 31 failures, lines 99.53% | snapshot conflict isolation and underspecified mismatch paths | 사용자 승인: 비교 기준·의미 오류 수집·재시도 각 불일치 필드 STATE 명시; tests fixture isolation; main envelope safety correction | v4; V3/V4/V5/V6 재검증 pending |
+
+| 5 | E2: completed v4 oracle verify 1534 tests, 1 fail; lines/functions 100% | broken response concept also violates criterion membership | isolate missing concept reference from assessment membership; check sibling fixtures | V3 fixture correction, expected policy unchanged; rerun pending |
+
+| 6 | E3: 1756/1756 pass, line/function 100%; manifest removal exit 1 | E2 isolated and missing boundary evidence added | valid upper fixtures, pointer escaping, reverse/prediction history, manifest probe; Q2 max 0.929709ms | fresh verifier invocation 1 persisted; all V1–V6 pending independent audit |
+
+| 7 | fresh verifier 1: V1–V6 accepted, no findings | independent E3 audit | strongest version/prediction-prefix/unreviewed mutations accepted violating witness then failed intended assertions; every restore SHA-identical | 3/3 detected; no blocking/advisory/spec challenge |
+| 8 | E4 restored verify 1756/1756, line/function 100%, Q2 max 0.804875ms | final restoration confirmation | unchanged evidence dependencies; E4 adds confirmation only | all obligations accepted; complete, corrections 3, verifier 1/2 |
+
+| 9 | 사용자 요청: 필수 문서만 유지 | 별도 보고서가 spec 이력과 중복 | 별도 검수 문서 요구·참조 삭제; 최소 검수 결과를 이 ledger에 통합 | v5 문서 정리만 수행; 계약·코드·테스트 변경 없음 |
+
+당시 main 정적 검수: 고정 toolchain·외부 의존성 없음 확인. validator의 파일·네트워크·eval 사용 없음, 입력 변경·getter 실행·응답 payload 노출 경로 없음 확인. manifest 누락 probe는 의도한 assertion으로 exit 1; 버전·예측 prefix·미검토 supported 결함 주입은 각각 의도한 assertion으로 검출 후 원본 복원. 이후 변경의 정확성을 보증하는 기록은 아니다.
 
 # Version Log
 
 ## v1
 
 - 승인된 환경·제품 범위를 반영한 T1 계약 검증 초안. 상세 schema·품질 수치·검증 정책은 전체 승인 전 제안이다.
+
+## v2
+
+- 사용자 구현 계획 실행 요청으로 전체 계약·오류 정책·품질 목표 승인. 계약 내용과 run ID, base commit, 검증 카운터 유지; audit state v2 pending.
+
+## v3
+
+- S1 해결: 사용자 승인에 따라 Q2 성능 fixture만 문서별 약 1MiB로 한정. 모든 API의 계약 제한은 유지하며 10회 각 1,000ms 기준 유지.
+
+## v4
+
+- 사용자 예시 승인으로 문서 간 오류 비교 기준·contextKind REFERENCE·모든 적용 의미 오류 수집을 명시. 사용자 선택에 따라 재시도 activityId/conceptId/purpose 각각의 불일치 필드에 STATE를 반환. 초기 실패 증거와 원인·교정 방향 보존.
+
+## v5
+
+- 사용자 요청으로 별도 검수 문서 요구·참조와 상세 절차를 삭제하고, 완료 검증의 최소 결과는 Execution ledger에 통합. 계약·오류 정책·품질 목표·테스트 및 v4의 당시 감사 판정은 유지.
