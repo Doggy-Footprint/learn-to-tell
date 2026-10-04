@@ -6,7 +6,7 @@ Learn to Tell은 함께 작업하는 AI agent가 skill로 제공하는 짧고 �
 목표는 사용자가 적절한 질문을 하고, agent의 도움으로 결정 변수를 선택하며, 그 선택의 의미를 설명할 수 있게 하는 것이다.
 이해 여부를 수행으로 확인하는 장치를 제공하고, 학습 상태를 로컬 personal knowledge map에 기록하며 다음 학습 경로를 제시한다.
 
-<!-- harness:begin 0.15.1 -->
+<!-- harness:begin 0.16.1 -->
 # Documentation Guide
 
 "Documentation" refers to standalone docs, inline comments, and docstrings.
