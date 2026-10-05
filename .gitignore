@@ -5,3 +5,8 @@ agent-docs/specs/.running/
 agent-docs/specs/.seed/
 .harness/sessions/.running/
 .harness/**/__pycache__
+node_modules/
+.build-*/
+dist/
+test-results/
+playwright-report/

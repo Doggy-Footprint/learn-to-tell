@@ -1,0 +1,1706 @@
+[
+  {
+    "id": "V1.cell.empty.setInput",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.empty.applyScenario",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.empty.resetInputs",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.empty.recordPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.empty.skipPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.empty.reveal",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.empty.retryPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.empty.recordFreeResponse",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.empty.openHint",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.empty.setHelp",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.empty.completeLesson",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.recorded.setInput",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.recorded.applyScenario",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.recorded.resetInputs",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.recorded.recordPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.recorded.skipPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.recorded.reveal",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.recorded.retryPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.recorded.recordFreeResponse",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.recorded.openHint",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.recorded.setHelp",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.recorded.completeLesson",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.skipped.setInput",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.skipped.applyScenario",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.skipped.resetInputs",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.skipped.recordPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.skipped.skipPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.skipped.reveal",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.skipped.retryPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.skipped.recordFreeResponse",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.skipped.openHint",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.skipped.setHelp",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.skipped.completeLesson",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.revealed.setInput",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.revealed.applyScenario",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.revealed.resetInputs",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.revealed.recordPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.revealed.skipPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.revealed.reveal",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.revealed.retryPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.revealed.recordFreeResponse",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.revealed.openHint",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.revealed.setHelp",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.revealed.completeLesson",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.retried.setInput",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.retried.applyScenario",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.retried.resetInputs",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.retried.recordPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.retried.skipPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.retried.reveal",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.retried.retryPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.retried.recordFreeResponse",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.retried.openHint",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.retried.setHelp",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.cell.retried.completeLesson",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.empty.unknown-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.empty.null",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.empty.no-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.empty.non-object",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.empty.setHelp-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.empty.openHint-level-4",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.empty.openHint-level-0",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.empty.applyScenario-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.empty.setInput-bad-field",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.empty.freeResponse-bad-kind",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.empty.goToStage-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.recorded.unknown-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.recorded.null",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.recorded.no-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.recorded.non-object",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.recorded.setHelp-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.recorded.openHint-level-4",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.recorded.openHint-level-0",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.recorded.applyScenario-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.recorded.setInput-bad-field",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.recorded.freeResponse-bad-kind",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.recorded.goToStage-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.skipped.unknown-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.skipped.null",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.skipped.no-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.skipped.non-object",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.skipped.setHelp-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.skipped.openHint-level-4",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.skipped.openHint-level-0",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.skipped.applyScenario-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.skipped.setInput-bad-field",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.skipped.freeResponse-bad-kind",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.skipped.goToStage-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.revealed.unknown-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.revealed.null",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.revealed.no-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.revealed.non-object",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.revealed.setHelp-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.revealed.openHint-level-4",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.revealed.openHint-level-0",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.revealed.applyScenario-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.revealed.setInput-bad-field",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.revealed.freeResponse-bad-kind",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.revealed.goToStage-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.retried.unknown-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.retried.null",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.retried.no-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.retried.non-object",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.retried.setHelp-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.retried.openHint-level-4",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.retried.openHint-level-0",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.retried.applyScenario-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.retried.setInput-bad-field",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.retried.freeResponse-bad-kind",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.retried.goToStage-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V2.truePositive.-1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.truePositive.-1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.truePositive.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.truePositive.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.truePositive.1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.falsePositive.-1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.falsePositive.-1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.falsePositive.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.falsePositive.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.falsePositive.1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.falseNegative.-1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.falseNegative.-1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.falseNegative.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.falseNegative.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.falseNegative.1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.trueNegative.-1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.trueNegative.-1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.trueNegative.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.trueNegative.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.trueNegative.1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positiveCount.-1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positiveCount.-1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positiveCount.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positiveCount.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positiveCount.1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positivePredictiveValue.-1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positivePredictiveValue.-1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positivePredictiveValue.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positivePredictiveValue.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positivePredictiveValue.1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.accuracy.-1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.accuracy.-1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.accuracy.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.accuracy.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.accuracy.1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.count.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.count.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.count.6",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.count.7",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.ppv-null.match",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.ppv-null.mismatch-number",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.ppv-null.mismatch-undefined-chosen",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.spec-c4",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.skipped",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V3.partial.supported.none",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.supported.hint",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.supported.agent",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.supported.unknown",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.partial.none",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.partial.hint",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.partial.agent",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.partial.unknown",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.not_demonstrated.none",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.not_demonstrated.hint",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.not_demonstrated.agent",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.not_demonstrated.unknown",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.skipped.none",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.skipped.hint",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.skipped.agent",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.skipped.unknown",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.pending.none",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.pending.hint",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.pending.agent",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.partial.pending.unknown",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.supported.none",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.supported.hint",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.supported.agent",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.supported.unknown",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.partial.none",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.partial.hint",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.partial.agent",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.partial.unknown",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.not_demonstrated.none",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.not_demonstrated.hint",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.not_demonstrated.agent",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.not_demonstrated.unknown",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.skipped.none",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.skipped.hint",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.skipped.agent",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.skipped.unknown",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.pending.none",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.pending.hint",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.pending.agent",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.completed.pending.unknown",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.dim.distinguish-denominators.pending",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.dim.distinguish-denominators.skipped",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.dim.explain-transfer.pending",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.dim.explain-transfer.skipped",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.dim.ask-for-evidence.pending",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.dim.ask-for-evidence.skipped",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.dim.justify-choice.pending",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.dim.justify-choice.skipped",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V4.session.profileId.valid",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.profileId.missing",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.profileId.type",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.profileId.format",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.resultId.valid",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.resultId.missing",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.resultId.type",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.resultId.format",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.baseMapRevision.valid",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.baseMapRevision.missing",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.baseMapRevision.type",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.baseMapRevision.format",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.baseMapRevision.range",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.sequence.valid",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.sequence.missing",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.sequence.type",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.sequence.format",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.sequence.range",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.previousResultId.valid",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.previousResultId.missing",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.previousResultId.type",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.previousResultId.format",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.extra",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.state.sequence1-with-previous",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.state.sequence2-null-previous",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.root.null",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.root.array",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.root.string",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.root.number",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.storage.normal",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.storage.absent",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.storage.corrupt-json",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.storage.schema-version",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.storage.result-mismatch",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.storage.lesson-id-mismatch",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.storage.lesson-revision-mismatch",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.storage.get-throws",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.storage.set-throws",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.no-file",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.bad-json",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.root.null",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.root.array",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.root.string",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.root.number",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.state-sequence1-with-previous",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.state-sequence2-null-previous",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.profileId-missing",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.profileId-type",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.profileId-format",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.resultId-missing",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.resultId-type",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.resultId-format",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.baseMapRevision-missing",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.baseMapRevision-type",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.baseMapRevision-format",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.baseMapRevision-range",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.sequence-missing",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.sequence-type",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.sequence-format",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.sequence-range",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.previousResultId-missing",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.previousResultId-type",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.previousResultId-format",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.extra-extra",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.cli.no-argument",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V1.predictionState.transfer.empty",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.predictionState.transfer.revealed-after-record",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.predictionState.transfer.revealed-after-skip",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.predictionState.transfer.retried",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V3.shape.TYPE",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.shape.REQUIRED",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.shape.UNKNOWN_FIELD",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.shape.VALUE",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.shape.RANGE",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.shape.KIND",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.shape.VERSION",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.shape.STATE",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V4.session.multi.code-then-path",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.multi.same-code-path-order",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V4.session.multi.range-and-required",
+    "obligationId": "V4"
+  },
+  {
+    "id": "V1.transfer.cell.empty.recordPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.empty.skipPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.empty.reveal",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.empty.retryPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.revealed-record.recordPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.revealed-record.skipPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.revealed-record.reveal",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.revealed-record.retryPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.revealed-skip.recordPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.revealed-skip.skipPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.revealed-skip.reveal",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.revealed-skip.retryPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.retried.recordPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.retried.skipPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.retried.reveal",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.cell.retried.retryPrediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.empty.unknown-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.empty.null",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.empty.no-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.empty.non-object",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.empty.setHelp-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.empty.openHint-level-4",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.empty.openHint-level-0",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.empty.applyScenario-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.empty.setInput-bad-field",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.empty.freeResponse-bad-kind",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.empty.goToStage-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-record.unknown-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-record.null",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-record.no-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-record.non-object",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-record.setHelp-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-record.openHint-level-4",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-record.openHint-level-0",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-record.applyScenario-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-record.setInput-bad-field",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-record.freeResponse-bad-kind",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-record.goToStage-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-skip.unknown-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-skip.null",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-skip.no-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-skip.non-object",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-skip.setHelp-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-skip.openHint-level-4",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-skip.openHint-level-0",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-skip.applyScenario-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-skip.setInput-bad-field",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-skip.freeResponse-bad-kind",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-skip.goToStage-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.retried.unknown-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.retried.null",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.retried.no-type",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.retried.non-object",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.retried.setHelp-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.retried.openHint-level-4",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.retried.openHint-level-0",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.retried.applyScenario-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.retried.setInput-bad-field",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.retried.freeResponse-bad-kind",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.retried.goToStage-bogus",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V2.tolerance.positivePredictiveValue.58",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.tolerance.positivePredictiveValue.56",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.tolerance.positivePredictiveValue.58.02",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.tolerance.positivePredictiveValue.55.98",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.tolerance.accuracy.58",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.tolerance.accuracy.56",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.tolerance.accuracy.58.02",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.tolerance.accuracy.55.98",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V1.C8.skip-hint-response-retry",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.C12.revealed-original-immutable",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.initial-context",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.advance.context-to-prediction",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.advance.prediction-blocked-empty",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.advance.prediction-after-record",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.advance.prediction-after-skip",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.advance.simulation-to-assessment",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.advance.assessment-to-return",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.advance.return-to-map",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.goto.reached",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.goto.unreached",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.goto.record-unchanged",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.complete.invalid-before-map",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.complete.valid-at-map",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.complete.repeat-invalid",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.input-actions.invalid-before-simulation",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.transfer-record-reveals",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.stage.transfer-skip-reveals",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.predictionState.baseline.empty",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.predictionState.baseline.recorded",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.predictionState.baseline.skipped",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.predictionState.baseline.revealed",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.predictionState.baseline.retried",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V3.shape.valid",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.session.custom",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.retry.previous-response",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.initial-progress",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.calculation-error",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.help.default-unknown",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.help.hint-raised",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.recorded-at",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.transfer.retry-chain",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V3.transfer.retry-chain-skipped",
+    "obligationId": "V3"
+  },
+  {
+    "id": "V7.format.count",
+    "obligationId": "V7"
+  },
+  {
+    "id": "V7.format.ratio",
+    "obligationId": "V7"
+  },
+  {
+    "id": "V5.S1",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S2",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S3",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S4",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S5",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S6",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S7",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S8",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S2.baseline-a",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S2.ppv-undefined",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S2.skipped-original",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S3.empty",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S3.non-numeric",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S3.reload",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S6.grade-partial",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S6.grade-not-demonstrated",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S6.transfer-retry",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S6.ppv-undefined",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S7.second-session",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S7.help-none",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S7.help-agent",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V5.S7.response-skip",
+    "obligationId": "V5",
+    "layer": "e2e"
+  },
+  {
+    "id": "V8.S9",
+    "obligationId": "V8",
+    "layer": "e2e"
+  },
+  {
+    "id": "V8.S10",
+    "obligationId": "V8",
+    "layer": "e2e"
+  },
+  {
+    "id": "V8.S11",
+    "obligationId": "V8",
+    "layer": "e2e"
+  },
+  {
+    "id": "V8.S12",
+    "obligationId": "V8",
+    "layer": "e2e"
+  },
+  {
+    "id": "V6.axe.before-reveal",
+    "obligationId": "V6",
+    "layer": "e2e"
+  },
+  {
+    "id": "V6.axe.after-reveal",
+    "obligationId": "V6",
+    "layer": "e2e"
+  },
+  {
+    "id": "V6.axe.transfer",
+    "obligationId": "V6",
+    "layer": "e2e"
+  },
+  {
+    "id": "V6.axe.hint-open",
+    "obligationId": "V6",
+    "layer": "e2e"
+  },
+  {
+    "id": "V6.perf",
+    "obligationId": "V6",
+    "layer": "e2e"
+  },
+  {
+    "id": "V6.serve",
+    "obligationId": "V6",
+    "layer": "e2e"
+  }
+]
