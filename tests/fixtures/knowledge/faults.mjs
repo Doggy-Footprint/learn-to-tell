@@ -19,7 +19,7 @@ export function recordingFs() {
 // "open" fails only the map temp (a file beside map.json that is not map.json / map.json.corrupt-*).
 // fail 'corrupt-copy': fails copyFile/open whose destination is map.json.corrupt-*.
 // rmFail(absolutePath): rm/unlink of matching paths fails.
-// readFail(absolutePath): EACCES (not ENOENT) on readFile/open of matching paths.
+// readFail(absolutePath): EACCES (not ENOENT) on readFile/open/readdir of matching paths.
 // afterSync(): runs once, right after the first fsync of a map temp finished (before the generation re-check).
 export function faultFs(home, {fail, afterSync, readFail, rmFail, profileId = PROFILE} = {}) {
   const l = layout(home, profileId);
@@ -44,6 +44,10 @@ export function faultFs(home, {fail, afterSync, readFail, rmFail, profileId = PR
     fs.readFile = async (file, ...rest) => {
       if (typeof file === 'string' && readFail(path.resolve(file))) { events.push('read'); throw readError(file); }
       return real.readFile(file, ...rest);
+    };
+    fs.readdir = async (dir, ...rest) => {
+      if (typeof dir === 'string' && readFail(path.resolve(dir))) { events.push('read'); throw readError(dir); }
+      return real.readdir(dir, ...rest);
     };
   }
   fs.open = async (file, ...rest) => {

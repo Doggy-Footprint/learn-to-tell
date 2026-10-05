@@ -109,14 +109,14 @@ const un = (code, under) => ({code, under});
   parity('missing-dimension', l => { l.rubric.criteria.find(c => c.dimension === 'transfer').dimension = 'concept'; });
   parity('role-mismatch-reference', l => { l.decisions[0].assessmentId = 'diagnostic-cards'; });
   for (const [name, value] of [['zero', 0], ['negative', -1]]) rule(`scale-${name}`, l => { l.outputs[0].scale = value; }, {exact: [ex('RANGE', '/outputs/0/scale')]});
-  rule('duplicate-output', l => l.outputs.push(clone(l.outputs[0])), {has: [un('DUPLICATE', '/outputs')]});
-  rule('duplicate-scenario', l => l.scenarios.push(clone(l.scenarios[0])), {has: [un('DUPLICATE', '/scenarios')]});
+  rule('duplicate-output', l => l.outputs.push(clone(l.outputs[0])), {exact: [ex('DUPLICATE', '/outputs/8/outputId')]});
+  rule('duplicate-scenario', l => l.scenarios.push(clone(l.scenarios[0])), {exact: [ex('DUPLICATE', '/scenarios/3/scenarioId')]});
   rule('scenario-input-unknown', l => { l.scenarios[0].values.push({inputId: 'absent-input', value: 1}); }, {exact: [ex('REFERENCE', '/scenarios/0/values/3/inputId')]});
   rule('scenario-missing-input', l => { l.scenarios[0].values.pop(); }, {exact: [ex('STATE', '/scenarios/0/values')]});
   rule('scenario-duplicate-input', l => { l.scenarios[0].values.push(clone(l.scenarios[0].values[0])); }, {exact: [ex('STATE', '/scenarios/0/values')]});
-  rule('transfer-scenario-unknown', l => { l.transfer.scenarioId = 'absent-scenario'; }, {exact: [un('REFERENCE', '/transfer/scenarioId')]});
+  rule('transfer-scenario-unknown', l => { l.transfer.scenarioId = 'absent-scenario'; }, {exact: [ex('REFERENCE', '/transfer/scenarioId')]});
   rule('tolerance-output-unknown', l => { l.transfer.tolerances.push({outputId: 'absent-output', absolute: 1}); }, {exact: [ex('REFERENCE', '/transfer/tolerances/8/outputId')]});
-  rule('tolerance-duplicate-output', l => l.transfer.tolerances.push(clone(l.transfer.tolerances[0])), {has: [un('DUPLICATE', '/transfer/tolerances')]});
+  rule('tolerance-duplicate-output', l => l.transfer.tolerances.push(clone(l.transfer.tolerances[0])), {exact: [ex('DUPLICATE', '/transfer/tolerances/8/outputId')]});
   rule('tolerance-missing-output', l => { l.transfer.tolerances.pop(); }, {exact: [ex('STATE', '/transfer/tolerances')]});
 }
 
@@ -131,7 +131,7 @@ const un = (code, under) => ({code, under});
   add('V3.null.nullable-null', ['V3.null.nullable-null'], 'oracleBinding', setExpected('positive-predictive-value', null), good);
   add('V3.null.nullable-value', ['V3.null.nullable-value'], 'oracleBinding', setExpected('positive-predictive-value', 0.5), good);
   add('V3.null.strict-value', ['V3.null.strict-value'], 'oracleBinding', setExpected('accuracy', 0.5), good);
-  add('V3.null.strict-null', ['V3.null.strict-null'], 'oracleBinding', setExpected('accuracy', null), {exact: [un('STATE', `/cases/0`)]});
+  add('V3.null.strict-null', ['V3.null.strict-null'], 'oracleBinding', setExpected('accuracy', null), {exact: [un('STATE', '/cases/0/expected/7/value')]});
   add('V3.null.strict-null.document-level-ok', ['V3.null.strict-null'], 'oracle', () => ({input: setExpected('accuracy', null)().oracle}), good);
   mxInputIds.forEach((inputId, k) => {
     for (const [bound, value] of [['min', 0], ['max', 100]]) {
@@ -140,14 +140,15 @@ const un = (code, under) => ({code, under});
     }
   });
   add('V3.f4.absolute-negative', ['V3.f4.absolute-negative'], 'oracle', () => { const o = mxOracle(); o.cases[0].absolute = -EPS; return {input: o}; }, {exact: [ex('RANGE', '/cases/0/absolute')]});
+  add('V3.f4.absolute-negative.last-case', ['V3.f4.absolute-negative'], 'oracle', () => { const o = mxOracle(); const last = o.cases.length - 1; o.cases[last].absolute = -EPS; return {input: o}; }, {exact: [ex('RANGE', `/cases/${mxOracle().cases.length - 1}/absolute`)]});
   const ref = (name, mutate, expect) => add(`V3.ref.${name}`, [`V3.ref.${name}`], 'oracleBinding', () => { const o = mxOracle(); mutate(o); return ob(o); }, expect);
   ref('modelId', o => { o.modelId = 'other-model'; }, {exact: [ex('REFERENCE', '/oracle/modelId')]});
   ref('modelRevision', o => { o.modelRevision = 2; }, {exact: [ex('REVISION', '/oracle/modelRevision')]});
-  ref('inputId', o => { o.cases[0].values[0].inputId = 'absent-input'; }, {has: [un('REFERENCE', '/cases/0/values/0')]});
-  ref('outputId', o => { o.cases[0].expected[0].outputId = 'absent-output'; }, {has: [un('REFERENCE', '/cases/0/expected/0')]});
-  ref('range', o => { o.cases[0].values[0].value = 100 + EPS; }, {has: [un('RANGE', '/cases/0/values/0')]});
+  ref('inputId', o => { o.cases[0].values[0].inputId = 'absent-input'; }, {has: [un('REFERENCE', '/cases/0/values/0/inputId')]});
+  ref('outputId', o => { o.cases[0].expected[0].outputId = 'absent-output'; }, {has: [un('REFERENCE', '/cases/0/expected/0/outputId')]});
+  ref('range', o => { o.cases[0].values[0].value = 100 + EPS; }, {exact: [un('RANGE', '/cases/0/values/0/value')]});
   const f4 = (name, surface, mutate, expect) => add(`V3.f4.${name}`, [`V3.f4.${name}`], surface, () => { const o = mxOracle(); mutate(o); return surface === 'oracle' ? {input: o} : ob(o); }, expect);
-  f4('duplicate-caseId', 'oracle', o => { o.cases[1].caseId = o.cases[0].caseId; }, {has: [un('DUPLICATE', '/cases')]});
+  f4('duplicate-caseId', 'oracle', o => { o.cases[1].caseId = o.cases[0].caseId; }, {exact: [ex('DUPLICATE', '/cases/1/caseId')]});
   f4('case-duplicate-input', 'oracle', o => { o.cases[0].values.push(clone(o.cases[0].values[0])); }, {exact: [ex('STATE', '/cases/0/values')]});
   f4('case-duplicate-output', 'oracle', o => { o.cases[0].expected.push(clone(o.cases[0].expected[0])); }, {exact: [ex('STATE', '/cases/0/expected')]});
   f4('case-missing-input.document-ok', 'oracle', o => { o.cases[0].values.pop(); }, good);

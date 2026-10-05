@@ -1026,6 +1026,16 @@ test('[V5.read-error backup EACCES] restore preview returns IO', async t => {
   assert.equal(out.code, 'IO');
   assert.deepEqual(await snapshot(w.home), before);
 });
+test('[V5.read-error backups dir EACCES] restore preview returns IO', async t => {
+  const w = await restoreWorld(t, 'normal', 'valid');
+  const before = await snapshot(w.home);
+  const {fs, events} = faultFs(w.home, {readFail: p => p === layout(w.home).backups});
+  const out = note('V5.read-error-backups-dir', await planRestore(PROFILE, {fs, home: w.home}));
+  assert.ok(events.includes('read'));
+  assert.equal(out.ok, false);
+  assert.equal(out.code, 'IO');
+  assert.deepEqual(await snapshot(w.home), before);
+});
 
 // ---------- readMap observation (support for V5-V9 reading) ----------
 test('[V9.readMap-statuses] absent / ok / unreadable reasons JSON, WRAPPER, CONTRACT', async t => {
