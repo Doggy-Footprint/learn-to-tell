@@ -85,7 +85,7 @@ test('[V5.S1] keyboard-only full flow across stages (C3) then download is a vali
   for (const c of ['explain-transfer', 'ask-for-evidence', 'justify-choice', 'distinguish-denominators']) expect(result.assessments.find(a => a.criterionId === c)).toMatchObject({status: 'pending', reviewer: 'unreviewed'});
 });
 
-test('[V5.S7] partial and completed downloads validate against the T1 result contract (C13)', async ({page}) => {
+test('[V5.S7][CH-V7.partial][CH-V7.completed] partial and completed downloads are version 2 with a matching contentHash and validate against the T1 result contract (C13, C12)', async ({page}) => {
   await toPrediction(page);
   await fillPrediction(page, 'prediction', BASELINE_PRED);
   await tid(page, 'prediction-record').click();
@@ -150,4 +150,20 @@ test('[V5.S7.response-skip] response-skip-question/choice/apply produce skipped 
   const result = await exportResult(page);
   assertResultDocument(result, 'completed');
   for (const c of ['explain-transfer', 'ask-for-evidence', 'justify-choice', 'distinguish-denominators', 'calculate-transfer']) expect(result.assessments.find(a => a.criterionId === c), c).toMatchObject({status: 'skipped'});
+});
+
+test('[CH-V11] crypto.subtle.digest failure shows export-error and starts no download', async ({page}) => {
+  await page.addInitScript(() => { crypto.subtle.digest = () => Promise.reject(new Error('digest unavailable')); });
+  await toPrediction(page);
+  await fillPrediction(page, 'prediction', BASELINE_PRED);
+  await tid(page, 'prediction-record').click();
+  await (await show(page, 'complete-lesson')).click();
+  let downloads = 0;
+  page.on('download', () => { downloads++; });
+  await show(page, 'export-result');
+  await tid(page, 'export-result').click();
+  await expect(tid(page, 'export-error')).toBeVisible();
+  expect(((await tid(page, 'export-error').textContent()) ?? '').trim().length).toBeGreaterThan(0);
+  await page.waitForTimeout(1500);
+  expect(downloads).toBe(0);
 });

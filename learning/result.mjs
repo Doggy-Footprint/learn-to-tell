@@ -1,3 +1,4 @@
+import {computeContentHash} from '../contracts/content-hash.mjs';
 import {definitions} from '../contracts/definitions.mjs';
 import {inspectionAssessmentGuide} from '../examples/manufacturing-inspection/assessment-guide.mjs';
 import {PREDICTION_FIELDS, RATIO_FIELDS, gradeTransferPrediction} from './grading.mjs';
@@ -102,7 +103,7 @@ export function buildResult(progress, lesson, session, now) {
 
   return {
     kind: 'result',
-    version: 1,
+    version: 2,
     resultId: session.resultId,
     profileId: session.profileId,
     lessonId: lesson.lessonId,
@@ -116,7 +117,12 @@ export function buildResult(progress, lesson, session, now) {
   };
 }
 
+export async function finalizeResult(document) {
+  return {...document, contentHash: await computeContentHash(document)};
+}
+
 const idPattern = /^[a-z][a-z0-9-]{0,63}$/;
+const contentHashPattern = /^sha256-[0-9a-f]{64}$/;
 const timestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
 function walk(value, definition, path, errors) {
@@ -137,13 +143,14 @@ function walk(value, definition, path, errors) {
   } else if (definition.kind) {
     if (value !== definition.kind) add('KIND');
   } else if (definition.version) {
-    if (value !== 1) add('VERSION');
+    if (value !== definition.version) add('VERSION');
   } else if (definition.format === 'integer') {
     if (!Number.isSafeInteger(value)) add('VALUE');
     else if (value < 1) add('RANGE');
   } else if (type === 'string') {
     const valid = definition.format === 'id' ? idPattern.test(value)
       : definition.format === 'timestamp' ? timestampPattern.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value
+      : definition.format === 'content-hash' ? contentHashPattern.test(value)
       : definition.values ? definition.values.includes(value) : value.trim().length > 0;
     if (!valid) add('VALUE');
   } else if (definition.positive && value <= 0) add('RANGE');

@@ -1,6 +1,7 @@
 import {expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import {validateDocument} from '../../contracts/index.mjs';
+import {oracleHash, HASH_FORMAT} from '../fixtures/contracts/hash-oracle.mjs';
 import {session, lesson, FIELDS} from '../fixtures/learning/shapes.mjs';
 import {crossCheckResult, oracleDisplay} from '../fixtures/learning/oracle.mjs';
 
@@ -86,6 +87,9 @@ export async function expectTokens(page, id, tokens, {absent = []} = {}) {
   for (const a of absent) expect(found).not.toContain(a);
 }
 export function assertResultDocument(result, state, s = session) {
+  expect(result.version).toBe(2);
+  expect(result.contentHash).toMatch(HASH_FORMAT);
+  expect(result.contentHash, 'browser Web Crypto hash equals the node:crypto oracle').toBe(oracleHash(result));
   expect(validateDocument(result, 'result')).toEqual({ok: true, errors: []});
   expect(crossCheckResult(result, lesson)).toEqual([]);
   expect(result.state).toBe(state);

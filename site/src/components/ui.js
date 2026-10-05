@@ -3,7 +3,7 @@ import {inspectionLesson, inspectionScenarios} from '../examples/manufacturing-i
 import {inspectionAssessmentGuide} from '../examples/manufacturing-inspection/assessment-guide.mjs';
 import {applyAction, DEFAULT_INPUTS, FREE_KINDS, HELP_LEVELS, INPUT_FIELDS, STAGES, predictionState} from '../learning/progress.mjs';
 import {COUNT_FIELDS, PREDICTION_FIELDS, gradeTransferPrediction} from '../learning/grading.mjs';
-import {buildResult, validateResultShape} from '../learning/result.mjs';
+import {buildResult, finalizeResult, validateResultShape} from '../learning/result.mjs';
 import {loadProgress, saveProgress, storageKey} from '../learning/storage.mjs';
 import {formatCount, formatRatio} from '../learning/format.mjs';
 import {h, replaceChildren} from './dom.js';
@@ -383,11 +383,11 @@ export function mount(session) {
     resetButton.focus();
   }
 
-  const exportResult = () => {
+  const exportResult = async () => {
     state.exportError = null;
     let document_;
     try {
-      document_ = buildResult(state.progress, inspectionLesson, session, new Date());
+      document_ = await finalizeResult(buildResult(state.progress, inspectionLesson, session, new Date()));
     } catch (error) {
       state.exportError = String(error.message);
     }

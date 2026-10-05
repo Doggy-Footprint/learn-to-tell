@@ -5665,10 +5665,10 @@
     }
   },
   {
-    "id": "V1.result.version-2..version",
+    "id": "V1.result.version-1..version",
     "obligationId": "V1",
     "caseId": "C6",
-    "inputFixture": "cases.mjs#V1.result.version-2..version",
+    "inputFixture": "cases.mjs#V1.result.version-1..version",
     "expected": {
       "ok": false,
       "errors": [
@@ -5810,6 +5810,36 @@
         {
           "code": "VALUE",
           "path": "/resultId"
+        }
+      ]
+    }
+  },
+  {
+    "id": "V1.result.missing..contentHash",
+    "obligationId": "V1",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#V1.result.missing..contentHash",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "REQUIRED",
+          "path": "/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "V1.result.wrong-type..contentHash",
+    "obligationId": "V1",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#V1.result.wrong-type..contentHash",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "TYPE",
+          "path": "/contentHash"
         }
       ]
     }
@@ -8350,10 +8380,10 @@
     }
   },
   {
-    "id": "V1.map.version-2..version",
+    "id": "V1.map.version-1..version",
     "obligationId": "V1",
     "caseId": "C6",
-    "inputFixture": "cases.mjs#V1.map.version-2..version",
+    "inputFixture": "cases.mjs#V1.map.version-1..version",
     "expected": {
       "ok": false,
       "errors": [
@@ -12850,10 +12880,10 @@
     }
   },
   {
-    "id": "V1.map.version-2..results.0.version",
+    "id": "V1.map.version-1..results.0.version",
     "obligationId": "V1",
     "caseId": "C6",
-    "inputFixture": "cases.mjs#V1.map.version-2..results.0.version",
+    "inputFixture": "cases.mjs#V1.map.version-1..results.0.version",
     "expected": {
       "ok": false,
       "errors": [
@@ -12995,6 +13025,36 @@
         {
           "code": "VALUE",
           "path": "/results/0/resultId"
+        }
+      ]
+    }
+  },
+  {
+    "id": "V1.map.missing..results.0.contentHash",
+    "obligationId": "V1",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#V1.map.missing..results.0.contentHash",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "REQUIRED",
+          "path": "/results/0/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "V1.map.wrong-type..results.0.contentHash",
+    "obligationId": "V1",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#V1.map.wrong-type..results.0.contentHash",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "TYPE",
+          "path": "/results/0/contentHash"
         }
       ]
     }
@@ -19162,7 +19222,8 @@
     "inputFixture": "cases.mjs#V4.same-id.same",
     "expected": {
       "ok": true,
-      "errors": []
+      "errors": [],
+      "duplicateOf": "result-a"
     }
   },
   {
@@ -42041,7 +42102,8 @@
     "inputFixture": "cases.mjs#V2.performance",
     "expected": {
       "ok": true,
-      "errors": []
+      "errors": [],
+      "duplicateOf": "result-a"
     }
   },
   {
@@ -42070,6 +42132,696 @@
         {
           "code": "TYPE",
           "path": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V1.version.diagnostic.0",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.diagnostic.0",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VERSION",
+          "path": "/version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V1.version.diagnostic.1",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.diagnostic.1",
+    "expected": {
+      "ok": true,
+      "errors": []
+    }
+  },
+  {
+    "id": "CH-V1.version.diagnostic.1.5",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.diagnostic.1.5",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VERSION",
+          "path": "/version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V1.version.diagnostic.2",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.diagnostic.2",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VERSION",
+          "path": "/version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V1.version.lesson.0",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.lesson.0",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VERSION",
+          "path": "/version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V1.version.lesson.1",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.lesson.1",
+    "expected": {
+      "ok": true,
+      "errors": []
+    }
+  },
+  {
+    "id": "CH-V1.version.lesson.1.5",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.lesson.1.5",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VERSION",
+          "path": "/version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V1.version.lesson.2",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.lesson.2",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VERSION",
+          "path": "/version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V1.version.result.0",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.result.0",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VERSION",
+          "path": "/version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V1.version.result.1",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.result.1",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VERSION",
+          "path": "/version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V1.version.result.1.5",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.result.1.5",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VERSION",
+          "path": "/version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V1.version.result.2",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.result.2",
+    "expected": {
+      "ok": true,
+      "errors": []
+    }
+  },
+  {
+    "id": "CH-V1.version.map.0",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.map.0",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VERSION",
+          "path": "/version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V1.version.map.1",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.map.1",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VERSION",
+          "path": "/version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V1.version.map.1.5",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.map.1.5",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VERSION",
+          "path": "/version"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V1.version.map.2",
+    "obligationId": "CH-V1",
+    "caseId": "C7",
+    "inputFixture": "cases.mjs#CH-V1.version.map.2",
+    "expected": {
+      "ok": true,
+      "errors": []
+    }
+  },
+  {
+    "id": "CH-V2.valid",
+    "obligationId": "CH-V2",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#CH-V2.valid",
+    "expected": {
+      "ok": true,
+      "errors": []
+    }
+  },
+  {
+    "id": "CH-V2.no-prefix",
+    "obligationId": "CH-V2",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#CH-V2.no-prefix",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VALUE",
+          "path": "/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V2.sha1-prefix",
+    "obligationId": "CH-V2",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#CH-V2.sha1-prefix",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VALUE",
+          "path": "/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V2.uppercase-hex",
+    "obligationId": "CH-V2",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#CH-V2.uppercase-hex",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VALUE",
+          "path": "/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V2.length-63",
+    "obligationId": "CH-V2",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#CH-V2.length-63",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VALUE",
+          "path": "/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V2.length-65",
+    "obligationId": "CH-V2",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#CH-V2.length-65",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VALUE",
+          "path": "/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V2.non-hex-char",
+    "obligationId": "CH-V2",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#CH-V2.non-hex-char",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VALUE",
+          "path": "/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V2.non-string-number",
+    "obligationId": "CH-V2",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#CH-V2.non-string-number",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "TYPE",
+          "path": "/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V2.non-string-null",
+    "obligationId": "CH-V2",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#CH-V2.non-string-null",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "TYPE",
+          "path": "/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V2.missing",
+    "obligationId": "CH-V2",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#CH-V2.missing",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "REQUIRED",
+          "path": "/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.result.scalar",
+    "obligationId": "CH-V4",
+    "caseId": "C4",
+    "inputFixture": "cases.mjs#CH-V4.result.scalar",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.map-results-1.scalar",
+    "obligationId": "CH-V4",
+    "caseId": "C5",
+    "inputFixture": "cases.mjs#CH-V4.map-results-1.scalar",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/results/1/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.bundle-result.scalar",
+    "obligationId": "CH-V4",
+    "caseId": "C4",
+    "inputFixture": "cases.mjs#CH-V4.bundle-result.scalar",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/result/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.bundle-previousResult.scalar",
+    "obligationId": "CH-V4",
+    "caseId": "C4",
+    "inputFixture": "cases.mjs#CH-V4.bundle-previousResult.scalar",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/previousResult/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.bundle-map-results-0.scalar",
+    "obligationId": "CH-V4",
+    "caseId": "C5",
+    "inputFixture": "cases.mjs#CH-V4.bundle-map-results-0.scalar",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/map/results/0/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.result.response",
+    "obligationId": "CH-V4",
+    "caseId": "C4",
+    "inputFixture": "cases.mjs#CH-V4.result.response",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.map-results-1.response",
+    "obligationId": "CH-V4",
+    "caseId": "C5",
+    "inputFixture": "cases.mjs#CH-V4.map-results-1.response",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/results/1/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.bundle-result.response",
+    "obligationId": "CH-V4",
+    "caseId": "C4",
+    "inputFixture": "cases.mjs#CH-V4.bundle-result.response",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/result/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.bundle-previousResult.response",
+    "obligationId": "CH-V4",
+    "caseId": "C4",
+    "inputFixture": "cases.mjs#CH-V4.bundle-previousResult.response",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/previousResult/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.bundle-map-results-0.response",
+    "obligationId": "CH-V4",
+    "caseId": "C5",
+    "inputFixture": "cases.mjs#CH-V4.bundle-map-results-0.response",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/map/results/0/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.result.assessment",
+    "obligationId": "CH-V4",
+    "caseId": "C4",
+    "inputFixture": "cases.mjs#CH-V4.result.assessment",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.map-results-1.assessment",
+    "obligationId": "CH-V4",
+    "caseId": "C5",
+    "inputFixture": "cases.mjs#CH-V4.map-results-1.assessment",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/results/1/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.bundle-result.assessment",
+    "obligationId": "CH-V4",
+    "caseId": "C4",
+    "inputFixture": "cases.mjs#CH-V4.bundle-result.assessment",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/result/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.bundle-previousResult.assessment",
+    "obligationId": "CH-V4",
+    "caseId": "C4",
+    "inputFixture": "cases.mjs#CH-V4.bundle-previousResult.assessment",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/previousResult/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V4.bundle-map-results-0.assessment",
+    "obligationId": "CH-V4",
+    "caseId": "C5",
+    "inputFixture": "cases.mjs#CH-V4.bundle-map-results-0.assessment",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "HASH",
+          "path": "/map/results/0/contentHash"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V5.same-id-same-content",
+    "obligationId": "CH-V5",
+    "caseId": "C3",
+    "inputFixture": "cases.mjs#CH-V5.same-id-same-content",
+    "expected": {
+      "ok": true,
+      "errors": [],
+      "duplicateOf": "result-a"
+    }
+  },
+  {
+    "id": "CH-V5.same-id-different-content",
+    "obligationId": "CH-V5",
+    "caseId": "C8",
+    "inputFixture": "cases.mjs#CH-V5.same-id-different-content",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "CONFLICT",
+          "path": "/result/resultId"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V5.different-id-same-hash",
+    "obligationId": "CH-V5",
+    "caseId": "C2",
+    "inputFixture": "cases.mjs#CH-V5.different-id-same-hash",
+    "expected": {
+      "ok": true,
+      "errors": [],
+      "duplicateOf": "result-a"
+    }
+  },
+  {
+    "id": "CH-V5.different-id-different-hash",
+    "obligationId": "CH-V5",
+    "caseId": "C2",
+    "inputFixture": "cases.mjs#CH-V5.different-id-different-hash",
+    "expected": {
+      "ok": true,
+      "errors": []
+    }
+  },
+  {
+    "id": "CH-V5.duplicate-plus-other-error",
+    "obligationId": "CH-V5",
+    "caseId": "C11",
+    "inputFixture": "cases.mjs#CH-V5.duplicate-plus-other-error",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "PROFILE",
+          "path": "/lesson/profileId"
+        },
+        {
+          "code": "PROFILE",
+          "path": "/map/profileId"
+        },
+        {
+          "code": "PROFILE",
+          "path": "/result/profileId"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V5.structural-error-with-stale-hash.bundle",
+    "obligationId": "CH-V5",
+    "caseId": "C11",
+    "inputFixture": "cases.mjs#CH-V5.structural-error-with-stale-hash.bundle",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "UNKNOWN_FIELD",
+          "path": "/result/extra"
+        }
+      ]
+    }
+  },
+  {
+    "id": "CH-V5.structural-error-with-stale-hash.document",
+    "obligationId": "CH-V5",
+    "caseId": "C11",
+    "inputFixture": "cases.mjs#CH-V5.structural-error-with-stale-hash.document",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "UNKNOWN_FIELD",
+          "path": "/extra"
         }
       ]
     }

@@ -58,7 +58,7 @@ try {
   cpSync(join(root, 'learning'), join(src, 'learning'), {recursive: true});
   cpSync(join(root, 'examples', 'manufacturing-inspection'), join(src, 'examples', 'manufacturing-inspection'), {recursive: true});
   mkdirSync(join(src, 'contracts'));
-  cpSync(join(root, 'contracts', 'definitions.mjs'), join(src, 'contracts', 'definitions.mjs'));
+  for (const file of ['definitions.mjs', 'content-hash.mjs']) cpSync(join(root, 'contracts', file), join(src, 'contracts', file));
   asJs(src);
   cpSync(join(root, 'observablehq.config.js'), join(work, 'observablehq.config.js'));
   writeFileSync(join(src, 'session.js'), `export default ${JSON.stringify(checked.value)};\n`);

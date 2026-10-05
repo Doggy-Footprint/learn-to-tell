@@ -1544,6 +1544,34 @@
     "obligationId": "V7"
   },
   {
+    "id": "CH-V8.valid",
+    "obligationId": "CH-V8"
+  },
+  {
+    "id": "CH-V8.version-1",
+    "obligationId": "CH-V8"
+  },
+  {
+    "id": "CH-V8.hash-missing",
+    "obligationId": "CH-V8"
+  },
+  {
+    "id": "CH-V8.hash-format",
+    "obligationId": "CH-V8"
+  },
+  {
+    "id": "CH-V8.hash-not-recomputed",
+    "obligationId": "CH-V8"
+  },
+  {
+    "id": "CH-V10.build-result-v2",
+    "obligationId": "CH-V10"
+  },
+  {
+    "id": "CH-V10.finalize-result",
+    "obligationId": "CH-V10"
+  },
+  {
     "id": "V5.S1",
     "obligationId": "V5",
     "layer": "e2e"
@@ -1701,6 +1729,21 @@
   {
     "id": "V6.serve",
     "obligationId": "V6",
+    "layer": "e2e"
+  },
+  {
+    "id": "CH-V7.partial",
+    "obligationId": "CH-V7",
+    "layer": "e2e"
+  },
+  {
+    "id": "CH-V7.completed",
+    "obligationId": "CH-V7",
+    "layer": "e2e"
+  },
+  {
+    "id": "CH-V11",
+    "obligationId": "CH-V11",
     "layer": "e2e"
   }
 ]

@@ -56,7 +56,7 @@ export const V1_TRANSFER_STATES = [
 export const V3_SHAPE = [
   ['TYPE', '/responses', r => { r.responses = 'x'; }], ['REQUIRED', '/state', r => { delete r.state; }], ['UNKNOWN_FIELD', '/extra', r => { r.extra = 1; }],
   ['VALUE', '/resultId', r => { r.resultId = 'Bad Id'; }], ['RANGE', '/sequence', r => { r.sequence = 0; }], ['KIND', '/kind', r => { r.kind = 'map'; }],
-  ['VERSION', '/version', r => { r.version = 2; }], ['STATE', '/previousResultId', r => { r.sequence = 2; r.previousResultId = null; }],
+  ['VERSION', '/version', r => { r.version = 1; }], ['STATE', '/previousResultId', r => { r.sequence = 2; r.previousResultId = null; }],
 ].map(([code, path, mutate]) => ({id: `V3.shape.${code}`, code, path, mutate}));
 // ---- V1 on the transfer target (record/skip proceed straight to revealed)
 export const TR_STATES = ['empty', 'revealed-record', 'revealed-skip', 'retried'];
@@ -102,6 +102,7 @@ export const V2_TOL = [];
 for (const field of ['positivePredictiveValue', 'accuracy']) for (const [p, ok] of [[58, true], [56, true], [58.02, false], [55.98, false]]) V2_TOL.push({id: `V2.tolerance.${field}.${p}`, prediction: {...EB_PRED, positivePredictiveValue: 57, accuracy: 57, [field]: p}, expected: EC, status: ok ? 'supported' : 'partial', mismatched: ok ? [] : [field]});
 
 // ---- V3
+export const CH_ITEMS = ['CH-V8.valid', 'CH-V8.version-1', 'CH-V8.hash-missing', 'CH-V8.hash-format', 'CH-V8.hash-not-recomputed', 'CH-V10.build-result-v2', 'CH-V10.finalize-result'];
 export const V3_STATES = ['partial', 'completed'];
 export const V3_PRED = ['supported', 'partial', 'not_demonstrated', 'skipped', 'pending'];
 export const V3_HELP = ['none', 'hint', 'agent', 'unknown'];
@@ -179,7 +180,7 @@ V4_CLI.push({id: 'V4.cli.no-argument', ref: 'no-argument'});
 export const V4_FORMAT = ['V7.format.count', 'V7.format.ratio'];
 
 // ---- E2E items (titles carry `[id]`; node test checks the spec sources mention each prefix)
-export const E2E_ITEMS = ['V5.S1', 'V5.S2', 'V5.S3', 'V5.S4', 'V5.S5', 'V5.S6', 'V5.S7', 'V5.S8', 'V5.S2.baseline-a', 'V5.S2.ppv-undefined', 'V5.S2.skipped-original', 'V5.S3.empty', 'V5.S3.non-numeric', 'V5.S3.reload', 'V5.S6.grade-partial', 'V5.S6.grade-not-demonstrated', 'V5.S6.transfer-retry', 'V5.S6.ppv-undefined', 'V5.S7.second-session', 'V5.S7.help-none', 'V5.S7.help-agent', 'V5.S7.response-skip', 'V8.S9', 'V8.S10', 'V8.S11', 'V8.S12', 'V6.axe.before-reveal', 'V6.axe.after-reveal', 'V6.axe.transfer', 'V6.axe.hint-open', 'V6.perf', 'V6.serve'];
+export const E2E_ITEMS = ['V5.S1', 'V5.S2', 'V5.S3', 'V5.S4', 'V5.S5', 'V5.S6', 'V5.S7', 'V5.S8', 'V5.S2.baseline-a', 'V5.S2.ppv-undefined', 'V5.S2.skipped-original', 'V5.S3.empty', 'V5.S3.non-numeric', 'V5.S3.reload', 'V5.S6.grade-partial', 'V5.S6.grade-not-demonstrated', 'V5.S6.transfer-retry', 'V5.S6.ppv-undefined', 'V5.S7.second-session', 'V5.S7.help-none', 'V5.S7.help-agent', 'V5.S7.response-skip', 'V8.S9', 'V8.S10', 'V8.S11', 'V8.S12', 'V6.axe.before-reveal', 'V6.axe.after-reveal', 'V6.axe.transfer', 'V6.axe.hint-open', 'V6.perf', 'V6.serve', 'CH-V7.partial', 'CH-V7.completed', 'CH-V11'];
 export const C6_VALUES = [-0.01, 0, 0.01, 99.99, 100, 100.01];
 export const C6_INPUTS = ['defect', 'detection', 'false-positive'];
 export {FIELDS, COUNT_FIELDS, RATIO_FIELDS};

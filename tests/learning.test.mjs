@@ -10,7 +10,9 @@ import {validateDocument} from '../contracts/index.mjs';
 import {validateSessionConfig} from '../learning/session-config.mjs';
 import {initialProgress, applyAction, predictionState} from '../learning/progress.mjs';
 import {gradeTransferPrediction} from '../learning/grading.mjs';
-import {buildResult, validateResultShape} from '../learning/result.mjs';
+import {buildResult, validateResultShape, finalizeResult} from '../learning/result.mjs';
+import {computeContentHash} from '../contracts/content-hash.mjs';
+import {oracleHash, withHash, reseal, HASH_FORMAT} from './fixtures/contracts/hash-oracle.mjs';
 import {loadProgress, saveProgress} from '../learning/storage.mjs';
 import {formatCount, formatRatio} from '../learning/format.mjs';
 import {session, lesson, NOW, FIELDS, STAGES, act, reach, storageKey, predC4, baselinePrediction, retryPrediction} from './fixtures/learning/shapes.mjs';
@@ -36,7 +38,8 @@ function play(actions, start = initialProgress(session)) {
   }
   return progress;
 }
-const resultOf = (progress, s = session) => buildResult(progress, lesson, s, NOW);
+// buildResult returns the hash-less v2 body; the independent oracle seals it so existing assertions keep validating against T1.
+const resultOf = (progress, s = session) => withHash(buildResult(progress, lesson, s, NOW));
 function predSig(result) {
   const ps = result.responses.filter(r => r.purpose === 'prediction');
   return ps.map(r => ({attempt: r.attempt, answerNull: r.answer === null, visibility: r.visibility, prev: r.previousResponseId === null ? null : ps.findIndex(x => x.responseId === r.previousResponseId)}));
@@ -177,7 +180,7 @@ test('V3.shape.valid [spec v5] validateResultShape accepts a real result', () =>
   done('V3.shape.valid');
 });
 for (const v of C.V3_SHAPE) test(`${v.id} [spec v5] ${v.code} ${v.path}`, () => {
-  const r = validResult(); v.mutate(r);
+  const r = validResult(); v.mutate(r); reseal(r);
   const got = validateResultShape(r);
   assert.equal(got.ok, false); wellFormedErrors(got);
   assert.ok(got.errors.some(e => e.code === v.code && e.path === v.path), JSON.stringify(got.errors));
@@ -189,6 +192,61 @@ for (const m of C.V4_MULTI) test(`${m.id} [spec v5] errors ordered by code then 
   assert.equal(r.ok, false); wellFormedErrors(r);
   assert.deepEqual(r.errors, m.errors);
   done(m.id);
+});
+
+// ================= content-hash spec v1: V8 validateResultShape, V10 build/finalize signature checks =================
+const sealedResult = () => validResult();
+const shapeErrors = r => { const got = validateResultShape(deepFreeze(r)); return got; };
+test('CH-V8.valid [V8/C1] a sealed v2 result is accepted', () => {
+  const r = sealedResult();
+  assert.equal(r.version, 2);
+  assert.match(r.contentHash, HASH_FORMAT);
+  assert.deepEqual(shapeErrors(r), {ok: true, errors: []});
+  done('CH-V8.valid');
+});
+test('CH-V8.version-1 [V8/C7] version 1 is rejected as VERSION /version', () => {
+  const r = sealedResult(); r.version = 1; reseal(r);
+  assert.deepEqual(shapeErrors(r), {ok: false, errors: [{code: 'VERSION', path: '/version'}]});
+  done('CH-V8.version-1');
+});
+test('CH-V8.hash-missing [V8/C6] missing contentHash is REQUIRED /contentHash', () => {
+  const r = sealedResult(); delete r.contentHash;
+  assert.deepEqual(shapeErrors(r), {ok: false, errors: [{code: 'REQUIRED', path: '/contentHash'}]});
+  done('CH-V8.hash-missing');
+});
+test('CH-V8.hash-format [V8/C6] malformed contentHash is VALUE /contentHash', () => {
+  const hex = sealedResult().contentHash.slice(7);
+  for (const bad of [hex, `sha1-${hex}`, `sha256-${hex.toUpperCase()}`, `sha256-${hex.slice(1)}`, `sha256-${hex}0`, `sha256-g${hex.slice(1)}`]) {
+    const r = sealedResult(); r.contentHash = bad;
+    assert.deepEqual(shapeErrors(r), {ok: false, errors: [{code: 'VALUE', path: '/contentHash'}]}, bad);
+  }
+  done('CH-V8.hash-format');
+});
+// Signature property (spec Signatures: "hash 재계산은 하지 않는다"), not one of the four V8 coverage items.
+test('CH-V8.hash-not-recomputed [Signatures] a well-formed but stale hash is accepted by the synchronous shape check', () => {
+  const r = sealedResult(); r.responses[0].answer = 'tampered';
+  assert.deepEqual(shapeErrors(r), {ok: true, errors: []});
+  done('CH-V8.hash-not-recomputed');
+});
+// Signature checks supporting F10; not tied to a V-number.
+test('CH-V10.build-result-v2 [Signatures] buildResult returns the v2 body without contentHash', () => {
+  const r = buildResult(play(C.v3Actions('supported', 'none', 'completed')), lesson, session, NOW);
+  assert.equal(r.version, 2);
+  assert.equal(Object.hasOwn(r, 'contentHash'), false);
+  assert.equal(r.kind, 'result');
+  done('CH-V10.build-result-v2');
+});
+test('CH-V10.finalize-result [Signatures] finalizeResult adds the oracle hash and leaves the input untouched', async () => {
+  const body = deepFreeze(buildResult(play(C.v3Actions('supported', 'none', 'completed')), lesson, session, NOW));
+  const before = snap(body);
+  const out = await finalizeResult(body);
+  assert.equal(snap(body), before, 'input not mutated');
+  assert.equal(out.contentHash, oracleHash(body));
+  assert.equal(out.contentHash, await computeContentHash(body));
+  assert.deepEqual({...out, contentHash: undefined}, {...body, contentHash: undefined});
+  assert.deepEqual(Object.keys(out), [...Object.keys(body), 'contentHash']);
+  assert.deepEqual(validateDocument(out, 'result'), {ok: true, errors: []});
+  done('CH-V10.finalize-result');
 });
 
 // ================= EG1/EG2: transfer target and 1e-9 tolerance =================
@@ -323,7 +381,7 @@ for (const d of C.V3_DIM) test(`${d.id} [spec v3] agent dimension ${d.status} pe
 });
 test('V3.session.custom [spec v2] session values are copied, not hard-coded', () => {
   const s = C.CUSTOM_SESSION;
-  const result = buildResult(play(C.v3Actions('supported', 'agent', 'partial'), initialProgress(s)), lesson, s, NOW);
+  const result = withHash(buildResult(play(C.v3Actions('supported', 'agent', 'partial'), initialProgress(s)), lesson, s, NOW));
   checkResult(result, {state: 'partial', s});
   done('V3.session.custom');
 });
@@ -378,7 +436,7 @@ test('V3.recorded-at [spec v3] recordedAt = action.at else now (Date or ISO)', (
   const at = '2026-10-05T01:02:03.000Z';
   const p = play([...reach('assessment'), act.recordFreeResponse('question', 'with-at', at), act.recordFreeResponse('choice', 'no-at')]);
   for (const now of [NOW, new Date(NOW)]) {
-    const r = buildResult(p, lesson, session, now);
+    const r = withHash(buildResult(p, lesson, session, now));
     assert.equal(r.responses.find(x => x.answer === 'with-at').recordedAt, at);
     assert.equal(r.responses.find(x => x.answer === 'no-at').recordedAt, NOW);
     assert.deepEqual(validateDocument(r, 'result'), {ok: true, errors: []});
@@ -542,7 +600,7 @@ test('V7.format.ratio [spec v3] percent with 2 decimals', () => {
 
 // ================= completeness (must stay last) =================
 test('manifest lists every declared item and every item is exercised', () => {
-  const ids = [...C.V1_CELLS, ...C.V1_INVALID, ...C.V2_CASES, ...C.V3_CASES, ...C.V3_DIM, ...C.V4_SESSION, ...C.V4_STATE, ...C.V4_ROOTS, ...C.V4_STORAGE, ...C.V4_CLI].map(x => x.id).concat(C.V1_TR_CELLS.map(x => x.id), C.V1_TR_INVALID.map(x => x.id), C.V2_TOL.map(x => x.id), C.V1_FLOWS, C.V1_STAGE, C.V1_TRANSFER_STATES.map(x => x.id), C.V1_STATES.map(x => `V1.predictionState.baseline.${x}`), ['V3.shape.valid'], C.V3_SHAPE.map(x => x.id), C.V4_MULTI.map(x => x.id), C.V3_EXTRA, C.V4_FORMAT);
+  const ids = [...C.V1_CELLS, ...C.V1_INVALID, ...C.V2_CASES, ...C.V3_CASES, ...C.V3_DIM, ...C.V4_SESSION, ...C.V4_STATE, ...C.V4_ROOTS, ...C.V4_STORAGE, ...C.V4_CLI].map(x => x.id).concat(C.V1_TR_CELLS.map(x => x.id), C.V1_TR_INVALID.map(x => x.id), C.V2_TOL.map(x => x.id), C.V1_FLOWS, C.V1_STAGE, C.V1_TRANSFER_STATES.map(x => x.id), C.V1_STATES.map(x => `V1.predictionState.baseline.${x}`), ['V3.shape.valid'], C.V3_SHAPE.map(x => x.id), C.CH_ITEMS, C.V4_MULTI.map(x => x.id), C.V3_EXTRA, C.V4_FORMAT);
   const nodeRows = manifest.filter(r => !r.layer);
   assert.equal(new Set(nodeRows.map(r => r.id)).size, nodeRows.length);
   assert.deepEqual(nodeRows.map(r => r.id).sort(), ids.sort(), 'manifest equals declared items');

@@ -1,4 +1,6 @@
+import {createHash} from 'node:crypto';
 import {definitions, bundleDefinition} from './definitions.mjs';
+import {canonicalContent} from './content-hash.mjs';
 
 const pointer = (path, key) => `${path}/${String(key).replaceAll('~', '~0').replaceAll('/', '~1')}`;
 const add = (errors, code, path) => errors.push({code, path});
@@ -7,6 +9,7 @@ const output = errors => {
   const unique = errors.filter((error, index) => index === 0 || error.code !== errors[index - 1].code || error.path !== errors[index - 1].path);
   return {ok: unique.length === 0, errors: unique};
 };
+const computeHash = result => 'sha256-' + createHash('sha256').update(canonicalContent(result)).digest('hex');
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const own = (value, key) => Object.hasOwn(value, key);
 
@@ -88,13 +91,14 @@ function structure(value, definition, path, blocked, errors) {
   } else if (definition.kind) {
     if (value !== definition.kind) add(errors, 'KIND', path);
   } else if (definition.version) {
-    if (value !== 1) add(errors, 'VERSION', path);
+    if (value !== definition.version) add(errors, 'VERSION', path);
   } else if (definition.format === 'integer') {
     if (!Number.isSafeInteger(value)) add(errors, 'VALUE', path);
     else if (value < 1) add(errors, 'RANGE', path);
   } else if (type === 'string') {
     const valid = definition.format === 'id' ? /^[a-z][a-z0-9-]{0,63}$/.test(value)
       : definition.format === 'timestamp' ? /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value
+      : definition.format === 'content-hash' ? /^sha256-[0-9a-f]{64}$/.test(value)
       : definition.values ? definition.values.includes(value) : value.trim().length > 0;
     if (!valid) add(errors, 'VALUE', path);
   } else if (definition.positive && value <= 0) add(errors, 'RANGE', path);
@@ -188,6 +192,7 @@ function lessonSemantics(document, path, errors) {
   if (dimensions.size !== 5) add(errors, 'STATE', `${path}/rubric/criteria`);
 }
 function resultSemantics(document, path, errors) {
+  if (document.contentHash !== computeHash(document)) add(errors, 'HASH', `${path}/contentHash`);
   collection(document.responses, 'responseId', `${path}/responses`, errors);
   collection(document.assessments, 'assessmentId', `${path}/assessments`, errors);
   if ((document.sequence === 1) !== (document.previousResultId === null)) add(errors, 'STATE', `${path}/previousResultId`);
@@ -386,7 +391,9 @@ export function validateBundle(bundle) {
   checkpoint(result, previousResult, '/result', errors);
   const existingResult = map.results.find(item => item.resultId === result.resultId);
   if (existingResult && !equal(existingResult, result)) add(errors, 'CONFLICT', '/result/resultId');
+  const duplicate = existingResult ?? map.results.find(item => item.contentHash === result.contentHash);
   const existingLesson = map.lessons.find(item => item.lessonId === lesson.lessonId && item.lessonRevision === lesson.lessonRevision);
   if (existingLesson && !equal(existingLesson, lesson)) add(errors, 'CONFLICT', '/lesson/lessonRevision');
-  return output(errors);
+  const final = output(errors);
+  return final.ok && duplicate ? {...final, duplicateOf: duplicate.resultId} : final;
 }

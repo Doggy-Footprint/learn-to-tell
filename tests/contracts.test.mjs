@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import { parseDocument, validateDocument, validateBundle } from '../contracts/index.mjs';
+import { canonicalContent, computeContentHash } from '../contracts/content-hash.mjs';
+import { oracleCanonical, oracleHash, VECTOR } from './fixtures/contracts/hash-oracle.mjs';
 import { buildCases, validBundle, clone, good, bad, performanceBundle, fixtureMetrics } from './fixtures/contracts/cases.mjs';
 
 const cases=buildCases();
@@ -68,7 +70,7 @@ for(const item of cases.filter(item=>item.surface!=='performance')) test(`${item
  assert.equal(input.getterCalls(),0,'getter must never execute');
  if(item.surface==='factory')assert.deepEqual(descriptorSnapshot(input.data),before,'own properties remain unchanged');
  else assert.deepEqual(input.data,before,'input and all snapshots remain unchanged');
- assert.deepEqual(Object.keys(actual).sort(),['errors','ok']);
+ assert.deepEqual(Object.keys(actual).sort(),Object.keys(expected).sort(),'return keys are exactly the expected keys (duplicateOf only when declared)');
  for(const error of actual.errors) assert.deepEqual(Object.keys(error).sort(),['code','path'],'errors reveal only code and pointer');
  assert.ok(!JSON.stringify(actual).includes('SECRET-RESPONSE'));
 });
@@ -90,7 +92,7 @@ test('V2.performance [Q2] jointly maximal padded bundle 10 measured validations'
  assert.equal(metrics.diagnostic.bytes,1048576);
  assert.equal(metrics.map.bytes,1048576);
  freeze(bundle);
- assert.deepEqual(validateBundle(bundle),good,'excluded warmup must accept the fixture');
+ assert.deepEqual(validateBundle(bundle),manifestById.get('V2.performance').expected,'excluded warmup must accept the fixture');
  const timings=[];
  for(let run=0;run<10;run++){
   const start=performance.now();
@@ -101,4 +103,55 @@ test('V2.performance [Q2] jointly maximal padded bundle 10 measured validations'
   assert.ok(elapsed<=1000,`run ${run+1}: ${elapsed.toFixed(3)} ms exceeds 1000 ms`);
  }
  t.diagnostic(JSON.stringify({specVersion:4,metrics,timingsMs:timings,maxMs:Math.max(...timings)}));
+});
+
+const reverseKeys=value=>Array.isArray(value)?value.map(reverseKeys):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).reverse().map(([key,child])=>[key,reverseKeys(child)])):value;
+const baseResult=()=>validBundle().result;
+const answered=(answer,extra={})=>{const r=baseResult();r.responses[0].answer=answer;return {...r,...extra};};
+
+test('CH-V3 [V3/C10] fixed vector: canonical string and SHA-256 computed outside Node',async()=>{
+ assert.equal(oracleCanonical(VECTOR.input),VECTOR.canonical,'oracle self-check');
+ assert.equal(oracleHash(VECTOR.input),VECTOR.hash,'oracle self-check');
+ const input=freeze(structuredClone(VECTOR.input));
+ assert.equal(canonicalContent(input),VECTOR.canonical);
+ assert.equal(await computeContentHash(input),VECTOR.hash);
+});
+for(const [name,variant] of [
+ ['key-order',r=>reverseKeys(r)],
+ ['resultId',r=>({...r,resultId:'result-other'})],
+ ['contentHash-value',r=>({...r,contentHash:`sha256-${'0'.repeat(64)}`})],
+]) test(`CH-V3.same-hash.${name} [V3/${name==='key-order'?'C10':'C9'}] input difference does not change canonicalContent or hash`,async()=>{
+ const base=baseResult();
+ const changed=freeze(variant(structuredClone(base)));
+ assert.equal(canonicalContent(changed),oracleCanonical(base));
+ assert.equal(canonicalContent(changed),canonicalContent(freeze(structuredClone(base))));
+ assert.equal(await computeContentHash(changed),oracleHash(base));
+});
+const twoResponses=()=>{const r=baseResult();r.responses.push({...structuredClone(r.responses[0]),responseId:'response-b',attempt:2,previousResponseId:'response-a',recordedAt:'2026-10-04T00:00:01.000Z'});return r;};
+for(const [name,make] of [
+ ['recordedAt',()=>{const changed=baseResult();changed.responses[0].recordedAt='2026-10-04T00:00:01.000Z';return [baseResult(),changed];}],
+ ['nested-array-order',()=>{const original=twoResponses();const changed=twoResponses();changed.responses.reverse();return [original,changed];}],
+ ['korean-string',()=>[answered('abc'),answered('한국어 답변')]],
+]) test(`CH-V3.different-hash.${name} [V3/C10] hashed content change changes canonicalContent and hash and matches the oracle`,async()=>{
+ const [left,right]=make();
+ assert.notEqual(oracleCanonical(left),oracleCanonical(right),'oracle: the variants really differ');
+ assert.notEqual(canonicalContent(freeze(structuredClone(left))),canonicalContent(freeze(structuredClone(right))));
+ const hashes=[await computeContentHash(freeze(structuredClone(left))),await computeContentHash(freeze(structuredClone(right)))];
+ assert.notEqual(hashes[0],hashes[1]);
+ assert.deepEqual(hashes,[oracleHash(left),oracleHash(right)]);
+});
+
+for(const [name,input] of [
+ ['base',baseResult()],
+ ['korean',answered('한국어로 비용과 놓친 결함을 비교한다')],
+ ['korean-reversed-keys',reverseKeys(answered('한국어로 비용과 놓친 결함을 비교한다'))],
+ ['two-responses',twoResponses()],
+ ['other-resultId',{...baseResult(),resultId:'result-z'}],
+]) test(`CH-V6.${name} [V6/C10] node:crypto oracle equals computeContentHash and validateDocument accepts the filled document`,async()=>{
+ const doc=freeze(structuredClone(input));
+ const expected=oracleHash(input);
+ const computed=await computeContentHash(doc);
+ assert.equal(computed,expected);
+ assert.deepEqual(validateDocument({...input,contentHash:computed},'result'),good);
+ assert.deepEqual(validateDocument({...input,contentHash:expected.replace(/.$/,c=>c==='0'?'1':'0')},'result'),bad('HASH','/contentHash'),'a one-digit change is rejected');
 });

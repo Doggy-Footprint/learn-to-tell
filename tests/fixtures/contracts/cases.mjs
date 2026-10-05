@@ -1,3 +1,4 @@
+import {oracleHash, reseal} from './hash-oracle.mjs';
 export const clone = value => structuredClone(value);
 const dimensions = ['concept','prediction-model','transfer','question','choice-meaning'];
 const roles = ['explanation','simulation','application','failure','assessment'];
@@ -5,8 +6,9 @@ const stages = ['diagnosis','orientation','exploration','assessment','return','m
 export function validBundle() {
   const diagnostic = {kind:'diagnostic',version:1,diagnosticId:'diagnostic-a',profileId:'profile-a',contextKind:'work',candidates:[{candidateId:'candidate-a',title:'Manufacturing inspection',decisionQuestion:'Which inspection?',reason:'Decide the inspection',preview:'Compare inspections'}],selection:'candidate-a',confirmation:'confirmed',hypotheses:[{candidateId:'candidate-a',category:'common-knowledge-gap',rationale:'Unknown decision variable',status:'hypothesis'}]};
   const lesson = {kind:'lesson',version:1,lessonId:'lesson-a',lessonRevision:1,profileId:'profile-a',diagnosticId:'diagnostic-a',candidateId:'candidate-a',contextKind:'work',concepts:[{conceptId:'concept-a',conceptRevision:1,label:'Inspection cost'}],content:roles.map(role=>({contentId:`content-${role}`,role,text:`Inspection ${role}`,conceptIds:['concept-a']})),decisions:[{decisionId:'decision-a',question:'Which inspection?',choices:['Inspect','Sample'],requiredInformation:['Cost'],explanationId:'content-explanation',simulationId:'content-simulation',applicationId:'content-application',failureId:'content-failure',assessmentId:'content-assessment'}],inputs:[{inputId:'input-a',unit:'items',min:0,max:10,default:5}],activities:stages.map(stage=>({activityId:`activity-${stage}`,stage,contentIds:['content-assessment'],required:true,minutes:3})),rubric:{rubricId:'rubric-a',rubricVersion:1,criteria:dimensions.map(dimension=>({criterionId:`criterion-${dimension}`,dimension,conceptIds:['concept-a'],contentId:'content-assessment',mode:'agent',rule:'Explain the decision'}))}};
-  const result = {kind:'result',version:1,resultId:'result-a',profileId:'profile-a',lessonId:'lesson-a',lessonRevision:1,baseMapRevision:1,sequence:1,previousResultId:null,state:'partial',responses:[{responseId:'response-a',activityId:'activity-assessment',conceptId:'concept-a',conceptRevision:1,purpose:'explanation',attempt:1,previousResponseId:null,answer:'Compare cost and missed defects',help:'none',recordedAt:'2026-10-04T00:00:00.000Z',visibility:'unknown'}],assessments:[{assessmentId:'assessment-a',responseId:'response-a',criterionId:'criterion-concept',rubricVersion:1,status:'pending',reviewer:'unreviewed',context:'Manufacturing inspection',help:'none'}]};
-  const map = {kind:'map',version:1,profileId:'profile-a',revision:1,lessons:[clone(lesson)],results:[clone(result)],observations:[{observationId:'observation-a',resultId:'result-a',assessmentId:'assessment-a',conceptId:'concept-a',conceptRevision:1}],nextPaths:[{pathId:'path-a',lessonId:'lesson-a',conceptId:'concept-a',conceptRevision:1,reason:'Review inspection cost'}]};
+  const result = {kind:'result',version:2,resultId:'result-a',profileId:'profile-a',lessonId:'lesson-a',lessonRevision:1,baseMapRevision:1,sequence:1,previousResultId:null,state:'partial',responses:[{responseId:'response-a',activityId:'activity-assessment',conceptId:'concept-a',conceptRevision:1,purpose:'explanation',attempt:1,previousResponseId:null,answer:'Compare cost and missed defects',help:'none',recordedAt:'2026-10-04T00:00:00.000Z',visibility:'unknown'}],assessments:[{assessmentId:'assessment-a',responseId:'response-a',criterionId:'criterion-concept',rubricVersion:1,status:'pending',reviewer:'unreviewed',context:'Manufacturing inspection',help:'none'}]};
+  result.contentHash = oracleHash(result);
+  const map = {kind:'map',version:2,profileId:'profile-a',revision:1,lessons:[clone(lesson)],results:[clone(result)],observations:[{observationId:'observation-a',resultId:'result-a',assessmentId:'assessment-a',conceptId:'concept-a',conceptRevision:1}],nextPaths:[{pathId:'path-a',lessonId:'lesson-a',conceptId:'concept-a',conceptRevision:1,reason:'Review inspection cost'}]};
   return {diagnostic,lesson,result,map,previousResult:null};
 }
 export const good = {ok:true,errors:[]};
@@ -28,11 +30,12 @@ const criterion=O({criterionId:id,dimension:E(...dimensions),conceptIds:A(id,1),
 const rubric=O({rubricId:id,rubricVersion:rev,criteria:A(criterion,5)});
 const response=O({responseId:id,activityId:id,conceptId:id,conceptRevision:rev,purpose:E('prediction','explanation','transfer','question','choice','view','calculation-error'),attempt:rev,previousResponseId:S('nullable-id'),answer:S('nullable-string'),help:E('none','hint','agent','unknown'),recordedAt:S('timestamp'),visibility:E('before-output','after-output','unknown')});
 const assessment=O({assessmentId:id,responseId:id,criterionId:id,rubricVersion:rev,status:E('pending','supported','partial','not_demonstrated','skipped'),reviewer:E('unreviewed','automatic','agent'),context:str,help:E('none','hint','agent','unknown')});
-const root = (kind,fields) => O({kind:E(kind),version:S('version'),...fields});
+const EXPECTED_VERSION = {diagnostic:1,lesson:1,result:2,map:2};
+const root = (kind,fields) => O({kind:E(kind),version:{type:'version',valid:EXPECTED_VERSION[kind]},...fields});
 export const syntax = {
  diagnostic:root('diagnostic',{diagnosticId:id,profileId:id,contextKind:E('work','interest'),candidates:A(candidate,1,3),selection:S('nullable-id'),confirmation:E('confirmed','deferred','unconfirmed'),hypotheses:A(hypothesis)}),
  lesson:root('lesson',{lessonId:id,lessonRevision:rev,profileId:id,diagnosticId:id,candidateId:id,contextKind:E('work','interest'),concepts:A(concept,1),content:A(content,1),decisions:A(decision,1),inputs:A(input,1),activities:A(activity,1),rubric}),
- result:root('result',{resultId:id,profileId:id,lessonId:id,lessonRevision:rev,baseMapRevision:rev,sequence:rev,previousResultId:S('nullable-id'),state:E('partial','completed'),responses:A(response),assessments:A(assessment)}),
+ result:root('result',{resultId:id,contentHash:S('contenthash'),profileId:id,lessonId:id,lessonRevision:rev,baseMapRevision:rev,sequence:rev,previousResultId:S('nullable-id'),state:E('partial','completed'),responses:A(response),assessments:A(assessment)}),
  map:root('map',{profileId:id,revision:rev,lessons:A(null),results:A(null),observations:A(O({observationId:id,resultId:id,assessmentId:id,conceptId:id,conceptRevision:rev})),nextPaths:A(O({pathId:id,lessonId:id,conceptId:id,conceptRevision:rev,reason:str}))})
 };
 syntax.map.fields.lessons.item=syntax.lesson;
@@ -40,7 +43,7 @@ syntax.map.fields.results.item=syntax.result;
 function structuralCases(cases) {
  for (const kind of Object.keys(syntax)) {
   const base=validBundle()[kind];
-  const add = (id,path,value,expected,remove=false) => {const data=clone(base); const [parent,key]=fieldAt(data,path); if(remove) delete parent[key]; else parent[key]=value; cases.push({id:`V1.${kind}.${id}.${path.replaceAll('/','.')}`,obligationId:'V1',caseId:'C6',surface:'document',kind,input:data,expected});};
+  const add = (id,path,value,expected,remove=false) => {const data=clone(base); const [parent,key]=fieldAt(data,path); if(remove) delete parent[key]; else parent[key]=value; reseal(data); cases.push({id:`V1.${kind}.${id}.${path.replaceAll('/','.')}`,obligationId:'V1',caseId:'C6',surface:'document',kind,input:data,expected});};
   function walk(schema,path,value) {
    if(schema.type==='object') {
     add('extra',`${path}/extra`,true,bad('UNKNOWN_FIELD',`${path}/extra`));
@@ -48,22 +51,23 @@ function structuralCases(cases) {
    } else if(schema.type==='array') {if(value.length){add('element-wrong-type',`${path}/0`,schema.item.type==='object'?false:0,bad('TYPE',`${path}/0`));walk(schema.item,`${path}/0`,value[0]);}}
    else if(schema.type==='enum') {
     add('unknown-enum',path,'invalid',bad(path.endsWith('/kind')?'KIND':'VALUE',path));
-    for(const member of schema.members) {const data=clone(base); const [parent,key]=fieldAt(data,path); parent[key]=member; data.extra=true; cases.push({id:`V1.${kind}.enum-${member}.${path.replaceAll('/','.')}`,obligationId:'V1',caseId:'C6',surface:'document',kind,input:data,expected:bad('UNKNOWN_FIELD','/extra')});}
+    for(const member of schema.members) {const data=clone(base); const [parent,key]=fieldAt(data,path); parent[key]=member; data.extra=true; reseal(data); cases.push({id:`V1.${kind}.enum-${member}.${path.replaceAll('/','.')}`,obligationId:'V1',caseId:'C6',surface:'document',kind,input:data,expected:bad('UNKNOWN_FIELD','/extra')});}
    } else if(schema.type==='id'||schema.type==='nullable-id') {
-    for(const length of [63,64]){const data=clone(base);const[parent,key]=fieldAt(data,path);parent[key]='a'.repeat(length);data.extra=true;cases.push({id:`V1.${kind}.id-length-${length}.${path.replaceAll('/','.')}`,obligationId:'V1',caseId:'C4',surface:'document',kind,input:data,expected:bad('UNKNOWN_FIELD','/extra')});}
+    for(const length of [63,64]){const data=clone(base);const[parent,key]=fieldAt(data,path);parent[key]='a'.repeat(length);data.extra=true;reseal(data);cases.push({id:`V1.${kind}.id-length-${length}.${path.replaceAll('/','.')}`,obligationId:'V1',caseId:'C4',surface:'document',kind,input:data,expected:bad('UNKNOWN_FIELD','/extra')});}
     for(const invalid of ['', 'A','a_b','a'.repeat(65)]) add(`id-${invalid.length}-${invalid.slice(0,2)}`,path,invalid,bad('VALUE',path));
    } else if(schema.type==='string'||schema.type==='nullable-string') add('blank',path,'  ',bad('VALUE',path));
    else if(schema.type==='timestamp') {for(const invalid of ['2026-02-30T00:00:00.000Z','2026-10-04T00:00:00Z','2026-10-04T00:00:00.000+00:00','invalid']) add(`timestamp-${invalid}`,path,invalid,bad('VALUE',path));}
-   else if(schema.type==='version') {for(const version of [0,2,1.5]) add(`version-${version}`,path,version,bad('VERSION',path));}
+   else if(schema.type==='version') {for(const version of [0,1,2,1.5].filter(v=>v!==schema.valid)) add(`version-${version}`,path,version,bad('VERSION',path));}
   }
   walk(syntax[kind],'',base);
  }
 }
 export function buildCases() {
  const cases=[];
- const push=(id,obligationId,caseId,surface,input,expected=good,kind)=>cases.push({id,obligationId,caseId,surface,input,expected,...(kind?{kind}:{})});
+ const rawPush=(id,obligationId,caseId,surface,input,expected=good,kind)=>cases.push({id,obligationId,caseId,surface,input,expected,...(kind?{kind}:{})});
+ const push=(id,obligationId,caseId,surface,input,expected=good,kind)=>rawPush(id,obligationId,caseId,surface,reseal(input),expected,kind);
  const doc=(id,kind,change,expected=good,obligation='V3',caseId='C7')=>{const input=clone(validBundle()[kind]); change(input);push(id,obligation,caseId,'document',input,expected,kind);};
- const bundle=(id,change,expected=good,obligation='V3',caseId='C7')=>{const input=validBundle();input.map={kind:'map',version:1,profileId:'profile-a',revision:1,lessons:[],results:[],observations:[],nextPaths:[]};change(input);push(id,obligation,caseId,'bundle',input,expected);};
+ const bundle=(id,change,expected=good,obligation='V3',caseId='C7')=>{const input=validBundle();input.map={kind:'map',version:2,profileId:'profile-a',revision:1,lessons:[],results:[],observations:[],nextPaths:[]};change(input);push(id,obligation,caseId,'bundle',input,expected);};
  for(const kind of Object.keys(syntax)) push(`V1.valid.${kind}`,'V1','C1','document',validBundle()[kind],good,kind);
  structuralCases(cases);
  for(const kind of Object.keys(syntax)) {
@@ -104,7 +108,7 @@ export function buildCases() {
  bundle('V3.criterion.concept-membership',b=>{b.lesson.concepts.push({conceptId:'concept-b',conceptRevision:1,label:'Other concept'});b.result.responses[0].conceptId='concept-b';},bad('REFERENCE','/result/assessments/0/criterionId'));
  for(const mode of ['agent','automatic']) for(const reviewer of ['unreviewed','automatic','agent']) for(const status of ['pending','supported','partial','not_demonstrated','skipped']) {
   const permitted=status==='pending'||status==='skipped'||reviewer===mode;
-  bundle(`V4.table.${mode}.${reviewer}.${status}`,b=>{b.map={kind:'map',version:1,profileId:'profile-a',revision:1,lessons:[],results:[],observations:[],nextPaths:[]};b.lesson.rubric.criteria[0].mode=mode;b.result.assessments[0].reviewer=reviewer;b.result.assessments[0].status=status;},permitted?good:reviewer==='unreviewed'?{ok:false,errors:[{code:'STATE',path:'/result/assessments/0/reviewer'},{code:'STATE',path:'/result/assessments/0/status'}]}:bad('STATE','/result/assessments/0/reviewer'),'V4','C8');
+  bundle(`V4.table.${mode}.${reviewer}.${status}`,b=>{b.map={kind:'map',version:2,profileId:'profile-a',revision:1,lessons:[],results:[],observations:[],nextPaths:[]};b.lesson.rubric.criteria[0].mode=mode;b.result.assessments[0].reviewer=reviewer;b.result.assessments[0].status=status;},permitted?good:reviewer==='unreviewed'?{ok:false,errors:[{code:'STATE',path:'/result/assessments/0/reviewer'},{code:'STATE',path:'/result/assessments/0/status'}]}:bad('STATE','/result/assessments/0/reviewer'),'V4','C8');
  }
  for(const answer of [null,'Performed task']) for(const status of ['pending','supported','skipped']) doc(`V4.answer.${answer===null?'null':'text'}.${status}`,'result',r=>{r.responses[0].answer=answer;r.assessments[0].status=status;r.assessments[0].reviewer='agent';},answer===null&&status==='supported'?bad('STATE','/assessments/0/status'):good,'V4','C8');
  for(const purpose of ['prediction','explanation','transfer','question','choice','view','calculation-error']) doc(`V4.purpose.${purpose}`,'result',r=>{r.responses[0].purpose=purpose;if(purpose==='prediction')r.responses[0].visibility='before-output';r.assessments[0].status='supported';r.assessments[0].reviewer='agent';},['view','calculation-error'].includes(purpose)?bad('STATE','/assessments/0/status'):good,'V4','C8');
@@ -140,7 +144,7 @@ export function buildCases() {
  bundle('V4.checkpoint.absent',b=>{checkpoint(b);b.previousResult=null;},bad('REFERENCE','/result/previousResultId'),'V4','C9');
  for(const [field,code,value] of [['profileId','PROFILE','other-profile'],['lessonId','REFERENCE','other-lesson'],['lessonRevision','REVISION',2],['baseMapRevision','REVISION',2],['sequence','STATE',3]]) bundle(`V4.checkpoint.${field}`,b=>{checkpoint(b);b.previousResult[field]=value;if(field==='sequence'){b.previousResult.previousResultId='result-prior';}},bad(code,`/result/${field}`),'V4','C9');
  bundle('V4.checkpoint.previous-id',b=>{checkpoint(b);b.result.previousResultId='other-result';},bad('REFERENCE','/result/previousResultId'),'V4','C9');
- bundle('V4.same-id.same',b=>{b.map=validBundle().map;},good,'V4','C3');
+ bundle('V4.same-id.same',b=>{b.map=validBundle().map;},{ok:true,errors:[],duplicateOf:'result-a'},'V4','C3');
  bundle('V4.same-id.conflict',b=>{b.map=validBundle().map;b.result.responses[0].answer='Different content';},bad('CONFLICT','/result/resultId'),'V4','C9');
  bundle('V3.same-lesson.conflict',b=>{b.map=validBundle().map;b.lesson.concepts[0].label='Different label';},bad('CONFLICT','/lesson/lessonRevision'));
  bundle('V3.new-lesson',b=>{b.map.lessons=[];b.map.results=[];b.map.observations=[];b.map.nextPaths=[];});
@@ -230,9 +234,58 @@ export function buildCases() {
  for(const kind of Object.keys(syntax)) {
   const data=validBundle()[kind];data.extra=true;push(`V5.frozen-invalid.${kind}`,'V5','C11','document',data,bad('UNKNOWN_FIELD','/extra'),kind);
  }
- push('V2.performance','V2','C4','performance',{fixture:'performanceBundle'},good);
- bundle('V5.secret-response',b=>{b.result.responses[0].answer='SECRET-RESPONSE';b.result.version=2;},bad('VERSION','/result/version'),'V5','C6');
+ push('V2.performance','V2','C4','performance',{fixture:'performanceBundle'},{ok:true,errors:[],duplicateOf:'result-a'});
+ bundle('V5.secret-response',b=>{b.result.responses[0].answer='SECRET-RESPONSE';b.result.version=1;},bad('VERSION','/result/version'),'V5','C6');
  push('V5.bundle-scalar','V5','C11','bundle',null,bad('TYPE',''));
+ // ---- content-hash spec v1 obligations (ids carry the CH- prefix because V1..V10 names collide with earlier specs)
+ for(const kind of Object.keys(syntax)) for(const version of [0,1,1.5,2]) {
+  const input=clone(validBundle()[kind]);input.version=version;reseal(input);
+  rawPush(`CH-V1.version.${kind}.${version}`,'CH-V1','C7','document',input,version===EXPECTED_VERSION[kind]?good:bad('VERSION','/version'),kind);
+ }
+ {
+  const valid=validBundle().result.contentHash, hex=valid.slice('sha256-'.length);
+  if(hex===hex.toUpperCase())throw new Error('fixture hash has no letters; uppercase partition would be vacuous');
+  const value=bad('VALUE','/contentHash'), type=bad('TYPE','/contentHash');
+  for(const [name,hash,expected] of [['valid',valid,good],['no-prefix',hex,value],['sha1-prefix',`sha1-${hex}`,value],['uppercase-hex',`sha256-${hex.toUpperCase()}`,value],['length-63',`sha256-${hex.slice(1)}`,value],['length-65',`sha256-${hex}0`,value],['non-hex-char',`sha256-g${hex.slice(1)}`,value],['non-string-number',5,type],['non-string-null',null,type],['missing',undefined,bad('REQUIRED','/contentHash')]]) {
+   const input=validBundle().result;
+   if(hash===undefined)delete input.contentHash;else input.contentHash=hash;
+   rawPush(`CH-V2.${name}`,'CH-V2','C6','document',input,expected,'result');
+  }
+ }
+ {
+  const mutations={
+   scalar:r=>{r.state=r.state==='partial'?'completed':'partial';},
+   response:r=>{r.responses[0].answer+=' changed';},
+   assessment:r=>{r.assessments[0].context+=' changed';},
+  };
+  for(const [field,mutate] of Object.entries(mutations)) {
+   const id=surface=>`CH-V4.${surface}.${field}`;
+   const doc=validBundle().result;mutate(doc);
+   rawPush(id('result'),'CH-V4','C4','document',doc,bad('HASH','/contentHash'),'result');
+   const map=validBundle().map;const second=clone(map.results[0]);second.resultId='result-b';mutate(second);map.results.push(second);
+   rawPush(id('map-results-1'),'CH-V4','C5','document',map,bad('HASH','/results/1/contentHash'),'map');
+   const bundleResult=validBundle();bundleResult.map={kind:'map',version:2,profileId:'profile-a',revision:1,lessons:[],results:[],observations:[],nextPaths:[]};mutate(bundleResult.result);
+   rawPush(id('bundle-result'),'CH-V4','C4','bundle',bundleResult,bad('HASH','/result/contentHash'));
+   const previous=validBundle();previous.map={kind:'map',version:2,profileId:'profile-a',revision:1,lessons:[],results:[],observations:[],nextPaths:[]};checkpoint(previous);reseal(previous);mutate(previous.previousResult);mutate(previous.result);previous.result.contentHash=oracleHash(previous.result);
+   rawPush(id('bundle-previousResult'),'CH-V4','C4','bundle',previous,bad('HASH','/previousResult/contentHash'));
+   const inMap=validBundle();const item=clone(inMap.result);item.resultId='result-m';mutate(item);
+   inMap.map={kind:'map',version:2,profileId:'profile-a',revision:1,lessons:[clone(inMap.lesson)],results:[item],observations:[],nextPaths:[]};
+   rawPush(id('bundle-map-results-0'),'CH-V4','C5','bundle',inMap,bad('HASH','/map/results/0/contentHash'));
+  }
+ }
+ {
+  const dup={ok:true,errors:[],duplicateOf:'result-a'};
+  const withMap=(id,change,expected,caseId)=>{const b=validBundle();b.map=validBundle().map;change(b);rawPush(id,'CH-V5',caseId,'bundle',reseal(b),expected);};
+  withMap('CH-V5.same-id-same-content',()=>{},dup,'C3');
+  withMap('CH-V5.same-id-different-content',b=>{b.result.responses[0].answer='Different content';},bad('CONFLICT','/result/resultId'),'C8');
+  withMap('CH-V5.different-id-same-hash',b=>{b.result.resultId='result-new';},dup,'C2');
+  withMap('CH-V5.different-id-different-hash',b=>{b.result.resultId='result-new';b.result.responses[0].answer='Another answer';},good,'C2');
+  withMap('CH-V5.duplicate-plus-other-error',b=>{b.result.resultId='result-new';b.diagnostic.profileId='other-profile';},{ok:false,errors:['lesson','map','result'].map(name=>({code:'PROFILE',path:`/${name}/profileId`}))},'C11');
+  const stale=validBundle();stale.map={kind:'map',version:2,profileId:'profile-a',revision:1,lessons:[],results:[],observations:[],nextPaths:[]};stale.result.extra=true;
+  rawPush('CH-V5.structural-error-with-stale-hash.bundle','CH-V5','C11','bundle',stale,bad('UNKNOWN_FIELD','/result/extra'));
+  const staleDoc=validBundle().result;staleDoc.extra=true;
+  rawPush('CH-V5.structural-error-with-stale-hash.document','CH-V5','C11','document',staleDoc,bad('UNKNOWN_FIELD','/extra'),'result');
+ }
  return cases;
 }
 export function performanceBundle() {
@@ -250,6 +303,7 @@ export function performanceBundle() {
  const available=1048576-Buffer.byteLength(JSON.stringify(bundle.map));
  fill(bundle.lesson,bundle.lesson.content,'text',Buffer.byteLength(JSON.stringify(bundle.lesson))+Math.floor(available/2));
  fill(bundle.result,bundle.result.responses,'answer',Buffer.byteLength(JSON.stringify(bundle.result))+Math.ceil(available/2));
+ bundle.result.contentHash=oracleHash(bundle.result);
  return bundle;
 }
 export function fixtureMetrics(document) {
