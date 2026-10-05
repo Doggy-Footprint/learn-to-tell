@@ -4,7 +4,7 @@ import {canonicalContent} from './content-hash.mjs';
 
 const pointer = (path, key) => `${path}/${String(key).replaceAll('~', '~0').replaceAll('/', '~1')}`;
 const add = (errors, code, path) => errors.push({code, path});
-const output = errors => {
+export const output = errors => {
   errors.sort((a, b) => a.code < b.code ? -1 : a.code > b.code ? 1 : a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   const unique = errors.filter((error, index) => index === 0 || error.code !== errors[index - 1].code || error.path !== errors[index - 1].path);
   return {ok: unique.length === 0, errors: unique};
@@ -13,7 +13,7 @@ const computeHash = result => 'sha256-' + createHash('sha256').update(canonicalC
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const own = (value, key) => Object.hasOwn(value, key);
 
-function inspect(value, path, depth, ancestors, blocked, errors) {
+export function inspect(value, path, depth, ancestors, blocked, errors) {
   if (typeof value === 'string') {
     if (Buffer.byteLength(value, 'utf8') > 65536) {
       add(errors, 'LIMIT', path);
@@ -67,9 +67,24 @@ function inspect(value, path, depth, ancestors, blocked, errors) {
   ancestors.delete(value);
 }
 
+function versioned(value, definition, path, blocked, errors) {
+  if (!isObject(value)) return add(errors, 'TYPE', path);
+  const versionPath = pointer(path, 'version');
+  if (!own(value, 'version')) return add(errors, 'REQUIRED', versionPath);
+  if (blocked.has(versionPath)) return;
+  const version = Object.getOwnPropertyDescriptor(value, 'version').value;
+  if (typeof version !== 'number') return add(errors, 'TYPE', versionPath);
+  if (!own(definition.versions, version)) return add(errors, 'VERSION', versionPath);
+  structure(value, definition.versions[version], path, blocked, errors);
+}
+
 function structure(value, definition, path, blocked, errors) {
   if (blocked.has(path)) return;
   if (definition.nullable && value === null) return;
+  if (definition.versions) {
+    versioned(value, definition, path, blocked, errors);
+    return;
+  }
   const type = definition.type;
   if ((type === 'object' && !isObject(value)) || (type === 'array' && !Array.isArray(value)) || (type !== 'object' && type !== 'array' && typeof value !== type) || value === null) {
     add(errors, 'TYPE', path);
@@ -101,7 +116,7 @@ function structure(value, definition, path, blocked, errors) {
       : definition.format === 'content-hash' ? /^sha256-[0-9a-f]{64}$/.test(value)
       : definition.values ? definition.values.includes(value) : value.trim().length > 0;
     if (!valid) add(errors, 'VALUE', path);
-  } else if (definition.positive && value <= 0) add(errors, 'RANGE', path);
+  } else if ((definition.positive && value <= 0) || (definition.nonNegative && value < 0)) add(errors, 'RANGE', path);
 }
 
 function documentStructure(value, kind, path, errors) {
@@ -152,7 +167,7 @@ function lessonSemantics(document, path, errors) {
   const concepts = collection(document.concepts, 'conceptId', `${path}/concepts`, errors);
   const content = collection(document.content, 'contentId', `${path}/content`, errors);
   collection(document.decisions, 'decisionId', `${path}/decisions`, errors);
-  collection(document.inputs, 'inputId', `${path}/inputs`, errors);
+  const inputs = collection(document.inputs, 'inputId', `${path}/inputs`, errors);
   collection(document.activities, 'activityId', `${path}/activities`, errors);
   collection(document.rubric.criteria, 'criterionId', `${path}/rubric/criteria`, errors);
   for (let index = 0; index < document.content.length; index++) idReferences(document.content[index].conceptIds, concepts, `${path}/content/${index}/conceptIds`, errors);
@@ -190,6 +205,37 @@ function lessonSemantics(document, path, errors) {
     if (target && target.role !== 'assessment') add(errors, 'REFERENCE', `${path}/rubric/criteria/${index}/contentId`);
   }
   if (dimensions.size !== 5) add(errors, 'STATE', `${path}/rubric/criteria`);
+  if (document.version === 2) lessonV2Semantics(document, path, inputs, errors);
+}
+function lessonV2Semantics(document, path, inputs, errors) {
+  const outputs = collection(document.outputs, 'outputId', `${path}/outputs`, errors);
+  const scenarios = collection(document.scenarios, 'scenarioId', `${path}/scenarios`, errors);
+  for (let index = 0; index < document.scenarios.length; index++) {
+    const values = document.scenarios[index].values;
+    const child = `${path}/scenarios/${index}/values`;
+    const seen = new Set();
+    for (let position = 0; position < values.length; position++) {
+      const entry = values[position];
+      const input = reference(inputs, entry.inputId, `${child}/${position}/inputId`, errors);
+      if (seen.has(entry.inputId)) add(errors, 'STATE', child);
+      seen.add(entry.inputId);
+      if (input && (entry.value < input.min || entry.value > input.max)) add(errors, 'RANGE', `${child}/${position}/value`);
+    }
+    if ([...inputs.keys()].some(key => !seen.has(key))) add(errors, 'STATE', child);
+  }
+  reference(scenarios, document.transfer.scenarioId, `${path}/transfer/scenarioId`, errors);
+  const tolerances = collection(document.transfer.tolerances, 'outputId', `${path}/transfer/tolerances`, errors);
+  for (let index = 0; index < document.transfer.tolerances.length; index++) reference(outputs, document.transfer.tolerances[index].outputId, `${path}/transfer/tolerances/${index}/outputId`, errors);
+  if ([...outputs.keys()].some(key => !tolerances.has(key))) add(errors, 'STATE', `${path}/transfer/tolerances`);
+}
+function oracleSemantics(document, path, errors) {
+  collection(document.cases, 'caseId', `${path}/cases`, errors);
+  for (let index = 0; index < document.cases.length; index++) {
+    for (const [list, key] of [['values', 'inputId'], ['expected', 'outputId']]) {
+      const ids = document.cases[index][list].map(item => item[key]);
+      if (new Set(ids).size !== ids.length) add(errors, 'STATE', `${path}/cases/${index}/${list}`);
+    }
+  }
 }
 function resultSemantics(document, path, errors) {
   if (document.contentHash !== computeHash(document)) add(errors, 'HASH', `${path}/contentHash`);
@@ -326,7 +372,7 @@ function mapSemantics(document, path, errors) {
     }
   }
 }
-const semantics = {diagnostic: diagnosticSemantics, lesson: lessonSemantics, result: resultSemantics, map: mapSemantics};
+const semantics = {diagnostic: diagnosticSemantics, lesson: lessonSemantics, result: resultSemantics, map: mapSemantics, oracle: oracleSemantics};
 
 export function validateDocument(document, expectedKind) {
   const errors = [];

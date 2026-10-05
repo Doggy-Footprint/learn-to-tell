@@ -312,7 +312,7 @@ const underPath = prefix => errors => {
   for (const e of errors) assert.ok(e.path === prefix || e.path.startsWith(prefix + '/'), JSON.stringify(e));
 };
 for (const [label, file, prefix, mutate, code, errPath] of [
-  ['lesson-version-2', 'lessons/lesson-a.1.json', '/lesson', l => { l.version = 2; }, 'VERSION', '/lesson/version'],
+  ['lesson-version-3', 'lessons/lesson-a.1.json', '/lesson', l => { l.version = 3; }, 'VERSION', '/lesson/version'],
   ['lesson-minutes-under-15', 'lessons/lesson-a.1.json', '/lesson', l => { for (const a of l.activities) a.minutes = 2; }, 'RANGE', '/lesson/activities'],
   ['diagnostic-version-2', 'diagnostics/diagnostic-a.json', '/diagnostic', d => { d.version = 2; }, 'VERSION', '/diagnostic/version']
 ]) {

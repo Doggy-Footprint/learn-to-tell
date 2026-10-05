@@ -1,0 +1,920 @@
+[
+  {
+    "id": "V1.v1",
+    "obligationId": "V1",
+    "items": [
+      "V1.v1"
+    ]
+  },
+  {
+    "id": "V1.v1.rules-only",
+    "obligationId": "V1",
+    "items": [
+      "V1.v1"
+    ]
+  },
+  {
+    "id": "V1.v2",
+    "obligationId": "V1",
+    "items": [
+      "V1.v2"
+    ]
+  },
+  {
+    "id": "V1.v2.requires-new-fields",
+    "obligationId": "V1",
+    "items": [
+      "V1.v2"
+    ]
+  },
+  {
+    "id": "V1.version-0",
+    "obligationId": "V1",
+    "items": [
+      "V1.0"
+    ]
+  },
+  {
+    "id": "V1.version-3",
+    "obligationId": "V1",
+    "items": [
+      "V1.3"
+    ]
+  },
+  {
+    "id": "V1.version-string-2",
+    "obligationId": "V1",
+    "items": [
+      "V1.str2"
+    ]
+  },
+  {
+    "id": "V2.bva.defect-percent.min-minus",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.defect-percent.min-minus"
+    ]
+  },
+  {
+    "id": "V2.bva.defect-percent.min-eq",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.defect-percent.min-eq"
+    ]
+  },
+  {
+    "id": "V2.bva.defect-percent.min-plus",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.defect-percent.min-plus"
+    ]
+  },
+  {
+    "id": "V2.bva.defect-percent.max-minus",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.defect-percent.max-minus"
+    ]
+  },
+  {
+    "id": "V2.bva.defect-percent.max-eq",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.defect-percent.max-eq"
+    ]
+  },
+  {
+    "id": "V2.bva.defect-percent.max-plus",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.defect-percent.max-plus"
+    ]
+  },
+  {
+    "id": "V2.bva.detection-percent.min-minus",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.detection-percent.min-minus"
+    ]
+  },
+  {
+    "id": "V2.bva.detection-percent.min-eq",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.detection-percent.min-eq"
+    ]
+  },
+  {
+    "id": "V2.bva.detection-percent.min-plus",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.detection-percent.min-plus"
+    ]
+  },
+  {
+    "id": "V2.bva.detection-percent.max-minus",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.detection-percent.max-minus"
+    ]
+  },
+  {
+    "id": "V2.bva.detection-percent.max-eq",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.detection-percent.max-eq"
+    ]
+  },
+  {
+    "id": "V2.bva.detection-percent.max-plus",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.detection-percent.max-plus"
+    ]
+  },
+  {
+    "id": "V2.bva.false-positive-percent.min-minus",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.false-positive-percent.min-minus"
+    ]
+  },
+  {
+    "id": "V2.bva.false-positive-percent.min-eq",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.false-positive-percent.min-eq"
+    ]
+  },
+  {
+    "id": "V2.bva.false-positive-percent.min-plus",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.false-positive-percent.min-plus"
+    ]
+  },
+  {
+    "id": "V2.bva.false-positive-percent.max-minus",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.false-positive-percent.max-minus"
+    ]
+  },
+  {
+    "id": "V2.bva.false-positive-percent.max-eq",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.false-positive-percent.max-eq"
+    ]
+  },
+  {
+    "id": "V2.bva.false-positive-percent.max-plus",
+    "obligationId": "V2",
+    "items": [
+      "V2.bva.false-positive-percent.max-plus"
+    ]
+  },
+  {
+    "id": "V2.absolute.minus",
+    "obligationId": "V2",
+    "items": [
+      "V2.absolute.minus"
+    ]
+  },
+  {
+    "id": "V2.absolute.zero",
+    "obligationId": "V2",
+    "items": [
+      "V2.absolute.zero"
+    ]
+  },
+  {
+    "id": "V2.c3.scenarios-at-min-and-max",
+    "obligationId": "V2",
+    "items": [
+      "V2.c3"
+    ]
+  },
+  {
+    "id": "V2.v1rule.required-minutes-14",
+    "obligationId": "V2",
+    "items": [
+      "V2.v1rule.required-minutes-14"
+    ]
+  },
+  {
+    "id": "V2.v1rule.missing-stage",
+    "obligationId": "V2",
+    "items": [
+      "V2.v1rule.missing-stage"
+    ]
+  },
+  {
+    "id": "V2.v1rule.missing-dimension",
+    "obligationId": "V2",
+    "items": [
+      "V2.v1rule.missing-dimension"
+    ]
+  },
+  {
+    "id": "V2.v1rule.role-mismatch-reference",
+    "obligationId": "V2",
+    "items": [
+      "V2.v1rule.role-mismatch-reference"
+    ]
+  },
+  {
+    "id": "V2.f3.scale-zero",
+    "obligationId": "V2",
+    "items": [
+      "V2.f3.scale-zero"
+    ]
+  },
+  {
+    "id": "V2.f3.scale-negative",
+    "obligationId": "V2",
+    "items": [
+      "V2.f3.scale-negative"
+    ]
+  },
+  {
+    "id": "V2.f3.duplicate-output",
+    "obligationId": "V2",
+    "items": [
+      "V2.f3.duplicate-output"
+    ]
+  },
+  {
+    "id": "V2.f3.duplicate-scenario",
+    "obligationId": "V2",
+    "items": [
+      "V2.f3.duplicate-scenario"
+    ]
+  },
+  {
+    "id": "V2.f3.scenario-input-unknown",
+    "obligationId": "V2",
+    "items": [
+      "V2.f3.scenario-input-unknown"
+    ]
+  },
+  {
+    "id": "V2.f3.scenario-missing-input",
+    "obligationId": "V2",
+    "items": [
+      "V2.f3.scenario-missing-input"
+    ]
+  },
+  {
+    "id": "V2.f3.scenario-duplicate-input",
+    "obligationId": "V2",
+    "items": [
+      "V2.f3.scenario-duplicate-input"
+    ]
+  },
+  {
+    "id": "V2.f3.transfer-scenario-unknown",
+    "obligationId": "V2",
+    "items": [
+      "V2.f3.transfer-scenario-unknown"
+    ]
+  },
+  {
+    "id": "V2.f3.tolerance-output-unknown",
+    "obligationId": "V2",
+    "items": [
+      "V2.f3.tolerance-output-unknown"
+    ]
+  },
+  {
+    "id": "V2.f3.tolerance-duplicate-output",
+    "obligationId": "V2",
+    "items": [
+      "V2.f3.tolerance-duplicate-output"
+    ]
+  },
+  {
+    "id": "V2.f3.tolerance-missing-output",
+    "obligationId": "V2",
+    "items": [
+      "V2.f3.tolerance-missing-output"
+    ]
+  },
+  {
+    "id": "V3.baseline.valid-document",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.present"
+    ]
+  },
+  {
+    "id": "V3.baseline.valid-binding",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.present"
+    ]
+  },
+  {
+    "id": "V3.null.nullable-null",
+    "obligationId": "V3",
+    "items": [
+      "V3.null.nullable-null"
+    ]
+  },
+  {
+    "id": "V3.null.nullable-value",
+    "obligationId": "V3",
+    "items": [
+      "V3.null.nullable-value"
+    ]
+  },
+  {
+    "id": "V3.null.strict-value",
+    "obligationId": "V3",
+    "items": [
+      "V3.null.strict-value"
+    ]
+  },
+  {
+    "id": "V3.null.strict-null",
+    "obligationId": "V3",
+    "items": [
+      "V3.null.strict-null"
+    ]
+  },
+  {
+    "id": "V3.null.strict-null.document-level-ok",
+    "obligationId": "V3",
+    "items": [
+      "V3.null.strict-null"
+    ]
+  },
+  {
+    "id": "V3.cover.defect-percent.min.present",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.defect-percent.min.present"
+    ]
+  },
+  {
+    "id": "V3.cover.defect-percent.min.absent",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.defect-percent.min.absent"
+    ]
+  },
+  {
+    "id": "V3.cover.defect-percent.max.present",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.defect-percent.max.present"
+    ]
+  },
+  {
+    "id": "V3.cover.defect-percent.max.absent",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.defect-percent.max.absent"
+    ]
+  },
+  {
+    "id": "V3.cover.detection-percent.min.present",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.detection-percent.min.present"
+    ]
+  },
+  {
+    "id": "V3.cover.detection-percent.min.absent",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.detection-percent.min.absent"
+    ]
+  },
+  {
+    "id": "V3.cover.detection-percent.max.present",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.detection-percent.max.present"
+    ]
+  },
+  {
+    "id": "V3.cover.detection-percent.max.absent",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.detection-percent.max.absent"
+    ]
+  },
+  {
+    "id": "V3.cover.false-positive-percent.min.present",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.false-positive-percent.min.present"
+    ]
+  },
+  {
+    "id": "V3.cover.false-positive-percent.min.absent",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.false-positive-percent.min.absent"
+    ]
+  },
+  {
+    "id": "V3.cover.false-positive-percent.max.present",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.false-positive-percent.max.present"
+    ]
+  },
+  {
+    "id": "V3.cover.false-positive-percent.max.absent",
+    "obligationId": "V3",
+    "items": [
+      "V3.cover.false-positive-percent.max.absent"
+    ]
+  },
+  {
+    "id": "V3.f4.absolute-negative",
+    "obligationId": "V3",
+    "items": [
+      "V3.f4.absolute-negative"
+    ]
+  },
+  {
+    "id": "V3.ref.modelId",
+    "obligationId": "V3",
+    "items": [
+      "V3.ref.modelId"
+    ]
+  },
+  {
+    "id": "V3.ref.modelRevision",
+    "obligationId": "V3",
+    "items": [
+      "V3.ref.modelRevision"
+    ]
+  },
+  {
+    "id": "V3.ref.inputId",
+    "obligationId": "V3",
+    "items": [
+      "V3.ref.inputId"
+    ]
+  },
+  {
+    "id": "V3.ref.outputId",
+    "obligationId": "V3",
+    "items": [
+      "V3.ref.outputId"
+    ]
+  },
+  {
+    "id": "V3.ref.range",
+    "obligationId": "V3",
+    "items": [
+      "V3.ref.range"
+    ]
+  },
+  {
+    "id": "V3.f4.duplicate-caseId",
+    "obligationId": "V3",
+    "items": [
+      "V3.f4.duplicate-caseId"
+    ]
+  },
+  {
+    "id": "V3.f4.case-duplicate-input",
+    "obligationId": "V3",
+    "items": [
+      "V3.f4.case-duplicate-input"
+    ]
+  },
+  {
+    "id": "V3.f4.case-duplicate-output",
+    "obligationId": "V3",
+    "items": [
+      "V3.f4.case-duplicate-output"
+    ]
+  },
+  {
+    "id": "V3.f4.case-missing-input.document-ok",
+    "obligationId": "V3",
+    "items": [
+      "V3.f4.case-missing-input.document-ok"
+    ]
+  },
+  {
+    "id": "V3.f4.case-missing-output.document-ok",
+    "obligationId": "V3",
+    "items": [
+      "V3.f4.case-missing-output.document-ok"
+    ]
+  },
+  {
+    "id": "V3.f4.case-missing-input",
+    "obligationId": "V3",
+    "items": [
+      "V3.f4.case-missing-input"
+    ]
+  },
+  {
+    "id": "V3.f4.case-missing-output",
+    "obligationId": "V3",
+    "items": [
+      "V3.f4.case-missing-output"
+    ]
+  },
+  {
+    "id": "V4.match",
+    "obligationId": "V4",
+    "items": [
+      "V4.match"
+    ]
+  },
+  {
+    "id": "V4.match.reordered",
+    "obligationId": "V4",
+    "items": [
+      "V4.match"
+    ]
+  },
+  {
+    "id": "V4.modelId",
+    "obligationId": "V4",
+    "items": [
+      "V4.modelId"
+    ]
+  },
+  {
+    "id": "V4.revision",
+    "obligationId": "V4",
+    "items": [
+      "V4.revision"
+    ]
+  },
+  {
+    "id": "V4.input-missing",
+    "obligationId": "V4",
+    "items": [
+      "V4.input-missing"
+    ]
+  },
+  {
+    "id": "V4.input-extra",
+    "obligationId": "V4",
+    "items": [
+      "V4.input-extra"
+    ]
+  },
+  {
+    "id": "V4.output-missing",
+    "obligationId": "V4",
+    "items": [
+      "V4.output-missing"
+    ]
+  },
+  {
+    "id": "V4.output-extra",
+    "obligationId": "V4",
+    "items": [
+      "V4.output-extra"
+    ]
+  },
+  {
+    "id": "V4.field-missing.outputIds",
+    "obligationId": "V4",
+    "items": [
+      "V4.field-missing"
+    ]
+  },
+  {
+    "id": "V4.field-type.inputIds",
+    "obligationId": "V4",
+    "items": [
+      "V4.field-type"
+    ]
+  },
+  {
+    "id": "V4.field-missing.oracle-cases",
+    "obligationId": "V4",
+    "items": [
+      "V4.field-missing"
+    ]
+  },
+  {
+    "id": "V4.field-type.oracle-cases",
+    "obligationId": "V4",
+    "items": [
+      "V4.field-type"
+    ]
+  },
+  {
+    "id": "V4.non-object.declaration",
+    "obligationId": "V4",
+    "items": [
+      "V4.non-object"
+    ]
+  },
+  {
+    "id": "V4.non-object.lesson",
+    "obligationId": "V4",
+    "items": [
+      "V4.non-object"
+    ]
+  },
+  {
+    "id": "V4.non-object.oracle-binding.oracle",
+    "obligationId": "V4",
+    "items": [
+      "V4.non-object"
+    ]
+  },
+  {
+    "id": "V4.non-object.oracle-binding.lesson",
+    "obligationId": "V4",
+    "items": [
+      "V4.non-object"
+    ]
+  },
+  {
+    "id": "V5.1.lesson-v1.result-v1.duplicate",
+    "obligationId": "V5",
+    "items": [
+      "V5.lesson.v1",
+      "V5.result.v1",
+      "V5.outcome.duplicate"
+    ]
+  },
+  {
+    "id": "V5.2.lesson-v2.result-v2.conflict",
+    "obligationId": "V5",
+    "items": [
+      "V5.lesson.v2",
+      "V5.result.v2",
+      "V5.outcome.conflict"
+    ]
+  },
+  {
+    "id": "V5.3.lesson-v1.map-has-v2-result.ok",
+    "obligationId": "V5",
+    "items": [
+      "V5.lesson.v1",
+      "V5.result.v2",
+      "V5.outcome.ok"
+    ]
+  },
+  {
+    "id": "V5.4.c10.bundle-v2-lesson-with-v1-rev1-in-map.ok",
+    "obligationId": "V5",
+    "items": [
+      "V5.lesson.v2",
+      "V5.result.v1",
+      "V5.outcome.ok"
+    ]
+  },
+  {
+    "id": "V5.5.c10.map-v1-rev1-and-v2-rev2.result-refs-rev1.ok",
+    "obligationId": "V5",
+    "items": [
+      "V5.lesson.v1",
+      "V5.lesson.v2",
+      "V5.result.v1",
+      "V5.outcome.ok"
+    ]
+  },
+  {
+    "id": "V5.6.map-v1-and-v2.results-ref-both.ok",
+    "obligationId": "V5",
+    "items": [
+      "V5.result.v1",
+      "V5.result.v2",
+      "V5.outcome.ok"
+    ]
+  },
+  {
+    "id": "V5.7.map-duplicate-v2-lesson.duplicate",
+    "obligationId": "V5",
+    "items": [
+      "V5.lesson.v2",
+      "V5.outcome.duplicate"
+    ]
+  },
+  {
+    "id": "V5.8.lesson-v2-content-conflict",
+    "obligationId": "V5",
+    "items": [
+      "V5.lesson.v2",
+      "V5.outcome.conflict"
+    ]
+  },
+  {
+    "id": "V8.getter.outputs",
+    "obligationId": "V8",
+    "items": [
+      "V8.getter"
+    ]
+  },
+  {
+    "id": "V8.getter.scenarios",
+    "obligationId": "V8",
+    "items": [
+      "V8.getter"
+    ]
+  },
+  {
+    "id": "V8.getter.transfer",
+    "obligationId": "V8",
+    "items": [
+      "V8.getter"
+    ]
+  },
+  {
+    "id": "V8.getter.oracle",
+    "obligationId": "V8",
+    "items": [
+      "V8.getter"
+    ]
+  },
+  {
+    "id": "V8.symbol.outputs",
+    "obligationId": "V8",
+    "items": [
+      "V8.symbol"
+    ]
+  },
+  {
+    "id": "V8.symbol.scenarios",
+    "obligationId": "V8",
+    "items": [
+      "V8.symbol"
+    ]
+  },
+  {
+    "id": "V8.symbol.transfer",
+    "obligationId": "V8",
+    "items": [
+      "V8.symbol"
+    ]
+  },
+  {
+    "id": "V8.symbol.oracle",
+    "obligationId": "V8",
+    "items": [
+      "V8.symbol"
+    ]
+  },
+  {
+    "id": "V8.cycle.outputs",
+    "obligationId": "V8",
+    "items": [
+      "V8.cycle"
+    ]
+  },
+  {
+    "id": "V8.cycle.scenarios",
+    "obligationId": "V8",
+    "items": [
+      "V8.cycle"
+    ]
+  },
+  {
+    "id": "V8.cycle.transfer",
+    "obligationId": "V8",
+    "items": [
+      "V8.cycle"
+    ]
+  },
+  {
+    "id": "V8.cycle.oracle",
+    "obligationId": "V8",
+    "items": [
+      "V8.cycle"
+    ]
+  },
+  {
+    "id": "V8.depth.outputs",
+    "obligationId": "V8",
+    "items": [
+      "V8.depth"
+    ]
+  },
+  {
+    "id": "V8.depth.scenarios",
+    "obligationId": "V8",
+    "items": [
+      "V8.depth"
+    ]
+  },
+  {
+    "id": "V8.depth.transfer",
+    "obligationId": "V8",
+    "items": [
+      "V8.depth"
+    ]
+  },
+  {
+    "id": "V8.depth.oracle",
+    "obligationId": "V8",
+    "items": [
+      "V8.depth"
+    ]
+  },
+  {
+    "id": "V8.length.outputs",
+    "obligationId": "V8",
+    "items": [
+      "V8.length"
+    ]
+  },
+  {
+    "id": "V8.length.scenarios",
+    "obligationId": "V8",
+    "items": [
+      "V8.length"
+    ]
+  },
+  {
+    "id": "V8.length.transfer",
+    "obligationId": "V8",
+    "items": [
+      "V8.length"
+    ]
+  },
+  {
+    "id": "V8.length.oracle",
+    "obligationId": "V8",
+    "items": [
+      "V8.length"
+    ]
+  },
+  {
+    "id": "V8.non-plain.outputs",
+    "obligationId": "V8",
+    "items": [
+      "V8.non-plain"
+    ]
+  },
+  {
+    "id": "V8.non-plain.scenarios",
+    "obligationId": "V8",
+    "items": [
+      "V8.non-plain"
+    ]
+  },
+  {
+    "id": "V8.non-plain.transfer",
+    "obligationId": "V8",
+    "items": [
+      "V8.non-plain"
+    ]
+  },
+  {
+    "id": "V8.non-plain.oracle",
+    "obligationId": "V8",
+    "items": [
+      "V8.non-plain"
+    ]
+  },
+  {
+    "id": "V8.getter.model-binding.declaration",
+    "obligationId": "V8",
+    "items": [
+      "V8.getter"
+    ]
+  },
+  {
+    "id": "V8.getter.model-binding.lesson",
+    "obligationId": "V8",
+    "items": [
+      "V8.getter"
+    ]
+  },
+  {
+    "id": "V8.getter.oracle-binding.oracle",
+    "obligationId": "V8",
+    "items": [
+      "V8.getter"
+    ]
+  },
+  {
+    "id": "V8.getter.bundle.lesson-v2",
+    "obligationId": "V8",
+    "items": [
+      "V8.getter"
+    ]
+  },
+  {
+    "id": "V8.symbol.model-binding.declaration",
+    "obligationId": "V8",
+    "items": [
+      "V8.symbol"
+    ]
+  },
+  {
+    "id": "V8.symbol.oracle-binding.oracle",
+    "obligationId": "V8",
+    "items": [
+      "V8.symbol"
+    ]
+  }
+]

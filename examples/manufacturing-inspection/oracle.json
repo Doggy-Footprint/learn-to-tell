@@ -1,0 +1,358 @@
+{
+  "kind": "oracle",
+  "version": 1,
+  "modelId": "manufacturing-inspection",
+  "modelRevision": 1,
+  "cases": [
+    {
+      "caseId": "baseline-a",
+      "values": [
+        {
+          "inputId": "defect-percent",
+          "value": 1
+        },
+        {
+          "inputId": "detection-percent",
+          "value": 90
+        },
+        {
+          "inputId": "false-positive-percent",
+          "value": 5
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "true-positive",
+          "value": 90
+        },
+        {
+          "outputId": "false-positive",
+          "value": 495
+        },
+        {
+          "outputId": "false-negative",
+          "value": 10
+        },
+        {
+          "outputId": "true-negative",
+          "value": 9405
+        },
+        {
+          "outputId": "positive-count",
+          "value": 585
+        },
+        {
+          "outputId": "positive-predictive-value",
+          "value": 0.15384615384615385
+        },
+        {
+          "outputId": "accuracy",
+          "value": 0.9495
+        }
+      ],
+      "absolute": 1e-09,
+      "source": "MedCalc 공식: https://www.medcalc.org/en/manual/roc-curve-analysis-predictive-values.php ; N=10000, TP=Nps, FP=N(1-p)f, FN=Np(1-s), TN=N(1-p)(1-f), PPV=TP/(TP+FP), accuracy=(TP+TN)/N 손계산",
+      "author": "model-author"
+    },
+    {
+      "caseId": "population-contrast",
+      "values": [
+        {
+          "inputId": "defect-percent",
+          "value": 10
+        },
+        {
+          "inputId": "detection-percent",
+          "value": 90
+        },
+        {
+          "inputId": "false-positive-percent",
+          "value": 5
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "true-positive",
+          "value": 900
+        },
+        {
+          "outputId": "false-positive",
+          "value": 450
+        },
+        {
+          "outputId": "false-negative",
+          "value": 100
+        },
+        {
+          "outputId": "true-negative",
+          "value": 8550
+        },
+        {
+          "outputId": "positive-count",
+          "value": 1350
+        },
+        {
+          "outputId": "positive-predictive-value",
+          "value": 0.6666666666666666
+        },
+        {
+          "outputId": "accuracy",
+          "value": 0.945
+        }
+      ],
+      "absolute": 1e-09,
+      "source": "MedCalc 공식: https://www.medcalc.org/en/manual/roc-curve-analysis-predictive-values.php ; N=10000, TP=Nps, FP=N(1-p)f, FN=Np(1-s), TN=N(1-p)(1-f), PPV=TP/(TP+FP), accuracy=(TP+TN)/N 손계산",
+      "author": "model-author"
+    },
+    {
+      "caseId": "candidate-b",
+      "values": [
+        {
+          "inputId": "defect-percent",
+          "value": 1
+        },
+        {
+          "inputId": "detection-percent",
+          "value": 80
+        },
+        {
+          "inputId": "false-positive-percent",
+          "value": 1
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "true-positive",
+          "value": 80
+        },
+        {
+          "outputId": "false-positive",
+          "value": 99
+        },
+        {
+          "outputId": "false-negative",
+          "value": 20
+        },
+        {
+          "outputId": "true-negative",
+          "value": 9801
+        },
+        {
+          "outputId": "positive-count",
+          "value": 179
+        },
+        {
+          "outputId": "positive-predictive-value",
+          "value": 0.44692737430167595
+        },
+        {
+          "outputId": "accuracy",
+          "value": 0.9881
+        }
+      ],
+      "absolute": 1e-09,
+      "source": "MedCalc 공식: https://www.medcalc.org/en/manual/roc-curve-analysis-predictive-values.php ; N=10000, TP=Nps, FP=N(1-p)f, FN=Np(1-s), TN=N(1-p)(1-f), PPV=TP/(TP+FP), accuracy=(TP+TN)/N 손계산",
+      "author": "model-author"
+    },
+    {
+      "caseId": "transfer-case",
+      "values": [
+        {
+          "inputId": "defect-percent",
+          "value": 2
+        },
+        {
+          "inputId": "detection-percent",
+          "value": 80
+        },
+        {
+          "inputId": "false-positive-percent",
+          "value": 2
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "true-positive",
+          "value": 160
+        },
+        {
+          "outputId": "false-positive",
+          "value": 196
+        },
+        {
+          "outputId": "false-negative",
+          "value": 40
+        },
+        {
+          "outputId": "true-negative",
+          "value": 9604
+        },
+        {
+          "outputId": "positive-count",
+          "value": 356
+        },
+        {
+          "outputId": "positive-predictive-value",
+          "value": 0.449438202247191
+        },
+        {
+          "outputId": "accuracy",
+          "value": 0.9764
+        }
+      ],
+      "absolute": 1e-09,
+      "source": "MedCalc 공식: https://www.medcalc.org/en/manual/roc-curve-analysis-predictive-values.php ; N=10000, TP=Nps, FP=N(1-p)f, FN=Np(1-s), TN=N(1-p)(1-f), PPV=TP/(TP+FP), accuracy=(TP+TN)/N 손계산",
+      "author": "model-author"
+    },
+    {
+      "caseId": "ppv-null-no-defect-no-false-positive",
+      "values": [
+        {
+          "inputId": "defect-percent",
+          "value": 0
+        },
+        {
+          "inputId": "detection-percent",
+          "value": 90
+        },
+        {
+          "inputId": "false-positive-percent",
+          "value": 0
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "true-positive",
+          "value": 0
+        },
+        {
+          "outputId": "false-positive",
+          "value": 0
+        },
+        {
+          "outputId": "false-negative",
+          "value": 0
+        },
+        {
+          "outputId": "true-negative",
+          "value": 10000
+        },
+        {
+          "outputId": "positive-count",
+          "value": 0
+        },
+        {
+          "outputId": "positive-predictive-value",
+          "value": null
+        },
+        {
+          "outputId": "accuracy",
+          "value": 1
+        }
+      ],
+      "absolute": 1e-09,
+      "source": "MedCalc 공식: https://www.medcalc.org/en/manual/roc-curve-analysis-predictive-values.php ; N=10000, TP=Nps, FP=N(1-p)f, FN=Np(1-s), TN=N(1-p)(1-f), PPV=TP/(TP+FP), accuracy=(TP+TN)/N 손계산",
+      "author": "model-author"
+    },
+    {
+      "caseId": "ppv-null-zero-detection",
+      "values": [
+        {
+          "inputId": "defect-percent",
+          "value": 1
+        },
+        {
+          "inputId": "detection-percent",
+          "value": 0
+        },
+        {
+          "inputId": "false-positive-percent",
+          "value": 0
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "true-positive",
+          "value": 0
+        },
+        {
+          "outputId": "false-positive",
+          "value": 0
+        },
+        {
+          "outputId": "false-negative",
+          "value": 100
+        },
+        {
+          "outputId": "true-negative",
+          "value": 9900
+        },
+        {
+          "outputId": "positive-count",
+          "value": 0
+        },
+        {
+          "outputId": "positive-predictive-value",
+          "value": null
+        },
+        {
+          "outputId": "accuracy",
+          "value": 0.99
+        }
+      ],
+      "absolute": 1e-09,
+      "source": "MedCalc 공식: https://www.medcalc.org/en/manual/roc-curve-analysis-predictive-values.php ; N=10000, TP=Nps, FP=N(1-p)f, FN=Np(1-s), TN=N(1-p)(1-f), PPV=TP/(TP+FP), accuracy=(TP+TN)/N 손계산",
+      "author": "model-author"
+    },
+    {
+      "caseId": "all-inputs-max",
+      "values": [
+        {
+          "inputId": "defect-percent",
+          "value": 100
+        },
+        {
+          "inputId": "detection-percent",
+          "value": 100
+        },
+        {
+          "inputId": "false-positive-percent",
+          "value": 100
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "true-positive",
+          "value": 10000
+        },
+        {
+          "outputId": "false-positive",
+          "value": 0
+        },
+        {
+          "outputId": "false-negative",
+          "value": 0
+        },
+        {
+          "outputId": "true-negative",
+          "value": 0
+        },
+        {
+          "outputId": "positive-count",
+          "value": 10000
+        },
+        {
+          "outputId": "positive-predictive-value",
+          "value": 1
+        },
+        {
+          "outputId": "accuracy",
+          "value": 1
+        }
+      ],
+      "absolute": 1e-09,
+      "source": "MedCalc 공식: https://www.medcalc.org/en/manual/roc-curve-analysis-predictive-values.php ; N=10000, TP=Nps, FP=N(1-p)f, FN=Np(1-s), TN=N(1-p)(1-f), PPV=TP/(TP+FP), accuracy=(TP+TN)/N 손계산",
+      "author": "model-author"
+    }
+  ]
+}

@@ -132,3 +132,26 @@ export function validateSimulationBinding(model, lesson) {
   }
   return finish(errors);
 }
+
+const outputKeys = {truePositive: 'true-positive', falsePositive: 'false-positive', falseNegative: 'false-negative', trueNegative: 'true-negative', positiveCount: 'positive-count', positivePredictiveValue: 'positive-predictive-value', accuracy: 'accuracy'};
+const inputKeys = Object.fromEntries(Object.entries(inspectionModel.inputIds).map(([field, inputId]) => [inputId, field]));
+const fieldPath = path => path.startsWith('/') && own(inspectionModel.inputIds, path.slice(1)) ? `/${inspectionModel.inputIds[path.slice(1)]}` : path;
+
+export const model = {
+  modelId: inspectionModel.modelId,
+  modelRevision: inspectionModel.modelRevision,
+  inputIds: Object.keys(inputKeys),
+  outputIds: Object.values(outputKeys),
+  calculate(values) {
+    const inputs = {};
+    if (plain(values)) {
+      for (const [inputId, field] of Object.entries(inputKeys)) {
+        const descriptor = Object.getOwnPropertyDescriptor(values, inputId);
+        if (descriptor) inputs[field] = descriptor.value;
+      }
+    }
+    const result = calculateInspection(plain(values) ? inputs : values);
+    if (!result.ok) return {ok: false, errors: result.errors.map(({code, path}) => ({code, path: fieldPath(path)}))};
+    return {ok: true, value: Object.fromEntries(Object.entries(outputKeys).map(([key, outputId]) => [outputId, result.value[key]]))};
+  },
+};

@@ -27,8 +27,15 @@ const observation = object({observationId: id, resultId: id, assessmentId: id, c
 const nextPath = object({pathId: id, lessonId: id, conceptId: id, conceptRevision: integer, reason: string});
 const root = (kind, version, fields) => object({kind: {...string, kind}, version: {...number, version}, ...fields});
 const diagnostic = root('diagnostic', 1, {diagnosticId: id, profileId: id, contextKind, candidates: {...array(candidate, 1), max: 3}, selection: nullable(id), confirmation: enumeration('confirmed', 'deferred', 'unconfirmed'), hypotheses: array(hypothesis)});
-const lesson = root('lesson', 1, {lessonId: id, lessonRevision: integer, profileId: id, diagnosticId: id, candidateId: id, contextKind, concepts: array(concept, 1), content: array(content, 1), decisions: array(decision, 1), inputs: array(numericInput, 1), activities: array(activity, 1), rubric});
+const lessonFields = {lessonId: id, lessonRevision: integer, profileId: id, diagnosticId: id, candidateId: id, contextKind, concepts: array(concept, 1), content: array(content, 1), decisions: array(decision, 1), inputs: array(numericInput, 1), activities: array(activity, 1), rubric};
+const modelOutput = object({outputId: id, label: string, unit: string, scale: {...number, positive: true}, nullable: boolean});
+const scenario = object({scenarioId: id, label: string, values: array(object({inputId: id, value: number}), 1)});
+const tolerance = object({outputId: id, absolute: {...number, nonNegative: true}});
+const lessonV2Fields = {...lessonFields, modelId: id, modelRevision: integer, outputs: array(modelOutput, 1), scenarios: array(scenario, 1), transfer: object({scenarioId: id, tolerances: array(tolerance, 1)})};
+const oracleCase = object({caseId: id, values: array(object({inputId: id, value: number}), 1), expected: array(object({outputId: id, value: nullable(number)}), 1), absolute: {...number, nonNegative: true}, source: string, author: enumeration('model-author', 'independent-agent')});
+const lesson = {versions: {1: root('lesson', 1, lessonFields), 2: root('lesson', 2, lessonV2Fields)}};
+const oracle = root('oracle', 1, {modelId: id, modelRevision: integer, cases: array(oracleCase, 1)});
 const result = root('result', 2, {resultId: id, profileId: id, lessonId: id, lessonRevision: integer, baseMapRevision: integer, sequence: integer, previousResultId: nullable(id), state: enumeration('partial', 'completed'), responses: array(response), assessments: array(assessment), contentHash});
 const map = root('map', 2, {profileId: id, revision: integer, lessons: array(lesson), results: array(result), observations: array(observation), nextPaths: array(nextPath)});
-export const definitions = {diagnostic, lesson, result, map};
+export const definitions = {diagnostic, lesson, result, map, oracle};
 export const bundleDefinition = object({diagnostic, lesson, result, map, previousResult: nullable(result)});

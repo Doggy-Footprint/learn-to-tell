@@ -57,7 +57,7 @@ function structuralCases(cases) {
     for(const invalid of ['', 'A','a_b','a'.repeat(65)]) add(`id-${invalid.length}-${invalid.slice(0,2)}`,path,invalid,bad('VALUE',path));
    } else if(schema.type==='string'||schema.type==='nullable-string') add('blank',path,'  ',bad('VALUE',path));
    else if(schema.type==='timestamp') {for(const invalid of ['2026-02-30T00:00:00.000Z','2026-10-04T00:00:00Z','2026-10-04T00:00:00.000+00:00','invalid']) add(`timestamp-${invalid}`,path,invalid,bad('VALUE',path));}
-   else if(schema.type==='version') {for(const version of [0,1,2,1.5].filter(v=>v!==schema.valid)) add(`version-${version}`,path,version,bad('VERSION',path));}
+   else if(schema.type==='version') {for(const version of [0,1,path.startsWith('/lessons/')||kind==='lesson'?3:2,1.5].filter(v=>v!==schema.valid)) add(`version-${version}`,path,version,bad('VERSION',path));}
   }
   walk(syntax[kind],'',base);
  }
@@ -238,7 +238,7 @@ export function buildCases() {
  bundle('V5.secret-response',b=>{b.result.responses[0].answer='SECRET-RESPONSE';b.result.version=1;},bad('VERSION','/result/version'),'V5','C6');
  push('V5.bundle-scalar','V5','C11','bundle',null,bad('TYPE',''));
  // ---- content-hash spec v1 obligations (ids carry the CH- prefix because V1..V10 names collide with earlier specs)
- for(const kind of Object.keys(syntax)) for(const version of [0,1,1.5,2]) {
+ for(const kind of Object.keys(syntax)) for(const version of [0,1,1.5,kind==='lesson'?3:2]) {
   const input=clone(validBundle()[kind]);input.version=version;reseal(input);
   rawPush(`CH-V1.version.${kind}.${version}`,'CH-V1','C7','document',input,version===EXPECTED_VERSION[kind]?good:bad('VERSION','/version'),kind);
  }
