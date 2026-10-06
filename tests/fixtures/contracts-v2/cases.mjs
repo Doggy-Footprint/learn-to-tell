@@ -26,13 +26,16 @@ export const mxOutputDefs = [
   ['accuracy', 'accuracy', '%', 100, false, '전체 정확도'],
 ];
 export const mxInputIds = inspectionLesson.inputs.map(x => x.inputId);
+// lesson v2 concept cards (spec 65ba74b36b0ef5da R1): four required non-empty strings besides conceptId/conceptRevision/label.
+export const CARD_FIELDS = ['meaning', 'example', 'confusion', 'plain'];
+const withCards = concepts => concepts.map(c => ({...c, meaning: `${c.label}의 뜻`, example: `${c.label}의 예`, confusion: `${c.label}과 헷갈리는 것`, plain: `${c.label}을 쉽게 말하면`}));
 
 export function mxLesson() {
   const v1 = clone(inspectionLesson);
   const outputs = mxOutputDefs.map(([outputId, , unit, scale, nullable, label]) => ({outputId, label, unit, scale, nullable}));
   const sc = (scenarioId, label, vals) => ({scenarioId, label, values: mxInputIds.map((inputId, i) => ({inputId, value: vals[i]}))});
   return {
-    ...v1, version: 2, modelId: 'manufacturing-inspection', modelRevision: 1, outputs,
+    ...v1, version: 2, modelId: 'manufacturing-inspection', modelRevision: 1, concepts: withCards(v1.concepts), outputs,
     scenarios: [sc('baseline-a', '기본 A', [1, 90, 5]), sc('population-contrast', '집단 대비', [10, 90, 5]), sc('candidate-b', '검사 B', [1, 80, 1])],
     transfer: {scenarioId: 'candidate-b', tolerances: outputs.map(o => ({outputId: o.outputId, absolute: 1}))},
   };
@@ -61,7 +64,7 @@ export function toV2(v1, revision = v1.lessonRevision) {
   const lesson = clone(v1);
   const ids = lesson.inputs.map(x => x.inputId);
   return {
-    ...lesson, version: 2, lessonRevision: revision, modelId: 'model-a', modelRevision: 1,
+    ...lesson, version: 2, lessonRevision: revision, modelId: 'model-a', modelRevision: 1, concepts: withCards(lesson.concepts),
     outputs: [{outputId: 'output-a', label: 'Out A', unit: 'items', scale: 1, nullable: false}, {outputId: 'output-b', label: 'Out B', unit: '%', scale: 100, nullable: true}],
     scenarios: [{scenarioId: 'scenario-a', label: 'Default', values: ids.map((inputId, i) => ({inputId, value: lesson.inputs[i].default}))}, {scenarioId: 'scenario-b', label: 'Max', values: ids.map((inputId, i) => ({inputId, value: lesson.inputs[i].max}))}],
     transfer: {scenarioId: 'scenario-b', tolerances: [{outputId: 'output-a', absolute: 0.5}, {outputId: 'output-b', absolute: 1}]},
@@ -85,6 +88,20 @@ const un = (code, under) => ({code, under});
   add('V1.v2.requires-new-fields', ['V1.v2'], 'lesson', () => ({input: {...v1(), version: 2}}), {has: ['modelId', 'modelRevision', 'outputs', 'scenarios', 'transfer'].map(f => ex('REQUIRED', `/${f}`))});
   for (const [item, version] of [['0', 0], ['3', 3]]) add(`V1.version-${item}`, [`V1.${item}`], 'lesson', () => ({input: {...mxLesson(), version}}), {exact: [ex('VERSION', '/version')]});
   add('V1.version-string-2', ['V1.str2'], 'lesson', () => ({input: {...mxLesson(), version: '2'}}), {exact: [ex('TYPE', '/version')]});
+}
+
+// ---- T5-3 V1: lesson v2 concept card fields, equivalence classes {valid, missing, blank, number} per field; v1 keeps three fields ----
+{
+  const cardCase = (name, field, mutate, expect) => add(`T53-V1.${field}.${name}`, [`T53-V1.${field}.${name}`], 'lesson', () => { const l = mxLesson(); mutate(l.concepts[0], field); return {input: l}; }, expect);
+  for (const f of CARD_FIELDS) {
+    const path = `/concepts/0/${f}`;
+    cardCase('valid', f, (c, k) => { c[k] = '유효한 문장 하나.'; }, good);
+    cardCase('missing', f, (c, k) => { delete c[k]; }, {exact: [ex('REQUIRED', path)]});
+    cardCase('blank', f, (c, k) => { c[k] = '  '; }, {exact: [ex('VALUE', path)]});
+    cardCase('number', f, (c, k) => { c[k] = 5; }, {exact: [ex('TYPE', path)]});
+    add(`T53-V1.${f}.missing-last`, [`T53-V1.${f}.missing`], 'lesson', () => { const l = mxLesson(); delete l.concepts.at(-1)[f]; return {input: l}; }, {exact: [ex('REQUIRED', `/concepts/${mxLesson().concepts.length - 1}/${f}`)]});
+  }
+  add('T53-V1.v1-rejects-card-fields', ['T53-V1.v1-card-fields'], 'lesson', () => { const l = clone(inspectionLesson); for (const f of CARD_FIELDS) l.concepts[0][f] = '카드 문장'; return {input: l}; }, {exact: [...CARD_FIELDS].sort().map(f => ex('UNKNOWN_FIELD', `/concepts/0/${f}`))});
 }
 
 // ---- V2: lesson v2 rules ----

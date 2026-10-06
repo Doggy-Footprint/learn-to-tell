@@ -1,13 +1,11 @@
 import {test, expect} from '@playwright/test';
-import {tid, gotoContext, toPrediction, toSimulation, gotoFresh, show, expectOutput, fillPrediction, expectTokens, TRANSFER_PRED, BASELINE_PRED, RETRY_PRED} from './helpers.mjs';
+import {tid, gotoContext, toPrediction, toSimulation, gotoFresh, show, expectOutput, fillPrediction, expectNumbers, TRANSFER_PRED, BASELINE_PRED, RETRY_PRED, UNDEFINED_ID, INPUT_IDS, OUTPUT_IDS, pred} from './helpers.mjs';
 
-const MINE = {truePositive: 77, falsePositive: 123, falseNegative: 4, trueNegative: 9000, positiveCount: 200, positivePredictiveValue: 38.5, accuracy: 90.1};
+const MINE = pred(77, 123, 4, 9000, 200, 38.5, 90.1);
 
 async function expectRestored(page, texts) {
-  await expect(await show(page, 'input-defect')).toHaveValue('12.5');
-  await show(page, 'prediction-original');
-  const original = await tid(page, 'prediction-original').innerText();
-  for (const re of [/77/, /123/, /38\.5/, /90\.1/, /9,?000/]) expect(original).toMatch(re);
+  await expect(await show(page, 'input-defect-percent')).toHaveValue('12.5');
+  await expectNumbers(page, 'prediction-original', [77, 123, 4, 9000, 200, 38.5, 90.1]);
   await expect(await show(page, 'response-apply')).toHaveValue(texts.apply);
   await expect(await show(page, 'response-question')).toHaveValue(texts.question);
   await expect(tid(page, 'storage-notice')).toHaveCount(0);
@@ -19,14 +17,14 @@ test('[V5.S5] round-trip links keep input/prediction/scroll; reload and reopened
   await fillPrediction(page, 'prediction', MINE);
   await tid(page, 'prediction-record').click();
   await tid(page, 'stage-next').click();
-  await tid(page, 'input-defect').fill('12.5');
+  await tid(page, 'input-defect-percent').fill('12.5');
   await (await show(page, 'prediction-reveal')).click();
   await fillPrediction(page, 'prediction-retry', RETRY_PRED);
   await tid(page, 'prediction-retry').click();
   await (await show(page, 'response-question')).fill(texts.question);
   await tid(page, 'response-apply').fill(texts.apply);
   await tid(page, 'response-apply').blur();
-  await show(page, 'input-defect');
+  await show(page, 'input-defect-percent');
   const stageText = await tid(page, 'stage-indicator').innerText();
 
   await (await show(page, 'link-to-explanation')).scrollIntoViewIfNeeded();
@@ -46,7 +44,7 @@ test('[V5.S5] round-trip links keep input/prediction/scroll; reload and reopened
   expect(Math.abs(after - before), `scroll before=${before} after=${after}`).toBeLessThanOrEqual(2);
   await expectRestored(page, texts);
 
-  await show(page, 'input-defect');
+  await show(page, 'input-defect-percent');
   const stageNow = await tid(page, 'stage-indicator').innerText();
   await page.reload();
   await expect(tid(page, 'stage-indicator')).toHaveText(stageNow);
@@ -63,13 +61,13 @@ test('[V5.S5] round-trip links keep input/prediction/scroll; reload and reopened
 
 test('[V5.S6] outputs absent before baseline record/skip; new-case result absent until prediction recorded or skipped (C12)', async ({page}) => {
   const count = (id, pg = page) => pg.locator(`[data-testid="${id}"]`).count();
-  const gated = ['output-table', 'output-grid', 'input-defect', 'input-detection', 'input-false-positive', 'scenario-baseline-a', 'scenario-population-contrast', 'scenario-candidate-b', 'reset-inputs', 'baseline-comparison', 'transfer-result'];
+  const gated = ['output-table', ...OUTPUT_IDS.map(id => `bar-${id}`), ...INPUT_IDS.map(id => `input-${id}`), 'scenario-baseline-a', 'scenario-population-contrast', 'scenario-candidate-b', 'reset-inputs', 'baseline-comparison', 'transfer-result'];
   const stageRegions = ['context', 'prediction', 'simulation', 'assessment', 'return', 'map'];
   await gotoContext(page);
   for (const id of gated) expect(await count(id), id).toBe(0);
   for (const name of stageRegions) expect(await count(`stage-${name}`), name).toBe(name === 'context' ? 1 : 0);
   const html = await page.content();
-  for (const id of ['output-table', 'output-grid', 'transfer-result']) expect(html).not.toContain(`data-testid="${id}"`);
+  for (const id of ['output-table', 'bar-true-positive', 'transfer-result']) expect(html).not.toContain(`data-testid="${id}"`);
   await tid(page, 'stage-next').click();
   for (const name of stageRegions) expect(await count(`stage-${name}`), name).toBe(name === 'prediction' ? 1 : 0);
   for (const id of gated) expect(await count(id), `${id} before baseline record/skip`).toBe(0);
@@ -105,9 +103,9 @@ test('[V5.S6] outputs absent before baseline record/skip; new-case result absent
   await expect(tid(other, 'transfer-grade')).toHaveAttribute('data-status', 'skipped');
 });
 
-const TR_TOKENS = ['160', '196', '40', '9,604', '356', '44.94%', '97.64%'];
+const TR_NUMBERS = [160, 196, 40, 9604, 356, 44.94, 97.64];
 const GRADE_TAG = {partial: '[V5.S6.grade-partial]', 'not-demonstrated': '[V5.S6.grade-not-demonstrated]'};
-for (const [id, change, status] of [['partial', {truePositive: 163}, 'partial'], ['not-demonstrated', Object.fromEntries(Object.keys(TRANSFER_PRED).map(k => [k, 0])), 'not_demonstrated']]) {
+for (const [id, change, status] of [['partial', {'true-positive': 163}, 'partial'], ['not-demonstrated', Object.fromEntries(OUTPUT_IDS.map(k => [k, 0])), 'not_demonstrated']]) {
   test(`${GRADE_TAG[id]} transfer-grade shows ${status}`, async ({page}) => {
     await gotoFresh(page);
     await fillPrediction(page, 'transfer', {...TRANSFER_PRED, ...change});
@@ -117,21 +115,21 @@ for (const [id, change, status] of [['partial', {truePositive: 163}, 'partial'],
 }
 test('[V5.S6.ppv-undefined] transfer PPV marked undefined is shown and graded as a mismatch', async ({page}) => {
   await gotoFresh(page);
-  await fillPrediction(page, 'transfer', TRANSFER_PRED, true);
+  await fillPrediction(page, 'transfer', TRANSFER_PRED, [UNDEFINED_ID]);
   await tid(page, 'transfer-record').click();
   await expect(tid(page, 'transfer-grade')).toHaveAttribute('data-status', 'partial');
-  await expectTokens(page, 'transfer-original', ['160', '196', '40', '9,604', '356', '97.64%'], {absent: ['44.94%']});
+  await expectNumbers(page, 'transfer-original', [160, 196, 40, 9604, 356, 97.64], {absent: [44.94]});
   await expect(tid(page, 'transfer-original')).toContainText('정의되지 않음');
 });
 test('[V5.S6.transfer-retry] transfer retry uses its own fields; the original stays unchanged and disabled', async ({page}) => {
   await gotoFresh(page);
   await fillPrediction(page, 'transfer', TRANSFER_PRED);
   await tid(page, 'transfer-record').click();
-  await expectTokens(page, 'transfer-original', TR_TOKENS);
-  for (const field of Object.keys(TRANSFER_PRED)) await expect(await show(page, `transfer-${field}`)).toBeDisabled();
-  await fillPrediction(page, 'transfer-retry', {...TRANSFER_PRED, truePositive: 1, accuracy: 50});
+  await expectNumbers(page, 'transfer-original', TR_NUMBERS);
+  for (const field of OUTPUT_IDS) await expect(await show(page, `transfer-${field}`)).toBeDisabled();
+  await fillPrediction(page, 'transfer-retry', {...TRANSFER_PRED, 'true-positive': 1, accuracy: 50});
   await tid(page, 'transfer-retry').click();
-  await expectTokens(page, 'transfer-original', TR_TOKENS, {absent: ['50.00%']});
+  await expectNumbers(page, 'transfer-original', TR_NUMBERS, {absent: [50]});
   await expect(tid(page, 'transfer-grade')).toHaveAttribute('data-status', 'supported');
-  for (const field of Object.keys(TRANSFER_PRED)) await expect(await show(page, `transfer-${field}`)).toBeDisabled();
+  for (const field of OUTPUT_IDS) await expect(await show(page, `transfer-${field}`)).toBeDisabled();
 });

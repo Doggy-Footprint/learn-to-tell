@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import * as contractsIndex from '../contracts/index.mjs';
 import {inspectionLesson} from '../examples/manufacturing-inspection/lesson.mjs';
 import {fixed} from './fixtures/simulation/cases.mjs';
-import {cases, mxExpected, mxInputIds, mxLesson, mxOracle, mxDeclaration, clone, EPS} from './fixtures/contracts-v2/cases.mjs';
+import {cases, mxExpected, mxInputIds, mxLesson, mxOracle, mxDeclaration, clone, EPS, CARD_FIELDS} from './fixtures/contracts-v2/cases.mjs';
 
 const attempt = async path => { try { return await import(path); } catch (error) { return {loadError: error}; } };
 const modelContract = await attempt('../contracts/model.mjs');
@@ -15,6 +15,8 @@ const manifest = JSON.parse(readFileSync(new URL('./fixtures/contracts-v2/manife
 
 const declaredItems = (() => {
   const items = ['V1.v1', 'V1.v2', 'V1.0', 'V1.3', 'V1.str2'];
+  for (const f of CARD_FIELDS) for (const c of ['valid', 'missing', 'blank', 'number']) items.push(`T53-V1.${f}.${c}`);
+  items.push('T53-V1.v1-card-fields');
   for (const id of mxInputIds) for (const b of ['min', 'max']) for (const v of ['minus', 'eq', 'plus']) items.push(`V2.bva.${id}.${b}-${v}`);
   items.push('V2.absolute.minus', 'V2.absolute.zero', 'V2.c3');
   for (const r of ['required-minutes-14', 'missing-stage', 'missing-dimension', 'role-mismatch-reference']) items.push(`V2.v1rule.${r}`);

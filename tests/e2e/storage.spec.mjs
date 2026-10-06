@@ -1,7 +1,6 @@
 import {test, expect} from '@playwright/test';
-import {tid, gotoContext, toSimulation, gotoFresh, show, setInputs, fillPrediction, expectOutput, readDownload, assertResultDocument, TRANSFER_PRED, BASELINE_PRED} from './helpers.mjs';
-import {storageKey} from '../fixtures/learning/shapes.mjs';
-import {oracleOutput} from '../fixtures/learning/oracle.mjs';
+import {tid, gotoContext, toSimulation, show, setInputs, fillPrediction, expectOutput, readDownload, assertResultDocument, TRANSFER_PRED} from './helpers.mjs';
+import {storageKey, INPUT_IDS} from '../fixtures/learning/data.mjs';
 
 const key = storageKey();
 const notice = (page, kind) => page.locator(`[data-testid="storage-notice"][data-kind="${kind}"]`);
@@ -46,9 +45,9 @@ test('[V8.S11] reset-learning needs an in-page confirm (no browser dialog); canc
   await tid(page, 'reset-learning-cancel').click();
   await expect(tid(page, 'reset-learning-confirm')).toBeHidden();
   await expect(tid(page, 'stage-indicator')).toHaveText(indicator);
-  await expect(tid(page, 'input-defect')).toHaveValue('7');
+  await expect(tid(page, 'input-defect-percent')).toHaveValue('7');
   await page.reload();
-  await expect(await show(page, 'input-defect')).toHaveValue('7');
+  await expect(await show(page, 'input-defect-percent')).toHaveValue('7');
 
   await (await show(page, 'reset-learning')).click();
   await tid(page, 'reset-learning-confirm').click();
@@ -60,22 +59,21 @@ test('[V8.S11] reset-learning needs an in-page confirm (no browser dialog); canc
   expect(dialogs).toEqual([]);
 });
 
-const half = n => Number((n + 500000n) / 1000000n);
-function expectedCells(d, s, f) {
-  const {tp, fp, fn} = oracleOutput(d, s, f);
-  const c1 = half(tp), c2 = half(tp + fp), c3 = half(tp + fp + fn);
-  return [c1, c2 - c1, c3 - c2, 10000 - c3];
-}
-test('[V8.S12] output-grid data-cells equal cumulative rounded boundaries and sum to 10,000', async ({page}) => {
-  await gotoFresh(page);
-  const series = ['true-positive', 'false-positive', 'false-negative', 'true-negative'];
-  for (const input of [[1, 90, 5], [10, 90, 5], [1, 80, 1], [0.015, 90, 5]]) {
-    await setInputs(page, input);
-    await expectOutput(page, input);
-    const want = expectedCells(...input);
-    expect(want.reduce((a, b) => a + b, 0)).toBe(10000);
-    for (const [i, name] of series.entries()) await expect(tid(page, 'output-grid').locator(`[data-series="${name}"]`), `${input} ${name}`).toHaveAttribute('data-cells', String(want[i]));
-    const sum = await tid(page, 'output-grid').locator('[data-series]').evaluateAll(els => els.reduce((a, e) => a + Number(e.getAttribute('data-cells')), 0));
-    expect(sum).toBe(10000);
-  }
+
+// C12: a stored value whose inputs keys differ from the lesson's inputIds is ignored (load-failed) and stays untouched until the first action.
+test('[T53-V8.C12] stored progress with another lesson\'s inputs keys: load-failed notice, initial state, value untouched until the first action', async ({page}) => {
+  await toSimulation(page, {predict: 'record'});
+  await expect.poll(() => stored(page)).not.toBeNull();
+  const doc = JSON.parse(await stored(page));
+  doc.progress.inputs = {'flow-rate': 20};
+  const text = JSON.stringify(doc);
+  await page.evaluate(([k, v]) => localStorage.setItem(k, v), [key, text]);
+  await page.reload();
+  await expect(notice(page, 'load-failed')).toBeVisible();
+  await expect(tid(page, 'stage-context')).toBeVisible();
+  expect(await stored(page)).toBe(text);
+  await tid(page, 'stage-next').click();
+  await expect(tid(page, 'stage-prediction')).toBeVisible();
+  await expect.poll(() => stored(page)).not.toBe(text);
+  expect(Object.keys(JSON.parse(await stored(page)).progress.inputs).sort()).toEqual([...INPUT_IDS].sort());
 });

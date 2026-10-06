@@ -923,5 +923,152 @@
     "items": [
       "V8.symbol"
     ]
+  },
+  {
+    "id": "T53-V1.meaning.valid",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.meaning.valid"
+    ]
+  },
+  {
+    "id": "T53-V1.meaning.missing",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.meaning.missing"
+    ]
+  },
+  {
+    "id": "T53-V1.meaning.blank",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.meaning.blank"
+    ]
+  },
+  {
+    "id": "T53-V1.meaning.number",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.meaning.number"
+    ]
+  },
+  {
+    "id": "T53-V1.example.valid",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.example.valid"
+    ]
+  },
+  {
+    "id": "T53-V1.example.missing",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.example.missing"
+    ]
+  },
+  {
+    "id": "T53-V1.example.blank",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.example.blank"
+    ]
+  },
+  {
+    "id": "T53-V1.example.number",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.example.number"
+    ]
+  },
+  {
+    "id": "T53-V1.confusion.valid",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.confusion.valid"
+    ]
+  },
+  {
+    "id": "T53-V1.confusion.missing",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.confusion.missing"
+    ]
+  },
+  {
+    "id": "T53-V1.confusion.blank",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.confusion.blank"
+    ]
+  },
+  {
+    "id": "T53-V1.confusion.number",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.confusion.number"
+    ]
+  },
+  {
+    "id": "T53-V1.plain.valid",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.plain.valid"
+    ]
+  },
+  {
+    "id": "T53-V1.plain.missing",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.plain.missing"
+    ]
+  },
+  {
+    "id": "T53-V1.plain.blank",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.plain.blank"
+    ]
+  },
+  {
+    "id": "T53-V1.plain.number",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.plain.number"
+    ]
+  },
+  {
+    "id": "T53-V1.v1-rejects-card-fields",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.v1-card-fields"
+    ]
+  },
+  {
+    "id": "T53-V1.meaning.missing-last",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.meaning.missing"
+    ]
+  },
+  {
+    "id": "T53-V1.example.missing-last",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.example.missing"
+    ]
+  },
+  {
+    "id": "T53-V1.confusion.missing-last",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.confusion.missing"
+    ]
+  },
+  {
+    "id": "T53-V1.plain.missing-last",
+    "obligationId": "T53-V1",
+    "items": [
+      "T53-V1.plain.missing"
+    ]
   }
 ]

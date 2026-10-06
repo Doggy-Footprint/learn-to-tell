@@ -1,25 +1,50 @@
-import {calculateInspection, inspectionModel} from '../examples/manufacturing-inspection/model.mjs';
-import {inspectionLesson, inspectionScenarios} from '../examples/manufacturing-inspection/lesson.mjs';
-import {inspectionAssessmentGuide} from '../examples/manufacturing-inspection/assessment-guide.mjs';
-import {COUNT_FIELDS, PREDICTION_FIELDS} from './grading.mjs';
-
-export const INPUT_FIELDS = Object.keys(inspectionModel.inputIds);
 export const HELP_LEVELS = ['none', 'hint', 'agent', 'unknown'];
 export const FREE_KINDS = ['question', 'choice', 'apply'];
 export const STAGES = ['context', 'prediction', 'simulation', 'assessment', 'return', 'map'];
 export const TARGETS = ['baseline', 'transfer'];
-export const DEFAULT_INPUTS = Object.fromEntries(INPUT_FIELDS.map(field => [field, inspectionLesson.inputs.find(input => input.inputId === inspectionModel.inputIds[field]).default]));
+export const HINT_LEVELS = 2;
 
 const fail = (code, path) => ({ok: false, errors: [{code, path}]});
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const emptyTrack = extra => ({original: null, revealed: false, retries: [], ...extra});
+const scenarioInputs = scenario => Object.fromEntries(scenario.values.map(({inputId, value}) => [inputId, value]));
 
-export function initialProgress(session) {
+export function createRuntime(lesson, model) {
+  const defaultInputs = Object.fromEntries(lesson.inputs.map(input => [input.inputId, input.default]));
+  const transferScenario = lesson.scenarios.find(item => item.scenarioId === lesson.transfer.scenarioId);
+  const expectedFor = inputs => {
+    const calculated = model.calculate(inputs);
+    if (!calculated.ok) return null;
+    return Object.fromEntries(lesson.outputs.map(({outputId, scale}) => [outputId, calculated.value[outputId] === null ? null : calculated.value[outputId] * scale]));
+  };
+  const baselineInputs = scenarioInputs(lesson.scenarios[0]);
+  const transferInputs = scenarioInputs(transferScenario);
   return {
-    lessonId: inspectionLesson.lessonId,
-    lessonRevision: inspectionLesson.lessonRevision,
+    lesson,
+    model,
+    inputIds: lesson.inputs.map(input => input.inputId),
+    inputs: lesson.inputs,
+    outputs: lesson.outputs,
+    defaultInputs,
+    stages: STAGES,
+    scenarios: lesson.scenarios.filter(item => item !== transferScenario),
+    scenarioInputs,
+    baselineScenario: lesson.scenarios[0],
+    baselineInputs,
+    transferScenario,
+    transferInputs,
+    expectedFor,
+    baselineExpected: expectedFor(baselineInputs),
+    transferExpected: expectedFor(transferInputs),
+  };
+}
+
+export function initialProgress(session, runtime) {
+  return {
+    lessonId: runtime.lesson.lessonId,
+    lessonRevision: runtime.lesson.lessonRevision,
     resultId: session.resultId,
-    inputs: {...DEFAULT_INPUTS},
+    inputs: {...runtime.defaultInputs},
     previousInputs: null,
     scenarioId: null,
     stage: 'context',
@@ -27,7 +52,7 @@ export function initialProgress(session) {
     help: 'unknown',
     hintDepth: 0,
     baseline: emptyTrack(),
-    transfer: emptyTrack({inputs: {...inspectionAssessmentGuide.transferCase.inputs}, calculationError: false}),
+    transfer: emptyTrack({inputs: {...runtime.transferInputs}, calculationError: false}),
     responses: {question: null, choice: null, apply: null},
     completed: false,
   };
@@ -40,19 +65,18 @@ export function predictionState(track) {
   return track.original.values === null ? 'skipped' : 'recorded';
 }
 
-function predictionValues(values) {
+function predictionValues(values, outputs) {
   if (!isRecord(values)) return {errors: [{code: 'TYPE', path: '/values'}]};
   const errors = [];
   const out = {};
-  for (const key of Object.keys(values)) if (!PREDICTION_FIELDS.includes(key)) errors.push({code: 'UNKNOWN_FIELD', path: `/values/${key}`});
-  for (const field of PREDICTION_FIELDS) {
-    const path = `/values/${field}`;
-    const item = values[field];
-    if (!Object.hasOwn(values, field)) errors.push({code: 'REQUIRED', path});
-    else if (field === 'positivePredictiveValue' && item === null) out[field] = null;
+  for (const key of Object.keys(values)) if (!outputs.some(output => output.outputId === key)) errors.push({code: 'UNKNOWN_FIELD', path: `/values/${key}`});
+  for (const {outputId, nullable} of outputs) {
+    const path = `/values/${outputId}`;
+    const item = values[outputId];
+    if (!Object.hasOwn(values, outputId)) errors.push({code: 'REQUIRED', path});
+    else if (nullable && item === null) out[outputId] = null;
     else if (typeof item !== 'number' || !Number.isFinite(item)) errors.push({code: 'TYPE', path});
-    else if (item < 0 || (!COUNT_FIELDS.includes(field) && item > 100)) errors.push({code: 'RANGE', path});
-    else out[field] = item;
+    else out[outputId] = item;
   }
   return errors.length ? {errors} : {values: out};
 }
@@ -60,8 +84,8 @@ function predictionValues(values) {
 const stamp = action => typeof action.at === 'string' ? action.at : null;
 
 // A failed calculation must leave the transfer track unrevealed so nothing is shown or graded from it.
-function settleTransfer(next) {
-  if (calculateInspection(next.transfer.inputs).ok) {
+function settleTransfer(next, runtime) {
+  if (runtime.model.calculate(next.transfer.inputs).ok) {
     next.transfer.revealed = true;
     next.transfer.calculationError = false;
   } else next.transfer.calculationError = true;
@@ -74,60 +98,61 @@ function target(next, action) {
 
 const simulating = next => STAGES.indexOf(next.stage) >= STAGES.indexOf('simulation');
 
-function changeInputs(next, inputs) {
-  if (INPUT_FIELDS.some(field => inputs[field] !== next.inputs[field])) next.previousInputs = {...next.inputs};
+function changeInputs(next, inputs, runtime) {
+  if (runtime.inputIds.some(inputId => inputs[inputId] !== next.inputs[inputId])) next.previousInputs = {...next.inputs};
   next.inputs = {...inputs};
 }
 
 const handlers = {
-  setInput(next, action) {
+  setInput(next, action, runtime) {
     if (!simulating(next)) return fail('STATE', '/type');
-    if (!INPUT_FIELDS.includes(action.field)) return fail('VALUE', '/field');
+    const spec = runtime.inputs.find(input => input.inputId === action.field);
+    if (!spec) return fail('VALUE', '/field');
     if (typeof action.value !== 'number' || !Number.isFinite(action.value)) return fail('TYPE', '/value');
-    if (action.value < 0 || action.value > 100) return fail('RANGE', '/value');
-    changeInputs(next, {...next.inputs, [action.field]: action.value});
+    if (action.value < spec.min || action.value > spec.max) return fail('RANGE', '/value');
+    changeInputs(next, {...next.inputs, [action.field]: action.value}, runtime);
     next.scenarioId = null;
   },
-  applyScenario(next, action) {
+  applyScenario(next, action, runtime) {
     if (!simulating(next)) return fail('STATE', '/type');
-    const scenario = inspectionScenarios.find(item => item.scenarioId === action.scenarioId);
+    const scenario = runtime.scenarios.find(item => item.scenarioId === action.scenarioId);
     if (!scenario) return fail('REFERENCE', '/scenarioId');
-    changeInputs(next, scenario.inputs);
+    changeInputs(next, runtime.scenarioInputs(scenario), runtime);
     next.scenarioId = scenario.scenarioId;
   },
-  resetInputs(next) {
+  resetInputs(next, action, runtime) {
     if (!simulating(next)) return fail('STATE', '/type');
-    changeInputs(next, DEFAULT_INPUTS);
+    changeInputs(next, runtime.defaultInputs, runtime);
     next.scenarioId = null;
   },
-  recordPrediction(next, action) {
+  recordPrediction(next, action, runtime) {
     const picked = target(next, action);
     if (picked.error) return picked.error;
     if (picked.track.original !== null) return fail('STATE', '/type');
-    const checked = predictionValues(action.values);
+    const checked = predictionValues(action.values, runtime.outputs);
     if (checked.errors) return {ok: false, errors: checked.errors};
     picked.track.original = {values: checked.values, help: next.help, at: stamp(action)};
-    if (action.target === 'transfer') settleTransfer(next);
+    if (action.target === 'transfer') settleTransfer(next, runtime);
   },
-  skipPrediction(next, action) {
+  skipPrediction(next, action, runtime) {
     const picked = target(next, action);
     if (picked.error) return picked.error;
     if (picked.track.original !== null) return fail('STATE', '/type');
     picked.track.original = {values: null, help: next.help, at: stamp(action)};
-    if (action.target === 'transfer') settleTransfer(next);
+    if (action.target === 'transfer') settleTransfer(next, runtime);
   },
-  reveal(next, action) {
+  reveal(next, action, runtime) {
     const picked = target(next, action);
     if (picked.error) return picked.error;
     if (picked.track.original === null || picked.track.revealed) return fail('STATE', '/type');
-    if (action.target === 'transfer') settleTransfer(next);
+    if (action.target === 'transfer') settleTransfer(next, runtime);
     else picked.track.revealed = true;
   },
-  retryPrediction(next, action) {
+  retryPrediction(next, action, runtime) {
     const picked = target(next, action);
     if (picked.error) return picked.error;
     if (!picked.track.revealed) return fail('STATE', '/type');
-    const checked = predictionValues(action.values);
+    const checked = predictionValues(action.values, runtime.outputs);
     if (checked.errors) return {ok: false, errors: checked.errors};
     picked.track.retries.push({values: checked.values, help: next.help, at: stamp(action)});
   },
@@ -139,7 +164,7 @@ const handlers = {
   },
   openHint(next, action) {
     if (typeof action.level !== 'number' || !Number.isInteger(action.level)) return fail('TYPE', '/level');
-    if (action.level < 1 || action.level > inspectionAssessmentGuide.hints.length) return fail('RANGE', '/level');
+    if (action.level < 1 || action.level > HINT_LEVELS) return fail('RANGE', '/level');
     next.hintDepth = action.level;
     if (next.help === 'none' || next.help === 'unknown') next.help = 'hint';
   },
@@ -165,9 +190,9 @@ const handlers = {
   },
 };
 
-export function applyAction(progress, action) {
+export function applyAction(progress, action, runtime) {
   if (!isRecord(action)) return fail('TYPE', '');
   if (typeof action.type !== 'string' || !Object.hasOwn(handlers, action.type)) return fail('VALUE', '/type');
   const next = structuredClone(progress);
-  return handlers[action.type](next, action) ?? {ok: true, progress: next};
+  return handlers[action.type](next, action, runtime) ?? {ok: true, progress: next};
 }

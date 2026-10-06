@@ -1,10 +1,7 @@
 import {computeContentHash} from '../contracts/content-hash.mjs';
 import {definitions} from '../contracts/definitions.mjs';
-import {inspectionAssessmentGuide} from '../examples/manufacturing-inspection/assessment-guide.mjs';
-import {PREDICTION_FIELDS, RATIO_FIELDS, gradeTransferPrediction} from './grading.mjs';
+import {gradeTransferPrediction, toleranceText} from './grading.mjs';
 
-const CONCEPT_ID = 'positive-predictive-value';
-const ACTIVITY = {baseline: 'explore-inspection', transfer: 'assess-inspection'};
 const FREE = {
   question: {purpose: 'question', dimension: 'question', label: '질문 만들기'},
   choice: {purpose: 'choice', dimension: 'choice-meaning', label: '선택 이유'},
@@ -17,15 +14,15 @@ const shortHash = text => {
   return hash.toString(16).padStart(8, '0');
 };
 
-function serialize(values) {
-  if (values === null) return null;
-  return JSON.stringify(Object.fromEntries(PREDICTION_FIELDS.map(field => [RATIO_FIELDS.includes(field) ? `${field}Percent` : field, values[field]])));
-}
+const firstActivity = (lesson, stage) => lesson.activities.find(item => item.stage === stage).activityId;
 
-export function buildResult(progress, lesson, session, now) {
+export function buildResult(progress, lesson, session, now, runtime) {
   const fallback = new Date(typeof now === 'function' ? now() : now).toISOString();
   const prefix = shortHash(session.resultId);
-  const concept = lesson.concepts.find(item => item.conceptId === CONCEPT_ID);
+  const serialize = values => values === null ? null : JSON.stringify(Object.fromEntries(lesson.outputs.map(({outputId}) => [outputId, values[outputId]])));
+  const activity = {baseline: firstActivity(lesson, 'exploration'), transfer: firstActivity(lesson, 'assessment')};
+  const conceptId = lesson.rubric.criteria.find(item => item.dimension === 'prediction-model').conceptIds[0];
+  const concept = lesson.concepts.find(item => item.conceptId === conceptId);
   const responses = [];
   const assessments = [];
   const addResponse = (fields, at) => {
@@ -60,7 +57,7 @@ export function buildResult(progress, lesson, session, now) {
     let previous = null;
     return entries.map((entry, index) => {
       previous = addResponse({
-        activityId: ACTIVITY[key],
+        activityId: activity[key],
         purpose: 'prediction',
         answer: serialize(entry.values),
         help: entry.help,
@@ -79,13 +76,13 @@ export function buildResult(progress, lesson, session, now) {
     const timing = `${caseLabel}, 결과 공개 전 최초 예측, 도움 ${original.help}`;
     let calculation = null;
     if (transfer.calculationError) {
-      calculation = addResponse({activityId: ACTIVITY.transfer, purpose: 'calculation-error', answer: null, help: progress.help, visibility: 'before-output'}, null);
+      calculation = addResponse({activityId: activity.transfer, purpose: 'calculation-error', answer: null, help: progress.help, visibility: 'before-output'}, null);
     }
     if (calculation) addAssessment('prediction-model', calculation, 'pending', 'unreviewed', `${timing}. 계산 도구 실패로 판정을 보류합니다. 이해 부족으로 기록하지 않습니다.`);
     else if (transfer.original.values === null) addAssessment('prediction-model', original, 'skipped', 'automatic', `${timing}. 예측을 건너뛰었습니다.`);
     else {
-      const grade = gradeTransferPrediction(transfer.original.values, inspectionAssessmentGuide.transferCase.expected);
-      addAssessment('prediction-model', original, grade.status, 'automatic', `${timing}. 허용 오차 개수 ±1, 비율 ±1%p. 일치 ${grade.matched.length}/${PREDICTION_FIELDS.length}: ${grade.matched.join(', ') || '없음'}. 불일치: ${grade.mismatched.join(', ') || '없음'}.`);
+      const grade = gradeTransferPrediction(transfer.original.values, runtime.transferExpected, lesson);
+      addAssessment('prediction-model', original, grade.status, 'automatic', `${timing}. 허용 오차 ${toleranceText(lesson)}. 일치 ${grade.matched.length}/${lesson.outputs.length}: ${grade.matched.join(', ') || '없음'}. 불일치: ${grade.mismatched.join(', ') || '없음'}.`);
     }
     if (transfer.original.values === null) addAssessment('concept', original, 'skipped', 'unreviewed', `${timing}. 예측을 건너뛰어 개념 구분 관찰이 없습니다.`);
     else addAssessment('concept', original, 'pending', 'unreviewed', `${timing}. agent 검토 전입니다.`);
@@ -95,7 +92,7 @@ export function buildResult(progress, lesson, session, now) {
   for (const [kind, spec] of Object.entries(FREE)) {
     const entry = progress.responses[kind];
     if (entry === null) continue;
-    const response = addResponse({activityId: ACTIVITY.transfer, purpose: spec.purpose, answer: entry.text, help: entry.help, visibility: revealed ? 'after-output' : 'before-output'}, entry.at);
+    const response = addResponse({activityId: activity.transfer, purpose: spec.purpose, answer: entry.text, help: entry.help, visibility: revealed ? 'after-output' : 'before-output'}, entry.at);
     const timing = `${spec.label}, 새 사례 결과 ${revealed ? '공개 후' : '공개 전'}, 도움 ${entry.help}`;
     if (entry.text === null) addAssessment(spec.dimension, response, 'skipped', 'unreviewed', `${timing}. 건너뛰었습니다.`);
     else addAssessment(spec.dimension, response, 'pending', 'unreviewed', `${timing}. agent 검토 전입니다.`);

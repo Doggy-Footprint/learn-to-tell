@@ -1,0 +1,59 @@
+{
+  "kind": "diagnostic-setup",
+  "version": 1,
+  "diagnosticId": "inspection-diagnostic",
+  "profileId": "local-learner",
+  "contextKind": "interest",
+  "rounds": [
+    {
+      "candidates": [
+        {
+          "candidateId": "cand-a",
+          "title": "제목 가",
+          "decisionQuestion": "질문 가?",
+          "reason": "이유 가",
+          "preview": "미리보기 가"
+        },
+        {
+          "candidateId": "cand-b",
+          "title": "제목 나",
+          "decisionQuestion": "질문 나?",
+          "reason": "이유 나",
+          "preview": "미리보기 나"
+        },
+        {
+          "candidateId": "cand-c",
+          "title": "제목 다",
+          "decisionQuestion": "질문 다?",
+          "reason": "이유 다",
+          "preview": "미리보기 다"
+        }
+      ]
+    },
+    {
+      "candidates": [
+        {
+          "candidateId": "inspection-candidate",
+          "title": "제목 라",
+          "decisionQuestion": "질문 라?",
+          "reason": "이유 라",
+          "preview": "미리보기 라"
+        },
+        {
+          "candidateId": "cand-d",
+          "title": "제목 마",
+          "decisionQuestion": "질문 마?",
+          "reason": "이유 마",
+          "preview": "미리보기 마"
+        },
+        {
+          "candidateId": "cand-e",
+          "title": "제목 바",
+          "decisionQuestion": "질문 바?",
+          "reason": "이유 바",
+          "preview": "미리보기 바"
+        }
+      ]
+    }
+  ]
+}

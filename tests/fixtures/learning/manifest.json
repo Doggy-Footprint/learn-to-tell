@@ -240,10 +240,6 @@
     "obligationId": "V1"
   },
   {
-    "id": "V1.invalid.empty.openHint-level-4",
-    "obligationId": "V1"
-  },
-  {
     "id": "V1.invalid.empty.openHint-level-0",
     "obligationId": "V1"
   },
@@ -281,10 +277,6 @@
   },
   {
     "id": "V1.invalid.recorded.setHelp-bogus",
-    "obligationId": "V1"
-  },
-  {
-    "id": "V1.invalid.recorded.openHint-level-4",
     "obligationId": "V1"
   },
   {
@@ -328,10 +320,6 @@
     "obligationId": "V1"
   },
   {
-    "id": "V1.invalid.skipped.openHint-level-4",
-    "obligationId": "V1"
-  },
-  {
     "id": "V1.invalid.skipped.openHint-level-0",
     "obligationId": "V1"
   },
@@ -369,10 +357,6 @@
   },
   {
     "id": "V1.invalid.revealed.setHelp-bogus",
-    "obligationId": "V1"
-  },
-  {
-    "id": "V1.invalid.revealed.openHint-level-4",
     "obligationId": "V1"
   },
   {
@@ -416,10 +400,6 @@
     "obligationId": "V1"
   },
   {
-    "id": "V1.invalid.retried.openHint-level-4",
-    "obligationId": "V1"
-  },
-  {
     "id": "V1.invalid.retried.openHint-level-0",
     "obligationId": "V1"
   },
@@ -438,126 +418,6 @@
   {
     "id": "V1.invalid.retried.goToStage-bogus",
     "obligationId": "V1"
-  },
-  {
-    "id": "V2.truePositive.-1.01",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.truePositive.-1",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.truePositive.0",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.truePositive.1",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.truePositive.1.01",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.falsePositive.-1.01",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.falsePositive.-1",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.falsePositive.0",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.falsePositive.1",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.falsePositive.1.01",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.falseNegative.-1.01",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.falseNegative.-1",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.falseNegative.0",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.falseNegative.1",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.falseNegative.1.01",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.trueNegative.-1.01",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.trueNegative.-1",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.trueNegative.0",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.trueNegative.1",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.trueNegative.1.01",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.positiveCount.-1.01",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.positiveCount.-1",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.positiveCount.0",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.positiveCount.1",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.positiveCount.1.01",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.positivePredictiveValue.-1.01",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.positivePredictiveValue.-1",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.positivePredictiveValue.0",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.positivePredictiveValue.1",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.positivePredictiveValue.1.01",
-    "obligationId": "V2"
   },
   {
     "id": "V2.accuracy.-1.01",
@@ -1212,10 +1072,6 @@
     "obligationId": "V1"
   },
   {
-    "id": "V1.transfer.invalid.empty.openHint-level-4",
-    "obligationId": "V1"
-  },
-  {
     "id": "V1.transfer.invalid.empty.openHint-level-0",
     "obligationId": "V1"
   },
@@ -1253,10 +1109,6 @@
   },
   {
     "id": "V1.transfer.invalid.revealed-record.setHelp-bogus",
-    "obligationId": "V1"
-  },
-  {
-    "id": "V1.transfer.invalid.revealed-record.openHint-level-4",
     "obligationId": "V1"
   },
   {
@@ -1300,10 +1152,6 @@
     "obligationId": "V1"
   },
   {
-    "id": "V1.transfer.invalid.revealed-skip.openHint-level-4",
-    "obligationId": "V1"
-  },
-  {
     "id": "V1.transfer.invalid.revealed-skip.openHint-level-0",
     "obligationId": "V1"
   },
@@ -1344,10 +1192,6 @@
     "obligationId": "V1"
   },
   {
-    "id": "V1.transfer.invalid.retried.openHint-level-4",
-    "obligationId": "V1"
-  },
-  {
     "id": "V1.transfer.invalid.retried.openHint-level-0",
     "obligationId": "V1"
   },
@@ -1366,22 +1210,6 @@
   {
     "id": "V1.transfer.invalid.retried.goToStage-bogus",
     "obligationId": "V1"
-  },
-  {
-    "id": "V2.tolerance.positivePredictiveValue.58",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.tolerance.positivePredictiveValue.56",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.tolerance.positivePredictiveValue.58.02",
-    "obligationId": "V2"
-  },
-  {
-    "id": "V2.tolerance.positivePredictiveValue.55.98",
-    "obligationId": "V2"
   },
   {
     "id": "V2.tolerance.accuracy.58",
@@ -1536,14 +1364,6 @@
     "obligationId": "V3"
   },
   {
-    "id": "V7.format.count",
-    "obligationId": "V7"
-  },
-  {
-    "id": "V7.format.ratio",
-    "obligationId": "V7"
-  },
-  {
     "id": "CH-V8.valid",
     "obligationId": "CH-V8"
   },
@@ -1572,178 +1392,706 @@
     "obligationId": "CH-V10"
   },
   {
+    "id": "V1.invalid.empty.openHint-level-3",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.recorded.openHint-level-3",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.skipped.openHint-level-3",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.revealed.openHint-level-3",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.invalid.retried.openHint-level-3",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V2.true-positive.-1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.true-positive.-1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.true-positive.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.true-positive.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.true-positive.1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.false-positive.-1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.false-positive.-1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.false-positive.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.false-positive.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.false-positive.1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.false-negative.-1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.false-negative.-1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.false-negative.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.false-negative.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.false-negative.1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.true-negative.-1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.true-negative.-1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.true-negative.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.true-negative.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.true-negative.1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positive-count.-1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positive-count.-1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positive-count.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positive-count.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positive-count.1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positive-predictive-value.-1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positive-predictive-value.-1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positive-predictive-value.0",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positive-predictive-value.1",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.positive-predictive-value.1.01",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V1.transfer.invalid.empty.openHint-level-3",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-record.openHint-level-3",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.revealed-skip.openHint-level-3",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V1.transfer.invalid.retried.openHint-level-3",
+    "obligationId": "V1"
+  },
+  {
+    "id": "V2.tolerance.positive-predictive-value.58",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.tolerance.positive-predictive-value.56",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.tolerance.positive-predictive-value.58.02",
+    "obligationId": "V2"
+  },
+  {
+    "id": "V2.tolerance.positive-predictive-value.55.98",
+    "obligationId": "V2"
+  },
+  {
+    "id": "T53-V2.range.defect-percent.min-minus",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.range.defect-percent.min",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.range.defect-percent.max",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.range.defect-percent.max-plus",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.range.detection-percent.min-minus",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.range.detection-percent.min",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.range.detection-percent.max",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.range.detection-percent.max-plus",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.range.false-positive-percent.min-minus",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.range.false-positive-percent.min",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.range.false-positive-percent.max",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.range.false-positive-percent.max-plus",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.storage.same-keys",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.storage.other-keys",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.storage.calculate-fails",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.nullable-expected.given-null",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.nullable-expected.given-number",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.runtime.shape",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.scenario.values",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.prediction-finite-only",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V3.diff.true-positive.absolute",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.diff.true-positive.absolute+0.01",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.diff.false-positive.absolute",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.diff.false-positive.absolute+0.01",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.diff.false-negative.absolute",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.diff.false-negative.absolute+0.01",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.diff.true-negative.absolute",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.diff.true-negative.absolute+0.01",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.diff.positive-count.absolute",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.diff.positive-count.absolute+0.01",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.diff.positive-predictive-value.absolute",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.diff.positive-predictive-value.absolute+0.01",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.diff.accuracy.absolute",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.diff.accuracy.absolute+0.01",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.status.supported",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.status.partial",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.status.not_demonstrated",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.status.skipped",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.key-order-independent",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V3.result-per-output-tolerance",
+    "obligationId": "T53-V3"
+  },
+  {
+    "id": "T53-V4.hint.level-0",
+    "obligationId": "T53-V4"
+  },
+  {
+    "id": "T53-V4.hint.level-1",
+    "obligationId": "T53-V4"
+  },
+  {
+    "id": "T53-V4.hint.level-2",
+    "obligationId": "T53-V4"
+  },
+  {
+    "id": "T53-V4.hint.level-3",
+    "obligationId": "T53-V4"
+  },
+  {
+    "id": "T53-V4.result.inspection",
+    "obligationId": "T53-V4"
+  },
+  {
+    "id": "T53-V4.result.synthetic",
+    "obligationId": "T53-V4"
+  },
+  {
+    "id": "T53-V4.result.first-activity-and-concept",
+    "obligationId": "T53-V4"
+  },
+  {
+    "id": "T53-V4.result.answer-serialization",
+    "obligationId": "T53-V4"
+  },
+  {
+    "id": "T53-V4.result.context-phrase",
+    "obligationId": "T53-V4"
+  },
+  {
+    "id": "T53-V5.sources",
+    "obligationId": "T53-V5"
+  },
+  {
+    "id": "T53-V5.extractor-controls",
+    "obligationId": "T53-V5"
+  },
+  {
+    "id": "T53-V14.formatCount",
+    "obligationId": "T53-V14"
+  },
+  {
+    "id": "T53-V2.storage.subset-keys",
+    "obligationId": "T53-V2"
+  },
+  {
+    "id": "T53-V2.storage.superset-keys",
+    "obligationId": "T53-V2"
+  },
+  {
     "id": "V5.S1",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S2",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S3",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S4",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S5",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S6",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S7",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S8",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S2.baseline-a",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S2.ppv-undefined",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S2.skipped-original",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S3.empty",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S3.non-numeric",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S3.reload",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S6.grade-partial",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S6.grade-not-demonstrated",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S6.transfer-retry",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S6.ppv-undefined",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S7.second-session",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S7.help-none",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S7.help-agent",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V5.S7.response-skip",
-    "obligationId": "V5",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V5"
   },
   {
     "id": "V8.S9",
-    "obligationId": "V8",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V8"
   },
   {
     "id": "V8.S10",
-    "obligationId": "V8",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V8"
   },
   {
     "id": "V8.S11",
-    "obligationId": "V8",
-    "layer": "e2e"
-  },
-  {
-    "id": "V8.S12",
-    "obligationId": "V8",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V8"
   },
   {
     "id": "V6.axe.before-reveal",
-    "obligationId": "V6",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V6"
   },
   {
     "id": "V6.axe.after-reveal",
-    "obligationId": "V6",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V6"
   },
   {
     "id": "V6.axe.transfer",
-    "obligationId": "V6",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V6"
   },
   {
     "id": "V6.axe.hint-open",
-    "obligationId": "V6",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V6"
   },
   {
     "id": "V6.perf",
-    "obligationId": "V6",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V6"
   },
   {
     "id": "V6.serve",
-    "obligationId": "V6",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "V6"
   },
   {
     "id": "CH-V7.partial",
-    "obligationId": "CH-V7",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "CH-V7"
   },
   {
     "id": "CH-V7.completed",
-    "obligationId": "CH-V7",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "CH-V7"
   },
   {
     "id": "CH-V11",
-    "obligationId": "CH-V11",
-    "layer": "e2e"
+    "layer": "e2e",
+    "obligationId": "CH-V11"
+  },
+  {
+    "id": "T53-V8.stage-content",
+    "layer": "e2e",
+    "obligationId": "T53-V8"
+  },
+  {
+    "id": "T53-V8.cards",
+    "layer": "e2e",
+    "obligationId": "T53-V8"
+  },
+  {
+    "id": "T53-V8.hints",
+    "layer": "e2e",
+    "obligationId": "T53-V8"
+  },
+  {
+    "id": "T53-V8.fields",
+    "layer": "e2e",
+    "obligationId": "T53-V8"
+  },
+  {
+    "id": "T53-V8.output-bars",
+    "layer": "e2e",
+    "obligationId": "T53-V8"
+  },
+  {
+    "id": "T53-V8.display-strings",
+    "layer": "e2e",
+    "obligationId": "T53-V8"
+  },
+  {
+    "id": "T53-V8.bar-width-100",
+    "layer": "e2e",
+    "obligationId": "T53-V8"
+  },
+  {
+    "id": "T53-V8.C12",
+    "layer": "e2e",
+    "obligationId": "T53-V8"
+  },
+  {
+    "id": "T53-V9.flow",
+    "layer": "e2e",
+    "obligationId": "T53-V9"
+  },
+  {
+    "id": "T53-V9.range",
+    "layer": "e2e",
+    "obligationId": "T53-V9"
+  },
+  {
+    "id": "T53-V9.display-strings",
+    "layer": "e2e",
+    "obligationId": "T53-V9"
+  },
+  {
+    "id": "T53-V9.tables-bars",
+    "layer": "e2e",
+    "obligationId": "T53-V9"
+  },
+  {
+    "id": "T53-V9.content-cards",
+    "layer": "e2e",
+    "obligationId": "T53-V9"
+  },
+  {
+    "id": "T53-V9.no-manufacturing-text",
+    "layer": "e2e",
+    "obligationId": "T53-V9"
+  },
+  {
+    "id": "T53-V10.states",
+    "layer": "e2e",
+    "obligationId": "T53-V10"
+  },
+  {
+    "id": "T53-V10.keyboard",
+    "layer": "e2e",
+    "obligationId": "T53-V10"
+  },
+  {
+    "id": "T53-V10.axe.round1",
+    "layer": "e2e",
+    "obligationId": "T53-V10"
+  },
+  {
+    "id": "T53-V10.axe.last",
+    "layer": "e2e",
+    "obligationId": "T53-V10"
+  },
+  {
+    "id": "T53-V10.network",
+    "layer": "e2e",
+    "obligationId": "T53-V10"
+  },
+  {
+    "id": "T53-V10.no-persist",
+    "layer": "e2e",
+    "obligationId": "T53-V10"
+  },
+  {
+    "id": "T53-V10.single-round",
+    "layer": "e2e",
+    "obligationId": "T53-V10"
+  },
+  {
+    "id": "T53-V11.omitted",
+    "layer": "e2e",
+    "obligationId": "T53-V11"
+  },
+  {
+    "id": "T53-V11.lesson",
+    "layer": "e2e",
+    "obligationId": "T53-V11"
+  },
+  {
+    "id": "T53-V11.diagnostic",
+    "layer": "e2e",
+    "obligationId": "T53-V11"
+  },
+  {
+    "id": "T53-V11.other",
+    "layer": "e2e",
+    "obligationId": "T53-V11"
+  },
+  {
+    "id": "T53-V11.dist-missing",
+    "layer": "e2e",
+    "obligationId": "T53-V11"
+  },
+  {
+    "id": "T53-V11.unknown-flag",
+    "layer": "e2e",
+    "obligationId": "T53-V11"
+  },
+  {
+    "id": "T53-V13.lesson-screen",
+    "layer": "e2e",
+    "obligationId": "T53-V13"
+  },
+  {
+    "id": "T53-V13.diagnostic-screen",
+    "layer": "e2e",
+    "obligationId": "T53-V13"
   }
 ]

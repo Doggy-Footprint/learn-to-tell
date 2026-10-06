@@ -8,18 +8,25 @@ import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {validateDocument} from '../contracts/index.mjs';
 import {validateSessionConfig} from '../learning/session-config.mjs';
-import {initialProgress, applyAction, predictionState} from '../learning/progress.mjs';
-import {gradeTransferPrediction} from '../learning/grading.mjs';
-import {buildResult, validateResultShape, finalizeResult} from '../learning/result.mjs';
+import {initialProgress as initialProgressRaw, applyAction as applyActionRaw, createRuntime, predictionState} from '../learning/progress.mjs';
+import {gradeTransferPrediction as gradeRaw} from '../learning/grading.mjs';
+import {buildResult as buildResultRaw, validateResultShape, finalizeResult} from '../learning/result.mjs';
 import {computeContentHash} from '../contracts/content-hash.mjs';
 import {oracleHash, withHash, reseal, HASH_FORMAT} from './fixtures/contracts/hash-oracle.mjs';
-import {loadProgress, saveProgress} from '../learning/storage.mjs';
-import {formatCount, formatRatio} from '../learning/format.mjs';
-import {session, lesson, NOW, FIELDS, STAGES, act, reach, storageKey, predC4, baselinePrediction, retryPrediction} from './fixtures/learning/shapes.mjs';
-import {crossCheckResult} from './fixtures/learning/oracle.mjs';
+import {loadProgress as loadProgressRaw, saveProgress} from '../learning/storage.mjs';
+import {formatCount} from '../learning/format.mjs';
+import {session, lesson, syntheticLesson, model, syntheticModel, runtime, syntheticRuntime, NOW, OUTPUT_IDS as FIELDS, INPUT_IDS, STAGES, act, reach, storageKey, predC4, pred, baselinePrediction, retryPrediction} from './fixtures/learning/shapes.mjs';
+import {crossCheckResult, crossCheckR11} from './fixtures/learning/oracle.mjs';
 import * as C from './fixtures/learning/cases.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
+const initialProgress = (s, rt = runtime) => initialProgressRaw(s, rt);
+const applyAction = (p, a, rt = runtime) => applyActionRaw(p, a, rt);
+const buildResult = (p, l, s, now, rt = runtime) => buildResultRaw(p, l, s, now, rt);
+const loadProgress = (st, s, rt = runtime) => loadProgressRaw(st, s, rt);
+const gradeTransferPrediction = (p, e, l = lesson) => gradeRaw(p, e, l);
+const LESSON_PATH = join(root, 'tests/fixtures/learning/inspection-lesson-v2.json');
+const MODEL_PATH = join(root, 'examples/manufacturing-inspection/model.mjs');
 const manifest = JSON.parse(readFileSync(new URL('./fixtures/learning/manifest.json', import.meta.url), 'utf8'));
 const exercised = new Set();
 const done = id => exercised.add(id);
@@ -29,10 +36,10 @@ function deepFreeze(value) {
   return value;
 }
 const snap = value => JSON.stringify(value);
-function play(actions, start = initialProgress(session)) {
+function play(actions, start = initialProgress(session), rt = runtime) {
   let progress = start;
   for (const [i, action] of actions.entries()) {
-    const r = applyAction(progress, action);
+    const r = applyAction(progress, action, rt);
     assert.equal(r.ok, true, `setup action ${i} (${action.kind}) rejected: ${JSON.stringify(r)}`);
     progress = r.progress;
   }
@@ -108,7 +115,7 @@ test('V1.C8.skip-hint-response-retry [spec v5] C8', () => {
 test('V1.C12.revealed-original-immutable [spec v3] C12', () => {
   const p = deepFreeze(play(C.V1_PATH.revealed));
   const before = resultOf(p), text = snap(p);
-  const r = applyAction(p, act.recordPrediction({...baselinePrediction, truePositive: 1}));
+  const r = applyAction(p, act.recordPrediction({...baselinePrediction, 'true-positive': 1}));
   assert.equal(r.ok, false);
   assert.equal(snap(p), text);
   assert.deepEqual(resultOf(p).responses, before.responses);
@@ -150,7 +157,7 @@ stageTest('V1.stage.complete.valid-at-map', () => {
 });
 stageTest('V1.stage.complete.repeat-invalid', () => expectInvalid(play([...reach('map'), act.completeLesson()]), act.completeLesson()));
 stageTest('V1.stage.input-actions.invalid-before-simulation', () => {
-  for (const stage of ['context', 'prediction']) for (const a of [act.setInput('defectPercent', 5), act.applyScenario('candidate-b'), act.resetInputs()]) expectInvalid(play(reach(stage)), a);
+  for (const stage of ['context', 'prediction']) for (const a of [act.setInput('defect-percent', 5), act.applyScenario('candidate-b'), act.resetInputs()]) expectInvalid(play(reach(stage)), a);
 });
 for (const how of ['record', 'skip']) stageTest(`V1.stage.transfer-${how}-reveals`, () => {
   const p = play([...reach('assessment'), how === 'record' ? act.recordPrediction(predC4, 'transfer') : act.skipPrediction('transfer')]);
@@ -293,7 +300,7 @@ for (const c of C.V2_TOL) test(`${c.id} [spec v7] ${c.status}`, () => {
 test('V3.transfer.retry-chain [spec v7] retries chain by previousResponseId; calculate-transfer stays on the original', () => {
   const base = [...reach('assessment'), act.recordPrediction(predC4, 'transfer')];
   const orig = resultOf(play(base)).responses.filter(x => x.purpose === 'prediction')[1];
-  const r = resultOf(play([...base, act.retryPrediction({...predC4, truePositive: 0}, 'transfer'), act.retryPrediction({...predC4, truePositive: 1}, 'transfer')]));
+  const r = resultOf(play([...base, act.retryPrediction({...predC4, 'true-positive': 0}, 'transfer'), act.retryPrediction({...predC4, 'true-positive': 1}, 'transfer')]));
   assert.deepEqual(validateDocument(r, 'result'), {ok: true, errors: []});
   const tr = r.responses.filter(x => x.purpose === 'prediction').slice(1);
   assert.deepEqual(tr.map(x => x.attempt), [1, 2, 3]);
@@ -386,7 +393,7 @@ test('V3.session.custom [spec v2] session values are copied, not hard-coded', ()
   done('V3.session.custom');
 });
 test('V3.retry.previous-response [spec v3] retry linked to original, original kept; retry not assessed', () => {
-  const p = play([...reach('simulation'), act.reveal(), act.retryPrediction({...baselinePrediction, truePositive: 91})]);
+  const p = play([...reach('simulation'), act.reveal(), act.retryPrediction({...baselinePrediction, 'true-positive': 91})]);
   const result = resultOf(p);
   checkResult(result, {state: 'partial'});
   const [a, b] = result.responses.filter(r => r.purpose === 'prediction');
@@ -410,7 +417,7 @@ test('V3.initial-progress [spec v2] untouched progress exports a valid partial r
 
 test('V3.calculation-error [spec v3] failure is a calculation-error response with pending calculate-transfer', () => {
   const ok = play([...reach('assessment'), act.recordPrediction(predC4, 'transfer')]);
-  const broken = {...ok, transfer: {...ok.transfer, calculationError: {code: 'RANGE', path: '/defectPercent'}}};
+  const broken = {...ok, transfer: {...ok.transfer, calculationError: {code: 'RANGE', path: '/defect-percent'}}};
   const r = resultOf(broken);
   assert.deepEqual(validateDocument(r, 'result'), {ok: true, errors: []});
   assert.ok(r.responses.some(x => x.purpose === 'calculation-error'));
@@ -483,7 +490,7 @@ function fakeStorage(initial = {}, {getThrows = false, setThrows = false} = {}) 
 }
 const unwrap = r => { assert.deepEqual(Object.keys(r).sort(), ['notice', 'progress']); return {progress: r.progress, notice: r.notice}; };
 const savedText = (progress, s = session) => { const st = fakeStorage(); assert.deepEqual(saveProgress(st, progress), {ok: true}); return st.map.get(storageKey(s)); };
-const richProgress = () => play([...reach('simulation'), act.setInput('defectPercent', 12), act.reveal(), act.recordFreeResponse('choice', '이유')]);
+const richProgress = () => play([...reach('simulation'), act.setInput('defect-percent', 12), act.reveal(), act.recordFreeResponse('choice', '이유')]);
 function assertFailedLoad(r, kind, initial) {
   const {progress, notice} = unwrap(r);
   assert.deepEqual(progress, JSON.parse(JSON.stringify(initial)), 'starts from initial progress');
@@ -575,7 +582,7 @@ for (const c of C.V4_CLI) test(`${c.id} [spec v3] build exits nonzero, reports c
   const path = input.path ?? join(tmp, `${c.id}.json`);
   if (input.text !== undefined) writeFileSync(path, input.text);
   const before = distDigest();
-  const r = spawnSync(process.execPath, ['scripts/build-lesson.mjs', ...(input.args ?? ['--session', path])], {cwd: root, encoding: 'utf8', timeout: 60000});
+  const r = spawnSync(process.execPath, ['scripts/build-lesson.mjs', ...(input.args ?? ['--session', path, '--lesson', LESSON_PATH, '--model', MODEL_PATH])], {cwd: root, encoding: 'utf8', timeout: 60000});
   assert.notEqual(r.status, 0, `exit status ${r.status}`);
   assert.equal(r.error, undefined);
   assert.ok(r.stderr.trim().length > 0, 'diagnostic on stderr');
@@ -588,19 +595,251 @@ for (const c of C.V4_CLI) test(`${c.id} [spec v3] build exits nonzero, reports c
   done(c.id);
 });
 
-// ================= format (spec F2 display formats; learning/format.mjs coverage) =================
-test('V7.format.count [spec v3] ko-KR grouping; non-integers up to 3 decimals', () => {
-  for (const [n, s] of [[0, '0'], [90, '90'], [9405, '9,405'], [10000, '10,000'], [1.35, '1.35'], [0.15, '0.15'], [499.925, '499.925'], [9498.575, '9,498.575']]) assert.equal(formatCount(n), s, String(n));
-  done('V7.format.count');
+// ================= T5-3 generic runtime (spec 65ba74b36b0ef5da v1) =================
+const clone = value => structuredClone(value);
+const synReach = stage => reach(stage, 'record', {'filled-volume': 200, 'fill-ratio': 10});
+const t53 = (id, title, fn) => test(`[${id}] ${title}`, async () => { await fn(); done(id); });
+const lessonWith = edit => { const l = clone(lesson); edit(l); return l; };
+const ranges = r => r.errors.map(e => e.code);
+
+t53('T53-V2.runtime.shape', 'createRuntime exposes inputIds and defaultInputs from lesson.inputs; initial progress starts at the defaults (R3)', () => {
+  assert.deepEqual(runtime.inputIds, INPUT_IDS);
+  assert.deepEqual(runtime.defaultInputs, {'defect-percent': 1, 'detection-percent': 90, 'false-positive-percent': 5});
+  assert.deepEqual(initialProgress(session).inputs, {'defect-percent': 1, 'detection-percent': 90, 'false-positive-percent': 5});
+  assert.deepEqual(syntheticRuntime.inputIds, ['flow-rate']);
+  assert.deepEqual(syntheticRuntime.defaultInputs, {'flow-rate': 20});
+  assert.deepEqual(initialProgress(session, syntheticRuntime).inputs, {'flow-rate': 20});
 });
-test('V7.format.ratio [spec v3] percent with 2 decimals', () => {
-  for (const [r, s] of [[2 / 13, '15.38%'], [9495 / 10000, '94.95%'], [1, '100.00%'], [0, '0.00%'], [40 / 89, '44.94%'], [2 / 3, '66.67%'], [80 / 179, '44.69%']]) assert.equal(formatRatio(r), s, String(r));
-  done('V7.format.ratio');
+t53('T53-V2.scenario.values', 'applyScenario sets inputs by inputId from lesson.scenarios (R3)', () => {
+  const p = play(reach('simulation'));
+  for (const [id, values] of [['baseline-a', [1, 90, 5]], ['population-contrast', [10, 90, 5]], ['candidate-b', [1, 80, 1]]]) {
+    const r = applyAction(p, act.applyScenario(id));
+    assert.equal(r.ok, true, id);
+    assert.deepEqual(r.progress.inputs, Object.fromEntries(INPUT_IDS.map((k, i) => [k, values[i]])), id);
+  }
+  const ps = play(synReach('simulation'), initialProgress(session, syntheticRuntime), syntheticRuntime);
+  assert.deepEqual(applyAction(ps, act.applyScenario('fast-fill'), syntheticRuntime).progress.inputs, {'flow-rate': 80});
+});
+for (const c of C.T53_RANGE) t53(c.id, `setInput ${c.value} on ${c.inputId} is ${c.ok ? 'accepted' : 'RANGE'} (3-value BVA, R3)`, () => {
+  const before = deepFreeze(play(reach('simulation')));
+  const text = snap(before);
+  const r = applyAction(before, act.setInput(c.inputId, c.value));
+  assert.equal(snap(before), text);
+  if (c.ok) {
+    assert.equal(r.ok, true, JSON.stringify(r));
+    assert.deepEqual(r.progress.inputs, {...before.inputs, [c.inputId]: c.value});
+  } else {
+    assert.equal(r.ok, false); wellFormedErrors(r);
+    assert.ok(ranges(r).includes('RANGE'), JSON.stringify(r.errors));
+  }
+});
+for (const c of C.T53_NULL_EXPECTED) t53(c.id, `transfer expected null PPV (defect 0, false-positive 0) with ${c.name} (R4/R5, C6)`, () => {
+  const zero = lessonWith(l => {
+    l.scenarios.push({scenarioId: 'zero-case', label: 'zero', values: [{inputId: 'defect-percent', value: 0}, {inputId: 'detection-percent', value: 90}, {inputId: 'false-positive-percent', value: 0}]});
+    l.transfer.scenarioId = 'zero-case';
+  });
+  assert.deepEqual(validateDocument(zero, 'lesson'), {ok: true, errors: []});
+  const rt = createRuntime(zero, model);
+  const given = pred(0, 0, 0, 10000, 0, c.name === 'given-null' ? null : 0, 100);
+  const progress = play([...reach('assessment'), act.recordPrediction(given, 'transfer')], initialProgress(session, rt), rt);
+  const body = withHash(buildResult(progress, zero, session, NOW, rt));
+  assert.deepEqual(validateDocument(body, 'result'), {ok: true, errors: []});
+  assert.equal(body.assessments.find(a => a.criterionId === 'calculate-transfer').status, c.name === 'given-null' ? 'supported' : 'partial');
+});
+for (const c of C.T53_STORAGE) t53(c.id, `stored inputs: ${c.name} (R12, C12)`, () => {
+  const rich = richProgress();
+  const key = storageKey();
+  const text = savedText(rich);
+  if (c.name === 'same-keys') {
+    const st = fakeStorage({[key]: text});
+    const {progress, notice} = unwrap(loadProgress(st, session));
+    assert.equal(notice, null);
+    assert.equal(progress.inputs['defect-percent'], 12);
+    assert.deepEqual(progress, JSON.parse(JSON.stringify(rich)));
+  } else if (['other-keys', 'subset-keys', 'superset-keys'].includes(c.name)) {
+    const doc = JSON.parse(text);
+    const inputs = doc.progress.inputs;
+    if (c.name === 'other-keys') doc.progress.inputs = Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k === 'defect-percent' ? 'defect-pct' : k, v]));
+    else if (c.name === 'subset-keys') delete inputs['false-positive-percent'];
+    else inputs['unknown-percent'] = 5;
+    const bad = JSON.stringify(doc), st = fakeStorage({[key]: bad});
+    assertFailedLoad(loadProgress(st, session), 'load-failed', initial);
+    assert.equal(st.map.get(key), bad, 'stored value untouched until the first action');
+    assert.equal(st.calls.filter(x => x[0] !== 'get').length, 0);
+  } else {
+    const failing = {...model, calculate: values => values['defect-percent'] === 12 ? {ok: false, errors: [{code: 'RANGE', path: '/defect-percent'}]} : model.calculate(values)};
+    const rt = createRuntime(lesson, failing);
+    const st = fakeStorage({[key]: text});
+    assertFailedLoad(loadProgress(st, session, rt), 'load-failed', initialProgress(session, rt));
+    assert.equal(st.map.get(key), text);
+  }
+});
+t53('T53-V2.prediction-finite-only', 'recordPrediction accepts any finite number, rejects non-finite and null on non-nullable outputs (R4; no declared coverage item)', () => {
+  const p = deepFreeze(play(reach('prediction')));
+  for (const [value, ok] of [[1e12, true], [-5, true], [NaN, false], [Infinity, false], [-Infinity, false], ['5', false]]) assert.equal(applyAction(p, act.recordPrediction({...baselinePrediction, 'true-positive': value})).ok, ok, String(value));
+  assert.equal(applyAction(p, act.recordPrediction({...baselinePrediction, 'positive-predictive-value': null})).ok, true, 'nullable output may be undefined');
+  assert.equal(applyAction(p, act.recordPrediction({...baselinePrediction, accuracy: null})).ok, false, 'non-nullable output may not be undefined');
+});
+
+// ---- V3 grading
+const gradingLesson = lessonWith(l => { l.transfer.tolerances = l.transfer.tolerances.filter(t => t.outputId !== 'accuracy').map(t => ({...t, absolute: C.T53_TOL[t.outputId]})); });
+const grade3 = (p, e) => gradeTransferPrediction(p === null ? null : deepFreeze(clone(p)), deepFreeze(clone(e)), deepFreeze(clone(gradingLesson)));
+for (const c of C.T53_DIFF) t53(c.id, `${c.output} differing by tolerance ${c.match ? '' : '+ 0.01 '}is a ${c.match ? 'match' : 'mismatch'} (2-value BVA, per-output tolerance, R5)`, () => {
+  const r = grade3({...C.T53_BASE, [c.output]: c.value}, C.T53_BASE);
+  assert.equal(r.status, c.match ? 'supported' : 'partial');
+  assert.deepEqual(C.sorted(r.mismatched), c.match ? [] : [c.output]);
+  assert.deepEqual(C.sorted(r.matched), C.sorted(FIELDS.filter(f => c.match || f !== c.output)));
+});
+const nullExpected = {...C.T53_BASE, 'positive-predictive-value': null};
+t53('T53-V3.status.supported', 'decision table: expected null with given null and every other output equal is supported', () => {
+  const r = grade3(nullExpected, nullExpected);
+  assert.equal(r.status, 'supported'); assert.deepEqual(C.sorted(r.matched), C.sorted(FIELDS)); assert.deepEqual(r.mismatched, []);
+});
+t53('T53-V3.status.partial', 'decision table: expected null with given number 0 is a mismatch of only that output', () => {
+  const r = grade3({...nullExpected, 'positive-predictive-value': 0}, nullExpected);
+  assert.equal(r.status, 'partial'); assert.deepEqual(r.mismatched, ['positive-predictive-value']);
+});
+t53('T53-V3.status.not_demonstrated', 'every output off by more than its tolerance is not_demonstrated', () => {
+  const r = grade3(Object.fromEntries(FIELDS.map(f => [f, C.T53_BASE[f] + 10])), C.T53_BASE);
+  assert.equal(r.status, 'not_demonstrated'); assert.deepEqual(C.sorted(r.mismatched), C.sorted(FIELDS)); assert.deepEqual(r.matched, []);
+});
+t53('T53-V3.status.skipped', 'a skipped prediction (null) is skipped', () => {
+  assert.equal(grade3(null, C.T53_BASE).status, 'skipped');
+});
+t53('T53-V3.key-order-independent', 'grading keys by outputId, not by position (reversed prediction keys)', () => {
+  const rev = Object.fromEntries([...FIELDS].reverse().map(f => [f, f === 'false-negative' ? C.T53_BASE[f] + 2.01 : C.T53_BASE[f]]));
+  const r = grade3(rev, C.T53_BASE);
+  assert.equal(r.status, 'partial'); assert.deepEqual(r.mismatched, ['false-negative']);
+});
+t53('T53-V3.result-per-output-tolerance', 'through buildResult the synthetic lesson tolerances (5 L, 2 %) apply per output (R5, C7)', () => {
+  const rt = syntheticRuntime, s = initialProgress(session, rt);
+  const status = values => {
+    const p = play([...synReach('assessment'), act.recordPrediction(values, 'transfer')], s, rt);
+    return buildResult(p, syntheticLesson, session, NOW, rt).assessments.find(a => a.criterionId === 'calculate-transfer').status;
+  };
+  assert.equal(status({'filled-volume': 500, 'fill-ratio': 25}), 'supported');
+  assert.equal(status({'filled-volume': 505, 'fill-ratio': 27}), 'supported');
+  assert.equal(status({'filled-volume': 505.01, 'fill-ratio': 25}), 'partial');
+  assert.equal(status({'filled-volume': 500, 'fill-ratio': 27.01}), 'partial');
+  assert.equal(status({'filled-volume': 0, 'fill-ratio': 0}), 'not_demonstrated');
+});
+
+// ---- V4 hints and result
+for (const c of C.T53_HINT) t53(c.id, `openHint level ${c.level} is ${c.ok ? 'accepted and raises help to hint' : 'RANGE and leaves progress unchanged'} (R8)`, () => {
+  const before = deepFreeze(play([...reach('simulation')]));
+  const text = snap(before);
+  const r = applyAction(before, act.openHint(c.level));
+  assert.equal(snap(before), text);
+  if (c.ok) {
+    assert.equal(r.ok, true, JSON.stringify(r));
+    const q = applyAction(r.progress, act.recordFreeResponse('question', 'q'));
+    assert.equal(q.ok, true);
+    assert.equal(buildResult(q.progress, lesson, session, NOW).responses.at(-1).help, 'hint');
+  } else {
+    assert.equal(r.ok, false); wellFormedErrors(r);
+    assert.ok(ranges(r).includes('RANGE'), JSON.stringify(r.errors));
+  }
+});
+const fullFlow = (baseline, retry, transfer, transferRetry) => [
+  act.advanceStage(), act.recordPrediction(baseline), act.advanceStage(), act.reveal(), act.retryPrediction(retry), act.advanceStage(),
+  act.recordPrediction(transfer, 'transfer'), act.retryPrediction(transferRetry, 'transfer'),
+  act.recordFreeResponse('question', '질문'), act.recordFreeResponse('choice', '선택 이유'), act.recordFreeResponse('apply', '적용'),
+];
+const reverseKeys = o => Object.fromEntries(Object.entries(o).reverse());
+const resultFor = (rt, l, actions) => withHash(buildResult(play(actions, initialProgress(session, rt), rt), l, session, NOW, rt));
+t53('T53-V4.result.inspection', 'inspection result: prediction-model first concept, first exploration/assessment activity, contract-valid (R11, C1)', () => {
+  const r = resultFor(runtime, lesson, fullFlow(baselinePrediction, retryPrediction, reverseKeys(predC4), reverseKeys(predC4)));
+  assert.deepEqual(validateDocument(r, 'result'), {ok: true, errors: []});
+  assert.deepEqual(crossCheckResult(r, lesson), []);
+  assert.deepEqual(crossCheckR11(r, lesson), []);
+  assert.ok(r.responses.length >= 7);
+  for (const x of r.responses) assert.deepEqual([x.conceptId, x.conceptRevision], ['detection-rate', 2], x.responseId);
+  const preds = r.responses.filter(x => x.purpose === 'prediction');
+  assert.deepEqual(preds.map(x => x.activityId), ['exploration-activity', 'exploration-activity', 'assessment-activity', 'assessment-activity']);
+  for (const x of r.responses.filter(x => x.purpose !== 'prediction')) assert.equal(x.activityId, 'assessment-activity', x.purpose);
+});
+t53('T53-V4.result.synthetic', 'synthetic result: ids come from the synthetic lesson, not from the inspection example (R11, C7)', () => {
+  const rt = syntheticRuntime;
+  const r = resultFor(rt, syntheticLesson, fullFlow({'filled-volume': 200, 'fill-ratio': 10}, {'filled-volume': 201, 'fill-ratio': 11}, {'fill-ratio': 25, 'filled-volume': 500}, {'filled-volume': 499, 'fill-ratio': 24}));
+  assert.deepEqual(validateDocument(r, 'result'), {ok: true, errors: []});
+  assert.deepEqual(crossCheckResult(r, syntheticLesson), []);
+  assert.deepEqual(crossCheckR11(r, syntheticLesson), []);
+  for (const x of r.responses) assert.deepEqual([x.conceptId, x.conceptRevision], ['tank-capacity', 3], x.responseId);
+  assert.deepEqual(r.responses.filter(x => x.purpose === 'prediction').map(x => x.activityId), ['tank-explore', 'tank-explore', 'tank-assess', 'tank-assess']);
+  assert.equal(r.lessonId, 'water-tank-lesson');
+});
+t53('T53-V4.result.first-activity-and-concept', 'with several exploration/assessment activities and a reordered criterion the FIRST ones are used (R11)', () => {
+  const variant = lessonWith(l => {
+    const by = id => l.activities.find(a => a.activityId === id);
+    const explore = by('exploration-activity'), assess = by('assessment-activity');
+    const firstExplore = {activityId: 'exploration-first', stage: 'exploration', contentIds: explore.contentIds.splice(4), required: true, minutes: 3};
+    const firstAssess = {activityId: 'assessment-first', stage: 'assessment', contentIds: assess.contentIds.splice(1), required: true, minutes: 2.5};
+    explore.minutes = 3; assess.minutes = 2.5;
+    l.activities.splice(l.activities.indexOf(explore), 0, firstExplore);
+    l.activities.splice(l.activities.indexOf(assess), 0, firstAssess);
+    l.rubric.criteria.find(c => c.dimension === 'prediction-model').conceptIds.reverse();
+  });
+  assert.deepEqual(validateDocument(variant, 'lesson'), {ok: true, errors: []});
+  const rt = createRuntime(variant, model);
+  const r = resultFor(rt, variant, fullFlow(baselinePrediction, retryPrediction, predC4, predC4));
+  assert.deepEqual(validateDocument(r, 'result'), {ok: true, errors: []});
+  for (const x of r.responses) assert.deepEqual([x.conceptId, x.conceptRevision], ['overall-accuracy', 1], x.responseId);
+  assert.deepEqual(r.responses.filter(x => x.purpose === 'prediction').map(x => x.activityId), ['exploration-first', 'exploration-first', 'assessment-first', 'assessment-first']);
+  assert.deepEqual(crossCheckR11(r, variant), []);
+});
+t53('T53-V4.result.answer-serialization', 'prediction answer is the JSON of outputId -> display value in lesson.outputs order, null for undefined (R11)', () => {
+  const given = {...reverseKeys(predC4), 'positive-predictive-value': null};
+  const r = resultFor(runtime, lesson, [...reach('assessment'), act.recordPrediction(given, 'transfer')]);
+  const transfer = r.responses.filter(x => x.purpose === 'prediction')[1];
+  const ordered = Object.fromEntries(FIELDS.map(f => [f, given[f]]));
+  assert.equal(transfer.answer, JSON.stringify(ordered));
+  assert.deepEqual(Object.keys(JSON.parse(transfer.answer)), FIELDS);
+  assert.equal(JSON.parse(transfer.answer)['positive-predictive-value'], null);
+  const synth = resultFor(syntheticRuntime, syntheticLesson, [...synReach('assessment'), act.recordPrediction({'fill-ratio': 25, 'filled-volume': 500}, 'transfer')]);
+  assert.equal(synth.responses.filter(x => x.purpose === 'prediction')[1].answer, '{"filled-volume":500,"fill-ratio":25}');
+});
+t53('T53-V4.result.context-phrase', 'calculate-transfer context lists every output label with its ±tolerance and unit (R11)', () => {
+  for (const [rt, l, labels, tolerances, units] of [[runtime, lesson, lesson.outputs.map(o => o.label), ['±1'], ['개', '%']], [syntheticRuntime, syntheticLesson, ['찬 물의 양', '채움 비율'], ['±5', '±2'], ['L', '%']]]) {
+    const r = resultFor(rt, l, [...(l === lesson ? reach : synReach)('assessment'), act.recordPrediction(l === lesson ? predC4 : {'filled-volume': 500, 'fill-ratio': 25}, 'transfer')]);
+    const context = r.assessments.find(a => a.criterionId === 'calculate-transfer').context;
+    for (const x of [...labels, ...tolerances, ...units]) assert.ok(context.includes(x), `${l.lessonId} context lacks ${x}: ${context}`);
+  }
+});
+
+// ---- V5 static import check (syntax testing)
+const IMPORT_RE = [/\bimport\s+(?:[\w*${}\s,]+?\s+from\s+)?['"]([^'"]+)['"]/g, /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g, /\bexport\s+(?:\*|\{[^}]*\})(?:\s+as\s+\w+)?\s+from\s+['"]([^'"]+)['"]/g];
+const specifiersOf = source => [...new Set(IMPORT_RE.flatMap(re => [...source.matchAll(re)].map(m => m[1])))];
+function walk(dir, accept, out = []) {
+  for (const name of readdirSync(dir).sort()) {
+    if (name === 'node_modules' || name.startsWith('.')) continue;
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) walk(p, accept, out); else if (accept(name)) out.push(p);
+  }
+  return out;
+}
+t53('T53-V5.extractor-controls', 'the specifier extractor finds static, side-effect, re-export and dynamic imports (positive controls)', () => {
+  const source = "import a from '../examples/x.mjs';\nimport {b, c} from \"./b.mjs\";\nimport * as d from './d.mjs';\nimport './side.mjs';\nexport {e} from './e.mjs';\nexport * from './f.mjs';\nconst g = await import('./g.mjs');\n";
+  assert.deepEqual(specifiersOf(source).sort(), ['../examples/x.mjs', './b.mjs', './d.mjs', './e.mjs', './f.mjs', './g.mjs', './side.mjs']);
+  assert.deepEqual(specifiersOf('const s = "import x from nowhere";'), []);
+});
+t53('T53-V5.sources', 'no learning/*.mjs, site/**/*.js or site index.md import specifier contains examples/ (R2, Q7)', () => {
+  const pages = ['site/src/index.md', 'site/diagnostic/index.md'].map(f => join(root, f));
+  for (const f of pages) assert.ok(existsSync(f), `${f} exists`);
+  const files = [...walk(join(root, 'learning'), n => n.endsWith('.mjs')), ...walk(join(root, 'site'), n => n.endsWith('.js')), ...pages];
+  assert.ok(files.some(f => f.endsWith('learning/progress.mjs')) && files.some(f => f.includes('/site/')), `files found: ${files.length}`);
+  const offenders = files.flatMap(f => specifiersOf(readFileSync(f, 'utf8')).filter(x => x.includes('examples/')).map(x => `${f}: ${x}`));
+  assert.deepEqual(offenders, []);
+});
+
+// ---- V14 formatCount: expected strings are literals written from ko-KR Intl semantics (max 3 fraction digits), not computed by the code under test
+test('[T53-V14.formatCount] zero, negative zero, thousands grouping, rounding beyond 3 decimals, negatives', () => {
+  for (const [n, s] of [[0, '0'], [-0, '0'], [9405, '9,405'], [1234567, '1,234,567'], [999, '999'], [1.23456, '1.235'], [0.0004, '0'], [499.9996, '500'], [1.35, '1.35'], [-1234.5, '-1,234.5']]) assert.equal(formatCount(n), s, String(n));
+  done('T53-V14.formatCount');
 });
 
 // ================= completeness (must stay last) =================
 test('manifest lists every declared item and every item is exercised', () => {
-  const ids = [...C.V1_CELLS, ...C.V1_INVALID, ...C.V2_CASES, ...C.V3_CASES, ...C.V3_DIM, ...C.V4_SESSION, ...C.V4_STATE, ...C.V4_ROOTS, ...C.V4_STORAGE, ...C.V4_CLI].map(x => x.id).concat(C.V1_TR_CELLS.map(x => x.id), C.V1_TR_INVALID.map(x => x.id), C.V2_TOL.map(x => x.id), C.V1_FLOWS, C.V1_STAGE, C.V1_TRANSFER_STATES.map(x => x.id), C.V1_STATES.map(x => `V1.predictionState.baseline.${x}`), ['V3.shape.valid'], C.V3_SHAPE.map(x => x.id), C.CH_ITEMS, C.V4_MULTI.map(x => x.id), C.V3_EXTRA, C.V4_FORMAT);
+  const ids = [...C.V1_CELLS, ...C.V1_INVALID, ...C.V2_CASES, ...C.V3_CASES, ...C.V3_DIM, ...C.V4_SESSION, ...C.V4_STATE, ...C.V4_ROOTS, ...C.V4_STORAGE, ...C.V4_CLI].map(x => x.id).concat(C.V1_TR_CELLS.map(x => x.id), C.V1_TR_INVALID.map(x => x.id), C.V2_TOL.map(x => x.id), C.V1_FLOWS, C.V1_STAGE, C.V1_TRANSFER_STATES.map(x => x.id), C.V1_STATES.map(x => `V1.predictionState.baseline.${x}`), ['V3.shape.valid'], C.V3_SHAPE.map(x => x.id), C.CH_ITEMS, C.V4_MULTI.map(x => x.id), C.V3_EXTRA, C.T53_IDS, ['T53-V14.formatCount']);
   const nodeRows = manifest.filter(r => !r.layer);
   assert.equal(new Set(nodeRows.map(r => r.id)).size, nodeRows.length);
   assert.deepEqual(nodeRows.map(r => r.id).sort(), ids.sort(), 'manifest equals declared items');
@@ -608,7 +847,7 @@ test('manifest lists every declared item and every item is exercised', () => {
   // independently derived counts from the spec's declared dimensions
   assert.equal(C.V1_CELLS.length, 5 * 11);
   assert.ok(C.V1_STATES.every(s => C.V1_INVALID.filter(x => x.state === s).length >= 1));
-  assert.equal(C.V2_CASES.filter(x => /^V2\.(truePositive|falsePositive|falseNegative|trueNegative|positiveCount|positivePredictiveValue|accuracy)\./.test(x.id)).length, 7 * 5);
+  assert.equal(C.V2_CASES.filter(x => /^V2\.(true-positive|false-positive|false-negative|true-negative|positive-count|positive-predictive-value|accuracy)\./.test(x.id)).length, 7 * 5);
   assert.deepEqual(C.V2_CASES.filter(x => x.id.startsWith('V2.count.')).map(x => x.id), ['V2.count.0', 'V2.count.1', 'V2.count.6', 'V2.count.7']);
   assert.equal(C.V3_CASES.length, 2 * 5 * 4);
   assert.equal(C.V1_TR_CELLS.length, 4 * 4);
@@ -616,6 +855,11 @@ test('manifest lists every declared item and every item is exercised', () => {
   assert.equal(C.V3_DIM.length, 4 * 2);
   assert.equal(C.V4_SESSION.length, 5 * 4 + 2 + 1);
   assert.equal(C.V4_STATE.length, 2);
+  assert.equal(C.T53_RANGE.length, 3 * 4);
+  assert.equal(C.T53_DIFF.length, 7 * 2);
+  assert.equal(C.T53_HINT.length, 4);
+  assert.equal(C.T53_STORAGE.length, 5);
+  assert.equal(C.T53_STATUS.length, 4);
   for (const r of nodeRows) assert.ok(exercised.has(r.id), `not exercised: ${r.id}`);
   assert.ok(nodeRows.every(r => !r.blocked), 'no blocked items remain');
   const specSources = readdirSync(new URL('./e2e/', import.meta.url)).filter(f => f.endsWith('.spec.mjs')).map(f => readFileSync(new URL(`./e2e/${f}`, import.meta.url), 'utf8')).join('\n');

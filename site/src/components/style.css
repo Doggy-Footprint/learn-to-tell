@@ -24,9 +24,10 @@
 #app p[data-highlighted="true"]::before { content: "강조됨 ▶ "; font-weight: 700; }
 #app .concept-list { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
 #app .concept-card { border: 2px solid #1b1b1b; border-radius: 6px; padding: .5rem .8rem; background: #ffffff; max-width: 32rem; margin-top: .3rem; }
-#app .grid-legend { list-style: none; padding: 0; }
-#app .grid-legend li { display: flex; align-items: center; gap: .5rem; }
-#app .grid-svg { border: 2px solid #1b1b1b; max-width: 100%; height: auto; }
+#app .bar-list { list-style: none; padding: 0; margin: .25rem 0 1rem; }
+#app .bar-list li { display: grid; grid-template-columns: minmax(8rem, 14rem) minmax(8rem, 1fr) minmax(5rem, 9rem); align-items: center; gap: .6rem; margin: .3rem 0; }
+#app .bar-track { display: block; border: 2px solid #1b1b1b; background: #ffffff; height: 1.2rem; }
+#app .bar { display: block; height: 100%; background: repeating-linear-gradient(45deg, #1b1b1b 0 6px, #4b5563 6px 10px); min-width: 0; }
 #app .choice-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1rem; }
 #app .choice-card { border: 2px solid #1b1b1b; border-radius: 6px; padding: .5rem 1rem; }
 #app .choice-card dt { font-weight: 700; margin-top: .5rem; }

@@ -1,0 +1,572 @@
+{
+  "kind": "lesson",
+  "version": 2,
+  "lessonId": "manufacturing-inspection-lesson",
+  "lessonRevision": 1,
+  "profileId": "local-learner",
+  "diagnosticId": "inspection-diagnostic",
+  "candidateId": "inspection-candidate",
+  "contextKind": "interest",
+  "modelId": "manufacturing-inspection",
+  "modelRevision": 1,
+  "concepts": [
+    {
+      "conceptId": "defect-rate",
+      "conceptRevision": 1,
+      "label": "결함 비율",
+      "meaning": "MEAN-DEFECT 전체 제품 중 실제로 결함이 있는 몫이다.",
+      "example": "EX-DEFECT 만 개 중 백 개가 불량이면 1%다.",
+      "confusion": "CONF-DEFECT 양성 비율과 같은 말로 읽기 쉽다.",
+      "plain": "PLAIN-DEFECT 불량품이 얼마나 흔한지를 뜻한다."
+    },
+    {
+      "conceptId": "detection-rate",
+      "conceptRevision": 2,
+      "label": "검출률",
+      "meaning": "MEAN-DETECT 실제 결함 중 양성으로 잡히는 몫이다.",
+      "example": "EX-DETECT 불량 100개 중 90개를 잡으면 90%다.",
+      "confusion": "CONF-DETECT 양성 중 진짜 결함 비율과 헷갈린다.",
+      "plain": "PLAIN-DETECT 불량품을 놓치지 않고 찾는 힘이다."
+    },
+    {
+      "conceptId": "false-positive-rate",
+      "conceptRevision": 1,
+      "label": "오탐률",
+      "meaning": "MEAN-FP 정상 제품 중 양성으로 잘못 표시되는 몫이다.",
+      "example": "EX-FP 정상 9,900개 중 495개가 양성이면 5%다.",
+      "confusion": "CONF-FP 양성 중 정상 비율과 같다고 오해한다.",
+      "plain": "PLAIN-FP 멀쩡한 것을 불량으로 의심하는 빈도다."
+    },
+    {
+      "conceptId": "positive-predictive-value",
+      "conceptRevision": 1,
+      "label": "양성 예측도",
+      "meaning": "MEAN-PPV 양성으로 나온 제품 중 실제 결함인 몫이다.",
+      "example": "EX-PPV 양성 585개 중 90개가 결함이면 약 15.38%다.",
+      "confusion": "CONF-PPV 검출률이 높으면 같이 높다고 착각한다.",
+      "plain": "PLAIN-PPV 양성 표시를 믿을 수 있는 정도다."
+    },
+    {
+      "conceptId": "overall-accuracy",
+      "conceptRevision": 1,
+      "label": "전체 정확도",
+      "meaning": "MEAN-ACC 전체 제품 중 올바르게 분류한 몫이다.",
+      "example": "EX-ACC 맞힌 9,495개를 1만 개로 나누면 94.95%다.",
+      "confusion": "CONF-ACC 양성 예측도와 같은 값으로 읽는다.",
+      "plain": "PLAIN-ACC 전체적으로 얼마나 잘 맞혔는가이다."
+    }
+  ],
+  "content": [
+    {
+      "contentId": "diagnostic-cards",
+      "role": "application",
+      "text": "DIAG-ONLY 진단 활동 본문은 수업 화면에 나오지 않는다.",
+      "conceptIds": [
+        "defect-rate",
+        "detection-rate",
+        "false-positive-rate",
+        "positive-predictive-value",
+        "overall-accuracy"
+      ]
+    },
+    {
+      "contentId": "lesson-orientation",
+      "role": "explanation",
+      "text": "ORIENT-1 오늘은 가상의 제품 1만 개로 양성 표시의 의미를 비교한다.",
+      "conceptIds": [
+        "defect-rate",
+        "detection-rate",
+        "false-positive-rate",
+        "positive-predictive-value",
+        "overall-accuracy"
+      ]
+    },
+    {
+      "contentId": "inspection-explanation",
+      "role": "explanation",
+      "text": "EXPL-1 분모가 다르면 같은 비율도 다른 뜻이다. 양성 예측도의 분모는 양성 전체다.",
+      "conceptIds": [
+        "defect-rate",
+        "detection-rate",
+        "false-positive-rate",
+        "positive-predictive-value",
+        "overall-accuracy"
+      ]
+    },
+    {
+      "contentId": "inspection-simulation",
+      "role": "simulation",
+      "text": "SIM-1 입력을 바꾸면서 표와 막대가 어떻게 달라지는지 본다.",
+      "conceptIds": [
+        "defect-rate",
+        "detection-rate",
+        "false-positive-rate",
+        "positive-predictive-value",
+        "overall-accuracy"
+      ]
+    },
+    {
+      "contentId": "inspection-application",
+      "role": "application",
+      "text": "APP-1 두 후보를 비교하되 비용 정보가 없으면 결정을 미룬다.",
+      "conceptIds": [
+        "defect-rate",
+        "detection-rate",
+        "false-positive-rate",
+        "positive-predictive-value",
+        "overall-accuracy"
+      ]
+    },
+    {
+      "contentId": "inspection-failure",
+      "role": "failure",
+      "text": "FAIL-1 전체 정확도를 양성 예측도로 읽으면 판단이 틀린다.",
+      "conceptIds": [
+        "defect-rate",
+        "detection-rate",
+        "false-positive-rate",
+        "positive-predictive-value",
+        "overall-accuracy"
+      ]
+    },
+    {
+      "contentId": "action-explanation",
+      "role": "explanation",
+      "text": "EXPL-2 양성은 표시일 뿐 확정이 아니다. 후속 조치는 별도 정보가 필요하다.",
+      "conceptIds": [
+        "defect-rate",
+        "detection-rate",
+        "false-positive-rate",
+        "positive-predictive-value",
+        "overall-accuracy"
+      ]
+    },
+    {
+      "contentId": "action-application",
+      "role": "application",
+      "text": "APP-2 추가 확인을 제안하려면 확인 방법의 성능을 먼저 묻는다.",
+      "conceptIds": [
+        "defect-rate",
+        "detection-rate",
+        "false-positive-rate",
+        "positive-predictive-value",
+        "overall-accuracy"
+      ]
+    },
+    {
+      "contentId": "action-failure",
+      "role": "failure",
+      "text": "FAIL-2 양성이 0개이면 양성 예측도는 정의되지 않는다.",
+      "conceptIds": [
+        "defect-rate",
+        "detection-rate",
+        "false-positive-rate",
+        "positive-predictive-value",
+        "overall-accuracy"
+      ]
+    },
+    {
+      "contentId": "inspection-assessment",
+      "role": "assessment",
+      "text": "ASSESS-1 새 사례의 값을 결과 공개 전에 예상하고 이유를 쓴다.",
+      "conceptIds": [
+        "defect-rate",
+        "detection-rate",
+        "false-positive-rate",
+        "positive-predictive-value",
+        "overall-accuracy"
+      ]
+    },
+    {
+      "contentId": "action-assessment",
+      "role": "assessment",
+      "text": "ASSESS-2 후속 조치 하나를 잠정 선택하고 부족한 정보를 질문으로 만든다.",
+      "conceptIds": [
+        "defect-rate",
+        "detection-rate",
+        "false-positive-rate",
+        "positive-predictive-value",
+        "overall-accuracy"
+      ]
+    },
+    {
+      "contentId": "return-to-work",
+      "role": "application",
+      "text": "RETURN-1 배운 내용을 세 문장으로 정리해 작업으로 돌아간다.",
+      "conceptIds": [
+        "defect-rate",
+        "detection-rate",
+        "false-positive-rate",
+        "positive-predictive-value",
+        "overall-accuracy"
+      ]
+    },
+    {
+      "contentId": "next-learning-map",
+      "role": "application",
+      "text": "MAP-1 다음에 배울 후보와 아직 확인하지 못한 항목을 살핀다.",
+      "conceptIds": [
+        "defect-rate",
+        "detection-rate",
+        "false-positive-rate",
+        "positive-predictive-value",
+        "overall-accuracy"
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "decisionId": "choose-inspection",
+      "question": "DEC1-Q 두 후보 중 무엇을 고르거나 보류할까?",
+      "choices": [
+        "DEC1-C1 후보 A",
+        "DEC1-C2 후보 B",
+        "DEC1-C3 정보 확보까지 보류"
+      ],
+      "requiredInformation": [
+        "DEC1-R1 집단의 결함 비율",
+        "DEC1-R2 누락과 오탐의 비용"
+      ],
+      "explanationId": "inspection-explanation",
+      "simulationId": "inspection-simulation",
+      "applicationId": "inspection-application",
+      "failureId": "inspection-failure",
+      "assessmentId": "inspection-assessment"
+    },
+    {
+      "decisionId": "choose-positive-action",
+      "question": "DEC2-Q 양성 제품에 어떤 조치를 할까?",
+      "choices": [
+        "DEC2-C1 즉시 조치",
+        "DEC2-C2 추가 확인",
+        "DEC2-C3 보류"
+      ],
+      "requiredInformation": [
+        "DEC2-R1 확인 방법의 성능",
+        "DEC2-R2 처리 용량과 시간"
+      ],
+      "explanationId": "action-explanation",
+      "simulationId": "inspection-simulation",
+      "applicationId": "action-application",
+      "failureId": "action-failure",
+      "assessmentId": "action-assessment"
+    }
+  ],
+  "inputs": [
+    {
+      "inputId": "defect-percent",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "default": 1
+    },
+    {
+      "inputId": "detection-percent",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "default": 90
+    },
+    {
+      "inputId": "false-positive-percent",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "default": 5
+    }
+  ],
+  "outputs": [
+    {
+      "outputId": "true-positive",
+      "label": "찾은 결함(TP)",
+      "unit": "개",
+      "scale": 1,
+      "nullable": false
+    },
+    {
+      "outputId": "false-positive",
+      "label": "잘못 양성(FP)",
+      "unit": "개",
+      "scale": 1,
+      "nullable": false
+    },
+    {
+      "outputId": "false-negative",
+      "label": "놓친 결함(FN)",
+      "unit": "개",
+      "scale": 1,
+      "nullable": false
+    },
+    {
+      "outputId": "true-negative",
+      "label": "맞는 정상(TN)",
+      "unit": "개",
+      "scale": 1,
+      "nullable": false
+    },
+    {
+      "outputId": "positive-count",
+      "label": "양성 총수",
+      "unit": "개",
+      "scale": 1,
+      "nullable": false
+    },
+    {
+      "outputId": "positive-predictive-value",
+      "label": "양성 예측도(PPV)",
+      "unit": "%",
+      "scale": 100,
+      "nullable": true
+    },
+    {
+      "outputId": "accuracy",
+      "label": "전체 정확도",
+      "unit": "%",
+      "scale": 100,
+      "nullable": false
+    }
+  ],
+  "scenarios": [
+    {
+      "scenarioId": "baseline-a",
+      "label": "기본 A",
+      "values": [
+        {
+          "inputId": "defect-percent",
+          "value": 1
+        },
+        {
+          "inputId": "detection-percent",
+          "value": 90
+        },
+        {
+          "inputId": "false-positive-percent",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "scenarioId": "population-contrast",
+      "label": "집단 대비",
+      "values": [
+        {
+          "inputId": "defect-percent",
+          "value": 10
+        },
+        {
+          "inputId": "detection-percent",
+          "value": 90
+        },
+        {
+          "inputId": "false-positive-percent",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "scenarioId": "candidate-b",
+      "label": "후보 B",
+      "values": [
+        {
+          "inputId": "defect-percent",
+          "value": 1
+        },
+        {
+          "inputId": "detection-percent",
+          "value": 80
+        },
+        {
+          "inputId": "false-positive-percent",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "scenarioId": "transfer-case",
+      "label": "새 사례",
+      "values": [
+        {
+          "inputId": "defect-percent",
+          "value": 2
+        },
+        {
+          "inputId": "detection-percent",
+          "value": 80
+        },
+        {
+          "inputId": "false-positive-percent",
+          "value": 2
+        }
+      ]
+    }
+  ],
+  "transfer": {
+    "scenarioId": "transfer-case",
+    "tolerances": [
+      {
+        "outputId": "true-positive",
+        "absolute": 1
+      },
+      {
+        "outputId": "false-positive",
+        "absolute": 1
+      },
+      {
+        "outputId": "false-negative",
+        "absolute": 1
+      },
+      {
+        "outputId": "true-negative",
+        "absolute": 1
+      },
+      {
+        "outputId": "positive-count",
+        "absolute": 1
+      },
+      {
+        "outputId": "positive-predictive-value",
+        "absolute": 1
+      },
+      {
+        "outputId": "accuracy",
+        "absolute": 1
+      }
+    ]
+  },
+  "activities": [
+    {
+      "activityId": "diagnosis-activity",
+      "stage": "diagnosis",
+      "contentIds": [
+        "diagnostic-cards"
+      ],
+      "required": true,
+      "minutes": 2
+    },
+    {
+      "activityId": "orientation-activity",
+      "stage": "orientation",
+      "contentIds": [
+        "lesson-orientation"
+      ],
+      "required": true,
+      "minutes": 1
+    },
+    {
+      "activityId": "exploration-activity",
+      "stage": "exploration",
+      "contentIds": [
+        "inspection-explanation",
+        "inspection-simulation",
+        "inspection-application",
+        "inspection-failure",
+        "action-explanation",
+        "action-application",
+        "action-failure"
+      ],
+      "required": true,
+      "minutes": 6
+    },
+    {
+      "activityId": "assessment-activity",
+      "stage": "assessment",
+      "contentIds": [
+        "inspection-assessment",
+        "action-assessment"
+      ],
+      "required": true,
+      "minutes": 5
+    },
+    {
+      "activityId": "return-activity",
+      "stage": "return",
+      "contentIds": [
+        "return-to-work"
+      ],
+      "required": true,
+      "minutes": 2
+    },
+    {
+      "activityId": "map-activity",
+      "stage": "map",
+      "contentIds": [
+        "next-learning-map"
+      ],
+      "required": true,
+      "minutes": 2
+    }
+  ],
+  "rubric": {
+    "rubricId": "manufacturing-inspection-lesson-rubric",
+    "rubricVersion": 1,
+    "criteria": [
+      {
+        "criterionId": "distinguish-denominators",
+        "dimension": "concept",
+        "conceptIds": [
+          "defect-rate",
+          "detection-rate",
+          "false-positive-rate",
+          "positive-predictive-value",
+          "overall-accuracy"
+        ],
+        "contentId": "inspection-assessment",
+        "mode": "agent",
+        "rule": "분모를 구분해 설명한다."
+      },
+      {
+        "criterionId": "calculate-transfer",
+        "dimension": "prediction-model",
+        "conceptIds": [
+          "detection-rate",
+          "defect-rate",
+          "false-positive-rate",
+          "positive-predictive-value",
+          "overall-accuracy"
+        ],
+        "contentId": "inspection-assessment",
+        "mode": "automatic",
+        "rule": "새 사례의 일곱 값을 기대값과 비교한다. 각 항목의 허용 오차는 lesson.transfer가 정한다."
+      },
+      {
+        "criterionId": "explain-transfer",
+        "dimension": "transfer",
+        "conceptIds": [
+          "detection-rate",
+          "defect-rate",
+          "false-positive-rate",
+          "positive-predictive-value"
+        ],
+        "contentId": "inspection-assessment",
+        "mode": "agent",
+        "rule": "새 집단에서 다시 계산하는 이유를 설명한다."
+      },
+      {
+        "criterionId": "ask-for-evidence",
+        "dimension": "question",
+        "conceptIds": [
+          "detection-rate",
+          "defect-rate",
+          "false-positive-rate"
+        ],
+        "contentId": "action-assessment",
+        "mode": "agent",
+        "rule": "부족한 정보를 질문으로 만든다."
+      },
+      {
+        "criterionId": "justify-choice",
+        "dimension": "choice-meaning",
+        "conceptIds": [
+          "defect-rate",
+          "detection-rate",
+          "false-positive-rate",
+          "positive-predictive-value",
+          "overall-accuracy"
+        ],
+        "contentId": "action-assessment",
+        "mode": "agent",
+        "rule": "선택과 보류의 조건을 비교한다."
+      }
+    ]
+  }
+}

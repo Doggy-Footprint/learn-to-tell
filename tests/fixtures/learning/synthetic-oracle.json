@@ -1,0 +1,96 @@
+{
+  "kind": "oracle",
+  "version": 1,
+  "modelId": "water-tank",
+  "modelRevision": 1,
+  "cases": [
+    {
+      "caseId": "rate-20",
+      "values": [
+        {
+          "inputId": "flow-rate",
+          "value": 20
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "filled-volume",
+          "value": 200
+        },
+        {
+          "outputId": "fill-ratio",
+          "value": 0.1
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: rate*10 liters, capacity 2000 liters",
+      "author": "independent-agent"
+    },
+    {
+      "caseId": "rate-0",
+      "values": [
+        {
+          "inputId": "flow-rate",
+          "value": 0
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "filled-volume",
+          "value": 0
+        },
+        {
+          "outputId": "fill-ratio",
+          "value": 0
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: rate*10 liters, capacity 2000 liters",
+      "author": "independent-agent"
+    },
+    {
+      "caseId": "rate-100",
+      "values": [
+        {
+          "inputId": "flow-rate",
+          "value": 100
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "filled-volume",
+          "value": 1000
+        },
+        {
+          "outputId": "fill-ratio",
+          "value": 0.5
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: rate*10 liters, capacity 2000 liters",
+      "author": "independent-agent"
+    },
+    {
+      "caseId": "rate-50",
+      "values": [
+        {
+          "inputId": "flow-rate",
+          "value": 50
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "filled-volume",
+          "value": 500
+        },
+        {
+          "outputId": "fill-ratio",
+          "value": 0.25
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: rate*10 liters, capacity 2000 liters",
+      "author": "independent-agent"
+    }
+  ]
+}

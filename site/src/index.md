@@ -1,5 +1,5 @@
 ---
-title: 검사 정확도와 양성 결과의 의미
+title: Learn to Tell 수업
 style: components/style.css
 ---
 
@@ -8,6 +8,8 @@ style: components/style.css
 ```js
 import {mount} from "./components/ui.js";
 import session from "./session.js";
+import lesson from "./lesson.js";
+import * as model from "./model.js";
 
-mount(session);
+mount(session, lesson, model.model);
 ```

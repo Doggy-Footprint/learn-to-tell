@@ -1,0 +1,358 @@
+{
+  "kind": "lesson",
+  "version": 2,
+  "lessonId": "water-tank-lesson",
+  "lessonRevision": 1,
+  "profileId": "local-learner",
+  "diagnosticId": "tank-diagnostic",
+  "candidateId": "tank-candidate",
+  "contextKind": "interest",
+  "modelId": "water-tank",
+  "modelRevision": 1,
+  "concepts": [
+    {
+      "conceptId": "flow-rate",
+      "conceptRevision": 1,
+      "label": "유입 속도",
+      "meaning": "TMEAN-FLOW 분당 탱크로 들어오는 물의 양이다.",
+      "example": "TEX-FLOW 분당 20리터면 십 분에 200리터가 쌓인다.",
+      "confusion": "TCONF-FLOW 이미 찬 물의 양과 같은 것으로 읽는다.",
+      "plain": "TPLAIN-FLOW 수도꼭지를 얼마나 틀었는가이다."
+    },
+    {
+      "conceptId": "tank-capacity",
+      "conceptRevision": 3,
+      "label": "탱크 용량",
+      "meaning": "TMEAN-CAP 탱크가 담을 수 있는 최대 물의 양 2,000리터다.",
+      "example": "TEX-CAP 500리터가 차면 용량의 25%다.",
+      "confusion": "TCONF-CAP 유입 속도가 커지면 용량도 커진다고 생각한다.",
+      "plain": "TPLAIN-CAP 탱크의 크기는 정해져 있다는 뜻이다."
+    },
+    {
+      "conceptId": "fill-ratio",
+      "conceptRevision": 1,
+      "label": "채움 비율",
+      "meaning": "TMEAN-RATIO 찬 물의 양을 용량으로 나눈 몫이다.",
+      "example": "TEX-RATIO 1,000리터가 차면 50%다.",
+      "confusion": "TCONF-RATIO 리터 값과 퍼센트 값을 섞어 읽는다.",
+      "plain": "TPLAIN-RATIO 탱크가 얼마나 찼는지 퍼센트로 본 값이다."
+    }
+  ],
+  "content": [
+    {
+      "contentId": "tank-diagnostic-cards",
+      "role": "application",
+      "text": "TDIAG-ONLY 진단 활동 본문은 수업 화면에 나오지 않는다.",
+      "conceptIds": [
+        "flow-rate",
+        "tank-capacity",
+        "fill-ratio"
+      ]
+    },
+    {
+      "contentId": "tank-orientation",
+      "role": "explanation",
+      "text": "TORIENT-1 오늘은 물탱크가 차는 모습을 숫자로 예상해 본다.",
+      "conceptIds": [
+        "flow-rate",
+        "tank-capacity",
+        "fill-ratio"
+      ]
+    },
+    {
+      "contentId": "tank-explanation",
+      "role": "explanation",
+      "text": "TEXPL-1 십 분 동안 찬 물의 양은 유입 속도에 십을 곱한 값이다.",
+      "conceptIds": [
+        "flow-rate",
+        "tank-capacity",
+        "fill-ratio"
+      ]
+    },
+    {
+      "contentId": "tank-simulation",
+      "role": "simulation",
+      "text": "TSIM-1 유입 속도를 바꾸며 표와 막대를 비교한다.",
+      "conceptIds": [
+        "flow-rate",
+        "tank-capacity",
+        "fill-ratio"
+      ]
+    },
+    {
+      "contentId": "tank-application",
+      "role": "application",
+      "text": "TAPP-1 같은 시간에 두 속도를 비교해 본다.",
+      "conceptIds": [
+        "flow-rate",
+        "tank-capacity",
+        "fill-ratio"
+      ]
+    },
+    {
+      "contentId": "tank-failure",
+      "role": "failure",
+      "text": "TFAIL-1 리터와 퍼센트를 같은 눈금으로 비교하면 틀린다.",
+      "conceptIds": [
+        "flow-rate",
+        "tank-capacity",
+        "fill-ratio"
+      ]
+    },
+    {
+      "contentId": "tank-assessment",
+      "role": "assessment",
+      "text": "TASSESS-1 새 속도의 두 값을 공개 전에 예상한다.",
+      "conceptIds": [
+        "flow-rate",
+        "tank-capacity",
+        "fill-ratio"
+      ]
+    },
+    {
+      "contentId": "tank-assessment-2",
+      "role": "assessment",
+      "text": "TASSESS-2 용량이 달라지면 어떤 값이 바뀌는지 말해 본다.",
+      "conceptIds": [
+        "flow-rate",
+        "tank-capacity",
+        "fill-ratio"
+      ]
+    },
+    {
+      "contentId": "tank-return",
+      "role": "application",
+      "text": "TRETURN-1 배운 내용을 한 문장으로 정리한다.",
+      "conceptIds": [
+        "flow-rate",
+        "tank-capacity",
+        "fill-ratio"
+      ]
+    },
+    {
+      "contentId": "tank-map",
+      "role": "application",
+      "text": "TMAP-1 다음에 배울 후보를 살핀다.",
+      "conceptIds": [
+        "flow-rate",
+        "tank-capacity",
+        "fill-ratio"
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "decisionId": "choose-speed",
+      "question": "TDEC1-Q 어느 속도로 물을 채울까?",
+      "choices": [
+        "TDEC1-C1 느리게",
+        "TDEC1-C2 빠르게"
+      ],
+      "requiredInformation": [
+        "TDEC1-R1 탱크 용량",
+        "TDEC1-R2 허용 시간"
+      ],
+      "explanationId": "tank-explanation",
+      "simulationId": "tank-simulation",
+      "applicationId": "tank-application",
+      "failureId": "tank-failure",
+      "assessmentId": "tank-assessment"
+    }
+  ],
+  "inputs": [
+    {
+      "inputId": "flow-rate",
+      "unit": "L/분",
+      "min": 0,
+      "max": 100,
+      "default": 20
+    }
+  ],
+  "outputs": [
+    {
+      "outputId": "filled-volume",
+      "label": "찬 물의 양",
+      "unit": "L",
+      "scale": 1,
+      "nullable": false
+    },
+    {
+      "outputId": "fill-ratio",
+      "label": "채움 비율",
+      "unit": "%",
+      "scale": 100,
+      "nullable": false
+    }
+  ],
+  "scenarios": [
+    {
+      "scenarioId": "slow-fill",
+      "label": "느리게",
+      "values": [
+        {
+          "inputId": "flow-rate",
+          "value": 20
+        }
+      ]
+    },
+    {
+      "scenarioId": "fast-fill",
+      "label": "빠르게",
+      "values": [
+        {
+          "inputId": "flow-rate",
+          "value": 80
+        }
+      ]
+    },
+    {
+      "scenarioId": "new-speed",
+      "label": "새 속도",
+      "values": [
+        {
+          "inputId": "flow-rate",
+          "value": 50
+        }
+      ]
+    }
+  ],
+  "transfer": {
+    "scenarioId": "new-speed",
+    "tolerances": [
+      {
+        "outputId": "filled-volume",
+        "absolute": 5
+      },
+      {
+        "outputId": "fill-ratio",
+        "absolute": 2
+      }
+    ]
+  },
+  "activities": [
+    {
+      "activityId": "tank-diagnosis",
+      "stage": "diagnosis",
+      "contentIds": [
+        "tank-diagnostic-cards"
+      ],
+      "required": true,
+      "minutes": 2
+    },
+    {
+      "activityId": "tank-orient",
+      "stage": "orientation",
+      "contentIds": [
+        "tank-orientation"
+      ],
+      "required": true,
+      "minutes": 1
+    },
+    {
+      "activityId": "tank-explore",
+      "stage": "exploration",
+      "contentIds": [
+        "tank-explanation",
+        "tank-simulation",
+        "tank-application",
+        "tank-failure"
+      ],
+      "required": true,
+      "minutes": 6
+    },
+    {
+      "activityId": "tank-assess",
+      "stage": "assessment",
+      "contentIds": [
+        "tank-assessment",
+        "tank-assessment-2"
+      ],
+      "required": true,
+      "minutes": 5
+    },
+    {
+      "activityId": "tank-return-act",
+      "stage": "return",
+      "contentIds": [
+        "tank-return"
+      ],
+      "required": true,
+      "minutes": 2
+    },
+    {
+      "activityId": "tank-map-act",
+      "stage": "map",
+      "contentIds": [
+        "tank-map"
+      ],
+      "required": true,
+      "minutes": 2
+    }
+  ],
+  "rubric": {
+    "rubricId": "water-tank-lesson-rubric",
+    "rubricVersion": 1,
+    "criteria": [
+      {
+        "criterionId": "distinguish-denominators",
+        "dimension": "concept",
+        "conceptIds": [
+          "flow-rate",
+          "tank-capacity",
+          "fill-ratio"
+        ],
+        "contentId": "tank-assessment",
+        "mode": "agent",
+        "rule": "두 단위를 구분해 설명한다."
+      },
+      {
+        "criterionId": "calculate-transfer",
+        "dimension": "prediction-model",
+        "conceptIds": [
+          "tank-capacity",
+          "flow-rate",
+          "fill-ratio"
+        ],
+        "contentId": "tank-assessment",
+        "mode": "automatic",
+        "rule": "새 속도의 두 값을 기대값과 비교한다."
+      },
+      {
+        "criterionId": "explain-transfer",
+        "dimension": "transfer",
+        "conceptIds": [
+          "tank-capacity",
+          "flow-rate",
+          "fill-ratio"
+        ],
+        "contentId": "tank-assessment",
+        "mode": "agent",
+        "rule": "새 속도에서 다시 계산하는 이유를 설명한다."
+      },
+      {
+        "criterionId": "ask-for-evidence",
+        "dimension": "question",
+        "conceptIds": [
+          "tank-capacity",
+          "flow-rate",
+          "fill-ratio"
+        ],
+        "contentId": "tank-assessment-2",
+        "mode": "agent",
+        "rule": "부족한 정보를 질문으로 만든다."
+      },
+      {
+        "criterionId": "justify-choice",
+        "dimension": "choice-meaning",
+        "conceptIds": [
+          "flow-rate",
+          "tank-capacity",
+          "fill-ratio"
+        ],
+        "contentId": "tank-assessment-2",
+        "mode": "agent",
+        "rule": "선택의 조건을 비교한다."
+      }
+    ]
+  }
+}

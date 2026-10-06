@@ -8,5 +8,6 @@ agent-docs/specs/.seed/
 node_modules/
 .build-*/
 dist/
+dist-diagnostic/
 test-results/
 playwright-report/

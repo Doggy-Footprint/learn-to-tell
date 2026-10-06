@@ -753,7 +753,7 @@ test('[V9.at-limits] decisions 2, concepts 5, required minutes 20 (optional acti
 });
 const scopeCases = [
   ['decisions=3', lesson => lesson.decisions.push({...lesson.decisions[0], decisionId: 'extra-decision'}), 'SCOPE', {code: 'SCOPE', path: '/decisions'}],
-  ['concepts=6', lesson => lesson.concepts.push({conceptId: 'extra-concept', conceptRevision: 1, label: 'Extra'}), 'SCOPE', {code: 'SCOPE', path: '/concepts'}],
+  ['concepts=6', lesson => lesson.concepts.push({conceptId: 'extra-concept', conceptRevision: 1, label: 'Extra', meaning: 'Extra meaning', example: 'Extra example', confusion: 'Extra confusion', plain: 'Extra plain'}), 'SCOPE', {code: 'SCOPE', path: '/concepts'}],
   // D1: time is left to the lesson contract (RANGE /activities), so the outcome is INVALID.
   ['required minutes=20.5 C6', exploreMinutes(8.5), 'INVALID', {code: 'RANGE', path: '/activities'}],
 ];

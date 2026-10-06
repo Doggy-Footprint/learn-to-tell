@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: [['list']],
   use: {baseURL: 'http://127.0.0.1:4321/', channel: 'chrome', headless: true, acceptDownloads: true},
   webServer: {
-    command: 'npm run build -- --session tests/fixtures/learning/session.valid.json && npm run serve -- --port 4321',
+    command: 'npm run build -- --session tests/fixtures/learning/session.valid.json --lesson tests/fixtures/learning/inspection-lesson-v2.json --model examples/manufacturing-inspection/model.mjs && npm run serve -- --port 4321',
     url: 'http://127.0.0.1:4321/',
     reuseExistingServer: false,
     timeout: 180000,

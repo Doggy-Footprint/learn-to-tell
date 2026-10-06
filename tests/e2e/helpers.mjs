@@ -2,13 +2,28 @@ import {expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import {validateDocument} from '../../contracts/index.mjs';
 import {oracleHash, HASH_FORMAT} from '../fixtures/contracts/hash-oracle.mjs';
-import {session, lesson, FIELDS} from '../fixtures/learning/shapes.mjs';
-import {crossCheckResult, oracleDisplay} from '../fixtures/learning/oracle.mjs';
+import {session, lesson, INPUT_IDS, OUTPUT_IDS, baselinePrediction, retryPrediction, predC4, pred} from '../fixtures/learning/data.mjs';
+import {crossCheckResult, crossCheckR11, oracleValues, PPV_UNDEFINED_TEXT} from '../fixtures/learning/oracle.mjs';
 
 export const tid = (page, id) => page.getByTestId(id);
-export const INPUT_SUFFIX = ['defect', 'detection', 'false-positive'];
+export {INPUT_IDS, OUTPUT_IDS, PPV_UNDEFINED_TEXT, pred};
+export const BASELINE_PRED = baselinePrediction;
+export const RETRY_PRED = retryPrediction;
+export const TRANSFER_PRED = predC4;
+export const UNDEFINED_ID = 'positive-predictive-value';
+export const norm = text => (text ?? '').replace(/\s+/g, ' ').trim();
+export const numbersIn = text => [...(text ?? '').matchAll(/\d[\d,]*(?:\.\d+)?/g)].map(m => Number(m[0].replace(/,/g, '')));
+// Exact display strings: the first number token of an element, as written (ko-KR grouping, at most 3 decimals); expected values are literals.
+export const tokensIn = text => (text ?? '').match(/-?\d[\d,]*(?:\.\d+)?/g) ?? [];
+export async function expectCellStrings(page, expectedByOutput, scope = 'output-table') {
+  for (const [id, literal] of Object.entries(expectedByOutput)) {
+    const cell = tid(page, scope).locator(`[data-output="${id}"]`);
+    await expect.poll(async () => tokensIn(await cell.textContent())[0], {message: `${scope} ${id} shows the string ${literal}`}).toBe(literal);
+  }
+}
+export const near = (a, b, tol = 0.011) => Math.abs(a - b) <= tol;
 
-// Spec v4 stage flow: outputs exist only from stage simulation, after the baseline prediction is recorded or skipped.
+// Spec stage flow: outputs exist only from stage simulation, after the baseline prediction is recorded or skipped.
 // The spec does not map hints/concept cards/links/responses/export to stages, so show() walks stages (next, then back) until the testid is visible.
 async function step(page, id, how) {
   if (how === 'keyboard') { await focusByTab(page, id); await page.keyboard.press('Enter'); } else await tid(page, id).click();
@@ -28,6 +43,21 @@ export async function show(page, id, how = 'click') {
   await expect(el, `${id} reachable through stages`).toBeVisible();
   return tid(page, id);
 }
+// Walks stage-next / stage-back until stage-<name> is visible; show() may have moved the page to another stage.
+export async function gotoStage(page, name) {
+  const region = tid(page, `stage-${name}`);
+  for (const dir of ['stage-next', 'stage-back']) {
+    for (let i = 0; i < 8; i++) {
+      if (await region.isVisible()) return region;
+      const nav = tid(page, dir);
+      if (!(await nav.count()) || !(await nav.isEnabled())) break;
+      await nav.click();
+      await region.waitFor({state: 'visible', timeout: 400}).catch(() => {});
+    }
+  }
+  await expect(region, `stage ${name} reachable`).toBeVisible();
+  return region;
+}
 export async function gotoContext(page) {
   await page.goto('/');
   await expect(tid(page, 'stage-context')).toBeVisible();
@@ -45,53 +75,80 @@ export async function toSimulation(page, {predict = 'skip', how = 'click'} = {})
   await expect(tid(page, 'output-table')).toBeVisible();
 }
 export async function gotoFresh(page) { await toSimulation(page, {predict: 'skip'}); }
-export async function expectOutput(page, [d, s, f]) {
-  const want = oracleDisplay(d, s, f);
-  for (const field of FIELDS) await expect(tid(page, 'output-table').locator(`[data-field=${field}]`)).toHaveText(want[field]);
-  const grid = tid(page, 'output-grid');
-  const attr = {truePositive: 'data-true-positive', falsePositive: 'data-false-positive', falseNegative: 'data-false-negative', trueNegative: 'data-true-negative'};
-  for (const [field, name] of Object.entries(attr)) {
-    await expect.poll(async () => Number(await grid.getAttribute(name)), {message: `${name} raw value`}).toBeCloseTo(want.raw[field], 9);
+
+// ---- output table and bars (R6). Display text is compared by its first number; the spec fixes label, unit and value but not the number format.
+export const inspectionWant = ([d, s, f]) => oracleValues(d, s, f);
+export async function expectOutputs(page, want, l = lesson) {
+  const table = tid(page, 'output-table');
+  for (const o of l.outputs) {
+    const cell = table.locator(`[data-output="${o.outputId}"]`);
+    const expected = want.display[o.outputId];
+    if (expected === null) {
+      await expect(cell, `${o.outputId} undefined`).toContainText(PPV_UNDEFINED_TEXT);
+      await expect(tid(page, `bar-${o.outputId}`), `no bar for undefined ${o.outputId}`).toHaveCount(0);
+    } else {
+      await expect.poll(async () => near(numbersIn(await cell.textContent())[0], expected), {message: `${o.outputId} cell shows ${expected}`}).toBe(true);
+      await expect.poll(async () => Number(await tid(page, `bar-${o.outputId}`).getAttribute('data-value')), {message: `${o.outputId} bar raw value`}).toBeCloseTo(want.raw[o.outputId], 9);
+    }
   }
-  return want;
+  await expectBarRatios(page, want, l);
 }
-export async function expectPrevious(page, input) {
-  const want = oracleDisplay(...input);
-  for (const field of FIELDS) await expect(tid(page, 'output-previous').locator(`[data-field=${field}]`)).toHaveText(want[field]);
-}
-export async function setInputs(page, [d, s, f]) {
-  await show(page, 'input-defect');
-  for (const [suffix, v] of [['defect', d], ['detection', s], ['false-positive', f]]) await tid(page, `input-${suffix}`).fill(String(v));
-}
-export async function fillPrediction(page, prefix, values, undefinedPpv = false) {
-  await show(page, `${prefix}-truePositive`);
-  for (const field of FIELDS) {
-    if (field === 'positivePredictiveValue' && undefinedPpv) continue;
-    await tid(page, `${prefix}-${field}`).fill(String(values[field]));
+export async function expectOutput(page, input) { const want = inspectionWant(input); await expectOutputs(page, want); return want; }
+// Within one unit, width(bar) / width(largest bar) = |v| / max|v|; all widths 0 when the maximum is 0.
+export async function expectBarRatios(page, want, l = lesson) {
+  const groups = new Map();
+  for (const o of l.outputs) if (want.raw[o.outputId] !== null) groups.set(o.unit, [...(groups.get(o.unit) ?? []), o.outputId]);
+  for (const [unit, ids] of groups) {
+    const max = Math.max(...ids.map(id => Math.abs(want.raw[id])));
+    await expect.poll(async () => {
+      const widths = await page.evaluate(list => Object.fromEntries(list.map(id => [id, document.querySelector(`[data-testid="bar-${id}"]`)?.getBoundingClientRect().width ?? -1])), ids);
+      if (max === 0) return Object.values(widths).every(w => w >= 0 && w < 0.5);
+      const top = widths[ids.find(id => Math.abs(want.raw[id]) === max)];
+      return top > 0 && ids.every(id => Math.abs(widths[id] / top - Math.abs(want.raw[id]) / max) <= 0.02);
+    }, {message: `bar widths of unit ${unit} are proportional to |value|`}).toBe(true);
   }
-  if (undefinedPpv) await tid(page, `${prefix}-ppv-undefined`).check();
 }
-export const BASELINE_PRED = {truePositive: 90, falsePositive: 495, falseNegative: 10, trueNegative: 9405, positiveCount: 585, positivePredictiveValue: 15.38, accuracy: 94.95};
-export const RETRY_PRED = {truePositive: 91, falsePositive: 494, falseNegative: 9, trueNegative: 9406, positiveCount: 585, positivePredictiveValue: 15.56, accuracy: 94.97};
-export const TRANSFER_PRED = {truePositive: 160, falsePositive: 196, falseNegative: 40, trueNegative: 9604, positiveCount: 356, positivePredictiveValue: 44.94, accuracy: 97.64};
+export async function expectPrevious(page, input, l = lesson) {
+  const want = inspectionWant(input);
+  for (const o of l.outputs) {
+    const cell = tid(page, 'output-previous').locator(`[data-output="${o.outputId}"]`);
+    const expected = want.display[o.outputId];
+    if (expected === null) await expect(cell).toContainText(PPV_UNDEFINED_TEXT);
+    else await expect.poll(async () => near(numbersIn(await cell.textContent())[0], expected), {message: `previous ${o.outputId}`}).toBe(true);
+  }
+}
+export async function setInputs(page, values, ids = INPUT_IDS) {
+  await show(page, `input-${ids[0]}`);
+  for (const [i, id] of ids.entries()) await tid(page, `input-${id}`).fill(String(values[i]));
+}
+export async function fillPrediction(page, prefix, values, undefinedIds = [], l = lesson) {
+  await show(page, `${prefix}-${l.outputs[0].outputId}`);
+  for (const o of l.outputs) {
+    if (undefinedIds.includes(o.outputId)) await tid(page, `${prefix}-${o.outputId}-undefined`).check();
+    else await tid(page, `${prefix}-${o.outputId}`).fill(String(values[o.outputId]));
+  }
+}
+// Number tokens of an element: every expected value must appear; `absent` values must not.
+export async function expectNumbers(page, id, expected, {absent = []} = {}) {
+  const el = await show(page, id);
+  await expect.poll(async () => { const found = numbersIn(await el.textContent()); return expected.filter(x => !found.some(f => near(f, x, 0.0051))); }, {message: `${id} shows ${expected}`}).toEqual([]);
+  const found = numbersIn(await el.textContent());
+  for (const a of absent) expect(found.some(f => near(f, a, 0.0051)), `${id} must not show ${a}`).toBe(false);
+}
+export const valuesOf = (values, ids = OUTPUT_IDS) => ids.map(id => values[id]).filter(v => v !== null);
 
 export async function readDownload(download, resultId = session.resultId) {
   expect(download.suggestedFilename()).toBe(`result-${resultId}.json`);
   const path = await download.path();
   return JSON.parse(readFileSync(path, 'utf8'));
 }
-export async function expectTokens(page, id, tokens, {absent = []} = {}) {
-  const el = await show(page, id);
-  await expect.poll(async () => { const found = ((await el.textContent()) ?? '').match(/[\d,.]+%?/g) ?? []; return tokens.filter(x => !found.includes(x)); }, {message: `${id} shows ${tokens}`}).toEqual([]);
-  const found = ((await el.textContent()) ?? '').match(/[\d,.]+%?/g) ?? [];
-  for (const a of absent) expect(found).not.toContain(a);
-}
-export function assertResultDocument(result, state, s = session) {
+export function assertResultDocument(result, state, s = session, l = lesson) {
   expect(result.version).toBe(2);
   expect(result.contentHash).toMatch(HASH_FORMAT);
   expect(result.contentHash, 'browser Web Crypto hash equals the node:crypto oracle').toBe(oracleHash(result));
   expect(validateDocument(result, 'result')).toEqual({ok: true, errors: []});
-  expect(crossCheckResult(result, lesson)).toEqual([]);
+  expect(crossCheckResult(result, l)).toEqual([]);
+  expect(crossCheckR11(result, l)).toEqual([]);
   expect(result.state).toBe(state);
   for (const k of ['profileId', 'resultId', 'baseMapRevision', 'sequence', 'previousResultId']) expect(result[k]).toBe(s[k]);
 }

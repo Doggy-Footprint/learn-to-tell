@@ -1,11 +1,12 @@
 import {test, expect} from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import {spawn} from 'node:child_process';
-import {readdirSync, existsSync} from 'node:fs';
+import {readdirSync, existsSync, readFileSync, renameSync} from 'node:fs';
 import {networkInterfaces} from 'node:os';
 import {request} from 'node:http';
 import {fileURLToPath} from 'node:url';
 import {tid, gotoFresh, toSimulation, show, fillPrediction, TRANSFER_PRED} from './helpers.mjs';
+import {buildDiagnostic, startServe, http as httpGet} from './builds.mjs';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -34,21 +35,21 @@ test('[V6.axe.transfer] zero violations with new-case result shown', async ({pag
 });
 test('[V6.axe.hint-open] zero violations with hints opened', async ({page}) => {
   await gotoFresh(page);
-  await (await show(page, 'hint-level-3')).click();
-  await expect(tid(page, 'hint-text-3')).toBeVisible();
+  await (await show(page, 'hint-level-2')).click();
+  await expect(tid(page, 'hint-text-2')).toBeVisible();
   expect(await axeViolations(page)).toEqual([]);
 });
 
-test('[V6.perf] p95 of 20 single-input updates (dispatch until re-queried table and grid show the new value) <= 100ms', async ({page, browser}) => {
+test('[V6.perf] p95 of 20 single-input updates (dispatch until re-queried table and bar show the new value) <= 100ms', async ({page, browser}) => {
   await gotoFresh(page);
   const samples = await page.evaluate(async () => {
     const q = sel => document.querySelector(sel);
     const ready = expectedTp => {
-      const cell = q('[data-testid="output-table"] [data-field="truePositive"]');
-      const grid = q('[data-testid="output-grid"]');
-      if (!cell || !grid) return false;
+      const cell = q('[data-testid="output-table"] [data-output="true-positive"]');
+      const bar = q('[data-testid="bar-true-positive"]');
+      if (!cell || !bar) return false;
       const shown = parseFloat(cell.textContent.replace(/,/g, ''));
-      const raw = parseFloat(grid.getAttribute('data-true-positive'));
+      const raw = parseFloat(bar.getAttribute('data-value'));
       return Math.abs(shown - expectedTp) < 1e-3 && Math.abs(raw - expectedTp) < 1e-6;
     };
     const out = [];
@@ -57,9 +58,9 @@ test('[V6.perf] p95 of 20 single-input updates (dispatch until re-queried table 
       const t = await new Promise((resolve, reject) => {
         const obs = new MutationObserver(() => { if (ready(expectedTp)) { obs.disconnect(); resolve(performance.now() - start); } });
         obs.observe(document.body, {subtree: true, childList: true, characterData: true, attributes: true});
-        const timer = setTimeout(() => { obs.disconnect(); reject(new Error(`no table+grid update for input ${value}`)); }, 3000);
+        const timer = setTimeout(() => { obs.disconnect(); reject(new Error(`no table+bar update for input ${value}`)); }, 3000);
         const start = performance.now();
-        const input = q('[data-testid="input-defect"]');
+        const input = q('[data-testid="input-defect-percent"]');
         input.value = String(value);
         input.dispatchEvent(new Event('input', {bubbles: true}));
         if (ready(expectedTp)) { clearTimeout(timer); obs.disconnect(); resolve(performance.now() - start); }
@@ -113,4 +114,58 @@ test('[V6.serve] serve script: first stdout line URL, loopback-only, no-cache, s
     expect((await http('GET', port, '/..%2f..%2fpackage.json')).body).not.toContain('"learn-to-tell"');
     expect((await http('GET', port, '/package.json')).status).toBe(404);
   } finally { child.kill('SIGTERM'); }
+});
+
+
+// ---- V11: serve --target (R18). Ports are distinct from the Playwright web server (4321).
+const DIAG_SETUP = 'tests/fixtures/diagnostic/setup.one-round.json';
+test.describe('[T53-V11] serve --target', () => {
+  test.describe.configure({mode: 'serial'});
+  test.beforeAll(() => { buildDiagnostic(DIAG_SETUP); });
+  const bodyOf = path => readFileSync(`${root}${path}/index.html`, 'utf8');
+  async function served(args, port) {
+    const s = startServe([...args, '--port', String(port)]);
+    try {
+      expect(await s.ready).toBe(`http://127.0.0.1:${port}/`);
+      return (await httpGet('GET', port, '/')).body;
+    } finally { s.stop(); }
+  }
+  function exitOf(args) {
+    return new Promise(resolve => {
+      const child = spawn(process.execPath, ['scripts/serve.mjs', ...args], {cwd: root});
+      let stderr = ''; child.stderr.on('data', d => { stderr += d; });
+      const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({code: 'timeout', stderr}); }, 20000);
+      child.on('exit', code => { clearTimeout(timer); resolve({code, stderr}); });
+    });
+  }
+  test('[T53-V11.omitted] without --target the lesson build (dist/) is served', async () => {
+    expect(await served([], 4326)).toBe(bodyOf('dist'));
+  });
+  test('[T53-V11.lesson] --target lesson serves dist/', async () => {
+    expect(await served(['--target', 'lesson'], 4327)).toBe(bodyOf('dist'));
+  });
+  test('[T53-V11.diagnostic] --target diagnostic serves dist-diagnostic/', async () => {
+    const body = await served(['--target', 'diagnostic'], 4328);
+    expect(body).toBe(bodyOf('dist-diagnostic'));
+    expect(body).not.toBe(bodyOf('dist'));
+  });
+  test('[T53-V11.other] --target with any other value exits 2 with ARGUMENT --target', async () => {
+    const r = await exitOf(['--target', 'bogus', '--port', '4329']);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain('ARGUMENT --target');
+  });
+  test('[T53-V11.unknown-flag] an unknown flag exits 2 with ARGUMENT --bogus', async () => {
+    const r = await exitOf(['--bogus', 'x', '--port', '4331']);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain('ARGUMENT --bogus');
+  });
+  test('[T53-V11.dist-missing] a missing target index.html exits 1 with DIST_MISSING', async () => {
+    const dir = `${root}dist-diagnostic`, parked = `${root}dist-diagnostic.parked-by-test`;
+    renameSync(dir, parked);
+    try {
+      const r = await exitOf(['--target', 'diagnostic', '--port', '4330']);
+      expect(r.code).toBe(1);
+      expect(r.stderr).toMatch(/DIST_MISSING .*dist-diagnostic[\\/]index\.html/);
+    } finally { renameSync(parked, dir); }
+  });
 });
