@@ -8,7 +8,7 @@ export function validBundle() {
   const lesson = {kind:'lesson',version:1,lessonId:'lesson-a',lessonRevision:1,profileId:'profile-a',diagnosticId:'diagnostic-a',candidateId:'candidate-a',contextKind:'work',concepts:[{conceptId:'concept-a',conceptRevision:1,label:'Inspection cost'}],content:roles.map(role=>({contentId:`content-${role}`,role,text:`Inspection ${role}`,conceptIds:['concept-a']})),decisions:[{decisionId:'decision-a',question:'Which inspection?',choices:['Inspect','Sample'],requiredInformation:['Cost'],explanationId:'content-explanation',simulationId:'content-simulation',applicationId:'content-application',failureId:'content-failure',assessmentId:'content-assessment'}],inputs:[{inputId:'input-a',unit:'items',min:0,max:10,default:5}],activities:stages.map(stage=>({activityId:`activity-${stage}`,stage,contentIds:['content-assessment'],required:true,minutes:3})),rubric:{rubricId:'rubric-a',rubricVersion:1,criteria:dimensions.map(dimension=>({criterionId:`criterion-${dimension}`,dimension,conceptIds:['concept-a'],contentId:'content-assessment',mode:'agent',rule:'Explain the decision'}))}};
   const result = {kind:'result',version:2,resultId:'result-a',profileId:'profile-a',lessonId:'lesson-a',lessonRevision:1,baseMapRevision:1,sequence:1,previousResultId:null,state:'partial',responses:[{responseId:'response-a',activityId:'activity-assessment',conceptId:'concept-a',conceptRevision:1,purpose:'explanation',attempt:1,previousResponseId:null,answer:'Compare cost and missed defects',help:'none',recordedAt:'2026-10-04T00:00:00.000Z',visibility:'unknown'}],assessments:[{assessmentId:'assessment-a',responseId:'response-a',criterionId:'criterion-concept',rubricVersion:1,status:'pending',reviewer:'unreviewed',context:'Manufacturing inspection',help:'none'}]};
   result.contentHash = oracleHash(result);
-  const map = {kind:'map',version:2,profileId:'profile-a',revision:1,lessons:[clone(lesson)],results:[clone(result)],observations:[{observationId:'observation-a',resultId:'result-a',assessmentId:'assessment-a',conceptId:'concept-a',conceptRevision:1}],nextPaths:[{pathId:'path-a',lessonId:'lesson-a',conceptId:'concept-a',conceptRevision:1,reason:'Review inspection cost'}]};
+  const map = {kind:'map',version:2,profileId:'profile-a',revision:1,lessons:[clone(lesson)],results:[clone(result)],observations:[{observationId:'observation-a',resultId:'result-a',assessmentId:'assessment-a',conceptId:'concept-a',conceptRevision:1}],nextPaths:[{pathId:'path-a',lessonId:'lesson-a',conceptId:'concept-a',conceptRevision:1,reason:'Review inspection cost',lessonStatus:'placed'}]};
   return {diagnostic,lesson,result,map,previousResult:null};
 }
 export const good = {ok:true,errors:[]};
@@ -36,7 +36,7 @@ export const syntax = {
  diagnostic:root('diagnostic',{diagnosticId:id,profileId:id,contextKind:E('work','interest'),candidates:A(candidate,1,3),selection:S('nullable-id'),confirmation:E('confirmed','deferred','unconfirmed'),hypotheses:A(hypothesis)}),
  lesson:root('lesson',{lessonId:id,lessonRevision:rev,profileId:id,diagnosticId:id,candidateId:id,contextKind:E('work','interest'),concepts:A(concept,1),content:A(content,1),decisions:A(decision,1),inputs:A(input,1),activities:A(activity,1),rubric}),
  result:root('result',{resultId:id,contentHash:S('contenthash'),profileId:id,lessonId:id,lessonRevision:rev,baseMapRevision:rev,sequence:rev,previousResultId:S('nullable-id'),state:E('partial','completed'),responses:A(response),assessments:A(assessment)}),
- map:root('map',{profileId:id,revision:rev,lessons:A(null),results:A(null),observations:A(O({observationId:id,resultId:id,assessmentId:id,conceptId:id,conceptRevision:rev})),nextPaths:A(O({pathId:id,lessonId:id,conceptId:id,conceptRevision:rev,reason:str}))})
+ map:root('map',{profileId:id,revision:rev,lessons:A(null),results:A(null),observations:A(O({observationId:id,resultId:id,assessmentId:id,conceptId:id,conceptRevision:rev})),nextPaths:A(O({pathId:id,lessonId:id,conceptId:id,conceptRevision:rev,reason:str,lessonStatus:E('placed','planned')}))})
 };
 syntax.map.fields.lessons.item=syntax.lesson;
 syntax.map.fields.results.item=syntax.result;
@@ -151,6 +151,15 @@ export function buildCases() {
  doc('V3.map.lesson-revision.same','map',m=>m.lessons.push(clone(m.lessons[0])),bad('DUPLICATE','/lessons/1/lessonId'));
  doc('V3.map.lesson-revision.other','map',m=>{const lesson=clone(m.lessons[0]);lesson.lessonRevision=2;m.lessons.push(lesson);});
  for(const [path,code,value] of [['/lessons/0/profileId','PROFILE','other-profile'],['/results/0/profileId','PROFILE','other-profile'],['/results/0/lessonId','REFERENCE','absent'],['/results/0/lessonRevision','REVISION',2],['/results/0/baseMapRevision','REVISION',2],['/observations/0/resultId','REFERENCE','absent'],['/observations/0/assessmentId','REFERENCE','absent'],['/observations/0/conceptId','REFERENCE','absent'],['/observations/0/conceptRevision','REVISION',2],['/nextPaths/0/lessonId','REFERENCE','absent'],['/nextPaths/0/conceptId','REFERENCE','absent'],['/nextPaths/0/conceptRevision','REVISION',2]]) doc(`V3.map.ref.${path}`,'map',m=>{const[p,k]=fieldAt(m,path);p[k]=value;if(path==='/lessons/0/profileId'){m.results=[];m.observations=[];}},bad(code,path));
+ // V13 decision table (R18/C21): lessonStatus x {lessonId absent, conceptId absent, revision mismatch}
+ const np=(status,field,value)=>m=>{m.nextPaths[0].lessonStatus=status;if(field)m.nextPaths[0][field]=value;};
+ doc('V13.placed.all-exist','map',np('placed'),good,'V13','C21');
+ for(const [field,value,code] of [['lessonId','absent','REFERENCE'],['conceptId','absent','REFERENCE'],['conceptRevision',2,'REVISION']]) {
+  doc(`V13.placed.${field}-mismatch`,'map',np('placed',field,value),bad(code,`/nextPaths/0/${field}`),'V13','C21');
+  doc(`V13.planned.${field}-mismatch`,'map',np('planned',field,value),good,'V13','C21');
+ }
+ doc('V13.lessonStatus.missing','map',m=>delete m.nextPaths[0].lessonStatus,bad('REQUIRED','/nextPaths/0/lessonStatus'),'V13','C21');
+ doc('V13.lessonStatus.other-value','map',np('archived'),bad('VALUE','/nextPaths/0/lessonStatus'),'V13','C21');
  for(const [collection,idField] of [['results','resultId'],['observations','observationId'],['nextPaths','pathId']]) doc(`V3.map.duplicate.${collection}`,'map',m=>m[collection].push(clone(m[collection][0])),bad('DUPLICATE',`/${collection}/1/${idField}`));
  for(const [collection,idField] of [['responses','responseId'],['assessments','assessmentId']]) doc(`V3.result.duplicate.${collection}`,'result',r=>r[collection].push(clone(r[collection][0])),bad('DUPLICATE',`/${collection}/1/${idField}`));
  doc('V3.result.assessment-response','result',r=>r.assessments[0].responseId='absent',bad('REFERENCE','/assessments/0/responseId'));

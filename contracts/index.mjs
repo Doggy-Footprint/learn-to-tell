@@ -363,6 +363,7 @@ function mapSemantics(document, path, errors) {
   for (let index = 0; index < document.nextPaths.length; index++) {
     const next = document.nextPaths[index];
     const child = `${path}/nextPaths/${index}`;
+    if (next.lessonStatus !== 'placed') continue;
     const concepts = nextConcepts.get(next.lessonId);
     if (!concepts) add(errors, 'REFERENCE', `${child}/lessonId`);
     else {

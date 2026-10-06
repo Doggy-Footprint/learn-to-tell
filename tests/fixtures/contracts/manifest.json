@@ -16540,6 +16540,81 @@
     }
   },
   {
+    "id": "V1.map.missing..nextPaths.0.lessonStatus",
+    "obligationId": "V1",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#V1.map.missing..nextPaths.0.lessonStatus",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "REQUIRED",
+          "path": "/nextPaths/0/lessonStatus"
+        }
+      ]
+    }
+  },
+  {
+    "id": "V1.map.wrong-type..nextPaths.0.lessonStatus",
+    "obligationId": "V1",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#V1.map.wrong-type..nextPaths.0.lessonStatus",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "TYPE",
+          "path": "/nextPaths/0/lessonStatus"
+        }
+      ]
+    }
+  },
+  {
+    "id": "V1.map.unknown-enum..nextPaths.0.lessonStatus",
+    "obligationId": "V1",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#V1.map.unknown-enum..nextPaths.0.lessonStatus",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VALUE",
+          "path": "/nextPaths/0/lessonStatus"
+        }
+      ]
+    }
+  },
+  {
+    "id": "V1.map.enum-placed..nextPaths.0.lessonStatus",
+    "obligationId": "V1",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#V1.map.enum-placed..nextPaths.0.lessonStatus",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "UNKNOWN_FIELD",
+          "path": "/extra"
+        }
+      ]
+    }
+  },
+  {
+    "id": "V1.map.enum-planned..nextPaths.0.lessonStatus",
+    "obligationId": "V1",
+    "caseId": "C6",
+    "inputFixture": "cases.mjs#V1.map.enum-planned..nextPaths.0.lessonStatus",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "UNKNOWN_FIELD",
+          "path": "/extra"
+        }
+      ]
+    }
+  },
+  {
     "id": "V1.scalar.diagnostic.null",
     "obligationId": "V1",
     "caseId": "C11",
@@ -19467,6 +19542,121 @@
         {
           "code": "REVISION",
           "path": "/nextPaths/0/conceptRevision"
+        }
+      ]
+    }
+  },
+  {
+    "id": "V13.placed.all-exist",
+    "obligationId": "V13",
+    "caseId": "C21",
+    "inputFixture": "cases.mjs#V13.placed.all-exist",
+    "expected": {
+      "ok": true,
+      "errors": []
+    }
+  },
+  {
+    "id": "V13.placed.lessonId-mismatch",
+    "obligationId": "V13",
+    "caseId": "C21",
+    "inputFixture": "cases.mjs#V13.placed.lessonId-mismatch",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "REFERENCE",
+          "path": "/nextPaths/0/lessonId"
+        }
+      ]
+    }
+  },
+  {
+    "id": "V13.planned.lessonId-mismatch",
+    "obligationId": "V13",
+    "caseId": "C21",
+    "inputFixture": "cases.mjs#V13.planned.lessonId-mismatch",
+    "expected": {
+      "ok": true,
+      "errors": []
+    }
+  },
+  {
+    "id": "V13.placed.conceptId-mismatch",
+    "obligationId": "V13",
+    "caseId": "C21",
+    "inputFixture": "cases.mjs#V13.placed.conceptId-mismatch",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "REFERENCE",
+          "path": "/nextPaths/0/conceptId"
+        }
+      ]
+    }
+  },
+  {
+    "id": "V13.planned.conceptId-mismatch",
+    "obligationId": "V13",
+    "caseId": "C21",
+    "inputFixture": "cases.mjs#V13.planned.conceptId-mismatch",
+    "expected": {
+      "ok": true,
+      "errors": []
+    }
+  },
+  {
+    "id": "V13.placed.conceptRevision-mismatch",
+    "obligationId": "V13",
+    "caseId": "C21",
+    "inputFixture": "cases.mjs#V13.placed.conceptRevision-mismatch",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "REVISION",
+          "path": "/nextPaths/0/conceptRevision"
+        }
+      ]
+    }
+  },
+  {
+    "id": "V13.planned.conceptRevision-mismatch",
+    "obligationId": "V13",
+    "caseId": "C21",
+    "inputFixture": "cases.mjs#V13.planned.conceptRevision-mismatch",
+    "expected": {
+      "ok": true,
+      "errors": []
+    }
+  },
+  {
+    "id": "V13.lessonStatus.missing",
+    "obligationId": "V13",
+    "caseId": "C21",
+    "inputFixture": "cases.mjs#V13.lessonStatus.missing",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "REQUIRED",
+          "path": "/nextPaths/0/lessonStatus"
+        }
+      ]
+    }
+  },
+  {
+    "id": "V13.lessonStatus.other-value",
+    "obligationId": "V13",
+    "caseId": "C21",
+    "inputFixture": "cases.mjs#V13.lessonStatus.other-value",
+    "expected": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "VALUE",
+          "path": "/nextPaths/0/lessonStatus"
         }
       ]
     }

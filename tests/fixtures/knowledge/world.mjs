@@ -79,7 +79,7 @@ export function expectedObservations(results) {
 }
 
 export function nextPath(reason) {
-  return {pathId: 'path-x', lessonId: 'lesson-a', conceptId: 'concept-a', conceptRevision: 1, reason};
+  return {pathId: 'path-x', lessonId: 'lesson-a', conceptId: 'concept-a', conceptRevision: 1, reason, lessonStatus: 'placed'};
 }
 export function mapFor(results, {profileId = PROFILE, revision = 1, nextPaths = []} = {}) {
   return {kind: 'map', version: 2, profileId, revision, lessons: [makeLesson(profileId)], results: clone(results), observations: expectedObservations(results), nextPaths: clone(nextPaths)};

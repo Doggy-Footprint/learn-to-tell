@@ -9,7 +9,7 @@
   },
   "packageManager": "npm@11.19.0",
   "scripts": {
-    "verify": "node --test --experimental-test-coverage --test-coverage-include='contracts/*.mjs' --test-coverage-include='examples/manufacturing-inspection/*.mjs' --test-coverage-include='learning/*.mjs' --test-coverage-include='knowledge/*.mjs' --test-coverage-include-all --test-coverage-lines=100 --test-coverage-functions=100 tests/*.test.mjs && playwright test",
+    "verify": "node --test --experimental-test-coverage --test-coverage-include='contracts/*.mjs' --test-coverage-include='examples/manufacturing-inspection/*.mjs' --test-coverage-include='learning/*.mjs' --test-coverage-include='knowledge/*.mjs' --test-coverage-include='authoring/*.mjs' --test-coverage-include-all --test-coverage-lines=100 --test-coverage-functions=100 tests/*.test.mjs && playwright test",
     "build": "node scripts/build-lesson.mjs",
     "serve": "node scripts/serve.mjs"
   },
