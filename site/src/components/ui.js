@@ -4,7 +4,7 @@ import {buildResult, finalizeResult, validateResultShape} from '../learning/resu
 import {loadProgress, saveProgress, storageKey} from '../learning/storage.mjs';
 import {formatCount} from '../learning/format.mjs';
 import {h, replaceChildren} from './dom.js';
-import {EXPORT_BLOCKED_NOTICE, EXPORT_NOTICE, HELP_LABELS, NUMBER_NOTES, OBSERVATION_NOTICE, SAFETY_NOTICE, STATUS_LABELS, STORAGE_NOTICES} from './content.js';
+import {EXPORT_BLOCKED_NOTICE, EXPORT_NOTICE, EXPORT_SUBMITTED_NOTICE, EXPORT_SUBMIT_FAILED_NOTICE, HELP_LABELS, NUMBER_NOTES, OBSERVATION_NOTICE, SAFETY_NOTICE, STATUS_LABELS, STORAGE_NOTICES} from './content.js';
 
 const numberOrNaN = element => element.validity.badInput || element.value.trim() === '' ? Number.NaN : Number(element.value);
 const UNDEFINED_TEXT = '정의되지 않음';
@@ -46,7 +46,7 @@ export function mount(session, lesson, model) {
     storage = null;
   }
   const loaded = loadProgress(storage, session, runtime);
-  const state = {progress: loaded.progress, loadNotice: loaded.notice, saveFailed: false, errors: {}, openConcept: null, confirmReset: false, exportError: null, highlight: null, returnY: 0, lastValid: null};
+  const state = {progress: loaded.progress, loadNotice: loaded.notice, saveFailed: false, errors: {}, openConcept: null, confirmReset: false, exportError: null, exportSubmitted: false, exportSubmitError: null, highlight: null, returnY: 0, lastValid: null};
 
   const dispatch = action => {
     const result = applyAction(state.progress, {...action, at: new Date().toISOString()}, runtime);
@@ -382,11 +382,13 @@ export function mount(session, lesson, model) {
   const renderFinish = () => {
     const done = state.progress.completed;
     lessonState.textContent = `${done ? '● 완료(completed)' : '◐ 진행 중(partial)'}: 언제든 지금까지의 결과를 내보낼 수 있습니다. 완료 버튼은 수행 증거가 아닙니다.`;
-    replaceChildren(slot('export-error'), state.exportError ? h('p', {class: 'error', role: 'alert', testid: 'export-error', text: `⚠ ${EXPORT_BLOCKED_NOTICE} ${state.exportError}`}) : null);
+    replaceChildren(slot('export-error'), state.exportError ? h('p', {class: 'error', role: 'alert', testid: 'export-error', text: `⚠ ${EXPORT_BLOCKED_NOTICE} ${state.exportError}`})
+      : state.exportSubmitError ? h('p', {class: 'error', role: 'alert', testid: 'export-error', text: `⚠ ${EXPORT_SUBMIT_FAILED_NOTICE} ${state.exportSubmitError}`}) : null);
+    replaceChildren(slot('export-status'), state.exportSubmitted ? h('p', {class: 'notice', role: 'status', testid: 'export-status', text: EXPORT_SUBMITTED_NOTICE}) : null);
     const kind = state.saveFailed || state.loadNotice === 'unavailable' ? 'unavailable' : state.loadNotice;
     replaceChildren(slot('storage'), kind ? h('p', {class: 'notice warn', role: 'status', testid: 'storage-notice', 'data-kind': kind, text: `⚠ ${STORAGE_NOTICES[kind]}`}) : null);
     replaceChildren(slot('reset'), state.confirmReset ? h('div', {class: 'notice', role: 'alertdialog', 'aria-label': '학습 초기화 확인'},
-      h('p', {text: '저장된 입력·예측·응답·힌트 기록을 모두 지우고 처음 상태로 돌아갑니다. 이미 내려받은 파일은 지워지지 않습니다.'}),
+      h('p', {text: '저장된 입력·예측·응답·힌트 기록을 모두 지우고 처음 상태로 돌아갑니다. 이미 제출한 결과는 지워지지 않습니다.'}),
       h('button', {type: 'button', testid: 'reset-learning-confirm', onclick: resetLearning, text: '네, 학습을 초기화합니다'}), ' ',
       h('button', {type: 'button', testid: 'reset-learning-cancel', onclick: () => {
         state.confirmReset = false;
@@ -408,7 +410,7 @@ export function mount(session, lesson, model) {
       state.saveFailed = true;
     }
     const fresh = loadProgress({getItem: () => null}, session, runtime).progress;
-    Object.assign(state, {progress: fresh, errors: {}, confirmReset: false, exportError: null, highlight: null, loadNotice: state.loadNotice === 'unavailable' ? 'unavailable' : null});
+    Object.assign(state, {progress: fresh, errors: {}, confirmReset: false, exportError: null, exportSubmitted: false, exportSubmitError: null, highlight: null, loadNotice: state.loadNotice === 'unavailable' ? 'unavailable' : null});
     for (const form of [baselineForm, transferForm, baselineRetryForm, transferRetryForm]) form.write(null);
     baselineForm.showError('prediction-error', null, []);
     transferForm.showError('transfer-error', null, []);
@@ -418,6 +420,8 @@ export function mount(session, lesson, model) {
 
   const exportResult = async () => {
     state.exportError = null;
+    state.exportSubmitted = false;
+    state.exportSubmitError = null;
     let document_;
     try {
       document_ = await finalizeResult(buildResult(state.progress, lesson, session, new Date(), runtime));
@@ -428,12 +432,13 @@ export function mount(session, lesson, model) {
       const shape = validateResultShape(document_);
       if (!shape.ok) state.exportError = shape.errors.map(error => `${error.code} ${error.path || '/'}`).join(', ');
       else {
-        const url = URL.createObjectURL(new Blob([JSON.stringify(document_, null, 2)], {type: 'application/json'}));
-        const link = h('a', {href: url, download: `result-${session.resultId}.json`});
-        window.document.body.append(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        try {
+          const response = await fetch('/__ltt/result', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(document_, null, 2)});
+          if (response.status === 200) state.exportSubmitted = true;
+          else state.exportSubmitError = await response.json().then(body => String(body.code), () => 'NETWORK');
+        } catch {
+          state.exportSubmitError = 'NETWORK';
+        }
       }
     }
     renderFinish();
@@ -589,8 +594,8 @@ export function mount(session, lesson, model) {
     h('p', {class: 'notice', role: 'note', testid: 'safety-notice', text: SAFETY_NOTICE}),
     stageIndicator, stageHost, h('div', {class: 'buttons'}, navButtons), slot('stage-error'),
     h('section', {'aria-labelledby': 'finish-title'}, h('h2', {id: 'finish-title', text: '결과 내보내기와 저장'}),
-      h('div', {class: 'buttons'}, h('button', {type: 'button', testid: 'export-result', onclick: exportResult, text: '결과 파일 내려받기'}), resetButton),
-      h('p', {class: 'notice', role: 'note', testid: 'export-notice', text: EXPORT_NOTICE}), slot('export-error'), slot('storage'), slot('reset')));
+      h('div', {class: 'buttons'}, h('button', {type: 'button', testid: 'export-result', onclick: exportResult, text: '결과 제출'}), resetButton),
+      h('p', {class: 'notice', role: 'note', testid: 'export-notice', text: EXPORT_NOTICE}), slot('export-error'), slot('export-status'), slot('storage'), slot('reset')));
 
   const renderAll = () => {
     renderStage();

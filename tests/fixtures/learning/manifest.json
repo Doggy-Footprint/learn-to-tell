@@ -2053,5 +2053,60 @@
     "id": "T53-V13.lesson-screen",
     "layer": "e2e",
     "obligationId": "T53-V13"
+  },
+  {
+    "id": "T54S-O5.idle",
+    "layer": "e2e",
+    "obligationId": "T54S-O5"
+  },
+  {
+    "id": "T54S-O5.submitting",
+    "layer": "e2e",
+    "obligationId": "T54S-O5"
+  },
+  {
+    "id": "T54S-O5.success",
+    "layer": "e2e",
+    "obligationId": "T54S-O5"
+  },
+  {
+    "id": "T54S-O5.server-failure",
+    "layer": "e2e",
+    "obligationId": "T54S-O5"
+  },
+  {
+    "id": "T54S-O5.server-code",
+    "layer": "e2e",
+    "obligationId": "T54S-O5"
+  },
+  {
+    "id": "T54S-O5.hash-failure",
+    "layer": "e2e",
+    "obligationId": "T54S-O5"
+  },
+  {
+    "id": "T54S-O5.resubmit",
+    "layer": "e2e",
+    "obligationId": "T54S-O5"
+  },
+  {
+    "id": "T54S-O5.success-then-failure",
+    "layer": "e2e",
+    "obligationId": "T54S-O5"
+  },
+  {
+    "id": "T54S-O5.no-download-ever",
+    "layer": "e2e",
+    "obligationId": "T54S-O5"
+  },
+  {
+    "id": "T54S-O7.success",
+    "layer": "e2e",
+    "obligationId": "T54S-O7"
+  },
+  {
+    "id": "T54S-O7.failure",
+    "layer": "e2e",
+    "obligationId": "T54S-O7"
   }
 ]

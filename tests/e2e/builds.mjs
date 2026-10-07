@@ -1,5 +1,8 @@
 import {spawn, spawnSync} from 'node:child_process';
 import {request} from 'node:http';
+import {existsSync, mkdtempSync, readdirSync, readFileSync, rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 export const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -19,7 +22,8 @@ export function startServe(args) {
     child.on('exit', code => reject(new Error(`serve exited ${code}`)));
     setTimeout(() => reject(new Error('serve did not print a URL in 20s')), 20000);
   });
-  return {child, ready, stop: () => child.kill('SIGTERM')};
+  const exited = new Promise(resolve => child.on('exit', resolve));
+  return {child, ready, exited, stop: () => child.kill('SIGTERM')};
 }
 export function http(method, port, path) {
   return new Promise((resolve, reject) => {
@@ -27,4 +31,18 @@ export function http(method, port, path) {
     req.on('error', reject);
     req.end(method === 'GET' ? undefined : 'x');
   });
+}
+
+// serve --out <tmp>: the page under test is served from here so submitted results can be read as files (the shared 4321 server has no --out).
+export async function startReceiver(port) {
+  const out = mkdtempSync(join(tmpdir(), 'ltt-e2e-out-'));
+  const server = startServe(['--port', String(port), '--out', out]);
+  await server.ready;
+  return {
+    out, port, server,
+    files: () => (existsSync(out) ? readdirSync(out).sort() : []),
+    text: resultId => readFileSync(join(out, `result-${resultId}.json`), 'utf8'),
+    read: resultId => JSON.parse(readFileSync(join(out, `result-${resultId}.json`), 'utf8')),
+    stop: async () => { server.stop(); await server.exited; rmSync(out, {recursive: true, force: true}); },
+  };
 }

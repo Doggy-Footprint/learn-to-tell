@@ -78,3 +78,7 @@ export const model = {
 - `placed`: lessonId가 map에 import된 lesson이고, conceptId·conceptRevision이 그 lesson의 개념이어야 한다.
 - `planned`: 아직 만들지 않은 회차. 참조 검사를 하지 않는다.
 - 배열 전체가 기존 nextPaths를 교체한다. 남길 기존 항목도 함께 넣는다.
+
+## serve
+
+`node $LTT/scripts/serve.mjs [--port <n>] [--out <dir>]`: `dist/`를 `127.0.0.1`에서 제공한다. `--out`을 주면 수업 화면의 "결과 제출"이 `<dir>/result-<resultId>.json`으로 저장된다(없으면 제출은 `NO_OUT`으로 거부).

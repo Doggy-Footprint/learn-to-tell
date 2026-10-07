@@ -1,6 +1,14 @@
 import {test, expect} from '@playwright/test';
-import {tid, gotoContext, toSimulation, show, setInputs, fillPrediction, expectOutput, readDownload, assertResultDocument, TRANSFER_PRED} from './helpers.mjs';
+import {tid, gotoContext, toSimulation, show, setInputs, fillPrediction, expectOutput, submitResult, assertResultDocument, TRANSFER_PRED} from './helpers.mjs';
 import {storageKey, INPUT_IDS} from '../fixtures/learning/data.mjs';
+import {startReceiver} from './builds.mjs';
+
+// Same dist as the shared 4321 server, but with --out so the submitted result can be read.
+const PORT = 4342;
+let receiver;
+test.use({baseURL: `http://127.0.0.1:${PORT}/`});
+test.beforeAll(async () => { receiver = await startReceiver(PORT); });
+test.afterAll(() => { receiver?.stop(); });
 
 const key = storageKey();
 const notice = (page, kind) => page.locator(`[data-testid="storage-notice"][data-kind="${kind}"]`);
@@ -18,7 +26,7 @@ test('[V8.S9] corrupt stored value: load-failed notice, value untouched until th
   expect(saved.schemaVersion).toBe(1);
 });
 
-test('[V8.S10] blocked localStorage: unavailable notice, in-memory flow continues and the result still exports', async ({page, context}) => {
+test('[V8.S10] blocked localStorage: unavailable notice, in-memory flow continues and the result still submits', async ({page, context}) => {
   await context.addInitScript(() => {
     Storage.prototype.getItem = function () { throw new Error('blocked'); };
     Storage.prototype.setItem = function () { throw new Error('QuotaExceededError'); };
@@ -29,9 +37,7 @@ test('[V8.S10] blocked localStorage: unavailable notice, in-memory flow continue
   await fillPrediction(page, 'transfer', TRANSFER_PRED);
   await tid(page, 'transfer-record').click();
   await expect(tid(page, 'transfer-grade')).toHaveAttribute('data-status', 'supported');
-  await (await show(page, 'export-result')).scrollIntoViewIfNeeded();
-  const [download] = await Promise.all([page.waitForEvent('download'), tid(page, 'export-result').click()]);
-  assertResultDocument(await readDownload(download), 'partial');
+  assertResultDocument(await submitResult(page, receiver), 'partial');
 });
 
 test('[V8.S11] reset-learning needs an in-page confirm (no browser dialog); cancel keeps state; confirm clears and returns to context', async ({page}) => {

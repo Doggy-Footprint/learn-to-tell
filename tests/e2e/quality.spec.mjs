@@ -5,8 +5,8 @@ import {readdirSync, existsSync, readFileSync, renameSync} from 'node:fs';
 import {networkInterfaces} from 'node:os';
 import {request} from 'node:http';
 import {fileURLToPath} from 'node:url';
-import {tid, gotoFresh, toSimulation, show, fillPrediction, TRANSFER_PRED} from './helpers.mjs';
-import {startServe, http as httpGet} from './builds.mjs';
+import {tid, gotoFresh, toSimulation, show, fillPrediction, TRANSFER_PRED, submitResult} from './helpers.mjs';
+import {startServe, startReceiver, http as httpGet} from './builds.mjs';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -38,6 +38,36 @@ test('[V6.axe.hint-open] zero violations with hints opened', async ({page}) => {
   await (await show(page, 'hint-level-2')).click();
   await expect(tid(page, 'hint-text-2')).toBeVisible();
   expect(await axeViolations(page)).toEqual([]);
+});
+
+// O7 (spec 3c9d5e71a0b84f26 v1, Q4): axe on the submit success and failure screens. Own server with --out on its own port.
+test.describe('[T54S-O7] axe after submit', () => {
+  const PORT = 4343;
+  test.use({baseURL: `http://127.0.0.1:${PORT}/`});
+  test.describe.configure({mode: 'serial'});
+  let receiver;
+  test.beforeEach(async () => { receiver = await startReceiver(PORT); });
+  test.afterEach(async () => { await receiver?.stop(); receiver = null; });
+  async function toCompleted(page) {
+    await toSimulation(page, {predict: 'record'});
+    await (await show(page, 'complete-lesson')).click();
+  }
+  test('[T54S-O7.success] zero violations with the submit-success state visible', async ({page}) => {
+    await toCompleted(page);
+    await submitResult(page, receiver);
+    await expect(tid(page, 'export-status')).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+  });
+  test('[T54S-O7.failure] zero violations with the submit-failure state visible', async ({page}) => {
+    await toCompleted(page);
+    await show(page, 'export-result');
+    receiver.server.stop();
+    await receiver.server.exited;
+    await tid(page, 'export-result').click();
+    await expect(tid(page, 'export-error')).toBeVisible();
+    await expect(tid(page, 'export-status')).toBeHidden();
+    expect(await axeViolations(page)).toEqual([]);
+  });
 });
 
 test('[V6.perf] p95 of 20 single-input updates (dispatch until re-queried table and bar show the new value) <= 100ms', async ({page, browser}) => {

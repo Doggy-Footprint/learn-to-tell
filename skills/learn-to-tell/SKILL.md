@@ -1,6 +1,6 @@
 ---
 name: learn-to-tell
-description: 사용자가 작업의 핵심 결정 변수를 모른 채 선택을 맡기고 있을 때, 15–20분짜리 상호작용 수업(진단 → 범위 합의 → 시뮬레이션 수업 → 결과 기록)을 만들어 제공한다. "learn to tell", "이거 배우고 싶어", "무슨 기준으로 골라야 해?", "설명해줘가 아니라 이해하고 싶어"처럼 사용자가 결정에 참여할 지식을 원할 때 사용. tacit knowledge(몸으로 익히는 기술)는 대상이 아니다.
+description: 사용자가 작업의 핵심 결정 변수를 모른 채 선택을 맡기고 있을 때, 15–20분짜리 상호작용 수업(진단 → 시뮬레이션 수업 → 결과 기록)을 만들어 제공한다. "learn to tell", "이거 배우고 싶어", "무슨 기준으로 골라야 해?", "설명해줘가 아니라 이해하고 싶어"처럼 사용자가 결정에 참여할 지식을 원할 때 사용. tacit knowledge(몸으로 익히는 기술)는 대상이 아니다.
 ---
 
 # Learn to Tell
@@ -34,24 +34,23 @@ CLI 공통 규칙:
 
 ## 2. 진단 (대화 설문으로 분야 찾기)
 
-브라우저를 쓰지 않고 대화로 진행한다. 후보는 라운드마다 3개 이하, 라운드는 최대 2라운드(좁히기)다.
+일반 대화 메시지로 진행한다. 브라우저·선택 UI 도구는 쓰지 않는다.
 
-1. 결과가 서로 다른 짧은 상황 카드 1–3개를 만든다. 각 카드는 "이 결정을 하려면 무엇을 알아야 하나"가 다른 후보다(용어 해석 차이, 모르는 개념 후보).
-2. 카드를 한 번에 하나씩 보여 준다. 사용자는 반응(비슷함 `similar` / 의외 `surprising` / 모름 `unknown` / 해당 없음 `not-applicable`)을 고르거나, 카드의 개념이 무슨 뜻인지 되물을 수 있다.
-   - 되물으면 짧게 답하되 그 카드의 결정 질문의 정답은 알려 주지 않는다. 답한 뒤 같은 카드에 대한 반응을 다시 받는다.
-   - 되물은 내용은 한 줄로 요약해 `askedBack`에 기록한다. 되묻지 않았으면 `null`.
-3. 반응을 받을 때마다 `reactions`에 `{round, candidateId, reaction, askedBack}`를 쌓는다. 좁히기가 필요하면 2라운드를 진행한다.
-4. 반응(되물음 포함)을 근거로 hypotheses(`common-knowledge-gap` | `unknown-concept`)를 쓴다. rationale에는 어떤 반응에서 그렇게 추정했는지 적고, `status`는 `hypothesis`다. 가설은 판정이 아니라 추정임을 사용자에게 말한다.
+1. 결정에 필요한 지식이 서로 다른 짧은 상황 카드를 라운드마다 최대 3개 만든다. 좁히기가 필요하면 2라운드까지 한다.
+2. 카드를 한 번에 하나씩 보여 주고 반응을 묻는다: 비슷함 `similar` · 의외 `surprising` · 모름 `unknown` · 해당 없음 `not-applicable`. 자유 문장으로 답하거나 개념을 되물어도 된다.
+   - 되물으면 정답은 알려 주지 않고 짧게 답한 뒤 같은 카드의 반응을 다시 받는다.
+   - `not-applicable`은 곧바로 기록하지 않고 먼저 속으로 점검한다. 이 주제가 사용자의 상황·결정과 실제로 관련 있는데 사용자가 그 관련성을 모르거나 낯선 용어 때문에 착각한 것 같으면 `unknown`으로 기록한다. 판단이 서지 않으면 관련성을 한 번만 짧게 물어본다. 재분류했으면 3·4번의 rationale에 원래 답과 이유를 남긴다.
+3. 반응마다 `{round, candidateId, reaction, askedBack}`를 `reactions`에 쌓는다. `askedBack`은 되물은 내용 한 줄 요약이고, 없으면 `null`.
+4. 반응을 근거로 hypotheses(`common-knowledge-gap` | `unknown-concept`)를 쓴다. rationale에 근거가 된 반응을 적고 `status`는 `hypothesis`다. 판정이 아니라 추정이라고 사용자에게 말한다.
 5. 마지막 라운드 후보와 가설을 보여 주고 사용자가 고른다.
-   - 고름: `selection: <candidateId>`, `confirmation: "confirmed"`.
-   - 보류: `selection: null`, `confirmation: "deferred"` — 수업을 만들지 않고 9단계(다음 학습)로 간다.
-6. `$W/diagnostic.json`을 직접 쓴다(version 2, `candidates`는 마지막 라운드 후보, `reactions`·`hypotheses` 포함, 사용자 확인 전에는 `confirmation: "unconfirmed"`, `selection: null`). 사용자의 선택·보류를 받은 뒤 5번의 값으로 고친다. 형식은 [reference.md](reference.md)의 diagnostic v2.
-7. `node $LTT/scripts/lesson.mjs place-diagnostic $W/diagnostic.json`. `CONFLICT`면 같은 diagnosticId가 이미 다르게 저장된 것이므로 새 diagnosticId로 다시 만든다.
+   - 고름: `selection: <candidateId>`, `confirmation: "confirmed"`
+   - 보류: `selection: null`, `confirmation: "deferred"` — 수업 없이 9단계로 간다.
+6. `$W/diagnostic.json`을 쓴다(version 2, `candidates`는 마지막 라운드 후보, 형식은 [reference.md](reference.md)). 그 뒤 `node $LTT/scripts/lesson.mjs place-diagnostic $W/diagnostic.json`. `CONFLICT`면 새 diagnosticId로 다시 만든다.
 
-## 3. 범위 합의
+## 3. 범위 결정
 
-사용자에게 표로 보여 주고 확인받는다: 이번에 결정할 것(결정 변수 1–2개), 배울 개념(≤5개), 나중으로 미룰 것, 예상 시간(필수 활동 합 15–20분).
-넘치면 나눈다. 이번 수업 밖의 부분은 나중에 nextPath `lessonStatus: "planned"`로 남긴다(9단계).
+사용자에게 묻지 않고 agent가 정한다: 이번에 결정할 변수 1–2개, 배울 개념 ≤5개, 필수 활동 합 15–20분. 진단 결과와 1단계 상황, 기존 기록(`nextPaths`)을 근거로 삼는다.
+넘치면 나눈다. 이번 수업 밖의 부분은 나중에 nextPath `lessonStatus: "planned"`로 남긴다(9단계). 정한 범위는 한두 문장으로 알려 주고 바로 4단계로 간다.
 
 ## 4. 생성: lesson · model · oracle
 
@@ -86,13 +85,13 @@ Agent 도구가 있으면 서브에이전트에게 model.mjs를 주지 않고 le
    - 성공 outcome의 `paths`에서 배치된 lesson·model 경로를 얻는다.
 2. `$W/session.json` 작성: `{profileId, resultId, baseMapRevision, sequence: 1, previousResultId: null}`. `baseMapRevision`은 `map.mjs show`의 revision(map 없으면 1). resultId는 새 id.
 3. `node $LTT/scripts/build-lesson.mjs --session $W/session.json --lesson <배치된 lesson> --model <배치된 model>`
-4. `node $LTT/scripts/serve.mjs` 를 백그라운드로 실행하고 URL을 준다. 사용자가 수업을 마치고 `result-<resultId>.json`을 내려받으면 경로를 받고 serve를 종료한다.
+4. `node $LTT/scripts/serve.mjs --out $W` 를 백그라운드로 실행하고 URL을 준다. 사용자에게 수업을 마친 뒤 화면 끝의 "결과 제출"을 누르고 끝났다고 알려 달라고 한다. 알림을 받으면 `$W/result-<resultId>.json`이 있는지 확인하고 serve를 종료한다.
 
 수업 중 사용자가 질문하면 답하되, 예측 입력 전에 정답이나 출력값을 먼저 알려 주지 않는다.
 
 ## 8. 결과 기록
 
-1. `node $LTT/scripts/map.mjs import <result 파일>` → `imported` 또는 `duplicate`.
+1. `node $LTT/scripts/map.mjs import $W/result-<resultId>.json` → `imported` 또는 `duplicate`.
 2. `node $LTT/scripts/map.mjs show <profileId>`로 요약을 보여 준다. 결과는 이번 상황과 도움 수준에서의 관찰이며 능력 판정이 아니라고 말한다. `not_demonstrated`·`skipped`는 다음 경로 후보로 삼는다.
 
 ## 9. 작업 복귀와 다음 학습

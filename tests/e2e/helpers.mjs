@@ -1,5 +1,4 @@
 import {expect} from '@playwright/test';
-import {readFileSync} from 'node:fs';
 import {validateDocument} from '../../contracts/index.mjs';
 import {oracleHash, HASH_FORMAT} from '../fixtures/contracts/hash-oracle.mjs';
 import {session, lesson, INPUT_IDS, OUTPUT_IDS, baselinePrediction, retryPrediction, predC4, pred} from '../fixtures/learning/data.mjs';
@@ -137,10 +136,26 @@ export async function expectNumbers(page, id, expected, {absent = []} = {}) {
 }
 export const valuesOf = (values, ids = OUTPUT_IDS) => ids.map(id => values[id]).filter(v => v !== null);
 
-export async function readDownload(download, resultId = session.resultId) {
-  expect(download.suggestedFilename()).toBe(`result-${resultId}.json`);
-  const path = await download.path();
-  return JSON.parse(readFileSync(path, 'utf8'));
+// Submits through the page button (POST /__ltt/result), asserts the 200 response, that no download starts, and returns the file the server wrote.
+export async function submitResult(page, receiver, {how = 'click', resultId = session.resultId} = {}) {
+  await show(page, 'export-result', how === 'click' ? 'click' : 'keyboard');
+  let downloads = 0;
+  const onDownload = () => { downloads++; };
+  page.on('download', onDownload);
+  try {
+    const [response] = await Promise.all([
+      page.waitForResponse(r => new URL(r.url()).pathname === '/__ltt/result' && r.request().method() === 'POST'),
+      how === 'click' ? tid(page, 'export-result').click() : (async () => { await focusByTab(page, 'export-result'); await page.keyboard.press('Enter'); })(),
+    ]);
+    expect(response.status()).toBe(200);
+    expect(await response.json()).toEqual({ok: true, file: `result-${resultId}.json`});
+    expect(response.request().postData(), 'the file is the posted body').toBe(receiver.text(resultId));
+    await expect(tid(page, 'export-status')).toBeVisible();
+    await expect(tid(page, 'export-error')).toBeHidden();
+    await page.waitForTimeout(300);
+  } finally { page.off('download', onDownload); }
+  expect(downloads, 'no download event').toBe(0);
+  return receiver.read(resultId);
 }
 export function assertResultDocument(result, state, s = session, l = lesson) {
   expect(result.version).toBe(2);

@@ -1,20 +1,19 @@
 import {test, expect} from '@playwright/test';
-import {tid, norm, show, gotoStage, expectCellStrings, expectOutputs, fillPrediction, readDownload, assertResultDocument} from './helpers.mjs';
+import {tid, norm, show, gotoStage, expectCellStrings, expectOutputs, fillPrediction, submitResult, assertResultDocument} from './helpers.mjs';
 import {syntheticLesson as L, session} from '../fixtures/learning/data.mjs';
-import {buildLesson, startServe, SYNTHETIC, INSPECTION} from './builds.mjs';
+import {buildLesson, startReceiver, SYNTHETIC, INSPECTION} from './builds.mjs';
 
 // V9: second, synthetic lesson (1 input, 2 outputs in 2 units, no nullable output, no manufacturing words).
 // build-lesson writes dist/, so this spec builds the synthetic lesson, serves it on its own port and restores the inspection build afterwards.
 const PORT = 4324;
-let server;
+let receiver;
 test.use({baseURL: `http://127.0.0.1:${PORT}/`});
 test.describe.configure({mode: 'serial'});
 test.beforeAll(async () => {
   buildLesson(SYNTHETIC);
-  server = startServe(['--port', String(PORT)]);
-  await server.ready;
+  receiver = await startReceiver(PORT);
 });
-test.afterAll(() => { server?.stop(); buildLesson(INSPECTION); });
+test.afterAll(() => { receiver?.stop(); buildLesson(INSPECTION); });
 
 // closed form: after 10 minutes the tank holds rate * 10 liters; capacity 2000 liters
 const wantFor = rate => {
@@ -62,9 +61,7 @@ test('[T53-V9.flow] prediction, reveal, new case and export on the synthetic les
   await expect(tid(page, 'transfer-grade')).toHaveAttribute('data-status', 'supported');
   await (await show(page, 'response-question')).fill('용량이 바뀌면 어떻게 되는가');
   await (await show(page, 'complete-lesson')).click();
-  await (await show(page, 'export-result')).scrollIntoViewIfNeeded();
-  const [download] = await Promise.all([page.waitForEvent('download'), tid(page, 'export-result').click()]);
-  const result = await readDownload(download);
+  const result = await submitResult(page, receiver);
   assertResultDocument(result, 'completed', session, L);
   expect(result.lessonId).toBe('water-tank-lesson');
   const transfer = result.assessments.find(a => a.criterionId === 'calculate-transfer');

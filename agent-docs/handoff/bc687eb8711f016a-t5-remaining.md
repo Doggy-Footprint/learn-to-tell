@@ -48,11 +48,11 @@
 ## User Feedback Backlog (T5-4, 미작업 적립)
 | # | 날짜 | 피드백 | 현재 동작 근거 | 상태 |
 | --- | --- | --- | --- | --- |
-| F1 | 2026-10-07 | 브라우저에서 JSON 파일을 내려받아 경로를 agent에게 전달하는 방식은 고쳐야 함 | 진단: `site/diagnostic/components/diagnostic.js` download(`diagnostic-choices-<id>.json`), 수업: `site/src/components/ui.js` 결과 Blob download(`result-<resultId>.json`); SKILL.md 2·7단계가 사용자에게 파일 경로를 받음 | 진단 쪽 소멸(F2). 수업 결과 `result-<resultId>.json` 다운로드는 미작업, 대안 미정 |
+| F1 | 2026-10-07 | 브라우저에서 JSON 파일을 내려받아 경로를 agent에게 전달하는 방식은 고쳐야 함 | 진단: `site/diagnostic/components/diagnostic.js` download(`diagnostic-choices-<id>.json`), 수업: `site/src/components/ui.js` 결과 Blob download(`result-<resultId>.json`); SKILL.md 2·7단계가 사용자에게 파일 경로를 받음 | 완료(미커밋, 2026-10-07): 수업 화면 다운로드 제거, "결과 제출" → `serve.mjs --out <dir>`가 `POST /__ltt/result`로 수신, `http-server` 제거 |
 | F2 | 2026-10-07 | 진단 설문(상황 카드 반응)은 브라우저가 아니라 agent 대화에서 진행하는 게 낫다. 모르는 상태에서 카드에 반응하려니 "내가 아는 개념인지" 되묻고 싶은데 브라우저 페이지에서는 불가 | 진단 페이지 `site/diagnostic/`(카드 + 4가지 반응, 질문 경로 없음), `scripts/build-diagnostic.mjs`; SKILL.md 2단계가 진단을 브라우저로 보냄. T5-3 결정 "진단 페이지: 카드 2–3개, 조작 1개, 4가지 반응"과 충돌 | 완료(미커밋, 2026-10-07): 대화 설문 전환, 진단 페이지·build-diagnostic·diagnostic-setup·diagnose CLI·serve `--target` 제거, diagnostic v2 `reactions`. F1의 진단 쪽은 소멸 |
 
 ## Open Questions
-- F1(수업 결과만 남음) 대안: 브라우저 → 로컬 serve로 직접 전송(POST 수신 후 profile/임시 폴더에 저장) 등. 사용자 결정 필요
+- 미규명 간헐 실패: `tests/e2e/values.spec.mjs` `[V5.S3.reload] defect-percent`가 `npm run verify` 중 약 8회 중 2회 6.2s 후 `input-defect-percent` 못 찾음(재실행·단독 24회 통과). 변경 전 기준선과 비교하지 못함
 - 없음
 
 ## Spec
@@ -60,6 +60,7 @@
 - T5-2 archived: `agent-docs/spec-logs/d1adf29b9bdfe2b8-t5-2-authoring-cli.md`, version 4, status complete, run ID d1adf29b9bdfe2b8
 - T5-3 archived: `agent-docs/spec-logs/65ba74b36b0ef5da-t5-3-generic-runtime-diagnostic-page.md`, version 3, status complete, run ID 65ba74b36b0ef5da
 - T5-4 F2 archived: `agent-docs/spec-logs/7e3b1a94c2d05f68-t5-4-conversational-diagnostic.md`, version 3, status complete, run ID 7e3b1a94c2d05f68
+- T5-4 F1 archived: `agent-docs/spec-logs/3c9d5e71a0b84f26-t5-4-result-submit-to-serve.md`, version 2, status complete, run ID 3c9d5e71a0b84f26
 - T5-4 본체: spec 미작성(skill·installer는 spec 없이 진행됨)
 
 ## Execution Ledger
@@ -67,3 +68,4 @@
 - T5-2: 첫 실행 F1–F4 + 계약 충돌 2건(D1, D2), verifier 1 VF1–VF5·S1 → 모두 해결, mutation M1–M3 검출, correction batches 2, verifier invocations 2 (최종 PASS). 비차단 권고 A1–A6, 동시 쓰기 시 생성 디렉터리 재귀 삭제 위험
 - T5-3: F1–F7(구현 2, 테스트 3, spec 공백 1, 연쇄 1) 해결, verifier 1 retry(F-1·F-2·S-1–S-3·V13) → v3, verifier 2 pass, mutation M1–M3 검출, correction batches 3. 비차단 권고 A-1–A-3(archived spec). 루트 `observablehq.config.js` title은 제조 검사 문구로 남음(빌드가 scratch config에서 덮어씀)
 - T5-4 F2: 첫 verify 실패 F1–F6(spec C6 코드 1, 테스트 결함 5) 해결, verifier 1 → SC1(Q4 문구 모순) 사용자 승인으로 spec v3 정정, mutation M1–M3 검출, correction batches 2, verifier invocations 1. 비차단 권고 A1–A4(spec-log)
+- T5-4 F1: 첫 verify 실패(테스트 결함 2: 해시 변조 단언, 부재 요소 textContent) 해결, verifier 1 retry(F1–F3 증거 부족, S1 spec 공백) → 사용자 승인 spec v2, verifier 2 pass, mutation M1–M3 검출, correction batches 3, verifier invocations 2. 비차단 권고 A2·A3(spec-log), 위 간헐 실패

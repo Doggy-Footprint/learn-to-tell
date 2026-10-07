@@ -16,7 +16,6 @@
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
     "@observablehq/framework": "1.13.4",
-    "@playwright/test": "1.63.0",
-    "http-server": "14.1.1"
+    "@playwright/test": "1.63.0"
   }
 }

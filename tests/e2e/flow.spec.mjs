@@ -1,21 +1,24 @@
 import {test, expect} from '@playwright/test';
 import {writeFileSync, mkdirSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {tid, norm, gotoContext, toPrediction, toSimulation, show, expectOutput, fillPrediction, readDownload, assertResultDocument, focusByTab, kbPress, kbType, kbSelect, BASELINE_PRED, TRANSFER_PRED, OUTPUT_IDS, INPUT_IDS, UNDEFINED_ID} from './helpers.mjs';
+import {tid, norm, gotoContext, toPrediction, toSimulation, show, expectOutput, fillPrediction, submitResult, assertResultDocument, focusByTab, kbPress, kbType, kbSelect, BASELINE_PRED, TRANSFER_PRED, OUTPUT_IDS, INPUT_IDS, UNDEFINED_ID} from './helpers.mjs';
 import {lesson} from '../fixtures/learning/data.mjs';
+import {startReceiver} from './builds.mjs';
 
-async function exportResult(page, how = 'click') {
-  await show(page, 'export-result', how === 'click' ? 'click' : 'keyboard');
-  const [download] = await Promise.all([page.waitForEvent('download'), (async () => { if (how === 'click') await tid(page, 'export-result').click(); else { await focusByTab(page, 'export-result'); await page.keyboard.press('Enter'); } })()]);
-  return readDownload(download);
-}
+// Same dist as the shared 4321 server, but with --out so the submitted result can be read as a file.
+const PORT = 4341;
+let receiver;
+test.use({baseURL: `http://127.0.0.1:${PORT}/`});
+test.beforeAll(async () => { receiver = await startReceiver(PORT); });
+test.afterAll(() => { receiver?.stop(); });
+const exportResult = (page, how = 'click') => submitResult(page, receiver, {how});
 
 const kbp = async (page, id, key) => { await show(page, id, 'keyboard'); await kbPress(page, id, key); };
 const kbt = async (page, id, text) => { await show(page, id, 'keyboard'); await kbType(page, id, text); };
 const text = id => lesson.content.find(c => c.contentId === id).text;
 const concept = id => lesson.concepts.find(c => c.conceptId === id);
 
-test('[V5.S1] keyboard-only full flow across stages (C1) then download is a valid completed result', async ({page}) => {
+test('[V5.S1] keyboard-only full flow across stages (C1) then the submitted file is a valid completed result', async ({page}) => {
   await gotoContext(page);
   await expect(tid(page, 'output-table')).toHaveCount(0);
   await kbPress(page, 'stage-next');
@@ -77,7 +80,7 @@ test('[V5.S1] keyboard-only full flow across stages (C1) then download is a vali
   await expect(tid(page, 'export-notice')).toContainText('map');
   const result = await exportResult(page, 'keyboard');
   assertResultDocument(result, 'completed');
-  await expect(tid(page, 'export-error')).toHaveCount(0);
+  await expect(tid(page, 'export-error')).toBeHidden();
   const transfer = result.assessments.find(a => a.criterionId === 'calculate-transfer');
   expect(transfer).toMatchObject({status: 'supported', reviewer: 'automatic', help: 'hint'});
   const resp = result.responses.find(r => r.responseId === transfer.responseId);
@@ -85,7 +88,7 @@ test('[V5.S1] keyboard-only full flow across stages (C1) then download is a vali
   for (const c of ['explain-transfer', 'ask-for-evidence', 'justify-choice', 'distinguish-denominators']) expect(result.assessments.find(a => a.criterionId === c)).toMatchObject({status: 'pending', reviewer: 'unreviewed'});
 });
 
-test('[V5.S7][CH-V7.partial][CH-V7.completed] partial and completed downloads are version 2 with a matching contentHash and validate against the T1 result contract (C1)', async ({page}) => {
+test('[V5.S7][CH-V7.partial][CH-V7.completed] partial and completed submissions are version 2 with a matching contentHash and validate against the T1 result contract (C1)', async ({page}) => {
   await toPrediction(page);
   await fillPrediction(page, 'prediction', BASELINE_PRED);
   await tid(page, 'prediction-record').click();
@@ -128,7 +131,7 @@ test('[V5.S8] every request during a full session goes to 127.0.0.1 only (Q6)', 
 });
 
 const HELP_TAG = {none: '[V5.S7.help-none]', agent: '[V5.S7.help-agent]'};
-for (const level of ['none', 'agent']) test(`${HELP_TAG[level]} help level ${level} chosen in the browser is recorded in the downloaded result`, async ({page}) => {
+for (const level of ['none', 'agent']) test(`${HELP_TAG[level]} help level ${level} chosen in the browser is recorded in the submitted result`, async ({page}) => {
   await toSimulation(page, {predict: 'record'});
   await (await show(page, 'help-level')).selectOption(level);
   await expect(tid(page, 'help-level')).toHaveValue(level);
@@ -154,20 +157,24 @@ test('[V5.S7.response-skip] response-skip-question/choice/apply produce skipped 
   for (const c of ['explain-transfer', 'ask-for-evidence', 'justify-choice', 'distinguish-denominators', 'calculate-transfer']) expect(result.assessments.find(a => a.criterionId === c), c).toMatchObject({status: 'skipped'});
 });
 
-test('[CH-V11] crypto.subtle.digest failure shows export-error and starts no download', async ({page}) => {
+test('[CH-V11] crypto.subtle.digest failure shows export-error and sends no submit request, no download, writes no file', async ({page}) => {
   await page.addInitScript(() => { crypto.subtle.digest = () => Promise.reject(new Error('digest unavailable')); });
   await toPrediction(page);
   await fillPrediction(page, 'prediction', BASELINE_PRED);
   await tid(page, 'prediction-record').click();
   await (await show(page, 'complete-lesson')).click();
-  let downloads = 0;
+  const filesBefore = receiver.files();
+  let downloads = 0, submits = 0;
   page.on('download', () => { downloads++; });
+  page.on('request', r => { if (new URL(r.url()).pathname === '/__ltt/result') submits++; });
   await show(page, 'export-result');
   await tid(page, 'export-result').click();
   await expect(tid(page, 'export-error')).toBeVisible();
   expect(((await tid(page, 'export-error').textContent()) ?? '').trim().length).toBeGreaterThan(0);
   await page.waitForTimeout(1500);
   expect(downloads).toBe(0);
+  expect(submits).toBe(0);
+  expect(receiver.files()).toEqual(filesBefore);
 });
 
 test('[T53-V8.stage-content] each stage body is its activity content, shown verbatim; the diagnosis content is never shown (R9, A1)', async ({page}) => {

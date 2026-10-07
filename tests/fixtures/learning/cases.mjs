@@ -209,4 +209,6 @@ export const T53_IDS = [...T53_RANGE.map(x => x.id), ...T53_STORAGE.map(x => x.i
 export const E2E_ITEMS_T53 = ['T53-V8.stage-content', 'T53-V8.cards', 'T53-V8.hints', 'T53-V8.fields', 'T53-V8.output-bars', 'T53-V8.display-strings', 'T53-V8.bar-width-100', 'T53-V8.C12',
   'T53-V9.flow', 'T53-V9.range', 'T53-V9.display-strings', 'T53-V9.tables-bars', 'T53-V9.content-cards', 'T53-V9.no-manufacturing-text',
   'T53-V11.omitted', 'T53-V11.other', 'T53-V11.dist-missing', 'T53-V11.unknown-flag', 'T54-O5.target-diagnostic', 'T54-O5.target-lesson', 'T53-V13.lesson-screen'];
-export const E2E_ITEMS = [...E2E_ITEMS_LEGACY, ...E2E_ITEMS_T53];
+// T5-4 result submit (spec 3c9d5e71a0b84f26 v1): O5 submit states, O7 axe after submit; ids are prefixed T54S-
+export const E2E_ITEMS_T54S = ['T54S-O5.idle', 'T54S-O5.submitting', 'T54S-O5.success', 'T54S-O5.server-failure', 'T54S-O5.server-code', 'T54S-O5.hash-failure', 'T54S-O5.resubmit', 'T54S-O5.success-then-failure', 'T54S-O5.no-download-ever', 'T54S-O7.success', 'T54S-O7.failure'];
+export const E2E_ITEMS = [...E2E_ITEMS_LEGACY, ...E2E_ITEMS_T53, ...E2E_ITEMS_T54S];
