@@ -1070,5 +1070,232 @@
     "items": [
       "T53-V1.plain.missing"
     ]
+  },
+  {
+    "id": "T54-O1.v2-valid",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.version.2",
+      "T54-O1.round.valid",
+      "T54-O1.askedBack.string",
+      "T54-O1.askedBack.null"
+    ]
+  },
+  {
+    "id": "T54-O1.v1-valid",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.version.1"
+    ]
+  },
+  {
+    "id": "T54-O1.version-3",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.version.3"
+    ]
+  },
+  {
+    "id": "T54-O1.v1-with-reactions",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.presence.v1-with-reactions"
+    ]
+  },
+  {
+    "id": "T54-O1.v2-without-reactions",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.presence.v2-without-reactions"
+    ]
+  },
+  {
+    "id": "T54-O1.reactions-empty",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.reactions.len0"
+    ]
+  },
+  {
+    "id": "T54-O1.reactions-one",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.reactions.len1"
+    ]
+  },
+  {
+    "id": "T54-O1.round-0",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.round.invalid-0"
+    ]
+  },
+  {
+    "id": "T54-O1.round-3",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.round.invalid-3"
+    ]
+  },
+  {
+    "id": "T54-O1.round-1.5",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.round.invalid-1.5"
+    ]
+  },
+  {
+    "id": "T54-O1.round-string-1",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.round.invalid-string-1"
+    ]
+  },
+  {
+    "id": "T54-O1.round-valid-1",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.round.valid"
+    ]
+  },
+  {
+    "id": "T54-O1.round-valid-2",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.round.valid"
+    ]
+  },
+  {
+    "id": "T54-O1.reaction-similar",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.reaction.valid"
+    ]
+  },
+  {
+    "id": "T54-O1.reaction-surprising",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.reaction.valid"
+    ]
+  },
+  {
+    "id": "T54-O1.reaction-unknown",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.reaction.valid"
+    ]
+  },
+  {
+    "id": "T54-O1.reaction-not-applicable",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.reaction.valid"
+    ]
+  },
+  {
+    "id": "T54-O1.reaction-outside",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.reaction.invalid"
+    ]
+  },
+  {
+    "id": "T54-O1.askedBack-string",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.askedBack.string"
+    ]
+  },
+  {
+    "id": "T54-O1.askedBack-null",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.askedBack.null"
+    ]
+  },
+  {
+    "id": "T54-O1.askedBack-number",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.askedBack.invalid-number"
+    ]
+  },
+  {
+    "id": "T54-O1.askedBack-missing",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.askedBack.invalid-missing"
+    ]
+  },
+  {
+    "id": "T54-O1.unknown-key",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.unknownKey.invalid"
+    ]
+  },
+  {
+    "id": "T54-O1.three-candidates-four-values",
+    "obligationId": "T54-O1",
+    "items": [
+      "T54-O1.reaction.all-four"
+    ]
+  },
+  {
+    "id": "T54-O2.dup-pair",
+    "obligationId": "T54-O2",
+    "items": [
+      "T54-O2.row1.duplicate-pair"
+    ]
+  },
+  {
+    "id": "T54-O2.same-candidate-other-round",
+    "obligationId": "T54-O2",
+    "items": [
+      "T54-O2.row1.duplicate-pair"
+    ]
+  },
+  {
+    "id": "T54-O2.max-round-unknown-candidate",
+    "obligationId": "T54-O2",
+    "items": [
+      "T54-O2.row2.max-round-reference"
+    ]
+  },
+  {
+    "id": "T54-O2.single-max-round-member",
+    "obligationId": "T54-O2",
+    "items": [
+      "T54-O2.row3.only-max-round"
+    ]
+  },
+  {
+    "id": "T54-O2.single-max-round-nonmember",
+    "obligationId": "T54-O2",
+    "items": [
+      "T54-O2.row3.only-max-round"
+    ]
+  },
+  {
+    "id": "T54-O2.lower-round-nonmember",
+    "obligationId": "T54-O2",
+    "items": [
+      "T54-O2.row4.lower-round-valid-id"
+    ]
+  },
+  {
+    "id": "T54-O2.lower-round-bad-format",
+    "obligationId": "T54-O2",
+    "items": [
+      "T54-O2.row5.lower-round-bad-id"
+    ]
+  },
+  {
+    "id": "T54-O2.selection-null",
+    "obligationId": "T54-O2",
+    "items": [
+      "T54-O2.row6.selection-null"
+    ]
   }
 ]

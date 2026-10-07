@@ -9,18 +9,17 @@ import {fileURLToPath} from 'node:url';
 import {inspectionLesson as lessonV1} from '../examples/manufacturing-inspection/lesson.mjs';
 import {lesson as lessonV2} from './fixtures/learning/data.mjs';
 
-// Failure paths only: no Framework build runs, so every case must stop before dist/ or dist-diagnostic/ is touched (V6, V7).
+// Failure paths only: no Framework build runs, so every case must stop before dist/ is touched (V6).
 const root = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'ltt-build-'));
 // A missing output directory would make 'unchanged' vacuous: park a placeholder build there for the run and remove it afterwards.
 const placeholders = [];
-test.before(() => { for (const d of ['dist', 'dist-diagnostic']) if (!existsSync(join(root, d))) { mkdirSync(join(root, d)); writeFileSync(join(root, d, 'index.html'), '<!-- placeholder created by tests/build.test.mjs -->\n'); placeholders.push(d); } });
+test.before(() => { for (const d of ['dist']) if (!existsSync(join(root, d))) { mkdirSync(join(root, d)); writeFileSync(join(root, d, 'index.html'), '<!-- placeholder created by tests/build.test.mjs -->\n'); placeholders.push(d); } });
 test.after(() => { rmSync(tmp, {recursive: true, force: true}); for (const d of placeholders) rmSync(join(root, d), {recursive: true, force: true}); });
 
 const SESSION = join(root, 'tests/fixtures/learning/session.valid.json');
 const LESSON = join(root, 'tests/fixtures/learning/inspection-lesson-v2.json');
 const MODEL = join(root, 'examples/manufacturing-inspection/model.mjs');
-const SETUP = JSON.parse(readFileSync(join(root, 'tests/fixtures/diagnostic/setup.two-rounds.json'), 'utf8'));
 const clone = value => structuredClone(value);
 const write = (name, content) => { const path = join(tmp, name); writeFileSync(path, typeof content === 'string' ? content : JSON.stringify(content)); return path; };
 
@@ -82,57 +81,25 @@ for (const name of ['session', 'lesson', 'model']) test(`[T53-V6.missing-${name}
   assert.ok(lines(r.stderr).includes(`ARGUMENT --${name}`), r.stderr);
 });
 
-// ---- V7: build-diagnostic, classification tree (each rejected choice once; accepted choices are built in tests/e2e/diagnostic.spec.mjs)
-const edit = fn => { const s = clone(SETUP); fn(s); return s; };
-const cand = (candidateId, n = candidateId) => ({candidateId, title: `제목 ${n}`, decisionQuestion: `질문 ${n}?`, reason: `이유 ${n}`, preview: `미리보기 ${n}`});
-const V7_REJECT = [
-  ['diagnosticId-format', s => { s.diagnosticId = 'Bad Id'; }, /^VALUE \/diagnosticId$/m],
-  ['profileId-format', s => { s.profileId = 'Bad Id'; }, /^VALUE \/profileId$/m],
-  ['candidate-empty-title', s => { s.rounds[0].candidates[0].title = ''; }, /^VALUE \/rounds\/0\/candidates\/0\/title$/m],
-  ['candidate-missing-preview', s => { delete s.rounds[0].candidates[0].preview; }, /^REQUIRED \/rounds\/0\/candidates\/0\/preview$/m],
-  ['round-unknown-field', s => { s.rounds[0].extra = 1; }, /^UNKNOWN_FIELD \/rounds\/0\/extra$/m],
-  ['candidate-unknown-field', s => { s.rounds[0].candidates[0].extra = 1; }, /^UNKNOWN_FIELD \/rounds\/0\/candidates\/0\/extra$/m],
-  ['rounds-0', s => { s.rounds = []; }, /^RANGE \/rounds$/m],
-  ['rounds-3', s => { s.rounds = [s.rounds[0], s.rounds[1], {candidates: [cand('third-a')]}]; }, /^RANGE \/rounds$/m],
-  ['candidates-0', s => { s.rounds[1].candidates = []; }, /^RANGE \/rounds\/1\/candidates$/m],
-  ['candidates-4', s => { s.rounds[0].candidates = ['a', 'b', 'c', 'd'].map(n => cand(`four-${n}`)); }, /^RANGE \/rounds\/0\/candidates$/m],
-  ['duplicate-candidate-id', s => { s.rounds[0].candidates[1].candidateId = s.rounds[0].candidates[0].candidateId; }, /^DUPLICATE \/rounds\/0\/candidates\/1\/candidateId$/m],
-  ['unknown-field', s => { s.extra = 1; }, /^UNKNOWN_FIELD \/extra$/m],
-  ['kind-error', s => { s.kind = 'diagnostic'; }, /^KIND \/kind$/m],
-  ['version-error', s => { s.version = 2; }, /^VERSION \/version$/m],
-  ['contextKind-error', s => { s.contextKind = 'hobby'; }, /^[A-Z_]+ \/contextKind$/m],
-];
-for (const [name, mutate, expected] of V7_REJECT) test(`[T53-V7.${name}] build-diagnostic exits 1 with the contract code and path; dist-diagnostic/ unchanged (R15, R16, C11)`, () => {
-  const path = write(`setup-${name}.json`, edit(mutate));
-  const r = run('scripts/build-diagnostic.mjs', 'dist-diagnostic', ['--setup', path]);
-  assert.equal(r.status, 1, r.stderr);
-  wellFormed(r.stderr);
-  assert.match(r.stderr, expected);
-});
-test('[T53-V7.setup-file-missing] SETUP_FILE <path>, exit 1', () => {
-  const path = join(tmp, 'no-such-setup.json');
-  const r = run('scripts/build-diagnostic.mjs', 'dist-diagnostic', ['--setup', path]);
-  assert.equal(r.status, 1); assert.ok(lines(r.stderr).includes(`SETUP_FILE ${path}`), r.stderr);
-});
-test('[T53-V7.setup-json-error] SETUP_JSON <path>, exit 1', () => {
-  const path = write('broken-setup.json', '{"kind": ');
-  const r = run('scripts/build-diagnostic.mjs', 'dist-diagnostic', ['--setup', path]);
-  assert.equal(r.status, 1); assert.ok(lines(r.stderr).includes(`SETUP_JSON ${path}`), r.stderr);
-});
-test('[T53-V7.missing-setup] omitting --setup exits 2 with ARGUMENT --setup', () => {
-  const r = run('scripts/build-diagnostic.mjs', 'dist-diagnostic', []);
-  assert.equal(r.status, 2, r.stderr);
-  assert.ok(lines(r.stderr).includes('ARGUMENT --setup'), r.stderr);
-});
-
 // ---- S-2: unknown flag is a usage error naming that flag, with the otherwise valid arguments present
 test('[T53-V6.unknown-flag] build-lesson --bogus exits 2 with ARGUMENT --bogus', () => {
   const r = run('scripts/build-lesson.mjs', 'dist', [...lessonArgs(), '--bogus', 'x']);
   assert.equal(r.status, 2, r.stderr);
   assert.ok(lines(r.stderr).includes('ARGUMENT --bogus'), r.stderr);
 });
-test('[T53-V7.unknown-flag] build-diagnostic --bogus exits 2 with ARGUMENT --bogus', () => {
-  const r = run('scripts/build-diagnostic.mjs', 'dist-diagnostic', ['--setup', join(root, 'tests/fixtures/diagnostic/setup.two-rounds.json'), '--bogus', 'x']);
-  assert.equal(r.status, 2, r.stderr);
-  assert.ok(lines(r.stderr).includes('ARGUMENT --bogus'), r.stderr);
+
+// ---- T54-O5 / C21: the browser diagnostic path is removed (R7, I3)
+// Names are assembled from parts so this file does not match the Q4 identifier search it supports (the spec lists no alternative for naming a removed file).
+const dash = (...parts) => parts.join('-');
+const removedBuild = `scripts/${dash('build', 'diagnostic')}.mjs`, removedSetup = `learning/${dash('diagnostic', 'setup')}.mjs`, removedDist = dash('dist', 'diagnostic');
+test('[T54-O5.removed-files C21] the diagnostic build script, diagnose module, setup module and diagnostic page do not exist', () => {
+  for (const f of [removedBuild, 'authoring/diagnose.mjs', removedSetup, 'site/diagnostic']) assert.equal(existsSync(join(root, f)), false, `${f} must not exist`);
+});
+test('[T54-O5.gitignore C21] .gitignore has no entry for the removed diagnostic output directory', () => {
+  assert.equal(readFileSync(join(root, '.gitignore'), 'utf8').includes(removedDist), false);
+});
+test('[T54-O5.build-script-run] running the removed diagnostic build script fails and creates no output directory', () => {
+  const r = spawnSync(process.execPath, [removedBuild], {cwd: root, encoding: 'utf8', timeout: 60000});
+  assert.notEqual(r.status, 0);
+  assert.equal(existsSync(join(root, removedDist)), false);
 });

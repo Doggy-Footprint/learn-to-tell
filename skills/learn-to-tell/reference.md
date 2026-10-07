@@ -5,27 +5,25 @@
 
 공통: 모든 `...Id`는 `^[a-z][a-z0-9-]{0,63}$`. revision·version은 1 이상 정수. 알 수 없는 필드는 `UNKNOWN_FIELD`로 거부된다.
 
-## diagnostic-setup (build-diagnostic 입력)
+## diagnostic v2 (agent가 `$W/diagnostic.json`으로 직접 작성 → place-diagnostic)
 
 ```json
-{"kind": "diagnostic-setup", "version": 1, "diagnosticId": "ab-test-diagnostic", "profileId": "me", "contextKind": "work",
- "rounds": [{"candidates": [
+{"kind": "diagnostic", "version": 2, "diagnosticId": "ab-test-diagnostic", "profileId": "me", "contextKind": "work",
+ "candidates": [
    {"candidateId": "sample-size", "title": "몇 명에게 보여야 하나", "decisionQuestion": "언제 실험을 멈춰도 되나?", "reason": "왜 이 후보인가", "preview": "카드에 보일 짧은 상황"}
- ]}]}
+ ],
+ "selection": "sample-size", "confirmation": "confirmed",
+ "hypotheses": [{"candidateId": "sample-size", "category": "unknown-concept", "rationale": "‘의외’ 반응: 검정력 개념을 모름", "status": "hypothesis"}],
+ "reactions": [
+   {"round": 1, "candidateId": "sample-size", "reaction": "unknown", "askedBack": "검정력이 무슨 뜻인지 물음"}
+ ]}
 ```
-- rounds 1–2개, 라운드마다 candidates 1–3개, 라운드 안 candidateId 중복 금지.
-
-## hypotheses (diagnose 입력)
-
-```json
-[{"candidateId": "sample-size", "category": "unknown-concept", "rationale": "‘의외’ 반응: 검정력 개념을 모름", "status": "hypothesis"}]
-```
-- category: `common-knowledge-gap` | `unknown-concept`. status는 항상 `hypothesis`.
-
-## diagnostic (diagnose 출력 → 확인 후 place-diagnostic)
-
+- `candidates` 1–3개(마지막 라운드 후보). `hypotheses`의 `candidateId`는 candidates 중 하나. category: `common-knowledge-gap` | `unknown-concept`, status는 항상 `hypothesis`.
+- `reactions`는 1개 이상. `round`는 1 또는 2, `reaction`은 `similar` | `surprising` | `unknown` | `not-applicable`, `askedBack`은 되물음 요약 문자열 또는 `null`.
+- `(round, candidateId)` 쌍은 중복 금지. 가장 큰 round의 reaction은 `candidateId`가 `candidates`에 있어야 하고, 더 낮은 round의 reaction은 id 형식만 맞으면 된다.
 - `confirmation: "confirmed"` ⇔ `selection`이 candidateId(마지막 라운드 후보). `deferred`/`unconfirmed`는 `selection: null`.
 - 결과 import 시 diagnostic은 `confirmed`여야 하고, lesson의 `diagnosticId`·`candidateId`(= selection)·`contextKind`·`profileId`가 일치해야 한다.
+- version 1 diagnostic(`reactions` 없음)도 계속 유효하다. v1에 `reactions`를 넣거나 v2에서 빼면 거부된다.
 
 ## model.mjs
 

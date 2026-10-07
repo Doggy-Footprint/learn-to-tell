@@ -32,18 +32,21 @@ CLI 공통 규칙:
 
 다음 단계 조건: 사용자가 상황 요약을 확인함.
 
-## 2. 진단 (간소 체험으로 분야 찾기)
+## 2. 진단 (대화 설문으로 분야 찾기)
 
-1. 결과가 서로 다른 짧은 상황 카드 1–3개를 만든다. 각 카드는 "이 결정을 하려면 무엇을 알아야 하나"가 다른 후보다(용어 해석 차이, 모르는 개념 후보). 필요하면 2라운드(좁히기)까지 둔다.
-2. `$W/setup.json`(diagnostic-setup) 작성 → `node $LTT/scripts/build-diagnostic.mjs --setup $W/setup.json`
-3. `node $LTT/scripts/serve.mjs --target diagnostic` 를 백그라운드로 실행하고 stdout에 찍힌 URL을 사용자에게 준다. serve는 포트에 이미 다른 서버가 있어도 URL을 찍으므로, 실행 전 `lsof -i :4321`로 비어 있는지 보고 사용 중이면 `--port`를 바꾼다.
-4. 사용자가 카드마다 반응(비슷함/의외/모름/해당 없음)을 고르고 `diagnostic-choices-<diagnosticId>.json`을 내려받는다. 파일 경로를 받는다. serve는 종료한다.
-5. 반응을 근거로 hypotheses(`common-knowledge-gap` | `unknown-concept`)를 `$W/hypotheses.json`에 쓴다. rationale에는 어떤 반응에서 그렇게 추정했는지 적는다. 가설은 판정이 아니라 추정임을 사용자에게 말한다.
-6. `node $LTT/scripts/lesson.mjs diagnose --choices <파일> --hypotheses $W/hypotheses.json` → outcome의 `diagnostic`을 `$W/diagnostic.json`에 저장.
-7. 마지막 라운드 후보와 가설을 보여 주고 사용자가 고른다.
-   - 고름: `selection: <candidateId>`, `confirmation: "confirmed"` 로 바꾼다.
+브라우저를 쓰지 않고 대화로 진행한다. 후보는 라운드마다 3개 이하, 라운드는 최대 2라운드(좁히기)다.
+
+1. 결과가 서로 다른 짧은 상황 카드 1–3개를 만든다. 각 카드는 "이 결정을 하려면 무엇을 알아야 하나"가 다른 후보다(용어 해석 차이, 모르는 개념 후보).
+2. 카드를 한 번에 하나씩 보여 준다. 사용자는 반응(비슷함 `similar` / 의외 `surprising` / 모름 `unknown` / 해당 없음 `not-applicable`)을 고르거나, 카드의 개념이 무슨 뜻인지 되물을 수 있다.
+   - 되물으면 짧게 답하되 그 카드의 결정 질문의 정답은 알려 주지 않는다. 답한 뒤 같은 카드에 대한 반응을 다시 받는다.
+   - 되물은 내용은 한 줄로 요약해 `askedBack`에 기록한다. 되묻지 않았으면 `null`.
+3. 반응을 받을 때마다 `reactions`에 `{round, candidateId, reaction, askedBack}`를 쌓는다. 좁히기가 필요하면 2라운드를 진행한다.
+4. 반응(되물음 포함)을 근거로 hypotheses(`common-knowledge-gap` | `unknown-concept`)를 쓴다. rationale에는 어떤 반응에서 그렇게 추정했는지 적고, `status`는 `hypothesis`다. 가설은 판정이 아니라 추정임을 사용자에게 말한다.
+5. 마지막 라운드 후보와 가설을 보여 주고 사용자가 고른다.
+   - 고름: `selection: <candidateId>`, `confirmation: "confirmed"`.
    - 보류: `selection: null`, `confirmation: "deferred"` — 수업을 만들지 않고 9단계(다음 학습)로 간다.
-8. `node $LTT/scripts/lesson.mjs place-diagnostic $W/diagnostic.json`. `CONFLICT`면 같은 diagnosticId가 이미 다르게 저장된 것이므로 새 diagnosticId로 다시 만든다.
+6. `$W/diagnostic.json`을 직접 쓴다(version 2, `candidates`는 마지막 라운드 후보, `reactions`·`hypotheses` 포함, 사용자 확인 전에는 `confirmation: "unconfirmed"`, `selection: null`). 사용자의 선택·보류를 받은 뒤 5번의 값으로 고친다. 형식은 [reference.md](reference.md)의 diagnostic v2.
+7. `node $LTT/scripts/lesson.mjs place-diagnostic $W/diagnostic.json`. `CONFLICT`면 같은 diagnosticId가 이미 다르게 저장된 것이므로 새 diagnosticId로 다시 만든다.
 
 ## 3. 범위 합의
 

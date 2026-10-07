@@ -11,10 +11,6 @@ export function buildLesson({session, lesson, model}) {
   const r = spawnSync(process.execPath, ['scripts/build-lesson.mjs', '--session', session, '--lesson', lesson, '--model', model], {cwd: root, encoding: 'utf8', timeout: 170000});
   if (r.status !== 0) throw new Error(`build-lesson failed (${r.status}): ${r.stderr}`);
 }
-export function buildDiagnostic(setup) {
-  const r = spawnSync(process.execPath, ['scripts/build-diagnostic.mjs', '--setup', setup], {cwd: root, encoding: 'utf8', timeout: 170000});
-  if (r.status !== 0) throw new Error(`build-diagnostic failed (${r.status}): ${r.stderr}`);
-}
 export function startServe(args) {
   const child = spawn(process.execPath, ['scripts/serve.mjs', ...args], {cwd: root});
   const ready = new Promise((resolve, reject) => {

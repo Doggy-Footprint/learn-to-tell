@@ -57,7 +57,7 @@ function structuralCases(cases) {
     for(const invalid of ['', 'A','a_b','a'.repeat(65)]) add(`id-${invalid.length}-${invalid.slice(0,2)}`,path,invalid,bad('VALUE',path));
    } else if(schema.type==='string'||schema.type==='nullable-string') add('blank',path,'  ',bad('VALUE',path));
    else if(schema.type==='timestamp') {for(const invalid of ['2026-02-30T00:00:00.000Z','2026-10-04T00:00:00Z','2026-10-04T00:00:00.000+00:00','invalid']) add(`timestamp-${invalid}`,path,invalid,bad('VALUE',path));}
-   else if(schema.type==='version') {for(const version of [0,1,path.startsWith('/lessons/')||kind==='lesson'?3:2,1.5].filter(v=>v!==schema.valid)) add(`version-${version}`,path,version,bad('VERSION',path));}
+   else if(schema.type==='version') {for(const version of [0,1,path.startsWith('/lessons/')||kind==='lesson'||kind==='diagnostic'?3:2,1.5].filter(v=>v!==schema.valid)) add(`version-${version}`,path,version,bad('VERSION',path));}
   }
   walk(syntax[kind],'',base);
  }
@@ -78,7 +78,7 @@ export function buildCases() {
  push('V5.parser-type','V5','C6','parser',false,bad('TYPE',''),'diagnostic');
  push('V5.invalid-kind','V5','C6','document',validBundle().diagnostic,bad('KIND',''),'invalid');
  push('V5.parser-invalid-kind','V5','C6','parser','{}',bad('KIND',''),'invalid');
- doc('V5.multiple-errors','diagnostic',d=>{delete d.profileId;d.version=2;},{ok:false,errors:[{code:'REQUIRED',path:'/profileId'},{code:'VERSION',path:'/version'}]},'V5','C12');
+ doc('V5.multiple-errors','diagnostic',d=>{delete d.profileId;d.contextKind='hobby';},{ok:false,errors:[{code:'REQUIRED',path:'/profileId'},{code:'VALUE',path:'/contextKind'}]},'V5','C12');
  bundle('V5.skip-cross-structural',b=>{b.lesson.profileId='other-profile';delete b.result.state;},bad('REQUIRED','/result/state'),'V5','C12');
  for(const name of ['diagnostic','lesson','result','map','previousResult']) {
   bundle(`V1.envelope.missing.${name}`,b=>delete b[name],bad('REQUIRED',`/${name}`),'V1','C6');
@@ -229,7 +229,7 @@ export function buildCases() {
   doc(`V2.string.utf8.${size}`,'diagnostic',d=>d.candidates[0].title='é'.repeat(Math.floor(size/2))+'a'.repeat(size%2),size>65536?bad('LIMIT','/candidates/0/title'):good,'V2','C4');
  }
  for(const size of [1048575,1048576,1048577]) {const raw=JSON.stringify(validBundle().diagnostic);push(`V2.parser.bytes.${size}`,'V2','C4','parser',raw+' '.repeat(size-Buffer.byteLength(raw)),size>1048576?bad('LIMIT',''):good,'diagnostic');}
- for(const properties of [999,1000,1001]) {const data={};for(let i=0;i<properties;i++)data[`field-${i}`]=1;const expected=properties>1000?bad('LIMIT',''):{ok:false,errors:[...Object.keys(syntax.diagnostic.fields).map(field=>({code:'REQUIRED',path:`/${field}`})),...Object.keys(data).map(field=>({code:'UNKNOWN_FIELD',path:`/${field}`}))].sort((a,b)=>a.code.localeCompare(b.code)||a.path.localeCompare(b.path))};push(`V2.object.properties.${properties}`,'V2','C4','document',data,expected,'diagnostic');}
+ for(const properties of [999,1000,1001]) {const data={kind:'diagnostic',version:1};for(let i=0;i<properties-2;i++)data[`field-${i}`]=1;const expected=properties>1000?bad('LIMIT',''):{ok:false,errors:[...Object.keys(syntax.diagnostic.fields).filter(field=>field!=='kind'&&field!=='version').map(field=>({code:'REQUIRED',path:`/${field}`})),...Object.keys(data).filter(field=>field.startsWith('field-')).map(field=>({code:'UNKNOWN_FIELD',path:`/${field}`}))].sort((a,b)=>a.code.localeCompare(b.code)||a.path.localeCompare(b.path))};push(`V2.object.properties.${properties}`,'V2','C4','document',data,expected,'diagnostic');}
  for(const properties of [999,1000,1001]){const data=validBundle();for(let i=0;i<properties-5;i++)data[`field-${i}`]=1;const expected=properties>1000?bad('LIMIT',''):{ok:false,errors:Array.from({length:properties-5},(_,i)=>({code:'UNKNOWN_FIELD',path:`/field-${i}`})).sort((a,b)=>a.path.localeCompare(b.path))};push(`V2.envelope.properties.${properties}`,'V2','C4','bundle',data,expected);}
  for(const depth of [31,32,33]) {const data=validBundle().diagnostic;let current=data;let path='';for(let n=2;n<=depth;n++){current.extra={};current=current.extra;path+='/extra';}const errors=[{code:'UNKNOWN_FIELD',path:'/extra'}];if(depth>32)errors.unshift({code:'LIMIT',path});push(`V2.depth.${depth}`,'V2','C4','document',data,{ok:false,errors},'diagnostic');}
  doc('V5.pointer-escaping','diagnostic',d=>d['a~/b']=true,bad('UNKNOWN_FIELD','/a~0~1b'),'V5','C11');
@@ -248,8 +248,8 @@ export function buildCases() {
  push('V5.bundle-scalar','V5','C11','bundle',null,bad('TYPE',''));
  // ---- content-hash spec v1 obligations (ids carry the CH- prefix because V1..V10 names collide with earlier specs)
  for(const kind of Object.keys(syntax)) for(const version of [0,1,1.5,kind==='lesson'?3:2]) {
-  const input=clone(validBundle()[kind]);input.version=version;reseal(input);
-  rawPush(`CH-V1.version.${kind}.${version}`,'CH-V1','C7','document',input,version===EXPECTED_VERSION[kind]?good:bad('VERSION','/version'),kind);
+  const input=clone(validBundle()[kind]);input.version=version;if(kind==='diagnostic'&&version===2)input.reactions=[{round:1,candidateId:'candidate-a',reaction:'similar',askedBack:null}];reseal(input);
+  rawPush(`CH-V1.version.${kind}.${version}`,'CH-V1','C7','document',input,version===EXPECTED_VERSION[kind]||(kind==='diagnostic'&&version===2)?good:bad('VERSION','/version'),kind);
  }
  {
   const valid=validBundle().result.contentHash, hex=valid.slice('sha256-'.length);

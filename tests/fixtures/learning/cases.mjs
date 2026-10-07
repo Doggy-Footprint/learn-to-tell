@@ -208,6 +208,5 @@ export const T53_IDS = [...T53_RANGE.map(x => x.id), ...T53_STORAGE.map(x => x.i
 
 export const E2E_ITEMS_T53 = ['T53-V8.stage-content', 'T53-V8.cards', 'T53-V8.hints', 'T53-V8.fields', 'T53-V8.output-bars', 'T53-V8.display-strings', 'T53-V8.bar-width-100', 'T53-V8.C12',
   'T53-V9.flow', 'T53-V9.range', 'T53-V9.display-strings', 'T53-V9.tables-bars', 'T53-V9.content-cards', 'T53-V9.no-manufacturing-text',
-  'T53-V10.states', 'T53-V10.keyboard', 'T53-V10.axe.round1', 'T53-V10.axe.last', 'T53-V10.network', 'T53-V10.no-persist', 'T53-V10.single-round',
-  'T53-V11.omitted', 'T53-V11.lesson', 'T53-V11.diagnostic', 'T53-V11.other', 'T53-V11.dist-missing', 'T53-V11.unknown-flag', 'T53-V13.lesson-screen', 'T53-V13.diagnostic-screen'];
+  'T53-V11.omitted', 'T53-V11.other', 'T53-V11.dist-missing', 'T53-V11.unknown-flag', 'T54-O5.target-diagnostic', 'T54-O5.target-lesson', 'T53-V13.lesson-screen'];
 export const E2E_ITEMS = [...E2E_ITEMS_LEGACY, ...E2E_ITEMS_T53];

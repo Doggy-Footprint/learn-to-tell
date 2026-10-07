@@ -2020,52 +2020,7 @@
     "obligationId": "T53-V9"
   },
   {
-    "id": "T53-V10.states",
-    "layer": "e2e",
-    "obligationId": "T53-V10"
-  },
-  {
-    "id": "T53-V10.keyboard",
-    "layer": "e2e",
-    "obligationId": "T53-V10"
-  },
-  {
-    "id": "T53-V10.axe.round1",
-    "layer": "e2e",
-    "obligationId": "T53-V10"
-  },
-  {
-    "id": "T53-V10.axe.last",
-    "layer": "e2e",
-    "obligationId": "T53-V10"
-  },
-  {
-    "id": "T53-V10.network",
-    "layer": "e2e",
-    "obligationId": "T53-V10"
-  },
-  {
-    "id": "T53-V10.no-persist",
-    "layer": "e2e",
-    "obligationId": "T53-V10"
-  },
-  {
-    "id": "T53-V10.single-round",
-    "layer": "e2e",
-    "obligationId": "T53-V10"
-  },
-  {
     "id": "T53-V11.omitted",
-    "layer": "e2e",
-    "obligationId": "T53-V11"
-  },
-  {
-    "id": "T53-V11.lesson",
-    "layer": "e2e",
-    "obligationId": "T53-V11"
-  },
-  {
-    "id": "T53-V11.diagnostic",
     "layer": "e2e",
     "obligationId": "T53-V11"
   },
@@ -2085,12 +2040,17 @@
     "obligationId": "T53-V11"
   },
   {
-    "id": "T53-V13.lesson-screen",
+    "id": "T54-O5.target-diagnostic",
     "layer": "e2e",
-    "obligationId": "T53-V13"
+    "obligationId": "T54-O5"
   },
   {
-    "id": "T53-V13.diagnostic-screen",
+    "id": "T54-O5.target-lesson",
+    "layer": "e2e",
+    "obligationId": "T54-O5"
+  },
+  {
+    "id": "T53-V13.lesson-screen",
     "layer": "e2e",
     "obligationId": "T53-V13"
   }

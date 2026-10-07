@@ -153,6 +153,20 @@ function diagnosticSemantics(document, path, errors) {
   if (document.selection !== null) reference(candidates, document.selection, pointer(path, 'selection'), errors);
   if ((document.confirmation === 'confirmed') !== (document.selection !== null)) add(errors, 'STATE', pointer(path, 'confirmation'));
   for (let index = 0; index < document.hypotheses.length; index++) reference(candidates, document.hypotheses[index].candidateId, `${path}/hypotheses/${index}/candidateId`, errors);
+  if (document.version === 2) reactionSemantics(document.reactions, candidates, path, errors);
+}
+function reactionSemantics(reactions, candidates, path, errors) {
+  const seen = new Set();
+  const last = Math.max(...reactions.map(item => item.round));
+  for (let index = 0; index < reactions.length; index++) {
+    const item = reactions[index];
+    const child = `${path}/reactions/${index}`;
+    if (item.round > 2) add(errors, 'RANGE', `${child}/round`);
+    const identity = `${item.round}:${item.candidateId}`;
+    if (seen.has(identity)) add(errors, 'DUPLICATE', child);
+    seen.add(identity);
+    if (item.round === last) reference(candidates, item.candidateId, `${child}/candidateId`, errors);
+  }
 }
 function idReferences(values, targets, path, errors) {
   const ids = new Set();

@@ -256,3 +256,49 @@ const un = (code, under) => ({code, under});
   add('V8.symbol.model-binding.declaration', ['V8.symbol'], 'modelBinding', () => { const declaration = mxDeclaration(); declaration[Symbol('hostile')] = SECRET; return {input: {declaration, lesson: mxLesson()}}; }, {has: [{code: 'TYPE', re: /^\/model$/}]});
   add('V8.symbol.oracle-binding.oracle', ['V8.symbol'], 'oracleBinding', () => { const oracle = mxOracle(); oracle.cases[0][Symbol('hostile')] = SECRET; return {input: {oracle, lesson: mxLesson()}}; }, {has: [{code: 'TYPE', re: /^\/oracle$|\/cases\/0$/}]});
 }
+
+// ---- T5-4 (spec 7e3b1a94c2d05f68 v1): diagnostic v2 `reactions`. Expected values are written from the spec Cases, not from contracts/. ----
+export const reactionOf = (round, candidateId, reaction, askedBack = null) => ({round, candidateId, reaction, askedBack});
+// The base diagnostic has one final-round candidate, `candidate-a` (validBundle). Round 1 names a candidate that is no longer in the document (A1).
+export const diagV2 = (reactions = [reactionOf(1, 'candidate-x', 'surprising', '이 개념이 무엇인가요?'), reactionOf(2, 'candidate-a', 'similar', null)]) => ({...clone(validBundle().diagnostic), version: 2, reactions});
+export const diagV1 = () => clone(validBundle().diagnostic);
+const at54 = (id, items, build, expect) => add(id, items, 'diagnostic', build, expect);
+const fieldCase = (id, item, mutate, expect) => at54(id, [item], () => { const d = diagV2([reactionOf(2, 'candidate-a', 'similar', null)]); mutate(d.reactions[0], d); return d; }, expect);
+{
+  // O1 (C1, C2, C14, C5, C6, C8-C11): classification tree + two-value boundaries.
+  at54('T54-O1.v2-valid', ['T54-O1.version.2', 'T54-O1.round.valid', 'T54-O1.askedBack.string', 'T54-O1.askedBack.null'], () => diagV2(), good);
+  at54('T54-O1.v1-valid', ['T54-O1.version.1'], diagV1, good);
+  at54('T54-O1.version-3', ['T54-O1.version.3'], () => ({...diagV2(), version: 3}), {has: [ex('VERSION', '/version')]});
+  at54('T54-O1.v1-with-reactions', ['T54-O1.presence.v1-with-reactions'], () => ({...diagV1(), reactions: [reactionOf(2, 'candidate-a', 'similar')]}), {has: [ex('UNKNOWN_FIELD', '/reactions')]});
+  at54('T54-O1.v2-without-reactions', ['T54-O1.presence.v2-without-reactions'], () => { const d = diagV2(); delete d.reactions; return d; }, {has: [ex('REQUIRED', '/reactions')]});
+  at54('T54-O1.reactions-empty', ['T54-O1.reactions.len0'], () => diagV2([]), {has: [ex('RANGE', '/reactions')]});
+  at54('T54-O1.reactions-one', ['T54-O1.reactions.len1'], () => diagV2([reactionOf(1, 'candidate-a', 'unknown')]), good);
+  for (const [name, value, code] of [['0', 0, 'RANGE'], ['3', 3, 'RANGE'], ['1.5', 1.5, 'VALUE'], ['string-1', '1', 'TYPE']]) {
+    fieldCase(`T54-O1.round-${name}`, `T54-O1.round.invalid-${name}`, r => { r.round = value; }, {has: [ex(code, '/reactions/0/round')]});
+  }
+  for (const round of [1, 2]) fieldCase(`T54-O1.round-valid-${round}`, 'T54-O1.round.valid', r => { r.round = round; }, good);
+  for (const value of ['similar', 'surprising', 'unknown', 'not-applicable']) fieldCase(`T54-O1.reaction-${value}`, 'T54-O1.reaction.valid', r => { r.reaction = value; }, good);
+  fieldCase('T54-O1.reaction-outside', 'T54-O1.reaction.invalid', r => { r.reaction = 'maybe'; }, {has: [ex('VALUE', '/reactions/0/reaction')]});
+  fieldCase('T54-O1.askedBack-string', 'T54-O1.askedBack.string', r => { r.askedBack = '무슨 뜻인가요?'; }, good);
+  fieldCase('T54-O1.askedBack-null', 'T54-O1.askedBack.null', r => { r.askedBack = null; }, good);
+  fieldCase('T54-O1.askedBack-number', 'T54-O1.askedBack.invalid-number', r => { r.askedBack = 7; }, {has: [ex('TYPE', '/reactions/0/askedBack')]});
+  fieldCase('T54-O1.askedBack-missing', 'T54-O1.askedBack.invalid-missing', r => { delete r.askedBack; }, {has: [ex('REQUIRED', '/reactions/0/askedBack')]});
+  fieldCase('T54-O1.unknown-key', 'T54-O1.unknownKey.invalid', r => { r.extra = true; }, {has: [ex('UNKNOWN_FIELD', '/reactions/0/extra')]});
+  // C8: three candidates, all four reaction values; (round, candidateId) is the identity, so one candidate may appear in two rounds.
+  at54('T54-O1.three-candidates-four-values', ['T54-O1.reaction.all-four'], () => {
+    const d = diagV2([reactionOf(1, 'cand-a', 'similar'), reactionOf(1, 'cand-b', 'surprising'), reactionOf(1, 'cand-c', 'unknown'), reactionOf(2, 'cand-a', 'not-applicable')]);
+    d.candidates = ['cand-a', 'cand-b', 'cand-c'].map(candidateId => ({...d.candidates[0], candidateId}));
+    d.selection = 'cand-a'; d.hypotheses = [{...d.hypotheses[0], candidateId: 'cand-a'}];
+    return d;
+  }, good);
+
+  // O2 (C7, C12, C13, C18, C19, C20): decision table over {duplicate pair, max-round reference, lower-round reference/format, selection null}.
+  at54('T54-O2.dup-pair', ['T54-O2.row1.duplicate-pair'], () => diagV2([reactionOf(1, 'candidate-a', 'similar'), reactionOf(1, 'candidate-a', 'unknown')]), {exact: [ex('DUPLICATE', '/reactions/1')]});
+  at54('T54-O2.same-candidate-other-round', ['T54-O2.row1.duplicate-pair'], () => diagV2([reactionOf(1, 'candidate-a', 'similar'), reactionOf(2, 'candidate-a', 'unknown')]), good);
+  at54('T54-O2.max-round-unknown-candidate', ['T54-O2.row2.max-round-reference'], () => diagV2([reactionOf(1, 'candidate-x', 'similar'), reactionOf(2, 'ghost', 'unknown')]), {exact: [ex('REFERENCE', '/reactions/1/candidateId')]});
+  at54('T54-O2.single-max-round-member', ['T54-O2.row3.only-max-round'], () => diagV2([reactionOf(1, 'candidate-a', 'similar')]), good);
+  at54('T54-O2.single-max-round-nonmember', ['T54-O2.row3.only-max-round'], () => diagV2([reactionOf(1, 'ghost', 'similar')]), {exact: [ex('REFERENCE', '/reactions/0/candidateId')]});
+  at54('T54-O2.lower-round-nonmember', ['T54-O2.row4.lower-round-valid-id'], () => diagV2([reactionOf(1, 'candidate-x', 'similar'), reactionOf(2, 'candidate-a', 'similar')]), good);
+  at54('T54-O2.lower-round-bad-format', ['T54-O2.row5.lower-round-bad-id'], () => diagV2([reactionOf(1, 'Bad Id', 'similar'), reactionOf(2, 'candidate-a', 'similar')]), {has: [{code: ['VALUE', 'TYPE'], path: '/reactions/0/candidateId'}]});
+  at54('T54-O2.selection-null', ['T54-O2.row6.selection-null'], () => { const d = diagV2(); d.selection = null; d.confirmation = 'deferred'; return d; }, good);
+}

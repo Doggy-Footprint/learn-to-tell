@@ -1,13 +1,11 @@
 import fs from 'node:fs/promises';
 import {parseArgs} from 'node:util';
 import {checkFail, checkModel} from '../authoring/check-model.mjs';
-import {diagnoseOutcome} from '../authoring/diagnose.mjs';
 import {placeDiagnostic, placeLesson, setNextPaths} from '../authoring/place.mjs';
 import {fail} from '../knowledge/store.mjs';
 
 const usage = `usage:
   lesson.mjs check-model --lesson <lesson.json> --model <model.mjs> --oracle <oracle.json>
-  lesson.mjs diagnose --choices <choices.json> --hypotheses <hypotheses.json>
   lesson.mjs place-diagnostic <diagnostic.json>
   lesson.mjs place-lesson <lesson.json> --model <model.mjs> --oracle <oracle.json>
   lesson.mjs set-next-paths <profileId> <nextPaths.json>
@@ -15,7 +13,6 @@ const usage = `usage:
 
 const commands = {
   'check-model': {positionals: 0, flags: ['lesson', 'model', 'oracle']},
-  diagnose: {positionals: 0, flags: ['choices', 'hypotheses']},
   'place-diagnostic': {positionals: 1, flags: []},
   'place-lesson': {positionals: 1, flags: ['model', 'oracle']},
   'set-next-paths': {positionals: 2, flags: []},
@@ -48,10 +45,6 @@ async function run(command, args, values) {
     const {texts, outcome} = await readAll({nextPaths: args[1]});
     return outcome ?? setNextPaths(args[0], texts.nextPaths);
   }
-  if (command === 'diagnose') {
-    const {texts, outcome} = await readAll({choices: values.choices, hypotheses: values.hypotheses});
-    return outcome ?? diagnoseOutcome(texts.choices, texts.hypotheses);
-  }
   if (command === 'place-diagnostic') {
     const {texts, outcome} = await readAll({diagnostic: args[0]});
     return outcome ?? placeDiagnostic(texts.diagnostic);
@@ -67,7 +60,7 @@ async function run(command, args, values) {
 async function main(argv) {
   let parsed;
   try {
-    parsed = parseArgs({args: argv, allowPositionals: true, options: {lesson: {type: 'string'}, model: {type: 'string'}, oracle: {type: 'string'}, choices: {type: 'string'}, hypotheses: {type: 'string'}}});
+    parsed = parseArgs({args: argv, allowPositionals: true, options: {lesson: {type: 'string'}, model: {type: 'string'}, oracle: {type: 'string'}}});
   } catch {
     return usageError();
   }

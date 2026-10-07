@@ -9,7 +9,6 @@ import {computeContentHash} from '../contracts/content-hash.mjs';
 import {importResult} from '../knowledge/import.mjs';
 import {profileDir} from '../knowledge/paths.mjs';
 import {checkModel} from '../authoring/check-model.mjs';
-import {buildDiagnostic} from '../authoring/diagnose.mjs';
 import {placeDiagnostic, placeLesson, setNextPaths} from '../authoring/place.mjs';
 import {
   PROFILE as KB_PROFILE, tempHome, layout, makeChain, item, mapFor, sortedObs, wrapperText, truncatedText,
@@ -410,69 +409,13 @@ test('[V6.control] a pure model reports neither MUTATION nor NONDETERMINISTIC', 
 
 // ---------------------------------------------------------------- V7 (classification tree)
 const cand = id => ({candidateId: id, title: `Title ${id}`, decisionQuestion: `Question ${id}?`, reason: `Reason ${id}`, preview: `Preview ${id}`});
-const react = (candidateId, reaction) => ({candidateId, reaction});
-const hypothesis = (candidateId, category = 'common-knowledge-gap') => ({candidateId, category, rationale: `Rationale ${candidateId}`, status: 'hypothesis'});
-const round1 = () => ({candidates: [cand('cand-a'), cand('cand-b'), cand('cand-c')], reactions: [react('cand-a', 'similar'), react('cand-b', 'surprising'), react('cand-c', 'unknown')]});
-const round2 = () => ({candidates: [cand('inspection-candidate'), cand('cand-d')], reactions: [react('inspection-candidate', 'not-applicable'), react('cand-d', 'similar')]});
-const choicesOf = (...rounds) => ({kind: 'diagnostic-choices', version: 1, diagnosticId: 'inspection-diagnostic', profileId: PROFILE, contextKind: 'interest', rounds});
-const hypotheses = () => [hypothesis('inspection-candidate'), hypothesis('cand-d', 'unknown-concept')];
-const expectedDiagnostic = (candidates, hyps = hypotheses()) => ({kind: 'diagnostic', version: 1, diagnosticId: 'inspection-diagnostic', profileId: PROFILE, contextKind: 'interest', candidates, selection: null, confirmation: 'unconfirmed', hypotheses: hyps});
-function accepted(choices, hyps = hypotheses()) {
-  const out = buildDiagnostic(choices, hyps);
-  assert.equal(out.ok, true, JSON.stringify(out.errors));
-  assert.deepEqual(out.errors, []);
-  assert.deepEqual(out.diagnostic, expectedDiagnostic(choices.rounds.at(-1).candidates, hyps));
-  assert.deepEqual(validateDocument(out.diagnostic, 'diagnostic'), {ok: true, errors: []});
-}
-// A6: choices errors are INVALID-level errors with fixed paths; hypotheses errors use the diagnostic contract paths.
-function rejected(choices, hyps, ...expected) {
-  const out = buildDiagnostic(choices, hyps);
-  assert.equal(out.ok, false);
-  assert.equal(out.diagnostic, undefined);
-  wellFormed(out.errors);
-  for (const [code, pointer] of expected) assert.ok(out.errors.some(error => error.path === pointer && (code === undefined || error.code === code)), `expected ${pointer}: ${JSON.stringify(out.errors)}`);
-}
-const four = () => ['a', 'b', 'c', 'd'].map(id => cand(`cand-${id}`));
-test('[V7.valid C4] 2 rounds, all four reactions: last round candidates, selection null, unconfirmed', () => accepted(choicesOf(round1(), round2())));
-test('[V7.rounds=1 C9] a single round is accepted and used as the last round', () => accepted(choicesOf({candidates: [cand('inspection-candidate'), cand('cand-d')], reactions: [react('cand-d', 'similar')]})));
-test('[V7.rounds=0 C9] rejected at /rounds', () => rejected(choicesOf(), hypotheses(), [undefined, '/rounds']));
-test('[V7.rounds=3 C9] rejected at /rounds', () => rejected(choicesOf(round1(), round2(), round2()), hypotheses(), [undefined, '/rounds']));
-test('[V7.candidates=1] one candidate in the last round', () => accepted(choicesOf(round1(), {candidates: [cand('inspection-candidate')], reactions: []}), [hypothesis('inspection-candidate')]));
-test('[V7.candidates=3] three candidates in the last round', () => accepted(choicesOf(round2(), {candidates: [cand('inspection-candidate'), cand('cand-d'), cand('cand-e')], reactions: [react('cand-e', 'unknown')]})));
-test('[V7.candidates=0] last round without candidates is rejected at /rounds/1/candidates', () => rejected(choicesOf(round1(), {candidates: [], reactions: []}), [], [undefined, '/rounds/1/candidates']));
-test('[V7.candidates=4] last round with four candidates is rejected at /rounds/1/candidates', () => rejected(choicesOf(round1(), {candidates: four(), reactions: []}), [], [undefined, '/rounds/1/candidates']));
-test('[V7.candidates=4 first round] a first round with four candidates is rejected at /rounds/0/candidates', () => rejected(choicesOf({candidates: four(), reactions: []}, round2()), hypotheses(), [undefined, '/rounds/0/candidates']));
-test('[V7.reaction-undefined] a reaction outside the four values is rejected at .../reaction', () => {
-  const second = round2();
-  second.reactions[0].reaction = 'confused';
-  rejected(choicesOf(round1(), second), hypotheses(), [undefined, '/rounds/1/reactions/0/reaction']);
-});
-test('[V7.candidateId-unknown] reaction naming a candidate that exists nowhere is rejected at .../candidateId', () => {
-  const second = round2();
-  second.reactions.push(react('ghost', 'similar'));
-  rejected(choicesOf(round1(), second), hypotheses(), [undefined, '/rounds/1/reactions/2/candidateId']);
-});
-test('[V7.candidateId-other-round] reaction naming a candidate of another round is rejected at .../candidateId', () => {
-  const second = round2();
-  second.reactions.push(react('cand-a', 'similar'));
-  rejected(choicesOf(round1(), second), hypotheses(), [undefined, '/rounds/1/reactions/2/candidateId']);
-});
-test('[V7.candidateId-duplicate] a second reaction for one candidate in a round is rejected at .../candidateId', () => {
-  const first = round1();
-  first.reactions.push(react('cand-a', 'unknown'));
-  rejected(choicesOf(first, round2()), hypotheses(), [undefined, '/rounds/0/reactions/3/candidateId']);
-});
-test('[V7.hypotheses-contract-violation] status other than hypothesis is VALUE /hypotheses/0/status', () => {
-  const hyps = hypotheses();
-  hyps[0].status = 'confirmed';
-  rejected(choicesOf(round1(), round2()), hyps, ['VALUE', '/hypotheses/0/status']);
-});
-test('[V7.hypotheses-unknown-candidate] hypothesis about a candidate nowhere in the choices is REFERENCE /hypotheses/0/candidateId', () => rejected(choicesOf(round1(), round2()), [hypothesis('ghost')], ['REFERENCE', '/hypotheses/0/candidateId']));
-test('[V7.hypotheses-first-round-candidate] hypothesis about a candidate that is not in the last round is REFERENCE /hypotheses/0/candidateId', () => rejected(choicesOf(round1(), round2()), [hypothesis('cand-a')], ['REFERENCE', '/hypotheses/0/candidateId']));
 
 // ---------------------------------------------------------------- V8 (placement)
 const LESSON = baseLesson();
 const DIAG_TEXT = asText({kind: 'diagnostic', version: 1, diagnosticId: 'inspection-diagnostic', profileId: PROFILE, contextKind: 'interest', candidates: [cand('inspection-candidate')], selection: 'inspection-candidate', confirmation: 'confirmed', hypotheses: []});
+const reactionOf = (round, candidateId, reaction, askedBack = null) => ({round, candidateId, reaction, askedBack});
+const DIAG_V2 = {kind: 'diagnostic', version: 2, diagnosticId: 'inspection-diagnostic', profileId: PROFILE, contextKind: 'interest', candidates: [cand('inspection-candidate')], selection: 'inspection-candidate', confirmation: 'confirmed', hypotheses: [], reactions: [reactionOf(1, 'cand-a', 'similar'), reactionOf(2, 'inspection-candidate', 'unknown', '이게 무슨 뜻인가요?')]};
+const DIAG_V2_TEXT = asText(DIAG_V2);
 const rel = {
   diag: 'diagnostics/inspection-diagnostic.json',
   lesson: `lessons/${LESSON.lessonId}.${LESSON.lessonRevision}.json`,
@@ -556,6 +499,59 @@ test('[V8.diagnostic profileId-format C17] PROFILE before any fs call', async t 
   assert.equal(out.code, 'PROFILE');
   assert.deepEqual(calls, []);
 });
+test('[T54-O3.diagnostic-v2 none C4] a v2 document is placed at the same path with the input bytes, nothing else written', async t => {
+  const home = await tempHome(t);
+  const out = note('placeDiagnostic v2 none', await placeDiagnostic(DIAG_V2_TEXT, {home}));
+  assert.equal(out.ok, true);
+  assert.equal(out.action, 'placed');
+  assert.deepEqual(resolved(home, out.path), [abs(home, 'diag')]);
+  assert.equal(await readFile(abs(home, 'diag'), 'utf8'), DIAG_V2_TEXT);
+  assert.deepEqual(await names(home), [path.join('.learn-to-tell', 'profiles', PROFILE, rel.diag)]);
+});
+test('[T54-O3.diagnostic-v2 same C4] unchanged, bytes and mtime kept', async t => {
+  const home = await tempHome(t);
+  await seed(home, 'diag', DIAG_V2_TEXT);
+  const before = await snap(home);
+  const out = note('placeDiagnostic v2 same', await placeDiagnostic(DIAG_V2_TEXT, {home}));
+  assert.equal(out.ok, true);
+  assert.equal(out.action, 'unchanged');
+  assert.deepEqual(await snap(home), before);
+});
+test('[T54-O3.diagnostic-v2 different C4] CONFLICT naming the file, existing bytes and mtime kept', async t => {
+  const home = await tempHome(t);
+  await seed(home, 'diag', DIAG_V2_TEXT.replace('이게 무슨 뜻인가요?', '다른 질문'));
+  const before = await snap(home);
+  const out = note('placeDiagnostic v2 different', await placeDiagnostic(DIAG_V2_TEXT, {home}));
+  assert.equal(out.ok, false);
+  assert.equal(out.code, 'CONFLICT');
+  conflictNames(out, 'diag');
+  assert.deepEqual(await snap(home), before);
+});
+test('[T54-O3.diagnostic-v2 v1-then-v2 C4] a stored v1 document and a v2 document with other bytes are a CONFLICT, v1 bytes kept', async t => {
+  const home = await tempHome(t);
+  await seed(home, 'diag', DIAG_TEXT);
+  const before = await snap(home);
+  const out = note('placeDiagnostic v2 over v1', await placeDiagnostic(DIAG_V2_TEXT, {home}));
+  assert.equal(out.code, 'CONFLICT');
+  assert.deepEqual(await snap(home), before);
+});
+for (const [name, edit, code, pointer] of [
+  ['empty-reactions R2', d => { d.reactions = []; }, 'RANGE', '/reactions'],
+  ['duplicate-pair R3', d => { d.reactions = [reactionOf(1, 'cand-a', 'similar'), reactionOf(1, 'cand-a', 'unknown')]; }, 'DUPLICATE', '/reactions/1'],
+  ['max-round-reference R4', d => { d.reactions = [reactionOf(2, 'ghost', 'similar')]; }, 'REFERENCE', '/reactions/0/candidateId'],
+  ['missing-reactions R5', d => { delete d.reactions; }, 'REQUIRED', '/reactions'],
+]) {
+  test(`[T54-O3.diagnostic-v2 invalid ${name} C17] INVALID with ${code} ${pointer}, nothing written`, async t => {
+    const home = await tempHome(t);
+    const doc = structuredClone(DIAG_V2);
+    edit(doc);
+    const out = note(`placeDiagnostic v2 ${name}`, await placeDiagnostic(asText(doc), {home}));
+    assert.equal(out.ok, false);
+    assert.equal(out.code, 'INVALID');
+    assert.ok(out.errors.some(error => error.code === code && error.path === pointer), JSON.stringify(out.errors));
+    assert.deepEqual(await names(home), []);
+  });
+}
 test('[V8.lesson profileId-format C17] PROFILE before any fs call', async t => {
   const home = await tempHome(t);
   const {fs, calls} = recordingFs();
@@ -685,6 +681,19 @@ for (const [state, prepare] of Object.entries(profileStates)) {
     assert.deepEqual(await snap(home), before);
   });
 }
+// Q2: the existing rename-failure injection on a v2 document; changed files must be 0.
+for (const [state, prepare] of Object.entries(profileStates)) {
+  test(`[T54-Q2.fault rename-diagnostic v2 / ${state}] placeDiagnostic with reactions: IO, files and directories identical`, async t => {
+    const home = await tempHome(t);
+    await prepare(home);
+    const before = await snap(home);
+    const {fs, events} = placementFs(home, {fail: 'rename-diagnostic'});
+    const out = note(`placeDiagnostic v2 fault ${state}`, await placeDiagnostic(DIAG_V2_TEXT, {home, fs}));
+    assert.ok(events.length >= 1);
+    assert.equal(out.code, 'IO');
+    assert.deepEqual(await snap(home), before);
+  });
+}
 // VF3(b): only the oracle differs.
 for (const lessonState of ['lesson absent', 'lesson same']) {
   test(`[V8.oracle-differs / ${lessonState}] CONFLICT naming only the oracle, nothing written`, async t => {
@@ -719,18 +728,16 @@ test('[V8.Q3 C2 C4] a placed diagnostic and lesson are found by knowledge import
   const out = await importResult(JSON.stringify(result), {home});
   assert.equal(out.ok, true, JSON.stringify(out));
 });
-test('[V8.Q3 C4] a diagnostic made by buildDiagnostic and placed is found (no MISSING_DIAGNOSTIC)', async t => {
+test('[T54-O3.import-v2 C3] a v2 diagnostic placed by placeDiagnostic with the lesson lets the same-profile result import (imported)', async t => {
   const home = await tempHome(t);
-  const built = buildDiagnostic(choicesOf(round1(), round2()), hypotheses());
-  assert.equal(built.ok, true);
-  const text = JSON.stringify({...built.diagnostic, diagnosticId: LESSON.diagnosticId, contextKind: LESSON.contextKind, candidates: [cand(LESSON.candidateId)], hypotheses: []});
+  const text = JSON.stringify({...DIAG_V2, diagnosticId: LESSON.diagnosticId, contextKind: LESSON.contextKind, candidates: [cand(LESSON.candidateId)], selection: LESSON.candidateId});
   assert.equal((await placeDiagnostic(text, {home})).ok, true);
   assert.equal((await placeLesson(placeInput(), {home})).ok, true);
   const result = {kind: 'result', version: 2, resultId: 'result-1', profileId: PROFILE, lessonId: LESSON.lessonId, lessonRevision: LESSON.lessonRevision, baseMapRevision: 1, sequence: 1, previousResultId: null, state: 'partial', responses: [], assessments: []};
   result.contentHash = await computeContentHash(result);
   const out = await importResult(JSON.stringify(result), {home});
-  assert.notEqual(out.code, 'MISSING_DIAGNOSTIC');
-  assert.notEqual(out.code, 'MISSING_LESSON');
+  assert.equal(out.ok, true, JSON.stringify(out));
+  assert.equal(out.action, 'imported');
 });
 
 // ---------------------------------------------------------------- V9 (volume)

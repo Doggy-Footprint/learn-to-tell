@@ -43,17 +43,13 @@ async function put(dir, name, content) {
   return file;
 }
 const cand = id => ({candidateId: id, title: `Title ${id}`, decisionQuestion: `Question ${id}?`, reason: `Reason ${id}`, preview: `Preview ${id}`});
-const react = (candidateId, reaction) => ({candidateId, reaction});
-const CHOICES = {
-  kind: 'diagnostic-choices', version: 1, diagnosticId: 'inspection-diagnostic', profileId: PROFILE, contextKind: 'interest',
-  rounds: [
-    {candidates: [cand('cand-a'), cand('cand-b')], reactions: [react('cand-a', 'similar'), react('cand-b', 'surprising')]},
-    {candidates: [cand('inspection-candidate'), cand('cand-d')], reactions: [react('inspection-candidate', 'not-applicable'), react('cand-d', 'unknown')]},
-  ],
-};
 const HYPOTHESES = [{candidateId: 'inspection-candidate', category: 'common-knowledge-gap', rationale: 'Unknown decision variable', status: 'hypothesis'}];
-const EXPECTED_DIAGNOSTIC = {kind: 'diagnostic', version: 1, diagnosticId: 'inspection-diagnostic', profileId: PROFILE, contextKind: 'interest', candidates: CHOICES.rounds[1].candidates, selection: null, confirmation: 'unconfirmed', hypotheses: HYPOTHESES};
-const DIAGNOSTIC = {...EXPECTED_DIAGNOSTIC, selection: 'inspection-candidate', confirmation: 'confirmed'};
+const CANDIDATES = [cand('inspection-candidate'), cand('cand-d')];
+// Literal diagnostic documents: v1 characterises the pre-existing format, v2 is the T5-4 format (reactions).
+const DIAGNOSTIC = {kind: 'diagnostic', version: 1, diagnosticId: 'inspection-diagnostic', profileId: PROFILE, contextKind: 'interest', candidates: CANDIDATES, selection: 'inspection-candidate', confirmation: 'confirmed', hypotheses: HYPOTHESES};
+const reaction = (round, candidateId, kind, askedBack) => ({round, candidateId, reaction: kind, askedBack});
+const REACTIONS = [reaction(1, 'cand-a', 'similar', null), reaction(1, 'cand-b', 'surprising', '이 개념이 무엇인가요?'), reaction(2, 'inspection-candidate', 'not-applicable', null), reaction(2, 'cand-d', 'unknown', null)];
+const DIAGNOSTIC_V2 = {...DIAGNOSTIC, version: 2, reactions: REACTIONS};
 const NEXT_PATHS = [{pathId: 'path-n1', lessonId: 'lesson-a', conceptId: 'concept-b', conceptRevision: 2, reason: 'Defect escape', lessonStatus: 'placed'}];
 
 async function inputs(t) {
@@ -66,17 +62,16 @@ async function inputs(t) {
     lesson: await put(dir, 'lesson.json', asText(baseLesson())),
     model: EXAMPLE_MODEL,
     oracle: await put(dir, 'oracle.json', exampleOracleText()),
-    choices: await put(dir, 'choices.json', CHOICES),
-    hypotheses: await put(dir, 'hypotheses.json', HYPOTHESES),
     diagnostic: await put(dir, 'diagnostic.json', DIAGNOSTIC),
+    diagnosticV2: await put(dir, 'diagnostic-v2.json', DIAGNOSTIC_V2),
     nextPaths: await put(dir, 'nextPaths.json', NEXT_PATHS),
     missing: path.join(dir, 'absent.json'),
   };
 }
 const commands = {
   'check-model': f => ['check-model', '--lesson', f.lesson, '--model', f.model, '--oracle', f.oracle],
-  diagnose: f => ['diagnose', '--choices', f.choices, '--hypotheses', f.hypotheses],
   'place-diagnostic': f => ['place-diagnostic', f.diagnostic],
+  'place-diagnostic v2': f => ['place-diagnostic', f.diagnosticV2],
   'place-lesson': f => ['place-lesson', f.lesson, '--model', f.model, '--oracle', f.oracle],
   'set-next-paths': f => ['set-next-paths', KB_PROFILE, f.nextPaths],
 };
@@ -93,10 +88,9 @@ for (const [name, build] of Object.entries(commands)) {
     const out = outcomeOf(proc);
     assert.equal(out.ok, true);
     if (name === 'check-model') assert.deepEqual(out, {ok: true});
-    if (name === 'diagnose') assert.deepEqual(out.diagnostic, EXPECTED_DIAGNOSTIC);
-    if (name === 'place-diagnostic') {
+    if (name.startsWith('place-diagnostic')) {
       assert.equal(out.action, 'placed');
-      assert.equal(await readFile(path.join(f.home, '.learn-to-tell', 'profiles', PROFILE, 'diagnostics', 'inspection-diagnostic.json'), 'utf8'), JSON.stringify(DIAGNOSTIC));
+      assert.equal(await readFile(path.join(f.home, '.learn-to-tell', 'profiles', PROFILE, 'diagnostics', 'inspection-diagnostic.json'), 'utf8'), JSON.stringify(name.endsWith('v2') ? DIAGNOSTIC_V2 : DIAGNOSTIC));
     }
     if (name === 'place-lesson') {
       assert.equal(out.action, 'placed');
@@ -127,7 +121,6 @@ test('[V11.unknown command] exit 2, usage on stderr, empty stdout', async t => {
 });
 const missingFile = {
   'check-model': f => ['check-model', '--lesson', f.missing, '--model', f.model, '--oracle', f.oracle],
-  diagnose: f => ['diagnose', '--choices', f.missing, '--hypotheses', f.hypotheses],
   'place-diagnostic': f => ['place-diagnostic', f.missing],
   'place-lesson': f => ['place-lesson', f.missing, '--model', f.model, '--oracle', f.oracle],
   'set-next-paths': f => ['set-next-paths', KB_PROFILE, f.missing],
@@ -143,8 +136,6 @@ for (const [name, build] of Object.entries(missingFile)) {
 }
 // R17: JSON parse failure is an INVALID Outcome with a JSON error whose path is the input label.
 const jsonFailures = [
-  ['diagnose choices', f => ['diagnose', '--choices', f.broken, '--hypotheses', f.hypotheses], '/choices'],
-  ['diagnose hypotheses', f => ['diagnose', '--choices', f.choices, '--hypotheses', f.broken], '/hypotheses'],
   ['check-model lesson', f => ['check-model', '--lesson', f.broken, '--model', f.model, '--oracle', f.oracle]],
   ['check-model oracle', f => ['check-model', '--lesson', f.lesson, '--model', f.model, '--oracle', f.broken]],
   ['place-diagnostic document', f => ['place-diagnostic', f.broken]],
@@ -180,10 +171,38 @@ test('[V11.failure outcome exit 1] a rejected model is a CHECK Outcome with code
   const out = assertFailureOutcome(run(f.home, 'check-model', '--lesson', f.lesson, '--model', model, '--oracle', f.oracle), 'CHECK');
   assert.deepEqual(out.errors, [{code: 'REVISION', path: '/model/modelRevision'}]);
 });
-test('[V11.diagnose C9] zero rounds is an INVALID Outcome (exit 1)', async t => {
+test('[T54-O5.diagnose C15] lesson.mjs diagnose is a usage error: exit 2, empty stdout, usage without diagnose, nothing written', async t => {
+  const home = await tempHome(t);
+  const proc = run(home, 'diagnose', '--choices', 'a', '--hypotheses', 'b');
+  assertUsageError(proc);
+  assert.equal(proc.stderr.includes('diagnose'), false, proc.stderr);
+  assert.deepEqual(await treeOf(home), []);
+});
+test('[T54-O5.usage-text R8] the usage text names the four remaining commands and never diagnose', async t => {
+  const home = await tempHome(t);
+  for (const args of [[], ['frobnicate']]) {
+    const proc = run(home, ...args);
+    assertUsageError(proc);
+    assert.equal(proc.stderr.includes('diagnose'), false, proc.stderr);
+    for (const command of ['check-model', 'place-diagnostic', 'place-lesson', 'set-next-paths']) assert.ok(proc.stderr.includes(command), `${command} in usage: ${proc.stderr}`);
+  }
+});
+test('[T54-O3.place-diagnostic-v2-rerun C4] the CLI re-places v2: same bytes unchanged, different bytes CONFLICT, existing file kept', async t => {
   const f = await inputs(t);
-  const choices = await put(f.dir, 'zero.json', {...CHOICES, rounds: []});
-  assertFailureOutcome(run(f.home, 'diagnose', '--choices', choices, '--hypotheses', f.hypotheses), 'INVALID');
+  const target = path.join(f.home, '.learn-to-tell', 'profiles', PROFILE, 'diagnostics', 'inspection-diagnostic.json');
+  assert.equal(outcomeOf(run(f.home, 'place-diagnostic', f.diagnosticV2)).action, 'placed');
+  const first = await readFile(target, 'utf8');
+  assert.equal(outcomeOf(run(f.home, 'place-diagnostic', f.diagnosticV2)).action, 'unchanged');
+  const other = await put(f.dir, 'diagnostic-v2-other.json', {...DIAGNOSTIC_V2, reactions: [...REACTIONS.slice(0, 3), reaction(2, 'cand-d', 'similar', null)]});
+  assertFailureOutcome(run(f.home, 'place-diagnostic', other), 'CONFLICT');
+  assert.equal(await readFile(target, 'utf8'), first);
+});
+test('[T54-O3.place-diagnostic-duplicate-pair C17] a v2 document with a repeated (round, candidateId) is an INVALID Outcome (exit 1) and writes nothing', async t => {
+  const f = await inputs(t);
+  const file = await put(f.dir, 'dup.json', {...DIAGNOSTIC_V2, reactions: [REACTIONS[0], {...REACTIONS[0], reaction: 'unknown'}]});
+  const out = assertFailureOutcome(run(f.home, 'place-diagnostic', file), 'INVALID');
+  assert.ok(out.errors.some(e => e.code === 'DUPLICATE' && e.path === '/reactions/1'), JSON.stringify(out.errors));
+  assert.deepEqual(await treeOf(f.home), []);
 });
 test('[V11.place-diagnostic C17] a document with a malformed profileId is a PROFILE Outcome and writes nothing', async t => {
   const f = await inputs(t);

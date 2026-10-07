@@ -823,7 +823,7 @@ t53('T53-V5.extractor-controls', 'the specifier extractor finds static, side-eff
   assert.deepEqual(specifiersOf('const s = "import x from nowhere";'), []);
 });
 t53('T53-V5.sources', 'no learning/*.mjs, site/**/*.js or site index.md import specifier contains examples/ (R2, Q7)', () => {
-  const pages = ['site/src/index.md', 'site/diagnostic/index.md'].map(f => join(root, f));
+  const pages = ['site/src/index.md'].map(f => join(root, f));
   for (const f of pages) assert.ok(existsSync(f), `${f} exists`);
   const files = [...walk(join(root, 'learning'), n => n.endsWith('.mjs')), ...walk(join(root, 'site'), n => n.endsWith('.js')), ...pages];
   assert.ok(files.some(f => f.endsWith('learning/progress.mjs')) && files.some(f => f.includes('/site/')), `files found: ${files.length}`);

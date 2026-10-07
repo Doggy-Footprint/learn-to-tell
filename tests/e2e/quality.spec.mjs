@@ -6,7 +6,7 @@ import {networkInterfaces} from 'node:os';
 import {request} from 'node:http';
 import {fileURLToPath} from 'node:url';
 import {tid, gotoFresh, toSimulation, show, fillPrediction, TRANSFER_PRED} from './helpers.mjs';
-import {buildDiagnostic, startServe, http as httpGet} from './builds.mjs';
+import {startServe, http as httpGet} from './builds.mjs';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -117,11 +117,9 @@ test('[V6.serve] serve script: first stdout line URL, loopback-only, no-cache, s
 });
 
 
-// ---- V11: serve --target (R18). Ports are distinct from the Playwright web server (4321).
-const DIAG_SETUP = 'tests/fixtures/diagnostic/setup.one-round.json';
+// ---- V11 / T54-O5: serve has no --target option (R9, A2). Ports are distinct from the Playwright web server (4321).
 test.describe('[T53-V11] serve --target', () => {
   test.describe.configure({mode: 'serial'});
-  test.beforeAll(() => { buildDiagnostic(DIAG_SETUP); });
   const bodyOf = path => readFileSync(`${root}${path}/index.html`, 'utf8');
   async function served(args, port) {
     const s = startServe([...args, '--port', String(port)]);
@@ -133,22 +131,22 @@ test.describe('[T53-V11] serve --target', () => {
   function exitOf(args) {
     return new Promise(resolve => {
       const child = spawn(process.execPath, ['scripts/serve.mjs', ...args], {cwd: root});
-      let stderr = ''; child.stderr.on('data', d => { stderr += d; });
-      const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({code: 'timeout', stderr}); }, 20000);
-      child.on('exit', code => { clearTimeout(timer); resolve({code, stderr}); });
+      let stdout = '', stderr = ''; child.stdout.on('data', d => { stdout += d; }); child.stderr.on('data', d => { stderr += d; });
+      const timer = setTimeout(() => { child.kill('SIGTERM'); resolve({code: 'timeout', stdout, stderr}); }, 20000);
+      child.on('exit', code => { clearTimeout(timer); resolve({code, stdout, stderr}); });
     });
   }
   test('[T53-V11.omitted] without --target the lesson build (dist/) is served', async () => {
     expect(await served([], 4326)).toBe(bodyOf('dist'));
   });
-  test('[T53-V11.lesson] --target lesson serves dist/', async () => {
-    expect(await served(['--target', 'lesson'], 4327)).toBe(bodyOf('dist'));
-  });
-  test('[T53-V11.diagnostic] --target diagnostic serves dist-diagnostic/', async () => {
-    const body = await served(['--target', 'diagnostic'], 4328);
-    expect(body).toBe(bodyOf('dist-diagnostic'));
-    expect(body).not.toBe(bodyOf('dist'));
-  });
+  async function rejectsTarget(value, port) {
+    const r = await exitOf(['--target', value, '--port', String(port)]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain('ARGUMENT --target');
+    expect(r.stdout).toBe('');
+  }
+  test('[T54-O5.target-diagnostic] --target diagnostic exits 2 with ARGUMENT --target and starts no server (R9, C16)', async () => { await rejectsTarget('diagnostic', 4328); });
+  test('[T54-O5.target-lesson] --target lesson exits 2 with ARGUMENT --target and starts no server (R9, C16)', async () => { await rejectsTarget('lesson', 4327); });
   test('[T53-V11.other] --target with any other value exits 2 with ARGUMENT --target', async () => {
     const r = await exitOf(['--target', 'bogus', '--port', '4329']);
     expect(r.code).toBe(2);
@@ -159,13 +157,14 @@ test.describe('[T53-V11] serve --target', () => {
     expect(r.code).toBe(2);
     expect(r.stderr).toContain('ARGUMENT --bogus');
   });
-  test('[T53-V11.dist-missing] a missing target index.html exits 1 with DIST_MISSING', async () => {
-    const dir = `${root}dist-diagnostic`, parked = `${root}dist-diagnostic.parked-by-test`;
-    renameSync(dir, parked);
+  test('[T53-V11.dist-missing] a missing dist/index.html exits 1 with DIST_MISSING dist/index.html', async () => {
+    const file = `${root}dist/index.html`, parked = `${root}dist/index.html.parked-by-test`;
+    renameSync(file, parked);
     try {
-      const r = await exitOf(['--target', 'diagnostic', '--port', '4330']);
+      const r = await exitOf(['--port', '4330']);
       expect(r.code).toBe(1);
-      expect(r.stderr).toMatch(/DIST_MISSING .*dist-diagnostic[\\/]index\.html/);
-    } finally { renameSync(parked, dir); }
+      expect(r.stderr).toMatch(/DIST_MISSING dist[\\/]index\.html/);
+      expect(r.stdout).toBe('');
+    } finally { renameSync(parked, file); }
   });
 });

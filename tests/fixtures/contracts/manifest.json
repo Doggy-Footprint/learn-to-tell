@@ -160,10 +160,10 @@
     }
   },
   {
-    "id": "V1.diagnostic.version-2..version",
+    "id": "V1.diagnostic.version-3..version",
     "obligationId": "V1",
     "caseId": "C6",
-    "inputFixture": "cases.mjs#V1.diagnostic.version-2..version",
+    "inputFixture": "cases.mjs#V1.diagnostic.version-3..version",
     "expected": {
       "ok": false,
       "errors": [
@@ -17027,8 +17027,8 @@
           "path": "/profileId"
         },
         {
-          "code": "VERSION",
-          "path": "/version"
+          "code": "VALUE",
+          "path": "/contextKind"
         }
       ]
     }
@@ -25823,19 +25823,11 @@
         },
         {
           "code": "REQUIRED",
-          "path": "/kind"
-        },
-        {
-          "code": "REQUIRED",
           "path": "/profileId"
         },
         {
           "code": "REQUIRED",
           "path": "/selection"
-        },
-        {
-          "code": "REQUIRED",
-          "path": "/version"
         },
         {
           "code": "UNKNOWN_FIELD",
@@ -29824,14 +29816,6 @@
         {
           "code": "UNKNOWN_FIELD",
           "path": "/field-996"
-        },
-        {
-          "code": "UNKNOWN_FIELD",
-          "path": "/field-997"
-        },
-        {
-          "code": "UNKNOWN_FIELD",
-          "path": "/field-998"
         }
       ]
     }
@@ -29866,19 +29850,11 @@
         },
         {
           "code": "REQUIRED",
-          "path": "/kind"
-        },
-        {
-          "code": "REQUIRED",
           "path": "/profileId"
         },
         {
           "code": "REQUIRED",
           "path": "/selection"
-        },
-        {
-          "code": "REQUIRED",
-          "path": "/version"
         },
         {
           "code": "UNKNOWN_FIELD",
@@ -33871,14 +33847,6 @@
         {
           "code": "UNKNOWN_FIELD",
           "path": "/field-997"
-        },
-        {
-          "code": "UNKNOWN_FIELD",
-          "path": "/field-998"
-        },
-        {
-          "code": "UNKNOWN_FIELD",
-          "path": "/field-999"
         }
       ]
     }
@@ -42372,13 +42340,8 @@
     "caseId": "C7",
     "inputFixture": "cases.mjs#CH-V1.version.diagnostic.2",
     "expected": {
-      "ok": false,
-      "errors": [
-        {
-          "code": "VERSION",
-          "path": "/version"
-        }
-      ]
+      "ok": true,
+      "errors": []
     }
   },
   {

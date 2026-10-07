@@ -29,6 +29,11 @@ const declaredItems = (() => {
   for (const l of ['v1', 'v2']) items.push(`V5.lesson.${l}`, `V5.result.${l}`);
   for (const o of ['duplicate', 'conflict', 'ok']) items.push(`V5.outcome.${o}`);
   for (const k of ['getter', 'symbol', 'cycle', 'depth', 'length', 'non-plain']) items.push(`V8.${k}`);
+  // T5-4 spec 7e3b1a94c2d05f68: O1 classification tree + boundaries, O2 decision-table rows (written from the spec, not from the fixtures).
+  items.push('T54-O1.version.1', 'T54-O1.version.2', 'T54-O1.version.3', 'T54-O1.presence.v1-with-reactions', 'T54-O1.presence.v2-without-reactions', 'T54-O1.reactions.len0', 'T54-O1.reactions.len1');
+  for (const c of ['valid', 'invalid-0', 'invalid-3', 'invalid-1.5', 'invalid-string-1']) items.push(`T54-O1.round.${c}`);
+  items.push('T54-O1.reaction.valid', 'T54-O1.reaction.invalid', 'T54-O1.reaction.all-four', 'T54-O1.askedBack.string', 'T54-O1.askedBack.null', 'T54-O1.askedBack.invalid-number', 'T54-O1.askedBack.invalid-missing', 'T54-O1.unknownKey.invalid');
+  items.push('T54-O2.row1.duplicate-pair', 'T54-O2.row2.max-round-reference', 'T54-O2.row3.only-max-round', 'T54-O2.row4.lower-round-valid-id', 'T54-O2.row5.lower-round-bad-id', 'T54-O2.row6.selection-null');
   return items;
 })();
 const caseItemNames = () => new Set(cases.flatMap(c => c.items));
@@ -107,6 +112,7 @@ function assertExpect(actual, expect) {
 }
 
 const runners = {
+  diagnostic: x => contractsIndex.validateDocument(x, 'diagnostic'),
   lesson: x => contractsIndex.validateDocument(x, 'lesson'),
   oracle: x => contractsIndex.validateDocument(x, 'oracle'),
   map: x => contractsIndex.validateDocument(x, 'map'),

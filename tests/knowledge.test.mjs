@@ -53,6 +53,36 @@ test('[V1.rule-1 no-map,new] imports into absent map as generation 1, revision u
   assert.deepEqual(await strayFiles(home), []);
 });
 
+// T5-4: the stored diagnostic may be v1 (no reactions) or v2 (reactions); import accepts both (R5, R6, Q1).
+const diagnosticV2 = () => ({...makeDiagnostic(), version: 2, reactions: [
+  {round: 1, candidateId: 'candidate-x', reaction: 'surprising', askedBack: '이 개념은 무엇인가요?'},
+  {round: 2, candidateId: 'candidate-a', reaction: 'similar', askedBack: null}
+]});
+for (const [label, make, version] of [['v1', makeDiagnostic, 1], ['v2', diagnosticV2, 2]]) {
+  test(`[T54-Q1.import-diagnostic-${label}] a stored diagnostic of version ${version} lets the matching result import: imported, generation 1`, async t => {
+    const home = await tempHome(t);
+    await placeFixtures(home);
+    const doc = make();
+    assert.equal(doc.version, version);
+    assert.equal('reactions' in doc, version === 2);
+    await writeFile(path.join(layout(home).dir, 'diagnostics', 'diagnostic-a.json'), JSON.stringify(doc));
+    const [r1] = await makeChain([LEVELS[0]]);
+    const out = await importResult(textOf(r1), {home});
+    assert.equal(out.ok, true, JSON.stringify(out));
+    assert.equal(out.action, 'imported');
+    assert.equal(out.generation, 1);
+  });
+}
+test('[T54-O3.import-diagnostic-v2-invalid] a stored v2 diagnostic with a duplicate (round, candidateId) is INVALID under /diagnostic, nothing changes', async t => {
+  const world = await rejectionWorld(t);
+  const doc = diagnosticV2();
+  doc.reactions = [doc.reactions[0], {...doc.reactions[0], reaction: 'unknown'}];
+  await writeFile(path.join(layout(world.home).dir, 'diagnostics', 'diagnostic-a.json'), JSON.stringify(doc));
+  world.before = await snapshot(world.home);
+  const result = await makeResult({resultId: 'result-1', items: LEVELS[0]});
+  await expectRejected(world, textOf(result), 'INVALID', errors => assert.ok(errors.some(e => e.code === 'DUPLICATE' && e.path === '/diagnostic/reactions/1'), JSON.stringify(errors)), 'T54-O3.import-v2-invalid');
+});
+
 test('[V1.rule-2 map,new] imports into existing map as generation+1, keeps revision and single lesson', async t => {
   const home = await tempHome(t);
   await placeFixtures(home);
@@ -314,7 +344,7 @@ const underPath = prefix => errors => {
 for (const [label, file, prefix, mutate, code, errPath] of [
   ['lesson-version-3', 'lessons/lesson-a.1.json', '/lesson', l => { l.version = 3; }, 'VERSION', '/lesson/version'],
   ['lesson-minutes-under-15', 'lessons/lesson-a.1.json', '/lesson', l => { for (const a of l.activities) a.minutes = 2; }, 'RANGE', '/lesson/activities'],
-  ['diagnostic-version-2', 'diagnostics/diagnostic-a.json', '/diagnostic', d => { d.version = 2; }, 'VERSION', '/diagnostic/version']
+  ['diagnostic-version-3', 'diagnostics/diagnostic-a.json', '/diagnostic', d => { d.version = 3; }, 'VERSION', '/diagnostic/version']
 ]) {
   test(`[V4.${label}] valid JSON that breaks the ${prefix.slice(1)} contract: INVALID under ${prefix}, nothing changes`, async t => {
     const world = await rejectionWorld(t);
