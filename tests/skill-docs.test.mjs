@@ -20,21 +20,22 @@ const REMOVED_IDENTIFIERS = [
 
 // ---- O7 (C22, R10, R11): absent strings {5}, present strings {6}
 const ABSENT = [dash('build', 'diagnostic'), `--target ${'diag' + 'nostic'}`, `lesson.mjs ${'diag' + 'nose'}`, dash('diagnostic', 'choices'), dash('diagnostic', 'setup')];
-const PRESENT_SKILL = ['reactions', 'place-diagnostic', '한 번에 하나', '3', '2라운드', '$W/diagnostic.json'];
-const PRESENT_REFERENCE = ['reactions', 'askedBack'];
+// T5-4 concept ladder (spec 5a2c9e7d1b4f8036 O6): SKILL present strings {11}, reference present strings {4}.
+const PRESENT_SKILL = ['ladder', '사다리', 'known', 'vague', 'unknown', '5문항', 'reactions', 'place-diagnostic', '한 번에 하나', '2라운드', '$W/diagnostic.json'];
+const PRESENT_REFERENCE = ['ladder', 'reactions', 'askedBack', 'vague'];
 
 for (const file of [SKILL, REFERENCE]) {
-  for (const needle of ABSENT) test(`[T54-O7.absent ${file.split('/').pop()}] does not contain "${needle}" (R10, R11, C22)`, () => {
+  for (const needle of ABSENT) test(`[T54L-O6.absent ${file.split('/').pop()}] does not contain "${needle}" (R10, R11, C22)`, () => {
     assert.equal(read(file).includes(needle), false);
   });
   test(`[T54-O7.absent-diagnose-word ${file.split('/').pop()}] never mentions the removed diagnose command as a word (R10, R11)`, () => {
     assert.doesNotMatch(read(file), new RegExp(`\\b${'diag' + 'nose'}\\b`));
   });
 }
-for (const needle of PRESENT_SKILL) test(`[T54-O7.present SKILL.md] contains "${needle}" (R10, C22)`, () => {
+for (const needle of PRESENT_SKILL) test(`[T54L-O6.present SKILL.md] contains "${needle}" (R6, C16)`, () => {
   assert.equal(read(SKILL).includes(needle), true);
 });
-for (const needle of PRESENT_REFERENCE) test(`[T54-O7.present reference.md] contains "${needle}" (R11, C22)`, () => {
+for (const needle of PRESENT_REFERENCE) test(`[T54L-O6.present reference.md] contains "${needle}" (R7, C16)`, () => {
   assert.equal(read(REFERENCE).includes(needle), true);
 });
 test('[T54-O7.present askedBack] askedBack appears in the skill documents (R10 records asked-back reactions, R11 documents the field)', () => {

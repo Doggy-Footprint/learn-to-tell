@@ -414,7 +414,9 @@ const cand = id => ({candidateId: id, title: `Title ${id}`, decisionQuestion: `Q
 const LESSON = baseLesson();
 const DIAG_TEXT = asText({kind: 'diagnostic', version: 1, diagnosticId: 'inspection-diagnostic', profileId: PROFILE, contextKind: 'interest', candidates: [cand('inspection-candidate')], selection: 'inspection-candidate', confirmation: 'confirmed', hypotheses: []});
 const reactionOf = (round, candidateId, reaction, askedBack = null) => ({round, candidateId, reaction, askedBack});
-const DIAG_V2 = {kind: 'diagnostic', version: 2, diagnosticId: 'inspection-diagnostic', profileId: PROFILE, contextKind: 'interest', candidates: [cand('inspection-candidate')], selection: 'inspection-candidate', confirmation: 'confirmed', hypotheses: [], reactions: [reactionOf(1, 'cand-a', 'similar'), reactionOf(2, 'inspection-candidate', 'unknown', '이게 무슨 뜻인가요?')]};
+const ladderOf = (step, conceptId, answer, askedBack = null) => ({step, conceptId, label: `Label ${conceptId}`, answer, askedBack});
+const LADDER = [ladderOf(3, 'concept-mid', 'vague', '이게 무슨 뜻인가요?'), ladderOf(2, 'concept-low', 'known'), ladderOf(4, 'concept-high', 'unknown')];
+const DIAG_V2 = {kind: 'diagnostic', version: 2, diagnosticId: 'inspection-diagnostic', profileId: PROFILE, contextKind: 'interest', candidates: [cand('inspection-candidate')], selection: 'inspection-candidate', confirmation: 'confirmed', hypotheses: [], reactions: [reactionOf(1, 'cand-a', 'similar'), reactionOf(2, 'inspection-candidate', 'unknown', '이게 무슨 뜻인가요?')], ladder: LADDER};
 const DIAG_V2_TEXT = asText(DIAG_V2);
 const rel = {
   diag: 'diagnostics/inspection-diagnostic.json',
@@ -540,6 +542,11 @@ for (const [name, edit, code, pointer] of [
   ['duplicate-pair R3', d => { d.reactions = [reactionOf(1, 'cand-a', 'similar'), reactionOf(1, 'cand-a', 'unknown')]; }, 'DUPLICATE', '/reactions/1'],
   ['max-round-reference R4', d => { d.reactions = [reactionOf(2, 'ghost', 'similar')]; }, 'REFERENCE', '/reactions/0/candidateId'],
   ['missing-reactions R5', d => { delete d.reactions; }, 'REQUIRED', '/reactions'],
+  ['missing-ladder R4', d => { delete d.ladder; }, 'REQUIRED', '/ladder'],
+  ['empty-ladder R2', d => { d.ladder = []; }, 'RANGE', '/ladder'],
+  ['duplicate-step R3 C13', d => { d.ladder = [ladderOf(2, 'concept-a', 'known'), ladderOf(2, 'concept-b', 'unknown')]; }, 'DUPLICATE', '/ladder/1'],
+  ['duplicate-concept R3', d => { d.ladder = [ladderOf(1, 'concept-a', 'known'), ladderOf(2, 'concept-a', 'unknown')]; }, 'DUPLICATE', '/ladder/1'],
+  ['step-out-of-range R3', d => { d.ladder = [ladderOf(6, 'concept-a', 'known')]; }, 'RANGE', '/ladder/0/step'],
 ]) {
   test(`[T54-O3.diagnostic-v2 invalid ${name} C17] INVALID with ${code} ${pointer}, nothing written`, async t => {
     const home = await tempHome(t);
@@ -683,7 +690,7 @@ for (const [state, prepare] of Object.entries(profileStates)) {
 }
 // Q2: the existing rename-failure injection on a v2 document; changed files must be 0.
 for (const [state, prepare] of Object.entries(profileStates)) {
-  test(`[T54-Q2.fault rename-diagnostic v2 / ${state}] placeDiagnostic with reactions: IO, files and directories identical`, async t => {
+  test(`[T54-Q2.fault rename-diagnostic v2 / ${state}] placeDiagnostic with reactions and ladder: IO, files and directories identical`, async t => {
     const home = await tempHome(t);
     await prepare(home);
     const before = await snap(home);
@@ -694,6 +701,31 @@ for (const [state, prepare] of Object.entries(profileStates)) {
     assert.deepEqual(await snap(home), before);
   });
 }
+// Q2 with the ladder: the invalid-ladder case above and the fault case here share the same v2 document.
+test('[T54L-O3.ladder-fixture C2] the shared v2 fixture really carries the ladder', () => {
+  assert.deepEqual(DIAG_V2.ladder, LADDER);
+  assert.equal(DIAG_V2_TEXT.includes('"ladder"'), true);
+});
+test('[T54L-O3.diagnostic-v2-ladder different C2] CONFLICT when stored v2 differs only in a ladder answer, bytes and mtime kept', async t => {
+  const home = await tempHome(t);
+  const other = structuredClone(DIAG_V2);
+  other.ladder[1].answer = 'unknown';
+  await seed(home, 'diag', asText(other));
+  const before = await snap(home);
+  const out = note('placeDiagnostic ladder different', await placeDiagnostic(DIAG_V2_TEXT, {home}));
+  assert.equal(out.ok, false);
+  assert.equal(out.code, 'CONFLICT');
+  conflictNames(out, 'diag');
+  assert.deepEqual(await snap(home), before);
+});
+test('[T54L-O3.diagnostic-v2-ladder same C2] identical stored v2 bytes are not rewritten', async t => {
+  const home = await tempHome(t);
+  await seed(home, 'diag', DIAG_V2_TEXT);
+  const before = await snap(home);
+  const out = note('placeDiagnostic ladder same', await placeDiagnostic(DIAG_V2_TEXT, {home}));
+  assert.equal(out.action, 'unchanged');
+  assert.deepEqual(await snap(home), before);
+});
 // VF3(b): only the oracle differs.
 for (const lessonState of ['lesson absent', 'lesson same']) {
   test(`[V8.oracle-differs / ${lessonState}] CONFLICT naming only the oracle, nothing written`, async t => {
@@ -718,6 +750,17 @@ test('[V8.rename-order R14] model and oracle are renamed before the lesson, whic
   assert.equal(renames.length, 3, JSON.stringify(renames));
   assert.equal(renames.at(-1), abs(home, 'lesson'));
   assert.deepEqual(renames.slice(0, 2).sort(), [abs(home, 'model'), abs(home, 'oracle')].sort());
+});
+test('[T54L-O3.v2-ladder-place-import C2] a v2 diagnostic with a ladder is placed, then found by importResult with the lesson', async t => {
+  const home = await tempHome(t);
+  const placed = await placeDiagnostic(DIAG_V2_TEXT, {home});
+  assert.equal(placed.ok, true, JSON.stringify(placed));
+  assert.equal(placed.action, 'placed');
+  assert.equal((await placeLesson(placeInput(), {home})).ok, true);
+  const result = {kind: 'result', version: 2, resultId: 'result-1', profileId: PROFILE, lessonId: LESSON.lessonId, lessonRevision: LESSON.lessonRevision, baseMapRevision: 1, sequence: 1, previousResultId: null, state: 'partial', responses: [], assessments: []};
+  result.contentHash = await computeContentHash(result);
+  const out = await importResult(JSON.stringify(result), {home});
+  assert.equal(out.ok, true, JSON.stringify(out));
 });
 test('[V8.Q3 C2 C4] a placed diagnostic and lesson are found by knowledge importResult', async t => {
   const home = await tempHome(t);

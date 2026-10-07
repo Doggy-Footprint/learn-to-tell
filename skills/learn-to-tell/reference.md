@@ -14,16 +14,27 @@
  ],
  "selection": "sample-size", "confirmation": "confirmed",
  "hypotheses": [{"candidateId": "sample-size", "category": "unknown-concept", "rationale": "‘의외’ 반응: 검정력 개념을 모름", "status": "hypothesis"}],
+ "ladder": [
+   {"step": 2, "conceptId": "conversion-rate", "label": "전환율", "answer": "known", "askedBack": null},
+   {"step": 3, "conceptId": "statistical-power", "label": "검정력", "answer": "vague", "askedBack": "표본 수와 무슨 관계인지 물음"}
+ ],
  "reactions": [
    {"round": 1, "candidateId": "sample-size", "reaction": "unknown", "askedBack": "검정력이 무슨 뜻인지 물음"}
  ]}
 ```
+- `ladder`는 필수이며 1–5개다(0개나 6개 이상은 거부). 항목은 사다리에서 실제로 질문한 개념의 응답이다.
+  - `step`은 1–5 정수(사다리 위치), `conceptId`는 id 형식, `label`은 문자열.
+  - `answer`는 `known` | `vague` | `unknown`. `vague`는 사다리 이동에서 `unknown`처럼 아래로 가지만 기록은 구분한다.
+  - `askedBack`은 되물음 요약 문자열 또는 `null`.
+  - `step`끼리, `conceptId`끼리 중복 금지. `step`의 연속성, 항목 순서, 응답 간 일관성은 검사하지 않는다.
+- v1 diagnostic에는 `ladder`를 넣을 수 없고(`UNKNOWN_FIELD`), v2에서는 빼면 거부된다(`REQUIRED`).
 - `candidates` 1–3개(마지막 라운드 후보). `hypotheses`의 `candidateId`는 candidates 중 하나. category: `common-knowledge-gap` | `unknown-concept`, status는 항상 `hypothesis`.
-- `reactions`는 1개 이상. `round`는 1 또는 2, `reaction`은 `similar` | `surprising` | `unknown` | `not-applicable`, `askedBack`은 되물음 요약 문자열 또는 `null`.
+- `reactions`는 1개 이상. 사다리로 확정한 수준의 상황 카드 반응이다. `round`는 1 또는 2, `reaction`은 `similar` | `surprising` | `unknown` | `not-applicable`, `askedBack`은 되물음 요약 문자열 또는 `null`.
 - `(round, candidateId)` 쌍은 중복 금지. 가장 큰 round의 reaction은 `candidateId`가 `candidates`에 있어야 하고, 더 낮은 round의 reaction은 id 형식만 맞으면 된다.
+- `ladder`와 `candidates` 사이의 참조 관계는 검사하지 않는다.
 - `confirmation: "confirmed"` ⇔ `selection`이 candidateId(마지막 라운드 후보). `deferred`/`unconfirmed`는 `selection: null`.
 - 결과 import 시 diagnostic은 `confirmed`여야 하고, lesson의 `diagnosticId`·`candidateId`(= selection)·`contextKind`·`profileId`가 일치해야 한다.
-- version 1 diagnostic(`reactions` 없음)도 계속 유효하다. v1에 `reactions`를 넣거나 v2에서 빼면 거부된다.
+- version 1 diagnostic(`reactions`·`ladder` 없음)도 계속 유효하다. v1에 `reactions`를 넣거나 v2에서 빼면 거부된다.
 
 ## model.mjs
 

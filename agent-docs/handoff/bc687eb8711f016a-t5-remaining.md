@@ -13,6 +13,7 @@
 - T5-1 완료(커밋 "impl: T5-1 lesson v2 and model/oracle contract"): contracts/definitions.mjs, contracts/index.mjs, contracts/model.mjs, examples/manufacturing-inspection/{model.mjs,lesson-v2.mjs,oracle.json}, tests/contracts-v2.test.mjs, tests/fixtures/contracts-v2/, 기존 테스트 F8 예외 4건
 
 - T5-4 F2 변경(미커밋): contracts/{definitions,index}.mjs(diagnostic v2 reactions), scripts/{lesson,serve}.mjs, skills/learn-to-tell/{SKILL,reference}.md, .gitignore, 삭제(authoring/diagnose.mjs, learning/diagnostic-setup.mjs, scripts/build-diagnostic.mjs, site/diagnostic/), tests/ 이관·tests/skill-docs.test.mjs 신설
+- T5-4 F3 변경(미커밋, 2026-10-07): contracts/{definitions,index}.mjs(diagnostic v2 필수 `ladder`, migration 없음), skills/learn-to-tell/{SKILL,reference}.md 2단계 재작성(개념 사다리 → 상황 카드), ROADMAP §4 재작성·§5 시각화 미결 항목, tests/ 갱신. 설치된 테스트 프로젝트의 skill은 `scripts/install-skill.mjs`로 재설치해야 반영된다
 
 ## Failed Attempts
 | attempt | failure evidence | cause |
@@ -22,7 +23,7 @@
 ## Next Step
 1. **사용자 실행 검증 대기(2026-10-07)**: 테스트 프로젝트 2곳({ab-test-sample-size, base-rate-fallacy})에 최신 skill 설치됨. 사용자가 직접 실행 후 피드백 예정. 피드백은 User Feedback Backlog에 적립한다.
 2. 반영된 사용자 지시(2026-10-07): 진단 대화 설문(되묻기, `not-applicable`은 내부 재점검 후 필요 시 `unknown`으로 기록), 범위 합의 단계를 agent 자율 결정(사용자에게 묻지 않고 알리기만)으로 변경, 결과는 화면 "결과 제출" → serve `--out` 수신.
-3. 미정: 수업 화면 시각화(현재 출력 막대+표, 입력은 숫자 입력칸이나 생성된 lesson 본문은 "슬라이더"로 안내하는 불일치 관찰). 사용자 결정 필요.
+3. **미결(사용자 결정 2026-10-07: 이번엔 흐름만 하고 여기에 기록)**: 수업 화면 시각화. 사용자가 4321 화면을 보고 "너무한데, 더 interactive하고 눈이 즐거운 걸 기대"라고 피드백. 관찰: 스타일이 거의 없는 기본 HTML(제목·안내문·버튼·빈 숫자 입력칸 세로 나열), 입력은 숫자 입력칸인데 lesson 본문은 "슬라이더"로 안내하는 불일치, 출력은 막대+표. 방향(슬라이더, 실시간 그래프, 전후 비교 연출 등)과 ROADMAP §5의 텍스트·표 대체 표현 요건과의 양립은 미정. 대상 코드: `site/src/components/{ui.js,content.js,style.css}`. ROADMAP §5 말미에도 같은 항목을 적어 둠.
 4. T5-4 본체(SKILL.md·installer) spec은 미작성이며 지금까지 spec 없이 진행됨. 사용자 실행 검증 후 필요하면 정리한다.
 5. 미규명 간헐 실패(Open Questions)를 기준선과 비교해 원인 확인.
 
@@ -56,8 +57,11 @@
 | --- | --- | --- | --- | --- |
 | F1 | 2026-10-07 | 브라우저에서 JSON 파일을 내려받아 경로를 agent에게 전달하는 방식은 고쳐야 함 | 진단: `site/diagnostic/components/diagnostic.js` download(`diagnostic-choices-<id>.json`), 수업: `site/src/components/ui.js` 결과 Blob download(`result-<resultId>.json`); SKILL.md 2·7단계가 사용자에게 파일 경로를 받음 | 완료(커밋 23bad96·699e53f, 2026-10-07): 수업 화면 다운로드 제거, "결과 제출" → `serve.mjs --out <dir>`가 `POST /__ltt/result`로 수신, `http-server` 제거 |
 | F2 | 2026-10-07 | 진단 설문(상황 카드 반응)은 브라우저가 아니라 agent 대화에서 진행하는 게 낫다. 모르는 상태에서 카드에 반응하려니 "내가 아는 개념인지" 되묻고 싶은데 브라우저 페이지에서는 불가 | 진단 페이지 `site/diagnostic/`(카드 + 4가지 반응, 질문 경로 없음), `scripts/build-diagnostic.mjs`; SKILL.md 2단계가 진단을 브라우저로 보냄. T5-3 결정 "진단 페이지: 카드 2–3개, 조작 1개, 4가지 반응"과 충돌 | 완료(커밋 23bad96·699e53f, 2026-10-07): 대화 설문 전환, 진단 페이지·build-diagnostic·diagnostic-setup·diagnose CLI·serve `--target` 제거, diagnostic v2 `reactions`. F1의 진단 쪽은 소멸 |
+| F3 | 2026-10-07 | 진단에서 낯선 용어가 곧바로 나와 대처하기 힘들다. 프로젝트·질문·상황에 필요한 개념을 설명하고 아는지 물어(알면 위 단계, 모르면 아래 단계) 학습 수준을 정한 뒤, 현재처럼 상세 질문으로 세부 수준을 판별 | 진단 대화가 상황 카드 3장 반응부터 시작(모두 `unknown`이면 구분 불가) | 완료(2026-10-07, spec 5a2c9e7d1b4f8036): 개념 사다리 → 상황 카드, diagnostic v2 `ladder` |
+| F4 | 2026-10-07 | 수업 화면 시각화 개선 | 위 Next Step 3 | 미작업(사용자 결정으로 보류) |
 
 ## Open Questions
+- 간헐 실패 추가 관찰(2026-10-07, F3 검증 중 각 1회, 이어진 전체 실행은 통과): `tests/serve.test.mjs` `[O3.size]`의 `write EPIPE`(단독 15회 통과, 1 MiB 초과 업로드 시 서버가 먼저 연결을 닫는 경합 추정, hypothesis), `values.spec.mjs` V5.S3.reload 재발(단독 5회 통과)
 - 미규명 간헐 실패: `tests/e2e/values.spec.mjs` `[V5.S3.reload] defect-percent`가 `npm run verify` 중 약 8회 중 2회 6.2s 후 `input-defect-percent` 못 찾음(재실행·단독 24회 통과). 변경 전 기준선과 비교하지 못함
 - 없음
 
@@ -67,6 +71,7 @@
 - T5-3 archived: `agent-docs/spec-logs/65ba74b36b0ef5da-t5-3-generic-runtime-diagnostic-page.md`, version 3, status complete, run ID 65ba74b36b0ef5da
 - T5-4 F2 archived: `agent-docs/spec-logs/7e3b1a94c2d05f68-t5-4-conversational-diagnostic.md`, version 3, status complete, run ID 7e3b1a94c2d05f68
 - T5-4 F1 archived: `agent-docs/spec-logs/3c9d5e71a0b84f26-t5-4-result-submit-to-serve.md`, version 2, status complete, run ID 3c9d5e71a0b84f26
+- T5-4 F3 archived: `agent-docs/spec-logs/5a2c9e7d1b4f8036-t5-4-concept-ladder-diagnostic.md`, version 2, status complete, run ID 5a2c9e7d1b4f8036
 - T5-4 본체: spec 미작성(skill·installer는 spec 없이 진행됨)
 
 ## Execution Ledger
@@ -75,3 +80,4 @@
 - T5-3: F1–F7(구현 2, 테스트 3, spec 공백 1, 연쇄 1) 해결, verifier 1 retry(F-1·F-2·S-1–S-3·V13) → v3, verifier 2 pass, mutation M1–M3 검출, correction batches 3. 비차단 권고 A-1–A-3(archived spec). 루트 `observablehq.config.js` title은 제조 검사 문구로 남음(빌드가 scratch config에서 덮어씀)
 - T5-4 F2: 첫 verify 실패 F1–F6(spec C6 코드 1, 테스트 결함 5) 해결, verifier 1 → SC1(Q4 문구 모순) 사용자 승인으로 spec v3 정정, mutation M1–M3 검출, correction batches 2, verifier invocations 1. 비차단 권고 A1–A4(spec-log)
 - T5-4 F1: 첫 verify 실패(테스트 결함 2: 해시 변조 단언, 부재 요소 textContent) 해결, verifier 1 retry(F1–F3 증거 부족, S1 spec 공백) → 사용자 승인 spec v2, verifier 2 pass, mutation M1–M3 검출, correction batches 3, verifier invocations 2. 비차단 권고 A2·A3(spec-log), 위 간헐 실패
+- T5-4 F3: 첫 verify 통과, verifier 1 → F-T54L-1(항목 위치 `/ladder/0`만 검증) 확정(mutation M1이 초록), 테스트 `@2` 변형 추가로 해결, spec v2(길이 위반 코드 RANGE·LIMIT 명시), verifier 2 pass, mutation M1–M3 검출, correction batches 1, verifier invocations 2. 비차단 권고 A-T54L-2·A-T54L-3(spec-log)

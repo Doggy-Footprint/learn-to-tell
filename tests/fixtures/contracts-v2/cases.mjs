@@ -260,7 +260,10 @@ const un = (code, under) => ({code, under});
 // ---- T5-4 (spec 7e3b1a94c2d05f68 v1): diagnostic v2 `reactions`. Expected values are written from the spec Cases, not from contracts/. ----
 export const reactionOf = (round, candidateId, reaction, askedBack = null) => ({round, candidateId, reaction, askedBack});
 // The base diagnostic has one final-round candidate, `candidate-a` (validBundle). Round 1 names a candidate that is no longer in the document (A1).
-export const diagV2 = (reactions = [reactionOf(1, 'candidate-x', 'surprising', '이 개념이 무엇인가요?'), reactionOf(2, 'candidate-a', 'similar', null)]) => ({...clone(validBundle().diagnostic), version: 2, reactions});
+// T5-4 concept ladder (spec 5a2c9e7d1b4f8036 v1): v2 now requires `ladder` (R4, no migration), so the default v2 document carries a valid one (C1).
+export const ladderItem = (step, conceptId, answer, askedBack = null) => ({step, conceptId, label: `${conceptId} 라벨`, answer, askedBack});
+export const defaultLadder = () => [ladderItem(1, 'concept-low', 'known'), ladderItem(2, 'concept-mid', 'vague', '이 개념은 무엇인가요?'), ladderItem(3, 'concept-high', 'unknown')];
+export const diagV2 = (reactions = [reactionOf(1, 'candidate-x', 'surprising', '이 개념이 무엇인가요?'), reactionOf(2, 'candidate-a', 'similar', null)], ladder = defaultLadder()) => ({...clone(validBundle().diagnostic), version: 2, reactions, ladder});
 export const diagV1 = () => clone(validBundle().diagnostic);
 const at54 = (id, items, build, expect) => add(id, items, 'diagnostic', build, expect);
 const fieldCase = (id, item, mutate, expect) => at54(id, [item], () => { const d = diagV2([reactionOf(2, 'candidate-a', 'similar', null)]); mutate(d.reactions[0], d); return d; }, expect);
@@ -301,4 +304,47 @@ const fieldCase = (id, item, mutate, expect) => at54(id, [item], () => { const d
   at54('T54-O2.lower-round-nonmember', ['T54-O2.row4.lower-round-valid-id'], () => diagV2([reactionOf(1, 'candidate-x', 'similar'), reactionOf(2, 'candidate-a', 'similar')]), good);
   at54('T54-O2.lower-round-bad-format', ['T54-O2.row5.lower-round-bad-id'], () => diagV2([reactionOf(1, 'Bad Id', 'similar'), reactionOf(2, 'candidate-a', 'similar')]), {has: [{code: ['VALUE', 'TYPE'], path: '/reactions/0/candidateId'}]});
   at54('T54-O2.selection-null', ['T54-O2.row6.selection-null'], () => { const d = diagV2(); d.selection = null; d.confirmation = 'deferred'; return d; }, good);
+}
+
+// ---- T5-4 concept ladder (spec 5a2c9e7d1b4f8036 v1). Expected codes are written from the spec Cases and the existing array/integer conventions
+// (below min RANGE, above max LIMIT, non-integer VALUE, wrong type TYPE), not from contracts/. ----
+const at54L = (id, items, build, expect) => add(id, items, 'diagnostic', build, expect);
+const withLadder = ladder => { const d = diagV2(); d.ladder = ladder; return d; };
+// Every item-level rule applies to each ladder item, so each invalid-field row runs twice: alone at index 0 and as the third item of a valid 3-item ladder (index 2).
+const atIndex2 = expect => ({has: expect.has.map(m => ({...m, path: m.path.replace('/ladder/0/', '/ladder/2/')}))});
+const ladderField = (id, item, mutate, expect) => {
+  at54L(id, [item], () => { const d = withLadder([ladderItem(1, 'concept-a', 'known', null)]); mutate(d.ladder[0], d); return d; }, expect);
+  at54L(`${id}@2`, [`${item}@2`], () => { const d = withLadder([ladderItem(1, 'concept-a', 'known', null), ladderItem(2, 'concept-b', 'vague', null), ladderItem(3, 'concept-c', 'unknown', null)]); mutate(d.ladder[2], d); return d; }, atIndex2(expect));
+};
+const stepsOf = steps => steps.map((step, i) => ladderItem(step, `concept-${i}`, 'known'));
+{
+  // O1 (C1, C3, C4, C5, C7, C8, C9, C11, C12, C15): classification tree + two-value boundaries.
+  at54L('T54L-O1.v2-ladder-valid', ['T54L-O1.presence.v2-with', 'T54L-O1.answer.known', 'T54L-O1.answer.vague', 'T54L-O1.answer.unknown', 'T54L-O1.askedBack.string', 'T54L-O1.askedBack.null', 'T54L-O1.step.valid', 'T54L-O1.conceptId.valid', 'T54L-O1.label.valid'], () => diagV2(), good);
+  at54L('T54L-O1.v1-no-ladder', ['T54L-O1.presence.v1-without'], diagV1, good);
+  at54L('T54L-O1.v1-with-ladder', ['T54L-O1.presence.v1-with'], () => ({...diagV1(), ladder: defaultLadder()}), {has: [ex('UNKNOWN_FIELD', '/ladder')]});
+  at54L('T54L-O1.v2-without-ladder', ['T54L-O1.presence.v2-without'], () => { const d = diagV2(); delete d.ladder; return d; }, {has: [ex('REQUIRED', '/ladder')]});
+  at54L('T54L-O1.len-0', ['T54L-O1.len.0'], () => withLadder([]), {has: [ex('RANGE', '/ladder')]});
+  at54L('T54L-O1.len-1', ['T54L-O1.len.1'], () => withLadder(stepsOf([1])), good);
+  at54L('T54L-O1.len-5', ['T54L-O1.len.5'], () => withLadder(stepsOf([1, 2, 3, 4, 5])), good);
+  at54L('T54L-O1.len-6', ['T54L-O1.len.6'], () => withLadder(stepsOf([1, 2, 3, 4, 5, 5])), {has: [ex('LIMIT', '/ladder')]});
+  ladderField('T54L-O1.step-1.5', 'T54L-O1.step.invalid-1.5', i => { i.step = 1.5; }, {has: [ex('VALUE', '/ladder/0/step')]});
+  ladderField('T54L-O1.step-string', 'T54L-O1.step.invalid-string-1', i => { i.step = '1'; }, {has: [ex('TYPE', '/ladder/0/step')]});
+  ladderField('T54L-O1.conceptId-bad-format', 'T54L-O1.conceptId.invalid', i => { i.conceptId = 'Bad Id'; }, {has: [{code: ['VALUE', 'TYPE'], path: '/ladder/0/conceptId'}]});
+  ladderField('T54L-O1.label-missing', 'T54L-O1.label.invalid-missing', i => { delete i.label; }, {has: [ex('REQUIRED', '/ladder/0/label')]});
+  ladderField('T54L-O1.answer-outside', 'T54L-O1.answer.invalid', i => { i.answer = 'maybe'; }, {has: [ex('VALUE', '/ladder/0/answer')]});
+  ladderField('T54L-O1.askedBack-number', 'T54L-O1.askedBack.invalid-number', i => { i.askedBack = 7; }, {has: [ex('TYPE', '/ladder/0/askedBack')]});
+  ladderField('T54L-O1.askedBack-missing', 'T54L-O1.askedBack.invalid-missing', i => { delete i.askedBack; }, {has: [ex('REQUIRED', '/ladder/0/askedBack')]});
+  ladderField('T54L-O1.unknown-key', 'T54L-O1.unknownKey.invalid', i => { i.extra = true; }, {has: [ex('UNKNOWN_FIELD', '/ladder/0/extra')]});
+  at54L('T54L-O1.all-known', ['T54L-O1.answers.all-known'], () => withLadder([ladderItem(1, 'concept-a', 'known'), ladderItem(2, 'concept-b', 'known'), ladderItem(3, 'concept-c', 'known')]), good);
+  at54L('T54L-O1.all-unknown', ['T54L-O1.answers.all-unknown'], () => withLadder([ladderItem(1, 'concept-a', 'unknown'), ladderItem(2, 'concept-b', 'unknown'), ladderItem(3, 'concept-c', 'unknown')]), good);
+
+  // O2 (C6, C10, C14): classification tree + two-value boundaries on step, semantic duplicates, A1 (no continuity / order check).
+  for (const [step, code] of [[0, 'RANGE'], [1, null], [5, null], [6, 'RANGE']]) {
+    at54L(`T54L-O2.step-${step}`, [`T54L-O2.step.${step}`], () => withLadder(stepsOf([step])), code ? {has: [ex(code, '/ladder/0/step')]} : good);
+    at54L(`T54L-O2.step-${step}@2`, [`T54L-O2.step.${step}@2`], () => withLadder([ladderItem(2, 'concept-a', 'known'), ladderItem(3, 'concept-b', 'vague'), ladderItem(step, 'concept-c', 'unknown')]), code ? {has: [ex(code, '/ladder/2/step')]} : good);
+  }
+  at54L('T54L-O2.dup-step', ['T54L-O2.dup.step'], () => withLadder([ladderItem(2, 'concept-a', 'known'), ladderItem(2, 'concept-b', 'unknown')]), {exact: [ex('DUPLICATE', '/ladder/1')]});
+  at54L('T54L-O2.dup-conceptId', ['T54L-O2.dup.conceptId'], () => withLadder([ladderItem(1, 'concept-a', 'known'), ladderItem(2, 'concept-a', 'unknown')]), {exact: [ex('DUPLICATE', '/ladder/1')]});
+  at54L('T54L-O2.non-contiguous', ['T54L-O2.order.non-contiguous'], () => withLadder(stepsOf([1, 3, 5])), good);
+  at54L('T54L-O2.reverse-order', ['T54L-O2.order.reverse'], () => withLadder(stepsOf([5, 3, 1])), good);
 }

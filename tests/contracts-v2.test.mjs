@@ -34,6 +34,18 @@ const declaredItems = (() => {
   for (const c of ['valid', 'invalid-0', 'invalid-3', 'invalid-1.5', 'invalid-string-1']) items.push(`T54-O1.round.${c}`);
   items.push('T54-O1.reaction.valid', 'T54-O1.reaction.invalid', 'T54-O1.reaction.all-four', 'T54-O1.askedBack.string', 'T54-O1.askedBack.null', 'T54-O1.askedBack.invalid-number', 'T54-O1.askedBack.invalid-missing', 'T54-O1.unknownKey.invalid');
   items.push('T54-O2.row1.duplicate-pair', 'T54-O2.row2.max-round-reference', 'T54-O2.row3.only-max-round', 'T54-O2.row4.lower-round-valid-id', 'T54-O2.row5.lower-round-bad-id', 'T54-O2.row6.selection-null');
+  // T5-4 concept ladder spec 5a2c9e7d1b4f8036: O1 classification tree + length/presence boundaries, O2 step boundaries, duplicates, A1.
+  items.push('T54L-O1.presence.v2-with', 'T54L-O1.presence.v1-without', 'T54L-O1.presence.v1-with', 'T54L-O1.presence.v2-without');
+  for (const n of [0, 1, 5, 6]) items.push(`T54L-O1.len.${n}`);
+  for (const f of ['step', 'conceptId', 'label']) items.push(`T54L-O1.${f}.valid`);
+  items.push('T54L-O1.step.invalid-1.5', 'T54L-O1.step.invalid-string-1', 'T54L-O1.conceptId.invalid', 'T54L-O1.label.invalid-missing');
+  for (const a of ['known', 'vague', 'unknown']) items.push(`T54L-O1.answer.${a}`);
+  items.push('T54L-O1.answer.invalid', 'T54L-O1.askedBack.string', 'T54L-O1.askedBack.null', 'T54L-O1.askedBack.invalid-number', 'T54L-O1.askedBack.invalid-missing', 'T54L-O1.unknownKey.invalid', 'T54L-O1.answers.all-known', 'T54L-O1.answers.all-unknown');
+  for (const n of [0, 1, 5, 6]) items.push(`T54L-O2.step.${n}`);
+  items.push('T54L-O2.dup.step', 'T54L-O2.dup.conceptId', 'T54L-O2.order.non-contiguous', 'T54L-O2.order.reverse');
+  // Item-position variation (verifier F-T54L-1): the invalid item also sits at index 2 of a valid 3-item ladder.
+  for (const r of ['step.invalid-1.5', 'step.invalid-string-1', 'conceptId.invalid', 'label.invalid-missing', 'answer.invalid', 'askedBack.invalid-number', 'askedBack.invalid-missing', 'unknownKey.invalid']) items.push(`T54L-O1.${r}@2`);
+  for (const n of [0, 1, 5, 6]) items.push(`T54L-O2.step.${n}@2`);
   return items;
 })();
 const caseItemNames = () => new Set(cases.flatMap(c => c.items));

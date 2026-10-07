@@ -57,6 +57,10 @@ test('[V1.rule-1 no-map,new] imports into absent map as generation 1, revision u
 const diagnosticV2 = () => ({...makeDiagnostic(), version: 2, reactions: [
   {round: 1, candidateId: 'candidate-x', reaction: 'surprising', askedBack: '이 개념은 무엇인가요?'},
   {round: 2, candidateId: 'candidate-a', reaction: 'similar', askedBack: null}
+], ladder: [
+  {step: 3, conceptId: 'concept-mid', label: '중간 개념', answer: 'vague', askedBack: '이 개념은 무엇인가요?'},
+  {step: 2, conceptId: 'concept-low', label: '낮은 개념', answer: 'known', askedBack: null},
+  {step: 4, conceptId: 'concept-high', label: '높은 개념', answer: 'unknown', askedBack: null}
 ]});
 for (const [label, make, version] of [['v1', makeDiagnostic, 1], ['v2', diagnosticV2, 2]]) {
   test(`[T54-Q1.import-diagnostic-${label}] a stored diagnostic of version ${version} lets the matching result import: imported, generation 1`, async t => {
@@ -65,6 +69,7 @@ for (const [label, make, version] of [['v1', makeDiagnostic, 1], ['v2', diagnost
     const doc = make();
     assert.equal(doc.version, version);
     assert.equal('reactions' in doc, version === 2);
+    assert.equal('ladder' in doc, version === 2, 'v1 carries no ladder (R4 compatibility), v2 carries one');
     await writeFile(path.join(layout(home).dir, 'diagnostics', 'diagnostic-a.json'), JSON.stringify(doc));
     const [r1] = await makeChain([LEVELS[0]]);
     const out = await importResult(textOf(r1), {home});
@@ -81,6 +86,40 @@ test('[T54-O3.import-diagnostic-v2-invalid] a stored v2 diagnostic with a duplic
   world.before = await snapshot(world.home);
   const result = await makeResult({resultId: 'result-1', items: LEVELS[0]});
   await expectRejected(world, textOf(result), 'INVALID', errors => assert.ok(errors.some(e => e.code === 'DUPLICATE' && e.path === '/diagnostic/reactions/1'), JSON.stringify(errors)), 'T54-O3.import-v2-invalid');
+});
+
+const putDiagnostic = (home, doc) => writeFile(path.join(layout(home).dir, 'diagnostics', 'diagnostic-a.json'), JSON.stringify(doc));
+for (const [name, edit, code, pointer] of [
+  ['duplicate-step', d => { d.ladder = [{...d.ladder[0], step: 2}, d.ladder[1]]; }, 'DUPLICATE', '/diagnostic/ladder/1'],
+  ['missing-ladder', d => { delete d.ladder; }, 'REQUIRED', '/diagnostic/ladder'],
+  ['empty-ladder', d => { d.ladder = []; }, 'RANGE', '/diagnostic/ladder'],
+  ['v1-with-ladder', d => { d.version = 1; delete d.reactions; }, 'UNKNOWN_FIELD', '/diagnostic/ladder'],
+]) {
+  test(`[T54L-O3.import-diagnostic-${name} C10 C12] a stored diagnostic with an invalid ladder is INVALID under /diagnostic, nothing changes`, async t => {
+    const world = await rejectionWorld(t);
+    const doc = diagnosticV2();
+    edit(doc);
+    await putDiagnostic(world.home, doc);
+    world.before = await snapshot(world.home);
+    const result = await makeResult({resultId: 'result-1', items: LEVELS[0]});
+    await expectRejected(world, textOf(result), 'INVALID', errors => assert.ok(errors.some(e => e.code === code && e.path === pointer), JSON.stringify(errors)), `T54L-O3.import-${name}`);
+  });
+}
+// Q2: the existing rename-failure injection on import, with a stored ladder v2 diagnostic; changed files must be 0.
+test('[T54L-Q2.import-IO ladder v2] injected rename failure with a ladder diagnostic: IO, map bytes unchanged, no stray files', async t => {
+  const home = await tempHome(t);
+  await placeFixtures(home);
+  await putDiagnostic(home, diagnosticV2());
+  const bytes = wrapperText(1, mapFor([]));
+  await seedMapText(home, bytes);
+  const [r1] = await makeChain([LEVELS[0]]);
+  const {fs, events} = faultFs(home, {fail: 'rename'});
+  const out = note('T54L-Q2.import-IO', await importResult(textOf(r1), {fs, home}));
+  assert.ok(events.includes('rename'), 'fault rename never reached');
+  assert.equal(out.ok, false);
+  assert.equal(out.code, 'IO');
+  assert.equal(await readText(layout(home).map), bytes);
+  assert.deepEqual(await strayFiles(home), []);
 });
 
 test('[V1.rule-2 map,new] imports into existing map as generation+1, keeps revision and single lesson', async t => {

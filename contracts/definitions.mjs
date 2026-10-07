@@ -28,8 +28,9 @@ const observation = object({observationId: id, resultId: id, assessmentId: id, c
 const nextPath = object({pathId: id, lessonId: id, conceptId: id, conceptRevision: integer, lessonStatus: enumeration('placed', 'planned'), reason: string});
 const root = (kind, version, fields) => object({kind: {...string, kind}, version: {...number, version}, ...fields});
 const reaction = object({round: integer, candidateId: id, reaction: enumeration('similar', 'surprising', 'unknown', 'not-applicable'), askedBack: nullable(string)});
+const ladderItem = object({step: integer, conceptId: id, label: string, answer: enumeration('known', 'vague', 'unknown'), askedBack: nullable(string)});
 const diagnosticFields = {diagnosticId: id, profileId: id, contextKind, candidates: {...array(candidate, 1), max: 3}, selection: nullable(id), confirmation: enumeration('confirmed', 'deferred', 'unconfirmed'), hypotheses: array(hypothesis)};
-const diagnostic = {versions: {1: root('diagnostic', 1, diagnosticFields), 2: root('diagnostic', 2, {...diagnosticFields, reactions: array(reaction, 1)})}};
+const diagnostic = {versions: {1: root('diagnostic', 1, diagnosticFields), 2: root('diagnostic', 2, {...diagnosticFields, reactions: array(reaction, 1), ladder: {...array(ladderItem, 1), max: 5}})}};
 const lessonFields = {lessonId: id, lessonRevision: integer, profileId: id, diagnosticId: id, candidateId: id, contextKind, concepts: array(concept, 1), content: array(content, 1), decisions: array(decision, 1), inputs: array(numericInput, 1), activities: array(activity, 1), rubric};
 const modelOutput = object({outputId: id, label: string, unit: string, scale: {...number, positive: true}, nullable: boolean});
 const scenario = object({scenarioId: id, label: string, values: array(object({inputId: id, value: number}), 1)});

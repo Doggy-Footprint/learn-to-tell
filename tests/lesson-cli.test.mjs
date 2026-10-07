@@ -49,7 +49,9 @@ const CANDIDATES = [cand('inspection-candidate'), cand('cand-d')];
 const DIAGNOSTIC = {kind: 'diagnostic', version: 1, diagnosticId: 'inspection-diagnostic', profileId: PROFILE, contextKind: 'interest', candidates: CANDIDATES, selection: 'inspection-candidate', confirmation: 'confirmed', hypotheses: HYPOTHESES};
 const reaction = (round, candidateId, kind, askedBack) => ({round, candidateId, reaction: kind, askedBack});
 const REACTIONS = [reaction(1, 'cand-a', 'similar', null), reaction(1, 'cand-b', 'surprising', '이 개념이 무엇인가요?'), reaction(2, 'inspection-candidate', 'not-applicable', null), reaction(2, 'cand-d', 'unknown', null)];
-const DIAGNOSTIC_V2 = {...DIAGNOSTIC, version: 2, reactions: REACTIONS};
+const ladderItem = (step, conceptId, answer, askedBack) => ({step, conceptId, label: `Label ${conceptId}`, answer, askedBack});
+const LADDER = [ladderItem(3, 'concept-mid', 'vague', '이 개념은 무엇인가요?'), ladderItem(2, 'concept-low', 'known', null), ladderItem(4, 'concept-high', 'unknown', null)];
+const DIAGNOSTIC_V2 = {...DIAGNOSTIC, version: 2, reactions: REACTIONS, ladder: LADDER};
 const NEXT_PATHS = [{pathId: 'path-n1', lessonId: 'lesson-a', conceptId: 'concept-b', conceptRevision: 2, reason: 'Defect escape', lessonStatus: 'placed'}];
 
 async function inputs(t) {
@@ -203,6 +205,31 @@ test('[T54-O3.place-diagnostic-duplicate-pair C17] a v2 document with a repeated
   const out = assertFailureOutcome(run(f.home, 'place-diagnostic', file), 'INVALID');
   assert.ok(out.errors.some(e => e.code === 'DUPLICATE' && e.path === '/reactions/1'), JSON.stringify(out.errors));
   assert.deepEqual(await treeOf(f.home), []);
+});
+test('[T54L-O3.place-diagnostic-duplicate-step C13] a v2 document with a repeated ladder step is an INVALID Outcome (exit 1) and writes nothing', async t => {
+  const f = await inputs(t);
+  const file = await put(f.dir, 'dup-step.json', {...DIAGNOSTIC_V2, ladder: [ladderItem(2, 'concept-a', 'known', null), ladderItem(2, 'concept-b', 'unknown', null)]});
+  const out = assertFailureOutcome(run(f.home, 'place-diagnostic', file), 'INVALID');
+  assert.ok(out.errors.some(e => e.code === 'DUPLICATE' && e.path === '/ladder/1'), JSON.stringify(out.errors));
+  assert.deepEqual(await treeOf(f.home), []);
+});
+test('[T54L-O3.place-diagnostic-missing-ladder C12] a v2 document without ladder is INVALID with REQUIRED /ladder and writes nothing', async t => {
+  const f = await inputs(t);
+  const {ladder, ...withoutLadder} = DIAGNOSTIC_V2;
+  const file = await put(f.dir, 'no-ladder.json', withoutLadder);
+  const out = assertFailureOutcome(run(f.home, 'place-diagnostic', file), 'INVALID');
+  assert.ok(out.errors.some(e => e.code === 'REQUIRED' && e.path === '/ladder'), JSON.stringify(out.errors));
+  assert.deepEqual(await treeOf(f.home), []);
+});
+test('[T54L-O3.place-diagnostic-ladder-rerun C2] the CLI re-places a ladder v2: a changed ladder answer is a CONFLICT and keeps the stored file', async t => {
+  const f = await inputs(t);
+  const target = path.join(f.home, '.learn-to-tell', 'profiles', PROFILE, 'diagnostics', 'inspection-diagnostic.json');
+  assert.equal(outcomeOf(run(f.home, 'place-diagnostic', f.diagnosticV2)).action, 'placed');
+  const first = await readFile(target, 'utf8');
+  assert.equal(JSON.parse(first).ladder.length, 3);
+  const other = await put(f.dir, 'ladder-other.json', {...DIAGNOSTIC_V2, ladder: [{...LADDER[0], answer: 'known'}, ...LADDER.slice(1)]});
+  assertFailureOutcome(run(f.home, 'place-diagnostic', other), 'CONFLICT');
+  assert.equal(await readFile(target, 'utf8'), first);
 });
 test('[V11.place-diagnostic C17] a document with a malformed profileId is a PROFILE Outcome and writes nothing', async t => {
   const f = await inputs(t);

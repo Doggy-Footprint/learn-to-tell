@@ -1297,5 +1297,279 @@
     "items": [
       "T54-O2.row6.selection-null"
     ]
+  },
+  {
+    "id": "T54L-O1.v2-ladder-valid",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.presence.v2-with",
+      "T54L-O1.answer.known",
+      "T54L-O1.answer.vague",
+      "T54L-O1.answer.unknown",
+      "T54L-O1.askedBack.string",
+      "T54L-O1.askedBack.null",
+      "T54L-O1.step.valid",
+      "T54L-O1.conceptId.valid",
+      "T54L-O1.label.valid"
+    ]
+  },
+  {
+    "id": "T54L-O1.v1-no-ladder",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.presence.v1-without"
+    ]
+  },
+  {
+    "id": "T54L-O1.v1-with-ladder",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.presence.v1-with"
+    ]
+  },
+  {
+    "id": "T54L-O1.v2-without-ladder",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.presence.v2-without"
+    ]
+  },
+  {
+    "id": "T54L-O1.len-0",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.len.0"
+    ]
+  },
+  {
+    "id": "T54L-O1.len-1",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.len.1"
+    ]
+  },
+  {
+    "id": "T54L-O1.len-5",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.len.5"
+    ]
+  },
+  {
+    "id": "T54L-O1.len-6",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.len.6"
+    ]
+  },
+  {
+    "id": "T54L-O1.step-1.5",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.step.invalid-1.5"
+    ]
+  },
+  {
+    "id": "T54L-O1.step-string",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.step.invalid-string-1"
+    ]
+  },
+  {
+    "id": "T54L-O1.conceptId-bad-format",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.conceptId.invalid"
+    ]
+  },
+  {
+    "id": "T54L-O1.label-missing",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.label.invalid-missing"
+    ]
+  },
+  {
+    "id": "T54L-O1.answer-outside",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.answer.invalid"
+    ]
+  },
+  {
+    "id": "T54L-O1.askedBack-number",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.askedBack.invalid-number"
+    ]
+  },
+  {
+    "id": "T54L-O1.askedBack-missing",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.askedBack.invalid-missing"
+    ]
+  },
+  {
+    "id": "T54L-O1.unknown-key",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.unknownKey.invalid"
+    ]
+  },
+  {
+    "id": "T54L-O1.all-known",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.answers.all-known"
+    ]
+  },
+  {
+    "id": "T54L-O1.all-unknown",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.answers.all-unknown"
+    ]
+  },
+  {
+    "id": "T54L-O2.step-0",
+    "obligationId": "T54L-O2",
+    "items": [
+      "T54L-O2.step.0"
+    ]
+  },
+  {
+    "id": "T54L-O2.step-1",
+    "obligationId": "T54L-O2",
+    "items": [
+      "T54L-O2.step.1"
+    ]
+  },
+  {
+    "id": "T54L-O2.step-5",
+    "obligationId": "T54L-O2",
+    "items": [
+      "T54L-O2.step.5"
+    ]
+  },
+  {
+    "id": "T54L-O2.step-6",
+    "obligationId": "T54L-O2",
+    "items": [
+      "T54L-O2.step.6"
+    ]
+  },
+  {
+    "id": "T54L-O2.dup-step",
+    "obligationId": "T54L-O2",
+    "items": [
+      "T54L-O2.dup.step"
+    ]
+  },
+  {
+    "id": "T54L-O2.dup-conceptId",
+    "obligationId": "T54L-O2",
+    "items": [
+      "T54L-O2.dup.conceptId"
+    ]
+  },
+  {
+    "id": "T54L-O2.non-contiguous",
+    "obligationId": "T54L-O2",
+    "items": [
+      "T54L-O2.order.non-contiguous"
+    ]
+  },
+  {
+    "id": "T54L-O2.reverse-order",
+    "obligationId": "T54L-O2",
+    "items": [
+      "T54L-O2.order.reverse"
+    ]
+  },
+  {
+    "id": "T54L-O1.step-1.5@2",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.step.invalid-1.5@2"
+    ]
+  },
+  {
+    "id": "T54L-O1.step-string@2",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.step.invalid-string-1@2"
+    ]
+  },
+  {
+    "id": "T54L-O1.conceptId-bad-format@2",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.conceptId.invalid@2"
+    ]
+  },
+  {
+    "id": "T54L-O1.label-missing@2",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.label.invalid-missing@2"
+    ]
+  },
+  {
+    "id": "T54L-O1.answer-outside@2",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.answer.invalid@2"
+    ]
+  },
+  {
+    "id": "T54L-O1.askedBack-number@2",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.askedBack.invalid-number@2"
+    ]
+  },
+  {
+    "id": "T54L-O1.askedBack-missing@2",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.askedBack.invalid-missing@2"
+    ]
+  },
+  {
+    "id": "T54L-O1.unknown-key@2",
+    "obligationId": "T54L-O1",
+    "items": [
+      "T54L-O1.unknownKey.invalid@2"
+    ]
+  },
+  {
+    "id": "T54L-O2.step-0@2",
+    "obligationId": "T54L-O2",
+    "items": [
+      "T54L-O2.step.0@2"
+    ]
+  },
+  {
+    "id": "T54L-O2.step-1@2",
+    "obligationId": "T54L-O2",
+    "items": [
+      "T54L-O2.step.1@2"
+    ]
+  },
+  {
+    "id": "T54L-O2.step-5@2",
+    "obligationId": "T54L-O2",
+    "items": [
+      "T54L-O2.step.5@2"
+    ]
+  },
+  {
+    "id": "T54L-O2.step-6@2",
+    "obligationId": "T54L-O2",
+    "items": [
+      "T54L-O2.step.6@2"
+    ]
   }
 ]

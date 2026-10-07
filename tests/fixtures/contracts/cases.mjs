@@ -248,7 +248,7 @@ export function buildCases() {
  push('V5.bundle-scalar','V5','C11','bundle',null,bad('TYPE',''));
  // ---- content-hash spec v1 obligations (ids carry the CH- prefix because V1..V10 names collide with earlier specs)
  for(const kind of Object.keys(syntax)) for(const version of [0,1,1.5,kind==='lesson'?3:2]) {
-  const input=clone(validBundle()[kind]);input.version=version;if(kind==='diagnostic'&&version===2)input.reactions=[{round:1,candidateId:'candidate-a',reaction:'similar',askedBack:null}];reseal(input);
+  const input=clone(validBundle()[kind]);input.version=version;if(kind==='diagnostic'&&version===2){input.reactions=[{round:1,candidateId:'candidate-a',reaction:'similar',askedBack:null}];input.ladder=[{step:1,conceptId:'concept-a',label:'Concept A',answer:'known',askedBack:null}];}reseal(input);
   rawPush(`CH-V1.version.${kind}.${version}`,'CH-V1','C7','document',input,version===EXPECTED_VERSION[kind]||(kind==='diagnostic'&&version===2)?good:bad('VERSION','/version'),kind);
  }
  {

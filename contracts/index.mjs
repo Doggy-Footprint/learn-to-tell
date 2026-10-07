@@ -153,7 +153,22 @@ function diagnosticSemantics(document, path, errors) {
   if (document.selection !== null) reference(candidates, document.selection, pointer(path, 'selection'), errors);
   if ((document.confirmation === 'confirmed') !== (document.selection !== null)) add(errors, 'STATE', pointer(path, 'confirmation'));
   for (let index = 0; index < document.hypotheses.length; index++) reference(candidates, document.hypotheses[index].candidateId, `${path}/hypotheses/${index}/candidateId`, errors);
-  if (document.version === 2) reactionSemantics(document.reactions, candidates, path, errors);
+  if (document.version === 2) {
+    reactionSemantics(document.reactions, candidates, path, errors);
+    ladderSemantics(document.ladder, path, errors);
+  }
+}
+function ladderSemantics(ladder, path, errors) {
+  const steps = new Set();
+  const concepts = new Set();
+  for (let index = 0; index < ladder.length; index++) {
+    const item = ladder[index];
+    const child = `${path}/ladder/${index}`;
+    if (item.step < 1 || item.step > 5) add(errors, 'RANGE', `${child}/step`);
+    if (steps.has(item.step) || concepts.has(item.conceptId)) add(errors, 'DUPLICATE', child);
+    steps.add(item.step);
+    concepts.add(item.conceptId);
+  }
 }
 function reactionSemantics(reactions, candidates, path, errors) {
   const seen = new Set();
