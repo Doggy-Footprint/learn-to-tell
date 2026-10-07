@@ -20,7 +20,13 @@
 | `knowledge/store.mjs:79-80` coverage 비결정성 조사 | catch에 임시 로그 삽입 후 knowledge·map-cli 전체 실행 시 로그 0회 | `throw readFailure` 경로는 어떤 테스트도 실행하지 않았고, 100% 보고는 V8 block coverage 범위 착시 (verified). readdir EACCES 테스트 추가로 해결 |
 
 ## Next Step
-1. T5-3 완료. 다음: T5-4 spec 작성. (이전: T5-2 완료 후 T5-3 spec 작성.) T5-3에서 `build-lesson`이 profile 폴더 lesson·model을 쓰고, 진단 페이지가 diagnostic-choices v1(T5-2 spec Signatures)을 내보낸다.
+1. **사용자 실행 검증 대기(2026-10-07)**: 테스트 프로젝트 2곳({ab-test-sample-size, base-rate-fallacy})에 최신 skill 설치됨. 사용자가 직접 실행 후 피드백 예정. 피드백은 User Feedback Backlog에 적립한다.
+2. 반영된 사용자 지시(2026-10-07): 진단 대화 설문(되묻기, `not-applicable`은 내부 재점검 후 필요 시 `unknown`으로 기록), 범위 합의 단계를 agent 자율 결정(사용자에게 묻지 않고 알리기만)으로 변경, 결과는 화면 "결과 제출" → serve `--out` 수신.
+3. 미정: 수업 화면 시각화(현재 출력 막대+표, 입력은 숫자 입력칸이나 생성된 lesson 본문은 "슬라이더"로 안내하는 불일치 관찰). 사용자 결정 필요.
+4. T5-4 본체(SKILL.md·installer) spec은 미작성이며 지금까지 spec 없이 진행됨. 사용자 실행 검증 후 필요하면 정리한다.
+5. 미규명 간헐 실패(Open Questions)를 기준선과 비교해 원인 확인.
+
+(이하 이전 계획, 참고용)
 2. ~~**T5-2 생성물 검증·배치 CLI**~~ (완료; 15–20분 검사는 lesson 계약 RANGE에 맡김, nextPath `lessonStatus: placed|planned` 추가) (`scripts/lesson.mjs` 제안)
    - `check-model`: 자식 프로세스+timeout으로 모델 `calculate`를 oracle 케이스와 대조하고, 경계·null·비유한값·입력 불변을 검사한다.
    - `place-diagnostic`·`place-lesson`: `~/.learn-to-tell/profiles/<id>/{diagnostics,lessons,models}/`에 원자적으로 쓴다(`knowledge/store.mjs` 패턴).
@@ -48,8 +54,8 @@
 ## User Feedback Backlog (T5-4, 미작업 적립)
 | # | 날짜 | 피드백 | 현재 동작 근거 | 상태 |
 | --- | --- | --- | --- | --- |
-| F1 | 2026-10-07 | 브라우저에서 JSON 파일을 내려받아 경로를 agent에게 전달하는 방식은 고쳐야 함 | 진단: `site/diagnostic/components/diagnostic.js` download(`diagnostic-choices-<id>.json`), 수업: `site/src/components/ui.js` 결과 Blob download(`result-<resultId>.json`); SKILL.md 2·7단계가 사용자에게 파일 경로를 받음 | 완료(미커밋, 2026-10-07): 수업 화면 다운로드 제거, "결과 제출" → `serve.mjs --out <dir>`가 `POST /__ltt/result`로 수신, `http-server` 제거 |
-| F2 | 2026-10-07 | 진단 설문(상황 카드 반응)은 브라우저가 아니라 agent 대화에서 진행하는 게 낫다. 모르는 상태에서 카드에 반응하려니 "내가 아는 개념인지" 되묻고 싶은데 브라우저 페이지에서는 불가 | 진단 페이지 `site/diagnostic/`(카드 + 4가지 반응, 질문 경로 없음), `scripts/build-diagnostic.mjs`; SKILL.md 2단계가 진단을 브라우저로 보냄. T5-3 결정 "진단 페이지: 카드 2–3개, 조작 1개, 4가지 반응"과 충돌 | 완료(미커밋, 2026-10-07): 대화 설문 전환, 진단 페이지·build-diagnostic·diagnostic-setup·diagnose CLI·serve `--target` 제거, diagnostic v2 `reactions`. F1의 진단 쪽은 소멸 |
+| F1 | 2026-10-07 | 브라우저에서 JSON 파일을 내려받아 경로를 agent에게 전달하는 방식은 고쳐야 함 | 진단: `site/diagnostic/components/diagnostic.js` download(`diagnostic-choices-<id>.json`), 수업: `site/src/components/ui.js` 결과 Blob download(`result-<resultId>.json`); SKILL.md 2·7단계가 사용자에게 파일 경로를 받음 | 완료(커밋 23bad96·699e53f, 2026-10-07): 수업 화면 다운로드 제거, "결과 제출" → `serve.mjs --out <dir>`가 `POST /__ltt/result`로 수신, `http-server` 제거 |
+| F2 | 2026-10-07 | 진단 설문(상황 카드 반응)은 브라우저가 아니라 agent 대화에서 진행하는 게 낫다. 모르는 상태에서 카드에 반응하려니 "내가 아는 개념인지" 되묻고 싶은데 브라우저 페이지에서는 불가 | 진단 페이지 `site/diagnostic/`(카드 + 4가지 반응, 질문 경로 없음), `scripts/build-diagnostic.mjs`; SKILL.md 2단계가 진단을 브라우저로 보냄. T5-3 결정 "진단 페이지: 카드 2–3개, 조작 1개, 4가지 반응"과 충돌 | 완료(커밋 23bad96·699e53f, 2026-10-07): 대화 설문 전환, 진단 페이지·build-diagnostic·diagnostic-setup·diagnose CLI·serve `--target` 제거, diagnostic v2 `reactions`. F1의 진단 쪽은 소멸 |
 
 ## Open Questions
 - 미규명 간헐 실패: `tests/e2e/values.spec.mjs` `[V5.S3.reload] defect-percent`가 `npm run verify` 중 약 8회 중 2회 6.2s 후 `input-defect-percent` 못 찾음(재실행·단독 24회 통과). 변경 전 기준선과 비교하지 못함
