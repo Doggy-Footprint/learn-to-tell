@@ -121,7 +121,7 @@ const un = (code, under) => ({code, under});
   }, good);
   const rule = (name, mutate, expect) => add(`V2.f3.${name}`, [`V2.f3.${name}`], 'lesson', () => { const l = mxLesson(); mutate(l); return {input: l}; }, expect);
   const parity = (name, mutate) => add(`V2.v1rule.${name}`, [`V2.v1rule.${name}`], 'lessonParity', () => { const v1 = clone(inspectionLesson), v2 = mxLesson(); mutate(v1); mutate(v2); return {v1, v2}; }, {parity: true});
-  parity('required-minutes-14', l => { l.activities.find(a => a.stage === 'exploration').minutes = 2; });
+  parity('required-minutes-21', l => { l.activities.find(a => a.stage === 'exploration').minutes = 9; });
   parity('missing-stage', l => { l.activities = l.activities.filter(a => a.stage !== 'return'); });
   parity('missing-dimension', l => { l.rubric.criteria.find(c => c.dimension === 'transfer').dimension = 'concept'; });
   parity('role-mismatch-reference', l => { l.decisions[0].assessmentId = 'diagnostic-cards'; });

@@ -222,7 +222,7 @@ export function buildCases() {
  doc('V2.valid-empty-activity-content','lesson',l=>l.activities[0].contentIds=[],good,'V2','C4');
  for(const value of [-0.01,0,10,10.01]) doc(`V2.default.${value}`,'lesson',l=>l.inputs[0].default=value,value<0||value>10?bad('RANGE','/inputs/0/default'):good,'V2','C5');
  doc('V2.min-equals-max','lesson',l=>{l.inputs[0].min=5;l.inputs[0].max=5;},bad('RANGE','/inputs/0/max'),'V2','C5');
- for(const budget of [14.99,15,15.01,19.99,20,20.01]) doc(`V2.positive-budget.${budget}`,'lesson',l=>l.activities.forEach(a=>a.minutes=budget/6),budget<15||budget>20?bad('RANGE','/activities'):good,'V2','C5');
+ for(const budget of [14.99,15,15.01,19.99,20,20.01]) doc(`V2.positive-budget.${budget}`,'lesson',l=>l.activities.forEach(a=>a.minutes=budget/6),budget>20?bad('RANGE','/activities'):good,'V2','C5');
  for(const minutes of [-1,0,0.01]) doc(`V2.minutes.${minutes}`,'lesson',l=>{l.activities[0].minutes=minutes;l.extra=true;},{ok:false,errors:[...(minutes<=0?[{code:'RANGE',path:'/activities/0/minutes'}]:[]),{code:'UNKNOWN_FIELD',path:'/extra'}]},'V2','C5');
  for(const size of [65535,65536,65537]) {
   doc(`V2.string.ascii.${size}`,'diagnostic',d=>d.candidates[0].title='a'.repeat(size),size>65536?bad('LIMIT','/candidates/0/title'):good,'V2','C4');

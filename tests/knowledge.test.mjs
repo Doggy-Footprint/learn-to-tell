@@ -382,7 +382,7 @@ const underPath = prefix => errors => {
 };
 for (const [label, file, prefix, mutate, code, errPath] of [
   ['lesson-version-3', 'lessons/lesson-a.1.json', '/lesson', l => { l.version = 3; }, 'VERSION', '/lesson/version'],
-  ['lesson-minutes-under-15', 'lessons/lesson-a.1.json', '/lesson', l => { for (const a of l.activities) a.minutes = 2; }, 'RANGE', '/lesson/activities'],
+  ['lesson-minutes-over-20', 'lessons/lesson-a.1.json', '/lesson', l => { for (const a of l.activities) a.minutes = 4; }, 'RANGE', '/lesson/activities'],
   ['diagnostic-version-3', 'diagnostics/diagnostic-a.json', '/diagnostic', d => { d.version = 3; }, 'VERSION', '/diagnostic/version']
 ]) {
   test(`[V4.${label}] valid JSON that breaks the ${prefix.slice(1)} contract: INVALID under ${prefix}, nothing changes`, async t => {

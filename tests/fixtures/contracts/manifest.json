@@ -25571,13 +25571,8 @@
     "caseId": "C5",
     "inputFixture": "cases.mjs#V2.positive-budget.14.99",
     "expected": {
-      "ok": false,
-      "errors": [
-        {
-          "code": "RANGE",
-          "path": "/activities"
-        }
-      ]
+      "ok": true,
+      "errors": []
     }
   },
   {

@@ -19,7 +19,7 @@ const declaredItems = (() => {
   items.push('T53-V1.v1-card-fields');
   for (const id of mxInputIds) for (const b of ['min', 'max']) for (const v of ['minus', 'eq', 'plus']) items.push(`V2.bva.${id}.${b}-${v}`);
   items.push('V2.absolute.minus', 'V2.absolute.zero', 'V2.c3');
-  for (const r of ['required-minutes-14', 'missing-stage', 'missing-dimension', 'role-mismatch-reference']) items.push(`V2.v1rule.${r}`);
+  for (const r of ['required-minutes-21', 'missing-stage', 'missing-dimension', 'role-mismatch-reference']) items.push(`V2.v1rule.${r}`);
   for (const r of ['duplicate-output', 'duplicate-scenario', 'scenario-input-unknown', 'scenario-missing-input', 'scenario-duplicate-input', 'transfer-scenario-unknown', 'tolerance-output-unknown', 'tolerance-duplicate-output', 'tolerance-missing-output', 'scale-zero', 'scale-negative']) items.push(`V2.f3.${r}`);
   items.push('V3.null.nullable-null', 'V3.null.nullable-value', 'V3.null.strict-null', 'V3.null.strict-value');
   for (const id of mxInputIds) for (const b of ['min', 'max']) for (const p of ['present', 'absent']) items.push(`V3.cover.${id}.${b}.${p}`);

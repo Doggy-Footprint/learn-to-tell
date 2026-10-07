@@ -224,7 +224,7 @@ function lessonSemantics(document, path, errors) {
     }
   }
   if (requiredStages.size !== 6) add(errors, 'STATE', `${path}/activities`);
-  if (minutes < 15 || minutes > 20) add(errors, 'RANGE', `${path}/activities`);
+  if (minutes > 20) add(errors, 'RANGE', `${path}/activities`);
   const dimensions = new Set();
   for (let index = 0; index < document.rubric.criteria.length; index++) {
     const criterion = document.rubric.criteria[index];

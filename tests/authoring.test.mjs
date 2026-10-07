@@ -791,7 +791,7 @@ function lessonWith(edit) {
 }
 const exploreMinutes = minutes => lesson => { lesson.activities[2].minutes = minutes; };
 const placeText = text => ({...placeInput(), lessonText: text});
-test('[V9.at-limits] decisions 2, concepts 5, required minutes 20 (optional activity minutes excluded) are placed', async t => {
+test('[V9.at-limits] required minutes 20 (optional activity minutes excluded) are placed', async t => {
   const home = await tempHome(t);
   const text = lessonWith(lesson => {
     exploreMinutes(8)(lesson);
@@ -802,8 +802,6 @@ test('[V9.at-limits] decisions 2, concepts 5, required minutes 20 (optional acti
   assert.equal(out.action, 'placed');
 });
 const scopeCases = [
-  ['decisions=3', lesson => lesson.decisions.push({...lesson.decisions[0], decisionId: 'extra-decision'}), 'SCOPE', {code: 'SCOPE', path: '/decisions'}],
-  ['concepts=6', lesson => lesson.concepts.push({conceptId: 'extra-concept', conceptRevision: 1, label: 'Extra', meaning: 'Extra meaning', example: 'Extra example', confusion: 'Extra confusion', plain: 'Extra plain'}), 'SCOPE', {code: 'SCOPE', path: '/concepts'}],
   // D1: time is left to the lesson contract (RANGE /activities), so the outcome is INVALID.
   ['required minutes=20.5 C6', exploreMinutes(8.5), 'INVALID', {code: 'RANGE', path: '/activities'}],
 ];
@@ -814,32 +812,9 @@ for (const [label, edit, outcomeCode, error] of scopeCases) {
     assert.equal(out.ok, false);
     assert.equal(out.code, outcomeCode);
     assert.ok(out.errors.some(item => item.code === error.code && item.path === error.path), JSON.stringify(out.errors));
-    if (outcomeCode === 'SCOPE') assert.deepEqual(out.errors, [error]);
     assert.deepEqual(await tree(home), []);
   });
 }
-test('[V9.order contract -> SCOPE -> check-model VF5] over-scope lesson is rejected before the model ever runs', async t => {
-  const home = await tempHome(t);
-  const dir = await tempDir(t);
-  const pidFile = path.join(dir, 'pid');
-  const model = path.join(dir, 'loop.mjs');
-  await writeFile(model, modelSource({top: `${pidTop(pidFile)}\nwhile (true) {}`}));
-  const started = performance.now();
-  const out = note('place over scope with looping model', await placeLesson({...placeText(lessonWith(lesson => lesson.decisions.push({...lesson.decisions[0], decisionId: 'extra-decision'}))), modelPath: model}, {home}));
-  const elapsed = performance.now() - started;
-  assert.equal(out.code, 'SCOPE');
-  assert.ok(elapsed < 3000, `elapsed ${elapsed}: the model must not have been run`);
-  await assert.rejects(readFile(pidFile), {code: 'ENOENT'});
-  assert.deepEqual(await tree(home), []);
-});
-test('[V9.order contract -> SCOPE] a contract violation together with over-scope is INVALID, not SCOPE', async t => {
-  const home = await tempHome(t);
-  const text = lessonWith(lesson => { lesson.lessonRevision = 0; lesson.decisions.push({...lesson.decisions[0], decisionId: 'extra-decision'}); });
-  const out = note('place invalid and over scope', await placeLesson(placeText(text), {home}));
-  assert.equal(out.code, 'INVALID');
-  assert.ok(out.errors.some(error => error.code === 'RANGE' && error.path === '/lessonRevision'), JSON.stringify(out.errors));
-  assert.deepEqual(await tree(home), []);
-});
 
 // ---------------------------------------------------------------- V10 (setNextPaths)
 const LEVELS = [[item(1, 'supported', 'a')], [item(1, 'supported', 'a'), item(2, 'partial', 'b')]];
