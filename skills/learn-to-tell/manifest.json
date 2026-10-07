@@ -1,0 +1,5 @@
+{
+  "name": "learn-to-tell",
+  "version": "0.1.0",
+  "files": ["SKILL.md", "reference.md", "manifest.json"]
+}

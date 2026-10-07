@@ -4,6 +4,7 @@
 "T5 계획 해줘" → 승인된 계획(진단과 자료 생성 skill: 작업 유무별 간소 체험, 범위 조정, 콘텐츠 검증; agent가 lesson과 도메인 모델 코드까지 생성).
 
 ## State
+- T5-4 진행 중(2026-10-07, 미커밋): skills/learn-to-tell/{SKILL.md,reference.md,manifest.json}, scripts/install-skill.mjs(`--dest` 반복, config.json에 런타임 root 기록, 남의 동명 skill은 CONFLICT). 검증용 테스트 프로젝트 위치는 `/Users/hwansu/tmp/ltt-test-projects/`로 고정(사용자 결정 2026-10-07): {ab-test-sample-size(kunal-kotian/ab_testing_sample_size_calculator),base-rate-fallacy(bogdan-kulynych/base_rate_fallacy_demo)} --depth 1, project-scoped 설치 완료. 사용자가 직접 실행 후 피드백 예정
 - branch: main, base commit: b05f8efa8c5dbb39f7bfa04e717a3bf7105fbfe3
 - T5-3 완료(미커밋, 2026-10-06, base 47832bd): lesson v2 concept 카드 필드, learning/·site/ 일반 런타임(createRuntime), 출력 막대+표, build-lesson `--lesson --model`, 진단 페이지(site/diagnostic, scripts/build-diagnostic.mjs → dist-diagnostic/), serve `--target`, learning/diagnostic-setup.mjs, grid.js 삭제; tests 전반 이관(tests/build.test.mjs, e2e generic·diagnostic 추가)
 - T5-2 완료(미커밋, 2026-10-06): scripts/lesson.mjs, authoring/{check-model,model-runner,probes,diagnose,place}.mjs, package.json(coverage include), contracts/{definitions,index}.mjs(nextPath lessonStatus), tests/{authoring,lesson-cli}.test.mjs, tests/fixtures/{authoring,contracts,knowledge}/ 갱신
@@ -40,8 +41,17 @@
 - 분할 회차 연결: nextPaths만 사용, lesson 계약 변경 없음; 미배치 lesson은 nextPath `lessonStatus:'planned'` (T5-2, D2 2026-10-06)
 - 배치 실패 시 이번 호출이 만든 파일·디렉터리 모두 제거 (T5-2, S1)
 - 독립 검증 서브에이전트: Claude Code만 지원, Codex는 후속 (T5-4)
+- T5-4(2026-10-07): 외부 설치 = 독립 설치 스크립트(harness에는 extension 개념이 없어 harness 확장은 보류, manifest.json으로 이후 이전 대비). 검증 실행은 사용자가 `/Users/hwansu/tmp/ltt-test-projects/`에서 직접(저장소 밖이라 상위 CLAUDE.md 혼입 없음)
+
+## User Feedback Backlog (T5-4, 미작업 적립)
+| # | 날짜 | 피드백 | 현재 동작 근거 | 상태 |
+| --- | --- | --- | --- | --- |
+| F1 | 2026-10-07 | 브라우저에서 JSON 파일을 내려받아 경로를 agent에게 전달하는 방식은 고쳐야 함 | 진단: `site/diagnostic/components/diagnostic.js` download(`diagnostic-choices-<id>.json`), 수업: `site/src/components/ui.js` 결과 Blob download(`result-<resultId>.json`); SKILL.md 2·7단계가 사용자에게 파일 경로를 받음 | 미작업, 대안 미정 |
+| F2 | 2026-10-07 | 진단 설문(상황 카드 반응)은 브라우저가 아니라 agent 대화에서 진행하는 게 낫다. 모르는 상태에서 카드에 반응하려니 "내가 아는 개념인지" 되묻고 싶은데 브라우저 페이지에서는 불가 | 진단 페이지 `site/diagnostic/`(카드 + 4가지 반응, 질문 경로 없음), `scripts/build-diagnostic.mjs`; SKILL.md 2단계가 진단을 브라우저로 보냄. T5-3 결정 "진단 페이지: 카드 2–3개, 조작 1개, 4가지 반응"과 충돌 | 미작업; F1과 연동(진단이 대화로 가면 진단 쪽 파일 전달 문제는 사라짐) |
 
 ## Open Questions
+- F2: 진단을 대화로 옮길 때 진단 페이지(`site/diagnostic/`, build-diagnostic, diagnostic-choices 형식)를 폐기할지, 조작 장치 체험용으로만 남길지
+- F1 대안: 브라우저 → 로컬 serve로 직접 전송(POST 수신 후 profile/임시 폴더에 저장) 등. 사용자 결정 필요
 - 없음
 
 ## Spec
