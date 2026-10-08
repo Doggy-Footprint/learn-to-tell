@@ -86,7 +86,7 @@ const un = (code, under) => ({code, under});
   add('V1.v1.rules-only', ['V1.v1'], 'lesson', () => ({input: {...v1(), modelId: 'manufacturing-inspection'}}), {exact: [ex('UNKNOWN_FIELD', '/modelId')]});
   add('V1.v2', ['V1.v2'], 'lesson', () => ({input: mxLesson()}), good);
   add('V1.v2.requires-new-fields', ['V1.v2'], 'lesson', () => ({input: {...v1(), version: 2}}), {has: ['modelId', 'modelRevision', 'outputs', 'scenarios', 'transfer'].map(f => ex('REQUIRED', `/${f}`))});
-  for (const [item, version] of [['0', 0], ['3', 3]]) add(`V1.version-${item}`, [`V1.${item}`], 'lesson', () => ({input: {...mxLesson(), version}}), {exact: [ex('VERSION', '/version')]});
+  for (const [item, version] of [['0', 0], ['4', 4]]) add(`V1.version-${item}`, [`V1.${item}`], 'lesson', () => ({input: {...mxLesson(), version}}), {exact: [ex('VERSION', '/version')]});
   add('V1.version-string-2', ['V1.str2'], 'lesson', () => ({input: {...mxLesson(), version: '2'}}), {exact: [ex('TYPE', '/version')]});
 }
 

@@ -212,6 +212,7 @@ function lessonSemantics(document, path, errors) {
     const input = document.inputs[index];
     if (input.min >= input.max) add(errors, 'RANGE', `${path}/inputs/${index}/max`);
     if (input.default < input.min || input.default > input.max) add(errors, 'RANGE', `${path}/inputs/${index}/default`);
+    if (document.version === 3) practicalSemantics(input, `${path}/inputs/${index}`, errors);
   }
   const requiredStages = new Set();
   let minutes = 0;
@@ -234,7 +235,35 @@ function lessonSemantics(document, path, errors) {
     if (target && target.role !== 'assessment') add(errors, 'REFERENCE', `${path}/rubric/criteria/${index}/contentId`);
   }
   if (dimensions.size !== 5) add(errors, 'STATE', `${path}/rubric/criteria`);
-  if (document.version === 2) lessonV2Semantics(document, path, inputs, errors);
+  if (document.version >= 2) {
+    const outputs = lessonV2Semantics(document, path, inputs, errors);
+    if (document.version === 3) visualSemantics(document.visuals, inputs, outputs, path, errors);
+  }
+}
+function practicalSemantics(input, path, errors) {
+  const {practical} = input;
+  if (practical.min < input.min) add(errors, 'RANGE', `${path}/practical/min`);
+  if (practical.max > input.max || practical.min >= practical.max) add(errors, 'RANGE', `${path}/practical/max`);
+  if (input.default < practical.min || input.default > practical.max) add(errors, 'RANGE', `${path}/default`);
+  if (input.step > practical.max - practical.min) add(errors, 'RANGE', `${path}/step`);
+}
+function visualSemantics(visuals, inputs, outputs, path, errors) {
+  collection(visuals, 'visualId', `${path}/visuals`, errors);
+  for (let index = 0; index < visuals.length; index++) {
+    const visual = visuals[index];
+    const child = `${path}/visuals/${index}`;
+    const sweep = visual.kind === 'sweep';
+    if (sweep === (visual.inputId === null)) add(errors, 'STATE', `${child}/inputId`);
+    else if (sweep) reference(inputs, visual.inputId, `${child}/inputId`, errors);
+    idReferences(visual.outputIds, outputs, `${child}/outputIds`, errors);
+    const known = visual.outputIds.filter(outputId => outputs.has(outputId));
+    if (new Set(known.map(outputId => outputs.get(outputId).unit)).size > 1) add(errors, 'STATE', `${child}/outputIds`);
+    if (sweep) continue;
+    if (visual.outputIds.length === 1) add(errors, 'RANGE', `${child}/outputIds`);
+    visual.outputIds.forEach((outputId, position) => {
+      if (outputs.get(outputId)?.nullable) add(errors, 'STATE', `${child}/outputIds/${position}`);
+    });
+  }
 }
 function lessonV2Semantics(document, path, inputs, errors) {
   const outputs = collection(document.outputs, 'outputId', `${path}/outputs`, errors);
@@ -256,6 +285,7 @@ function lessonV2Semantics(document, path, inputs, errors) {
   const tolerances = collection(document.transfer.tolerances, 'outputId', `${path}/transfer/tolerances`, errors);
   for (let index = 0; index < document.transfer.tolerances.length; index++) reference(outputs, document.transfer.tolerances[index].outputId, `${path}/transfer/tolerances/${index}/outputId`, errors);
   if ([...outputs.keys()].some(key => !tolerances.has(key))) add(errors, 'STATE', `${path}/transfer/tolerances`);
+  return outputs;
 }
 function oracleSemantics(document, path, errors) {
   collection(document.cases, 'caseId', `${path}/cases`, errors);

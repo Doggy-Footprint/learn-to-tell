@@ -9,13 +9,24 @@ const isRecord = value => value !== null && typeof value === 'object' && !Array.
 const emptyTrack = extra => ({original: null, revealed: false, retries: [], ...extra});
 const scenarioInputs = scenario => Object.fromEntries(scenario.values.map(({inputId, value}) => [inputId, value]));
 
+const normalizeInput = input => ({
+  inputId: input.inputId,
+  label: input.label ?? input.inputId,
+  unit: input.unit,
+  min: input.min,
+  max: input.max,
+  default: input.default,
+  step: input.step ?? (input.max - input.min) / 100,
+  practical: input.practical ?? {min: input.min, max: input.max, basis: ''},
+});
+
 export function createRuntime(lesson, model) {
   const defaultInputs = Object.fromEntries(lesson.inputs.map(input => [input.inputId, input.default]));
   const transferScenario = lesson.scenarios.find(item => item.scenarioId === lesson.transfer.scenarioId);
   const expectedFor = inputs => {
     const calculated = model.calculate(inputs);
     if (!calculated.ok) return null;
-    return Object.fromEntries(lesson.outputs.map(({outputId, scale}) => [outputId, calculated.value[outputId] === null ? null : calculated.value[outputId] * scale]));
+    return Object.fromEntries(lesson.outputs.map(({outputId, scale}) => [outputId, displayValue(calculated.value[outputId], scale)]));
   };
   const baselineInputs = scenarioInputs(lesson.scenarios[0]);
   const transferInputs = scenarioInputs(transferScenario);
@@ -23,7 +34,8 @@ export function createRuntime(lesson, model) {
     lesson,
     model,
     inputIds: lesson.inputs.map(input => input.inputId),
-    inputs: lesson.inputs,
+    inputs: lesson.inputs.map(normalizeInput),
+    visuals: lesson.visuals ?? [],
     outputs: lesson.outputs,
     defaultInputs,
     stages: STAGES,
@@ -37,6 +49,27 @@ export function createRuntime(lesson, model) {
     baselineExpected: expectedFor(baselineInputs),
     transferExpected: expectedFor(transferInputs),
   };
+}
+
+const displayValue = (raw, scale) => raw === null ? null : raw * scale;
+
+export function sweepPoints(runtime, visual, inputs, count = 41) {
+  const {practical} = runtime.inputs.find(input => input.inputId === visual.inputId);
+  const current = inputs[visual.inputId];
+  const low = Math.min(practical.min, current);
+  const high = Math.max(practical.max, current);
+  const scales = new Map(runtime.outputs.map(output => [output.outputId, output.scale]));
+  return Array.from({length: count}, (_, index) => {
+    const t = index / (count - 1);
+    const x = low * (1 - t) + high * t;
+    const result = runtime.model.calculate({...inputs, [visual.inputId]: x});
+    return {x, values: Object.fromEntries(visual.outputIds.map(outputId => [outputId, result.ok ? displayValue(result.value[outputId], scales.get(outputId)) : null]))};
+  });
+}
+
+export function compositionShares(runtime, visual, display) {
+  const total = visual.outputIds.reduce((sum, outputId) => sum + display[outputId], 0);
+  return visual.outputIds.map(outputId => ({outputId, value: display[outputId], share: total === 0 ? 0 : display[outputId] / total}));
 }
 
 export function initialProgress(session, runtime) {

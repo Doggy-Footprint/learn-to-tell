@@ -1555,10 +1555,10 @@
     }
   },
   {
-    "id": "V1.lesson.version-3..version",
+    "id": "V1.lesson.version-4..version",
     "obligationId": "V1",
     "caseId": "C6",
-    "inputFixture": "cases.mjs#V1.lesson.version-3..version",
+    "inputFixture": "cases.mjs#V1.lesson.version-4..version",
     "expected": {
       "ok": false,
       "errors": [
@@ -8725,10 +8725,10 @@
     }
   },
   {
-    "id": "V1.map.version-3..lessons.0.version",
+    "id": "V1.map.version-4..lessons.0.version",
     "obligationId": "V1",
     "caseId": "C6",
-    "inputFixture": "cases.mjs#V1.map.version-3..lessons.0.version",
+    "inputFixture": "cases.mjs#V1.map.version-4..lessons.0.version",
     "expected": {
       "ok": false,
       "errors": [
@@ -42380,10 +42380,10 @@
     }
   },
   {
-    "id": "CH-V1.version.lesson.3",
+    "id": "CH-V1.version.lesson.4",
     "obligationId": "CH-V1",
     "caseId": "C7",
-    "inputFixture": "cases.mjs#CH-V1.version.lesson.3",
+    "inputFixture": "cases.mjs#CH-V1.version.lesson.4",
     "expected": {
       "ok": false,
       "errors": [

@@ -1,0 +1,365 @@
+{
+  "kind": "lesson",
+  "version": 3,
+  "lessonId": "minimal-lesson",
+  "lessonRevision": 1,
+  "profileId": "local-learner",
+  "diagnosticId": "min-diagnostic",
+  "candidateId": "min-candidate",
+  "contextKind": "interest",
+  "modelId": "minimal-double",
+  "modelRevision": 1,
+  "concepts": [
+    {
+      "conceptId": "doubling",
+      "conceptRevision": 1,
+      "label": "두 배",
+      "meaning": "MDMEAN 두 배의 뜻이다.",
+      "example": "MDEX 두 배의 예다.",
+      "confusion": "MDCONF 두 배을 다른 값과 헷갈린다.",
+      "plain": "MDPLAIN 두 배을 쉽게 말한 것이다."
+    },
+    {
+      "conceptId": "speed-input",
+      "conceptRevision": 1,
+      "label": "입력 속도",
+      "meaning": "MSMEAN 입력 속도의 뜻이다.",
+      "example": "MSEX 입력 속도의 예다.",
+      "confusion": "MSCONF 입력 속도을 다른 값과 헷갈린다.",
+      "plain": "MSPLAIN 입력 속도을 쉽게 말한 것이다."
+    },
+    {
+      "conceptId": "range-note",
+      "conceptRevision": 1,
+      "label": "범위 메모",
+      "meaning": "MRMEAN 범위 메모의 뜻이다.",
+      "example": "MREX 범위 메모의 예다.",
+      "confusion": "MRCONF 범위 메모을 다른 값과 헷갈린다.",
+      "plain": "MRPLAIN 범위 메모을 쉽게 말한 것이다."
+    }
+  ],
+  "content": [
+    {
+      "contentId": "min-diagnostic-cards",
+      "role": "application",
+      "text": "MINDIAG-ONLY 진단 활동 본문은 수업 화면에 나오지 않는다.",
+      "conceptIds": [
+        "doubling",
+        "speed-input",
+        "range-note"
+      ]
+    },
+    {
+      "contentId": "min-orientation",
+      "role": "explanation",
+      "text": "MORIENT-1 입력 하나가 결과 하나를 바꾸는 모습을 본다.",
+      "conceptIds": [
+        "doubling",
+        "speed-input",
+        "range-note"
+      ]
+    },
+    {
+      "contentId": "min-explanation",
+      "role": "explanation",
+      "text": "MEXPL-1 결과는 입력의 두 배다.",
+      "conceptIds": [
+        "doubling",
+        "speed-input",
+        "range-note"
+      ]
+    },
+    {
+      "contentId": "min-simulation",
+      "role": "simulation",
+      "text": "MSIM-1 입력을 바꾸며 카드와 차트를 본다.",
+      "conceptIds": [
+        "doubling",
+        "speed-input",
+        "range-note"
+      ]
+    },
+    {
+      "contentId": "min-application",
+      "role": "application",
+      "text": "MAPP-1 다른 입력으로 같은 확인을 반복한다.",
+      "conceptIds": [
+        "doubling",
+        "speed-input",
+        "range-note"
+      ]
+    },
+    {
+      "contentId": "min-failure",
+      "role": "failure",
+      "text": "MFAIL-1 범위 밖 입력은 계산돼도 현실과 다를 수 있다.",
+      "conceptIds": [
+        "doubling",
+        "speed-input",
+        "range-note"
+      ]
+    },
+    {
+      "contentId": "min-assessment",
+      "role": "assessment",
+      "text": "MASSESS-1 새 입력의 결과를 예상한다.",
+      "conceptIds": [
+        "doubling",
+        "speed-input",
+        "range-note"
+      ]
+    },
+    {
+      "contentId": "min-assessment-2",
+      "role": "assessment",
+      "text": "MASSESS-2 무엇이 바뀌는지 말해 본다.",
+      "conceptIds": [
+        "doubling",
+        "speed-input",
+        "range-note"
+      ]
+    },
+    {
+      "contentId": "min-return",
+      "role": "application",
+      "text": "MRETURN-1 한 문장으로 정리한다.",
+      "conceptIds": [
+        "doubling",
+        "speed-input",
+        "range-note"
+      ]
+    },
+    {
+      "contentId": "min-map",
+      "role": "application",
+      "text": "MMAP-1 다음 후보를 살핀다.",
+      "conceptIds": [
+        "doubling",
+        "speed-input",
+        "range-note"
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "decisionId": "choose-speed",
+      "question": "MINDEC-Q 어느 부하로 맞출까?",
+      "choices": [
+        "MINDEC-C1 낮게",
+        "MINDEC-C2 높게"
+      ],
+      "requiredInformation": [
+        "MINDEC-R1 현실 범위",
+        "MINDEC-R2 허용 여유"
+      ],
+      "explanationId": "min-explanation",
+      "simulationId": "min-simulation",
+      "applicationId": "min-application",
+      "failureId": "min-failure",
+      "assessmentId": "min-assessment"
+    }
+  ],
+  "inputs": [
+    {
+      "inputId": "speed",
+      "label": "속도",
+      "unit": "m",
+      "min": 0,
+      "max": 10,
+      "default": 4,
+      "step": 1,
+      "practical": {
+        "min": 2,
+        "max": 8,
+        "basis": "합성 fixture 가정: 속도는 2에서 8 사이에서 관찰된다."
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "outputId": "twice",
+      "label": "두 배 값",
+      "unit": "m",
+      "scale": 1,
+      "nullable": false
+    }
+  ],
+  "visuals": [
+    {
+      "visualId": "twice-sweep",
+      "kind": "sweep",
+      "inputId": "speed",
+      "outputIds": [
+        "twice"
+      ],
+      "caption": "속도에 따른 두 배 값"
+    }
+  ],
+  "scenarios": [
+    {
+      "scenarioId": "base",
+      "label": "기본",
+      "values": [
+        {
+          "inputId": "speed",
+          "value": 4
+        }
+      ]
+    },
+    {
+      "scenarioId": "high",
+      "label": "높음",
+      "values": [
+        {
+          "inputId": "speed",
+          "value": 8
+        }
+      ]
+    },
+    {
+      "scenarioId": "new-case",
+      "label": "새 사례",
+      "values": [
+        {
+          "inputId": "speed",
+          "value": 6
+        }
+      ]
+    }
+  ],
+  "transfer": {
+    "scenarioId": "new-case",
+    "tolerances": [
+      {
+        "outputId": "twice",
+        "absolute": 1
+      }
+    ]
+  },
+  "activities": [
+    {
+      "activityId": "min-diagnosis",
+      "stage": "diagnosis",
+      "contentIds": [
+        "min-diagnostic-cards"
+      ],
+      "required": true,
+      "minutes": 2
+    },
+    {
+      "activityId": "min-orient",
+      "stage": "orientation",
+      "contentIds": [
+        "min-orientation"
+      ],
+      "required": true,
+      "minutes": 1
+    },
+    {
+      "activityId": "min-explore",
+      "stage": "exploration",
+      "contentIds": [
+        "min-explanation",
+        "min-simulation",
+        "min-application",
+        "min-failure"
+      ],
+      "required": true,
+      "minutes": 6
+    },
+    {
+      "activityId": "min-assess",
+      "stage": "assessment",
+      "contentIds": [
+        "min-assessment",
+        "min-assessment-2"
+      ],
+      "required": true,
+      "minutes": 5
+    },
+    {
+      "activityId": "min-return-act",
+      "stage": "return",
+      "contentIds": [
+        "min-return"
+      ],
+      "required": true,
+      "minutes": 2
+    },
+    {
+      "activityId": "min-map-act",
+      "stage": "map",
+      "contentIds": [
+        "min-map"
+      ],
+      "required": true,
+      "minutes": 2
+    }
+  ],
+  "rubric": {
+    "rubricId": "minimal-lesson-rubric",
+    "rubricVersion": 1,
+    "criteria": [
+      {
+        "criterionId": "distinguish-parts",
+        "dimension": "concept",
+        "conceptIds": [
+          "doubling",
+          "speed-input",
+          "range-note"
+        ],
+        "contentId": "min-assessment",
+        "mode": "agent",
+        "rule": "몫과 합계를 구분해 설명한다."
+      },
+      {
+        "criterionId": "calculate-transfer",
+        "dimension": "prediction-model",
+        "conceptIds": [
+          "range-note",
+          "speed-input",
+          "doubling"
+        ],
+        "contentId": "min-assessment",
+        "mode": "automatic",
+        "rule": "새 사례의 값을 기대값과 비교한다."
+      },
+      {
+        "criterionId": "explain-transfer",
+        "dimension": "transfer",
+        "conceptIds": [
+          "range-note",
+          "speed-input",
+          "doubling"
+        ],
+        "contentId": "min-assessment",
+        "mode": "agent",
+        "rule": "새 사례에서 다시 계산하는 이유를 설명한다."
+      },
+      {
+        "criterionId": "ask-for-evidence",
+        "dimension": "question",
+        "conceptIds": [
+          "range-note",
+          "speed-input",
+          "doubling"
+        ],
+        "contentId": "min-assessment-2",
+        "mode": "agent",
+        "rule": "부족한 정보를 질문으로 만든다."
+      },
+      {
+        "criterionId": "justify-choice",
+        "dimension": "choice-meaning",
+        "conceptIds": [
+          "doubling",
+          "speed-input",
+          "range-note"
+        ],
+        "contentId": "min-assessment-2",
+        "mode": "agent",
+        "rule": "선택의 조건을 비교한다."
+      }
+    ]
+  }
+}

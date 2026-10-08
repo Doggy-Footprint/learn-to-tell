@@ -42,7 +42,7 @@ const lessonSpec = {version: 'number', modelId: 'string', modelRevision: 'number
 function lessonIntake(lesson, errors) {
   const head = intake(lesson, 'lesson', {version: 'number'}, errors);
   if (!head) return undefined;
-  if (head.version !== 2) return add(errors, 'VERSION', '/lesson/version');
+  if (head.version !== 2 && head.version !== 3) return add(errors, 'VERSION', '/lesson/version');
   return intake(lesson, 'lesson', lessonSpec, errors);
 }
 function sameModel(subject, lesson, name, errors) {

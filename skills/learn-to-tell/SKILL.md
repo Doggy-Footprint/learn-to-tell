@@ -67,7 +67,13 @@ CLI 공통 규칙:
 [reference.md](reference.md)의 제약을 모두 지킨다.
 1. `$W/model.mjs`: 결정 변수를 입력으로, 사용자가 관찰할 값을 출력으로 하는 단일 파일 모델. `import`/`require` 금지, 결정적, 입력 객체 불변, 범위 밖 입력은 `{ok:false}`, 출력은 유한수(또는 nullable 출력의 null).
 2. `$W/oracle.json`: 모델 코드를 보지 않고 손계산·공식·출처로 구한 기대값. 경계(min/max)와 시나리오 값을 포함해 4개 이상. `source`에 계산 근거를 적는다. 직접 썼으면 `author: "model-author"`, 6단계 서브에이전트가 썼으면 `"independent-agent"`.
-3. `$W/lesson.json`: lesson v2. 실제 활용 예, 실패·주의 예, 시뮬레이션, 설명을 가린 새 사례(transfer)를 포함한다. 내용은 사용자의 상황(1단계) 언어로 쓴다. 수치 주장에는 근거를 둔다. 확실하지 않은 사실은 쓰지 않거나 불확실하다고 적는다.
+3. `$W/lesson.json`: lesson v3(생성 대상). 실제 활용 예, 실패·주의 예, 시뮬레이션, 설명을 가린 새 사례(transfer)를 포함한다. 내용은 사용자의 상황(1단계) 언어로 쓴다. 수치 주장에는 근거를 둔다. 확실하지 않은 사실은 쓰지 않거나 불확실하다고 적는다.
+4. boundary 규칙 (lesson v3 입력과 `visuals`):
+   - 정의역: `min`/`max`는 모델이 계산하는 범위이며 model.mjs의 RANGE 판정과 같다.
+   - 실사용 범위: `practical{min,max,basis}`는 실제 현장·사용자 상황에서 관찰되는 범위다. 슬라이더는 이 범위만 움직인다. `basis`에 출처·근거를 적고, 근거가 약하면 `basis`에 불확실하다고 명시한다. 근거 없는 수치를 지어내지 않는다.
+   - `default`는 `practical` 안의 대표값이고, `step`은 의미 있는 최소 변화량(`practical` 폭 이하)이다. `label`은 사용자가 읽는 이름이다.
+   - `visuals`: 결정 변수(입력)마다 `sweep`을 1개 이상 둔다. 부분-전체 관계의 출력(합이 전체가 되는 비율·구성)이 있으면 `composition`도 둔다. `composition`은 `inputId: null`, 같은 단위의 nullable 아닌 출력 2개 이상이다.
+   - `practical` 밖 값을 쓰는 시나리오는 failure 내용(content)에서 그 이유를 설명할 때만 만든다. 정의역 밖은 쓸 수 없다.
 
 ## 5. check-model
 
@@ -78,13 +84,15 @@ CLI 공통 규칙:
 | `INVALID`(outcome) | lesson/oracle 계약 위반. path의 필드를 고친다 |
 | `MISMATCH /cases/i/expected/j` | 모델과 oracle 불일치. **어느 쪽이 틀렸는지 먼저 손으로 다시 계산**한다. 모델에 맞춰 oracle을 고치지 않는다 |
 | `PROBE_RANGE` | 범위 밖 입력에 ok:false를 내지 않음 |
+| `PROBE_SWEEP /visuals/i` | sweep의 `practical` 범위(41점)에서 ok:false 또는 비유한 출력이 나옴. 모델이 실사용 범위에서 계산되도록 고치거나 `practical`을 줄인다 |
+| `PROBE_COMPOSITION /visuals/i` | composition 출력이 음수가 됨. 음수가 나오지 않는 출력으로 묶거나 모델을 고친다 |
 | `NON_FINITE` · `SHAPE` | 0 나눗셈 등 비유한값, 또는 출력 키가 outputIds와 다름 |
 | `MUTATION` · `NONDETERMINISTIC` | 입력 객체 변경, 난수·시간 사용 |
 | `LOAD` · `TIMEOUT` · `THROW` | import 사용·`model` export 누락, 5초 초과, 예외 |
 
 ## 6. 독립 검증 (Claude Code에서만)
 
-Agent 도구가 있으면 서브에이전트에게 model.mjs를 주지 않고 lesson.json·oracle.json·사용자 상황만 주어 다음을 검토시킨다: 개념 설명의 사실 오류, oracle 기대값 재계산, 결정 변수와 선택 조건이 상황에 맞는지, 15–20분 분량이 현실적인지.
+Agent 도구가 있으면 서브에이전트에게 model.mjs를 주지 않고 lesson.json·oracle.json·사용자 상황만 주어 다음을 검토시킨다: 개념 설명의 사실 오류, oracle 기대값 재계산, `practical` 범위와 `basis`의 사실성(실제로 관찰되는 범위인지, 근거가 실재하는지), 결정 변수와 선택 조건이 상황에 맞는지, 15–20분 분량이 현실적인지.
 지적을 반영하면 4–5단계를 다시 통과시킨다. Agent 도구가 없는 환경(Codex 등)이면 이 단계를 건너뛰었다고 사용자에게 알린다.
 
 ## 7. 배치 · 빌드 · 제공

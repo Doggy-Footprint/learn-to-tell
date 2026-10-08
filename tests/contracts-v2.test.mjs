@@ -14,7 +14,7 @@ const oracleJson = (() => { try { return JSON.parse(readFileSync(new URL('../exa
 const manifest = JSON.parse(readFileSync(new URL('./fixtures/contracts-v2/manifest.json', import.meta.url), 'utf8'));
 
 const declaredItems = (() => {
-  const items = ['V1.v1', 'V1.v2', 'V1.0', 'V1.3', 'V1.str2'];
+  const items = ['V1.v1', 'V1.v2', 'V1.0', 'V1.4', 'V1.str2'];
   for (const f of CARD_FIELDS) for (const c of ['valid', 'missing', 'blank', 'number']) items.push(`T53-V1.${f}.${c}`);
   items.push('T53-V1.v1-card-fields');
   for (const id of mxInputIds) for (const b of ['min', 'max']) for (const v of ['minus', 'eq', 'plus']) items.push(`V2.bva.${id}.${b}-${v}`);

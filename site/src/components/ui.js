@@ -1,20 +1,29 @@
-import {applyAction, createRuntime, FREE_KINDS, HELP_LEVELS, HINT_LEVELS, STAGES, predictionState} from '../learning/progress.mjs';
+import {applyAction, compositionShares, createRuntime, FREE_KINDS, HELP_LEVELS, HINT_LEVELS, STAGES, predictionState, sweepPoints} from '../learning/progress.mjs';
 import {gradeTransferPrediction, toleranceText} from '../learning/grading.mjs';
 import {buildResult, finalizeResult, validateResultShape} from '../learning/result.mjs';
 import {loadProgress, saveProgress, storageKey} from '../learning/storage.mjs';
 import {formatCount} from '../learning/format.mjs';
 import {h, replaceChildren} from './dom.js';
+import {CHART_WIDTH, compositionChart, sweepChart} from './charts.js';
 import {EXPORT_BLOCKED_NOTICE, EXPORT_NOTICE, EXPORT_SUBMITTED_NOTICE, EXPORT_SUBMIT_FAILED_NOTICE, HELP_LABELS, NUMBER_NOTES, OBSERVATION_NOTICE, SAFETY_NOTICE, STATUS_LABELS, STORAGE_NOTICES} from './content.js';
 
 const numberOrNaN = element => element.validity.badInput || element.value.trim() === '' ? Number.NaN : Number(element.value);
 const UNDEFINED_TEXT = '정의되지 않음';
 
 function table(testid, caption, head, rows) {
-  return h('table', {testid},
+  return h('div', {class: 'table-wrap'}, h('table', {testid},
     h('caption', {text: caption}),
     h('thead', {}, h('tr', {}, head.map(label => h('th', {scope: 'col', text: label})))),
-    h('tbody', {}, rows));
+    h('tbody', {}, rows)));
 }
+
+const clamp = (value, low, high) => Math.min(Math.max(value, low), high);
+const changeText = (a, b) => a === null || b === null ? (a === b ? '변화 없음' : '정의 여부가 달라짐') : `${b - a > 0 ? '+' : ''}${formatCount(b - a)}`;
+const deltaText = (a, b) => {
+  if (a === null || b === null) return a === b ? '변화 없음' : '정의 여부가 달라짐';
+  if (b === a) return '변화 없음';
+  return b > a ? `직전 대비 ▲ +${formatCount(b - a)}` : `직전 대비 ▼ −${formatCount(a - b)}`;
+};
 
 function statusLine(status) {
   const [icon, label, code] = STATUS_LABELS[status];
@@ -29,8 +38,8 @@ export function mount(session, lesson, model) {
   const {outputs} = runtime;
   const outputById = new Map(outputs.map(output => [output.outputId, output]));
   const labelOf = outputId => outputById.get(outputId).label;
-  const inputLabel = input => `${input.inputId} (${input.unit})`;
-  const describeInputs = inputs => runtime.inputs.map(input => `${input.inputId} ${inputs[input.inputId]}${input.unit}`).join(' · ');
+  const inputLabel = input => `${input.label} (${input.unit})`;
+  const describeInputs = inputs => runtime.inputs.map(input => `${input.label} ${inputs[input.inputId]}${input.unit}`).join(' · ');
   const formatValue = value => value === null ? UNDEFINED_TEXT : formatCount(value);
   const formatPredicted = (output, value) => value === null ? UNDEFINED_TEXT : `${formatCount(value)} ${output.unit}`;
   const calculate = inputs => {
@@ -46,7 +55,7 @@ export function mount(session, lesson, model) {
     storage = null;
   }
   const loaded = loadProgress(storage, session, runtime);
-  const state = {progress: loaded.progress, loadNotice: loaded.notice, saveFailed: false, errors: {}, openConcept: null, confirmReset: false, exportError: null, exportSubmitted: false, exportSubmitError: null, highlight: null, returnY: 0, lastValid: null};
+  const state = {progress: loaded.progress, loadNotice: loaded.notice, saveFailed: false, errors: {}, openConcept: null, confirmReset: false, exportError: null, exportSubmitted: false, exportSubmitError: null, highlight: null, returnY: 0, lastValid: null, preview: null};
 
   const dispatch = action => {
     const result = applyAction(state.progress, {...action, at: new Date().toISOString()}, runtime);
@@ -172,14 +181,21 @@ export function mount(session, lesson, model) {
     open.trigger.focus();
   });
 
+  const effective = () => state.preview ?? state.progress.inputs;
   const inputNodes = {};
+  const sliderNodes = {};
+  const badgeSlots = {};
   const errorSlots = {};
   const inputRows = runtime.inputs.map(spec => {
-    const {inputId} = spec;
+    const {inputId, practical} = spec;
     const input = h('input', {id: `input-${inputId}`, type: 'number', step: 'any', min: spec.min, max: spec.max, inputmode: 'decimal', testid: `input-${inputId}`});
+    const slider = h('input', {id: `slider-${inputId}`, type: 'range', min: practical.min, max: practical.max, step: spec.step, testid: `slider-${inputId}`, 'aria-label': `${inputLabel(spec)} 슬라이더`});
     inputNodes[inputId] = input;
+    sliderNodes[inputId] = slider;
     errorSlots[inputId] = h('div', {class: 'slot'});
+    badgeSlots[inputId] = h('span', {class: 'slot'});
     input.addEventListener('input', () => {
+      state.preview = null;
       const value = numberOrNaN(input);
       if (Number.isNaN(value)) state.errors[inputId] = `숫자를 입력하세요(${spec.min}–${spec.max}, 단위 ${spec.unit}).`;
       else if (value < spec.min || value > spec.max) state.errors[inputId] = `${spec.min} 이상 ${spec.max} 이하의 값을 입력하세요(단위 ${spec.unit}).`;
@@ -189,13 +205,31 @@ export function mount(session, lesson, model) {
       }
       renderSimulation(inputId);
     });
-    return h('div', {class: 'field-row'}, h('label', {for: input.id, text: inputLabel(spec)}), input,
-      h('span', {class: 'default-note', text: `기본값 ${spec.default}${spec.unit}, 범위 ${spec.min}–${spec.max}`}), errorSlots[inputId]);
+    slider.addEventListener('input', () => {
+      delete state.errors[inputId];
+      state.preview = {...state.progress.inputs, [inputId]: Number(slider.value)};
+      renderSimulation(inputId);
+    });
+    slider.addEventListener('change', () => {
+      const value = Number(slider.value);
+      state.preview = null;
+      dispatch({type: 'setInput', field: inputId, value});
+      renderSimulation();
+    });
+    const rangeText = lesson.version === 3 ? `실사용 범위 ${practical.min}–${practical.max}${spec.unit}` : `범위 ${practical.min}–${practical.max}${spec.unit}`;
+    return h('div', {class: 'input-row', 'data-input': inputId},
+      h('div', {class: 'field-row'}, h('label', {for: input.id, text: inputLabel(spec)}), input, badgeSlots[inputId]),
+      h('div', {class: 'slider-row'}, slider),
+      h('p', {class: 'hint-line range-line'}, h('span', {testid: `practical-range-${inputId}`, text: rangeText}), h('span', {class: 'default-note', text: ` · 기본값 ${spec.default}${spec.unit}`}),
+        lesson.version === 3 ? h('span', {class: 'default-note', text: ` · 숫자칸 입력 가능 범위 ${spec.min}–${spec.max}${spec.unit}`}) : null),
+      spec.practical.basis === '' ? null : h('details', {class: 'basis', testid: `practical-basis-${inputId}`}, h('summary', {text: '이 범위의 근거'}), h('p', {text: practical.basis})),
+      errorSlots[inputId]);
   });
 
   const scenarioButtons = runtime.scenarios.map(scenario => {
     const button = h('button', {type: 'button', testid: `scenario-${scenario.scenarioId}`, onclick: () => {
       state.errors = {};
+      state.preview = null;
       dispatch({type: 'applyScenario', scenarioId: scenario.scenarioId});
       renderSimulation();
     }});
@@ -204,32 +238,66 @@ export function mount(session, lesson, model) {
   });
 
   const outputTable = h('div', {class: 'output-tables'});
-  const barBox = h('div', {class: 'bar-box', testid: 'output-bars'});
-  const previousNote = h('p', {class: 'hint-line'});
+  const cardBox = h('div', {class: 'card-box', testid: 'output-bars'});
+  const visualBox = h('div', {class: 'visuals'});
+  const previousNote = h('p', {class: 'hint-line', testid: 'simulation-guidance'});
+  const inputById = new Map(runtime.inputs.map(input => [input.inputId, input]));
 
   const unitGroups = [...new Set(outputs.map(output => output.unit))].map(unit => ({unit, members: outputs.filter(output => output.unit === unit)}));
-  function renderBars(raw, display) {
-    barBox.replaceChildren(...unitGroups.map(({unit, members}) => {
-      const present = members.filter(output => display[output.outputId] !== null);
-      const max = Math.max(0, ...present.map(output => Math.abs(display[output.outputId])));
-      return h('section', {class: 'bar-group', 'aria-label': `단위 ${unit} 막대`},
-        h('h5', {text: `막대: 단위 ${unit}`}),
-        h('ul', {class: 'bar-list'}, present.map(output => {
-          const value = display[output.outputId];
-          const width = max === 0 ? 0 : Math.abs(value) / max * 100;
-          return h('li', {},
-            h('span', {class: 'bar-label', text: output.label}),
-            h('span', {class: 'bar-track'}, h('span', {class: 'bar', testid: `bar-${output.outputId}`, 'data-value': raw[output.outputId], 'data-width': width, style: `width:${width}%`, role: 'img', 'aria-label': `${output.label} ${formatValue(value)} ${unit}`})),
-            h('span', {class: 'bar-value', text: `${formatValue(value)} ${unit}`}));
+  function renderCards(raw, display, previousRaw, previous) {
+    cardBox.replaceChildren(...unitGroups.map(({unit, members}, groupIndex) => {
+      const max = Math.max(0, ...members.filter(output => display[output.outputId] !== null).map(output => Math.abs(display[output.outputId])));
+      return h('section', {class: 'card-group', testid: `output-group-${groupIndex}`, 'data-unit': unit, 'aria-label': `단위 ${unit} 출력`},
+        h('h4', {text: `단위: ${unit}`}),
+        h('div', {class: 'card-grid'}, members.map(output => {
+          const {outputId} = output;
+          const value = display[outputId];
+          const before = previous ? previous[outputId] : null;
+          const width = value === null || max === 0 ? 0 : Math.abs(value) / max * 100;
+          const position = before === null || max === 0 ? 0 : Math.abs(before) / max * 100;
+          return h('div', {class: 'output-card', testid: `output-card-${outputId}`},
+            h('p', {class: 'card-label', text: output.label}),
+            h('p', {class: 'card-value', testid: `output-value-${outputId}`, text: value === null ? UNDEFINED_TEXT : `${formatCount(value)} ${unit}`}),
+            value === null && before === null ? null : h('span', {class: 'bar-track'},
+              value === null ? null : h('span', {class: 'bar', testid: `bar-${outputId}`, 'data-value': raw[outputId], 'data-width': width, style: `width:${width}%`, role: 'img', 'aria-label': `${output.label} ${formatValue(value)} ${unit}`}),
+              before === null ? null : h('span', {class: 'bar-previous', testid: `bar-previous-${outputId}`, 'data-value': previousRaw[outputId], 'data-position': position, style: `left:${Math.min(position, 100)}%`, role: 'img', 'aria-label': `직전 ${formatValue(before)} ${unit}`})),
+            h('p', {class: 'card-delta', testid: `output-delta-${outputId}`, text: previous ? deltaText(before, value) : '직전 값 없음'}));
         })));
     }));
   }
 
+  // Charts are drawn in a fixed viewBox, so the text size is counter-scaled to stay 11 CSS px at any container width.
+  const fitCharts = () => {
+    for (const chart of visualBox.querySelectorAll('svg.chart')) {
+      const width = chart.getBoundingClientRect().width;
+      if (width > 0) chart.style.setProperty('--chart-font', `${(11 * CHART_WIDTH / width).toFixed(2)}px`);
+    }
+  };
+  window.addEventListener('resize', fitCharts);
+  function renderVisuals(inputs, display, previous) {
+    visualBox.replaceChildren(...runtime.visuals.map(visual => {
+      const visualOutputs = visual.outputIds.map(outputId => outputById.get(outputId));
+      if (visual.kind === 'composition') {
+        return compositionChart({visual, outputs: visualOutputs, shares: compositionShares(runtime, visual, display), previousShares: previous ? compositionShares(runtime, visual, previous) : null});
+      }
+      const input = inputById.get(visual.inputId);
+      const before = state.progress.previousInputs;
+      const ghost = previous && before[visual.inputId] !== inputs[visual.inputId] ? {x: before[visual.inputId], values: previous} : null;
+      return sweepChart({visual, input, outputs: visualOutputs, points: sweepPoints(runtime, visual, inputs), current: {x: inputs[visual.inputId], values: display}, previous: ghost});
+    }));
+    fitCharts();
+  }
+
   const renderSimulation = skip => {
+    const inputs = effective();
     for (const spec of runtime.inputs) {
       const {inputId} = spec;
       const element = inputNodes[inputId];
-      if (inputId !== skip && !state.errors[inputId]) element.value = String(state.progress.inputs[inputId]);
+      const dragging = inputId === skip && state.preview !== null;
+      if (!state.errors[inputId] && (inputId !== skip || dragging)) element.value = String(inputs[inputId]);
+      if (!dragging) sliderNodes[inputId].value = String(clamp(inputs[inputId], spec.practical.min, spec.practical.max));
+      const outside = inputs[inputId] < spec.practical.min || inputs[inputId] > spec.practical.max;
+      replaceChildren(badgeSlots[inputId], outside ? h('span', {class: 'badge-out', testid: `practical-out-${inputId}`, text: '현실 범위 밖(모델로는 계산 가능)'}) : null);
       if (state.errors[inputId]) {
         element.setAttribute('aria-invalid', 'true');
         element.setAttribute('aria-describedby', `input-error-${inputId}`);
@@ -246,24 +314,21 @@ export function mount(session, lesson, model) {
       button.setAttribute('aria-pressed', String(active));
     }
     const stale = Object.keys(state.errors).length > 0;
-    replaceChildren(slot('stale'), stale ? h('p', {class: 'notice warn', role: 'status', testid: 'stale-output-notice', text: `⚠ 이전 값 표시 중: 잘못된 입력이 있어 마지막 유효 입력(${describeInputs(state.progress.inputs)})의 결과를 보여 줍니다.`}) : null);
-    const raw = calculate(state.progress.inputs) ?? state.lastValid;
+    replaceChildren(slot('stale'), stale ? h('p', {class: 'notice warn', role: 'status', testid: 'stale-output-notice', text: `⚠ 이전 값 표시 중: 잘못된 입력이 있어 마지막 유효 입력(${describeInputs(inputs)})의 결과를 보여 줍니다.`}) : null);
+    const raw = calculate(inputs) ?? state.lastValid;
     state.lastValid = raw;
     const now = displayOf(raw);
-    const previousRaw = state.progress.previousInputs ? calculate(state.progress.previousInputs) : null;
+    const previousInputs = state.progress.previousInputs;
+    const previousRaw = previousInputs ? calculate(previousInputs) : null;
     const previous = previousRaw ? displayOf(previousRaw) : null;
-    const compare = ({outputId}) => {
-      const a = previous[outputId];
-      const b = now[outputId];
-      if (a === null || b === null) return a === b ? '변화 없음' : '정의 여부가 달라짐';
-      return `${b - a > 0 ? '+' : ''}${formatCount(b - a)}`;
-    };
-    outputTable.replaceChildren(
-      table('output-table', `현재 입력(${describeInputs(state.progress.inputs)})의 출력`, ['항목', '현재 값'], fieldRows(output => h('td', {'data-output': output.outputId, text: formatValue(now[output.outputId])}))),
-      table('output-previous', previous ? `직전 입력(${describeInputs(state.progress.previousInputs)})의 출력` : '직전 값(아직 입력을 바꾸지 않음)', ['항목', '직전 값'], fieldRows(output => h('td', {'data-output': output.outputId, text: previous ? formatValue(previous[output.outputId]) : '—'}))),
-      table('output-change', '전후 변화(현재 − 직전)', ['항목', '변화'], fieldRows(output => h('td', {'data-output': output.outputId, text: previous ? compare(output) : '—'}))));
-    previousNote.textContent = previous ? '왼쪽부터 현재 값, 직전 값, 변화입니다. 한 번에 한 입력만 바꾸면 어떤 변화가 결과에 연결되는지 보기 쉽습니다.' : '입력을 바꾸면 변경 직전 값과 비교가 여기에 나타납니다.';
-    renderBars(raw, now);
+    outputTable.replaceChildren(table('output-table', `현재 입력(${runtime.inputs.map(input => `${input.label} ${formatCount(inputs[input.inputId])}${input.unit}`).join(' · ')})의 출력`, ['항목', '현재', '직전', '변화'], fieldRows(output => [
+      h('td', {'data-output': output.outputId, text: formatValue(now[output.outputId])}),
+      h('td', {'data-previous': output.outputId, text: previous ? formatValue(previous[output.outputId]) : '—'}),
+      h('td', {'data-change': output.outputId, text: previous ? changeText(previous[output.outputId], now[output.outputId]) : '—'}),
+    ])));
+    previousNote.textContent = previous ? '표의 열은 현재 값, 직전 값, 변화입니다. 한 번에 한 입력만 바꾸면 어떤 변화가 결과에 연결되는지 보기 쉽습니다.' : '입력을 바꾸면 변경 직전 값과 비교가 여기에 나타납니다.';
+    renderCards(raw, now, previousRaw, previous);
+    renderVisuals(inputs, now, previous);
     const present = Object.values(now).filter(value => value !== null);
     replaceChildren(slot('fraction'), present.some(value => !Number.isInteger(value)) ? h('p', {class: 'hint-line', text: NUMBER_NOTES[1]}) : null);
     replaceChildren(slot('undefined-output'), present.length < outputs.length ? h('p', {class: 'notice', role: 'note', text: NUMBER_NOTES[0]}) : null);
@@ -410,7 +475,7 @@ export function mount(session, lesson, model) {
       state.saveFailed = true;
     }
     const fresh = loadProgress({getItem: () => null}, session, runtime).progress;
-    Object.assign(state, {progress: fresh, errors: {}, confirmReset: false, exportError: null, exportSubmitted: false, exportSubmitError: null, highlight: null, loadNotice: state.loadNotice === 'unavailable' ? 'unavailable' : null});
+    Object.assign(state, {progress: fresh, errors: {}, preview: null, confirmReset: false, exportError: null, exportSubmitted: false, exportSubmitError: null, highlight: null, loadNotice: state.loadNotice === 'unavailable' ? 'unavailable' : null});
     for (const form of [baselineForm, transferForm, baselineRetryForm, transferRetryForm]) form.write(null);
     baselineForm.showError('prediction-error', null, []);
     transferForm.showError('transfer-error', null, []);
@@ -490,7 +555,7 @@ export function mount(session, lesson, model) {
   }, text: '학습 완료로 표시'});
 
   const wire = (form, retryForm, prefix, errorId, target) => {
-    const record = h('button', {type: 'button', testid: `${prefix}-record`, text: '예측 기록', onclick: () => {
+    const record = h('button', {type: 'button', class: 'primary', testid: `${prefix}-record`, text: '예측 기록', onclick: () => {
       if (readForm(form, errorId, 'recordPrediction', target)) renderAll();
     }});
     const skip = h('button', {type: 'button', testid: `${prefix}-skip`, text: '건너뛰기', onclick: () => {
@@ -522,13 +587,15 @@ export function mount(session, lesson, model) {
   const simulationBlock = section('sec-simulation', '입력을 바꿔 보기', ...contentParagraphs(exploration.filter(item => item.role === 'simulation')),
     h('div', {class: 'buttons', role: 'group', 'aria-label': '시나리오'}, scenarioButtons.map(item => item.button), h('button', {type: 'button', testid: 'reset-inputs', text: '입력 초기화', onclick: () => {
       state.errors = {};
+      state.preview = null;
       dispatch({type: 'resetInputs'});
       renderSimulation();
     }})),
     h('p', {class: 'hint-line', text: `초기화 범위: 입력만 기본값(${describeInputs(runtime.defaultInputs)})으로 되돌립니다. 예측·응답·힌트 기록은 지우지 않습니다.`}),
-    inputRows, slot('stale'), outputTable, previousNote, slot('undefined-output'), slot('fraction'),
-    h('div', {class: 'bar-section'}, h('h4', {text: '출력 막대'}), barBox,
-      h('p', {class: 'hint-line', text: '막대는 같은 단위끼리 가장 큰 절댓값을 100%로 비교합니다. 값은 위의 표와 막대 옆 숫자로도 읽을 수 있습니다.'})),
+    inputRows, slot('stale'),
+    h('div', {class: 'output-section'}, h('h4', {text: '출력'}), cardBox,
+      h('p', {class: 'hint-line', text: '막대는 같은 단위끼리 가장 큰 절댓값을 100%로 비교합니다. 점선 표시는 직전 값의 위치입니다. 값은 아래 표와 카드 숫자로도 읽을 수 있습니다.'})),
+    visualBox, outputTable, previousNote, slot('undefined-output'), slot('fraction'),
     ...(firstExplanation ? [h('p', {}, toExplanation)] : []));
   const explanationBlock = section('sec-explanation', '원리와 설명', ...(firstExplanation ? [explanationParagraph] : []),
     ...contentParagraphs(exploration.filter(item => item !== firstExplanation && item.role !== 'simulation')),
@@ -555,13 +622,29 @@ export function mount(session, lesson, model) {
 
   const stageHost = h('div', {});
   const stageIndicator = h('p', {class: 'stage-indicator', role: 'status', testid: 'stage-indicator'});
+  const stepper = h('ol', {class: 'stepper', testid: 'stage-stepper', 'aria-label': '학습 단계'});
+  const renderStepper = () => {
+    const current = STAGES.indexOf(state.progress.stage);
+    const reached = STAGES.indexOf(state.progress.reached);
+    stepper.replaceChildren(...STAGES.map((stage, index) => {
+      const text = `${index < current ? '✓ ' : ''}${index + 1}. ${STAGE_TITLES[stage]}`;
+      const attrs = {testid: `stepper-${stage}`, class: `step${index === current ? ' current' : ''}${index < current ? ' done' : ''}`};
+      if (index === current) return h('li', {}, h('span', {...attrs, 'aria-current': 'step', text}));
+      if (index > reached) return h('li', {}, h('span', {...attrs, class: `${attrs.class} locked`, text}));
+      return h('li', {}, h('button', {...attrs, type: 'button', text, onclick: () => {
+        dispatch({type: 'goToStage', stage});
+        renderAll();
+        focusStage();
+      }}));
+    }));
+  };
   const backButton = h('button', {type: 'button', testid: 'stage-back', text: '← 이전 단계', onclick: () => {
     const current = STAGES.indexOf(state.progress.stage);
     dispatch({type: 'goToStage', stage: STAGES[current - 1]});
     renderAll();
     focusStage();
   }});
-  const nextButton = h('button', {type: 'button', testid: 'stage-next', text: '다음 단계 →', onclick: () => {
+  const nextButton = h('button', {type: 'button', class: 'primary', testid: 'stage-next', text: '다음 단계 →', onclick: () => {
     const result = dispatch({type: 'advanceStage'});
     state.stageError = result.ok ? null : '기본 예측을 기록하거나 건너뛰어야 다음 단계로 갈 수 있습니다.';
     renderAll();
@@ -582,6 +665,7 @@ export function mount(session, lesson, model) {
       stageHost.replaceChildren(h('section', {testid: `stage-${name}`, 'aria-labelledby': 'stage-title'},
         h('h2', {id: 'stage-title', tabindex: '-1', text: `${index + 1}. ${STAGE_TITLES[name]}`}), ...STAGE_BODIES[name]()));
     }
+    renderStepper();
     stageIndicator.textContent = `${index + 1}/${STAGES.length} 단계: ${STAGE_TITLES[name]}`;
     navButtons.replaceChildren(...(index > 0 ? [backButton] : []), ...(index < STAGES.length - 1 ? [nextButton] : []));
     replaceChildren(slot('stage-error'), state.stageError ? h('p', {class: 'error', role: 'alert', testid: 'stage-error', text: `⚠ ${state.stageError}`}) : null);
@@ -592,9 +676,9 @@ export function mount(session, lesson, model) {
   app.replaceChildren(
     h('h1', {text: 'Learn to Tell 수업'}),
     h('p', {class: 'notice', role: 'note', testid: 'safety-notice', text: SAFETY_NOTICE}),
-    stageIndicator, stageHost, h('div', {class: 'buttons'}, navButtons), slot('stage-error'),
+    stepper, stageIndicator, stageHost, h('div', {class: 'buttons'}, navButtons), slot('stage-error'),
     h('section', {'aria-labelledby': 'finish-title'}, h('h2', {id: 'finish-title', text: '결과 내보내기와 저장'}),
-      h('div', {class: 'buttons'}, h('button', {type: 'button', testid: 'export-result', onclick: exportResult, text: '결과 제출'}), resetButton),
+      h('div', {class: 'buttons'}, h('button', {type: 'button', class: 'primary', testid: 'export-result', onclick: exportResult, text: '결과 제출'}), resetButton),
       h('p', {class: 'notice', role: 'note', testid: 'export-notice', text: EXPORT_NOTICE}), slot('export-error'), slot('export-status'), slot('storage'), slot('reset')));
 
   const renderAll = () => {

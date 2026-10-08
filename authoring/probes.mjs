@@ -13,6 +13,32 @@ function probeSet(lesson, oracle) {
   return {defaults, sets};
 }
 
+const SWEEP_POINTS = 41;
+
+function visualProbes(call, lesson, defaults, okValues, add) {
+  const nonNullable = new Set(lesson.outputs.filter(output => !output.nullable).map(output => output.outputId));
+  const inputs = new Map(lesson.inputs.map(input => [input.inputId, input]));
+  lesson.visuals.forEach((visual, index) => {
+    if (visual.kind !== 'sweep') return;
+    const path = `/visuals/${index}`;
+    const {min, max} = inputs.get(visual.inputId).practical;
+    let failed = false;
+    for (let point = 0; point < SWEEP_POINTS; point++) {
+      const t = point / (SWEEP_POINTS - 1);
+      const result = call({...defaults, [visual.inputId]: min * (1 - t) + max * t}, path);
+      if (result?.ok !== true) failed = true;
+      else {
+        okValues.push(result.value);
+        if (visual.outputIds.some(outputId => nonNullable.has(outputId) && !finite(result.value?.[outputId]))) failed = true;
+      }
+    }
+    if (failed) add('PROBE_SWEEP', path);
+  });
+  lesson.visuals.forEach((visual, index) => {
+    if (visual.kind === 'composition' && okValues.some(value => visual.outputIds.some(outputId => value?.[outputId] < 0))) add('PROBE_COMPOSITION', `/visuals/${index}`);
+  });
+}
+
 // `mark` runs before every calculate call so the parent can name the probe if the process dies mid-call.
 export function runProbes(model, lesson, oracle, mark) {
   const errors = [];
@@ -27,6 +53,7 @@ export function runProbes(model, lesson, oracle, mark) {
   };
   const {defaults, sets} = probeSet(lesson, oracle);
   const outputs = lesson.outputs;
+  const okValues = [];
   try {
     oracle.cases.forEach((item, index) => {
       const result = call(structuredClone(sets[index]), `/cases/${index}`);
@@ -49,11 +76,13 @@ export function runProbes(model, lesson, oracle, mark) {
       if (!isDeepStrictEqual(values, snapshot)) add('MUTATION', path);
       if (!isDeepStrictEqual(first, call(structuredClone(snapshot), path))) add('NONDETERMINISTIC', path);
       if (first?.ok !== true) return;
+      okValues.push(first.value);
       const value = first.value;
       const plain = value !== null && typeof value === 'object' && !Array.isArray(value);
       if (!plain || !isDeepStrictEqual(Object.keys(value).sort(), outputs.map(output => output.outputId).sort())) return add('SHAPE', path);
       for (const output of outputs) if (!finite(value[output.outputId]) && !(output.nullable && value[output.outputId] === null)) add('NON_FINITE', `${path}/${output.outputId}`);
     });
+    if (lesson.version === 3) visualProbes(call, lesson, defaults, okValues, add);
   } catch (error) {
     if (!(error instanceof Thrown)) throw error;
     add('THROW', error.message);

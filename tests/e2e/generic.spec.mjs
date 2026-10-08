@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test';
-import {tid, norm, show, gotoStage, expectCellStrings, expectOutputs, fillPrediction, submitResult, assertResultDocument} from './helpers.mjs';
+import {tid, norm, show, gotoStage, expectV2InputRows, expectCellStrings, expectOutputs, fillPrediction, submitResult, assertResultDocument} from './helpers.mjs';
 import {syntheticLesson as L, session} from '../fixtures/learning/data.mjs';
 import {buildLesson, startReceiver, SYNTHETIC, INSPECTION} from './builds.mjs';
 
@@ -165,4 +165,10 @@ test('[T53-V9.display-strings] synthetic table cells use exact formatted strings
   await expectCellStrings(page, {'filled-volume': '370', 'fill-ratio': '18.5'});
   await tid(page, 'input-flow-rate').fill('100');
   await expectCellStrings(page, {'filled-volume': '1,000', 'fill-ratio': '50'});
+});
+
+test('[F4-C10.water tank v2] the v2 synthetic lesson renders with defaults: label = inputId, slider range = domain, no visuals', async ({page}) => {
+  await toSimulation(page);
+  await expectV2InputRows(page, L);
+  await expectOutputs(page, wantFor(20), L);
 });

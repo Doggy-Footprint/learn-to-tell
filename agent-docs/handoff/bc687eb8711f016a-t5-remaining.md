@@ -23,7 +23,7 @@
 ## Next Step
 1. **사용자 실행 검증 대기(2026-10-07)**: 테스트 프로젝트 2곳({ab-test-sample-size, base-rate-fallacy})에 최신 skill 설치됨. 사용자가 직접 실행 후 피드백 예정. 피드백은 User Feedback Backlog에 적립한다.
 2. 반영된 사용자 지시(2026-10-07): 진단 대화 설문(되묻기, `not-applicable`은 내부 재점검 후 필요 시 `unknown`으로 기록), 범위 합의 단계를 agent 자율 결정(사용자에게 묻지 않고 알리기만)으로 변경, 결과는 화면 "결과 제출" → serve `--out` 수신.
-3. **미결(사용자 결정 2026-10-07: 이번엔 흐름만 하고 여기에 기록)**: 수업 화면 시각화. 사용자가 4321 화면을 보고 "너무한데, 더 interactive하고 눈이 즐거운 걸 기대"라고 피드백. 관찰: 스타일이 거의 없는 기본 HTML(제목·안내문·버튼·빈 숫자 입력칸 세로 나열), 입력은 숫자 입력칸인데 lesson 본문은 "슬라이더"로 안내하는 불일치, 출력은 막대+표. 방향(슬라이더, 실시간 그래프, 전후 비교 연출 등)과 ROADMAP §5의 텍스트·표 대체 표현 요건과의 양립은 미정. 대상 코드: `site/src/components/{ui.js,content.js,style.css}`. ROADMAP §5 말미에도 같은 항목을 적어 둠.
+3. ~~**미결(사용자 결정 2026-10-07: 이번엔 흐름만 하고 여기에 기록)**: 수업 화면 시각화.~~ 완료(2026-10-08, F4: spec 0dcd8454f6e5111d limit → 679f728f2f602897 complete). 원 기록: 사용자가 4321 화면을 보고 "너무한데, 더 interactive하고 눈이 즐거운 걸 기대"라고 피드백. 관찰: 스타일이 거의 없는 기본 HTML(제목·안내문·버튼·빈 숫자 입력칸 세로 나열), 입력은 숫자 입력칸인데 lesson 본문은 "슬라이더"로 안내하는 불일치, 출력은 막대+표. 방향(슬라이더, 실시간 그래프, 전후 비교 연출 등)과 ROADMAP §5의 텍스트·표 대체 표현 요건과의 양립은 미정. 대상 코드: `site/src/components/{ui.js,content.js,style.css}`. ROADMAP §5 말미에도 같은 항목을 적어 둠.
 4. T5-4 본체(SKILL.md·installer) spec은 미작성이며 지금까지 spec 없이 진행됨. 사용자 실행 검증 후 필요하면 정리한다.
 5. 미규명 간헐 실패(Open Questions)를 기준선과 비교해 원인 확인.
 
@@ -58,10 +58,10 @@
 | F1 | 2026-10-07 | 브라우저에서 JSON 파일을 내려받아 경로를 agent에게 전달하는 방식은 고쳐야 함 | 진단: `site/diagnostic/components/diagnostic.js` download(`diagnostic-choices-<id>.json`), 수업: `site/src/components/ui.js` 결과 Blob download(`result-<resultId>.json`); SKILL.md 2·7단계가 사용자에게 파일 경로를 받음 | 완료(커밋 23bad96·699e53f, 2026-10-07): 수업 화면 다운로드 제거, "결과 제출" → `serve.mjs --out <dir>`가 `POST /__ltt/result`로 수신, `http-server` 제거 |
 | F2 | 2026-10-07 | 진단 설문(상황 카드 반응)은 브라우저가 아니라 agent 대화에서 진행하는 게 낫다. 모르는 상태에서 카드에 반응하려니 "내가 아는 개념인지" 되묻고 싶은데 브라우저 페이지에서는 불가 | 진단 페이지 `site/diagnostic/`(카드 + 4가지 반응, 질문 경로 없음), `scripts/build-diagnostic.mjs`; SKILL.md 2단계가 진단을 브라우저로 보냄. T5-3 결정 "진단 페이지: 카드 2–3개, 조작 1개, 4가지 반응"과 충돌 | 완료(커밋 23bad96·699e53f, 2026-10-07): 대화 설문 전환, 진단 페이지·build-diagnostic·diagnostic-setup·diagnose CLI·serve `--target` 제거, diagnostic v2 `reactions`. F1의 진단 쪽은 소멸 |
 | F3 | 2026-10-07 | 진단에서 낯선 용어가 곧바로 나와 대처하기 힘들다. 프로젝트·질문·상황에 필요한 개념을 설명하고 아는지 물어(알면 위 단계, 모르면 아래 단계) 학습 수준을 정한 뒤, 현재처럼 상세 질문으로 세부 수준을 판별 | 진단 대화가 상황 카드 3장 반응부터 시작(모두 `unknown`이면 구분 불가) | 완료(2026-10-07, spec 5a2c9e7d1b4f8036): 개념 사다리 → 상황 카드, diagnostic v2 `ladder` |
-| F4 | 2026-10-07 | 수업 화면 시각화 개선 | 위 Next Step 3 | 미작업(사용자 결정으로 보류) |
+| F4 | 2026-10-07 | 수업 화면 시각화 개선 | 위 Next Step 3 | 완료(2026-10-08, 미커밋, spec 0dcd8454f6e5111d·679f728f2f602897): lesson v3(`label`·`step`·`practical`·`visuals`), check-model `PROBE_SWEEP`·`PROBE_COMPOSITION`, 슬라이더·카드·sweep·composition 차트·stepper, skill 문서 v3 생성 규칙. 테스트 프로젝트 skill 재설치 필요 |
 
 ## Open Questions
-- 간헐 실패 추가 관찰(2026-10-07, F3 검증 중 각 1회, 이어진 전체 실행은 통과): `tests/serve.test.mjs` `[O3.size]`의 `write EPIPE`(단독 15회 통과, 1 MiB 초과 업로드 시 서버가 먼저 연결을 닫는 경합 추정, hypothesis), `values.spec.mjs` V5.S3.reload 재발(단독 5회 통과)
+- 간헐 실패 추가 관찰(2026-10-07, F3 검증 중 각 1회, 이어진 전체 실행은 통과): ~~`tests/serve.test.mjs` `[O3.size]`의 `write EPIPE`~~ 해결(2026-10-08, spec 679f728f2f602897: `Connection: close` 클라이언트에 대해 Node가 413 응답 직후 소켓을 닫던 경합, verified — 본문 소진 후 413 전송), `values.spec.mjs` V5.S3.reload 재발(단독 5회 통과, 미해결). `storage.spec` V8.S11 단계 탐색 400ms 고정 대기도 상태 기반 대기로 교체(같은 spec)
 - 미규명 간헐 실패: `tests/e2e/values.spec.mjs` `[V5.S3.reload] defect-percent`가 `npm run verify` 중 약 8회 중 2회 6.2s 후 `input-defect-percent` 못 찾음(재실행·단독 24회 통과). 변경 전 기준선과 비교하지 못함
 - 없음
 

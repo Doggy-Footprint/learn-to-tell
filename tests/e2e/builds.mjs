@@ -7,6 +7,9 @@ import {fileURLToPath} from 'node:url';
 
 export const root = fileURLToPath(new URL('../..', import.meta.url));
 export const INSPECTION = {session: 'tests/fixtures/learning/session.valid.json', lesson: 'tests/fixtures/learning/inspection-lesson-v2.json', model: 'examples/manufacturing-inspection/model.mjs'};
+export const SYNTHETIC_V3 = {session: 'tests/fixtures/learning/session.valid.json', lesson: 'tests/fixtures/learning/synthetic-lesson-v3.json', model: 'tests/fixtures/learning/synthetic-model-v3.mjs'};
+export const SYNTHETIC_V3_MIN = {session: 'tests/fixtures/learning/session.valid.json', lesson: 'tests/fixtures/learning/synthetic-lesson-v3-min.json', model: 'tests/fixtures/learning/synthetic-model-v3-min.mjs'};
+export const SYNTHETIC_V3_UNITS = {session: 'tests/fixtures/learning/session.valid.json', lesson: 'tests/fixtures/learning/synthetic-lesson-v3-units.json', model: 'tests/fixtures/learning/synthetic-model-v3-units.mjs'};
 export const SYNTHETIC = {session: 'tests/fixtures/learning/session.valid.json', lesson: 'tests/fixtures/learning/synthetic-lesson-v2.json', model: 'tests/fixtures/learning/synthetic-model.mjs'};
 
 // build-lesson replaces dist/; specs that need another lesson rebuild it and restore INSPECTION in afterAll (workers: 1, serial).

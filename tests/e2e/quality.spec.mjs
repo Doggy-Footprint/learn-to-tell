@@ -6,7 +6,8 @@ import {networkInterfaces} from 'node:os';
 import {request} from 'node:http';
 import {fileURLToPath} from 'node:url';
 import {tid, gotoFresh, toSimulation, show, fillPrediction, TRANSFER_PRED, submitResult} from './helpers.mjs';
-import {startServe, startReceiver, http as httpGet} from './builds.mjs';
+import {startServe, startReceiver, http as httpGet, buildLesson, SYNTHETIC_V3, SYNTHETIC_V3_MIN, INSPECTION} from './builds.mjs';
+import {lessonF1, lessonF2, display} from '../fixtures/learning/v3.mjs';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -196,5 +197,104 @@ test.describe('[T53-V11] serve --target', () => {
       expect(r.stderr).toMatch(/DIST_MISSING dist[\\/]index\.html/);
       expect(r.stdout).toBe('');
     } finally { renameSync(parked, file); }
+  });
+});
+
+
+// ---- spec 0dcd8454f6e5111d V9 (R18, Q4): the synthetic v3 lessons F1 and F2 on their own builds and ports. build-lesson replaces dist/, so each describe restores the default build.
+const BASE_F1 = display(20, 10), NEW_F1 = display(40, 15);
+async function toSimulationOf(page, lesson, baseline) {
+  await page.goto('/');
+  await expect(tid(page, 'stage-context')).toBeVisible();
+  await tid(page, 'stage-next').click();
+  await fillPrediction(page, 'prediction', baseline, [], lesson);
+  await tid(page, 'prediction-record').click();
+  await tid(page, 'stage-next').click();
+  await expect(tid(page, 'output-table')).toBeVisible();
+}
+const overflow = page => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+
+test.describe('[F4-V9] synthetic v3 lesson F1', () => {
+  const PORT = 4353;
+  test.use({baseURL: `http://127.0.0.1:${PORT}/`});
+  test.describe.configure({mode: 'serial'});
+  let server;
+  test.beforeAll(async () => {
+    buildLesson(SYNTHETIC_V3);
+    server = startServe(['--port', String(PORT)]);
+    await server.ready;
+  });
+  test.afterAll(async () => { server?.stop(); await server?.exited; buildLesson(INSPECTION); });
+
+  test('[F4-V9.axe F1 before-reveal] zero WCAG 2.2 A/AA violations before the result reveal', async ({page}) => {
+    await toSimulationOf(page, lessonF1, BASE_F1);
+    await expect(tid(page, 'baseline-comparison')).toHaveCount(0);
+    await expect(tid(page, 'visual-sweep-a')).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+  });
+  test('[F4-V9.axe F1 after-reveal] zero violations after the baseline reveal', async ({page}) => {
+    await toSimulationOf(page, lessonF1, BASE_F1);
+    await (await show(page, 'prediction-reveal')).click();
+    await expect(tid(page, 'baseline-comparison')).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+  });
+  test('[F4-V9.axe F1 new-case] zero violations with the new-case result shown', async ({page}) => {
+    await toSimulationOf(page, lessonF1, BASE_F1);
+    await fillPrediction(page, 'transfer', NEW_F1, [], lessonF1);
+    await tid(page, 'transfer-record').click();
+    await expect(tid(page, 'transfer-result')).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+  });
+  test('[F4-V9.axe F1 hint-open] zero violations with hints opened', async ({page}) => {
+    await toSimulationOf(page, lessonF1, BASE_F1);
+    await (await show(page, 'hint-level-2')).click();
+    await expect(tid(page, 'hint-text-2')).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+  });
+  test('[F4-V9.width 390 simulation-after-reveal] no horizontal scroll at 390px with the simulation shown after the reveal', async ({page}) => {
+    await page.setViewportSize({width: 390, height: 844});
+    await toSimulationOf(page, lessonF1, BASE_F1);
+    await (await show(page, 'prediction-reveal')).click();
+    await expect(tid(page, 'baseline-comparison')).toBeVisible();
+    await expect(tid(page, 'visual-share')).toBeVisible();
+    expect(await overflow(page)).toBeLessThanOrEqual(0);
+  });
+  test('[F4-V9.width 390 assessment-after-result] no horizontal scroll at 390px with the new-case result shown', async ({page}) => {
+    await page.setViewportSize({width: 390, height: 844});
+    await toSimulationOf(page, lessonF1, BASE_F1);
+    await fillPrediction(page, 'transfer', NEW_F1, [], lessonF1);
+    await tid(page, 'transfer-record').click();
+    await expect(tid(page, 'transfer-result')).toBeVisible();
+    expect(await overflow(page)).toBeLessThanOrEqual(0);
+  });
+  test('[F4-V9.reduced-motion] with prefers-reduced-motion: reduce the computed transition-duration of cards and buttons is 0s', async ({page}) => {
+    await page.emulateMedia({reducedMotion: 'reduce'});
+    await toSimulationOf(page, lessonF1, BASE_F1);
+    const ids = ['output-card-part-a', 'output-card-margin', `decision-${lessonF1.decisions[0].decisionId}`, 'stage-next', 'stage-back', 'prediction-reveal', 'scenario-base', 'reset-inputs'];
+    const durations = await page.evaluate(list => list.map(id => { const el = document.querySelector(`[data-testid="${id}"]`); return [id, el ? getComputedStyle(el).transitionDuration : null]; }), ids);
+    for (const [id, value] of durations) {
+      expect(value, `${id} exists`).not.toBeNull();
+      expect(value.split(',').map(x => x.trim()), `${id} transition-duration ${value}`).toEqual(value.split(',').map(() => '0s'));
+    }
+  });
+});
+
+test.describe('[F4-V9] synthetic v3 lesson F2 (minimal)', () => {
+  const PORT = 4354;
+  test.use({baseURL: `http://127.0.0.1:${PORT}/`});
+  test.describe.configure({mode: 'serial'});
+  let server;
+  test.beforeAll(async () => {
+    buildLesson(SYNTHETIC_V3_MIN);
+    server = startServe(['--port', String(PORT)]);
+    await server.ready;
+  });
+  test.afterAll(async () => { server?.stop(); await server?.exited; buildLesson(INSPECTION); });
+
+  test('[F4-V9.axe F2 simulation] zero WCAG 2.2 A/AA violations on the minimal lesson (one input, one sweep, no composition)', async ({page}) => {
+    await toSimulationOf(page, lessonF2, {twice: 8});
+    await expect(tid(page, 'visual-twice-sweep')).toBeVisible();
+    await expect(page.locator('[data-testid^="composition-"]')).toHaveCount(0);
+    expect(await axeViolations(page)).toEqual([]);
   });
 });

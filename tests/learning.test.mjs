@@ -9,6 +9,10 @@ import {fileURLToPath} from 'node:url';
 import {validateDocument} from '../contracts/index.mjs';
 import {validateSessionConfig} from '../learning/session-config.mjs';
 import {initialProgress as initialProgressRaw, applyAction as applyActionRaw, createRuntime, predictionState} from '../learning/progress.mjs';
+import * as progressModule from '../learning/progress.mjs';
+import {lessonF1, sweepExpect, display as f1Display} from './fixtures/learning/v3.mjs';
+import {model as modelF1} from './fixtures/learning/synthetic-model-v3.mjs';
+import {lessonV2OfF1} from './fixtures/authoring/models-v3.mjs';
 import {gradeTransferPrediction as gradeRaw} from '../learning/grading.mjs';
 import {buildResult as buildResultRaw, validateResultShape, finalizeResult} from '../learning/result.mjs';
 import {computeContentHash} from '../contracts/content-hash.mjs';
@@ -835,6 +839,109 @@ t53('T53-V5.sources', 'no learning/*.mjs, site/**/*.js or site index.md import s
 test('[T53-V14.formatCount] zero, negative zero, thousands grouping, rounding beyond 3 decimals, negatives', () => {
   for (const [n, s] of [[0, '0'], [-0, '0'], [9405, '9,405'], [1234567, '1,234,567'], [999, '999'], [1.23456, '1.235'], [0.0004, '0'], [499.9996, '500'], [1.35, '1.35'], [-1234.5, '-1,234.5']]) assert.equal(formatCount(n), s, String(n));
   done('T53-V14.formatCount');
+});
+
+// ---- spec 0dcd8454f6e5111d V5: createRuntime normalisation, sweepPoints, compositionShares. Expected values come from the F1 closed forms in fixtures/learning/v3.mjs.
+const sweepPoints = (...args) => progressModule.sweepPoints(...args);
+const compositionShares = (...args) => progressModule.compositionShares(...args);
+const rtF1 = () => createRuntime(lessonF1, modelF1);
+const visualOf = id => lessonF1.visuals.find(v => v.visualId === id);
+const NEAR = 1e-9;
+function assertSweep(points, which, current, outputIds) {
+  const want = sweepExpect(which, current);
+  assert.equal(points.length, 41);
+  want.forEach((w, i) => {
+    assert.ok(Math.abs(points[i].x - w.x) <= NEAR, `x[${i}] ${points[i].x} vs ${w.x}`);
+    for (const id of outputIds) {
+      const got = points[i].values[id], expected = w.values[id];
+      if (expected === null) assert.equal(got, null, `${id}@${i} is undefined`);
+      else assert.ok(typeof got === 'number' && Math.abs(got - expected) <= NEAR, `${id}@${i}: ${got} vs ${expected}`);
+    }
+  });
+}
+
+test('[F4-V5.runtime v2 label] a v2 lesson gets label = inputId', () => {
+  const rt = createRuntime(lessonV2OfF1(), modelF1);
+  assert.deepEqual(rt.inputs.map(i => i.label), ['load-a', 'load-b']);
+});
+test('[F4-V5.runtime v2 step] a v2 lesson gets step = (max - min) / 100 per input', () => {
+  const rt = createRuntime(lessonV2OfF1(), modelF1);
+  assert.deepEqual(rt.inputs.map(i => i.step), [1, 0.5]);
+});
+test('[F4-V5.runtime v2 practical] a v2 lesson gets practical = {min, max, basis: ""} equal to the domain', () => {
+  const rt = createRuntime(lessonV2OfF1(), modelF1);
+  assert.deepEqual(rt.inputs.map(i => i.practical), [{min: 0, max: 100, basis: ''}, {min: 0, max: 50, basis: ''}]);
+});
+test('[F4-V5.runtime v2 visuals] a v2 lesson gets visuals = []; the other input fields are kept', () => {
+  const rt = createRuntime(lessonV2OfF1(), modelF1);
+  assert.deepEqual(rt.visuals, []);
+  assert.deepEqual(rt.inputs.map(({inputId, unit, min, max, default: d}) => ({inputId, unit, min, max, default: d})), [
+    {inputId: 'load-a', unit: 'u', min: 0, max: 100, default: 20}, {inputId: 'load-b', unit: 'v', min: 0, max: 50, default: 10}]);
+});
+test('[F4-V5.runtime v3] a v3 lesson keeps its own label, step, practical and visuals', () => {
+  const rt = rtF1();
+  assert.deepEqual(rt.inputs, lessonF1.inputs);
+  assert.deepEqual(rt.visuals, lessonF1.visuals);
+  assert.deepEqual(rt.inputIds, ['load-a', 'load-b']);
+  assert.deepEqual(rt.defaultInputs, {'load-a': 20, 'load-b': 10});
+});
+
+test('[F4-V5.sweep count and ends, current inside practical] 41 points from practical.min to practical.max, other input from the given inputs', () => {
+  const points = sweepPoints(rtF1(), visualOf('sweep-a'), {'load-a': 20, 'load-b': 12});
+  assertSweep(points, 'a', {a: 20, b: 12}, ['part-a', 'total']);
+  assert.equal(points[0].x, 10);
+  assert.equal(points[40].x, 60);
+  assert.ok(Math.abs(points[20].values.total - (3 * 35 + 2 * 12)) <= NEAR);
+});
+test('[F4-V5.sweep current above practical] the x range extends to the current value', () => {
+  const points = sweepPoints(rtF1(), visualOf('sweep-a'), {'load-a': 80, 'load-b': 10});
+  assertSweep(points, 'a', {a: 80, b: 10}, ['part-a', 'total']);
+  assert.equal(points[0].x, 10);
+  assert.equal(points[40].x, 80);
+});
+test('[F4-V5.sweep current below practical] the x range extends down to the current value', () => {
+  const points = sweepPoints(rtF1(), visualOf('sweep-a'), {'load-a': 5, 'load-b': 10});
+  assertSweep(points, 'a', {a: 5, b: 10}, ['part-a', 'total']);
+  assert.equal(points[0].x, 5);
+  assert.equal(points[40].x, 60);
+});
+test('[F4-V5.sweep scale applied] display values are raw * scale (fill-b 24 and margin 76 at load-b 12)', () => {
+  const points = sweepPoints(rtF1(), visualOf('sweep-b'), {'load-a': 20, 'load-b': 10});
+  assertSweep(points, 'b', {a: 20, b: 10}, ['fill-b', 'margin']);
+  assert.ok(Math.abs(points[10].x - 12) <= NEAR);
+  assert.ok(Math.abs(points[10].values['fill-b'] - 24) <= NEAR);
+  assert.ok(Math.abs(points[10].values.margin - 76) <= NEAR);
+});
+test('[F4-V5.sweep undefined output] a nullable output that is undefined on a stretch gives null values there and numbers elsewhere', () => {
+  const points = sweepPoints(rtF1(), visualOf('sweep-b'), {'load-a': 20, 'load-b': 10});
+  const nulls = points.map((p, i) => (p.values.margin === null ? i : -1)).filter(i => i >= 0);
+  const want = sweepExpect('b', {a: 20, b: 10}).map((w, i) => (w.values.margin === null ? i : -1)).filter(i => i >= 0);
+  assert.deepEqual(nulls, want);
+  assert.ok(want.length >= 3 && want[0] > 0 && want.at(-1) < 40, 'the undefined stretch lies strictly inside the sweep');
+});
+test('[F4-V5.sweep ok:false point] a failing calculation gives null for every output of that point only', () => {
+  const failing = {...modelF1, calculate: values => (Math.abs(values['load-a'] - 33.75) < 1e-9 ? {ok: false, errors: [{code: 'RANGE', path: '/load-a'}]} : modelF1.calculate(values))};
+  const points = sweepPoints(createRuntime(lessonF1, failing), visualOf('sweep-a'), {'load-a': 20, 'load-b': 10});
+  assert.equal(points.length, 41);
+  assert.ok(Math.abs(points[19].x - 33.75) <= NEAR);
+  assert.deepEqual(points[19].values, {'part-a': null, total: null});
+  points.forEach((p, i) => { if (i !== 19) for (const id of ['part-a', 'total']) assert.equal(typeof p.values[id], 'number', `${id}@${i}`); });
+});
+
+test('[F4-V5.composition sum > 0] shares are value / sum in declared output order', () => {
+  const shares = compositionShares(rtF1(), visualOf('share'), f1Display(20, 10));
+  assert.deepEqual(shares.map(s => s.outputId), ['part-a', 'part-b']);
+  assert.deepEqual(shares.map(s => s.value), [60, 20]);
+  assert.deepEqual(shares.map(s => s.share), [0.75, 0.25]);
+});
+test('[F4-V5.composition sum > 0 odd split] shares of 10 and 30 are 0.25 and 0.75 and add up to 1', () => {
+  const shares = compositionShares(rtF1(), visualOf('share'), {'part-a': 10, 'part-b': 30, total: 40, 'fill-b': 0, margin: 0});
+  assert.ok(Math.abs(shares[0].share - 0.25) <= NEAR && Math.abs(shares[1].share - 0.75) <= NEAR);
+  assert.ok(Math.abs(shares[0].share + shares[1].share - 1) <= NEAR);
+});
+test('[F4-V5.composition sum = 0] every share is 0', () => {
+  const shares = compositionShares(rtF1(), visualOf('share'), {'part-a': 0, 'part-b': 0, total: 0, 'fill-b': 0, margin: 0});
+  assert.deepEqual(shares, [{outputId: 'part-a', value: 0, share: 0}, {outputId: 'part-b', value: 0, share: 0}]);
 });
 
 // ================= completeness (must stay last) =================

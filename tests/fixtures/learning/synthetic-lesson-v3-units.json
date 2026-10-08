@@ -1,0 +1,388 @@
+{
+  "kind": "lesson",
+  "version": 3,
+  "lessonId": "grouping-lesson",
+  "lessonRevision": 1,
+  "profileId": "local-learner",
+  "diagnosticId": "grp-diagnostic",
+  "candidateId": "grp-candidate",
+  "contextKind": "interest",
+  "modelId": "unit-grouping",
+  "modelRevision": 1,
+  "concepts": [
+    {
+      "conceptId": "level-input",
+      "conceptRevision": 1,
+      "label": "수준",
+      "meaning": "GLMEAN 수준의 뜻이다.",
+      "example": "GLEX 수준의 예다.",
+      "confusion": "GLCONF 수준을 다른 값과 헷갈린다.",
+      "plain": "GLPLAIN 수준을 쉽게 말한 것이다."
+    },
+    {
+      "conceptId": "x-values",
+      "conceptRevision": 1,
+      "label": "X 값",
+      "meaning": "GXMEAN X 값의 뜻이다.",
+      "example": "GXEX X 값의 예다.",
+      "confusion": "GXCONF X 값을 다른 값과 헷갈린다.",
+      "plain": "GXPLAIN X 값을 쉽게 말한 것이다."
+    },
+    {
+      "conceptId": "y-values",
+      "conceptRevision": 1,
+      "label": "Y 값",
+      "meaning": "GYMEAN Y 값의 뜻이다.",
+      "example": "GYEX Y 값의 예다.",
+      "confusion": "GYCONF Y 값을 다른 값과 헷갈린다.",
+      "plain": "GYPLAIN Y 값을 쉽게 말한 것이다."
+    }
+  ],
+  "content": [
+    {
+      "contentId": "grp-diagnostic-cards",
+      "role": "application",
+      "text": "GRPDIAG-ONLY 진단 활동 본문은 수업 화면에 나오지 않는다.",
+      "conceptIds": [
+        "level-input",
+        "x-values",
+        "y-values"
+      ]
+    },
+    {
+      "contentId": "grp-orientation",
+      "role": "explanation",
+      "text": "GORIENT-1 단위가 섞인 출력의 묶음을 본다.",
+      "conceptIds": [
+        "level-input",
+        "x-values",
+        "y-values"
+      ]
+    },
+    {
+      "contentId": "grp-explanation",
+      "role": "explanation",
+      "text": "GEXPL-1 같은 단위끼리 묶어 보인다.",
+      "conceptIds": [
+        "level-input",
+        "x-values",
+        "y-values"
+      ]
+    },
+    {
+      "contentId": "grp-simulation",
+      "role": "simulation",
+      "text": "GSIM-1 수준을 바꾸며 카드 묶음을 본다.",
+      "conceptIds": [
+        "level-input",
+        "x-values",
+        "y-values"
+      ]
+    },
+    {
+      "contentId": "grp-application",
+      "role": "application",
+      "text": "GAPP-1 다른 수준으로 반복한다.",
+      "conceptIds": [
+        "level-input",
+        "x-values",
+        "y-values"
+      ]
+    },
+    {
+      "contentId": "grp-failure",
+      "role": "failure",
+      "text": "GFAIL-1 단위가 다른 값을 같은 눈금으로 비교하면 틀린다.",
+      "conceptIds": [
+        "level-input",
+        "x-values",
+        "y-values"
+      ]
+    },
+    {
+      "contentId": "grp-assessment",
+      "role": "assessment",
+      "text": "GASSESS-1 새 수준의 값을 예상한다.",
+      "conceptIds": [
+        "level-input",
+        "x-values",
+        "y-values"
+      ]
+    },
+    {
+      "contentId": "grp-assessment-2",
+      "role": "assessment",
+      "text": "GASSESS-2 무엇이 바뀌는지 말해 본다.",
+      "conceptIds": [
+        "level-input",
+        "x-values",
+        "y-values"
+      ]
+    },
+    {
+      "contentId": "grp-return",
+      "role": "application",
+      "text": "GRETURN-1 한 문장으로 정리한다.",
+      "conceptIds": [
+        "level-input",
+        "x-values",
+        "y-values"
+      ]
+    },
+    {
+      "contentId": "grp-map",
+      "role": "application",
+      "text": "GMAP-1 다음 후보를 살핀다.",
+      "conceptIds": [
+        "level-input",
+        "x-values",
+        "y-values"
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "decisionId": "choose-level",
+      "question": "GRPDEC-Q 어느 부하로 맞출까?",
+      "choices": [
+        "GRPDEC-C1 낮게",
+        "GRPDEC-C2 높게"
+      ],
+      "requiredInformation": [
+        "GRPDEC-R1 현실 범위",
+        "GRPDEC-R2 허용 여유"
+      ],
+      "explanationId": "grp-explanation",
+      "simulationId": "grp-simulation",
+      "applicationId": "grp-application",
+      "failureId": "grp-failure",
+      "assessmentId": "grp-assessment"
+    }
+  ],
+  "inputs": [
+    {
+      "inputId": "level",
+      "label": "수준",
+      "unit": "k",
+      "min": 0,
+      "max": 10,
+      "default": 4,
+      "step": 1,
+      "practical": {
+        "min": 2,
+        "max": 8,
+        "basis": "합성 fixture 가정: 수준은 2에서 8 사이에서 관찰된다."
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "outputId": "x-first",
+      "label": "X 첫째",
+      "unit": "X",
+      "scale": 1,
+      "nullable": false
+    },
+    {
+      "outputId": "y-only",
+      "label": "Y 하나",
+      "unit": "Y",
+      "scale": 1,
+      "nullable": false
+    },
+    {
+      "outputId": "x-second",
+      "label": "X 둘째",
+      "unit": "X",
+      "scale": 1,
+      "nullable": false
+    }
+  ],
+  "visuals": [
+    {
+      "visualId": "x-sweep",
+      "kind": "sweep",
+      "inputId": "level",
+      "outputIds": [
+        "x-first",
+        "x-second"
+      ],
+      "caption": "수준에 따른 X 값"
+    }
+  ],
+  "scenarios": [
+    {
+      "scenarioId": "base",
+      "label": "기본",
+      "values": [
+        {
+          "inputId": "level",
+          "value": 4
+        }
+      ]
+    },
+    {
+      "scenarioId": "high",
+      "label": "높음",
+      "values": [
+        {
+          "inputId": "level",
+          "value": 8
+        }
+      ]
+    },
+    {
+      "scenarioId": "new-case",
+      "label": "새 사례",
+      "values": [
+        {
+          "inputId": "level",
+          "value": 6
+        }
+      ]
+    }
+  ],
+  "transfer": {
+    "scenarioId": "new-case",
+    "tolerances": [
+      {
+        "outputId": "x-first",
+        "absolute": 1
+      },
+      {
+        "outputId": "y-only",
+        "absolute": 1
+      },
+      {
+        "outputId": "x-second",
+        "absolute": 1
+      }
+    ]
+  },
+  "activities": [
+    {
+      "activityId": "grp-diagnosis",
+      "stage": "diagnosis",
+      "contentIds": [
+        "grp-diagnostic-cards"
+      ],
+      "required": true,
+      "minutes": 2
+    },
+    {
+      "activityId": "grp-orient",
+      "stage": "orientation",
+      "contentIds": [
+        "grp-orientation"
+      ],
+      "required": true,
+      "minutes": 1
+    },
+    {
+      "activityId": "grp-explore",
+      "stage": "exploration",
+      "contentIds": [
+        "grp-explanation",
+        "grp-simulation",
+        "grp-application",
+        "grp-failure"
+      ],
+      "required": true,
+      "minutes": 6
+    },
+    {
+      "activityId": "grp-assess",
+      "stage": "assessment",
+      "contentIds": [
+        "grp-assessment",
+        "grp-assessment-2"
+      ],
+      "required": true,
+      "minutes": 5
+    },
+    {
+      "activityId": "grp-return-act",
+      "stage": "return",
+      "contentIds": [
+        "grp-return"
+      ],
+      "required": true,
+      "minutes": 2
+    },
+    {
+      "activityId": "grp-map-act",
+      "stage": "map",
+      "contentIds": [
+        "grp-map"
+      ],
+      "required": true,
+      "minutes": 2
+    }
+  ],
+  "rubric": {
+    "rubricId": "grouping-lesson-rubric",
+    "rubricVersion": 1,
+    "criteria": [
+      {
+        "criterionId": "distinguish-parts",
+        "dimension": "concept",
+        "conceptIds": [
+          "level-input",
+          "x-values",
+          "y-values"
+        ],
+        "contentId": "grp-assessment",
+        "mode": "agent",
+        "rule": "몫과 합계를 구분해 설명한다."
+      },
+      {
+        "criterionId": "calculate-transfer",
+        "dimension": "prediction-model",
+        "conceptIds": [
+          "y-values",
+          "x-values",
+          "level-input"
+        ],
+        "contentId": "grp-assessment",
+        "mode": "automatic",
+        "rule": "새 사례의 값을 기대값과 비교한다."
+      },
+      {
+        "criterionId": "explain-transfer",
+        "dimension": "transfer",
+        "conceptIds": [
+          "y-values",
+          "x-values",
+          "level-input"
+        ],
+        "contentId": "grp-assessment",
+        "mode": "agent",
+        "rule": "새 사례에서 다시 계산하는 이유를 설명한다."
+      },
+      {
+        "criterionId": "ask-for-evidence",
+        "dimension": "question",
+        "conceptIds": [
+          "y-values",
+          "x-values",
+          "level-input"
+        ],
+        "contentId": "grp-assessment-2",
+        "mode": "agent",
+        "rule": "부족한 정보를 질문으로 만든다."
+      },
+      {
+        "criterionId": "justify-choice",
+        "dimension": "choice-meaning",
+        "conceptIds": [
+          "level-input",
+          "x-values",
+          "y-values"
+        ],
+        "contentId": "grp-assessment-2",
+        "mode": "agent",
+        "rule": "선택의 조건을 비교한다."
+      }
+    ]
+  }
+}

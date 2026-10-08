@@ -40,6 +40,7 @@ if (!existsSync(join(dist, 'index.html'))) {
 
 // A 1 MiB cap is an estimate of the largest legitimate result document (spec assumption A4).
 const MAX_BODY = 1024 * 1024;
+const DRAIN_LIMIT_MS = 3000;
 const RESULT_PATH = '/__ltt/result';
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -84,9 +85,21 @@ async function serveStatic(req, res) {
 function readBody(req, res) {
   return new Promise(resolveBody => {
     const reject = () => {
-      fail(res, 413, 'TOO_LARGE');
-      res.once('finish', () => req.socket.destroy());
-      req.pause();
+      const {socket} = req;
+      // A client that sent `Connection: close` makes Node destroy the socket as soon as the response finishes, which resets a client still writing the body and loses the 413; so the response waits until the body is drained (bounded by a timer).
+      const respond = () => {
+        clearTimeout(timer);
+        if (res.headersSent) return;
+        res.once('finish', () => socket.end());
+        fail(res, 413, 'TOO_LARGE');
+      };
+      const timer = setTimeout(() => {
+        respond();
+        socket.destroy();
+      }, DRAIN_LIMIT_MS);
+      socket.once('close', () => clearTimeout(timer));
+      req.once('end', respond);
+      req.resume();
       resolveBody(null);
     };
     if (Number(req.headers['content-length']) > MAX_BODY) return reject();

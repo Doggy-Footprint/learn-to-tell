@@ -1,6 +1,7 @@
 import {test, expect} from '@playwright/test';
-import {tid, gotoFresh, toPrediction, toSimulation, show, expectOutput, expectOutputs, expectPrevious, expectCellStrings, tokensIn, setInputs, fillPrediction, expectNumbers, inspectionWant, near, numbersIn, BASELINE_PRED, RETRY_PRED, OUTPUT_IDS, INPUT_IDS, UNDEFINED_ID, PPV_UNDEFINED_TEXT} from './helpers.mjs';
+import {tid, gotoFresh, expectV2InputRows, toPrediction, toSimulation, show, expectOutput, expectOutputs, expectPrevious, expectCellStrings, tokensIn, setInputs, fillPrediction, expectNumbers, inspectionWant, near, numbersIn, BASELINE_PRED, RETRY_PRED, OUTPUT_IDS, INPUT_IDS, UNDEFINED_ID, PPV_UNDEFINED_TEXT} from './helpers.mjs';
 import {C6_VALUES, C6_INPUTS} from '../fixtures/learning/cases.mjs';
+import {lesson as inspectionLesson} from '../fixtures/learning/data.mjs';
 import {oracleValues} from '../fixtures/learning/oracle.mjs';
 
 const DEFAULT = [1, 90, 5];
@@ -176,5 +177,11 @@ test('[T53-V8.display-strings] table cells and the shown prediction use exact fo
   for (const literal of ['90', '495', '10', '9,405', '585', '15.38', '94.95']) expect(shown, `prediction shows ${literal}`).toContain(literal);
   await tid(page, 'scenario-population-contrast').click();
   await expectCellStrings(page, {'true-positive': '900', 'false-positive': '450', 'false-negative': '100', 'true-negative': '8,550', 'positive-count': '1,350', 'positive-predictive-value': '66.667', accuracy: '94.5'});
-  await expectCellStrings(page, {'true-positive': '90', 'true-negative': '9,405', 'positive-predictive-value': '15.385'}, 'output-previous');
+  await expectCellStrings(page, {'true-positive': '90', 'true-negative': '9,405', 'positive-predictive-value': '15.385'}, 'previous');
+});
+
+test('[F4-C10.inspection v2] the v2 manufacturing lesson renders with defaults: label = inputId, slider range = domain, no visuals', async ({page}) => {
+  await gotoFresh(page);
+  await expectV2InputRows(page, inspectionLesson);
+  await expectOutput(page, [1, 90, 5]);
 });

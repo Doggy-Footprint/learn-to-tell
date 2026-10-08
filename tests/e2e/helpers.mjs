@@ -14,10 +14,11 @@ export const norm = text => (text ?? '').replace(/\s+/g, ' ').trim();
 export const numbersIn = text => [...(text ?? '').matchAll(/\d[\d,]*(?:\.\d+)?/g)].map(m => Number(m[0].replace(/,/g, '')));
 // Exact display strings: the first number token of an element, as written (ko-KR grouping, at most 3 decimals); expected values are literals.
 export const tokensIn = text => (text ?? '').match(/-?\d[\d,]*(?:\.\d+)?/g) ?? [];
-export async function expectCellStrings(page, expectedByOutput, scope = 'output-table') {
+// column: 'output' (current), 'previous' or 'change' cell of the merged output-table (spec 0dcd8454f6e5111d A7)
+export async function expectCellStrings(page, expectedByOutput, column = 'output') {
   for (const [id, literal] of Object.entries(expectedByOutput)) {
-    const cell = tid(page, scope).locator(`[data-output="${id}"]`);
-    await expect.poll(async () => tokensIn(await cell.textContent())[0], {message: `${scope} ${id} shows the string ${literal}`}).toBe(literal);
+    const cell = tid(page, 'output-table').locator(`[data-${column}="${id}"]`);
+    await expect.poll(async () => tokensIn(await cell.textContent())[0], {message: `output-table ${column} ${id} shows the string ${literal}`}).toBe(literal);
   }
 }
 export const near = (a, b, tol = 0.011) => Math.abs(a - b) <= tol;
@@ -27,6 +28,19 @@ export const near = (a, b, tol = 0.011) => Math.abs(a - b) <= tol;
 async function step(page, id, how) {
   if (how === 'keyboard') { await focusByTab(page, id); await page.keyboard.press('Enter'); } else await tid(page, id).click();
 }
+// Observable stage state: indicator text plus the stepper item marked aria-current (spec 679f728f2f602897 R3: no fixed-time waits after a stage step).
+const stageSignature = page => page.evaluate(() => {
+  const current = document.querySelector('[data-testid^="stepper-"][aria-current="step"], [data-testid^="stepper-"] [aria-current="step"]');
+  const item = current?.closest('[data-testid^="stepper-"]');
+  const regions = ['context', 'prediction', 'simulation', 'assessment', 'return', 'map'].filter(n => { const r = document.querySelector(`[data-testid="stage-${n}"]`); return r && r.getClientRects().length > 0; });
+  return JSON.stringify([document.querySelector('[data-testid="stage-indicator"]')?.innerText ?? null, item?.getAttribute('data-testid') ?? null, regions]);
+});
+// Resolves true when the stage changed after the step, false when it did not within the generous bound (the caller then decides, as before).
+async function stepToNextStage(page, dir, how) {
+  const before = await stageSignature(page);
+  await step(page, dir, how);
+  return expect.poll(() => stageSignature(page), {timeout: 5000}).not.toBe(before).then(() => true, () => false);
+}
 export async function show(page, id, how = 'click') {
   const el = tid(page, id).first();
   const seen = async () => (await el.count()) > 0 && await el.isVisible();
@@ -35,8 +49,7 @@ export async function show(page, id, how = 'click') {
       if (await seen()) return tid(page, id);
       const nav = tid(page, dir);
       if (!(await nav.count()) || !(await nav.isEnabled())) break;
-      await step(page, dir, how);
-      await el.waitFor({state: 'visible', timeout: 400}).catch(() => {});
+      await stepToNextStage(page, dir, how);
     }
   }
   await expect(el, `${id} reachable through stages`).toBeVisible();
@@ -50,8 +63,7 @@ export async function gotoStage(page, name) {
       if (await region.isVisible()) return region;
       const nav = tid(page, dir);
       if (!(await nav.count()) || !(await nav.isEnabled())) break;
-      await nav.click();
-      await region.waitFor({state: 'visible', timeout: 400}).catch(() => {});
+      await stepToNextStage(page, dir, 'click');
     }
   }
   await expect(region, `stage ${name} reachable`).toBeVisible();
@@ -110,7 +122,7 @@ export async function expectBarRatios(page, want, l = lesson) {
 export async function expectPrevious(page, input, l = lesson) {
   const want = inspectionWant(input);
   for (const o of l.outputs) {
-    const cell = tid(page, 'output-previous').locator(`[data-output="${o.outputId}"]`);
+    const cell = tid(page, 'output-table').locator(`[data-previous="${o.outputId}"]`);
     const expected = want.display[o.outputId];
     if (expected === null) await expect(cell).toContainText(PPV_UNDEFINED_TEXT);
     else await expect.poll(async () => near(numbersIn(await cell.textContent())[0], expected), {message: `previous ${o.outputId}`}).toBe(true);
@@ -189,4 +201,20 @@ export async function kbSelect(page, id, value) {
   const el = tid(page, id);
   for (let i = 0; i < 6 && (await el.inputValue()) !== value; i++) await page.keyboard.press('ArrowDown');
   await expect(el).toHaveValue(value);
+}
+
+// C10 (spec 0dcd8454f6e5111d): a v2 lesson renders with defaults: label text = inputId, slider range = domain, range text without "실사용", no basis, no badge, no visuals.
+export async function expectV2InputRows(page, l) {
+  const sim = tid(page, 'stage-simulation');
+  for (const i of l.inputs) {
+    await expect(sim, `label of ${i.inputId}`).toContainText(`${i.inputId} (${i.unit})`);
+    const slider = tid(page, `slider-${i.inputId}`);
+    await expect(slider).toHaveAttribute('type', 'range');
+    await expect(slider).toHaveAttribute('min', String(i.min));
+    await expect(slider).toHaveAttribute('max', String(i.max));
+    await expect(tid(page, `practical-range-${i.inputId}`)).toHaveText(new RegExp(`^\\s*범위 ${i.min}\\u2013${i.max}${i.unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`));
+    await expect(tid(page, `practical-basis-${i.inputId}`)).toHaveCount(0);
+    await expect(tid(page, `practical-out-${i.inputId}`)).toHaveCount(0);
+  }
+  await expect(page.locator('[data-testid^="visual-"]')).toHaveCount(0);
 }

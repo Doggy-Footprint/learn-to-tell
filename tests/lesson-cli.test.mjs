@@ -7,6 +7,9 @@ import {tmpdir} from 'node:os';
 import {performance} from 'node:perf_hooks';
 import {PROFILE as KB_PROFILE, tempHome, makeChain, item, mapFor, wrapperText, seedMapText, readDisk} from './fixtures/knowledge/world.mjs';
 import {ROOT, EXAMPLE_MODEL, PROFILE, baseLesson, asText, exampleOracleText, modelSource, pidTop} from './fixtures/authoring/models.mjs';
+import {lessonV2OfF1} from './fixtures/authoring/models-v3.mjs';
+import {lessonF1, F1} from './fixtures/learning/v3.mjs';
+import {inspectionLesson} from '../examples/manufacturing-inspection/lesson.mjs';
 
 const SCRIPT = path.join(ROOT, 'scripts', 'lesson.mjs');
 
@@ -277,4 +280,49 @@ test('[V2.cli global-pollution Q6] the CLI prints exactly one Outcome line and e
   const out = outcomeOf(proc);
   assert.equal(typeof out.ok, 'boolean');
   assert.equal(proc.code, out.ok ? 0 : 1);
+});
+
+// ---- spec 0dcd8454f6e5111d V3: place-lesson with lesson versions {2, 3, 1, 4}. Every run is a fresh node process.
+const f4 = {lesson: lessonF1, modelPath: path.join(ROOT, F1.model), oraclePath: path.join(ROOT, F1.oracle)};
+const placeArgs = (lessonFile, model = f4.modelPath, oracle = f4.oraclePath) => ['place-lesson', lessonFile, '--model', model, '--oracle', oracle];
+const lessonDir = home => path.join(home, '.learn-to-tell', 'profiles', PROFILE, 'lessons');
+for (const [name, make] of [['v2', () => lessonV2OfF1()], ['v3', () => structuredClone(lessonF1)]]) {
+  test(`[F4-V3.place-lesson ${name}] a ${name} lesson is placed: exit 0, action placed, three files, lesson bytes as given`, async t => {
+    const dir = await workDir(t), home = await tempHome(t);
+    const text = asText(make());
+    const file = await put(dir, 'lesson.json', text);
+    const proc = run(home, ...placeArgs(file));
+    assert.equal(proc.code, 0, proc.stderr);
+    const out = outcomeOf(proc);
+    assert.equal(out.ok, true);
+    assert.equal(out.action, 'placed');
+    assert.equal(out.paths.length, 3);
+    const files = await readdir(lessonDir(home));
+    assert.equal(files.length, 1);
+    assert.equal(await readFile(path.join(lessonDir(home), files[0]), 'utf8'), text);
+  });
+}
+for (const [name, make, extra] of [
+  ['v1', () => inspectionLesson, {model: EXAMPLE_MODEL, oracle: 'example'}],
+  ['v4', () => ({...structuredClone(lessonF1), version: 4}), {}],
+]) {
+  test(`[F4-V3.place-lesson ${name}] rejected with VERSION /version and the message naming lesson v2·v3 documents; nothing written`, async t => {
+    const dir = await workDir(t), home = await tempHome(t);
+    const file = await put(dir, 'lesson.json', asText(make()));
+    const oracle = extra.oracle === 'example' ? await put(dir, 'oracle.json', exampleOracleText()) : f4.oraclePath;
+    const proc = run(home, ...placeArgs(file, extra.model ?? f4.modelPath, oracle));
+    const out = assertFailureOutcome(proc);
+    assert.ok(out.errors.some(e => e.code === 'VERSION' && e.path === '/version'), JSON.stringify(out));
+    assert.ok([out.message, out.next].some(s => s.includes('lesson v2·v3 문서만')), JSON.stringify(out));
+    assert.equal([out.message, out.next].some(s => s.includes('lesson v2 문서만')), false, JSON.stringify(out));
+    assert.deepEqual(await treeOf(home), []);
+  });
+}
+test('[F4-V3.place-lesson v3 R2 violation] practical.max above max is INVALID with RANGE /inputs/1/practical/max; nothing written', async t => {
+  const dir = await workDir(t), home = await tempHome(t);
+  const lesson = structuredClone(lessonF1);
+  lesson.inputs[1].practical.max = lesson.inputs[1].max + 0.01;
+  const out = assertFailureOutcome(run(home, ...placeArgs(await put(dir, 'lesson.json', asText(lesson)))), 'INVALID');
+  assert.ok(out.errors.some(e => e.code === 'RANGE' && e.path === '/inputs/1/practical/max'), JSON.stringify(out.errors));
+  assert.deepEqual(await treeOf(home), []);
 });

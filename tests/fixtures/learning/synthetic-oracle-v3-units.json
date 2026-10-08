@@ -1,0 +1,112 @@
+{
+  "kind": "oracle",
+  "version": 1,
+  "modelId": "unit-grouping",
+  "modelRevision": 1,
+  "cases": [
+    {
+      "caseId": "base",
+      "values": [
+        {
+          "inputId": "level",
+          "value": 4
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "x-first",
+          "value": 4
+        },
+        {
+          "outputId": "y-only",
+          "value": 8
+        },
+        {
+          "outputId": "x-second",
+          "value": 9
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: x-first=level, y-only=2*level, x-second=level+5",
+      "author": "independent-agent"
+    },
+    {
+      "caseId": "min",
+      "values": [
+        {
+          "inputId": "level",
+          "value": 0
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "x-first",
+          "value": 0
+        },
+        {
+          "outputId": "y-only",
+          "value": 0
+        },
+        {
+          "outputId": "x-second",
+          "value": 5
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: x-first=level, y-only=2*level, x-second=level+5",
+      "author": "independent-agent"
+    },
+    {
+      "caseId": "max",
+      "values": [
+        {
+          "inputId": "level",
+          "value": 10
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "x-first",
+          "value": 10
+        },
+        {
+          "outputId": "y-only",
+          "value": 20
+        },
+        {
+          "outputId": "x-second",
+          "value": 15
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: x-first=level, y-only=2*level, x-second=level+5",
+      "author": "independent-agent"
+    },
+    {
+      "caseId": "new-case",
+      "values": [
+        {
+          "inputId": "level",
+          "value": 6
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "x-first",
+          "value": 6
+        },
+        {
+          "outputId": "y-only",
+          "value": 12
+        },
+        {
+          "outputId": "x-second",
+          "value": 11
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: x-first=level, y-only=2*level, x-second=level+5",
+      "author": "independent-agent"
+    }
+  ]
+}

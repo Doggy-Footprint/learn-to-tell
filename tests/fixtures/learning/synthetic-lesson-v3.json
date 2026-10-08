@@ -1,0 +1,470 @@
+{
+  "kind": "lesson",
+  "version": 3,
+  "lessonId": "balance-lesson",
+  "lessonRevision": 1,
+  "profileId": "local-learner",
+  "diagnosticId": "bal-diagnostic",
+  "candidateId": "bal-candidate",
+  "contextKind": "interest",
+  "modelId": "load-balance",
+  "modelRevision": 1,
+  "concepts": [
+    {
+      "conceptId": "load-share",
+      "conceptRevision": 1,
+      "label": "부하 몫",
+      "meaning": "BSMEAN 부하 몫의 뜻이다.",
+      "example": "BSEX 부하 몫의 예다.",
+      "confusion": "BSCONF 부하 몫을 다른 값과 헷갈린다.",
+      "plain": "BSPLAIN 부하 몫을 쉽게 말한 것이다."
+    },
+    {
+      "conceptId": "margin-rate",
+      "conceptRevision": 1,
+      "label": "여유율",
+      "meaning": "BMMEAN 여유율의 뜻이다.",
+      "example": "BMEX 여유율의 예다.",
+      "confusion": "BMCONF 여유율을 다른 값과 헷갈린다.",
+      "plain": "BMPLAIN 여유율을 쉽게 말한 것이다."
+    },
+    {
+      "conceptId": "load-total",
+      "conceptRevision": 1,
+      "label": "합계",
+      "meaning": "BTMEAN 합계의 뜻이다.",
+      "example": "BTEX 합계의 예다.",
+      "confusion": "BTCONF 합계을 다른 값과 헷갈린다.",
+      "plain": "BTPLAIN 합계을 쉽게 말한 것이다."
+    }
+  ],
+  "content": [
+    {
+      "contentId": "bal-diagnostic-cards",
+      "role": "application",
+      "text": "BALDIAG-ONLY 진단 활동 본문은 수업 화면에 나오지 않는다.",
+      "conceptIds": [
+        "load-share",
+        "margin-rate",
+        "load-total"
+      ]
+    },
+    {
+      "contentId": "bal-orientation",
+      "role": "explanation",
+      "text": "BORIENT-1 오늘은 두 부하가 합계와 여유에 주는 영향을 본다.",
+      "conceptIds": [
+        "load-share",
+        "margin-rate",
+        "load-total"
+      ]
+    },
+    {
+      "contentId": "bal-explanation",
+      "role": "explanation",
+      "text": "BEXPL-1 합계는 A 몫과 B 몫을 더한 값이다.",
+      "conceptIds": [
+        "load-share",
+        "margin-rate",
+        "load-total"
+      ]
+    },
+    {
+      "contentId": "bal-simulation",
+      "role": "simulation",
+      "text": "BSIM-1 두 부하를 바꾸며 카드와 차트를 비교한다.",
+      "conceptIds": [
+        "load-share",
+        "margin-rate",
+        "load-total"
+      ]
+    },
+    {
+      "contentId": "bal-application",
+      "role": "application",
+      "text": "BAPP-1 같은 합계를 다른 부하 조합으로 만들어 본다.",
+      "conceptIds": [
+        "load-share",
+        "margin-rate",
+        "load-total"
+      ]
+    },
+    {
+      "contentId": "bal-failure",
+      "role": "failure",
+      "text": "BFAIL-1 실사용 범위 밖의 값은 계산돼도 그대로 믿으면 틀린다.",
+      "conceptIds": [
+        "load-share",
+        "margin-rate",
+        "load-total"
+      ]
+    },
+    {
+      "contentId": "bal-assessment",
+      "role": "assessment",
+      "text": "BASSESS-1 새 사례의 값을 공개 전에 예상한다.",
+      "conceptIds": [
+        "load-share",
+        "margin-rate",
+        "load-total"
+      ]
+    },
+    {
+      "contentId": "bal-assessment-2",
+      "role": "assessment",
+      "text": "BASSESS-2 어떤 값이 바뀌는지 말해 본다.",
+      "conceptIds": [
+        "load-share",
+        "margin-rate",
+        "load-total"
+      ]
+    },
+    {
+      "contentId": "bal-return",
+      "role": "application",
+      "text": "BRETURN-1 배운 내용을 한 문장으로 정리한다.",
+      "conceptIds": [
+        "load-share",
+        "margin-rate",
+        "load-total"
+      ]
+    },
+    {
+      "contentId": "bal-map",
+      "role": "application",
+      "text": "BMAP-1 다음에 배울 후보를 살핀다.",
+      "conceptIds": [
+        "load-share",
+        "margin-rate",
+        "load-total"
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "decisionId": "choose-load",
+      "question": "BALDEC-Q 어느 부하로 맞출까?",
+      "choices": [
+        "BALDEC-C1 낮게",
+        "BALDEC-C2 높게"
+      ],
+      "requiredInformation": [
+        "BALDEC-R1 현실 범위",
+        "BALDEC-R2 허용 여유"
+      ],
+      "explanationId": "bal-explanation",
+      "simulationId": "bal-simulation",
+      "applicationId": "bal-application",
+      "failureId": "bal-failure",
+      "assessmentId": "bal-assessment"
+    }
+  ],
+  "inputs": [
+    {
+      "inputId": "load-a",
+      "label": "부하 A",
+      "unit": "u",
+      "min": 0,
+      "max": 100,
+      "default": 20,
+      "step": 5,
+      "practical": {
+        "min": 10,
+        "max": 60,
+        "basis": "합성 fixture 가정: 부하 A는 10에서 60 사이에서 관찰된다."
+      }
+    },
+    {
+      "inputId": "load-b",
+      "label": "부하 B",
+      "unit": "v",
+      "min": 0,
+      "max": 50,
+      "default": 10,
+      "step": 2,
+      "practical": {
+        "min": 6,
+        "max": 30,
+        "basis": "합성 fixture 가정: 부하 B는 6에서 30 사이에서 관찰된다."
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "outputId": "part-a",
+      "label": "A 몫",
+      "unit": "pt",
+      "scale": 1,
+      "nullable": false
+    },
+    {
+      "outputId": "part-b",
+      "label": "B 몫",
+      "unit": "pt",
+      "scale": 1,
+      "nullable": false
+    },
+    {
+      "outputId": "total",
+      "label": "합계",
+      "unit": "pt",
+      "scale": 1,
+      "nullable": false
+    },
+    {
+      "outputId": "fill-b",
+      "label": "B 채움",
+      "unit": "%",
+      "scale": 100,
+      "nullable": false
+    },
+    {
+      "outputId": "margin",
+      "label": "여유율",
+      "unit": "%",
+      "scale": 100,
+      "nullable": true
+    }
+  ],
+  "visuals": [
+    {
+      "visualId": "sweep-a",
+      "kind": "sweep",
+      "inputId": "load-a",
+      "outputIds": [
+        "part-a",
+        "total"
+      ],
+      "caption": "부하 A에 따른 A 몫과 합계"
+    },
+    {
+      "visualId": "sweep-b",
+      "kind": "sweep",
+      "inputId": "load-b",
+      "outputIds": [
+        "fill-b",
+        "margin"
+      ],
+      "caption": "부하 B에 따른 채움과 여유율"
+    },
+    {
+      "visualId": "share",
+      "kind": "composition",
+      "inputId": null,
+      "outputIds": [
+        "part-a",
+        "part-b"
+      ],
+      "caption": "A 몫과 B 몫의 구성"
+    }
+  ],
+  "scenarios": [
+    {
+      "scenarioId": "base",
+      "label": "기본",
+      "values": [
+        {
+          "inputId": "load-a",
+          "value": 20
+        },
+        {
+          "inputId": "load-b",
+          "value": 10
+        }
+      ]
+    },
+    {
+      "scenarioId": "heavy",
+      "label": "무거움",
+      "values": [
+        {
+          "inputId": "load-a",
+          "value": 50
+        },
+        {
+          "inputId": "load-b",
+          "value": 18
+        }
+      ]
+    },
+    {
+      "scenarioId": "extreme",
+      "label": "극단",
+      "values": [
+        {
+          "inputId": "load-a",
+          "value": 80
+        },
+        {
+          "inputId": "load-b",
+          "value": 40
+        }
+      ]
+    },
+    {
+      "scenarioId": "new-case",
+      "label": "새 사례",
+      "values": [
+        {
+          "inputId": "load-a",
+          "value": 40
+        },
+        {
+          "inputId": "load-b",
+          "value": 15
+        }
+      ]
+    }
+  ],
+  "transfer": {
+    "scenarioId": "new-case",
+    "tolerances": [
+      {
+        "outputId": "part-a",
+        "absolute": 5
+      },
+      {
+        "outputId": "part-b",
+        "absolute": 5
+      },
+      {
+        "outputId": "total",
+        "absolute": 5
+      },
+      {
+        "outputId": "fill-b",
+        "absolute": 2
+      },
+      {
+        "outputId": "margin",
+        "absolute": 2
+      }
+    ]
+  },
+  "activities": [
+    {
+      "activityId": "bal-diagnosis",
+      "stage": "diagnosis",
+      "contentIds": [
+        "bal-diagnostic-cards"
+      ],
+      "required": true,
+      "minutes": 2
+    },
+    {
+      "activityId": "bal-orient",
+      "stage": "orientation",
+      "contentIds": [
+        "bal-orientation"
+      ],
+      "required": true,
+      "minutes": 1
+    },
+    {
+      "activityId": "bal-explore",
+      "stage": "exploration",
+      "contentIds": [
+        "bal-explanation",
+        "bal-simulation",
+        "bal-application",
+        "bal-failure"
+      ],
+      "required": true,
+      "minutes": 6
+    },
+    {
+      "activityId": "bal-assess",
+      "stage": "assessment",
+      "contentIds": [
+        "bal-assessment",
+        "bal-assessment-2"
+      ],
+      "required": true,
+      "minutes": 5
+    },
+    {
+      "activityId": "bal-return-act",
+      "stage": "return",
+      "contentIds": [
+        "bal-return"
+      ],
+      "required": true,
+      "minutes": 2
+    },
+    {
+      "activityId": "bal-map-act",
+      "stage": "map",
+      "contentIds": [
+        "bal-map"
+      ],
+      "required": true,
+      "minutes": 2
+    }
+  ],
+  "rubric": {
+    "rubricId": "balance-lesson-rubric",
+    "rubricVersion": 1,
+    "criteria": [
+      {
+        "criterionId": "distinguish-parts",
+        "dimension": "concept",
+        "conceptIds": [
+          "load-share",
+          "margin-rate",
+          "load-total"
+        ],
+        "contentId": "bal-assessment",
+        "mode": "agent",
+        "rule": "몫과 합계를 구분해 설명한다."
+      },
+      {
+        "criterionId": "calculate-transfer",
+        "dimension": "prediction-model",
+        "conceptIds": [
+          "load-total",
+          "margin-rate",
+          "load-share"
+        ],
+        "contentId": "bal-assessment",
+        "mode": "automatic",
+        "rule": "새 사례의 값을 기대값과 비교한다."
+      },
+      {
+        "criterionId": "explain-transfer",
+        "dimension": "transfer",
+        "conceptIds": [
+          "load-total",
+          "margin-rate",
+          "load-share"
+        ],
+        "contentId": "bal-assessment",
+        "mode": "agent",
+        "rule": "새 사례에서 다시 계산하는 이유를 설명한다."
+      },
+      {
+        "criterionId": "ask-for-evidence",
+        "dimension": "question",
+        "conceptIds": [
+          "load-total",
+          "margin-rate",
+          "load-share"
+        ],
+        "contentId": "bal-assessment-2",
+        "mode": "agent",
+        "rule": "부족한 정보를 질문으로 만든다."
+      },
+      {
+        "criterionId": "justify-choice",
+        "dimension": "choice-meaning",
+        "conceptIds": [
+          "load-share",
+          "margin-rate",
+          "load-total"
+        ],
+        "contentId": "bal-assessment-2",
+        "mode": "agent",
+        "rule": "선택의 조건을 비교한다."
+      }
+    ]
+  }
+}

@@ -285,34 +285,108 @@ test('[O3.origin] Origin: absent/exact/localhost accepted; other host, other por
     }
   });
 });
-test('[O3.size] exactly 1 MiB is processed (200); 1 MiB + 1 byte is 413 TOO_LARGE with the connection closed and no file (R6, C5, Q1)', async () => {
+// One-shot client: the whole body goes out in a single req.end(buf). Every client-side 'error' (request or socket) is recorded, never tolerated.
+// declared: Content-Length header; otherwise Transfer-Encoding: chunked, so the size is only known while receiving.
+function oneShot(port, body, {declared}) {
+  const errors = [];
+  let closedAt = null;
+  const started = Date.now();
+  const headers = {'content-type': 'application/json', ...(declared ? {'content-length': body.length} : {'transfer-encoding': 'chunked'})};
+  const settled = new Promise(resolve => {
+    const req = request({host: '127.0.0.1', port, method: 'POST', path: ENDPOINT, agent: false, headers}, r => {
+      const chunks = [];
+      r.on('data', c => chunks.push(c));
+      r.on('end', () => resolve({status: r.statusCode, body: Buffer.concat(chunks)}));
+      r.on('error', e => errors.push(`response: ${e.code ?? e.message}`));
+    });
+    req.on('socket', s => {
+      s.on('error', e => errors.push(`socket: ${e.code ?? e.message}`));
+      s.on('close', () => { closedAt = Date.now() - started; });
+    });
+    req.on('error', e => { errors.push(`request: ${e.code ?? e.message}`); resolve(null); });
+    req.end(body);
+  });
+  const closed = async () => {
+    const deadline = Date.now() + 5000;
+    while (closedAt === null && Date.now() < deadline) await new Promise(r => setTimeout(r, 20));
+    return closedAt;
+  };
+  return {settled, errors, closed};
+}
+const paddedDoc = size => { const base = Buffer.from(JSON.stringify(docA())); return Buffer.concat([base, Buffer.alloc(size - base.length, 0x20)]); };
+
+async function expectOversizeRejected(port, layout, {declared}) {
+  const big = paddedDoc(MIB + 1);
+  assert.equal(big.length, MIB + 1);
+  const client = oneShot(port, big, {declared});
+  const res = await client.settled;
+  assert.notEqual(res, null, `no response; client errors: ${client.errors.join(', ')}`);
+  assert.equal(res.status, 413);
+  assert.equal(json(res).code, 'TOO_LARGE');
+  assert.equal(json(res).ok, false);
+  const closedAfter = await client.closed();
+  assert.notEqual(closedAfter, null, 'connection not closed within 5 s after 413');
+  assert.ok(closedAfter <= 5000, `closed after ${closedAfter} ms`);
+  assert.deepEqual(client.errors, [], 'the client wrote the whole body without a socket error');
+  assert.deepEqual(listing(layout.out), [], 'no file in --out');
+  assert.deepEqual(listing(layout.parent), ['out']);
+}
+
+test('[O3.size] exactly 1 MiB is processed (200); 1 MiB + 1 byte is 413 TOO_LARGE with the connection closed, no client write error and no file (R6, C5, Q1)', async () => {
   const layout = outLayout();
   await withServe(layout.out, async ({port}) => {
-    const padded = size => { const base = Buffer.from(JSON.stringify(docA())); return Buffer.concat([base, Buffer.alloc(size - base.length, 0x20)]); };
-    const exact = padded(MIB);
+    const exact = paddedDoc(MIB);
     assert.equal(exact.length, MIB);
     const ok = await post(port, exact);
     assert.equal(ok.status, 200);
     assert.deepEqual(bytes(layout.out, docA()), exact);
     rmSync(join(layout.out, fileOf(docA())));
-
-    const big = padded(MIB + 1);
-    assert.equal(big.length, MIB + 1);
-    let closed;
-    const res = await new Promise((resolve, reject) => {
-      const req = request({host: '127.0.0.1', port, method: 'POST', path: ENDPOINT, agent: false, headers: {'content-type': 'application/json', 'content-length': big.length}}, r => {
-        const chunks = []; r.on('data', c => chunks.push(c)); r.on('end', () => resolve({status: r.statusCode, body: Buffer.concat(chunks)}));
-      });
-      req.on('socket', s => { closed = new Promise(done => s.on('close', done)); });
-      req.on('error', reject);
-      req.end(big);
+    await expectOversizeRejected(port, layout, {declared: true});
+  });
+});
+test('[O3.size chunked] without Content-Length: exactly 1 MiB is 200; 1 MiB + 1 byte exceeded during receipt is 413 TOO_LARGE, no client write error, closed within 5 s, no file (R2, C6)', async () => {
+  const layout = outLayout();
+  await withServe(layout.out, async ({port}) => {
+    const exact = paddedDoc(MIB);
+    const client = oneShot(port, exact, {declared: false});
+    const ok = await client.settled;
+    assert.notEqual(ok, null, `no response; client errors: ${client.errors.join(', ')}`);
+    assert.equal(ok.status, 200);
+    assert.deepEqual(client.errors, []);
+    assert.deepEqual(bytes(layout.out, docA()), exact);
+    rmSync(join(layout.out, fileOf(docA())));
+    await expectOversizeRejected(port, layout, {declared: false});
+  });
+});
+test('[O3.size stalled] Content-Length 1 MiB + 1 declared, only part of the body written, then the client stalls: the connection is closed within 5 s and no file exists (R2, C7)', async () => {
+  const layout = outLayout();
+  await withServe(layout.out, async ({port}) => {
+    const big = paddedDoc(MIB + 1);
+    const started = Date.now();
+    const closedAfter = await new Promise(resolve => {
+      const req = request({host: '127.0.0.1', port, method: 'POST', path: ENDPOINT, agent: false, headers: {'content-type': 'application/json', 'content-length': big.length}});
+      const timer = setTimeout(() => { req.destroy(); resolve(null); }, 5000);
+      req.on('socket', s => s.on('close', () => { clearTimeout(timer); resolve(Date.now() - started); }));
+      req.on('error', () => {});
+      req.on('response', r => r.resume());
+      req.write(big.subarray(0, MIB / 2));
     });
-    assert.equal(res.status, 413);
-    assert.equal(json(res).code, 'TOO_LARGE');
-    assert.equal(json(res).ok, false);
-    await Promise.race([closed, new Promise((_, rej) => setTimeout(() => rej(new Error('connection not closed after 413')), 5000))]);
+    assert.notEqual(closedAfter, null, 'connection still open after 5 s');
+    assert.ok(closedAfter <= 5000);
     assert.deepEqual(listing(layout.out), []);
     assert.deepEqual(listing(layout.parent), ['out']);
+  });
+});
+test('[O3.size alive] after a 413 (declared and chunked) the same server answers a normal request with 200 and writes only that file (R2, C8)', async () => {
+  const layout = outLayout();
+  await withServe(layout.out, async ({port}) => {
+    await expectOversizeRejected(port, layout, {declared: true});
+    await expectOversizeRejected(port, layout, {declared: false});
+    const doc = docB();
+    const res = await post(port, text(doc));
+    assert.equal(res.status, 200);
+    assert.deepEqual(listing(layout.out), [fileOf(doc)]);
+    assert.deepEqual(bytes(layout.out, doc), Buffer.from(text(doc)));
   });
 });
 test('[O3.content-type] application/json accepted; text/plain and a missing Content-Type are 415 CONTENT_TYPE (R7, C9)', async () => {

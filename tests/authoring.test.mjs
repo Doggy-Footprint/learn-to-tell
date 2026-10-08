@@ -20,6 +20,7 @@ import {
   EXAMPLE_MODEL, PROFILE, INPUT_IDS, OUTPUT_IDS, TRIGGERS, ORACLE_INPUTS, baseLesson, baseOracle, baseOracleText, exampleOracleText,
   asText, modelSource, pidTop, at, reference
 } from './fixtures/authoring/models.mjs';
+import {MODEL_PATH as MODEL_V3, lessonV3Text, oracleV3Text, asLessonText, lessonV2OfF1, modelSourceV3, failAt, outAt, POINTS} from './fixtures/authoring/models-v3.mjs';
 
 // Every ok:false Outcome observed below (Q4: code, message and next must exist on all of them).
 const failures = [];
@@ -913,6 +914,78 @@ test('[V10.STALE] map changed by someone else during the write: STALE, concurren
   assert.equal(await readText(layout(home).map), concurrent);
   assert.deepEqual(await strayFiles(home), []);
 });
+
+// ---------------------------------------------------------------- spec 0dcd8454f6e5111d V4 (sweep and composition probes, real child processes)
+// F1 sweeps: visual 0 = load-a over practical 10..60 with load-b 10, visual 1 = load-b over 6..30 with load-a 20, visual 2 = composition [part-a, part-b].
+const F4_LESSON = lessonV3Text();
+const F4_ORACLE = oracleV3Text();
+const f4Check = (t, source, lesson = F4_LESSON) => checkSource(t, source, {lesson, oracle: F4_ORACLE});
+const sweepError = index => [{code: 'PROBE_SWEEP', path: `/visuals/${index}`}];
+test('[F4-V4.control] F1 lesson, model file and oracle pass; the nullable margin is undefined inside the load-b sweep and does not fail it', async () => {
+  const out = await checkModel({lessonText: F4_LESSON, modelPath: MODEL_V3, oracleText: F4_ORACLE});
+  assert.deepEqual(out, {ok: true, errors: []});
+});
+test('[F4-V4.control generated] the generated fault-free model source passes as well', async t => {
+  assert.deepEqual(await f4Check(t, modelSourceV3()), {ok: true, errors: []});
+});
+for (const [name, point, visual] of [
+  ['practical.min', POINTS.sweepBMin, 1],
+  ['inner point', POINTS.sweepAInner, 0],
+  ['practical.max', POINTS.sweepBMax, 1],
+]) {
+  test(`[F4-V4.sweep ok:false at ${name}] one failing sample is exactly PROBE_SWEEP /visuals/${visual}`, async t => {
+    const out = await f4Check(t, modelSourceV3({pre: failAt(point)}));
+    assert.equal(out.ok, false);
+    assert.deepEqual(out.errors, sweepError(visual));
+  });
+}
+test('[F4-V4.sweep failing outside practical only] an ok:false at load-b 40 (outside every sweep) passes', async t => {
+  assert.deepEqual(await f4Check(t, modelSourceV3({pre: failAt(POINTS.outsideOnly)})), {ok: true, errors: []});
+});
+test('[F4-V4.sweep NaN] NaN on non-nullable fill-b at an inner sample of visual 1 is PROBE_SWEEP /visuals/1', async t => {
+  const out = await f4Check(t, modelSourceV3({post: outAt(POINTS.sweepBInner, 'fill-b', 'NaN')}));
+  assert.equal(out.ok, false);
+  assert.deepEqual(out.errors, sweepError(1));
+});
+test('[F4-V4.sweep Infinity] Infinity on non-nullable total at an inner sample of visual 0 is PROBE_SWEEP /visuals/0', async t => {
+  const out = await f4Check(t, modelSourceV3({post: outAt(POINTS.sweepAInner, 'total', 'Infinity')}));
+  assert.equal(out.ok, false);
+  assert.deepEqual(out.errors, sweepError(0));
+});
+test('[F4-V4.sweep nullable null] null on the nullable margin at an inner sample of visual 1 passes', async t => {
+  assert.deepEqual(await f4Check(t, modelSourceV3({post: outAt(POINTS.sweepBInner, 'margin', 'null')})), {ok: true, errors: []});
+});
+test('[F4-V4.sweep one error per visual] failures at all three load-b positions still report PROBE_SWEEP /visuals/1 once', async t => {
+  const pre = [POINTS.sweepBMin, POINTS.sweepBInner, POINTS.sweepBMax].map(failAt).join('\n');
+  assert.deepEqual((await f4Check(t, modelSourceV3({pre}))).errors, sweepError(1));
+});
+test('[F4-V4.composition negative once] a negative part-a at one sample of visual 0 is exactly PROBE_COMPOSITION /visuals/2', async t => {
+  const out = await f4Check(t, modelSourceV3({post: outAt(POINTS.sweepAInner, 'part-a', '-1')}));
+  assert.equal(out.ok, false);
+  assert.deepEqual(out.errors, [{code: 'PROBE_COMPOSITION', path: '/visuals/2'}]);
+});
+test('[F4-V4.composition negative in another sweep] a negative part-b at one sample of visual 1 is PROBE_COMPOSITION /visuals/2', async t => {
+  const out = await f4Check(t, modelSourceV3({post: outAt(POINTS.sweepBInner, 'part-b', '-1')}));
+  assert.deepEqual(out.errors, [{code: 'PROBE_COMPOSITION', path: '/visuals/2'}]);
+});
+test('[F4-V4.composition zero] a part-a of exactly 0 at that sample passes', async t => {
+  assert.deepEqual(await f4Check(t, modelSourceV3({post: outAt(POINTS.sweepAInner, 'part-a', '0')})), {ok: true, errors: []});
+});
+// R8: the same defective models under a v2 lesson (same inputs and outputs, no practical range or visuals) get no new code.
+const v2Text = asLessonText(lessonV2OfF1());
+test('[F4-V4.v2 control] the v2 form of F1 passes with the fault-free model', async t => {
+  assert.deepEqual(await f4Check(t, modelSourceV3(), v2Text), {ok: true, errors: []});
+});
+for (const [name, parts] of [
+  ['ok:false', {pre: failAt(POINTS.sweepBInner)}],
+  ['NaN', {post: outAt(POINTS.sweepBInner, 'fill-b', 'NaN')}],
+  ['negative composition output', {post: outAt(POINTS.sweepAInner, 'part-a', '-1')}],
+]) {
+  test(`[F4-V4.v2 unchanged ${name}] the defect that fails a v3 lesson leaves a v2 lesson without PROBE_SWEEP or PROBE_COMPOSITION`, async t => {
+    const out = await f4Check(t, modelSourceV3(parts), v2Text);
+    assert.deepEqual(out, {ok: true, errors: []});
+  });
+}
 
 // ---------------------------------------------------------------- Q4
 test('[Q4] every failure Outcome observed above has code, message and next', () => {

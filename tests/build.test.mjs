@@ -8,6 +8,7 @@ import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {inspectionLesson as lessonV1} from '../examples/manufacturing-inspection/lesson.mjs';
 import {lesson as lessonV2} from './fixtures/learning/data.mjs';
+import {lessonF1} from './fixtures/learning/v3.mjs';
 
 // Failure paths only: no Framework build runs, so every case must stop before dist/ is touched (V6).
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -60,6 +61,35 @@ for (const [name, make, expected] of V6_REJECT) test(`[T53-V6.${name}] build-les
   wellFormed(r.stderr);
   assert.match(r.stderr, expected);
 });
+// ---- spec 0dcd8454f6e5111d V3 (build-lesson, lesson versions {2, 3, 1, 4}). Failure paths only; successful v2 and v3 builds are exercised by the e2e builds.
+const v3 = edit => { const l = clone(lessonF1); edit?.(l); return l; };
+test('[F4-V3.build v1] build-lesson rejects a v1 lesson with VERSION /version; dist/ unchanged', () => {
+  const r = run('scripts/build-lesson.mjs', 'dist', lessonArgs({'--lesson': write('f4-v1.json', lessonV1)}));
+  assert.equal(r.status, 1, r.stderr);
+  assert.ok(lines(r.stderr).includes('VERSION /version'), r.stderr);
+});
+test('[F4-V3.build v4] build-lesson rejects a lesson of version 4 with VERSION /version; dist/ unchanged', () => {
+  const r = run('scripts/build-lesson.mjs', 'dist', lessonArgs({'--lesson': write('f4-v4.json', v3(l => { l.version = 4; }))}));
+  assert.equal(r.status, 1, r.stderr);
+  assert.ok(lines(r.stderr).includes('VERSION /version'), r.stderr);
+});
+test('[F4-V3.build v3 accepted] a v3 lesson reaches model binding: the mismatching model is the only rejection (REFERENCE /model/modelId), never VERSION', () => {
+  const r = run('scripts/build-lesson.mjs', 'dist', lessonArgs({'--lesson': write('f4-v3.json', v3()), '--model': write('f4-other-model.mjs', MODEL_TEXT.replace('MODEL_ID', 'other-model'))}));
+  assert.equal(r.status, 1, r.stderr);
+  assert.ok(lines(r.stderr).includes('REFERENCE /model/modelId'), r.stderr);
+  assert.equal(lines(r.stderr).some(l => l.startsWith('VERSION')), false, r.stderr);
+});
+test('[F4-V3.build v3 R2 violation] a v3 lesson with practical.min below min is RANGE /inputs/0/practical/min; dist/ unchanged', () => {
+  const r = run('scripts/build-lesson.mjs', 'dist', lessonArgs({'--lesson': write('f4-v3-r2.json', v3(l => { l.inputs[0].practical.min = l.inputs[0].min - 0.01; }))}));
+  assert.equal(r.status, 1, r.stderr);
+  assert.ok(lines(r.stderr).includes('RANGE /inputs/0/practical/min'), r.stderr);
+});
+test('[F4-V3.build v3 R3 violation] a v3 lesson with no visuals is RANGE /visuals; dist/ unchanged', () => {
+  const r = run('scripts/build-lesson.mjs', 'dist', lessonArgs({'--lesson': write('f4-v3-r3.json', v3(l => { l.visuals = []; }))}));
+  assert.equal(r.status, 1, r.stderr);
+  assert.ok(lines(r.stderr).includes('RANGE /visuals'), r.stderr);
+});
+
 test('[T53-V6.lesson-file-missing] LESSON_FILE <path>, exit 1', () => {
   const path = join(tmp, 'no-such-lesson.json');
   const r = run('scripts/build-lesson.mjs', 'dist', lessonArgs({'--lesson': path}));

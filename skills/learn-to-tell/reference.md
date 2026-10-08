@@ -1,7 +1,7 @@
 # 문서 형식과 제약
 
 정본은 `$LTT/contracts/definitions.mjs`(필드)와 `$LTT/contracts/index.mjs`(의미 검사)다. 아래와 다르면 정본이 맞다.
-완전한 예시는 `$LTT/tests/fixtures/learning/synthetic-lesson-v2.json`, `synthetic-model.mjs`, `synthetic-oracle.json`(물탱크, 입력 1·출력 2)을 복사해 고친다.
+완전한 예시(lesson v3)는 `$LTT/tests/fixtures/learning/synthetic-lesson-v3.json`과 그 model·oracle 파일을 복사해 고친다. 만드는 lesson은 항상 v3다. lesson v2(`synthetic-lesson-v2.json`)는 기존 문서 호환용이며 새로 만들지 않는다.
 
 공통: 모든 `...Id`는 `^[a-z][a-z0-9-]{0,63}$`. revision·version은 1 이상 정수. 알 수 없는 필드는 `UNKNOWN_FIELD`로 거부된다.
 
@@ -62,12 +62,34 @@ export const model = {
 - `absolute`: 허용 오차(≥ 0). 손계산 정확값이면 `1e-9`.
 - `author`: `model-author` | `independent-agent`. `source`: 계산 근거 문장.
 
-## lesson v2 — 의미 제약 (필드는 예시 파일 참고)
+## lesson v3 — 의미 제약 (필드는 예시 파일 참고)
+
+v3는 v2 필드를 모두 가지며(`"version": 3`) `inputs[]` 확장과 `visuals[]`가 더해진다. 아래 v2 규칙은 그대로 적용된다.
+
+```json
+{"inputs": [{"inputId": "flow-rate", "label": "유입 속도", "unit": "L/min", "min": 0, "max": 100, "default": 20, "step": 5,
+             "practical": {"min": 10, "max": 60, "basis": "이 범위를 관찰한 출처·근거 문장(약하면 불확실하다고 적는다)"}}],
+ "visuals": [
+   {"visualId": "sweep-flow", "kind": "sweep", "inputId": "flow-rate", "outputIds": ["filled-volume"], "caption": "유입 속도에 따른 채운 부피"},
+   {"visualId": "share-parts", "kind": "composition", "inputId": null, "outputIds": ["part-a", "part-b"], "caption": "구성 비율"}
+ ]}
+```
+
+- `inputs`: `label`(비어 있지 않음, 사용자가 읽는 이름), `step > 0`, `practical{min,max,basis}`.
+  - `min < max`, `min ≤ default ≤ max`(정의역, 모델 RANGE와 동일). `practical.min ≥ min`, `practical.max ≤ max`, `practical.min < practical.max`, `practical.min ≤ default ≤ practical.max`, `step ≤ practical.max − practical.min`. 위반은 `RANGE`.
+  - `practical`은 실사용 범위(실제로 관찰되는 범위). `basis`에 출처·근거를 적고, 근거가 약하면 불확실하다고 명시한다(`basis` 공백은 `VALUE`).
+  - 슬라이더는 `practical` 범위와 `step`으로, 숫자칸은 정의역으로 움직인다. 시나리오 값은 정의역 안이면 `practical` 밖이어도 유효하지만, 그런 시나리오는 failure 내용에서 설명할 때만 쓴다.
+- `visuals` 1개 이상, 각 항목 `{visualId, kind, inputId, outputIds, caption}`.
+  - `kind: "sweep"`: `inputId`는 입력 id. 그 입력을 `practical` 범위에서 움직일 때 `outputIds`의 변화를 곡선으로 보인다. 결정 변수마다 1개 이상.
+  - `kind: "composition"`: `inputId: null`. 부분-전체 출력을 100% 막대로 보인다. `outputIds` 2개 이상, nullable 출력 금지. 합이 일정할 필요는 없지만 음수가 나오면 안 된다.
+  - `outputIds`는 존재하는 출력, 중복 금지, 단위가 모두 같아야 한다(`STATE /visuals/i/outputIds`). `visualId` 중복 금지.
+- v2 lesson에 v3 필드를 넣으면 `UNKNOWN_FIELD`, v3에서 빼면 `REQUIRED`.
+
+### 공통 (v2와 동일)
 
 - `concepts` 1–5개(5 초과 시 place-lesson `SCOPE`), 각 개념에 `meaning`·`example`·`confusion`(흔한 오해)·`plain`(쉬운 말). 화면 힌트는 confusion → plain 순서로 쓰인다.
 - `content[].role`: `explanation` | `simulation` | `application` | `failure` | `assessment`. `conceptIds`는 존재하는 개념.
 - `decisions` 1–2개(2 초과 `SCOPE`). `choices` ≥ 2, `requiredInformation` ≥ 1. `explanationId`/`simulationId`/`applicationId`/`failureId`/`assessmentId`는 각각 그 role의 content를 가리킨다.
-- `inputs`: `min < max`, `min ≤ default ≤ max`.
 - `outputs`: `scale > 0`, `nullable`은 모델이 null을 낼 수 있을 때만 true.
 - `scenarios`: 각 시나리오가 모든 입력을 한 번씩, 범위 안 값으로.
 - `transfer.scenarioId`는 시나리오 중 하나(설명 없이 예측하는 새 사례), `tolerances`는 모든 출력에 하나씩.
@@ -89,6 +111,13 @@ export const model = {
 - `placed`: lessonId가 map에 import된 lesson이고, conceptId·conceptRevision이 그 lesson의 개념이어야 한다.
 - `planned`: 아직 만들지 않은 회차. 참조 검사를 하지 않는다.
 - 배열 전체가 기존 nextPaths를 교체한다. 남길 기존 항목도 함께 넣는다.
+
+## check-model 추가 오류 (lesson v3에만 적용)
+
+| error code | 의미 |
+| --- | --- |
+| `PROBE_SWEEP /visuals/i` | sweep visual의 `practical` 범위를 양끝 포함 41점 등간격(다른 입력은 default)으로 계산했을 때 `ok:false`이거나 non-nullable 출력이 비유한값 |
+| `PROBE_COMPOSITION /visuals/i` | composition visual의 출력이 기존 probe나 sweep 샘플 중 하나에서 음수 |
 
 ## serve
 

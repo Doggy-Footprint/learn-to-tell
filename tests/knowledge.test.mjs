@@ -15,6 +15,7 @@ import {
   truncatedText, noWrapperText, contractViolationText
 } from './fixtures/knowledge/world.mjs';
 import {recordingFs, faultFs} from './fixtures/knowledge/faults.mjs';
+import {toV2, toV3} from './fixtures/contracts-v3/lessons.mjs';
 
 // Every ok:false Outcome observed by V4-V10 (Outcome-level only; writeMap's raw {ok,code} is not an Outcome).
 const failures = [];
@@ -381,7 +382,7 @@ const underPath = prefix => errors => {
   for (const e of errors) assert.ok(e.path === prefix || e.path.startsWith(prefix + '/'), JSON.stringify(e));
 };
 for (const [label, file, prefix, mutate, code, errPath] of [
-  ['lesson-version-3', 'lessons/lesson-a.1.json', '/lesson', l => { l.version = 3; }, 'VERSION', '/lesson/version'],
+  ['lesson-version-4', 'lessons/lesson-a.1.json', '/lesson', l => { l.version = 4; }, 'VERSION', '/lesson/version'],
   ['lesson-minutes-over-20', 'lessons/lesson-a.1.json', '/lesson', l => { for (const a of l.activities) a.minutes = 4; }, 'RANGE', '/lesson/activities'],
   ['diagnostic-version-3', 'diagnostics/diagnostic-a.json', '/diagnostic', d => { d.version = 3; }, 'VERSION', '/diagnostic/version']
 ]) {
@@ -396,6 +397,48 @@ for (const [label, file, prefix, mutate, code, errPath] of [
   });
 }
 // V4.result-file-missing (IO) is a file-reading failure of the CLI: see tests/map-cli.test.mjs.
+
+// ---------- spec 0dcd8454f6e5111d V3: result import and map with lesson versions {2, 3, 1, 4} ----------
+const lessonOfVersion = {2: toV2, 3: toV3};
+async function placeLessonDoc(home, lesson) {
+  await placeFixtures(home, PROFILE, {lesson: false});
+  await writeFile(path.join(layout(home).dir, 'lessons', 'lesson-a.1.json'), JSON.stringify(lesson));
+}
+for (const version of [2, 3]) {
+  test(`[F4-V3.import lesson v${version}] a result is imported against a v${version} lesson file: imported, generation 2, the lesson joins the map`, async t => {
+    const home = await tempHome(t);
+    const lesson = lessonOfVersion[version](makeLesson(), 1);
+    await placeLessonDoc(home, lesson);
+    await seedMapText(home, wrapperText(1, {...mapFor([]), lessons: []}));
+    const [r1] = await makeChain([LEVELS[0]]);
+    const out = await importResult(textOf(r1), {home});
+    assert.equal(out.ok, true, JSON.stringify(out));
+    assert.equal(out.action, 'imported');
+    assert.equal(out.generation, 2);
+    await expectDiskMap(home, 2, {...mapFor([r1]), lessons: [lesson]});
+  });
+  test(`[F4-V3.import map v${version}] a stored map holding the v${version} lesson accepts the next result: generation+1, lesson unchanged`, async t => {
+    const home = await tempHome(t);
+    const lesson = lessonOfVersion[version](makeLesson(), 1);
+    await placeLessonDoc(home, lesson);
+    const [r1, r2] = await makeChain(LEVELS.slice(0, 2));
+    await seedMapText(home, wrapperText(3, {...mapFor([r1]), lessons: [lesson]}));
+    const out = await importResult(textOf(r2), {home});
+    assert.equal(out.ok, true, JSON.stringify(out));
+    assert.equal(out.action, 'imported');
+    assert.equal(out.generation, 4);
+    await expectDiskMap(home, 4, {...mapFor([r1, r2]), lessons: [lesson]});
+  });
+}
+test('[F4-V3.import lesson v3 R2 violation] a lesson file whose practical.min is below min: INVALID under /lesson with RANGE /lesson/inputs/0/practical/min, nothing changes', async t => {
+  const world = await rejectionWorld(t);
+  const lesson = toV3(makeLesson(), 1);
+  lesson.inputs[0].practical.min = lesson.inputs[0].min - 0.01;
+  await writeFile(path.join(layout(world.home).dir, 'lessons', 'lesson-a.1.json'), JSON.stringify(lesson));
+  world.before = await snapshot(world.home);
+  const result = await makeResult({resultId: 'result-1', items: LEVELS[0]});
+  await expectRejected(world, textOf(result), 'INVALID', errors => { underPath('/lesson')(errors); hasError('RANGE', '/lesson/inputs/0/practical/min')(errors); }, 'F4-V3.r2');
+});
 
 // ---------- V5 writeMap fault injection ----------
 const mapA = mapFor([], {nextPaths: [nextPath('reason-a')]});

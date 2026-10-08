@@ -6,6 +6,7 @@ import {fail, guarded, profileFail, readFileOrNull, readMap, unreadableFail, wri
 import {checkFail, checkModel} from './check-model.mjs';
 
 const attempt = async action => { try { await action(); } catch { /* cleanup failures are deliberately ignored */ } };
+const LESSON_VERSION_MESSAGE = 'lesson v2·v3 문서만 배치할 수 있습니다.';
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const invalid = (errors, next) => fail('INVALID', '문서가 계약 검증을 통과하지 못했습니다.', next, errors);
 
@@ -25,7 +26,9 @@ function parseDocumentFor(text, kind) {
   if (parsed.outcome) return parsed;
   if (badProfile(parsed.value)) return {outcome: profileFail()};
   const checked = validateDocument(parsed.value, kind);
-  return checked.ok ? parsed : {outcome: invalid(checked.errors, `${kind} 문서를 계약에 맞게 고친 뒤 다시 배치하세요.`)};
+  if (checked.ok) return parsed;
+  const unsupported = kind === 'lesson' && checked.errors.length === 1 && checked.errors[0].code === 'VERSION' && checked.errors[0].path === '/version';
+  return {outcome: invalid(checked.errors, unsupported ? LESSON_VERSION_MESSAGE : `${kind} 문서를 계약에 맞게 고친 뒤 다시 배치하세요.`)};
 }
 
 // Found before mkdir because a recursive mkdir that fails midway does not report which ancestors it already created.
@@ -103,7 +106,7 @@ export const placeLesson = ({lessonText, modelPath, oracleText}, opts) => guarde
   const parsed = parseDocumentFor(lessonText, 'lesson');
   if (parsed.outcome) return parsed.outcome;
   const lesson = parsed.value;
-  if (lesson.version !== 2) return invalid([{code: 'VERSION', path: '/version'}], 'lesson v2 문서만 배치할 수 있습니다.');
+  if (lesson.version === 1) return invalid([{code: 'VERSION', path: '/version'}], LESSON_VERSION_MESSAGE);
   const [read] = await Promise.allSettled([fs.readFile(modelPath)]);
   if (read.status !== 'fulfilled') return checkFail([{code: 'LOAD', path: '/model'}]);
   const checked = await checkModel({lessonText, modelPath, oracleText});

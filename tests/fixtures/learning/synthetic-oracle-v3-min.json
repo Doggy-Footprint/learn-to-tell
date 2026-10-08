@@ -1,0 +1,80 @@
+{
+  "kind": "oracle",
+  "version": 1,
+  "modelId": "minimal-double",
+  "modelRevision": 1,
+  "cases": [
+    {
+      "caseId": "base",
+      "values": [
+        {
+          "inputId": "speed",
+          "value": 4
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "twice",
+          "value": 8
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: twice = 2 * speed",
+      "author": "independent-agent"
+    },
+    {
+      "caseId": "min",
+      "values": [
+        {
+          "inputId": "speed",
+          "value": 0
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "twice",
+          "value": 0
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: twice = 2 * speed",
+      "author": "independent-agent"
+    },
+    {
+      "caseId": "max",
+      "values": [
+        {
+          "inputId": "speed",
+          "value": 10
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "twice",
+          "value": 20
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: twice = 2 * speed",
+      "author": "independent-agent"
+    },
+    {
+      "caseId": "new-case",
+      "values": [
+        {
+          "inputId": "speed",
+          "value": 6
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "twice",
+          "value": 12
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: twice = 2 * speed",
+      "author": "independent-agent"
+    }
+  ]
+}

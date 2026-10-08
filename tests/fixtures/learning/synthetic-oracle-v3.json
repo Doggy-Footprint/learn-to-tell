@@ -1,0 +1,198 @@
+{
+  "kind": "oracle",
+  "version": 1,
+  "modelId": "load-balance",
+  "modelRevision": 1,
+  "cases": [
+    {
+      "caseId": "a20-b10",
+      "values": [
+        {
+          "inputId": "load-a",
+          "value": 20
+        },
+        {
+          "inputId": "load-b",
+          "value": 10
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "part-a",
+          "value": 60
+        },
+        {
+          "outputId": "part-b",
+          "value": 20
+        },
+        {
+          "outputId": "total",
+          "value": 80
+        },
+        {
+          "outputId": "fill-b",
+          "value": 0.2
+        },
+        {
+          "outputId": "margin",
+          "value": 0.8
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: part-a=3a, part-b=2b, total=3a+2b, fill-b=b/50, margin=1-b/50 (undefined for 16<b<19)",
+      "author": "independent-agent"
+    },
+    {
+      "caseId": "min",
+      "values": [
+        {
+          "inputId": "load-a",
+          "value": 0
+        },
+        {
+          "inputId": "load-b",
+          "value": 0
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "part-a",
+          "value": 0
+        },
+        {
+          "outputId": "part-b",
+          "value": 0
+        },
+        {
+          "outputId": "total",
+          "value": 0
+        },
+        {
+          "outputId": "fill-b",
+          "value": 0
+        },
+        {
+          "outputId": "margin",
+          "value": 1
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: part-a=3a, part-b=2b, total=3a+2b, fill-b=b/50, margin=1-b/50 (undefined for 16<b<19)",
+      "author": "independent-agent"
+    },
+    {
+      "caseId": "max",
+      "values": [
+        {
+          "inputId": "load-a",
+          "value": 100
+        },
+        {
+          "inputId": "load-b",
+          "value": 50
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "part-a",
+          "value": 300
+        },
+        {
+          "outputId": "part-b",
+          "value": 100
+        },
+        {
+          "outputId": "total",
+          "value": 400
+        },
+        {
+          "outputId": "fill-b",
+          "value": 1
+        },
+        {
+          "outputId": "margin",
+          "value": 0
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: part-a=3a, part-b=2b, total=3a+2b, fill-b=b/50, margin=1-b/50 (undefined for 16<b<19)",
+      "author": "independent-agent"
+    },
+    {
+      "caseId": "heavy",
+      "values": [
+        {
+          "inputId": "load-a",
+          "value": 50
+        },
+        {
+          "inputId": "load-b",
+          "value": 18
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "part-a",
+          "value": 150
+        },
+        {
+          "outputId": "part-b",
+          "value": 36
+        },
+        {
+          "outputId": "total",
+          "value": 186
+        },
+        {
+          "outputId": "fill-b",
+          "value": 0.36
+        },
+        {
+          "outputId": "margin",
+          "value": null
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: part-a=3a, part-b=2b, total=3a+2b, fill-b=b/50, margin=1-b/50 (undefined for 16<b<19)",
+      "author": "independent-agent"
+    },
+    {
+      "caseId": "new-case",
+      "values": [
+        {
+          "inputId": "load-a",
+          "value": 40
+        },
+        {
+          "inputId": "load-b",
+          "value": 15
+        }
+      ],
+      "expected": [
+        {
+          "outputId": "part-a",
+          "value": 120
+        },
+        {
+          "outputId": "part-b",
+          "value": 30
+        },
+        {
+          "outputId": "total",
+          "value": 150
+        },
+        {
+          "outputId": "fill-b",
+          "value": 0.3
+        },
+        {
+          "outputId": "margin",
+          "value": 0.7
+        }
+      ],
+      "absolute": 1e-9,
+      "source": "hand calculation: part-a=3a, part-b=2b, total=3a+2b, fill-b=b/50, margin=1-b/50 (undefined for 16<b<19)",
+      "author": "independent-agent"
+    }
+  ]
+}

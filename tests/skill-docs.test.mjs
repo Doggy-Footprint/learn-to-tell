@@ -113,3 +113,19 @@ test('[T54S-O6.absent scripts] no file under scripts/ mentions the removed stati
 test('[T54S-O6.controls] the EXPORT_NOTICE extractor reads the declared string', () => {
   assert.ok(exportNotice().length > 0);
 });
+
+// ---- spec 0dcd8454f6e5111d V11 (R19): lesson v3 generation rules are written in the skill documents. Present strings: SKILL {8}, reference {7}.
+const F4_SKILL = ['practical', 'basis', 'step', 'visuals', 'sweep', 'composition', '실사용 범위', '정의역'];
+const F4_REFERENCE = ['"version": 3', 'practical', 'basis', 'visuals', 'PROBE_SWEEP', 'PROBE_COMPOSITION', 'synthetic-lesson-v3.json'];
+for (const needle of F4_SKILL) test(`[F4-V11.present SKILL.md] contains "${needle}" (R19)`, () => {
+  assert.equal(read(SKILL).includes(needle), true);
+});
+for (const needle of F4_REFERENCE) test(`[F4-V11.present reference.md] contains "${needle}" (R19)`, () => {
+  assert.equal(read(REFERENCE).includes(needle), true);
+});
+test('[F4-V11.controls] the inclusion check rejects a text without the string and the referenced example file exists', () => {
+  assert.equal('plain text'.includes(F4_SKILL[0]), false);
+  assert.equal(lstatSync(join(root, 'tests/fixtures/learning/synthetic-lesson-v3.json')).isFile(), true);
+  assert.equal(lstatSync(join(root, 'tests/fixtures/learning/synthetic-model-v3.mjs')).isFile(), true);
+  assert.equal(lstatSync(join(root, 'tests/fixtures/learning/synthetic-oracle-v3.json')).isFile(), true);
+});
