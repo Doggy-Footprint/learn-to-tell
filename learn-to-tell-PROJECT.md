@@ -77,25 +77,25 @@ Learn to Tell은 함께 작업하는 AI agent가 skill로 제공하는 짧은 �
 **최소 설계로 새로 작성한다.** 구성:
 
 - `SKILL.md` 하나: 위 6단계 흐름.
-- **공통 학습 자료 kit**: 빌드 없는 단일 JS 파일과, 오프라인으로 포함한 차트 라이브러리. agent는 수업마다 HTML 파일 하나를 쓴다.
+- **공통 학습 자료 kit**: 빌드 없는 단일 JS 파일(`kit/ltt.js`)과, 오프라인으로 포함한 차트 라이브러리(Observable Plot 0.6.17 UMD + d3 7.9.0, `kit/vendor/`). agent는 수업마다 HTML 파일 하나를 쓴다. scaffold 단계의 kit는 `record`(브라우저 결과 전송), `expect`(기대값 대조), 기본 스타일만 제공한다.
   - 발상: manim(3B1B)이 고수준 어휘와 풍부한 예제 덕분에 agent가 시청각 자료를 쉽게 만들 수 있는 것처럼, "결정 변수 학습"에 맞는 어휘를 제공한다.
   - 수치 어휘(초안): `param`(실사용 범위 슬라이더), `model`, `predict`(예측 후 공개), `sweep`, `compare`(전후 비교), `expect`(기대값 대조).
   - 비수치 어휘(필수, 초안): 조건을 켜고 끄면 추천이 바뀌는 비교표, 단계별 상태·흐름 다이어그램, 코드 예시 변형 비교.
 - **예제 모음(gallery) 3–4개**: agent가 가장 비슷한 예제를 고쳐 쓰는 방식이 효과를 내리라고 기대한다(미검증).
 - **퀴즈·평가·map 갱신은 대화에서** 처리한다.
-- **경량 로컬 서버**: 수업 HTML과 kit를 제공하고, 브라우저에서 생긴 결과(예측 등)를 받아 agent가 읽을 수 있게 한다.
+- **경량 로컬 서버**: 수업 HTML과 kit를 제공하고, 브라우저에서 생긴 결과(예측 등)를 받아 agent가 읽을 수 있게 한다. Node.js 표준 라이브러리만 쓰고 127.0.0.1에만 bind한다(`server/server.mjs`). agent가 백그라운드로 시작하고, 같은 포트에서 이미 실행 중이면 재사용하며, 요청 없이 120분이 지나면 스스로 종료한다. 결과는 `lessons/<id>/events.jsonl`에 쌓이고 agent가 직접 읽는다.
+- **배포**: harness 확장으로 배포한다(`agent-docs/adr/190db09929e4196e-distribute-as-harness-extension.md`). 원본은 `skills/learn-to-tell/`이다.
+- **데이터 위치(기본값, 실사용 후 재검토)**: `~/.learn-to-tell/map.md`, `~/.learn-to-tell/lessons/<YYYYMMDD-slug>/{lesson.html, events.jsonl, result.md}`. `LTT_HOME`으로 바꿀 수 있다.
 - **학습 세션**: 작업 세션을 fork해 학습하고, 끝나면 원래 세션으로 돌아온다. 원래 세션의 prefix가 바뀌지 않아 prompt cache를 그대로 쓴다. 사용자가 `/fork`로 실행하고, 학습이 끝나면 학습 세션이 cross-session messaging으로 결과를 원래 세션에 보낸다. `/fork`의 세션 복사는 v2.1.212, cross-session messaging은 v2.1.224부터 지원되며, agent view가 꺼져 있으면 `/fork`는 forked subagent로 동작한다. 작업 세션의 context가 100k tokens 이상이면 fork한 세션이 큰 context를 그대로 안고 가지 않도록 새 세션에서 학습하길 권하고, 작업 맥락은 문서로 넘긴다.
 - **map은 단순 파일 하나**로 둔다. 검증·복구 장치는 실제 문제가 확인된 곳에만 추가한다.
 
 ## 5. 미정
 
 - kit의 어휘 최종 목록과 API.
-- 차트 라이브러리 선택(후보: Observable Plot. agent가 잘 안다. UMD 번들은 전역 `d3`가 필요해 `d3.min.js`도 함께 포함해야 한다. 0.6.17 기준 약 209KB + 280KB).
-- map과 학습 자료의 파일 형식, `~/.learn-to-tell/` 안의 위치 구조.
+- map과 학습 결과의 파일 형식. 지금은 `SKILL.md`의 markdown 기본값을 쓰고, 실사용 후 재검토한다.
 - 복습을 돕기 위해 map이 제공할 것.
 - context 크기 확인 방법. 후보: skill의 `!` 명령이 `${CLAUDE_SESSION_ID}`로 세션 transcript(`~/.claude/projects/<cwd>/<session-id>.jsonl`)를 찾아 마지막 응답의 usage 합계를 읽는다. transcript 형식은 공개된 API가 아니다.
 - 비수치 자료의 원칙. 앞으로 채운다.
-- 경량 서버의 구현 언어와 시작·종료 방식.
 
 ## 6. v0 히스토리 (2026-10-03 ~ 10-08, 커밋 30개)
 

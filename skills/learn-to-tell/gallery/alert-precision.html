@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>알림이 울리면 진짜 장애일까?</title>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<style>
+  #chart svg { max-width: 100%; height: auto; }
+  .verdict { font-size: 15px; margin-top: 8px; }
+  .case h3 { font-size: 16px; margin: 0 0 6px; }
+  .case p { margin: 4px 0; font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>알림이 울리면 진짜 장애일까?</h1>
+  <p class="ltt-lead">
+    결정 변수: <span data-tip="알림을 울릴 기준. 엄격하게 잡으면 오탐률이 줄지만 탐지율도 함께 줄어든다.">알림 임계</span>.
+    같은 임계라도 <span data-tip="확인 시점에 실제로 장애인 비율">기저율</span>에 따라
+    <span data-tip="알림이 울렸을 때 실제 장애일 확률 (precision, PPV)">정밀도</span>가 크게 달라진다.
+  </p>
+
+  <section class="ltt-card" id="predict-card">
+    <h2>먼저 예측해 보세요</h2>
+    <p>장애 기저율 1%, 탐지율 95%, 오탐률 5%인 알림이 울렸습니다. 실제 장애일 확률은 몇 %일까요?</p>
+    <input type="number" id="guess" min="0" max="100" step="1" placeholder="예: 80"> %
+    <button id="lock">예측 확정</button>
+    <p class="ltt-basis">처음 예측은 확정 후 바꿀 수 없습니다.</p>
+  </section>
+
+  <div id="reveal" class="ltt-hidden">
+    <div class="ltt-grid">
+      <section class="ltt-card">
+        <span class="ltt-tag">모델로 계산한 예시</span>
+        <div class="ltt-stat" id="ppv">-<small>정밀도</small></div>
+        <div class="verdict" id="verdict"></div>
+      </section>
+      <section class="ltt-card">
+        <label class="ltt-param">기저율 p <b id="p-v"></b>
+          <input type="range" id="p" min="0.1" max="20" step="0.1" value="1">
+          <span class="ltt-basis"><span class="ltt-tag warn">불확실</span>0.1–20%: 예시용 가정. 서비스와 확인 주기마다 다르다.</span>
+        </label>
+        <label class="ltt-param">탐지율 s <b id="s-v"></b>
+          <input type="range" id="s" min="50" max="99" step="1" value="95">
+          <span class="ltt-basis"><span class="ltt-tag warn">불확실</span>50–99%: 예시용 가정.</span>
+        </label>
+        <label class="ltt-param">오탐률 f <b id="f-v"></b>
+          <input type="range" id="f" min="0.1" max="20" step="0.1" value="5">
+          <span class="ltt-basis"><span class="ltt-tag warn">불확실</span>0.1–20%: 예시용 가정.</span>
+        </label>
+      </section>
+    </div>
+
+    <section class="ltt-card">
+      <h2>기저율에 따른 정밀도 <span class="ltt-tag">모델로 계산한 예시</span></h2>
+      <div id="chart"></div>
+    </section>
+
+    <div class="ltt-grid">
+      <section class="ltt-card case">
+        <h3><span class="ltt-tag good">활용</span>배포 직후 집중 감시</h3>
+        <p>배포 직후처럼 장애 기저율이 10%로 높으면, 같은 알림(95%/5%)의 정밀도는 약 68%다.</p>
+        <p>이때는 알림을 바로 사람에게 보내도 대부분 의미가 있다.</p>
+      </section>
+      <section class="ltt-card case">
+        <h3><span class="ltt-tag bad">주의</span>평상시 상시 감시</h3>
+        <p>기저율 1%에서는 정밀도가 약 16%다. 알림 6건 중 5건이 오탐이고, 사람은 알림을 무시하기 시작한다.</p>
+        <p>탐지율을 올리기보다 오탐률을 낮추는 쪽이 정밀도를 더 크게 바꾼다. 예: 탐지율 80%, 오탐률 0.5%면 약 62%.</p>
+      </section>
+    </div>
+    <p class="ltt-basis">다 보았으면 대화로 돌아가 다음 질문에 답해 주세요.</p>
+  </div>
+</main>
+<script>
+  // Hand-derived before the model below was written; the model must match these, not the reverse.
+  const EXPECTED_BY_HAND = [
+    { label: "p=1%, s=95%, f=5%", p: 0.01, s: 0.95, f: 0.05, ppv: 0.161017 },
+    { label: "p=10%, s=95%, f=5%", p: 0.10, s: 0.95, f: 0.05, ppv: 0.678571 },
+    { label: "p=1%, s=80%, f=0.5%", p: 0.01, s: 0.80, f: 0.005, ppv: 0.617761 },
+  ];
+
+  const ppv = (p, s, f) => (s * p) / (s * p + f * (1 - p));
+  for (const c of EXPECTED_BY_HAND) LTT.expect(c.label, ppv(c.p, c.s, c.f), c.ppv, { tol: 1e-5 });
+
+  const $ = (id) => document.getElementById(id);
+  const pct = (x, d = 1) => (x * 100).toFixed(d) + "%";
+  let guess = null;
+
+  $("lock").addEventListener("click", () => {
+    const v = Number($("guess").value);
+    if ($("guess").value === "" || !(v >= 0 && v <= 100)) return;
+    guess = v / 100;
+    $("guess").disabled = true;
+    $("lock").disabled = true;
+    LTT.record("predict", { question: "p=1%, s=95%, f=5% 정밀도", guess });
+    $("reveal").classList.remove("ltt-hidden");
+    render();
+  });
+
+  function render() {
+    const p = $("p").value / 100, s = $("s").value / 100, f = $("f").value / 100;
+    $("p-v").textContent = pct(p);
+    $("s-v").textContent = pct(s, 0);
+    $("f-v").textContent = pct(f);
+    const value = ppv(p, s, f);
+    $("ppv").firstChild.textContent = pct(value);
+    const isPredictedCase = p === 0.01 && s === 0.95 && f === 0.05;
+    $("verdict").textContent = isPredictedCase
+      ? `예측 ${pct(guess, 0)} → 모델 ${pct(value)}. 알림 ${Math.round(1 / value)}건 중 1건 정도만 실제 장애다.`
+      : `알림 100건 중 약 ${Math.round(value * 100)}건이 실제 장애.`;
+
+    const xs = d3.range(-3, Math.log10(0.2) + 0.001, 0.02).map((e) => 10 ** e);
+    const data = xs.map((x) => ({ p: x, ppv: ppv(x, s, f) }));
+    $("chart").replaceChildren(Plot.plot({
+      width: 880, height: 300, marginLeft: 48,
+      x: { type: "log", label: "기저율 p", tickFormat: (d) => pct(d, d < 0.01 ? 1 : 0) },
+      y: { domain: [0, 1], label: "정밀도", tickFormat: (d) => pct(d, 0), grid: true },
+      marks: [
+        Plot.line(data, { x: "p", y: "ppv", stroke: "#4f6bed", strokeWidth: 2.5 }),
+        Plot.ruleX([p], { stroke: "#c98a12", strokeDasharray: "4,3" }),
+        Plot.dot([{ p, ppv: value }], { x: "p", y: "ppv", r: 6, fill: "#4f6bed" }),
+        Plot.tip(data, Plot.pointerX({ x: "p", y: "ppv", title: (d) => `p ${pct(d.p, 2)} → 정밀도 ${pct(d.ppv)}` })),
+      ],
+    }));
+  }
+
+  for (const id of ["p", "s", "f"]) $(id).addEventListener("input", render);
+</script>
+</body>
+</html>
