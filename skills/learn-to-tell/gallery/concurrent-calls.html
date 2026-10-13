@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API 5개를 한꺼번에 부르면?</title>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<style>
+  :root { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --mute: #c3c9da; --code-bg: #f4f6fb; }
+  .ask { font-size: 22px; font-weight: 700; margin: 0 0 14px; }
+  .durs { display: grid; grid-template-columns: 30px minmax(0, 1fr) 96px; gap: 6px 10px; align-items: center;
+    max-width: 520px; margin: 0 0 20px; font-size: 14px; }
+  .durs b { font-weight: 700; }
+  .durs i { display: block; height: 12px; border-radius: 0 4px 4px 0; background: var(--s1); }
+  .durs i.fail { background: var(--ltt-bad); }
+  .durs span { color: var(--ltt-muted); }
+  .choices { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin: 0 0 14px; }
+  .choice { display: flex; gap: 10px; align-items: flex-start; text-align: left; background: var(--ltt-card);
+    color: var(--ltt-ink); font-weight: 500; border: 2px solid var(--ltt-line); padding: 12px 14px; line-height: 1.45;
+    transition: border-color .25s ease, background-color .25s ease; }
+  .choice b { color: var(--ltt-muted); }
+  .choice[aria-pressed=true] { border-color: var(--ltt-accent); background: #eef1fd; }
+  .choice:disabled { opacity: 1; cursor: default; }
+  .choice.correct { border-color: var(--ltt-good); background: #e6f6ef; }
+  .choice.wrong { border-color: var(--ltt-bad); background: #fdecef; }
+  .choice .mark { display: block; margin-top: 6px; font-size: 12px; font-weight: 700; }
+  .choice.correct .mark { color: var(--ltt-good); }
+  .choice.wrong .mark { color: var(--ltt-bad); }
+  .verdict { font-size: 17px; margin: 4px 0 0; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: center; margin: 0 0 20px; }
+  .tabs { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--ltt-bg);
+    border: 1px solid var(--ltt-line); border-radius: 12px; }
+  .tabs button { background: transparent; color: var(--ltt-muted); padding: 7px 12px; font-size: 14px; }
+  .tabs button[aria-selected=true] { background: var(--ltt-card); color: var(--ltt-ink); box-shadow: 0 1px 3px rgba(20,30,60,.14); }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--ltt-bad); }
+  label.ltt-param.kctl { flex: 1; min-width: 220px; max-width: 300px; margin: 0; font-size: 14px; }
+  .head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 24px; margin: 0 0 4px; }
+  .outcome { font-size: 16px; margin: 6px 0 0; }
+
+  .tl-wrap { position: relative; }
+  #timeline svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .tl text { font-size: 12px; fill: var(--ltt-muted); }
+  .tl text.lane { font-size: 13px; font-weight: 700; fill: var(--ltt-ink); }
+  .tl text.mk { font-size: 13px; font-weight: 700; fill: var(--ltt-ink); }
+  .tl text.note { font-size: 12px; font-weight: 600; fill: var(--ltt-ink); }
+  .tl .hit { fill: transparent; cursor: help; outline: none; }
+  .tl .hit:focus-visible { stroke: var(--ltt-accent); stroke-width: 2; }
+  .tl-tip { position: absolute; z-index: 5; pointer-events: none; padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+    background: var(--ltt-ink); color: #fff; font-size: 13px; line-height: 1.4; transform: translate(-50%, calc(-100% - 10px)); }
+  .tl-tip b { display: block; font-size: 15px; }
+  .key-ghost { box-sizing: border-box; border: 1.5px dashed #9aa1b5; background: transparent !important; }
+  .key-lost { opacity: .35; }
+
+  .code-split { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  pre.code { flex: 3 1 460px; min-width: 0; margin: 0; padding: 12px 0; background: var(--code-bg); border-radius: 10px; overflow-x: auto;
+    font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre.code span { display: block; min-height: 1.65em; padding: 0 14px; white-space: pre;
+    transition: background-color .35s ease, box-shadow .35s ease; }
+  pre.code span.chg { background: #e3edfb; box-shadow: inset 3px 0 0 var(--s1); }
+  .chg-key { display: inline-block; width: 12px; height: 12px; border-radius: 2px; background: #e3edfb;
+    box-shadow: inset 3px 0 0 var(--s1); vertical-align: -1px; margin-right: 4px; }
+  .facts { flex: 2 1 200px; margin: 0; display: grid; gap: 12px; align-content: start; }
+  .facts dt { font-size: 12px; font-weight: 700; color: var(--ltt-muted); }
+  .facts dd { margin: 2px 0 0; }
+
+  #chart svg { max-width: 100%; height: auto; }
+  table.cmp { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+  table.cmp th, table.cmp td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--ltt-line); }
+  table.cmp th { font-size: 12px; color: var(--ltt-muted); }
+  table.cmp td.num { font-variant-numeric: tabular-nums; }
+  table.cmp tr { transition: background-color .3s ease; }
+  table.cmp tr.on { background: #eef1fd; }
+
+  .cases .mini { display: flex; gap: 2px; margin: 12px 0 10px; }
+  .cases .mini i { flex: 1; height: 28px; border-radius: 4px; background: var(--s1); color: #fff; font-style: normal;
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .cases .mini i.x { background: var(--ltt-bad); }
+  .cases .mini i.lost { opacity: .35; }
+  .cases .ltt-stat { font-size: 30px; margin: 12px 0 6px; }
+  .cases p { margin: 0 0 4px; font-size: 14px; }
+  .cases button { margin-top: 6px; background: transparent; color: var(--ltt-accent); padding: 4px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>API 5개를 한꺼번에 부르면?</h1>
+  <p class="ltt-lead">
+    결정 변수: <span data-tip="요청을 하나씩 보낼지, 한꺼번에 보낼지, 몇 개씩 나눠 보낼지, 그리고 하나가 실패했을 때 나머지 결과를 어떻게 다룰지">동시 호출 방식</span>
+  </p>
+
+  <section class="ltt-card" id="predict-card">
+    <p class="ask">요청 5개를 Promise.all로 동시에 보냈다. 3번째 요청이 0.2초 만에 실패하면?</p>
+    <div class="durs" id="durs" aria-label="요청별 소요 시간"></div>
+    <div class="choices" id="choices">
+      <button class="choice" data-choice="a" aria-pressed="false"><b>a</b><span>0.5초 뒤, 성공 4개와 실패 1개를 함께 돌려준다</span></button>
+      <button class="choice" data-choice="b" aria-pressed="false"><b>b</b><span>0.2초 뒤 에러를 던지고, 나머지 요청은 취소된다</span></button>
+      <button class="choice" data-choice="c" aria-pressed="false"><b>c</b><span>0.2초 뒤 에러를 던지고, 나머지 요청은 계속 진행된다</span></button>
+      <button class="choice" data-choice="d" aria-pressed="false"><b>d</b><span>1.7초 뒤 에러를 던진다</span></button>
+    </div>
+    <div id="lock-ui">
+      <button id="lock" disabled>예측 확정</button>
+      <p class="ltt-basis">하나를 고른 뒤 확정하세요. 확정한 예측은 바꿀 수 없습니다.</p>
+    </div>
+    <div id="verdict-ui" class="ltt-hidden">
+      <p class="verdict" id="verdict"></p>
+    </div>
+  </section>
+
+  <div id="reveal" class="ltt-hidden">
+    <section class="ltt-card ltt-rise" style="--i:1" id="lab">
+      <div class="controls">
+        <div class="tabs" role="tablist" id="tabs" aria-label="호출 방식">
+          <button role="tab" data-v="seq">순차 await</button>
+          <button role="tab" data-v="all">Promise.all</button>
+          <button role="tab" data-v="settled">allSettled</button>
+          <button role="tab" data-v="pool">동시 실행 제한</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="fail" checked>3번째 요청 실패</label>
+        <label class="ltt-param kctl">동시 실행 제한 k <b id="k-v">2</b>
+          <input type="range" id="k" min="1" max="5" step="1" value="2">
+          <span class="ltt-basis">1–5: 요청이 5개라 k=1은 순차, k=5는 전부 동시와 같은 시간</span>
+        </label>
+      </div>
+      <div class="head">
+        <div class="ltt-hero"><span id="hero-n" data-v="0">0.0</span><small>초 뒤 반환</small></div>
+        <div>
+          <span class="ltt-tag" data-tip="요청마다 소요 시간이 고정이라고 가정한 계산. 실제 응답 시간은 매번 다르다.">모델로 계산한 예시</span>
+          <p class="outcome" id="outcome"></p>
+        </div>
+      </div>
+      <div class="tl-wrap" id="tl-wrap">
+        <div id="timeline"></div>
+        <div class="tl-tip ltt-hidden" id="tl-tip"></div>
+      </div>
+      <p>
+        <span class="ltt-key"><i style="background:var(--s1)"></i>성공</span>
+        <span class="ltt-key"><i style="background:var(--ltt-bad)"></i>✕ 실패</span>
+        <span class="ltt-key"><i class="key-lost" style="background:var(--s1)"></i>결과 버려짐</span>
+        <span class="ltt-key"><i class="key-ghost"></i>보내지 않음</span>
+      </p>
+    </section>
+
+    <section class="ltt-card ltt-rise" style="--i:2">
+      <h2>코드 <span class="ltt-basis"><i class="chg-key"></i>순차 await 대비 바뀐 줄</span></h2>
+      <div class="code-split">
+        <pre class="code" id="code"></pre>
+        <dl class="facts" id="facts"></dl>
+      </div>
+    </section>
+
+    <section class="ltt-card ltt-rise" style="--i:3">
+      <h2>네 방식 한눈에 <span class="ltt-tag">모델로 계산한 예시</span></h2>
+      <div id="chart"></div>
+      <table class="cmp">
+        <thead><tr><th>방식</th><th>반환 시점</th><th>하나가 실패하면</th><th>동시 요청 최대</th></tr></thead>
+        <tbody id="cmp-body"></tbody>
+      </table>
+    </section>
+
+    <div class="ltt-grid cases">
+      <section class="ltt-card ltt-rise" style="--i:4">
+        <span class="ltt-tag good">활용</span><strong>대시보드 위젯 5개</strong>
+        <div class="mini" aria-label="위젯 5개 중 1개 실패"><i>✓</i><i>✓</i><i class="x">✕</i><i>✓</i><i>✓</i></div>
+        <p>서로 독립인 요청은 allSettled로 받아, 실패한 위젯만 오류로 표시하고 나머지 4개는 그대로 보인다.</p>
+        <button data-apply="settled,1,2">이 방식으로 보기 →</button>
+      </section>
+      <section class="ltt-card ltt-rise" style="--i:5">
+        <span class="ltt-tag bad">주의</span><strong>Promise.all로 요청 1,000개</strong>
+        <div class="ltt-stat">1,000<small>개 동시 요청</small></div>
+        <p>한꺼번에 보내면 서버 <span data-tip="429 Too Many Requests. 서버가 정한 요청 한도를 넘으면 돌려주는 응답.">rate limit(429)</span>에 걸릴 수 있고, 하나만 실패해도 받은 결과를 모두 잃는다.</p>
+        <span class="ltt-basis" data-tip="p-limit 같은 동시 실행 제한은 동시에 진행 중인 수를 제한할 뿐 초당 요청 수를 제한하지 않는다. 시간당 한도를 지키려면 rate limiter(예: p-throttle)와 Retry-After에 따른 backoff가 필요하다.">동시 수 제한 ≠ 초당 요청 수 제한</span><br>
+        <button data-apply="all,1,2">이 방식으로 보기 →</button>
+      </section>
+      <section class="ltt-card ltt-rise" style="--i:6">
+        <span class="ltt-tag">대안</span><strong>동시 실행 제한</strong>
+        <div class="ltt-stat"><span data-pool-k="2"></span><small>초 · k=2</small></div>
+        <p>총 시간과 서버 부하 사이에서 k를 고른다. 실패는 기록하고 나머지를 계속 처리한다.</p>
+        <span class="ltt-basis" data-tip="p-limit 같은 동시 실행 제한은 동시에 진행 중인 수를 제한할 뿐 초당 요청 수를 제한하지 않는다. 시간당 한도를 지키려면 rate limiter(예: p-throttle)와 Retry-After에 따른 backoff가 필요하다.">동시 수 제한 ≠ 초당 요청 수 제한</span><br>
+        <button data-apply="pool,1,2">k=2로 보기 →</button>
+      </section>
+    </div>
+    <p class="ltt-basis">근거: MDN Promise.all · Promise.allSettled · AbortController 문서. 다 보았으면 대화로 돌아가 다음 질문에 답해 주세요.</p>
+  </div>
+</main>
+<script>
+  // Hand-derived by an independent subagent from the variant semantics only; the model must match these, not the reverse.
+  const EXPECTED_BY_HAND = [
+    { label: "순차 · 실패 없음", variant: "seq", fail: false, settle: 1700, ok: 1, fulfilled: 5, rejected: 0, never: 0, lastEnd: 1700 },
+    { label: "순차 · 3번째 실패", variant: "seq", fail: true, settle: 1000, ok: 0, fulfilled: 2, rejected: 1, never: 2, lastEnd: 1000 },
+    { label: "all · 실패 없음", variant: "all", fail: false, settle: 500, ok: 1, fulfilled: 5, rejected: 0, never: 0, lastEnd: 500 },
+    { label: "all · 3번째 실패", variant: "all", fail: true, settle: 200, ok: 0, fulfilled: 4, rejected: 1, never: 0, lastEnd: 500 },
+    { label: "allSettled · 실패 없음", variant: "settled", fail: false, settle: 500, ok: 1, fulfilled: 5, rejected: 0, never: 0, lastEnd: 500 },
+    { label: "allSettled · 3번째 실패", variant: "settled", fail: true, settle: 500, ok: 1, fulfilled: 4, rejected: 1, never: 0, lastEnd: 500 },
+    { label: "제한 k=2 · 실패 없음", variant: "pool", k: 2, fail: false, settle: 900, ok: 1, fulfilled: 5, rejected: 0, never: 0, lastEnd: 900 },
+    { label: "제한 k=2 · 3번째 실패", variant: "pool", k: 2, fail: true, settle: 900, ok: 1, fulfilled: 4, rejected: 1, never: 0, lastEnd: 900 },
+    { label: "제한 k=3 · 실패 없음", variant: "pool", k: 3, fail: false, settle: 600, ok: 1, fulfilled: 5, rejected: 0, never: 0, lastEnd: 600 },
+    { label: "제한 k=3 · 3번째 실패", variant: "pool", k: 3, fail: true, settle: 600, ok: 1, fulfilled: 4, rejected: 1, never: 0, lastEnd: 600 },
+  ];
+  const EXPECTED_ALL_FAIL_AT_RETURN = { fulfilled: 0, rejected: 1, running: 4 };
+  const EXPECTED_SEQ_LANES = [[0, 300], [300, 800], [800, 1000], [1000, 1400], [1400, 1700]];
+  const EXPECTED_POOL_LANES = {
+    2: [[0, 300], [0, 500], [300, 500], [500, 900], [500, 800]],
+    3: [[0, 300], [0, 500], [0, 200], [200, 600], [300, 600]],
+  };
+  const EXPECTED_POOL_SETTLE = { 1: 1700, 4: 500, 5: 500 };
+
+  const DUR = [300, 500, 200, 400, 300];
+  const FAIL_AT = 2;
+
+  function simulate(variant, fail, k = 2) {
+    const fails = (i) => fail && i === FAIL_AT;
+    let lanes;
+    if (variant === "seq") {
+      let t = 0, stopped = false;
+      lanes = DUR.map((d, i) => {
+        const lane = { i, start: t, end: t + d, status: stopped ? "never" : fails(i) ? "rejected" : "fulfilled" };
+        if (fails(i)) stopped = true;
+        t += d;
+        return lane;
+      });
+    } else if (variant === "pool") {
+      const free = Array(k).fill(0);
+      lanes = DUR.map((d, i) => {
+        const slot = free.indexOf(Math.min(...free));
+        const start = free[slot];
+        free[slot] = start + d;
+        return { i, start, end: start + d, status: fails(i) ? "rejected" : "fulfilled" };
+      });
+    } else {
+      lanes = DUR.map((d, i) => ({ i, start: 0, end: d, status: fails(i) ? "rejected" : "fulfilled" }));
+    }
+    const ran = lanes.filter((l) => l.status !== "never");
+    const lastEnd = Math.max(...ran.map((l) => l.end));
+    const firstReject = Math.min(...ran.filter((l) => l.status === "rejected").map((l) => l.end));
+    const failFast = (variant === "seq" || variant === "all") && Number.isFinite(firstReject);
+    const settle = failFast ? firstReject : lastEnd;
+    const ok = failFast ? 0 : 1;
+    for (const l of lanes) l.discarded = variant === "all" && !ok && l.status === "fulfilled";
+    const count = (s) => lanes.filter((l) => l.status === s).length;
+    return {
+      variant, fail, k, lanes, settle, ok, lastEnd,
+      fulfilled: count("fulfilled"), rejected: count("rejected"), never: count("never"),
+      atReturn: {
+        fulfilled: ran.filter((l) => l.status === "fulfilled" && l.end <= settle).length,
+        rejected: ran.filter((l) => l.status === "rejected" && l.end <= settle).length,
+        running: ran.filter((l) => l.end > settle).length,
+      },
+    };
+  }
+
+  const KEY_LABEL = { settle: "반환 ms", ok: "정상 반환(1/0)", fulfilled: "성공 수", rejected: "실패 수", never: "보내지 않은 수", lastEnd: "마지막 종료 ms" };
+  for (const c of EXPECTED_BY_HAND) {
+    const m = simulate(c.variant, c.fail, c.k);
+    for (const key of Object.keys(KEY_LABEL)) LTT.expect(`${c.label} · ${KEY_LABEL[key]}`, m[key], c[key], { tol: 0 });
+  }
+  const allFail = simulate("all", true).atReturn;
+  for (const key of Object.keys(EXPECTED_ALL_FAIL_AT_RETURN)) {
+    LTT.expect(`all · 3번째 실패 · 반환 시점 ${key}`, allFail[key], EXPECTED_ALL_FAIL_AT_RETURN[key], { tol: 0 });
+  }
+  simulate("seq", false).lanes.forEach((l, i) => {
+    LTT.expect(`순차 R${i + 1} 시작`, l.start, EXPECTED_SEQ_LANES[i][0], { tol: 0 });
+    LTT.expect(`순차 R${i + 1} 종료`, l.end, EXPECTED_SEQ_LANES[i][1], { tol: 0 });
+  });
+  for (const k of Object.keys(EXPECTED_POOL_LANES)) {
+    simulate("pool", true, Number(k)).lanes.forEach((l, i) => {
+      LTT.expect(`제한 k=${k} R${i + 1} 시작`, l.start, EXPECTED_POOL_LANES[k][i][0], { tol: 0 });
+      LTT.expect(`제한 k=${k} R${i + 1} 종료`, l.end, EXPECTED_POOL_LANES[k][i][1], { tol: 0 });
+    });
+  }
+  for (const k of Object.keys(EXPECTED_POOL_SETTLE)) {
+    LTT.expect(`제한 k=${k} · 실패 · 반환 ms`, simulate("pool", true, Number(k)).settle, EXPECTED_POOL_SETTLE[k], { tol: 0 });
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const fmt1 = d3.format(".1f");
+  const sec = (ms) => fmt1(ms / 1000);
+  const MOTION_MS = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700;
+  const SPEED = MOTION_MS ? 1.4 : 0;
+  const NAMES = { seq: "순차 await", all: "Promise.all", settled: "allSettled", pool: "동시 실행 제한" };
+  const nameOf = (v, k) => (v === "pool" ? `제한 k=${k}` : NAMES[v]);
+  const state = { variant: "all", fail: true, k: 2 };
+
+  function tweenNumber(el, to, fmt) {
+    const from = Number(el.dataset.v ?? 0);
+    el.dataset.v = to;
+    d3.select(el).interrupt().transition().duration(MOTION_MS).ease(d3.easeCubicOut)
+      .tween("text", () => { const i = d3.interpolateNumber(from, to); return (t) => { el.textContent = fmt(i(t)); }; });
+  }
+
+  for (const [i, d] of DUR.entries()) {
+    const name = document.createElement("b");
+    name.textContent = `R${i + 1}`;
+    const track = document.createElement("div");
+    const bar = document.createElement("i");
+    bar.style.width = (d / Math.max(...DUR)) * 100 + "%";
+    if (i === FAIL_AT) bar.className = "fail";
+    track.append(bar);
+    const label = document.createElement("span");
+    label.textContent = `${sec(d)}초` + (i === FAIL_AT ? " · ✕ 실패" : "");
+    $("durs").append(name, track, label);
+  }
+
+  let choice = null;
+  for (const btn of document.querySelectorAll(".choice")) {
+    btn.addEventListener("click", () => {
+      choice = btn.dataset.choice;
+      for (const b of document.querySelectorAll(".choice")) b.setAttribute("aria-pressed", String(b === btn));
+      $("lock").disabled = false;
+    });
+  }
+
+  $("lock").addEventListener("click", () => {
+    if (!choice) return;
+    const correct = choice === "c";
+    LTT.record("predict", { question: "Promise.all로 요청 5개, 3번째가 0.2초에 실패하면? (a–d)", choice, correct });
+    $("lock-ui").classList.add("ltt-hidden");
+    for (const b of document.querySelectorAll(".choice")) {
+      b.disabled = true;
+      const isAnswer = b.dataset.choice === "c", isPick = b.dataset.choice === choice;
+      if (isAnswer) b.classList.add("correct");
+      if (isPick && !isAnswer) b.classList.add("wrong");
+      if (isAnswer || isPick) {
+        const mark = document.createElement("span");
+        mark.className = "mark";
+        mark.textContent = isAnswer ? (isPick ? "✓ 정답 · 내 예측" : "✓ 정답") : "✕ 내 예측";
+        b.querySelector("span").append(mark);
+      }
+    }
+    $("verdict").innerHTML = `예측 <b>(${choice})</b> → 정답 <b>(c)</b>. Promise.all은 첫 실패에서 바로 에러를 던지지만, 이미 보낸 요청을
+      <span data-tip="(a)는 allSettled, (d)는 순차 await와 헷갈린 경우. 클라이언트의 fetch를 취소하려면 AbortController로 abort()를 직접 호출해야 한다(Promise.all의 reject만으로는 취소되지 않는다). 단, 이미 서버에 도달한 요청은 서버에서 계속 처리될 수 있다.">멈추지는 않는다</span>.`;
+    $("verdict-ui").classList.remove("ltt-hidden");
+    setTimeout(() => {
+      $("reveal").classList.remove("ltt-hidden");
+      Object.assign(state, { variant: "all", fail: true, k: 2 });
+      render();
+    }, MOTION_MS ? 450 : 0);
+  });
+
+  const TL = { W: 880, L: 92, R: 24, T: 48, laneH: 36, barH: 20, B: 30, max: 1800 };
+  const x = d3.scaleLinear([0, TL.max], [TL.L, TL.W - TL.R]);
+  const laneY = (i) => TL.T + i * TL.laneH + (TL.laneH - TL.barH) / 2;
+
+  function statusText(m, l) {
+    if (l.status === "never") return "보내지 않음 (점선은 보냈다면 실행됐을 자리)";
+    if (l.status === "rejected") return "✕ 실패";
+    return l.discarded ? "성공했지만 결과 버려짐" : "성공";
+  }
+
+  function showTip(html, px, py) {
+    const tip = $("tl-tip");
+    tip.innerHTML = html;
+    tip.style.left = px + "px";
+    tip.style.top = py + "px";
+    tip.classList.remove("ltt-hidden");
+  }
+
+  function drawTimeline(m) {
+    const old = $("timeline").querySelector("svg");
+    if (old) d3.select(old).selectAll("*").interrupt();
+    const H = TL.T + DUR.length * TL.laneH + TL.B;
+    const svg = d3.create("svg").attr("viewBox", `0 0 ${TL.W} ${H}`).attr("class", "tl").attr("role", "img")
+      .attr("aria-label", `${nameOf(m.variant, m.k)} 요청 타임라인: ${sec(m.settle)}초에 ${m.ok ? "결과 반환" : "에러"}`);
+    $("timeline").replaceChildren(svg.node());
+
+    const ticks = d3.range(0, TL.max + 1, 200);
+    svg.append("g").selectAll("line").data(ticks).join("line")
+      .attr("x1", x).attr("x2", x).attr("y1", TL.T - 4).attr("y2", H - TL.B).attr("stroke", "#e3e6ef");
+    svg.append("g").selectAll("text").data(ticks).join("text")
+      .attr("x", x).attr("y", H - TL.B + 18).attr("text-anchor", "middle").text((d) => `${d / 1000}초`);
+    for (const [i, d] of DUR.entries()) {
+      svg.append("text").attr("class", "lane").attr("x", 4).attr("y", laneY(i) + 15).text(`R${i + 1}`);
+      svg.append("text").attr("x", 36).attr("y", laneY(i) + 15).text(`${sec(d)}초`);
+    }
+
+    const fadeIn = (sel, simMs) => {
+      if (!SPEED) return sel.attr("opacity", 1);
+      sel.attr("opacity", 0).transition("show").delay(simMs * SPEED).duration(250).attr("opacity", 1);
+    };
+    const g = svg.append("g");
+    for (const l of m.lanes) {
+      const x0 = x(l.start), w = x(l.end) - x(l.start), y = laneY(l.i);
+      if (l.status === "never") {
+        const ghost = g.append("g");
+        ghost.append("rect").attr("x", x0 + 1).attr("y", y + 1).attr("width", w - 2).attr("height", TL.barH - 2).attr("rx", 4)
+          .attr("fill", "none").attr("stroke", "#9aa1b5").attr("stroke-width", 1.5).attr("stroke-dasharray", "4 3");
+        ghost.append("text").attr("x", x0 + w / 2).attr("y", y + 14).attr("text-anchor", "middle").text("보내지 않음");
+        fadeIn(ghost, m.settle);
+        continue;
+      }
+      const bar = g.append("rect").attr("x", x0).attr("y", y).attr("height", TL.barH).attr("rx", 4)
+        .style("fill", l.status === "rejected" ? "var(--ltt-bad)" : "var(--s1)")
+        .attr("width", SPEED ? 0 : w);
+      if (SPEED) bar.transition("grow").delay(l.start * SPEED).duration(Math.max(1, (l.end - l.start) * SPEED)).ease(d3.easeLinear).attr("width", w);
+      if (l.discarded) {
+        if (SPEED) bar.transition("discard").delay(m.settle * SPEED).duration(300).attr("fill-opacity", 0.35);
+        else bar.attr("fill-opacity", 0.35);
+      }
+      const note = l.status === "rejected" ? "✕ 실패" : l.discarded ? "결과 버려짐" : null;
+      if (note) {
+        const t = g.append("text").attr("class", "note").attr("x", x(l.end) + 6).attr("y", y + 15).text(note);
+        fadeIn(t, l.end);
+      }
+    }
+
+    const mark = (ms, row, label, solid) => {
+      const mg = svg.append("g");
+      const mx = x(ms), right = mx > TL.W - 220;
+      mg.append("line").attr("x1", mx).attr("x2", mx).attr("y1", row === 0 ? 8 : 24).attr("y2", H - TL.B)
+        .attr("stroke", solid ? "var(--ltt-ink)" : "#9aa1b5").attr("stroke-width", solid ? 1.5 : 1)
+        .attr("stroke-dasharray", solid ? null : "3 3");
+      mg.append("text").attr("class", solid ? "mk" : "note").attr("x", right ? mx - 6 : mx + 6).attr("y", row === 0 ? 18 : 34)
+        .attr("text-anchor", right ? "end" : "start").text(label);
+      fadeIn(mg, ms);
+    };
+    mark(m.settle, 0, `호출 반환 ${sec(m.settle)}초 · ${m.ok ? "결과 반환" : "에러"}`, true);
+    if (m.lastEnd !== m.settle) mark(m.lastEnd, 1, `마지막 요청 종료 ${sec(m.lastEnd)}초`, false);
+
+    if (SPEED) {
+      const endMs = Math.max(...m.lanes.map((l) => l.end));
+      svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", TL.T - 6).attr("y2", H - TL.B)
+        .attr("stroke", "var(--ltt-accent)").attr("stroke-width", 2)
+        .transition("play").duration(endMs * SPEED).ease(d3.easeLinear).attr("x1", x(endMs)).attr("x2", x(endMs))
+        .transition().duration(250).attr("opacity", 0).remove();
+    }
+
+    const wrap = $("tl-wrap");
+    for (const l of m.lanes) {
+      const x0 = x(l.start), x1 = x(l.end);
+      const html = `<b>${sec(l.start)}–${sec(l.end)}초</b>R${l.i + 1} · ${statusText(m, l)}`;
+      const toPx = (vx, vy) => {
+        const r = svg.node().getBoundingClientRect(), s = r.width / TL.W;
+        return [vx * s, vy * s];
+      };
+      svg.append("rect").attr("class", "hit").attr("x", x0 - 6).attr("y", TL.T + l.i * TL.laneH)
+        .attr("width", x1 - x0 + 12).attr("height", TL.laneH).attr("tabindex", 0)
+        .attr("aria-label", `R${l.i + 1} ${sec(l.start)}–${sec(l.end)}초 ${statusText(m, l)}`)
+        .on("pointermove", (ev) => {
+          const r = wrap.getBoundingClientRect();
+          showTip(html, ev.clientX - r.left, ev.clientY - r.top);
+        })
+        .on("focus", () => { const [px, py] = toPx((x0 + x1) / 2, laneY(l.i)); showTip(html, px, py); })
+        .on("pointerleave blur", () => $("tl-tip").classList.add("ltt-hidden"));
+    }
+  }
+
+  const BASE_CODE = [
+    "async function loadAll(reqs) {",
+    "  const results = [];",
+    "  for (const r of reqs) {",
+    "    results.push(await r());",
+    "  }",
+    "  return results;",
+    "}",
+  ];
+  const CODE = {
+    seq: () => BASE_CODE,
+    all: () => [
+      "async function loadAll(reqs) {",
+      "  const results = await Promise.all(",
+      "    reqs.map((r) => r())",
+      "  );",
+      "  return results;",
+      "}",
+    ],
+    settled: () => [
+      "async function loadAll(reqs) {",
+      "  const results = await Promise.allSettled(",
+      "    reqs.map((r) => r())",
+      "  );",
+      "  return results;",
+      "}",
+    ],
+    pool: (k) => [
+      "async function loadAll(reqs) {",
+      `  return pool(reqs, ${k});`,
+      "}",
+      "",
+      "async function pool(tasks, k) {",
+      "  const results = [];",
+      "  let next = 0;",
+      "  async function worker() {",
+      "    while (next < tasks.length) {",
+      "      const i = next++;",
+      "      try {",
+      "        const value = await tasks[i]();",
+      "        results[i] = { status: \"fulfilled\", value };",
+      "      } catch (reason) {",
+      "        results[i] = { status: \"rejected\", reason };",
+      "      }",
+      "    }",
+      "  }",
+      "  await Promise.all(Array.from({ length: k }, worker));",
+      "  return results;",
+      "}",
+    ],
+  };
+  const FACTS = {
+    seq: [["반환", "모두 성공하면 마지막 요청이 끝날 때"], ["하나가 실패하면", "그 자리에서 에러. 남은 요청은 보내지 않는다"], ["동시 요청", "1개"]],
+    all: [["반환", "모두 성공하면 가장 느린 요청이 끝날 때, 하나라도 실패하면 첫 실패 즉시"], ["하나가 실패하면", "에러만 받는다. 나머지 요청은 계속 실행되고 결과는 버려진다"], ["동시 요청", "5개 전부"]],
+    settled: [["반환", "모든 요청이 끝날 때"], ["하나가 실패하면", "요청마다 {status, value | reason}으로 성공·실패를 함께 받는다"], ["동시 요청", "5개 전부"]],
+    pool: [["반환", "모든 요청이 끝날 때"], ["하나가 실패하면", "try/catch로 기록하고 다음 요청을 계속 처리한다"], ["동시 요청", "최대 k개"]],
+  };
+
+  function drawCode() {
+    const base = new Set(BASE_CODE.map((s) => s.trim()));
+    $("code").replaceChildren(...CODE[state.variant](state.k).map((line) => {
+      const span = document.createElement("span");
+      span.textContent = line;
+      if (state.variant !== "seq" && line.trim() && !base.has(line.trim())) span.className = "chg";
+      return span;
+    }));
+    $("facts").replaceChildren(...FACTS[state.variant].flatMap(([k, v]) => {
+      const dt = document.createElement("dt"), dd = document.createElement("dd");
+      dt.textContent = k;
+      dd.textContent = v;
+      return [dt, dd];
+    }));
+  }
+
+  const FAIL_RULE = { seq: "✕ 에러만 · 남은 요청 안 보냄", all: "✕ 에러만 · 나머지는 계속 실행", settled: "✓ 성공·실패 목록", pool: "✓ 성공·실패 목록" };
+  const MAX_CONC = { seq: () => "1", all: () => "5", settled: () => "5", pool: (k) => String(k) };
+
+  function drawCompare() {
+    const rows = ["seq", "all", "settled", "pool"].map((v) => {
+      const m = simulate(v, state.fail, state.k);
+      return { v, name: nameOf(v, state.k), settle: m.settle / 1000, m };
+    });
+    const label = (r) => `${fmt1(r.settle)}초 · ${r.m.ok ? "결과 반환" : "에러"}`;
+    $("chart").replaceChildren(Plot.plot({
+      width: 880, height: 230, marginLeft: 120, marginRight: 120, marginBottom: 40, style: { fontSize: "13px" },
+      x: { domain: [0, 1.8], grid: true, label: "호출 반환 (초) →", labelAnchor: "right", tickFormat: (d) => `${d}초` },
+      y: { domain: rows.map((r) => r.name), label: null, padding: 0.45 },
+      marks: [
+        Plot.barX(rows.filter((r) => r.v !== state.variant), { y: "name", x: "settle", fill: "var(--mute)", rx: 4 }),
+        Plot.barX(rows.filter((r) => r.v === state.variant), { y: "name", x: "settle", fill: "var(--s1)", rx: 4 }),
+        Plot.ruleX([0], { stroke: "#9aa1b5" }),
+        Plot.text(rows, { y: "name", x: "settle", text: label, textAnchor: "start", dx: 8, fontSize: 13 }),
+        Plot.tip(rows, Plot.pointerY({ y: "name", x: "settle",
+          title: (r) => `${label(r)}\n${r.name}\n마지막 요청 종료 ${sec(r.m.lastEnd)}초` })),
+      ],
+    }));
+    $("cmp-body").replaceChildren(...rows.map((r) => {
+      const tr = document.createElement("tr");
+      if (r.v === state.variant) tr.className = "on";
+      for (const [text, cls] of [[r.name, ""], [label(r), "num"], [FAIL_RULE[r.v], ""], [MAX_CONC[r.v](state.k), "num"]]) {
+        const td = document.createElement("td");
+        td.textContent = text;
+        if (cls) td.className = cls;
+        tr.append(td);
+      }
+      return tr;
+    }));
+  }
+
+  function outcomeText(m) {
+    if (!m.ok && m.variant === "all") return `에러를 던짐 · 받은 결과 없음 · 진행 중 ${m.atReturn.running}개는 계속 실행`;
+    if (!m.ok) return `에러를 던짐 · 보내지 않은 요청 ${m.never}개`;
+    return m.rejected ? `성공 ${m.fulfilled}개 · 실패 ${m.rejected}개를 함께 받음` : `성공 ${m.fulfilled}개를 모두 받음`;
+  }
+
+  function render() {
+    for (const b of document.querySelectorAll("#tabs button")) b.setAttribute("aria-selected", String(b.dataset.v === state.variant));
+    $("fail").checked = state.fail;
+    $("k").value = state.k;
+    $("k-v").textContent = state.k;
+    const m = simulate(state.variant, state.fail, state.k);
+    tweenNumber($("hero-n"), m.settle / 1000, fmt1);
+    $("outcome").textContent = outcomeText(m);
+    drawTimeline(m);
+    drawCode();
+    drawCompare();
+  }
+
+  for (const b of document.querySelectorAll("#tabs button")) {
+    b.addEventListener("click", () => { state.variant = b.dataset.v; render(); });
+  }
+  $("fail").addEventListener("change", () => { state.fail = $("fail").checked; render(); });
+  $("k").addEventListener("input", () => { state.k = Number($("k").value); state.variant = "pool"; render(); });
+
+  for (const el of document.querySelectorAll("[data-pool-k]")) el.textContent = sec(simulate("pool", true, Number(el.dataset.poolK)).settle);
+  for (const btn of document.querySelectorAll("[data-apply]")) {
+    btn.addEventListener("click", () => {
+      const [variant, fail, k] = btn.dataset.apply.split(",");
+      Object.assign(state, { variant, fail: fail === "1", k: Number(k) });
+      render();
+      $("lab").scrollIntoView({ behavior: MOTION_MS ? "smooth" : "auto", block: "start" });
+    });
+  }
+</script>
+</body>
+</html>

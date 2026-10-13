@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결제 요청이 타임아웃되면 다시 보내도 될까?</title>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<style>
+  :root { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --dim: #c3c9da; --msg: #5b6275; }
+  .scene { font-size: 16px; margin: 0 0 4px; color: var(--ltt-muted); }
+  .ask { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
+  .chips { margin: 0 0 18px; }
+  .verdict { font-size: 17px; margin: 10px 0 8px; }
+  .verdict b { font-variant-numeric: tabular-nums; }
+  .ltt-tag.muted { background: #eef0f5; color: var(--ltt-muted); }
+
+  .cards { display: flex; gap: 4px; align-items: center; min-height: 22px; }
+  .cards svg { width: 32px; height: 22px; flex: none; }
+  .card-ok { color: var(--s1); }
+  .card-dup { color: var(--ltt-bad); }
+  .card-none { color: var(--dim); }
+
+  .choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 540px; margin: 0 0 14px; }
+  .choice { background: var(--ltt-card); color: var(--ltt-ink); border: 2px solid var(--ltt-line); border-radius: 12px;
+    padding: 16px 10px 12px; display: grid; justify-items: center; gap: 10px; font-size: 19px; font-weight: 700;
+    transition: border-color .2s, background-color .2s; }
+  .choice:hover:not(:disabled) { border-color: #b9c4f5; }
+  .choice[aria-pressed="true"] { border-color: var(--ltt-accent); background: #f3f5fe; }
+  .choice:disabled { opacity: 1; cursor: default; }
+  .choice.correct { border-color: var(--ltt-good); background: #eef8f3; }
+  .choice.wrong { border-color: var(--ltt-bad); background: #fdf1f3; }
+  .choice .mark { font-size: 13px; font-weight: 700; color: var(--ltt-muted); min-height: 1.2em; }
+  .answer { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0 10px; }
+  .answer svg { width: 32px; height: 22px; flex: none; }
+  .answer > div { display: flex; align-items: center; gap: 8px; background: var(--ltt-bg); border-radius: 10px; padding: 6px 12px 6px 8px; font-size: 14px; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 14px 28px; margin: 0 0 6px; }
+  .ctl { display: flex; align-items: center; gap: 10px; }
+  .ctl-label { font-size: 13px; font-weight: 700; color: var(--ltt-muted); }
+  .seg { display: inline-flex; }
+  .seg button { background: var(--ltt-card); color: var(--ltt-ink); border: 1px solid var(--ltt-line); border-radius: 0;
+    padding: 6px 12px; font-size: 14px; margin-left: -1px; }
+  .seg button:first-child { border-radius: 10px 0 0 10px; margin-left: 0; }
+  .seg button:last-child { border-radius: 0 10px 10px 0; }
+  .seg button[aria-pressed="true"] { background: var(--ltt-accent); border-color: var(--ltt-accent); color: #fff; position: relative; }
+  #fail-note { margin: 0 0 12px; }
+
+  .diagram { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 24px; align-items: start; }
+  @media (max-width: 760px) { .diagram { grid-template-columns: 1fr; } }
+  #seq { width: 100%; height: auto; display: block; }
+  #seq .actor rect { fill: #f3f5fb; stroke: var(--ltt-line); }
+  #seq .actor text { font-size: 14px; font-weight: 700; fill: var(--ltt-ink); }
+  #seq .life { stroke: #cfd4e2; stroke-width: 1; }
+  #seq .band { fill: var(--ltt-accent); opacity: 0; }
+  #seq .arrow { stroke-width: 2; stroke-linecap: round; fill: none; }
+  #seq .arrow.msg { stroke: var(--msg); }
+  #seq .arrow.s1 { stroke: var(--s1); }
+  #seq .arrow.bad { stroke: var(--ltt-bad); }
+  #seq .head-msg path { fill: var(--msg); }
+  #seq .head-s1 path { fill: var(--s1); }
+  #seq .head-bad path { fill: var(--ltt-bad); }
+  #seq .msg-label { font-size: 13px; font-weight: 600; fill: var(--ltt-ink); }
+  #seq .msg-sub { font-size: 11.5px; fill: var(--ltt-muted); }
+  #seq .lost-x { font-size: 17px; font-weight: 800; fill: var(--ltt-bad); }
+  #seq .lost-t { font-size: 11.5px; font-weight: 700; fill: var(--ltt-ink); }
+  #seq .note { stroke-width: 1; }
+  #seq .note.warn { fill: #fdf4e3; stroke: #efd7a4; }
+  #seq .note.good { fill: #e6f6ef; stroke: #b4e0cb; }
+  #seq .note-text { font-size: 12.5px; font-weight: 600; fill: var(--ltt-ink); }
+  #seq .hit { fill: transparent; }
+  .caption { min-height: 1.6em; margin: 6px 0 12px; font-size: 15px; }
+  .stepper { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  button.ghost { background: transparent; color: var(--ltt-accent); border: 1px solid var(--ltt-line); }
+
+  .side h3 { font-size: 13px; color: var(--ltt-muted); margin: 18px 0 6px; }
+  .side ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .side li { display: flex; align-items: center; gap: 8px; background: var(--ltt-bg); border-radius: 10px; padding: 6px 10px; font-size: 13.5px; }
+  .side li.empty { background: transparent; color: var(--ltt-muted); padding-left: 0; }
+  .side li .row-text { display: grid; line-height: 1.35; }
+  .side li .meta { color: var(--ltt-muted); font-size: 12px; }
+  .side li .ltt-tag { margin: 0 0 0 auto; white-space: nowrap; }
+  .side svg { width: 28px; height: 19px; flex: none; }
+  .flow-label { font-size: 13px; font-weight: 700; color: var(--ltt-muted); }
+  #hero { transition: color .3s; }
+  #hero.pending { color: var(--dim); }
+  #hero-status { margin: 6px 0 0; min-height: 22px; }
+
+  .matrix { position: relative; display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 6px; margin: 4px 0 10px; }
+  .mh { font-size: 12.5px; font-weight: 700; color: var(--ltt-muted); text-align: center; align-self: end; padding: 0 2px 2px; }
+  .rh { font-size: 13px; font-weight: 700; display: flex; align-items: center; padding-right: 6px; }
+  .cell { background: var(--ltt-bg); color: var(--ltt-ink); border-radius: 10px; padding: 10px 4px 8px; display: grid;
+    justify-items: center; gap: 4px; font-size: 13px; }
+  .cell:hover { background: #eceff8; }
+  .cell .n { font-size: 20px; font-weight: 700; }
+  .cell .ltt-tag { margin: 0; white-space: nowrap; }
+  .hl { position: absolute; z-index: 2; pointer-events: none; border: 2px solid var(--ltt-accent); border-radius: 12px;
+    transition: left .45s cubic-bezier(.2,.7,.2,1), top .45s cubic-bezier(.2,.7,.2,1); }
+
+  .same { display: grid; grid-template-columns: auto 1fr 1fr; gap: 8px 10px; align-items: center; margin: 4px 0 10px; }
+  .same-h { font-size: 12.5px; font-weight: 700; color: var(--ltt-muted); }
+  .same .srv, .same .seen { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .same svg { width: 28px; height: 19px; }
+
+  .code-title { display: flex; align-items: center; gap: 6px; margin: 12px 0 6px; font-size: 14px; font-weight: 700; }
+  pre.code { margin: 0; background: #f7f8fc; border: 1px solid var(--ltt-line); border-radius: 10px; padding: 10px 0; overflow-x: auto; }
+  pre.code code { display: block; min-width: max-content; font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre.code .ln { display: block; padding: 0 16px 0 32px; white-space: pre; position: relative; }
+  pre.code .ln.del { background: #fdecef; }
+  pre.code .ln.add { background: #e6f6ef; }
+  pre.code .ln.del::before, pre.code .ln.add::before { position: absolute; left: 13px; font-weight: 800; }
+  pre.code .ln.del::before { content: "−"; color: var(--ltt-bad); }
+  pre.code .ln.add::before { content: "+"; color: var(--ltt-good); }
+
+  .cases .ltt-stat { font-size: 30px; margin-top: 8px; }
+  .cases .cards { margin: 12px 0 0; }
+  .cases p { margin: 8px 0 0; font-size: 14px; }
+  button.link { margin-top: 8px; background: transparent; color: var(--ltt-accent); padding: 4px 0; }
+  .facts { margin: 0; padding-left: 18px; font-size: 14px; display: grid; gap: 6px; }
+  .sources { margin: 12px 0 0; word-break: break-all; }
+  .sources a { color: var(--ltt-accent); }
+
+  #hover { position: fixed; z-index: 30; pointer-events: none; max-width: 280px; padding: 8px 10px; border-radius: 8px;
+    background: var(--ltt-ink); color: #fff; font-size: 13px; line-height: 1.45; opacity: 0; transition: opacity .12s; }
+  #hover.on { opacity: 1; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="card" viewBox="0 0 32 22">
+    <rect x="1" y="1" width="30" height="20" rx="4" fill="currentColor"/>
+    <rect x="1" y="6" width="30" height="4" fill="#fff" opacity=".55"/>
+    <rect x="5" y="14" width="9" height="3" rx="1" fill="#fff" opacity=".85"/>
+  </symbol>
+  <symbol id="card-empty" viewBox="0 0 32 22">
+    <rect x="1.5" y="1.5" width="29" height="19" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 2"/>
+  </symbol>
+</svg>
+<main>
+  <h1>결제 요청이 타임아웃되면 다시 보내도 될까?</h1>
+  <p class="ltt-lead">
+    결정 변수: <span data-tip="응답을 못 받은 요청을 다시 보낼지, 보낸다면 같은 결제 의도임을 서버가 알아보게 할 키를 어떻게 붙일지.">재시도와 멱등성 키</span>
+  </p>
+
+  <section class="ltt-card" id="predict-card">
+    <p class="scene">앱이 결제 요청을 보냈다. 서버는 결제를 처리했지만 응답이 도중에 사라졌다. 앱은 타임아웃 후 같은 요청을 다시 보낸다(멱등성 키 없음).</p>
+    <p class="ask">고객 카드는 몇 번 청구될까?</p>
+    <div class="chips">
+      <span class="ltt-tag" data-tip="서버는 카드를 청구하고 기록했다. 성공 응답이 앱으로 가는 도중에 사라졌다.">응답 유실</span>
+      <span class="ltt-tag" data-tip="요청에 Idempotency-Key 같은 식별 키가 없다.">멱등성 키 없음</span>
+      <span class="ltt-tag" data-tip="앱은 타임아웃 후 한 번 다시 보내고, 그 요청과 응답은 성공한다.">재시도 1회</span>
+    </div>
+    <div class="choices" id="choices">
+      <button class="choice" data-n="0" aria-pressed="false"><span class="cards"><svg class="card-none"><use href="#card-empty"/></svg></span>0회<span class="mark"></span></button>
+      <button class="choice" data-n="1" aria-pressed="false"><span class="cards"><svg class="card-ok"><use href="#card"/></svg></span>1회<span class="mark"></span></button>
+      <button class="choice" data-n="2" aria-pressed="false"><span class="cards"><svg class="card-ok"><use href="#card"/></svg><svg class="card-ok"><use href="#card"/></svg></span>2회<span class="mark"></span></button>
+    </div>
+    <div id="guess-ui">
+      <button id="lock" disabled>예측 확정</button>
+      <p class="ltt-basis">하나를 고른 뒤 확정하세요. 확정한 예측은 바꿀 수 없습니다.</p>
+    </div>
+    <div id="result-ui" class="ltt-hidden">
+      <span class="ltt-tag" data-tip="모델: 재시도 1회, 재시도와 그 응답은 성공, 서버는 키가 없으면 받은 요청마다 청구한다.">모델로 계산한 예시</span>
+      <p class="verdict" id="verdict"></p>
+      <div class="answer" id="answer"></div>
+      <p class="ltt-basis">아래에서 한 단계씩 따라가 보세요.</p>
+    </div>
+  </section>
+
+  <div id="reveal" class="ltt-hidden">
+    <section class="ltt-card ltt-rise" style="--i:1" id="diagram-card">
+      <h2>한 단계씩 따라가기</h2>
+      <div class="controls">
+        <div class="ctl"><span class="ctl-label">실패 지점</span>
+          <div class="seg" id="seg-fail"><button data-v="F1">요청 유실</button><button data-v="F2">응답 유실</button></div>
+        </div>
+        <div class="ctl"><span class="ctl-label">키 정책</span>
+          <div class="seg" id="seg-key"><button data-v="K0">키 없음</button><button data-v="K1">같은 키로 재시도</button><button data-v="K2">시도마다 새 키</button></div>
+        </div>
+      </div>
+      <p class="ltt-basis" id="fail-note"></p>
+      <div class="diagram">
+        <div>
+          <svg id="seq" role="img" aria-label="앱, 결제 서버, 결제 기록 사이의 요청 흐름"></svg>
+          <p class="caption" id="caption"></p>
+          <div class="stepper">
+            <button id="next">다음 단계</button>
+            <button id="all" class="ghost">끝까지</button>
+            <button id="reset" class="ghost">처음으로</button>
+            <span class="ltt-basis" id="progress"></span>
+          </div>
+        </div>
+        <aside class="side">
+          <div class="flow-label">카드 청구</div>
+          <div class="ltt-hero pending" id="hero"><span id="hero-n">0</span><small>회</small></div>
+          <div id="hero-status"></div>
+          <h3>결제 기록</h3>
+          <ol id="ledger"></ol>
+          <h3><span data-tip="서버는 키와 첫 처리 결과를 저장해 같은 키의 재요청에는 저장된 결과를 돌려준다(Stripe API v1 방식. IETF Idempotency-Key 헤더 초안도 같은 개념이며 표준으로 확정되지는 않았다).">서버 키 저장소</span></h3>
+          <ol id="store"></ol>
+        </aside>
+      </div>
+    </section>
+
+    <div class="ltt-grid">
+      <section class="ltt-card ltt-rise" style="--i:2">
+        <h2>여섯 경우 한눈에 <span class="ltt-tag" data-tip="모델: 재시도 1회, 재시도와 그 응답은 성공한다고 가정.">모델로 계산한 예시</span></h2>
+        <div class="matrix" id="matrix"><div class="hl" id="hl"></div></div>
+        <p class="ltt-basis">앱은 여섯 경우 모두 성공 응답을 받는다 — 차이는 청구 횟수뿐. 칸을 누르면 그 경우로 바뀐다.</p>
+      </section>
+
+      <section class="ltt-card ltt-rise" style="--i:3">
+        <h2><span data-tip="응답을 받지 못한 클라이언트는 서버가 처리했는지 알 수 없다. (Stripe 블로그 'Designing robust and predictable APIs with idempotency')">타임아웃은 실패가 아니라 '결과 모름'</span></h2>
+        <div class="same">
+          <span></span><span class="same-h">서버에서 일어난 일</span><span class="same-h">앱이 본 것</span>
+          <span class="rh">요청 유실</span>
+          <span class="srv"><svg class="card-none"><use href="#card-empty"/></svg>처리 안 함</span>
+          <span class="seen"><span class="ltt-tag warn">? 타임아웃</span></span>
+          <span class="rh">응답 유실</span>
+          <span class="srv"><svg class="card-ok"><use href="#card"/></svg>청구 완료</span>
+          <span class="seen"><span class="ltt-tag warn">? 타임아웃</span></span>
+        </div>
+        <p class="ltt-basis">앱 화면에서는 두 경우가 똑같다. 재시도가 안전하려면 서버가 같은 결제를 알아봐야 한다.</p>
+      </section>
+    </div>
+
+    <section class="ltt-card ltt-rise" style="--i:4">
+      <h2>키를 어디서 만드나</h2>
+      <div class="code-title"><span class="ltt-tag bad">주의</span>시도마다 새 키</div>
+      <pre class="code"><code id="code-new"></code></pre>
+      <div class="code-title"><span class="ltt-tag good">권장</span>같은 키로 재시도</div>
+      <pre class="code"><code id="code-same"></code></pre>
+      <p class="ltt-basis">키는 결제 의도 하나마다 한 번 만들고, 재시도에도 그대로 보낸다. <code>post</code>, <code>isTimeout</code>은 예시용 함수.</p>
+    </section>
+
+    <div class="ltt-grid cases">
+      <section class="ltt-card ltt-rise" style="--i:5">
+        <span class="ltt-tag good">활용</span><strong>같은 키로 재시도</strong>
+        <div class="cards" data-case="F2,K1"></div>
+        <div class="ltt-stat"><span data-n></span><small>회 청구</small></div>
+        <p class="ltt-basis">응답이 사라져도 서버가 키를 알아보고 저장된 결과를 돌려준다.</p>
+        <button class="link" data-apply="F2,K1">이 조건으로 보기 →</button>
+      </section>
+      <section class="ltt-card ltt-rise" style="--i:6">
+        <span class="ltt-tag bad">주의</span><strong>재시도마다 새 키</strong>
+        <div class="cards" data-case="F2,K2"></div>
+        <div class="ltt-stat"><span data-n></span><small>회 청구</small></div>
+        <p class="ltt-basis">키가 바뀌면 서버는 다른 요청으로 본다. 키가 없는 것과 같다.</p>
+        <button class="link" data-apply="F2,K2">이 조건으로 보기 →</button>
+      </section>
+      <section class="ltt-card ltt-rise" style="--i:7">
+        <span class="ltt-tag bad">주의</span><strong>처리 중에 같은 키가 또 오면</strong>
+        <p>처리 결과를 저장하기 전에 같은 키가 또 오면 두 번 처리될 수 있다.</p>
+        <p class="ltt-basis">처리 중인 키를 먼저 표시해 둔다. <span data-tip="draft-ietf-httpapi-idempotency-key-header-07: 같은 키의 요청이 아직 처리 중이면 the resource SHOULD reply with an HTTP 409.">IETF Idempotency-Key 초안</span>은 이때 409 Conflict 응답을 권한다(SHOULD). 이 시뮬레이션 밖의 경우다.</p>
+      </section>
+    </div>
+
+    <section class="ltt-card ltt-rise" style="--i:8">
+      <h2>근거</h2>
+      <ul class="facts">
+        <li>서버는 키와 첫 처리 결과를 저장해 같은 키의 재요청에는 저장된 결과를 돌려준다(Stripe API v1 방식. IETF Idempotency-Key 헤더 초안도 같은 개념이며 표준으로 확정되지는 않았다).</li>
+        <li>Stripe API v1은 24시간 이상 지난 키를 자동으로 정리할 수 있어, 그 뒤 같은 키로 재시도하면 새 요청으로 처리된다(API v2는 30일).</li>
+        <li>Stripe API v1은 같은 키로 다른 파라미터를 보내면 오류를 돌려준다.</li>
+        <li>HTTP 명세(RFC 9110 9.2.2)에서 PUT, DELETE와 GET 같은 안전한 메서드는 멱등이고, POST는 아니다.</li>
+      </ul>
+      <p class="ltt-basis sources">출처:
+        <a href="https://docs.stripe.com/api/idempotent_requests">docs.stripe.com/api/idempotent_requests</a> ·
+        <a href="https://docs.stripe.com/api-v2-overview#idempotency">docs.stripe.com/api-v2-overview#idempotency</a> ·
+        <a href="https://www.ietf.org/archive/id/draft-ietf-httpapi-idempotency-key-header-07.html">draft-ietf-httpapi-idempotency-key-header-07</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2">RFC 9110 §9.2.2</a>
+      </p>
+    </section>
+    <p class="ltt-basis">다 보았으면 대화로 돌아가 다음 질문에 답해 주세요.</p>
+  </div>
+</main>
+<div id="hover" role="tooltip"></div>
+<script>
+  // Hand-derived by an independent subagent from the retry rules only; the model must match these, not the reverse.
+  const EXPECTED_CHARGES_BY_HAND = {
+    F1: { K0: 1, K1: 1, K2: 1 },
+    F2: { K0: 2, K1: 1, K2: 2 },
+    none: { K0: 1, K1: 1, K2: 1 },
+  };
+  const EXPECTED_CLIENT_SUCCESS_BY_HAND = {
+    F1: { K0: 1, K1: 1, K2: 1 },
+    F2: { K0: 1, K1: 1, K2: 1 },
+  };
+
+  const FAIL_NAME = { F1: "요청 유실", F2: "응답 유실", none: "실패 없음" };
+  const KEY_NAME = { K0: "키 없음", K1: "같은 키로 재시도", K2: "시도마다 새 키" };
+  const FAIL_NOTE = {
+    F1: "요청이 서버에 닿기 전에 유실되면 키가 없어도 재시도가 중복 결제를 만들지 않는다.",
+    F2: "응답만 유실되면, 다른 중복 방지 장치가 없는 한 키 없는 재시도는 중복 결제를 만든다.",
+  };
+  const KEYS = ["7f3a", "c91e"];
+
+  function keyFor(policy, attempt) {
+    if (policy === "K0") return null;
+    return policy === "K1" ? KEYS[0] : KEYS[attempt - 1];
+  }
+
+  function simulate(fail, policy) {
+    const ledger = [], store = new Map(), events = [];
+    let clientSuccess = false;
+    const attempts = fail === "none" ? 1 : 2;
+    for (let attempt = 1; attempt <= attempts && !clientSuccess; attempt++) {
+      const key = keyFor(policy, attempt);
+      const requestLost = fail === "F1" && attempt === 1;
+      events.push({ type: "req", attempt, key, lost: requestLost });
+      if (requestLost) { events.push({ type: "timeout", attempt }); continue; }
+      let replay = false;
+      if (key && store.has(key)) {
+        replay = true;
+        events.push({ type: "replay", attempt, key, result: store.get(key) });
+      } else {
+        const charge = { n: ledger.length + 1, attempt, key, dup: ledger.length > 0 };
+        ledger.push(charge);
+        if (key) store.set(key, `청구 #${charge.n} 성공`);
+        events.push({ type: "charge", attempt, key, charge, stored: !!key });
+      }
+      const responseLost = fail === "F2" && attempt === 1;
+      events.push({ type: "res", attempt, lost: responseLost, replay });
+      if (responseLost) { events.push({ type: "timeout", attempt }); continue; }
+      clientSuccess = true;
+    }
+    return { events, ledger, store, clientSuccess };
+  }
+
+  for (const fail of ["F1", "F2", "none"]) {
+    for (const k of ["K0", "K1", "K2"]) {
+      const sim = simulate(fail, k);
+      const label = `${FAIL_NAME[fail]} · ${KEY_NAME[k]}`;
+      LTT.expect(label + ": 청구 횟수", sim.ledger.length, EXPECTED_CHARGES_BY_HAND[fail][k], { tol: 0 });
+      if (fail !== "none") {
+        LTT.expect(label + ": 앱 성공 응답", sim.clientSuccess ? 1 : 0, EXPECTED_CLIENT_SUCCESS_BY_HAND[fail][k], { tol: 0 });
+      }
+    }
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const MOTION_MS = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700;
+  const NUM = "①②③④⑤⑥⑦⑧";
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  function cardIcon(kind) {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("class", kind === "dup" ? "card-dup" : kind === "none" ? "card-none" : "card-ok");
+    const use = document.createElementNS(SVG_NS, "use");
+    use.setAttribute("href", kind === "none" ? "#card-empty" : "#card");
+    svg.appendChild(use);
+    return svg;
+  }
+
+  function cardsFor(ledger) {
+    return ledger.length ? ledger.map((c) => cardIcon(c.dup ? "dup" : "ok")) : [cardIcon("none")];
+  }
+
+  function tag(text, cls = "") {
+    const s = document.createElement("span");
+    s.className = "ltt-tag" + (cls ? " " + cls : "");
+    s.textContent = text;
+    return s;
+  }
+
+  function statusTag(count, short = false) {
+    return count > 1 ? tag(short ? "✕ 중복" : "✕ 중복 결제", "bad") : tag("✓ 정상", "good");
+  }
+
+  function tweenNumber(el, to) {
+    const from = Number(el.dataset.v ?? 0);
+    el.dataset.v = to;
+    d3.select(el).interrupt().transition().duration(MOTION_MS).ease(d3.easeCubicOut)
+      .tween("text", () => { const i = d3.interpolateNumber(from, to); return (t) => { el.textContent = Math.round(i(t)); }; });
+  }
+
+  function captions(events, policy) {
+    let charges = 0;
+    return events.map((ev) => {
+      switch (ev.type) {
+        case "req":
+          if (ev.attempt === 1) {
+            return ev.lost ? "요청이 서버에 닿기 전에 사라졌다. 서버는 이 요청을 모른다."
+              : `앱이 10,000원 결제를 요청한다${ev.key ? ` (키 ${ev.key})` : " (멱등성 키 없음)"}.`;
+          }
+          if (policy === "K1") return `앱이 같은 키 ${ev.key}로 다시 보낸다.`;
+          if (policy === "K2") return `앱이 새 키 ${ev.key}로 다시 보낸다. 서버에게는 처음 보는 키다.`;
+          return "앱이 같은 요청을 다시 보낸다. 키가 없어 서버는 새 요청과 구별하지 못한다.";
+        case "timeout":
+          return "응답이 오지 않아 타임아웃. 앱은 서버가 처리했는지 알 수 없다 — 결과 모름.";
+        case "charge":
+          charges++;
+          if (ev.charge.dup) return "서버가 카드를 또 청구한다. 같은 결제가 두 번 — 중복 결제.";
+          return `서버가 카드를 청구하고 기록한다${ev.stored ? `. 키 ${ev.key}와 결과를 저장한다` : ""}.`;
+        case "replay":
+          return `키 ${ev.key}는 이미 처리했다. 다시 청구하지 않고 저장된 결과를 돌려준다.`;
+        case "res":
+          if (ev.lost) return "성공 응답이 앱으로 가는 도중에 사라졌다. 서버는 이미 청구했다.";
+          if (ev.replay) return "앱이 저장된 성공 응답을 받는다. 청구는 한 번뿐이다.";
+          return charges > 1 ? "앱은 성공 응답을 받는다. 화면은 정상이지만 카드는 두 번 청구됐다." : "앱이 성공 응답을 받는다.";
+      }
+      return "";
+    });
+  }
+
+  // ---- sequence diagram ----
+  const W = 620, ROW0 = 86, ROW = 50, MAX_STEPS = 7, H = ROW0 + (MAX_STEPS - 1) * ROW + 36;
+  const X = { app: 84, server: 330, ledger: 540 };
+  const svg = d3.select("#seq").attr("viewBox", `0 0 ${W} ${H}`);
+  const defs = svg.append("defs");
+  for (const tone of ["msg", "s1", "bad"]) {
+    defs.append("marker").attr("id", "head-" + tone).attr("class", "head-" + tone)
+      .attr("viewBox", "0 0 10 10").attr("refX", 9).attr("refY", 5)
+      .attr("markerWidth", 7).attr("markerHeight", 7).attr("orient", "auto-start-reverse")
+      .append("path").attr("d", "M0,0 L10,5 L0,10 z");
+  }
+  const band = svg.append("rect").attr("class", "band").attr("x", 4).attr("width", W - 8)
+    .attr("height", ROW - 6).attr("rx", 8).attr("y", ROW0 - (ROW - 6) / 2);
+  for (const [id, name] of [["app", "앱"], ["server", "결제 서버"], ["ledger", "결제 기록"]]) {
+    const g = svg.append("g").attr("class", "actor");
+    g.append("line").attr("class", "life").attr("x1", X[id]).attr("x2", X[id]).attr("y1", 40).attr("y2", H - 6);
+    g.append("rect").attr("x", X[id] - 58).attr("y", 8).attr("width", 116).attr("height", 32).attr("rx", 8);
+    g.append("text").attr("x", X[id]).attr("y", 29).attr("text-anchor", "middle").text(name);
+  }
+  const stepsLayer = svg.append("g");
+
+  function textWidth(t, fallbackChars) {
+    const w = t.node().getComputedTextLength();
+    return w > 0 ? w : fallbackChars * 12;
+  }
+
+  function arrow(g, x1, x2, y, { tone, lost = false, label, sub, animate }) {
+    const dir = Math.sign(x2 - x1);
+    const end = lost ? x1 + (x2 - x1) * 0.58 : x2 - dir * 2;
+    const line = g.append("line").attr("class", "arrow " + tone)
+      .attr("x1", x1 + dir * 2).attr("y1", y).attr("x2", end).attr("y2", y);
+    const tx = (x1 + (lost ? end : x2)) / 2;
+    const texts = g.append("g");
+    texts.append("text").attr("class", "msg-label").attr("x", tx).attr("y", y - 9).attr("text-anchor", "middle").text(label);
+    if (sub) texts.append("text").attr("class", "msg-sub").attr("x", tx).attr("y", y + 17).attr("text-anchor", "middle").text(sub);
+    const finish = () => {
+      if (lost) {
+        g.append("text").attr("class", "lost-x").attr("x", end).attr("y", y + 6).attr("text-anchor", "middle").text("✕");
+        g.append("text").attr("class", "lost-t").attr("x", end + dir * 12).attr("y", y + 4)
+          .attr("text-anchor", dir > 0 ? "start" : "end").text("유실");
+      } else {
+        line.attr("marker-end", `url(#head-${tone})`);
+      }
+    };
+    if (animate && MOTION_MS) {
+      const len = Math.abs(end - x1);
+      texts.attr("opacity", 0).transition().delay(MOTION_MS * 0.3).duration(MOTION_MS * 0.5).attr("opacity", 1);
+      line.attr("stroke-dasharray", len).attr("stroke-dashoffset", len)
+        .transition().duration(MOTION_MS * 0.8).ease(d3.easeCubicOut).attr("stroke-dashoffset", 0)
+        .on("end", () => { line.attr("stroke-dasharray", null).attr("stroke-dashoffset", null); finish(); });
+    } else {
+      finish();
+    }
+  }
+
+  function note(g, cx, y, text, tone, animate) {
+    const t = g.append("text").attr("class", "note-text").attr("y", y + 4).attr("text-anchor", "middle").text(text);
+    const w = textWidth(t, text.length) + 26;
+    const left = Math.max(6, Math.min(W - w - 6, cx - w / 2));
+    t.attr("x", left + w / 2);
+    g.insert("rect", "text").attr("class", "note " + tone).attr("x", left).attr("y", y - 14)
+      .attr("width", w).attr("height", 28).attr("rx", 8);
+    if (animate && MOTION_MS) g.attr("opacity", 0).transition().duration(MOTION_MS * 0.6).attr("opacity", 1);
+  }
+
+  function drawStep(ev, i, animate) {
+    const y = ROW0 + i * ROW;
+    const n = NUM[i];
+    const g = stepsLayer.append("g").attr("data-hover", state.captions[i]);
+    g.append("rect").attr("class", "hit").attr("x", 0).attr("width", W).attr("y", y - ROW / 2).attr("height", ROW);
+    if (ev.type === "req") {
+      arrow(g, X.app, X.server, y, {
+        tone: ev.lost ? "bad" : "msg", lost: ev.lost, animate,
+        label: `${n} POST /charges${ev.attempt > 1 ? " (재시도)" : ""}`,
+        sub: ev.key ? `Idempotency-Key: ${ev.key}` : "키 없음",
+      });
+    } else if (ev.type === "charge") {
+      arrow(g, X.server, X.ledger, y, {
+        tone: ev.charge.dup ? "bad" : "s1", animate,
+        label: `${n} 청구 #${ev.charge.n} · 10,000원`,
+        sub: ev.charge.dup ? "✕ 중복 결제" : ev.stored ? `키 ${ev.key} → 결과 저장` : "",
+      });
+    } else if (ev.type === "res") {
+      arrow(g, X.server, X.app, y, {
+        tone: ev.lost ? "bad" : "msg", lost: ev.lost, animate,
+        label: `${n} 200 성공${ev.replay ? " (저장된 결과)" : ""}`,
+      });
+    } else if (ev.type === "timeout") {
+      note(g, X.app, y, `${n} ? 타임아웃 = 결과 모름`, "warn", animate);
+    } else if (ev.type === "replay") {
+      note(g, X.server, y, `${n} ✓ 키 ${ev.key} 처리됨 → 저장된 결과`, "good", animate);
+    }
+  }
+
+  // ---- state ----
+  const state = { fail: "F2", key: "K0", sim: null, captions: [], shown: 0, gen: 0, ledgerRows: 0, storeRows: 0 };
+
+  function renderPanels(prefix, animate) {
+    const charges = prefix.filter((e) => e.type === "charge");
+    const replays = new Set(prefix.filter((e) => e.type === "replay").map((e) => e.key));
+
+    const ledgerItems = charges.map((e, idx) => {
+      const li = document.createElement("li");
+      li.append(cardIcon(e.charge.dup ? "dup" : "ok"));
+      const text = document.createElement("span");
+      text.className = "row-text";
+      text.textContent = `청구 #${e.charge.n} · 10,000원`;
+      const meta = document.createElement("span");
+      meta.className = "meta";
+      meta.textContent = e.attempt === 1 ? "첫 요청" : "재시도";
+      text.append(meta);
+      li.append(text);
+      if (e.charge.dup) li.append(tag("✕ 중복", "bad"));
+      if (animate && idx >= state.ledgerRows) li.className = "ltt-rise";
+      return li;
+    });
+    if (!ledgerItems.length) {
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = "아직 없음";
+      ledgerItems.push(li);
+    }
+    $("ledger").replaceChildren(...ledgerItems);
+    state.ledgerRows = charges.length;
+
+    const stored = charges.filter((e) => e.stored);
+    const storeItems = stored.map((e, idx) => {
+      const li = document.createElement("li");
+      const text = document.createElement("span");
+      text.textContent = `키 ${e.key} → 청구 #${e.charge.n} 성공`;
+      li.append(text);
+      if (replays.has(e.key)) li.append(tag("↺ 재사용", "good"));
+      if (animate && idx >= state.storeRows) li.className = "ltt-rise";
+      return li;
+    });
+    if (!storeItems.length) {
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = state.key === "K0" ? "키가 없어 저장할 것이 없다" : "아직 없음";
+      storeItems.push(li);
+    }
+    $("store").replaceChildren(...storeItems);
+    state.storeRows = stored.length;
+  }
+
+  function afterStep(animate) {
+    const events = state.sim.events;
+    const prefix = events.slice(0, state.shown);
+    const finished = state.shown === events.length;
+    const count = prefix.filter((e) => e.type === "charge").length;
+
+    if (state.shown > 0) {
+      const y = ROW0 + (state.shown - 1) * ROW - (ROW - 6) / 2;
+      const wasHidden = Number(band.style("opacity")) === 0;
+      band.interrupt();
+      if (wasHidden || !animate) band.attr("y", y);
+      band.transition().duration(animate ? MOTION_MS * 0.5 : 0).attr("y", y).style("opacity", 0.07);
+    } else {
+      band.interrupt().style("opacity", 0);
+    }
+
+    $("caption").textContent = state.shown ? `${NUM[state.shown - 1]} ${state.captions[state.shown - 1]}` : "다음 단계를 눌러 진행하세요.";
+    $("progress").textContent = `단계 ${state.shown} / ${events.length}`;
+    $("next").disabled = finished;
+    $("all").disabled = finished;
+
+    renderPanels(prefix, animate);
+    $("hero").classList.toggle("pending", !finished);
+    if (animate) tweenNumber($("hero-n"), count);
+    else { $("hero-n").dataset.v = count; $("hero-n").textContent = count; }
+    $("hero-status").replaceChildren(finished ? statusTag(count) : tag("진행 중", "muted"));
+  }
+
+  function step(animate = true) {
+    if (state.shown >= state.sim.events.length) return;
+    drawStep(state.sim.events[state.shown], state.shown, animate);
+    state.shown++;
+    afterStep(animate);
+  }
+
+  function resetDiagram() {
+    state.gen++;
+    state.sim = simulate(state.fail, state.key);
+    state.captions = captions(state.sim.events, state.key);
+    state.shown = 0;
+    state.ledgerRows = 0;
+    state.storeRows = 0;
+    stepsLayer.selectAll("*").interrupt();
+    stepsLayer.selectAll("*").remove();
+    afterStep(false);
+  }
+
+  function playToEnd() {
+    const gen = state.gen;
+    $("next").disabled = true;
+    $("all").disabled = true;
+    const tick = () => {
+      if (gen !== state.gen || state.shown >= state.sim.events.length) return;
+      step(true);
+      if (state.shown < state.sim.events.length) {
+        if (MOTION_MS) setTimeout(tick, MOTION_MS * 0.55);
+        else tick();
+      }
+    };
+    tick();
+  }
+
+  // ---- matrix ----
+  const matrix = $("matrix");
+  const cells = {};
+  matrix.append(document.createElement("span"));
+  for (const k of ["K0", "K1", "K2"]) {
+    const h = document.createElement("span");
+    h.className = "mh";
+    h.textContent = KEY_NAME[k];
+    matrix.append(h);
+  }
+  for (const f of ["F1", "F2"]) {
+    const rh = document.createElement("span");
+    rh.className = "rh";
+    rh.textContent = FAIL_NAME[f];
+    matrix.append(rh);
+    for (const k of ["K0", "K1", "K2"]) {
+      const sim = simulate(f, k);
+      const n = sim.ledger.length;
+      const b = document.createElement("button");
+      b.className = "cell";
+      b.dataset.f = f;
+      b.dataset.k = k;
+      b.dataset.hover = `${FAIL_NAME[f]} · ${KEY_NAME[k]}: 카드 ${n}회 청구, 앱은 성공 응답.` +
+        (n > 1 ? " 서버가 재시도를 새 결제로 처리했다." : f === "F2" ? " 서버가 키를 알아보고 저장된 결과를 돌려줬다." : " 서버는 첫 요청을 받지 못했다.");
+      const cards = document.createElement("span");
+      cards.className = "cards";
+      cards.append(...cardsFor(sim.ledger));
+      const num = document.createElement("span");
+      num.className = "n";
+      num.textContent = n + "회";
+      b.append(cards, num, statusTag(n, true));
+      b.addEventListener("click", () => setCombo(f, k));
+      cells[f + k] = b;
+      matrix.append(b);
+    }
+  }
+
+  function placeHighlight(animate) {
+    const cell = cells[state.fail + state.key];
+    const hl = $("hl");
+    if (!cell || !cell.offsetWidth) return;
+    if (!animate || !MOTION_MS) hl.style.transition = "none";
+    hl.style.left = cell.offsetLeft - 3 + "px";
+    hl.style.top = cell.offsetTop - 3 + "px";
+    hl.style.width = cell.offsetWidth + 6 + "px";
+    hl.style.height = cell.offsetHeight + 6 + "px";
+    if (!animate || !MOTION_MS) { hl.offsetWidth; hl.style.transition = ""; }
+  }
+  addEventListener("resize", () => placeHighlight(false));
+
+  // ---- controls ----
+  function syncControls() {
+    for (const b of $("seg-fail").children) b.setAttribute("aria-pressed", String(b.dataset.v === state.fail));
+    for (const b of $("seg-key").children) b.setAttribute("aria-pressed", String(b.dataset.v === state.key));
+    $("fail-note").textContent = FAIL_NOTE[state.fail];
+  }
+
+  function setCombo(fail, key, { scroll = false } = {}) {
+    const moved = state.fail !== fail || state.key !== key;
+    state.fail = fail;
+    state.key = key;
+    syncControls();
+    resetDiagram();
+    placeHighlight(moved);
+    if (scroll) $("diagram-card").scrollIntoView({ behavior: MOTION_MS ? "smooth" : "auto", block: "start" });
+  }
+
+  for (const b of $("seg-fail").children) b.addEventListener("click", () => setCombo(b.dataset.v, state.key));
+  for (const b of $("seg-key").children) b.addEventListener("click", () => setCombo(state.fail, b.dataset.v));
+  $("next").addEventListener("click", () => step(true));
+  $("all").addEventListener("click", playToEnd);
+  $("reset").addEventListener("click", () => resetDiagram());
+
+  // ---- code compare ----
+  const CODE_NEW_KEY = [
+    "async function pay(body) {",
+    "  for (let attempt = 1; attempt <= 2; attempt++) {",
+    "    try {",
+    '      return await post("/charges", body, { "Idempotency-Key": crypto.randomUUID() });',
+    "    } catch (e) { if (!isTimeout(e) || attempt === 2) throw e; }",
+    "  }",
+    "}",
+  ];
+  const CODE_SAME_KEY = [
+    "async function pay(body) {",
+    "  const key = crypto.randomUUID();",
+    "  for (let attempt = 1; attempt <= 2; attempt++) {",
+    "    try {",
+    '      return await post("/charges", body, { "Idempotency-Key": key });',
+    "    } catch (e) { if (!isTimeout(e) || attempt === 2) throw e; }",
+    "  }",
+    "}",
+  ];
+  function renderCode(el, lines, other, cls) {
+    const others = new Set(other);
+    el.replaceChildren(...lines.map((line) => {
+      const span = document.createElement("span");
+      span.className = "ln" + (others.has(line) ? "" : " " + cls);
+      span.textContent = line;
+      return span;
+    }));
+  }
+  renderCode($("code-new"), CODE_NEW_KEY, CODE_SAME_KEY, "del");
+  renderCode($("code-same"), CODE_SAME_KEY, CODE_NEW_KEY, "add");
+
+  // ---- case cards ----
+  for (const el of document.querySelectorAll("[data-case]")) {
+    const [f, k] = el.dataset.case.split(",");
+    const sim = simulate(f, k);
+    el.replaceChildren(...cardsFor(sim.ledger));
+    el.parentElement.querySelector("[data-n]").textContent = sim.ledger.length;
+  }
+  for (const btn of document.querySelectorAll("[data-apply]")) {
+    btn.addEventListener("click", () => {
+      const [f, k] = btn.dataset.apply.split(",");
+      setCombo(f, k, { scroll: true });
+    });
+  }
+
+  // ---- predict ----
+  let picked = null;
+  const choices = [...document.querySelectorAll(".choice")];
+  for (const c of choices) {
+    c.addEventListener("click", () => {
+      picked = Number(c.dataset.n);
+      for (const o of choices) o.setAttribute("aria-pressed", String(o === c));
+      $("lock").disabled = false;
+    });
+  }
+
+  $("lock").addEventListener("click", () => {
+    if (picked === null) return;
+    const guess = picked;
+    LTT.record("predict", { question: "응답 유실 + 멱등성 키 없는 재시도 1회: 카드 청구 횟수", guess });
+    const model = simulate("F2", "K0");
+    const answer = model.ledger.length;
+    for (const c of choices) {
+      c.disabled = true;
+      const n = Number(c.dataset.n);
+      const mark = c.querySelector(".mark");
+      if (n === answer) { c.classList.add("correct"); mark.textContent = "✓ 모델 결과"; }
+      if (n === guess && n !== answer) { c.classList.add("wrong"); mark.textContent = "✕ 내 예측"; }
+      if (n === guess && n === answer) mark.textContent = "✓ 내 예측 = 모델";
+    }
+    $("guess-ui").classList.add("ltt-hidden");
+    $("verdict").innerHTML = `예측 <b>${guess}회</b> → 모델 <b>${answer}회</b>. 서버는 첫 요청을 이미 처리했고, 키가 없어 재시도를 새 결제로 본다.`;
+    $("answer").replaceChildren(...model.ledger.map((c, i) => {
+      const d = document.createElement("div");
+      d.className = "ltt-rise";
+      d.style.setProperty("--i", i + 1);
+      const t = document.createElement("span");
+      t.textContent = `청구 #${c.n} · ${c.attempt === 1 ? "첫 요청" : "재시도"}`;
+      d.append(cardIcon(c.dup ? "dup" : "ok"), t);
+      if (c.dup) d.append(tag("✕ 중복", "bad"));
+      return d;
+    }));
+    $("result-ui").classList.remove("ltt-hidden");
+    $("reveal").classList.remove("ltt-hidden");
+    setCombo("F2", "K0");
+  });
+
+  // ---- hover tooltip for SVG steps and matrix cells ----
+  const hover = $("hover");
+  function showHover(text, x, y) {
+    hover.textContent = text;
+    hover.classList.add("on");
+    const r = hover.getBoundingClientRect();
+    let left = x + 14, top = y + 16;
+    if (left + r.width > innerWidth - 8) left = x - r.width - 14;
+    if (top + r.height > innerHeight - 8) top = y - r.height - 12;
+    hover.style.left = Math.max(8, left) + "px";
+    hover.style.top = Math.max(8, top) + "px";
+  }
+  document.addEventListener("pointermove", (e) => {
+    const el = e.target.closest && e.target.closest("[data-hover]");
+    if (!el) return hover.classList.remove("on");
+    showHover(el.dataset.hover, e.clientX, e.clientY);
+  });
+  document.addEventListener("focusin", (e) => {
+    const el = e.target.closest && e.target.closest("[data-hover]");
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    showHover(el.dataset.hover, r.left, r.bottom);
+  });
+  document.addEventListener("focusout", () => hover.classList.remove("on"));
+</script>
+</body>
+</html>

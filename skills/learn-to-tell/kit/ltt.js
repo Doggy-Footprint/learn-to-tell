@@ -46,8 +46,10 @@
     "[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:0;top:calc(100% + 6px);z-index:10;",
     "width:max-content;max-width:280px;padding:8px 10px;border-radius:8px;background:var(--ltt-ink);color:#fff;",
     "font-size:13px;font-weight:400;line-height:1.45;white-space:normal}",
-    "#ltt-expect{position:fixed;right:16px;bottom:16px;max-width:360px;font-size:13px;background:var(--ltt-card);",
-    "border:1px solid var(--ltt-line);border-radius:12px;padding:10px 12px;box-shadow:0 4px 16px rgba(20,30,60,.12)}",
+    "#ltt-expect{position:fixed;right:16px;bottom:16px;max-width:360px;max-height:40vh;overflow:auto;font-size:13px;",
+    "background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:12px;padding:8px 12px;",
+    "box-shadow:0 4px 16px rgba(20,30,60,.12)}#ltt-expect summary{cursor:pointer;font-weight:700;color:var(--ltt-good)}",
+    "#ltt-expect[data-fails] summary{color:var(--ltt-bad)}",
     "#ltt-expect div{margin:2px 0}#ltt-expect .ok{color:var(--ltt-good)}#ltt-expect .fail{color:var(--ltt-bad);font-weight:600}"
   ].join("");
 
@@ -81,12 +83,24 @@
   function expectPanel() {
     var panel = document.getElementById("ltt-expect");
     if (!panel) {
-      panel = document.createElement("aside");
+      panel = document.createElement("details");
       panel.id = "ltt-expect";
-      panel.innerHTML = "<strong>기대값 대조</strong>";
+      panel.appendChild(document.createElement("summary"));
       document.body.appendChild(panel);
     }
     return panel;
+  }
+
+  function summarize(panel) {
+    var total = panel.querySelectorAll("div").length;
+    var fails = panel.querySelectorAll("div.fail").length;
+    panel.firstChild.textContent = fails
+      ? "기대값 대조 ✗ " + fails + "건 불일치 / " + total + "건"
+      : "기대값 대조 ✓ " + total + "건 일치";
+    if (fails) {
+      panel.dataset.fails = fails;
+      panel.open = true;
+    }
   }
 
   function expect(label, actual, expected, opts) {
@@ -96,7 +110,9 @@
       row.className = r.ok ? "ok" : "fail";
       row.textContent = (r.ok ? "✓ " : "✗ 검증 실패: ") + label +
         (r.ok ? "" : " (모델 " + actual + ", 기대 " + expected + ")");
-      expectPanel().appendChild(row);
+      var panel = expectPanel();
+      panel.insertBefore(row, r.ok ? null : panel.firstChild.nextSibling);
+      summarize(panel);
     }
     if (!r.ok) record("expect-mismatch", { label: label, actual: actual, expected: expected, tol: r.tol });
     return r.ok;

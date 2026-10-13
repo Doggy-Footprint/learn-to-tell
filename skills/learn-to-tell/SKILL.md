@@ -39,8 +39,14 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 ## 3. 자료 (시뮬레이션 경로)
 
-1. `<skill>/gallery/`에서 가장 비슷한 예제를 골라 `<home>/lessons/<id>/lesson.html`로 복사한 뒤 고친다.
+1. `<skill>/gallery/`에서 가장 비슷한 예제를 골라 `<home>/lessons/<id>/lesson.html`로 복사한 뒤 고친다. 필요한 부품이 예제에 없으면 `visual-catalog.html`에서 ID로 찾아 옮긴다.
    - `alert-precision.html`: 수치 모델, 슬라이더 예측과 단위 그림 공개 애니메이션, 건수 흐름 막대, 조건 프리셋 카드, 실사용 범위 슬라이더, Plot 차트, `expect`.
+   - `cache-ttl.html`: 수치 sweep. 단계형 로그 슬라이더, 세 범주 단위 그림 공개, 누적 영역 그래프와 따로 그린 두 번째 지표 그래프, 0으로 반올림되는 값의 "<1" 표시.
+   - `concurrent-calls.html`: 코드 변형 비교. 선택지 카드 예측, 기준 코드 대비 바뀐 줄 강조, 요청 타임라인(Gantt) 재생, 변형별 결과 비교 막대.
+   - `payment-retry.html`: 단계별 상태·흐름. 선택지 예측, 한 단계씩 진행하는 시퀀스 다이어그램과 상태 패널, 조건 조합 결과 행렬, 버그·수정 코드 비교.
+   - `realtime-transport.html`: 조건 토글 비교표. 선택지 예측, ✓/△/✗ 표에서 조건을 켜고 끄면 추천 열이 이동, 메시지 흐름 그림, 규칙의 한계를 보이는 사례.
+   - `visual-catalog.html`: 수업이 아니라 시각 요소 부품 모음(ID별: 핵심 수치, 비율·건수, 그래프, 흐름·상태, 비교·결정, 예측 입력, 주석).
+   - `index.html`: 시나리오 목록. 복사 대상이 아니다. gallery에 페이지를 추가하면 여기에도 카드를 추가한다.
 2. 시각화 기준: 인포그래픽 + 애니메이션
    - 핵심 수치 하나를 `ltt-hero`로 크게 보인다. 비율은 `ltt-units`(100칸 단위 그림)나 `ltt-bar`(비율 막대)로 건수처럼 보인다.
    - 예측 입력도 시각적으로 받는다(예: 슬라이더를 움직이면 단위 그림이 채워진다). 숫자 입력칸만 두지 않는다.
@@ -63,7 +69,7 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 - 불러오는 순서: `/kit/vendor/d3.min.js`, `/kit/vendor/plot.umd.min.js`(Observable Plot 0.6.17, 전역 `Plot`), `/kit/ltt.js`.
 - `LTT.record(type, data)`: lesson 페이지에서만 서버로 이벤트를 보낸다.
-- `LTT.expect(label, actual, expected, { tol })`: 결과를 화면 패널에 표시하고, 불일치하면 서버에도 알린다.
+- `LTT.expect(label, actual, expected, { tol })`: 결과를 화면 오른쪽 아래 패널에 표시하고, 불일치하면 서버에도 알린다. 모두 일치하면 패널은 요약 한 줄로 접혀 있고, 불일치가 하나라도 있으면 펼쳐진다.
 - CSS 클래스: `ltt-card`, `ltt-grid`, `ltt-stat`, `ltt-tag`(`warn`/`bad`/`good`), `ltt-param`, `ltt-basis`, `ltt-lead`, `ltt-hidden`, `ltt-hero`, `ltt-units`·`ltt-unit`(열 수 `--ltt-cols`), `ltt-bar`(자식 `span`의 `flex-grow`로 비율), `ltt-key`(범례), `ltt-rise`(등장, 순서 `--i`). 단위 그림은 `--i`를 칸마다 주면 순서대로 칠해진다.
 - 단위 그림 채우기, 숫자 tween 같은 JS 헬퍼는 아직 kit 어휘가 아니다. gallery 예제의 함수를 복사해 쓴다.
 - 수업마다 반복되는 패턴은 kit 어휘 후보다. `result.md`의 "kit 후보" 항목에 적는다.

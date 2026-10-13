@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learn to Tell 시나리오 모음</title>
+<script src="/kit/ltt.js"></script>
+<style>
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; margin: 4px 0 6px; }
+  .step { font-size: 13px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: #eef1fd; color: var(--ltt-ink); }
+  .step.alt { background: #f1f2f6; color: var(--ltt-muted); }
+  .flow .to { color: var(--ltt-muted); font-size: 13px; }
+  .branches { display: grid; gap: 6px; margin: 8px 0 0; font-size: 13px; color: var(--ltt-muted); }
+  .branches b { color: var(--ltt-ink); }
+  .scenarios { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+  @media (max-width: 900px) { .scenarios { grid-template-columns: 1fr; } }
+  .sc { display: flex; flex-direction: column; margin: 0; }
+  .sc h2 { margin: 8px 0 10px; font-size: 18px; }
+  .sc dl { display: grid; grid-template-columns: 76px 1fr; gap: 6px 10px; margin: 0 0 12px; font-size: 14px; }
+  .sc dt { color: var(--ltt-muted); font-weight: 600; }
+  .sc dd { margin: 0; }
+  .ladder { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .ladder li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .ladder li .n { flex: none; width: 20px; height: 20px; border-radius: 50%; background: #f1f2f6; color: var(--ltt-muted); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  .ladder li.level .n { background: var(--ltt-accent); color: #fff; }
+  .ladder li.level { font-weight: 700; }
+  .ladder li.level::after { content: "← 학습 수준"; font-size: 12px; color: var(--ltt-accent); }
+  .ladder li.skip { color: var(--ltt-muted); }
+  .ans { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+  .ans.know { background: #e6f6ef; color: var(--ltt-good); }
+  .ans.know::before { content: "✓ "; }
+  .ans.vague { background: #fdf4e3; color: var(--ltt-warn); }
+  .ans.vague::before { content: "? "; }
+  .ans.none { background: #fdecef; color: var(--ltt-bad); }
+  .ans.none::before { content: "✕ "; }
+  .ans.quiz { background: #eef1fd; color: var(--ltt-accent); }
+  .uses { margin: 0; padding-left: 18px; font-size: 14px; }
+  .sc .go { margin-top: auto; padding-top: 14px; }
+  .go a { display: inline-block; font-weight: 700; color: #fff; background: var(--ltt-accent); padding: 8px 14px; border-radius: 10px; text-decoration: none; }
+  .chat { background: #f6f7fb; border-radius: 10px; padding: 12px 14px; font-size: 14px; margin: 4px 0 0; }
+  .chat p { margin: 0 0 8px; }
+  .chat p:last-child { margin: 0; }
+  .chat .who { font-size: 12px; font-weight: 700; color: var(--ltt-muted); display: block; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--ltt-accent); }
+  .special { border: 2px solid var(--ltt-accent); }
+  h3.group { font-size: 15px; color: var(--ltt-muted); margin: 32px 0 12px; font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Learn to Tell 시나리오 모음</h1>
+  <p class="ltt-lead">작업 상황마다 스킬이 어떤 경로로 어떤 자료를 내는지 보는 예시들이다. 학습 자료 페이지는 스킬이 새 수업을 만들 때 복사해 고치는 템플릿이기도 하다.</p>
+
+  <section class="ltt-card">
+    <h2>스킬의 흐름과 갈림길</h2>
+    <div class="flow">
+      <span class="step">0 시작</span><span class="to">→</span>
+      <span class="step">1 진단 (대화)</span><span class="to">→</span>
+      <span class="step">2 범위</span><span class="to">→</span>
+      <span class="step">3 자료</span><span class="to">→</span>
+      <span class="step">4 서술 퀴즈 (대화)</span><span class="to">→</span>
+      <span class="step">5 작업 복귀</span><span class="to">→</span>
+      <span class="step">6 지식 map</span>
+    </div>
+    <div class="branches">
+      <span><b>시뮬레이션 경로</b> — 조작하며 관찰할 것이 있으면 gallery 페이지를 복사해 <code>lesson.html</code>을 만든다. (아래 1–5)</span>
+      <span><b>simple 경로</b> — 관찰할 것이 없으면 3단계를 건너뛰고 대화 안의 짧은 자료와 퀴즈로 끝낸다. (6)</span>
+      <span><b>진단만</b> — 사다리 맨 위 단까지 알고, 확인 퀴즈도 통과하면 학습 없이 기록만 남긴다. (7)</span>
+      <span><b>회차 분할</b> — 자료가 20분을 넘으면 알리고 나눈다. (8)</span>
+    </div>
+  </section>
+
+  <section class="ltt-card special">
+    <span class="ltt-tag">특별</span><span class="ltt-tag warn">스타일 검토용</span>
+    <h2 style="margin-top:8px">시각 요소 카탈로그</h2>
+    <p style="margin:0 0 6px">수업에 쓸 수 있는 핵심 수치, 비율·건수 그림, 그래프, 흐름·상태 다이어그램, 비교·결정 표, 예측 입력, 주석 요소를 ID와 함께 한 페이지에 모았다. 스타일 요구는 ID로 말하면 된다 (예: "C3 막대를 더 굵게").</p>
+    <div class="go"><a href="visual-catalog.html">카탈로그 열기 →</a></div>
+  </section>
+
+  <h3 class="group">시뮬레이션 경로</h3>
+  <div class="scenarios">
+
+    <section class="ltt-card sc">
+      <div><span class="ltt-tag">수치 · 비율</span><span class="ltt-tag good">예측 → 공개</span></div>
+      <h2>1. 알림이 울리면 진짜 장애일까?</h2>
+      <dl>
+        <dt>작업</dt><dd>모니터링 알림 규칙 설정</dd>
+        <dt>막힌 결정</dt><dd>알림 임계 (탐지율과 오탐률 중 무엇을 줄일까)</dd>
+        <dt>진단</dt><dd><ol class="ladder">
+          <li class="skip"><span class="n">1</span>비율과 백분율</li>
+          <li><span class="n">2</span>탐지율과 오탐률 <span class="ans know">알고 있음</span></li>
+          <li><span class="n">3</span>기저율 <span class="ans vague">애매함</span></li>
+          <li class="level"><span class="n">4</span>정밀도 (알림이 진짜일 확률) <span class="ans none">아예 모름</span></li>
+        </ol></dd>
+        <dt>자료</dt><dd><ul class="uses">
+          <li>100칸 단위 그림에 슬라이더로 예측 → 확정 후 공개</li>
+          <li>확인 10,000회의 건수 흐름 막대</li>
+          <li>활용·주의·대안 조건 카드, 정밀도–기저율 곡선</li>
+        </ul></dd>
+      </dl>
+      <div class="go"><a href="alert-precision.html">열기 →</a></div>
+    </section>
+
+    <section class="ltt-card sc">
+      <div><span class="ltt-tag">수치 · sweep</span><span class="ltt-tag good">예측 → 공개</span></div>
+      <h2>2. 캐시 TTL을 늘리면 무엇을 잃을까?</h2>
+      <dl>
+        <dt>작업</dt><dd>상품 정보 API에 캐시 붙이기</dd>
+        <dt>막힌 결정</dt><dd>TTL (원본 부하와 오래된 응답 사이)</dd>
+        <dt>진단</dt><dd><ol class="ladder">
+          <li class="skip"><span class="n">1</span>캐시</li>
+          <li><span class="n">2</span>적중률 <span class="ans know">알고 있음</span></li>
+          <li><span class="n">3</span>TTL 만료 <span class="ans know">알고 있음</span> <span class="ans quiz">퀴즈로 확인</span></li>
+          <li class="level"><span class="n">4</span>오래된 응답 비율과 변경 빈도 <span class="ans none">아예 모름</span></li>
+        </ol></dd>
+        <dt>자료</dt><dd><ul class="uses">
+          <li>응답 100건 중 오래된 응답 수 예측 → 공개</li>
+          <li>TTL을 쓸어 보는 누적 영역 그래프와 원본 조회 그래프</li>
+          <li>상품 설명·재고 수량 사례 카드</li>
+        </ul></dd>
+      </dl>
+      <div class="go"><a href="cache-ttl.html">열기 →</a></div>
+    </section>
+
+    <section class="ltt-card sc">
+      <div><span class="ltt-tag">코드 변형 비교</span><span class="ltt-tag">타임라인</span></div>
+      <h2>3. API 5개를 한꺼번에 부르면?</h2>
+      <dl>
+        <dt>작업</dt><dd>대시보드에서 API 5개 호출</dd>
+        <dt>막힌 결정</dt><dd>동시 호출 방식과 실패 처리</dd>
+        <dt>진단</dt><dd><ol class="ladder">
+          <li class="skip"><span class="n">1</span>Promise와 await</li>
+          <li><span class="n">2</span>순차 호출과 동시 호출 <span class="ans know">알고 있음</span></li>
+          <li><span class="n">3</span>Promise.all의 실패 동작 <span class="ans vague">애매함</span></li>
+          <li class="level"><span class="n">4</span>동시 실행 제한 <span class="ans none">아예 모름</span></li>
+        </ol></dd>
+        <dt>자료</dt><dd><ul class="uses">
+          <li>"하나가 실패하면?" 선택지 예측</li>
+          <li>변형별 코드에서 바뀐 줄 강조와 요청 타임라인 재생</li>
+          <li>네 방식의 반환 시점 비교 막대</li>
+        </ul></dd>
+      </dl>
+      <div class="go"><a href="concurrent-calls.html">열기 →</a></div>
+    </section>
+
+    <section class="ltt-card sc">
+      <div><span class="ltt-tag">단계 흐름</span><span class="ltt-tag">상태 표</span></div>
+      <h2>4. 결제 요청이 타임아웃되면 다시 보내도 될까?</h2>
+      <dl>
+        <dt>작업</dt><dd>결제 API 클라이언트에 재시도 추가</dd>
+        <dt>막힌 결정</dt><dd>재시도와 멱등성 키 정책</dd>
+        <dt>진단</dt><dd><ol class="ladder">
+          <li class="skip"><span class="n">1</span>HTTP 요청과 응답</li>
+          <li><span class="n">2</span>타임아웃 <span class="ans know">알고 있음</span></li>
+          <li class="level"><span class="n">3</span>멱등성 <span class="ans none">아예 모름</span></li>
+          <li class="skip"><span class="n">4</span>멱등성 키 (같은 회차에 포함)</li>
+        </ol></dd>
+        <dt>자료</dt><dd><ul class="uses">
+          <li>"카드가 몇 번 청구될까?" 선택지 예측</li>
+          <li>한 단계씩 진행하는 시퀀스 다이어그램과 결제 기록</li>
+          <li>실패 지점 × 키 정책 결과 행렬, 키 생성 위치 코드 비교</li>
+        </ul></dd>
+      </dl>
+      <div class="go"><a href="payment-retry.html">열기 →</a></div>
+    </section>
+
+    <section class="ltt-card sc">
+      <div><span class="ltt-tag">조건 비교표</span><span class="ltt-tag">흐름 그림</span></div>
+      <h2>5. 실시간 업데이트, 무엇으로 보낼까?</h2>
+      <dl>
+        <dt>작업</dt><dd>주문 상태 실시간 알림 추가</dd>
+        <dt>막힌 결정</dt><dd>전달 방식 (polling / SSE / WebSocket)</dd>
+        <dt>진단</dt><dd><ol class="ladder">
+          <li class="skip"><span class="n">1</span>HTTP 요청과 응답</li>
+          <li class="skip"><span class="n">2</span>polling</li>
+          <li><span class="n">3</span>SSE <span class="ans vague">애매함</span></li>
+          <li><span class="n">4</span>WebSocket <span class="ans know">알고 있음</span></li>
+          <li class="level"><span class="n">5</span>연결 제한·프록시 같은 운영 조건 <span class="ans none">아예 모름</span></li>
+        </ol></dd>
+        <dt>자료</dt><dd><ul class="uses">
+          <li>"무엇을 고를까?" 선택지 예측</li>
+          <li>세 방식의 메시지 흐름 그림</li>
+          <li>조건을 켜고 끄면 추천이 바뀌는 비교표, 규칙의 한계 사례</li>
+        </ul></dd>
+      </dl>
+      <div class="go"><a href="realtime-transport.html">열기 →</a></div>
+    </section>
+  </div>
+
+  <h3 class="group">HTML 없이 끝나는 경우</h3>
+  <div class="scenarios">
+
+    <section class="ltt-card sc">
+      <div><span class="ltt-tag">simple 경로</span><span class="ltt-tag">대화만</span></div>
+      <h2>6. 라이브러리의 의존성 버전 범위</h2>
+      <dl>
+        <dt>작업</dt><dd>배포할 npm 라이브러리의 package.json 정리</dd>
+        <dt>막힌 결정</dt><dd>의존성 버전 범위 (^ / ~ / 고정)</dd>
+        <dt>진단</dt><dd><ol class="ladder">
+          <li class="skip"><span class="n">1</span>패키지 버전</li>
+          <li><span class="n">2</span>semver (주.부.수) <span class="ans know">알고 있음</span></li>
+          <li><span class="n">3</span>^와 ~ 범위 <span class="ans vague">애매함</span></li>
+          <li class="level"><span class="n">4</span>lockfile이 미치는 범위 <span class="ans none">아예 모름</span></li>
+        </ol></dd>
+        <dt>경로</dt><dd>규칙만 알면 되고 조작해서 관찰할 것이 없다 → 3단계를 건너뛴다.</dd>
+      </dl>
+      <details>
+        <summary>대화 자료와 퀴즈 예시</summary>
+        <div class="chat">
+          <p><span class="who">agent · 자료</span><code>^1.2.3</code>은 2.0.0 미만, <code>~1.2.3</code>은 1.3.0 미만까지 허용한다. 단, <code>^0.2.3</code>은 0.3.0 미만만 허용한다.
+          package-lock.json은 배포되지 않는다(npm 기준). 그래서 라이브러리를 설치하는 쪽은 package.json의 범위 안에서 버전을 새로 고른다.</p>
+          <p><span class="who">agent · 퀴즈 1 (질문 만들기)</span>이 결정을 agent에게 맡기기 전에 꼭 물어볼 질문 하나를 써 주세요.</p>
+          <p><span class="who">agent · 퀴즈 2 (선택과 의미)</span>이 라이브러리에 <code>^</code>를 쓸지 정확한 버전으로 고정할지 고르고, 그 선택을 바꿀 조건을 한 문장으로 써 주세요.</p>
+        </div>
+      </details>
+    </section>
+
+    <section class="ltt-card sc">
+      <div><span class="ltt-tag">진단만</span></div>
+      <h2>7. 이미 알고 있는 경우</h2>
+      <dl>
+        <dt>작업</dt><dd>기능 브랜치를 main에 합치기</dd>
+        <dt>막힌 결정</dt><dd>merge와 rebase</dd>
+        <dt>진단</dt><dd><ol class="ladder">
+          <li class="skip"><span class="n">1</span>커밋</li>
+          <li><span class="n">2</span>브랜치 <span class="ans know">알고 있음</span></li>
+          <li><span class="n">3</span>merge <span class="ans know">알고 있음</span></li>
+          <li><span class="n">4</span>rebase는 커밋을 새로 만든다 <span class="ans know">알고 있음</span> <span class="ans quiz">퀴즈 통과</span></li>
+        </ol></dd>
+        <dt>결과</dt><dd>학습 없이 map에 "진단만"으로 기록하고 바로 작업으로 돌아간다.</dd>
+      </dl>
+      <details>
+        <summary>맨 위 단 확인 퀴즈 예시</summary>
+        <div class="chat">
+          <p><span class="who">agent · 퀴즈</span>이미 push해서 동료가 받아 간 브랜치를 rebase한 뒤 force push하면, 동료의 로컬 브랜치에는 무슨 일이 생기나요?</p>
+        </div>
+      </details>
+    </section>
+
+    <section class="ltt-card sc">
+      <div><span class="ltt-tag warn">회차 분할</span></div>
+      <h2>8. 20분을 넘는 경우</h2>
+      <dl>
+        <dt>작업</dt><dd>서비스 배포 전략 정하기</dd>
+        <dt>막힌 결정</dt><dd>rolling / blue-green / canary와 롤백 기준</dd>
+        <dt>범위</dt><dd>한 회차 자료가 20분을 넘는다고 알리고 나눈다 (묻지 않는다).
+          <ul class="uses">
+            <li>1회차: 옛 버전과 새 버전이 함께 도는 동안 생기는 일 (rolling과 blue-green)</li>
+            <li>2회차: canary 비율과 롤백 지표 → map의 "다음 후보"로 남긴다</li>
+          </ul></dd>
+      </dl>
+    </section>
+  </div>
+</main>
+</body>
+</html>
