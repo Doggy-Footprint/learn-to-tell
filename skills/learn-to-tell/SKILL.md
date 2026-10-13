@@ -40,26 +40,32 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 ## 3. 자료 (시뮬레이션 경로)
 
 1. `<skill>/gallery/`에서 가장 비슷한 예제를 골라 `<home>/lessons/<id>/lesson.html`로 복사한 뒤 고친다.
-   - `alert-precision.html`: 수치 모델, 예측 후 공개, 실사용 범위 슬라이더, Plot 차트, `expect`.
-2. 원칙
+   - `alert-precision.html`: 수치 모델, 슬라이더 예측과 단위 그림 공개 애니메이션, 건수 흐름 막대, 조건 프리셋 카드, 실사용 범위 슬라이더, Plot 차트, `expect`.
+2. 시각화 기준: 인포그래픽 + 애니메이션
+   - 핵심 수치 하나를 `ltt-hero`로 크게 보인다. 비율은 `ltt-units`(100칸 단위 그림)나 `ltt-bar`(비율 막대)로 건수처럼 보인다.
+   - 예측 입력도 시각적으로 받는다(예: 슬라이더를 움직이면 단위 그림이 채워진다). 숫자 입력칸만 두지 않는다.
+   - 애니메이션은 변화의 의미를 보일 때만 쓴다: 예측 → 공개 전환, 조건 변경 시 값 이동(d3 transition tween, CSS transition), 공개 후 카드의 단계적 등장(`ltt-rise` + `--i`). 반복 재생되는 장식 애니메이션은 쓰지 않는다.
+   - 정지 화면만으로도 읽혀야 한다. JS로 만드는 애니메이션은 `prefers-reduced-motion`이면 길이를 0으로 둔다(CSS는 kit가 처리한다).
+3. 원칙
    - 실제 활용 예와 실패·주의 예를 함께 둔다.
    - 예측을 먼저 받고 결과를 공개한다. 첫 예측은 잠그고 `LTT.record("predict", …)`로 남긴다.
    - 슬라이더는 실사용 범위만 움직인다. 범위와 상수에는 근거를 적고, 근거가 약하면 "불확실" 태그를 단다. 근거 없는 수치를 지어내지 않는다.
    - 화면 수치에는 "모델로 계산한 예시" 태그를 단다.
    - 설명은 최소로 두고, 추가 설명은 `data-tip` hover로 준다.
-3. 검증 (공개 전)
+4. 검증 (공개 전)
    - 수치 모델의 기대값은 독립 서브에이전트가 구하게 한다. 서브에이전트에는 공식과 계산 지점만 주고 모델 코드는 주지 않는다. 서브에이전트를 쓸 수 없으면 모델 코드보다 먼저 직접 적는다. 기대값은 `LTT.expect(label, actual, expected, { tol })`로 넣는다.
    - 불일치가 나면 어느 쪽이 틀렸는지 먼저 손으로 다시 계산한다. 모델에 맞춰 기대값을 고치지 않는다. 한 번 고친 뒤에도 불일치가 남으면 그 부분을 빼거나 "검증 실패"로 표시하고 사용자에게 알린다.
    - 결정 변수에 관한 주장(공식, 범위, 비교표 판정)은 목록으로 뽑아 모델 코드를 보지 않는 독립 서브에이전트에게 검토받는다. 검토할 수 없으면 해당 주장에 "미검증" 태그를 단다. 자기 확언만으로 정확성을 인정하지 않는다.
-4. 서버를 백그라운드로 실행한다: `node <skill>/server/server.mjs`. 이미 실행 중이면 그대로 재사용한다. 그다음 `http://127.0.0.1:47823/lessons/<id>/lesson.html`을 안내한다. 포트는 `LTT_PORT`로 바꿀 수 있다.
-5. 사용자가 다 봤다고 하면 `<home>/lessons/<id>/events.jsonl`을 읽어 예측과 `expect-mismatch` 이벤트를 확인한다.
+5. 서버를 백그라운드로 실행한다: `node <skill>/server/server.mjs`. 이미 실행 중이면 그대로 재사용한다. 그다음 `http://127.0.0.1:47823/lessons/<id>/lesson.html`을 안내한다. 포트는 `LTT_PORT`로 바꿀 수 있다.
+6. 사용자가 다 봤다고 하면 `<home>/lessons/<id>/events.jsonl`을 읽어 예측과 `expect-mismatch` 이벤트를 확인한다.
 
 ### kit (`/kit/ltt.js`)
 
 - 불러오는 순서: `/kit/vendor/d3.min.js`, `/kit/vendor/plot.umd.min.js`(Observable Plot 0.6.17, 전역 `Plot`), `/kit/ltt.js`.
 - `LTT.record(type, data)`: lesson 페이지에서만 서버로 이벤트를 보낸다.
 - `LTT.expect(label, actual, expected, { tol })`: 결과를 화면 패널에 표시하고, 불일치하면 서버에도 알린다.
-- CSS 클래스: `ltt-card`, `ltt-grid`, `ltt-stat`, `ltt-tag`(`warn`/`bad`/`good`), `ltt-param`, `ltt-basis`, `ltt-lead`, `ltt-hidden`.
+- CSS 클래스: `ltt-card`, `ltt-grid`, `ltt-stat`, `ltt-tag`(`warn`/`bad`/`good`), `ltt-param`, `ltt-basis`, `ltt-lead`, `ltt-hidden`, `ltt-hero`, `ltt-units`·`ltt-unit`(열 수 `--ltt-cols`), `ltt-bar`(자식 `span`의 `flex-grow`로 비율), `ltt-key`(범례), `ltt-rise`(등장, 순서 `--i`). 단위 그림은 `--i`를 칸마다 주면 순서대로 칠해진다.
+- 단위 그림 채우기, 숫자 tween 같은 JS 헬퍼는 아직 kit 어휘가 아니다. gallery 예제의 함수를 복사해 쓴다.
 - 수업마다 반복되는 패턴은 kit 어휘 후보다. `result.md`의 "kit 후보" 항목에 적는다.
 
 ## 4. 이해 확인 (대화)

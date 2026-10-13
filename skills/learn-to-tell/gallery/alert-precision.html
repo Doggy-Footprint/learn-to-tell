@@ -8,37 +8,89 @@
 <script src="/kit/vendor/plot.umd.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <style>
+  :root { --true: #4f6bed; --false: #e0a33a; --guess: #9aa6d4; --fail: #d6455d; }
+  .split { display: grid; gap: 28px; grid-template-columns: minmax(220px, 360px) 1fr; align-items: center; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .ask { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
+  .chips { margin: 0 0 18px; }
+  .verdict { font-size: 17px; margin: 10px 0 0; }
+  .verdict b { font-variant-numeric: tabular-nums; }
+  .flow { display: grid; gap: 6px; margin: 4px 0 18px; }
+  .flow-label { font-size: 13px; font-weight: 700; color: var(--ltt-muted); }
+  .arrow { font-size: 20px; color: var(--ltt-muted); text-align: center; line-height: 1; }
+  .unit-true { background: var(--true); }
+  .unit-false { background: var(--false); }
+  .unit-guess { background: var(--guess); }
+  .seg-fail { background: var(--fail); }
+  .seg-ok { background: #c3c9da; }
+  .seg-true { background: var(--true); }
+  .seg-false { background: var(--false); }
+  .cases .ltt-units { max-width: 150px; gap: 2px; margin: 10px 0; }
+  .cases .ltt-unit { border-radius: 2px; }
+  .cases .ltt-stat { font-size: 30px; }
+  .cases button { margin-top: 6px; background: transparent; color: var(--ltt-accent); padding: 4px 0; }
   #chart svg { max-width: 100%; height: auto; }
-  .verdict { font-size: 15px; margin-top: 8px; }
-  .case h3 { font-size: 16px; margin: 0 0 6px; }
-  .case p { margin: 4px 0; font-size: 14px; }
 </style>
 </head>
 <body>
 <main>
   <h1>알림이 울리면 진짜 장애일까?</h1>
   <p class="ltt-lead">
-    결정 변수: <span data-tip="알림을 울릴 기준. 엄격하게 잡으면 오탐률이 줄지만 탐지율도 함께 줄어든다.">알림 임계</span>.
-    같은 임계라도 <span data-tip="확인 시점에 실제로 장애인 비율">기저율</span>에 따라
-    <span data-tip="알림이 울렸을 때 실제 장애일 확률 (precision, PPV)">정밀도</span>가 크게 달라진다.
+    결정 변수: <span data-tip="알림을 울릴 기준. 엄격하게 잡으면 오탐률이 줄지만 탐지율도 함께 줄어든다.">알림 임계</span>
   </p>
 
   <section class="ltt-card" id="predict-card">
-    <h2>먼저 예측해 보세요</h2>
-    <p>장애 기저율 1%, 탐지율 95%, 오탐률 5%인 알림이 울렸습니다. 실제 장애일 확률은 몇 %일까요?</p>
-    <input type="number" id="guess" min="0" max="100" step="1" placeholder="예: 80"> %
-    <button id="lock">예측 확정</button>
-    <p class="ltt-basis">처음 예측은 확정 후 바꿀 수 없습니다.</p>
+    <p class="ask">알림 100건이 울렸다. 진짜 장애는 몇 건일까?</p>
+    <div class="chips">
+      <span class="ltt-tag" data-tip="확인 시점에 실제로 장애인 비율">기저율 1%</span>
+      <span class="ltt-tag" data-tip="실제 장애 중 알림이 울리는 비율 (sensitivity)">탐지율 95%</span>
+      <span class="ltt-tag" data-tip="정상인데 알림이 울리는 비율 (false positive rate)">오탐률 5%</span>
+    </div>
+    <div class="split">
+      <div class="ltt-units" id="units"></div>
+      <div>
+        <div class="ltt-hero" id="hero">50<small>건 / 100건</small></div>
+        <div id="guess-ui">
+          <input type="range" id="guess" min="0" max="100" step="1" value="50" aria-label="예측: 진짜 장애 건수">
+          <button id="lock">예측 확정</button>
+          <p class="ltt-basis">확정한 예측은 바꿀 수 없습니다.</p>
+        </div>
+        <div id="result-ui" class="ltt-hidden">
+          <span class="ltt-tag">모델로 계산한 예시</span>
+          <p class="verdict" id="verdict"></p>
+          <p>
+            <span class="ltt-key"><i class="unit-true"></i>진짜 장애</span>
+            <span class="ltt-key"><i class="unit-false"></i>오탐</span>
+          </p>
+        </div>
+      </div>
+    </div>
   </section>
 
   <div id="reveal" class="ltt-hidden">
     <div class="ltt-grid">
-      <section class="ltt-card">
-        <span class="ltt-tag">모델로 계산한 예시</span>
-        <div class="ltt-stat" id="ppv">-<small>정밀도</small></div>
-        <div class="verdict" id="verdict"></div>
+      <section class="ltt-card ltt-rise" style="--i:1">
+        <h2><span data-tip="같은 비율을 '확인 10,000회 중 몇 건'처럼 건수로 바꿔 보면 기저율의 영향이 보인다.">확인 10,000회를 따라가면</span></h2>
+        <div class="flow">
+          <span class="flow-label">확인 10,000회</span>
+          <div class="ltt-bar"><span class="seg-fail" id="b-fail"></span><span class="seg-ok" id="b-ok"></span></div>
+          <div>
+            <span class="ltt-key"><i class="seg-fail"></i>장애 <b id="n-fail"></b></span>
+            <span class="ltt-key"><i class="seg-ok"></i>정상 <b id="n-ok"></b></span>
+          </div>
+          <div class="arrow">↓</div>
+          <span class="flow-label">울린 알림 <b id="n-alert"></b>건</span>
+          <div class="ltt-bar"><span class="seg-true" id="b-true"></span><span class="seg-false" id="b-false"></span></div>
+          <div>
+            <span class="ltt-key"><i class="seg-true"></i>장애 중 탐지 <b id="n-true"></b></span>
+            <span class="ltt-key"><i class="seg-false"></i>정상 중 오탐 <b id="n-false"></b></span>
+          </div>
+        </div>
+        <p class="ltt-basis">드문 장애의 95%보다 흔한 정상의 5%가 더 많다. 건수는 반올림.</p>
       </section>
-      <section class="ltt-card">
+
+      <section class="ltt-card ltt-rise" style="--i:2">
+        <h2>조건 바꾸기</h2>
         <label class="ltt-param">기저율 p <b id="p-v"></b>
           <input type="range" id="p" min="0.1" max="20" step="0.1" value="1">
           <span class="ltt-basis"><span class="ltt-tag warn">불확실</span>0.1–20%: 예시용 가정. 서비스와 확인 주기마다 다르다.</span>
@@ -54,50 +106,121 @@
       </section>
     </div>
 
-    <section class="ltt-card">
-      <h2>기저율에 따른 정밀도 <span class="ltt-tag">모델로 계산한 예시</span></h2>
-      <div id="chart"></div>
-    </section>
-
-    <div class="ltt-grid">
-      <section class="ltt-card case">
-        <h3><span class="ltt-tag good">활용</span>배포 직후 집중 감시</h3>
-        <p>배포 직후처럼 장애 기저율이 10%로 높으면, 같은 알림(95%/5%)의 정밀도는 약 68%다.</p>
-        <p>이때는 알림을 바로 사람에게 보내도 대부분 의미가 있다.</p>
+    <div class="ltt-grid cases">
+      <section class="ltt-card ltt-rise" style="--i:3">
+        <span class="ltt-tag good">활용</span><strong>배포 직후 집중 감시</strong>
+        <div class="ltt-units" data-case="10,95,5"></div>
+        <div class="ltt-stat"><span data-n></span><small>/ 100건</small></div>
+        <span class="ltt-basis" data-tip="장애 기저율이 높은 시점에는 같은 알림도 대부분 의미가 있어 바로 사람에게 보내도 된다.">기저율 10% · 95% / 5%</span><br>
+        <button data-apply="10,95,5">이 조건으로 보기 →</button>
       </section>
-      <section class="ltt-card case">
-        <h3><span class="ltt-tag bad">주의</span>평상시 상시 감시</h3>
-        <p>기저율 1%에서는 정밀도가 약 16%다. 알림 6건 중 5건이 오탐이고, 사람은 알림을 무시하기 시작한다.</p>
-        <p>탐지율을 올리기보다 오탐률을 낮추는 쪽이 정밀도를 더 크게 바꾼다. 예: 탐지율 80%, 오탐률 0.5%면 약 62%.</p>
+      <section class="ltt-card ltt-rise" style="--i:4">
+        <span class="ltt-tag bad">주의</span><strong>평상시 상시 감시</strong>
+        <div class="ltt-units" data-case="1,95,5"></div>
+        <div class="ltt-stat"><span data-n></span><small>/ 100건</small></div>
+        <span class="ltt-basis" data-tip="알림 6건 중 5건이 오탐이면 사람은 알림을 무시하기 시작한다.">기저율 1% · 95% / 5%</span><br>
+        <button data-apply="1,95,5">이 조건으로 보기 →</button>
+      </section>
+      <section class="ltt-card ltt-rise" style="--i:5">
+        <span class="ltt-tag">대안</span><strong>오탐률을 낮춘 임계</strong>
+        <div class="ltt-units" data-case="1,80,0.5"></div>
+        <div class="ltt-stat"><span data-n></span><small>/ 100건</small></div>
+        <span class="ltt-basis" data-tip="탐지율을 올리기보다 오탐률을 낮추는 쪽이 정밀도를 더 크게 바꾼다. 대신 장애 5건 중 1건은 놓친다.">기저율 1% · 80% / 0.5%</span><br>
+        <button data-apply="1,80,0.5">이 조건으로 보기 →</button>
       </section>
     </div>
+
+    <section class="ltt-card ltt-rise" style="--i:6">
+      <h2><span data-tip="알림이 울렸을 때 실제 장애일 확률 (precision, PPV)">정밀도</span>와 기저율 <span class="ltt-tag">모델로 계산한 예시</span></h2>
+      <div id="chart"></div>
+    </section>
     <p class="ltt-basis">다 보았으면 대화로 돌아가 다음 질문에 답해 주세요.</p>
   </div>
 </main>
 <script>
   // Hand-derived before the model below was written; the model must match these, not the reverse.
   const EXPECTED_BY_HAND = [
-    { label: "p=1%, s=95%, f=5%", p: 0.01, s: 0.95, f: 0.05, ppv: 0.161017 },
-    { label: "p=10%, s=95%, f=5%", p: 0.10, s: 0.95, f: 0.05, ppv: 0.678571 },
-    { label: "p=1%, s=80%, f=0.5%", p: 0.01, s: 0.80, f: 0.005, ppv: 0.617761 },
+    { label: "p=1%, s=95%, f=5%", p: 0.01, s: 0.95, f: 0.05, ppv: 0.161017, units: 16 },
+    { label: "p=10%, s=95%, f=5%", p: 0.10, s: 0.95, f: 0.05, ppv: 0.678571, units: 68 },
+    { label: "p=1%, s=80%, f=0.5%", p: 0.01, s: 0.80, f: 0.005, ppv: 0.617761, units: 62 },
   ];
+  const EXPECTED_FLOW_BY_HAND = { fail: 100, ok: 9900, truePos: 95, falsePos: 495, alerts: 590 };
 
   const ppv = (p, s, f) => (s * p) / (s * p + f * (1 - p));
-  for (const c of EXPECTED_BY_HAND) LTT.expect(c.label, ppv(c.p, c.s, c.f), c.ppv, { tol: 1e-5 });
+  const unitsOf = (p, s, f) => Math.round(ppv(p, s, f) * 100);
+  const flow = (p, s, f, n = 10000) => {
+    const fail = n * p, ok = n - fail, truePos = fail * s, falsePos = ok * f;
+    return { fail, ok, truePos, falsePos, alerts: truePos + falsePos };
+  };
+
+  for (const c of EXPECTED_BY_HAND) {
+    LTT.expect(c.label, ppv(c.p, c.s, c.f), c.ppv, { tol: 1e-5 });
+    LTT.expect(c.label + " 알림 100건 중 진짜", unitsOf(c.p, c.s, c.f), c.units, { tol: 0 });
+  }
+  const f0 = flow(0.01, 0.95, 0.05);
+  for (const k of Object.keys(EXPECTED_FLOW_BY_HAND)) {
+    LTT.expect("10,000회 흐름 " + k, f0[k], EXPECTED_FLOW_BY_HAND[k], { tol: 1e-6 });
+  }
 
   const $ = (id) => document.getElementById(id);
   const pct = (x, d = 1) => (x * 100).toFixed(d) + "%";
+  const int = d3.format(",.0f");
+  const MOTION_MS = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700;
+
+  function makeUnits(el) {
+    el.replaceChildren(...d3.range(100).map(() => {
+      const u = document.createElement("i");
+      u.className = "ltt-unit";
+      return u;
+    }));
+    return [...el.children];
+  }
+
+  function paintUnits(cells, k, onClass, offClass) {
+    cells.forEach((u, i) => {
+      u.classList.toggle(onClass, i < k);
+      u.classList.toggle(offClass, i >= k && !!offClass);
+    });
+  }
+
+  // Count-up tweens restart from the displayed number so slider drags glide instead of jumping.
+  function tweenNumber(el, to, fmt = int) {
+    const from = Number(el.dataset.v ?? 0);
+    el.dataset.v = to;
+    d3.select(el).interrupt().transition().duration(MOTION_MS).ease(d3.easeCubicOut)
+      .tween("text", () => { const i = d3.interpolateNumber(from, to); return (t) => { el.textContent = fmt(i(t)); }; });
+  }
+
+  const cells = makeUnits($("units"));
+  const heroNum = $("hero").firstChild;
   let guess = null;
 
+  function showGuess() {
+    const g = Number($("guess").value);
+    heroNum.textContent = g;
+    paintUnits(cells, g, "unit-guess");
+  }
+  $("guess").addEventListener("input", showGuess);
+  showGuess();
+
   $("lock").addEventListener("click", () => {
-    const v = Number($("guess").value);
-    if ($("guess").value === "" || !(v >= 0 && v <= 100)) return;
-    guess = v / 100;
-    $("guess").disabled = true;
-    $("lock").disabled = true;
-    LTT.record("predict", { question: "p=1%, s=95%, f=5% 정밀도", guess });
-    $("reveal").classList.remove("ltt-hidden");
-    render();
+    guess = Number($("guess").value);
+    LTT.record("predict", { question: "알림 100건 중 진짜 장애 건수 (p=1%, s=95%, f=5%)", guess });
+    $("guess-ui").classList.add("ltt-hidden");
+    $("result-ui").classList.remove("ltt-hidden");
+
+    // Two-step reveal: clear the guess first, then fill the model answer with a per-cell stagger.
+    paintUnits(cells, 0, "unit-guess");
+    const heroEl = document.createElement("span");
+    heroEl.dataset.v = guess;
+    heroEl.textContent = guess;
+    heroNum.replaceWith(heroEl);
+    cells.forEach((u, i) => u.style.setProperty("--i", i));
+    setTimeout(() => {
+      render();
+      setTimeout(() => cells.forEach((u) => u.style.removeProperty("--i")), MOTION_MS + 900);
+      $("reveal").classList.remove("ltt-hidden");
+    }, MOTION_MS ? 450 : 0);
   });
 
   function render() {
@@ -105,26 +228,55 @@
     $("p-v").textContent = pct(p);
     $("s-v").textContent = pct(s, 0);
     $("f-v").textContent = pct(f);
-    const value = ppv(p, s, f);
-    $("ppv").firstChild.textContent = pct(value);
+
+    const k = unitsOf(p, s, f);
+    cells.forEach((u) => u.classList.remove("unit-guess"));
+    paintUnits(cells, k, "unit-true", "unit-false");
+    tweenNumber($("hero").firstChild, k);
+
     const isPredictedCase = p === 0.01 && s === 0.95 && f === 0.05;
-    $("verdict").textContent = isPredictedCase
-      ? `예측 ${pct(guess, 0)} → 모델 ${pct(value)}. 알림 ${Math.round(1 / value)}건 중 1건 정도만 실제 장애다.`
-      : `알림 100건 중 약 ${Math.round(value * 100)}건이 실제 장애.`;
+    $("verdict").innerHTML = isPredictedCase
+      ? `예측 <b>${guess}건</b> → 모델 <b>${k}건</b>. 나머지 ${100 - k}건은 오탐.`
+      : `이 조건에서는 알림 100건 중 <b>${k}건</b>이 진짜 장애. <span class="ltt-basis">(첫 예측 ${guess}건은 기저율 1% 조건)</span>`;
+
+    const fl = flow(p, s, f);
+    $("b-fail").style.flexGrow = fl.fail;
+    $("b-ok").style.flexGrow = fl.ok;
+    $("b-true").style.flexGrow = fl.truePos;
+    $("b-false").style.flexGrow = fl.falsePos;
+    for (const [id, v] of [["n-fail", fl.fail], ["n-ok", fl.ok], ["n-true", fl.truePos], ["n-false", fl.falsePos], ["n-alert", fl.alerts]]) {
+      tweenNumber($(id), v);
+    }
 
     const xs = d3.range(-3, Math.log10(0.2) + 0.001, 0.02).map((e) => 10 ** e);
     const data = xs.map((x) => ({ p: x, ppv: ppv(x, s, f) }));
     $("chart").replaceChildren(Plot.plot({
-      width: 880, height: 300, marginLeft: 48,
+      width: 880, height: 280, marginLeft: 48,
       x: { type: "log", label: "기저율 p", tickFormat: (d) => pct(d, d < 0.01 ? 1 : 0) },
       y: { domain: [0, 1], label: "정밀도", tickFormat: (d) => pct(d, 0), grid: true },
       marks: [
-        Plot.line(data, { x: "p", y: "ppv", stroke: "#4f6bed", strokeWidth: 2.5 }),
-        Plot.ruleX([p], { stroke: "#c98a12", strokeDasharray: "4,3" }),
-        Plot.dot([{ p, ppv: value }], { x: "p", y: "ppv", r: 6, fill: "#4f6bed" }),
+        Plot.areaY(data, { x: "p", y: "ppv", fill: "var(--true)", fillOpacity: 0.08 }),
+        Plot.line(data, { x: "p", y: "ppv", stroke: "var(--true)", strokeWidth: 2.5 }),
+        Plot.ruleX([p], { stroke: "var(--false)", strokeDasharray: "4,3" }),
+        Plot.dot([{ p, ppv: ppv(p, s, f) }], { x: "p", y: "ppv", r: 7, fill: "var(--true)", stroke: "white", strokeWidth: 2 }),
         Plot.tip(data, Plot.pointerX({ x: "p", y: "ppv", title: (d) => `p ${pct(d.p, 2)} → 정밀도 ${pct(d.ppv)}` })),
       ],
     }));
+  }
+
+  for (const el of document.querySelectorAll("[data-case]")) {
+    const [p, s, f] = el.dataset.case.split(",").map((v) => v / 100);
+    const k = unitsOf(p, s, f);
+    paintUnits(makeUnits(el), k, "unit-true", "unit-false");
+    el.parentElement.querySelector("[data-n]").textContent = k;
+  }
+
+  for (const btn of document.querySelectorAll("[data-apply]")) {
+    btn.addEventListener("click", () => {
+      [$("p").value, $("s").value, $("f").value] = btn.dataset.apply.split(",");
+      render();
+      $("predict-card").scrollIntoView({ behavior: MOTION_MS ? "smooth" : "auto", block: "start" });
+    });
   }
 
   for (const id of ["p", "s", "f"]) $(id).addEventListener("input", render);
