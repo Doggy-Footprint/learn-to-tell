@@ -68,6 +68,15 @@
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/telemetry_hook.py\""
           }
         ]
+      },
+      {
+        "matcher": "Bash|Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/skills/learn-to-tell/hooks/background_guard.py\""
+          }
+        ]
       }
     ],
     "PostToolUseFailure": [

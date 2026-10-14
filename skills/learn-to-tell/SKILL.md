@@ -17,6 +17,18 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 - 작업 세션의 context가 100k tokens 이상으로 보이면 새 세션에서 학습하길 권한다. 이때 작업 맥락(목표, 막힌 결정, 이미 정한 것)을 `<home>/lessons/<id>/context.md`로 남기고, 새 세션에서 그 파일을 읽게 한다.
 - lesson id는 `YYYYMMDD-<kebab-slug>`이고, 디렉터리는 `<home>/lessons/<id>/`다.
 - `<home>/map.md`가 있으면 먼저 읽고, 이미 학습한 개념과 다음 후보를 진단에 반영한다.
+- `<home>/background.md`가 있으면 함께 읽고, 개념 사다리의 시작 단, 예시, gallery 예제(`ltt-meta`의 audience)를 사용자 배경에 맞춘다.
+
+### background 기록
+
+사용자의 배경(직업·역할, 익숙한 도메인과 도구, 전제 지식, 선호하는 설명 방식)을 새로 알게 되면 `<home>/background.md`에 한 줄씩 덧붙인다. 개념별 학습 상태는 map에 두고 여기에 적지 않는다. 처음부터 완벽할 필요는 없고, 확인된 사실만 적는다.
+
+```markdown
+# Learn to Tell background
+- <YYYY-MM-DD> <사실 한 줄> (출처: 진단 | 대화 | lessons/<id>)
+```
+
+같은 내용이 있으면 새 줄을 쓰지 말고 그 줄의 날짜를 갱신한다. 100줄을 넘으면 hook(`hooks/background_guard.py`)이 원본을 `background-archive/`에 남기고 요약을 요청한다.
 
 ## 1. 진단 (대화, 브라우저 아님)
 
