@@ -138,6 +138,7 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `.send(from, to, {count, color, ms, gap, r})` → Promise | 엣지를 따라 패킷이 이동. |
 | `.player(el, steps, {interval})` | 단계 재생. `steps: [{caption, hot, flow, send: [[from, to, opts]], enter(dg, i)}]`. 자막이 그림 읽는 법을 말한다. |
 | `LTT.diagramLayout(spec)` | 좌표만 계산(테스트·커스텀 그림용). 엣지마다 `pts`(꺾는 점 포함), SVG `d`, 라벨 기준점 `lx, ly`, 기존 `x1…y2`; 노드에 `lines`·`sub`; 영역에 `id, parent, depth`. |
+| `LTT.autoLayout(spec)` → Promise | 좌표 없이 연결만 적으면 elk(layered)가 배치한 diagram spec을 돌려준다: `LTT.diagram(svg, await LTT.autoLayout(spec))`. `spec: {nodes, edges, groups, direction: RIGHT|DOWN, node: [w, h], spacing: [층, 노드] = [72, 36], pad, radius, label, maxWidth}`. 노드·엣지 필드는 diagram과 같고 노드 `group`은 그룹 id, 그룹 `{id, l, k, parent}`는 중첩 영역이 된다. 엣지는 직각(`ortho`)으로 꺾이고 라벨은 diagram이 경로 절반에 둔다(elk는 라벨 자리를 비우지 않으니 라벨이 많으면 `spacing`을 늘린다). 같은 입력은 같은 그림. 노드가 20개를 넘거나 층이 많으면 가로로 길어지니 좁은 칸에서는 `DOWN`. `<script src="/kit/vendor/elk.bundled.js">`(1.6MB)를 ltt.js보다 먼저 불러야 하며, 없으면 reject한다. 오류(없는 노드·그룹, 중복 id, 자기 루프, 그룹 순환)도 reject. |
 | `LTT.stepper(el, [{caption, enter(i, dir)}], {interval, onStep})` | 한 그림을 단계별로. `enter`는 다시 들어와도 같은 화면이 되게 짠다. |
 | `LTT.units(el, n, cols, {band}).paint(k, cls, alt)` | 단위 그림(100칸 = 100건). `band: true`면 가는 틱의 넓은 띠(예: 2×50, 시간순 요청). |
 | `LTT.bar(el, [{color}]).set(values, labels)` | 비율 막대. |

@@ -9,6 +9,7 @@
 <script src="/kit/vendor/plot.umd.min.js"></script>
 <script src="/kit/vendor/d3-sankey.min.js"></script>
 <script src="/kit/vendor/prism/prism.min.js"></script>
+<script src="/kit/vendor/elk.bundled.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
 <script src="/kit/ltt-ui.js"></script>
@@ -225,6 +226,38 @@
       { caption: "<b>① 요청</b> — 로드 밸런서가 API로 꺾어 보낸다.", hot: ["user", "lb", "api"], flow: ["user>lb", "lb>api"], send: [["user", "lb"], ["lb", "api"]] },
       { caption: "<b>② 쓰기와 읽기</b> — 같은 두 노드 사이 두 엣지는 벌어져 그려진다.", hot: ["api", "db"], send: [["api", "db"], ["db", "api", { color: "var(--ltt-good)" }]] },
       { caption: "<b>③ 비동기 처리</b> — 큐와 워커를 거쳐 아래로 돌아 사용자에게 알린다.", hot: ["api", "q", "wk", "user"], flow: ["ack"], send: [["api", "q"], ["q", "wk"], ["wk", "user", { color: "var(--ltt-good)" }]] },
+    ]);
+  });
+  demo("autoLayout", "LTT.autoLayout({nodes, edges, groups, direction}) → Promise<diagram spec>", "<b>노드가 많아 격자 좌표를 손으로 잡기 어려울 때.</b> 좌표 없이 연결만 적으면 elk(layered)가 층으로 나눠 겹치지 않게 놓고 엣지를 직각으로 꺾는다. 노드 <code>group</code>은 그룹 id, 그룹 <code>{id, l, k, parent}</code>는 중첩 영역이 된다. <code>direction</code>은 RIGHT(기본)·DOWN, <code>spacing: [층, 노드]</code>. 결과를 그대로 <code>LTT.diagram</code>에 넣으므로 player·highlight·send를 쓸 수 있다. 같은 입력은 항상 같은 그림. <code>elk.bundled.js</code>(1.6MB)가 필요하니 이 부품을 쓰는 페이지에서만 불러온다.", async (el) => {
+    const svg = el.appendChild(svgEl());
+    const N = (id, l, group, o = {}) => ({ id, l, group, ...o });
+    const spec = await LTT.autoLayout({
+      label: "주문 처리 시스템 구성도", direction: "DOWN",
+      groups: [{ id: "edge", l: "엣지" }, { id: "core", l: "주문 서비스", k: "accent" }, { id: "pay", l: "결제", parent: "core" }, { id: "data", l: "데이터" }, { id: "async", l: "비동기 처리" }],
+      nodes: [
+        N("web", "웹", null, { icon: "monitor" }), N("app", "앱", null, { icon: "phone" }), N("partner", "제휴사 API", null, { icon: "link" }),
+        N("cdn", "CDN", "edge", { icon: "cloud" }), N("waf", "WAF", "edge", { icon: "shield-check" }), N("lb", "로드\n밸런서", "edge", { icon: "network" }),
+        N("gw", "API 게이트웨이", "core", { icon: "route" }), N("auth", "인증", "core", { icon: "key-round" }), N("order", "주문", "core", { icon: "package", k: "accent" }),
+        N("cart", "장바구니", "core", { icon: "inbox" }), N("price", "가격 계산", "core", { icon: "scale" }),
+        N("payapi", "결제 요청", "pay", { icon: "send" }), N("fraud", "이상 거래\n탐지", "pay", { icon: "alert", k: "warn" }), N("pg", "PG사", null, { icon: "globe", k: "muted" }),
+        N("odb", "주문 DB", "data", { icon: "db" }), N("cache", "캐시", "data", { icon: "cache" }), N("search", "검색 색인", "data", { icon: "search" }),
+        N("queue", "이벤트 큐", "async", { icon: "layers" }), N("ship", "배송 연동", "async", { icon: "truck" }), N("mail", "알림 메일", "async", { icon: "mail" }), N("stats", "집계", "async", { icon: "chart" }),
+        N("courier", "택배사", null, { icon: "map-pin", k: "muted" }),
+      ],
+      edges: [
+        { f: "web", t: "cdn" }, { f: "app", t: "waf" }, { f: "cdn", t: "waf" }, { f: "waf", t: "lb" }, { f: "partner", t: "lb" }, { f: "lb", t: "gw" },
+        { f: "gw", t: "auth" }, { f: "gw", t: "cart" }, { f: "gw", t: "order", k: "accent" }, { f: "cart", t: "price" }, { f: "order", t: "price" },
+        { f: "order", t: "payapi", k: "accent", l: "결제" }, { f: "payapi", t: "fraud" }, { f: "fraud", t: "pg", l: "승인 요청" },
+        { f: "order", t: "odb" }, { f: "price", t: "cache" }, { f: "cart", t: "cache" }, { f: "order", t: "queue", l: "주문 완료" },
+        { f: "queue", t: "ship" }, { f: "queue", t: "mail" }, { f: "queue", t: "stats" }, { f: "queue", t: "search" }, { f: "ship", t: "courier" },
+      ],
+      maxWidth: false,
+    });
+    const dg = LTT.diagram(svg, spec);
+    dg.player(el, [
+      { caption: "<b>① 들어오는 길</b> — 웹·앱·제휴사 요청이 엣지 계층을 지나 게이트웨이에 모인다.", hot: ["web", "app", "partner", "cdn", "waf", "lb", "gw"], flow: ["web>cdn", "cdn>waf", "waf>lb", "lb>gw"], send: [["web", "cdn"], ["cdn", "waf"], ["waf", "lb"], ["lb", "gw"]] },
+      { caption: "<b>② 주문과 결제</b> — 주문 서비스 안의 결제 묶음이 이상 거래를 걸러 PG사로 보낸다.", hot: ["gw", "order", "payapi", "fraud", "pg"], send: [["gw", "order"], ["order", "payapi"], ["payapi", "fraud"], ["fraud", "pg"]] },
+      { caption: "<b>③ 나머지는 비동기</b> — 주문 완료 이벤트 하나가 배송·메일·집계·검색으로 퍼진다.", hot: ["order", "queue", "ship", "mail", "stats", "search", "courier"], flow: ["queue>ship", "queue>mail", "queue>stats", "queue>search"], send: [["order", "queue"]] },
     ]);
   });
   demo("map", "LTT.map(svg, {projection, extent, countries, places, routes}) → Promise", "<b>지리가 결정 변수일 때.</b> 리전 간 지연, 물류 경로, 공급망. 경로는 대권(great-circle) 호로 그려져 장거리일수록 휜다. <code>countries</code>는 Natural Earth 영어 이름 → tone, <code>places</code>는 <code>{id, lon, lat, l, k, mark}</code>, <code>routes</code>는 <code>{f, t, l, k, dash}</code>. diagram처럼 <code>highlight</code>·<code>flow</code>·<code>send</code>·<code>player</code>가 있다. atlas 테마와 잘 맞는다. <code>topojson-client.min.js</code>가 필요하다.", (el) => {

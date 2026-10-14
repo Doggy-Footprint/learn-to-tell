@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
-// Spec: agent-docs/specs/8f96def5ba48e754-diagram-edge-paths.md v3. Every expected value below is derived from the spec's
+// Spec: agent-docs/spec-logs/8f96def5ba48e754-diagram-edge-paths.md v3. Every expected value below is derived from the spec's
 // formulas (hand-computed constants or the small reference helpers in this file), never from the implementation.
 
 function loadParts() {

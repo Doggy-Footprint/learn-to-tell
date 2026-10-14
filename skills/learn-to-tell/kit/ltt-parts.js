@@ -268,6 +268,12 @@
     return { go: go, get index() { return i; } };
   }
 
+  function nodeHeight(n, base) {
+    if (n.h != null) return n.h;
+    var lines = String(n.l || n.id).split("\n"), sub = n.s ? String(n.s).split("\n") : [];
+    return lines.length > 1 || sub.length > 1 ? Math.max(base, 24 + 18 * lines.length + 16 * sub.length) : base;
+  }
+
   // Diagram geometry, DOM-free so it runs in a bare vm. Nodes sit at grid cells (c, r may be fractional) or pixel offsets (x, y);
   // edges are straight, orthogonal or curved paths clipped to box borders.
   function diagramLayout(spec) {
@@ -282,9 +288,7 @@
     var nodes = {}, gridCols = 0, gridRows = 0, pxW = 0, pxH = 0;
     spec.nodes.forEach(function (n) {
       var lines = String(n.l || n.id).split("\n"), sub = n.s != null && n.s !== "" ? String(n.s).split("\n") : [];
-      var w = n.w != null ? n.w : size[0], h = size[1], cx, cy;
-      if (n.h != null) h = n.h;
-      else if (lines.length > 1 || sub.length > 1) h = Math.max(size[1], 24 + 18 * lines.length + 16 * sub.length);
+      var w = n.w != null ? n.w : size[0], h = nodeHeight(n, size[1]), cx, cy;
       if (isPx(n)) {
         cx = pad + n.x; cy = pad + n.y;
         pxW = Math.max(pxW, cx + w / 2 + pad); pxH = Math.max(pxH, cy + h / 2 + pad);
@@ -1160,6 +1164,149 @@
 
   LTT.MOTION_MS = MOTION_MS;
   LTT.$ = $;
+  // Coordinate-free diagram -> pixel diagram spec via elkjs layered layout. elk rejects arrays/objects built in another
+  // realm (it silently returns no coordinates), so the elk graph is built only from fresh literals, never from user input.
+  // Array#map on a user array also yields a foreign-realm array (species lookup), hence the push loop in `each`.
+  function autoLayout(spec) {
+    return new Promise(function (resolve, reject) {
+      spec = spec || {};
+      var nodesIn = spec.nodes || [], edgesIn = spec.edges || [], groupsIn = spec.groups || [];
+      var dir = spec.direction == null ? "RIGHT" : spec.direction;
+      var size = spec.node || [164, 60], gap = spec.spacing || [72, 36], pad = spec.pad == null ? 20 : spec.pad;
+      var radius = spec.radius == null ? 10 : spec.radius;
+      if (dir !== "RIGHT" && dir !== "DOWN") throw new Error("autoLayout direction must be RIGHT or DOWN: " + dir);
+
+      var nodeIdx = {}, groupIdx = {};
+      groupsIn.forEach(function (g, k) {
+        if (groupIdx.hasOwnProperty(g.id)) throw new Error("autoLayout group id " + g.id + " is duplicated");
+        groupIdx[g.id] = k;
+      });
+      nodesIn.forEach(function (n, k) {
+        if (nodeIdx.hasOwnProperty(n.id)) throw new Error("autoLayout node id " + n.id + " is duplicated");
+        nodeIdx[n.id] = k;
+        if (n.group != null && !groupIdx.hasOwnProperty(n.group)) throw new Error("autoLayout node " + n.id + " refers to missing group " + n.group);
+      });
+      groupsIn.forEach(function (g) {
+        if (g.parent != null && !groupIdx.hasOwnProperty(g.parent)) throw new Error("autoLayout group " + g.id + " refers to missing parent group " + g.parent);
+      });
+      groupsIn.forEach(function (g) {
+        var seen = {}, cur = g;
+        while (cur && cur.parent != null) {
+          if (seen.hasOwnProperty(cur.id)) throw new Error("autoLayout group parent cycle at " + cur.id);
+          seen[cur.id] = 1;
+          cur = groupsIn[groupIdx[cur.parent]];
+        }
+      });
+      edgesIn.forEach(function (e) {
+        var id = e.id != null ? e.id : e.f + ">" + e.t;
+        if (e.f === e.t) throw new Error("autoLayout edge " + id + " connects node " + e.f + " to itself");
+        if (!nodeIdx.hasOwnProperty(e.f) || !nodeIdx.hasOwnProperty(e.t)) throw new Error("autoLayout edge " + id + " points to a missing node");
+      });
+      if (typeof root.ELK !== "function") throw new Error("autoLayout needs elk.bundled.js loaded before use");
+
+      function each(list, fn) { var out = [], k; for (k = 0; k < list.length; k++) out.push(fn(list[k], k)); return out; }
+      var filled = each(groupsIn, function () { return false; });
+      nodesIn.forEach(function (n) {
+        var g = n.group;
+        while (g != null && !filled[groupIdx[g]]) { filled[groupIdx[g]] = true; g = groupsIn[groupIdx[g]].parent; }
+      });
+
+      var sizes = each(nodesIn, function (n) { return [n.w != null ? n.w : size[0], nodeHeight(n, size[1])]; });
+      var elkNodes = each(nodesIn, function (n, k) { return { id: "n" + k, width: sizes[k][0], height: sizes[k][1] }; });
+      var elkGroups = each(groupsIn, function (g, k) {
+        return {
+          id: "g" + k, children: [],
+          layoutOptions: { "elk.padding": "[top=" + (g.l ? 30 : 12) + ",left=12,bottom=12,right=12]" }
+        };
+      });
+      var top = [];
+      groupsIn.forEach(function (g, k) {
+        if (!filled[k]) return;
+        (g.parent == null ? top : elkGroups[groupIdx[g.parent]].children).push(elkGroups[k]);
+      });
+      nodesIn.forEach(function (n, k) { (n.group == null ? top : elkGroups[groupIdx[n.group]].children).push(elkNodes[k]); });
+      var elkEdges = each(edgesIn, function (e, k) { return { id: "e" + k, sources: ["n" + nodeIdx[e.f]], targets: ["n" + nodeIdx[e.t]] }; });
+      var graph = {
+        id: "root", children: top, edges: elkEdges,
+        layoutOptions: {
+          "elk.algorithm": "layered", "elk.direction": dir, "elk.edgeRouting": "ORTHOGONAL", "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+          "elk.padding": "[top=0,left=0,bottom=0,right=0]",
+          "elk.layered.spacing.nodeNodeBetweenLayers": String(gap[0]), "elk.spacing.nodeNode": String(gap[1])
+        }
+      };
+
+      new root.ELK().layout(graph).then(function (res) {
+        var abs = { root: [0, 0] }, boxes = {};
+        (function walk(list, ox, oy) {
+          list.forEach(function (c) {
+            var x = ox + c.x, y = oy + c.y;
+            abs[c.id] = [x, y]; boxes[c.id] = [x, y, c.width, c.height];
+            if (c.children) walk(c.children, x, y);
+          });
+        })(res.children || [], 0, 0);
+
+        function copy(o) { var r = {}; for (var key in o) if (o.hasOwnProperty(key)) r[key] = o[key]; return r; }
+        var right = 0, bottom = 0;
+        function grow(b) { right = Math.max(right, b[0] + b[2]); bottom = Math.max(bottom, b[1] + b[3]); }
+        var nodes = each(nodesIn, function (n, k) {
+          var b = boxes["n" + k], o = copy(n);
+          if (!b) throw new Error("autoLayout: elk returned no position for node " + n.id);
+          grow(b);
+          o.x = b[0] + b[2] / 2; o.y = b[1] + b[3] / 2; o.w = b[2]; o.h = b[3];
+          return o;
+        });
+        var zones = [];
+        groupsIn.forEach(function (g, k) {
+          if (!filled[k]) return;
+          var b = boxes["g" + k];
+          if (!b) throw new Error("autoLayout: elk returned no position for group " + g.id);
+          grow(b);
+          var z = { id: g.id, parent: g.parent == null ? null : g.parent };
+          if (g.l !== undefined) z.l = g.l;
+          if (g.k !== undefined) z.k = g.k;
+          z.x = b[0]; z.y = b[1]; z.w = b[2]; z.h = b[3];
+          zones.push(z);
+        });
+        function shorten(a, b, d) {
+          var dx = b[0] - a[0], dy = b[1] - a[1], len = Math.sqrt(dx * dx + dy * dy);
+          if (!len) return [a[0], a[1]];
+          var t = d / len;
+          return [a[0] + dx * t, a[1] + dy * t];
+        }
+        function seg(a, b) { return Math.sqrt((b[0] - a[0]) * (b[0] - a[0]) + (b[1] - a[1]) * (b[1] - a[1])); }
+        var edges = each(edgesIn, function (e, k) {
+          var el = null, sec;
+          (function find(g) {
+            (g.edges || []).forEach(function (x) { if (x.id === "e" + k) el = x; });
+            (g.children || []).forEach(find);
+          })(res);
+          sec = el && el.sections && el.sections[0];
+          if (!sec) throw new Error("autoLayout: elk returned no route for edge " + (e.id != null ? e.id : e.f + ">" + e.t));
+          var off = abs[el.container != null ? el.container : "root"] || [0, 0], pts = [];
+          pts.push([sec.startPoint.x + off[0], sec.startPoint.y + off[1]]);
+          (sec.bendPoints || []).forEach(function (p) { pts.push([p.x + off[0], p.y + off[1]]); });
+          pts.push([sec.endPoint.x + off[0], sec.endPoint.y + off[1]]);
+          var n = pts.length, l0 = seg(pts[0], pts[1]), ln = seg(pts[n - 2], pts[n - 1]);
+          // A single segment shares its length between both trims so the line never collapses or flips.
+          var first = shorten(pts[0], pts[1], n === 2 ? Math.min(4, l0 / 6) : Math.min(4, l0 / 2));
+          var last = shorten(pts[n - 1], pts[n - 2], n === 2 ? Math.min(8, ln / 3) : Math.min(8, ln / 2));
+          pts[0] = first; pts[n - 1] = last;
+          var o = copy(e);
+          o.shape = "ortho"; o.radius = e.radius != null ? e.radius : radius; o.points = pts;
+          return o;
+        });
+        var out = { pad: pad, width: right + 2 * pad, height: bottom + 2 * pad, nodes: nodes, edges: edges, zones: zones };
+        if (spec.label !== undefined) out.label = spec.label;
+        if (spec.maxWidth !== undefined) out.maxWidth = spec.maxWidth;
+        (function check(v) {
+          if (typeof v === "number" && !isFinite(v)) throw new Error("autoLayout produced a non-finite number");
+          if (v && typeof v === "object") for (var key in v) if (v.hasOwnProperty(key)) check(v[key]);
+        })(out);
+        resolve(out);
+      }).then(null, reject);
+    });
+  }
+
   LTT.tween = tween;
   LTT.units = units;
   LTT.bar = bar;
@@ -1168,6 +1315,7 @@
   LTT.stepper = stepper;
   LTT.diagram = diagram;
   LTT.diagramLayout = diagramLayout;
+  LTT.autoLayout = autoLayout;
   LTT.plane = plane;
   LTT.map = map;
   LTT.sequence = sequence;

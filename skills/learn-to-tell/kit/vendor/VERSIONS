@@ -9,4 +9,6 @@ topojson-client 3.1.0 dist/topojson-client.min.js sha256:25cd02ae486cc5063e0215a
 world-atlas 2.0.2 countries-110m.json → world-atlas/countries-110m.json sha256:2516c915867c7baf18ddec727aec46c315541a07cfb3d79a6559b05d5e94eee8
 d3-sankey 0.12.3 dist/d3-sankey.min.js sha256:8286db5d6aa049cc6e8a546708943b79dfb4daaefb0ccf42af674ec0ee4c86be
 prismjs 1.30.0 components/prism-{core,clike,javascript,typescript,python,bash,json,sql}.min.js concatenated in that order → prism/prism.min.js sha256:05e3f0f53af49da7341edb4ce70330bac51fc2e893203f3d6ebaee98eda182e0
+elkjs 0.12.0 lib/elk.bundled.js sha256:1222e44f953ce7746af23801e723708f8e6f436b8b377a6a5fc7552f34a307b3 (license EPL-2.0 OR GPL-3.0-or-later; used under EPL-2.0, LICENSE-elkjs)
+roughjs 4.6.6 bundled/rough.js sha256:6853af8619532f3939b156cd16824d2e14f31e71d3df306ad5558eeafacab194
 font subsets: pyftsubset <src> --unicodes=U+0020-007E,U+00A0-00FF,U+2010-2027,U+2030-203A,U+2190-2199,U+2212,U+2264,U+2265,U+2022,U+3000-303F,U+3131-318E,U+FF01-FF5E --text-file=<2,350 Hangul syllables of KS X 1001, EUC-KR 0xB0A1-0xC8FE> --flavor=woff2 --layout-features='*'
