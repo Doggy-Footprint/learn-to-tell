@@ -20,11 +20,11 @@
   .lib { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
   .lib .ltt-card { margin: 0; display: flex; flex-direction: column; gap: 10px; }
   .lib .dark { background: var(--ltt-dark); color: var(--ltt-on-dark); border-color: var(--ltt-dark); }
-  .lib .dark p { color: #c9c8c2; }
+  .lib .dark p { color: color-mix(in srgb, var(--ltt-on-dark) 78%, transparent); }
   .lib h2 { margin: 0; font-size: 22px; }
   .lib p { margin: 0; color: var(--ltt-muted); }
   .lib code { color: var(--ltt-accent); }
-  .lib .dark code { color: #9fb3ff; }
+  .lib .dark code { color: var(--ltt-accent-on-dark); }
   .go { margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap; padding-top: 8px; }
   .go a { display: inline-flex; align-items: center; gap: 6px; font-weight: 750; color: var(--ltt-bg); background: var(--ltt-ink); padding: 9px 16px; border-radius: 999px; text-decoration: none; font-size: 14px; }
   .go a.ghost { background: transparent; color: var(--ltt-ink); box-shadow: inset 0 0 0 1.5px var(--ltt-line-2); }
@@ -46,7 +46,7 @@
   .ladder { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
   .ladder li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
   .ladder li .n { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--ltt-card-2); color: var(--ltt-muted); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
-  .ladder li.level .n { background: var(--ltt-accent); color: #fff; }
+  .ladder li.level .n { background: var(--ltt-accent); color: var(--ltt-on-accent); }
   .ladder li.level { font-weight: 700; }
   .ladder li.level::after { content: "← 학습 수준"; font-size: 12px; color: var(--ltt-accent); }
   .ladder li.skip { color: var(--ltt-muted); }
@@ -100,8 +100,8 @@
     </section>
     <section class="ltt-card dark">
       <h2>장면 타입 데모</h2>
-      <p>hook, terms, explain, 번호 주석 장면, contrast, predict, compare, summary, keywords를 한 번씩 담은 덱. 스타일 요구는 장면 타입 이름으로 말하면 된다 (예: "contrast 패널 간격을 넓게").</p>
-      <div class="go"><a href="scenes.html">덱 열기 →</a></div>
+      <p>hook, terms, explain(strip·stack·cards), figure, statement, contrast, predict, compare(table·카드), summary, keywords를 한 번씩 담은 덱. 같은 덱을 테마별로 볼 수 있다. 스타일 요구는 장면 타입 이름으로 말하면 된다 (예: "contrast 패널 간격을 넓게").</p>
+      <div class="go"><a href="scenes.html">덱 열기 →</a><a class="ghost" href="scenes.html?theme=paper">paper</a><a class="ghost" href="scenes.html?theme=blueprint">blueprint</a><a class="ghost" href="scenes.html?theme=terminal">terminal</a><a class="ghost" href="scenes.html?theme=ledger">ledger</a><a class="ghost" href="scenes.html?theme=lab">lab</a></div>
     </section>
   </div>
 
@@ -110,55 +110,55 @@
     <section class="ltt-card ls">
       <span class="no">01</span>
       <h2>캐시 TTL을 늘리면 무엇을 잃을까?</h2>
-      <dl><dt>대상</dt><dd>캐시가 무엇인지 알고 API를 만들어 봤다</dd><dt>결정</dt><dd>TTL (DB 부하와 오래된 응답 사이)</dd><dt>부품</dt><dd>용어 카드, 값 하나의 일생 단계 재생, 응답 100칸, TTL 슬라이더</dd></dl>
+      <dl><dt>대상</dt><dd>캐시가 무엇인지 알고 API를 만들어 봤다</dd><dt>결정</dt><dd>TTL (DB 부하와 오래된 응답 사이)</dd><dt>부품</dt><dd>타임라인 + 접근 로그 figure, 요청 틱 비교표, TTL 슬라이더</dd><dt>테마</dt><dd><code>terminal</code> · 터미널·로그 타임라인</dd></dl>
       <div class="go"><a href="cache-ttl.html">열기 →</a></div>
     </section>
     <section class="ltt-card ls">
       <span class="no">02</span>
       <h2>회색 글자는 얼마나 옅어야 읽기 힘들어질까?</h2>
-      <dl><dt>대상</dt><dd>CSS 색상 코드를 읽을 수 있는 UI 개발자·디자이너</dd><dt>결정</dt><dd>글자색과 배경색이 WCAG 대비비 기준을 넘는지</dd><dt>부품</dt><dd>폰 목업 BEFORE/AFTER, 번호 주석, 색 견본, 대비비 슬라이더</dd></dl>
+      <dl><dt>대상</dt><dd>CSS 색상 코드를 읽을 수 있는 UI 개발자·디자이너</dd><dt>결정</dt><dd>글자색과 배경색이 WCAG 대비비 기준을 넘는지</dd><dt>부품</dt><dd>디자인 리뷰 figure(레드라인 + 대비 검사 패널), BEFORE/AFTER, 계산 타임라인, 비교표</dd><dt>테마</dt><dd><code>studio</code> · 실제 제품 화면</dd></dl>
       <div class="go"><a href="uiux/color-contrast.html">열기 →</a></div>
     </section>
     <section class="ltt-card ls">
       <span class="no">03</span>
       <h2>GPU가 2배 빨라지면 글 생성도 2배 빨라질까?</h2>
-      <dl><dt>대상</dt><dd>Transformer 구조를 모름. 모델은 큰 숫자 표라는 정도만 안다</dd><dt>결정</dt><dd>토큰당 시간을 정하는 것이 대역폭인지 연산 속도인지, batch의 효과</dd><dt>부품</dt><dd>격자 다이어그램 + 패킷 단계 재생, 시간 막대, 조건 카드</dd></dl>
+      <dl><dt>대상</dt><dd>Transformer 구조를 모름. 모델은 큰 숫자 표라는 정도만 안다</dd><dt>결정</dt><dd>토큰당 시간을 정하는 것이 대역폭인지 연산 속도인지, batch의 효과</dd><dt>부품</dt><dd>블록 도면 figure 2장, 시간 축 막대, 업그레이드·병목 비교표</dd><dt>테마</dt><dd><code>blueprint</code> · 블록 도면</dd></dl>
       <div class="go"><a href="gpu/single-gpu-dataflow.html">열기 →</a></div>
     </section>
     <section class="ltt-card ls">
       <span class="no">04</span>
       <h2>공기저항이 있으면 가장 멀리 날아가는 각도는 얼마나 낮아질까?</h2>
-      <dl><dt>대상</dt><dd>등가속도 운동과 sin2θ 사거리 공식을 안다</dd><dt>결정</dt><dd>공기저항을 무시해도 되는지, 최적각을 45°로 둘 수 있는지</dd><dt>부품</dt><dd>궤적 시뮬레이션, 속력별 궤적 비교, 수식 접기</dd></dl>
+      <dl><dt>대상</dt><dd>등가속도 운동과 sin2θ 사거리 공식을 안다</dd><dt>결정</dt><dd>공기저항을 무시해도 되는지, 최적각을 45°로 둘 수 있는지</dd><dt>부품</dt><dd>축·눈금 있는 궤적 플롯 시뮬레이션, 원인 흐름(strip), 속력별 비교표</dd><dt>테마</dt><dd><code>lab</code> · 실험 노트·궤적 플롯</dd></dl>
       <div class="go"><a href="physics/projectile-drag.html">열기 →</a></div>
     </section>
     <section class="ltt-card ls">
       <span class="no">05</span>
       <h2>처음 본 숫자가 내 추정을 끌어당길까?</h2>
-      <dl><dt>대상</dt><dd>견적이나 일정을 추정해 본 적이 있다</dd><dt>결정</dt><dd>견적 회의에서 첫 숫자를 보여 줄 시점</dd><dt>부품</dt><dd>수직선 단계 재생, 연구 사례 비교 (predict 없음: 자기 편향 주제)</dd></dl>
+      <dl><dt>대상</dt><dd>견적이나 일정을 추정해 본 적이 있다</dd><dt>결정</dt><dd>견적 회의에서 첫 숫자를 보여 줄 시점</dd><dt>부품</dt><dd>수직선 결과 figure, 연구 비교표, 주장 장면 (predict 없음: 자기 편향 주제)</dd><dt>테마</dt><dd><code>paper</code> · 논문 결과 figure</dd></dl>
       <div class="go"><a href="cognition/anchoring.html">열기 →</a></div>
     </section>
     <section class="ltt-card ls">
       <span class="no">06</span>
       <h2>두 자산을 섞으면 위험은 얼마나 줄까?</h2>
-      <dl><dt>대상</dt><dd>표준편차를 변동성(위험)으로 읽을 줄 안다</dd><dt>결정</dt><dd>상관계수와 비중이 포트폴리오 변동성을 얼마나 줄이는지</dd><dt>부품</dt><dd>물결 도식, 조건 카드 + 100칸 정답, 개수·위기 막대</dd></dl>
+      <dl><dt>대상</dt><dd>표준편차를 변동성(위험)으로 읽을 줄 안다</dd><dt>결정</dt><dd>상관계수와 비중이 포트폴리오 변동성을 얼마나 줄이는지</dd><dt>부품</dt><dd>신문식 꺾은선 figure, 상관계수 비교표, 고정 축 막대 차트</dd><dt>테마</dt><dd><code>ledger</code> · 경제 신문 차트·표</dd></dl>
       <div class="go"><a href="finance/diversification.html">열기 →</a></div>
     </section>
     <section class="ltt-card ls">
       <span class="no">07</span>
       <h2>다시 읽기와 인출 연습, 1주 뒤엔 어느 쪽이 더 남을까?</h2>
-      <dl><dt>대상</dt><dd>전제 지식 없음</dd><dt>결정</dt><dd>복습 시간을 다시 읽기와 인출 연습 중 어디에 쓸지</dd><dt>부품</dt><dd>실험 설계 다이어그램, 시점별 막대 비교, 공부법 판정</dd></dl>
+      <dl><dt>대상</dt><dd>전제 지식 없음</dd><dt>결정</dt><dd>복습 시간을 다시 읽기와 인출 연습 중 어디에 쓸지</dd><dt>부품</dt><dd>Method figure와 같은 그림의 Results figure, 공부법 비교표</dd><dt>테마</dt><dd><code>paper</code> · 논문 실험 설계 figure</dd></dl>
       <div class="go"><a href="pedagogy/retrieval-practice.html">열기 →</a></div>
     </section>
     <section class="ltt-card ls">
       <span class="no">08</span>
       <h2>행렬은 공간을 어떻게 바꾸는가?</h2>
-      <dl><dt>대상</dt><dd>벡터와 행렬 곱셈 계산 규칙은 안다</dd><dt>결정</dt><dd>행렬의 열과 det로 변환의 모양·넓이·가역성을 읽고 곱 순서를 정한다</dd><dt>부품</dt><dd>격자 변형 평면, 네 숫자 슬라이더, 곱 순서 짐작</dd></dl>
+      <dl><dt>대상</dt><dd>벡터와 행렬 곱셈 계산 규칙은 안다</dd><dt>결정</dt><dd>행렬의 열과 det로 변환의 모양·넓이·가역성을 읽고 곱 순서를 정한다</dd><dt>부품</dt><dd>큰 격자 변형 figure, det 슬라이더(full), 곱 순서 짐작</dd><dt>테마</dt><dd><code>paper</code> · 교과서 figure</dd></dl>
       <div class="go"><a href="linear-algebra/matrix-as-transform.html">열기 →</a></div>
     </section>
     <section class="ltt-card ls">
       <span class="no">09</span>
       <h2>세련된 화면은 '차이'를 아껴 쓴다</h2>
-      <dl><dt>대상</dt><dd>UI를 가끔 직접 만드는 개발자. 간격을 감으로 맞추지만 이유는 설명하지 못한다</dd><dt>결정</dt><dd>무엇을 먼저 읽힐지와 그 수단(크기·굵기·회색), 묶음 안/사이 간격을 스케일의 어느 단계로 고를지</dd><dt>부품</dt><dd>브라우저 목업 단계 재생, 폼 BEFORE/AFTER, 간격 스케일 슬라이더, 실제 조각 비교</dd></dl>
+      <dl><dt>대상</dt><dd>UI를 가끔 직접 만드는 개발자. 간격을 감으로 맞추지만 이유는 설명하지 못한다</dd><dt>결정</dt><dd>무엇을 먼저 읽힐지와 그 수단(크기·굵기·회색), 묶음 안/사이 간격을 스케일의 어느 단계로 고를지</dd><dt>부품</dt><dd>레드라인 단계 재생 figure, 폼 BEFORE/AFTER, 간격 스케일 슬라이더, 실제 조각 비교</dd><dt>테마</dt><dd><code>studio</code> · 실제 제품 화면</dd></dl>
       <div class="go"><a href="uiux/visual-hierarchy-spacing.html">열기 →</a></div>
     </section>
   </div>

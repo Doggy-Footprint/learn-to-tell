@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>세련된 화면은 '차이'를 아껴 쓴다</title>
-<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"시각적 위계와 근접성·간격 스케일","audience":"UI를 가끔 직접 만드는 개발자. 간격을 '그냥 맞춰' 쓰지만 이유를 말로 설명하지는 못한다","pattern":["hook","terms","explain","stepper","explain","contrast","sweep","compare","explain","summary","keywords"],"mode":"체험형: 같은 상품 카드를 단계별로 다듬고, 같은 폼의 BEFORE/AFTER를 번호 주석으로 읽은 뒤, 묶음 사이 간격을 직접 밀어 본다","decision":"무엇을 먼저 읽히게 할지와 그 수단(크기·굵기·회색 진하기), 묶음 안/사이 간격을 스케일의 어느 단계로 고를지"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"시각적 위계와 근접성·간격 스케일","audience":"UI를 가끔 직접 만드는 개발자. 간격을 '그냥 맞춰' 쓰지만 이유를 말로 설명하지는 못한다","pattern":["hook","terms","explain:strip","figure","explain","contrast","sweep","compare","statement","explain:stack","summary","keywords"],"theme":"studio","medium":"실제 제품 화면(상품 카드·회원가입 폼 목업)에 디자인 리뷰처럼 간격 측정선을 그린다","mode":"체험형: 같은 상품 카드를 간격 측정선과 함께 단계별로 다듬고, 같은 폼의 BEFORE/AFTER를 번호 주석으로 읽은 뒤, 묶음 사이 간격을 직접 밀어 본다","decision":"무엇을 먼저 읽히게 할지와 그 수단(크기·굵기·회색 진하기), 묶음 안/사이 간격을 스케일의 어느 단계로 고를지"}</script>
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
@@ -14,7 +14,13 @@
 <style>
   .pc { display: flex; flex-direction: column; font-size: 15px; color: #222; }
   .pc .img { height: 92px; border-radius: 10px; background: #eceae4; margin-bottom: 12px; }
-  .pc > * { transition: all .35s ease; }
+  .pc > * { position: relative; transition: all .35s ease; }
+  /* redline: a measurement bar spans each element's margin-top, drawn in the screen's right padding */
+  .pc [data-gap]::after { content: attr(data-gap); position: absolute; right: -14px; bottom: 100%; height: var(--g); display: flex; align-items: center;
+    padding-right: 6px; border-right: 1.5px solid var(--ltt-accent); font: 700 10px var(--ltt-mono); color: var(--ltt-accent); white-space: nowrap; }
+  .review { display: grid; grid-template-columns: auto minmax(0, 420px); gap: clamp(24px, 4vw, 60px); align-items: center; }
+  .review .ltt-caption { font-size: clamp(15px, 1.3vw, 18px); line-height: 1.6; }
+  @media (max-width: 720px) { .review { grid-template-columns: 1fr; } }
   .pc .btn { margin-top: 10px; text-align: center; border-radius: 10px; padding: 9px; font-weight: 700; }
   .fm { display: flex; flex-direction: column; font-size: 14px; color: #222; }
   .fm .in { height: 30px; border: 1px solid #d6d2c8; border-radius: 8px; background: #fff; }
@@ -56,12 +62,19 @@
     };
   };
   const cardMock = () => {
-    const b = LTT.mock.browser({ url: "shop.example.com", width: 260 });
+    const b = LTT.mock.browser({ url: "shop.example.com", width: 300 });
     b.screen.innerHTML = `<div class="pc"><div class="img"></div>
       <div data-k="name">무선 키보드 K3</div><div data-k="price">₩89,000</div>
       <div data-k="desc">저소음 스위치 · 블루투스 5.1</div><div data-k="rate">★ 4.7 (리뷰 1,284)</div>
       <div data-k="ship">내일 도착 · 무료배송</div><div class="btn" data-k="btn">장바구니 담기</div></div>`;
-    const paint = (k) => { const s = cardStyle(k); b.screen.querySelectorAll("[data-k]").forEach((n) => (n.style.cssText = s[n.dataset.k])); };
+    const paint = (k) => {
+      const s = cardStyle(k);
+      b.screen.querySelectorAll("[data-k]").forEach((n) => {
+        n.style.cssText = s[n.dataset.k];
+        const g = +((s[n.dataset.k].match(/margin-top:(\d+)px/) || [])[1] || 0);
+        if (g) { n.dataset.gap = g; n.style.setProperty("--g", g + "px"); } else delete n.dataset.gap;
+      });
+    };
     return { el: b.el, paint };
   };
 
@@ -79,6 +92,7 @@
 
   LTT.deck({
     title: "세련된 화면은 '차이'를 아껴 쓴다",
+    theme: "studio",
     glossary: {
       "대비비": "글자색과 배경색의 밝기가 몇 배 차이 나는지 나타낸 숫자. 흰 배경의 일반 글자는 4.5:1 이상이어야 웹 접근성 국제 지침(WCAG)의 기본 등급 AA를 넘는다.",
     },
@@ -95,7 +109,7 @@
           { key: "간격 스케일", en: "spacing scale", icon: "ruler", plain: "여백 값을 미리 정한 몇 단계(예: 4·8·16·24·32·48)에서만 고르는 규칙.", example: "13px, 15px 대신 16px 하나만 쓴다." },
         ] },
 
-      { type: "explain", kicker: "원인 → 과정 → 결과", title: "'어지럽다'는 눈이 길을 못 찾는다는 뜻이다", en: "Why it feels messy",
+      { type: "explain", form: "strip", kicker: "원인 → 과정 → 결과", title: "'어지럽다'는 눈이 길을 못 찾는다는 뜻이다", en: "Why it feels messy",
         steps: [
           { icon: "doc", title: "모두 같은 무게", text: "글자 크기·굵기·색이 다 비슷하면 눈이 출발할 곳이 없다. 즉 {{시각적 위계}}가 없다.",
             visual: `<div style="font-weight:600;line-height:1.7">무선 키보드 K3<br>₩89,000<br>내일 도착</div>` },
@@ -104,16 +118,13 @@
         ],
         takeaway: "어지러움은 '뜻 없는 차이'와 '차이 없는 중요도'에서 온다." },
 
-      { kicker: "단계별로 보기", title: "강조는 키우기보다 나머지를 낮춰서 만든다", en: "Building hierarchy", layout: "split",
-        narration: [
-          "같은 상품 카드를 네 번 손본다. '다음'을 누르며 카드에서 눈이 가장 먼저 가는 곳이 어떻게 바뀌는지 보자.",
-          "핵심은 2단계다. 가격을 더 키우는 대신 설명·평점·배송을 작고 옅게 낮추자, 가격이 저절로 떠오른다.",
-        ],
-        mount(body) {
+      { type: "figure", kicker: "디자인 리뷰 · 단계별로 보기", title: "강조는 키우기보다 나머지를 낮춰서 만든다", en: "Building hierarchy",
+        caption: "같은 상품 카드를 네 번 손본다. 오른쪽 파란 측정선은 각 줄 위의 간격(px)이다. '다음'을 누르며 눈이 가장 먼저 가는 곳이 어떻게 바뀌는지 보자. 핵심은 2단계다. 가격을 더 키우는 대신 설명·평점·배송을 작고 옅게 낮추자, 가격이 저절로 떠오른다.",
+        figure: () => {
           const c = cardMock();
-          const wrap = body.appendChild(LTT.h("div", "", ""));
-          wrap.appendChild(c.el);
-          const ctl = body.appendChild(LTT.h("div", "", ""));
+          const w = LTT.h("div", "review");
+          w.appendChild(c.el);
+          const ctl = w.appendChild(LTT.h("div", "", ""));
           const caps = [
             "<b>0. 모두 같은 무게</b>: 15px 굵게, 같은 색, 같은 간격 10px. 어디부터 읽을지 정해진 곳이 없다.",
             "<b>1. 가장 중요한 것 하나</b>: 이 카드의 질문은 '뭐고 얼마냐'다. 이름과 가격만 키웠다.",
@@ -122,7 +133,7 @@
             "<b>4. 행동 하나에만 색</b>: 누를 곳만 파랑. 색이 하나뿐이라 '여기를 누르세요'라는 신호가 된다(색 체계는 다음 회차).",
           ];
           LTT.stepper(ctl, caps.map((caption) => ({ caption, enter: (k) => c.paint(k) })), { interval: 2600 });
-          return {};
+          return w;
         },
         basis: "'덜 중요한 것을 낮춰 강조를 만든다'는 Wathan & Schoger, Refactoring UI의 'Emphasize by de-emphasizing'. 회색 #6b6b6b는 옅어도 흰 배경에서 읽기 기준을 넘는 진하기다(다음 장면에서 설명).",
         takeaway: "가장 중요한 것 하나를 고르고, 나머지를 작게·옅게 낮춘다.",
@@ -198,10 +209,13 @@
           { label: "설정 목록", tone: "bad", verdict: "모두 강조 = 강조 없음",
             visual: `<div class="kpi" style="font-weight:700">${["알림", "개인정보", "계정"].map((t) => `<div style="padding:7px 8px;margin-top:4px;border:1px solid #bbb;border-radius:6px;background:#f3f1ec">${t} ›</div>`).join("")}</div>`,
             noteAfter: true, note: "굵은 글자, 테두리, 배경이 모든 줄에 같으니 아무것도 앞서지 않는다. 테두리를 빼고 간격으로만 나눠도 충분하다." },
-        ],
+        ] },
+
+      { type: "statement", kicker: "강조의 역설", title: "굵은 글씨·테두리·배경을 모든 줄에 주면 <em>아무 줄도</em> 앞서지 않는다.",
+        sub: "강조는 주변과의 차이로만 생긴다. 하나를 앞세우려면 덧붙이지 말고 나머지를 낮춘다.",
         takeaway: "모든 것을 강조하면 아무것도 강조되지 않는다." },
 
-      { type: "explain", kicker: "진단 퀴즈의 답", title: "가장 가까운 값으로 맞추면 잘못된 관계까지 보존된다", en: "Recipe",
+      { type: "explain", form: "stack", kicker: "진단 퀴즈의 답", title: "가장 가까운 값으로 맞추면 잘못된 관계까지 보존된다", en: "Recipe",
         sub: "진단 퀴즈: 여백이 13·15·16·18·22·24px로 섞인 화면을 스케일 4·8·16·24·32·48로 정리하려면? 같은 문제를 장면 6의 BEFORE 폼(10·12·13·14·22px)으로 풀어 본다.",
         steps: [
           { icon: "alert", title: "가까운 값으로만 맞추면", text: "라벨↔입력칸 14→16, 항목 사이 10→8. 값은 스케일에 들어왔지만 라벨은 여전히 위 칸에 더 가깝다. 깔끔해 보여도 관계는 그대로 틀렸다.",

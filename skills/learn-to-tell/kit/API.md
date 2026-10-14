@@ -24,7 +24,8 @@
 
 | 이름 | 설명 |
 | --- | --- |
-| 토큰 | `--ltt-bg` `--ltt-card` `--ltt-card-2` `--ltt-line` `--ltt-line-2` `--ltt-ink` `--ltt-ink-2` `--ltt-muted` `--ltt-accent(-soft)` `--ltt-good(-soft)` `--ltt-bad(-soft)` `--ltt-warn(-soft)` `--ltt-dark` `--ltt-on-dark` `--ltt-shadow` `--ltt-font` `--ltt-mono`. 다크 모드는 `prefers-color-scheme`를 따르고, `<html data-theme="light|dark">`로 고정할 수 있다. |
+| `LTT.theme(name)`, `LTT.themes` | 도메인 테마를 고른다. 덱에서는 `LTT.deck({theme})`로 넘긴다. 테마는 토큰 값과 표면(모서리, 그림자, 제목 폰트, 배경 격자)만 바꾸므로 같은 부품이 다른 매체처럼 보인다. 아래 표. |
+| 토큰 | `--ltt-bg` `--ltt-card` `--ltt-card-2` `--ltt-line` `--ltt-line-2` `--ltt-ink` `--ltt-ink-2` `--ltt-muted` `--ltt-accent(-soft)` `--ltt-good(-soft)` `--ltt-bad(-soft)` `--ltt-warn(-soft)` `--ltt-dark` `--ltt-on-dark` `--ltt-on-accent` `--ltt-accent-on-dark` `--ltt-shadow` `--ltt-font` `--ltt-font-display` `--ltt-mono` `--ltt-r-lg` `--ltt-r-md` `--ltt-r-sm`. 다크 모드는 `prefers-color-scheme`를 따르고, `<html data-theme="light|dark">`로 고정할 수 있다. |
 | 폰트 | Pretendard Variable(`/kit/vendor/pretendard/`). 숫자·코드는 `var(--ltt-mono)`. |
 | `LTT.icon(name, {weight, cls})` | 선 아이콘 SVG 문자열. 이름 목록은 `LTT.icons`. hook `art`, explain·terms·facts `icon`, diagram 노드 `icon`에는 이름만 넘긴다. 이모지도 받는다. |
 | `{{용어}}`, `{{보이는 말\|용어}}` | 본문 속 용어 표시. 덱이 풀이 팝오버로 바꾼다(마우스 올리기·탭). 처음 나온 장면은 진하게 표시된다. |
@@ -33,6 +34,19 @@
 | `LTT.record(type, data)` | lesson 페이지에서만 서버로 이벤트를 보낸다. |
 | `LTT.expect(label, actual, expected, {tol})` | 기대값 대조. 불일치는 패널과 서버에 남는다. |
 | `LTT.warn(msg)` | 패널에 경고 한 줄. |
+
+### 테마
+
+| theme | 흉내 내는 매체 | 맞는 도메인 |
+| --- | --- | --- |
+| `paper` | 논문 figure·교과서: 크림 종이, 세리프 제목, 괘선, 그림자 없음 | 수학, 교육학, 인지과학, 연구 설계 |
+| `blueprint` | 회로·블록 도면: 남색 격자, 모노 라벨, 선만 있는 상자 | GPU, 하드웨어, 시스템·네트워크 구조 |
+| `terminal` | 터미널·로그·대시보드: 검정 바탕, 모노 번호, 녹색 강조 | 백엔드, 인프라, CLI, 운영 |
+| `ledger` | 경제 신문 차트: 살구색 종이, 세리프 헤드라인, 각진 표 | 금융, 경제, 비즈니스 지표 |
+| `lab` | 실험 노트·모눈 플롯: 모눈 배경, 주황 펜 색 | 물리, 공학, 시뮬레이션 |
+| `studio` | 제품 화면·디자인 툴: 중립 회색, 둥근 카드 (기본) | UI/UX, 제품 |
+
+테마는 매체를 고르는 것이지 장식이 아니다. 페이지 CSS에서 토큰을 다시 정의하지 않는다.
 
 ### lint 규칙
 
@@ -50,6 +64,9 @@
 | `many-points` | 번호 주석 3개 초과 |
 | `keywords-last` | 마지막 장면이 keywords가 아니다 |
 | `unused-term` | glossary에 넣고 어디에도 표시하지 않았다 |
+| `card-monotony` | 카드 격자 장면(explain `cards`, compare, terms, summary)이 3장 연속이거나, hook·keywords를 뺀 장면의 60% 초과 |
+| `no-signature` | 그림이 주인공인 장면(`figure`, `contrast`, `layout: "full"`, 타입 없는 `mount`)이 없다 |
+| `no-theme`, `unknown-theme` | `theme`을 고르지 않았거나 없는 이름이다 |
 
 공개 전 경고는 0건이어야 한다. lint는 표시된 용어만 안다. 표시하지 않은 전문 용어는 독자 검토(SKILL.md)로 잡는다.
 
@@ -123,7 +140,7 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `aside` | 설명 레일에 넣을 추가 부품 |
 | `basis`, `tex` | 근거 한 줄, 접힌 수식 |
 | `mount(body, ctx)` → `{enter, leave}`, `enter` | 커스텀 그림. ctx: `{el, scene, index, scenes}` |
-| `layout` | `"split"`(그림 \| 설명 레일) 또는 `"stack"`(설명 위, 그림 전체 폭). 기본은 narration·points가 있으면 split |
+| `layout` | `"split"`(그림 \| 설명 레일), `"stack"`(설명 위, 그림 전체 폭), `"full"`(그림이 무대 전체, 해설·번호 주석은 그림 아래 캡션 줄). 기본은 figure면 full, narration·points가 있으면 split |
 | `bare` | split에서 본문 카드 테두리를 없앤다(그림이 이미 패널일 때) |
 | `number: false` | 큰 장면 번호를 숨긴다 |
 
@@ -133,9 +150,11 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | --- | --- |
 | `hook` | `art`(아이콘 이름·이모지·HTML), `pre`, `text`, `sub`, `kicker`, `chips`. 첫 장면 |
 | `terms` | `terms: [{key, word, en, icon, plain, example}]`. 용어를 쉬운 말로 먼저 푼다. key는 glossary에 자동 등록 |
-| `explain` | `steps: [{icon, title, text, visual}]`, `arrows`. 원인 → 과정 → 결과 |
+| `explain` | `steps: [{icon, title, text, visual}]`, `form`, `arrows`. `form`: `"cards"`(기본, 독립된 요소 나열), `"strip"`(이어진 한 줄 흐름, 카드 없이 선과 마디), `"stack"`(세로 타임라인, 단계마다 오른쪽에 그림) |
+| `figure` | `figure`(그림: 노드·HTML·함수), `caption`, `label`. 그림 하나가 화면을 차지하고 아래에 "그림 n." 캡션이 붙는다. `points`의 `at`은 그림 무대 전체 기준 %라서, 목업 위에 찍으려면 `pointsOn: ".ltt-phone"`처럼 목업을 대상으로 준다. 단계 재생은 `figure` 함수 안에서 `player`/`stepper`로 |
+| `statement` | `title`(큰 주장 한 문장, `<em>`은 강조색), `sub`, `visual`(작은 근거 그림, 선택). 카드 없이 리듬을 바꾸는 장면 |
 | `contrast` | `before`, `after`(위 beforeAfter의 각 쪽) |
-| `compare` | `items: [{label, visual, tone, verdict, note, noteAfter, enter, onReveal}]`, `cols`, `reveal`, `revealLabel` |
+| `compare` | `items: [{label, visual, tone, verdict, note, noteAfter, enter, onReveal}]`, `form`, `cols`, `reveal`, `revealLabel`. `form: "table"`이면 사례가 행이 되는 비교표(라벨 \| 그림 \| 판정) |
 | `predict` | `choices`, `answer`, `question`, `hint`, `visual`, `answerVisual`, `why`, `button`, `unsure`, `reveal` |
 | `summary` | 앞 장면의 `takeaway`를 카드로 모은다. `cards`로 직접 줄 수도 있다. `extra: {title, text}`는 검은 카드 |
 | `keywords` | `terms: [{ko, en}]`, `signals`, `queries`, `neighbors: [{term, diff}]`. 마지막 장면 |

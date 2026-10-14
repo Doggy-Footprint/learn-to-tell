@@ -7,21 +7,114 @@
   var TOKENS_LIGHT = "--ltt-bg:#f2f1ec;--ltt-card:#fff;--ltt-card-2:#f7f6f2;--ltt-line:#e6e3dc;--ltt-line-2:#d6d2c8;" +
     "--ltt-ink:#16171b;--ltt-ink-2:#3b3c43;--ltt-muted:#77777e;--ltt-accent:#2f5bff;--ltt-accent-soft:#e9eeff;" +
     "--ltt-good:#12a066;--ltt-good-soft:#e2f5ec;--ltt-bad:#e5484d;--ltt-bad-soft:#fdebeb;--ltt-warn:#d48700;--ltt-warn-soft:#fcf1dc;" +
-    "--ltt-dark:#18191d;--ltt-on-dark:#f4f3ef;--ltt-shadow:0 1px 2px rgba(22,23,27,.05),0 10px 30px rgba(22,23,27,.06);";
+    "--ltt-dark:#18191d;--ltt-on-dark:#f4f3ef;--ltt-on-accent:#fff;--ltt-accent-on-dark:#9fb3ff;--ltt-shadow:0 1px 2px rgba(22,23,27,.05),0 10px 30px rgba(22,23,27,.06);";
   var TOKENS_DARK = "--ltt-bg:#121316;--ltt-card:#1c1d21;--ltt-card-2:#232429;--ltt-line:#2d2e35;--ltt-line-2:#3a3b43;" +
     "--ltt-ink:#efeee9;--ltt-ink-2:#cfcec8;--ltt-muted:#9a9aa3;--ltt-accent:#7e98ff;--ltt-accent-soft:#222a47;" +
     "--ltt-good:#3fcf93;--ltt-good-soft:#16302a;--ltt-bad:#ff6b70;--ltt-bad-soft:#3a1d20;--ltt-warn:#f0b13c;--ltt-warn-soft:#352914;" +
-    "--ltt-dark:#050608;--ltt-on-dark:#f4f3ef;--ltt-shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);";
+    "--ltt-dark:#050608;--ltt-on-dark:#f4f3ef;--ltt-on-accent:#fff;--ltt-accent-on-dark:#9fb3ff;--ltt-shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);";
+
+  var SERIF = "'Noto Serif KR','Nanum Myeongjo','AppleMyungjo','Batang',Georgia,serif";
+  // Each theme imitates the medium practitioners of a field already read (paper figures, drawings, terminals, financial press, plot paper).
+  // `shape` holds non-colour tokens shared by both schemes; `css` is extra surface styling scoped to the theme.
+  var THEMES = {
+    studio: { label: "Studio", medium: "제품 화면·디자인 툴", light: "", dark: "", shape: "", css: "" },
+    paper: {
+      label: "Paper", medium: "논문 figure·교과서",
+      light: "--ltt-bg:#f4efe4;--ltt-card:#fbf8f1;--ltt-card-2:#f1ebdf;--ltt-line:#e0d6c3;--ltt-line-2:#cdbfa6;--ltt-ink:#1f1b16;--ltt-ink-2:#433c33;" +
+        "--ltt-muted:#7a7062;--ltt-accent:#23508e;--ltt-accent-soft:#e0e7f1;--ltt-good:#3b7449;--ltt-good-soft:#e3eddc;--ltt-bad:#b1322a;--ltt-bad-soft:#f5dfda;" +
+        "--ltt-warn:#a3660f;--ltt-warn-soft:#f4e7cf;--ltt-dark:#2b2620;--ltt-on-dark:#f4efe4;--ltt-accent-on-dark:#a9c2ee;--ltt-shadow:none;",
+      dark: "--ltt-bg:#1a1814;--ltt-card:#221f1a;--ltt-card-2:#2a2620;--ltt-line:#38322a;--ltt-line-2:#4a4237;--ltt-ink:#ece4d4;--ltt-ink-2:#d2c8b6;" +
+        "--ltt-muted:#a0968a;--ltt-accent:#8fb0e6;--ltt-accent-soft:#1f2a3c;--ltt-good:#8cc49a;--ltt-good-soft:#21301f;--ltt-bad:#f08a7e;--ltt-bad-soft:#3b2220;" +
+        "--ltt-warn:#e5b45e;--ltt-warn-soft:#382c17;--ltt-dark:#0e0d0b;--ltt-on-dark:#ece4d4;--ltt-on-accent:#1a1814;--ltt-accent-on-dark:#a9c2ee;--ltt-shadow:none;",
+      shape: "--ltt-radius:4px;--ltt-r-lg:4px;--ltt-r-md:4px;--ltt-font-display:" + SERIF + ";--ltt-display-weight:700;--ltt-display-track:-.015em;",
+      css: "[data-ltt-theme=paper] .dk-no{font-family:" + SERIF + ";font-style:italic;font-weight:400}" +
+        "[data-ltt-theme=paper] .dk-kicker,[data-ltt-theme=paper] .dk-top h1{box-shadow:none;background:none;padding-left:0;border-radius:0;letter-spacing:.06em;text-transform:uppercase;font-size:12px}" +
+        "[data-ltt-theme=paper] .dk-top{border-bottom:1.5px solid var(--ltt-ink);margin-bottom:8px}" +
+        "[data-ltt-theme=paper] .ltt-dg rect.box,[data-ltt-theme=paper] .ltt-dg .z rect{rx:3px}[data-ltt-theme=paper] .ltt-dg .n .l{font-family:" + SERIF + "}"
+    },
+    blueprint: {
+      label: "Blueprint", medium: "회로·블록 도면",
+      light: "--ltt-bg:#eef3f8;--ltt-card:#f7fafd;--ltt-card-2:#e6edf5;--ltt-line:#c9d7e6;--ltt-line-2:#a9bfd6;--ltt-ink:#0f2740;--ltt-ink-2:#2a4562;" +
+        "--ltt-muted:#5c7590;--ltt-accent:#1d64d8;--ltt-accent-soft:#dde9fb;--ltt-good:#0f8a67;--ltt-good-soft:#d9f0e8;--ltt-bad:#d4383f;--ltt-bad-soft:#fae1e1;" +
+        "--ltt-warn:#b86e00;--ltt-warn-soft:#f8ead2;--ltt-dark:#0b1d33;--ltt-on-dark:#dce8f5;--ltt-accent-on-dark:#7cc2ff;--ltt-shadow:none;" +
+        "--ltt-pattern:linear-gradient(#d9e4ef 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#d9e4ef 1px,transparent 1px) 0 0/24px 24px;",
+      dark: "--ltt-bg:#0b1d33;--ltt-card:#0f2440;--ltt-card-2:#132b4b;--ltt-line:#1f3d63;--ltt-line-2:#2c5180;--ltt-ink:#dce8f5;--ltt-ink-2:#b7cbe2;" +
+        "--ltt-muted:#7f9bbd;--ltt-accent:#5fb3ff;--ltt-accent-soft:#16365c;--ltt-good:#4fd1a5;--ltt-good-soft:#123a3a;--ltt-bad:#ff7a80;--ltt-bad-soft:#3d1f2c;" +
+        "--ltt-warn:#ffb454;--ltt-warn-soft:#3a3020;--ltt-dark:#06111f;--ltt-on-dark:#dce8f5;--ltt-on-accent:#04121f;--ltt-accent-on-dark:#7cc2ff;--ltt-shadow:none;" +
+        "--ltt-pattern:linear-gradient(#12294a 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#12294a 1px,transparent 1px) 0 0/24px 24px;",
+      shape: "--ltt-radius:3px;--ltt-r-lg:3px;--ltt-r-md:3px;--ltt-r-sm:2px;--ltt-display-weight:750;--ltt-display-track:-.025em;--ltt-border-w:1.5px;",
+      css: "[data-ltt-theme=blueprint] .dk-no,[data-ltt-theme=blueprint] .dk-kicker,[data-ltt-theme=blueprint] .dk-step .no,[data-ltt-theme=blueprint] .dk-count{font-family:var(--ltt-mono);letter-spacing:0}" +
+        "[data-ltt-theme=blueprint] .dk-kicker,[data-ltt-theme=blueprint] .dk-top h1{border-radius:2px;text-transform:uppercase;font-size:12px;letter-spacing:.08em}" +
+        "[data-ltt-theme=blueprint] .dk-no{font-weight:500;font-size:clamp(40px,min(6vw,10vh),84px)}" +
+        "[data-ltt-theme=blueprint] .ltt-dg rect.box,[data-ltt-theme=blueprint] .ltt-dg .z rect{rx:2px}" +
+        "[data-ltt-theme=blueprint] .ltt-dg .n .s,[data-ltt-theme=blueprint] .ltt-dg .el,[data-ltt-theme=blueprint] .ltt-dg .z text{font-family:var(--ltt-mono);letter-spacing:.02em}"
+    },
+    terminal: {
+      label: "Terminal", medium: "터미널·로그·대시보드",
+      light: "--ltt-bg:#f3f3ee;--ltt-card:#fbfbf8;--ltt-card-2:#ecece5;--ltt-line:#dcdcd2;--ltt-line-2:#c4c4b8;--ltt-ink:#121512;--ltt-ink-2:#30352f;" +
+        "--ltt-muted:#6c7269;--ltt-accent:#08803f;--ltt-accent-soft:#dcf1e3;--ltt-good:#08803f;--ltt-good-soft:#dcf1e3;--ltt-bad:#c9302c;--ltt-bad-soft:#f8dedd;" +
+        "--ltt-warn:#a86a00;--ltt-warn-soft:#f5e8cc;--ltt-dark:#0d0f0e;--ltt-on-dark:#d6e5dc;--ltt-accent-on-dark:#3ddc84;--ltt-shadow:none;",
+      dark: "--ltt-bg:#0c0e0d;--ltt-card:#121614;--ltt-card-2:#18201c;--ltt-line:#222c27;--ltt-line-2:#304038;--ltt-ink:#d6e5dc;--ltt-ink-2:#b2c4b9;" +
+        "--ltt-muted:#7d9086;--ltt-accent:#3ddc84;--ltt-accent-soft:#143223;--ltt-good:#3ddc84;--ltt-good-soft:#143223;--ltt-bad:#ff6b6b;--ltt-bad-soft:#3a1c1c;" +
+        "--ltt-warn:#ffb000;--ltt-warn-soft:#382b10;--ltt-dark:#050605;--ltt-on-dark:#d6e5dc;--ltt-on-accent:#06120b;--ltt-accent-on-dark:#3ddc84;--ltt-shadow:none;",
+      shape: "--ltt-radius:6px;--ltt-r-lg:6px;--ltt-r-md:5px;--ltt-r-sm:4px;--ltt-display-weight:750;--ltt-display-track:-.03em;",
+      css: "[data-ltt-theme=terminal] .dk-no,[data-ltt-theme=terminal] .dk-kicker,[data-ltt-theme=terminal] .dk-step .no,[data-ltt-theme=terminal] .dk-count,[data-ltt-theme=terminal] .dk-top h1{font-family:var(--ltt-mono);letter-spacing:0}" +
+        "[data-ltt-theme=terminal] .dk-no::before{content:'#';opacity:.45}[data-ltt-theme=terminal] .dk-no{font-weight:600;font-size:clamp(36px,min(5vw,9vh),72px)}" +
+        "[data-ltt-theme=terminal] .dk-top h1::before{border-radius:0;width:8px;height:14px;animation:none}" +
+        "[data-ltt-theme=terminal] .dk-kicker::before{content:'$';width:auto;height:auto;background:none;color:var(--ltt-accent)}" +
+        "[data-ltt-theme=terminal] .ltt-dg rect.box,[data-ltt-theme=terminal] .ltt-dg .z rect{rx:4px}[data-ltt-theme=terminal] .ltt-dg .n .l,[data-ltt-theme=terminal] .ltt-dg .el{font-family:var(--ltt-mono)}"
+    },
+    ledger: {
+      label: "Ledger", medium: "경제 신문 차트",
+      light: "--ltt-bg:#fff1e5;--ltt-card:#fff8f2;--ltt-card-2:#f8e6d6;--ltt-line:#ead5c2;--ltt-line-2:#d9bca3;--ltt-ink:#33302e;--ltt-ink-2:#4d4845;" +
+        "--ltt-muted:#7d736b;--ltt-accent:#0d7680;--ltt-accent-soft:#d9ecea;--ltt-good:#09753f;--ltt-good-soft:#dcefdf;--ltt-bad:#cc0000;--ltt-bad-soft:#f9dcd6;" +
+        "--ltt-warn:#b05f00;--ltt-warn-soft:#f8e3c8;--ltt-dark:#262a33;--ltt-on-dark:#fff1e5;--ltt-accent-on-dark:#7fd0d6;--ltt-shadow:none;",
+      dark: "--ltt-bg:#1d1a18;--ltt-card:#262220;--ltt-card-2:#2e2926;--ltt-line:#3b3431;--ltt-line-2:#4d4440;--ltt-ink:#f2e6db;--ltt-ink-2:#d6cac0;" +
+        "--ltt-muted:#a3968c;--ltt-accent:#4fb5bd;--ltt-accent-soft:#1c3536;--ltt-good:#56c08a;--ltt-good-soft:#1c3226;--ltt-bad:#ff6a5c;--ltt-bad-soft:#3d201d;" +
+        "--ltt-warn:#f0a447;--ltt-warn-soft:#3a2b1a;--ltt-dark:#0f0d0c;--ltt-on-dark:#f2e6db;--ltt-on-accent:#0f1d1e;--ltt-accent-on-dark:#7fd0d6;--ltt-shadow:none;",
+      shape: "--ltt-radius:0px;--ltt-r-lg:0px;--ltt-r-md:0px;--ltt-r-sm:0px;--ltt-font-display:" + SERIF + ";--ltt-display-weight:700;--ltt-display-track:-.02em;",
+      css: "[data-ltt-theme=ledger] .dk-top{border-bottom:3px solid var(--ltt-ink);margin-bottom:6px}" +
+        "[data-ltt-theme=ledger] .dk-top h1,[data-ltt-theme=ledger] .dk-kicker{box-shadow:none;background:none;padding-left:0;border-radius:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase}" +
+        "[data-ltt-theme=ledger] .dk-top h1::before,[data-ltt-theme=ledger] .dk-kicker::before{border-radius:0;width:14px;height:4px}" +
+        "[data-ltt-theme=ledger] .dk-no{font-family:" + SERIF + ";font-weight:400;color:var(--ltt-ink-2)}" +
+        "[data-ltt-theme=ledger] .ltt-dg rect.box,[data-ltt-theme=ledger] .ltt-dg .z rect{rx:0}"
+    },
+    lab: {
+      label: "Lab", medium: "실험 노트·모눈 플롯",
+      light: "--ltt-bg:#f8f9f4;--ltt-card:#fdfdfa;--ltt-card-2:#eff2ea;--ltt-line:#dbe2d6;--ltt-line-2:#bfcab9;--ltt-ink:#1b2620;--ltt-ink-2:#34423a;" +
+        "--ltt-muted:#68766d;--ltt-accent:#c2410c;--ltt-accent-soft:#fbe5d8;--ltt-good:#147a52;--ltt-good-soft:#dbefe4;--ltt-bad:#be2e3a;--ltt-bad-soft:#f7dfe0;" +
+        "--ltt-warn:#9a6a00;--ltt-warn-soft:#f2e8c9;--ltt-dark:#18231d;--ltt-on-dark:#eef3ec;--ltt-accent-on-dark:#ffa877;" +
+        "--ltt-shadow:0 1px 0 rgba(27,38,32,.06);" +
+        "--ltt-pattern:linear-gradient(#e7ece3 1px,transparent 1px) 0 0/16px 16px,linear-gradient(90deg,#e7ece3 1px,transparent 1px) 0 0/16px 16px;",
+      dark: "--ltt-bg:#111613;--ltt-card:#161c18;--ltt-card-2:#1c241f;--ltt-line:#26312a;--ltt-line-2:#344238;--ltt-ink:#e4ece5;--ltt-ink-2:#c3cfc6;" +
+        "--ltt-muted:#8b9a90;--ltt-accent:#ff8a50;--ltt-accent-soft:#3a2418;--ltt-good:#4fcf95;--ltt-good-soft:#163024;--ltt-bad:#ff6f7b;--ltt-bad-soft:#3b1d22;" +
+        "--ltt-warn:#e8b740;--ltt-warn-soft:#352c14;--ltt-dark:#070a08;--ltt-on-dark:#e4ece5;--ltt-on-accent:#1a0d05;--ltt-accent-on-dark:#ffa877;--ltt-shadow:none;" +
+        "--ltt-pattern:linear-gradient(#18201b 1px,transparent 1px) 0 0/16px 16px,linear-gradient(90deg,#18201b 1px,transparent 1px) 0 0/16px 16px;",
+      shape: "--ltt-radius:10px;--ltt-r-lg:10px;--ltt-r-md:8px;--ltt-display-weight:800;--ltt-display-track:-.035em;",
+      css: "[data-ltt-theme=lab] .dk-no{font-family:var(--ltt-mono);font-weight:500;letter-spacing:-.04em}" +
+        "[data-ltt-theme=lab] .dk-kicker{font-family:var(--ltt-mono);border-radius:4px;font-size:12px}"
+    }
+  };
+
+  function themeCss() {
+    return Object.keys(THEMES).filter(function (k) { return k !== "studio"; }).map(function (k) {
+      var t = THEMES[k], sel = ":root[data-ltt-theme=" + k + "]";
+      return sel + "{" + t.shape + t.light + "}" +
+        "@media (prefers-color-scheme:dark){" + sel + ":not([data-theme=light]){" + t.dark + "}}" +
+        sel + "[data-theme=dark]{" + t.dark + "}" + t.css;
+    }).join("");
+  }
 
   var STYLE = [
     "@font-face{font-family:'Pretendard Variable';font-weight:45 920;font-style:normal;font-display:swap;",
     "src:url('/kit/vendor/pretendard/PretendardVariable.woff2') format('woff2-variations')}",
-    ":root{" + TOKENS_LIGHT + "--ltt-radius:20px;--ltt-r-md:14px;--ltt-r-sm:8px;",
+    ":root{" + TOKENS_LIGHT + "--ltt-radius:20px;--ltt-r-lg:24px;--ltt-r-md:14px;--ltt-r-sm:8px;--ltt-border-w:1px;--ltt-pattern:none;",
+    "--ltt-display-weight:850;--ltt-display-track:-.04em;--ltt-font-display:var(--ltt-font);",
     "--ltt-font:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Segoe UI',sans-serif;",
     "--ltt-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}",
     "@media (prefers-color-scheme:dark){:root:not([data-theme=light]){" + TOKENS_DARK + "color-scheme:dark}}",
     ":root[data-theme=dark]{" + TOKENS_DARK + "color-scheme:dark}",
-    "body{margin:0;background:var(--ltt-bg);color:var(--ltt-ink);font:16px/1.6 var(--ltt-font);",
+    "body{margin:0;background:var(--ltt-pattern),var(--ltt-bg);background-color:var(--ltt-bg);color:var(--ltt-ink);font:16px/1.6 var(--ltt-font);",
     "-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}",
     "main{max-width:1080px;margin:0 auto;padding:40px 20px 96px}",
     "h1{font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-.035em;line-height:1.15;margin:0 0 8px}",
@@ -46,7 +139,7 @@
     "color:var(--ltt-bg);cursor:pointer;transition:transform .12s,background-color .2s,opacity .2s}",
     "button:active:not(:disabled){transform:scale(.97)}button:disabled{opacity:.35;cursor:default}",
     "button.ghost{background:transparent;color:var(--ltt-ink);box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
-    "button.accent{background:var(--ltt-accent);color:#fff}",
+    "button.accent{background:var(--ltt-accent);color:var(--ltt-on-accent)}",
     ":focus-visible{outline:2.5px solid var(--ltt-accent);outline-offset:2px}",
     "input[type=number],input[type=text]{font:inherit;padding:8px 12px;border:1.5px solid var(--ltt-line-2);border-radius:12px;background:var(--ltt-card);color:var(--ltt-ink)}",
     "input[type=number]{width:6em}",
@@ -71,7 +164,7 @@
     "#ltt-pop{position:fixed;z-index:50;max-width:min(320px,calc(100vw - 24px));padding:12px 14px;border-radius:14px;",
     "background:var(--ltt-dark);color:var(--ltt-on-dark);font-size:14px;line-height:1.5;box-shadow:0 12px 32px rgba(0,0,0,.25);",
     "opacity:0;transform:translateY(4px);transition:opacity .15s,transform .15s;pointer-events:none}",
-    "#ltt-pop.on{opacity:1;transform:none}#ltt-pop b{display:block;font-size:13px;color:#9fb3ff;margin-bottom:2px}",
+    "#ltt-pop.on{opacity:1;transform:none}#ltt-pop b{display:block;font-size:13px;color:var(--ltt-accent-on-dark);margin-bottom:2px}",
     "#ltt-expect{position:fixed;right:16px;bottom:88px;z-index:40;max-width:380px;max-height:40vh;overflow:auto;font-size:13px;",
     "background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:14px;padding:8px 12px;",
     "box-shadow:var(--ltt-shadow)}#ltt-expect summary{cursor:pointer;font-weight:700;color:var(--ltt-good)}",
@@ -79,7 +172,7 @@
     "#ltt-expect:not([data-fails]):not([data-warns]){display:none}",
     "#ltt-expect div{margin:2px 0}#ltt-expect .ok{color:var(--ltt-good)}#ltt-expect .fail{color:var(--ltt-bad);font-weight:600}",
     "#ltt-expect .warn{color:var(--ltt-warn)}"
-  ].join("");
+  ].join("") + themeCss();
 
   // Hand-drawn 24×24 stroke icons; each value is SVG inner markup drawn with currentColor.
   var ICONS = {
@@ -225,7 +318,7 @@
   }
 
   // Fields an author fills with prose; everything else (ids, tones, answers) is not reader-facing text.
-  var NON_TEXT = { type: 1, tone: 1, answer: 1, id: 1, icon: 1, art: 1, tex: 1, at: 1, pointsOn: 1, layout: 1, cols: 1, k: 1, c: 1, r: 1, f: 1, t: 1, color: 1, mountIn: 1 };
+  var NON_TEXT = { type: 1, form: 1, tone: 1, answer: 1, id: 1, icon: 1, art: 1, tex: 1, at: 1, pointsOn: 1, layout: 1, cols: 1, k: 1, c: 1, r: 1, f: 1, t: 1, color: 1, mountIn: 1 };
 
   function sceneText(scene) {
     var out = [];
@@ -258,7 +351,17 @@
     return (plain.match(/[.?!…](?=\s|$)/g) || []).length || 1;
   }
 
-  var VISUAL_TYPES = { compare: 1, contrast: 1 };
+  var VISUAL_TYPES = { compare: 1, contrast: 1, figure: 1 };
+
+  // Equal-width card grids; a deck built mostly from these reads as the same slideshow whatever the topic.
+  function isCardGrid(s) {
+    if (s.type === "explain") return !s.form || s.form === "cards";
+    if (s.type === "compare") return s.form !== "table";
+    return s.type === "terms" || s.type === "summary";
+  }
+  function isSignature(s) {
+    return s.type === "figure" || s.type === "contrast" || s.layout === "full" || (!s.type && !!s.mount);
+  }
 
   // Static checks for self-study readiness; returns [{scene, rule, msg}] (scene is 1-based, 0 for the deck).
   function lintDeck(spec) {
@@ -290,17 +393,34 @@
         });
       } else if (s.type !== "hook" && s.type !== "keywords" && s.type !== "summary") explained = true;
       var hasVisual = VISUAL_TYPES[s.type] || (!s.type && s.mount);
-      if (hasVisual && !s.narration && !s.points && !s.sub && !(s.before && s.before.points))
+      if (hasVisual && !s.narration && !s.points && !s.sub && !s.caption && !(s.before && s.before.points))
         add(i, "no-reading-guide", "그림을 읽는 법(narration, points, sub)이 없다");
       if (s.type !== "hook" && s.type !== "keywords" && s.type !== "summary" && !s.title) add(i, "no-title", "제목이 없다");
       if (s.narration && sentences(s.narration) > 4) add(i, "long-narration", "해설이 4문장을 넘는다 (장면을 나눌 것)");
       if (s.points && s.points.length > 3) add(i, "many-points", "번호 주석이 " + s.points.length + "개 (3개 이하)");
     });
+    var run = 0, cards = 0, body = 0;
+    scenes.forEach(function (s, i) {
+      if (s.type === "hook" || s.type === "keywords") return;
+      body++;
+      if (isCardGrid(s)) { cards++; run++; if (run === 3) add(i, "card-monotony", "카드 격자 장면이 3장 연속이다 (figure·statement·explain form strip/stack·compare form table로 바꿀 것)"); }
+      else run = 0;
+    });
+    if (body >= 4 && cards / body > 0.6) out.push({ scene: 0, rule: "card-monotony", msg: "카드 격자 장면이 " + cards + "/" + body + "장이다 (60% 이하)" });
+    if (scenes.length && !scenes.some(isSignature)) out.push({ scene: 0, rule: "no-signature", msg: "그림이 주인공인 장면(figure, contrast, layout:\"full\", mount)이 없다" });
+    if (!spec.theme) out.push({ scene: 0, rule: "no-theme", msg: "theme을 고르지 않았다 (" + Object.keys(THEMES).join(", ") + ")" });
+    else if (!THEMES[spec.theme]) out.push({ scene: 0, rule: "unknown-theme", msg: "없는 theme '" + spec.theme + "'" });
     if (predicts > 1) out.push({ scene: 0, rule: "many-predicts", msg: "predict가 " + predicts + "개 (수업당 1개)" });
     var last = scenes[scenes.length - 1];
     if (!last || last.type !== "keywords") out.push({ scene: 0, rule: "keywords-last", msg: "마지막 장면이 keywords가 아니다" });
     Object.keys(glossary).forEach(function (k) { if (!(k in first)) out.push({ scene: 0, rule: "unused-term", msg: "glossary의 '" + k + "'가 어디에도 표시되지 않았다" }); });
     return out;
+  }
+
+  function theme(name) {
+    if (!THEMES[name] || typeof document === "undefined") return false;
+    document.documentElement.setAttribute("data-ltt-theme", name);
+    return true;
   }
 
   var glossaryState = { defs: {}, first: {} };
@@ -374,7 +494,8 @@
 
   var LTT = root.LTT = {
     lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
-    icon: icon, icons: Object.keys(ICONS),
+    icon: icon, icons: Object.keys(ICONS), theme: theme,
+    themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
     termsIn: termsIn, sceneText: sceneText, termIndex: termIndex, lintDeck: lintDeck,
     setGlossary: setGlossary, linkTerms: linkTerms
   };

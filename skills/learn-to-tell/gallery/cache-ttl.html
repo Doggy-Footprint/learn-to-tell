@@ -4,23 +4,31 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>캐시 TTL을 늘리면 무엇을 잃을까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"백엔드","topic":"캐시 TTL과 오래된 응답 비율","audience":"캐시가 무엇인지 알고 API를 만들어 봤다","pattern":["hook","terms","stepper","predict","compare","sweep","explain","summary","keywords"],"mode":"체험형: 용어를 먼저 풀고, 캐시 값 하나의 생애를 단계별로 본 뒤, 오래된 응답 비율을 짐작하고 응답 100칸으로 답을 본다","decision":"TTL (원본 부하와 오래된 응답 사이)"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"백엔드","topic":"캐시 TTL과 오래된 응답 비율","audience":"캐시가 무엇인지 알고 API를 만들어 봤다","pattern":["hook","terms","figure","predict","compare:table","statement","sweep","explain","summary","keywords"],"theme":"terminal","medium":"터미널·로그 타임라인","mode":"체험형: 용어를 먼저 풀고, 캐시 값 하나의 생애를 타임라인과 접근 로그로 단계별로 본 뒤, 오래된 응답 비율을 짐작하고 응답 100칸으로 답을 본다","decision":"TTL (원본 부하와 오래된 응답 사이)"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
 <script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-mock.js"></script>
 <script src="/kit/ltt-deck.js"></script>
 <style>
   :root { --stale: var(--ltt-warn); --fresh: color-mix(in srgb, var(--ltt-ink) 16%, var(--ltt-card)); --miss: var(--ltt-accent); }
   .u-stale { background: var(--stale) !important; } .u-fresh { background: var(--fresh) !important; } .u-miss { background: var(--miss) !important; }
-  .mini .ltt-units { max-width: 150px; gap: 2px; margin: 0 auto; } .mini .ltt-unit { border-radius: 2px; }
   .num { font-size: 13px; color: var(--ltt-muted); text-align: center; margin: 10px 0 0; } .num b { font-size: 24px; color: var(--ltt-ink); font-weight: 800; }
   .ans-row { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
   .ans-row .ltt-units { width: min(220px, 50vw, 24vh); }
   .tl text { font-size: 15px; }
-  .tl .lane { font-weight: 800; fill: var(--ltt-muted); font-size: 12px; }
+  .tl .lane { font-weight: 700; fill: var(--ltt-muted); font-size: 12px; font-family: var(--ltt-mono); }
+  .life { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); gap: clamp(16px, 2.4vw, 32px); align-items: center; width: 100%; }
+  .life .ltt-term-mock { font-size: 12.5px; }
+  .life .ltt-term-mock .screen { min-height: 15em; }
+  .ltt-term-mock .miss { color: #5fd6a0; } .ltt-term-mock .hit { color: #b4b3ad; }
+  .ltt-term-mock .stale { color: #ffb000; } .ltt-term-mock .db { color: #ff8a8d; }
+  @media (max-width: 860px) { .life { grid-template-columns: 1fr; } }
+  .reqs .ltt-units { max-width: 520px; gap: 2px; margin: 0; } .reqs .ltt-unit { border-radius: 1px; }
+  .reqs .num { text-align: left; font-family: var(--ltt-mono); margin-top: 8px; } .reqs .num b { font-size: 20px; }
 </style>
 </head>
 <body>
@@ -64,26 +72,38 @@
   }
   const caseVis = (interval, ttl) => (node) => {
     const m = model(2, interval, ttl), box = document.createElement("div");
-    box.className = "mini";
+    box.className = "reqs";
     node.appendChild(box);
-    paint(LTT.units(box.appendChild(document.createElement("div")), 100).cells, m);
+    paint(LTT.units(box.appendChild(document.createElement("div")), 100, 50).cells, m);
     box.insertAdjacentHTML("beforeend", `<p class="num"><b>${m.staleN || "<1"}</b> / 100 오래된 응답<br>원본 조회 분당 ${sig2(m.perMin)}회</p>`);
   };
   const BASE = model(2, 600, 60);
 
+  // Access-log lines matching the nine request dots at each stepper step (step ② paints req 5–8 fresh, step ③ re-reads them as stale).
+  const hit = (n, stale) => ({ t: stale ? "stale" : "hit", text: `req ${n}  HIT    GET /items/42 → 9,900원${stale ? "  STALE" : ""}` });
+  const MISS1 = { t: "miss", text: "req 1  MISS   GET /items/42 → DB 조회, 9,900원 저장, TTL 시작" };
+  const AFTER_CHANGE = [MISS1, ...[2, 3, 4].map((n) => hit(n)), { t: "db", text: "db     UPDATE items/42 price=7,900  (캐시는 모름)" }, ...[5, 6, 7, 8].map((n) => hit(n, true))];
+  const LOG = [
+    [MISS1],
+    [MISS1, ...[2, 3, 4, 5, 6, 7, 8].map((n) => hit(n))],
+    AFTER_CHANGE,
+    [...AFTER_CHANGE, { t: "dim", text: "cache  EXPIRE items/42 (TTL 만료)" }, { t: "miss", text: "req 9  MISS   GET /items/42 → DB 조회, 7,900원 저장" }],
+  ];
+
   // One cached value's life on a 0..TTL axis: origin lane on top, requests hitting the cache lane below.
-  function lifeTimeline(body) {
+  function lifeTimeline(body, term) {
     const W = 760, H = 230, x = d3.scaleLinear([0, 1.18], [90, W - 20]);
+    const log = (k) => { term.screen.replaceChildren(); LOG[k].forEach(term.add); };
     const svg = d3.select(body).append("svg").attr("class", "ltt-svg tl").attr("viewBox", `0 0 ${W} ${H}`);
     const yO = 52, yC = 150, change = 0.45;
     svg.append("text").attr("class", "lane").attr("x", 0).attr("y", yO + 4).text("원본 DB");
     svg.append("text").attr("class", "lane").attr("x", 0).attr("y", yC + 4).text("캐시");
     const g = svg.append("g");
-    const o1 = g.append("rect").attr("x", x(0)).attr("y", yO - 16).attr("height", 32).attr("rx", 10).attr("width", x(change) - x(0)).style("fill", "var(--ltt-card-2)").style("stroke", "var(--ltt-line-2)");
+    const o1 = g.append("rect").attr("x", x(0)).attr("y", yO - 16).attr("height", 32).attr("rx", 2).attr("width", x(change) - x(0)).style("fill", "var(--ltt-card-2)").style("stroke", "var(--ltt-line-2)");
     const o1t = g.append("text").attr("x", x(0) + 12).attr("y", yO + 5).text("가격 9,900원").style("font-weight", 700);
-    const o2 = g.append("rect").attr("x", x(change)).attr("y", yO - 16).attr("height", 32).attr("rx", 10).attr("width", x(1.18) - x(change)).style("fill", "var(--ltt-bad-soft)").style("stroke", "var(--ltt-bad)");
+    const o2 = g.append("rect").attr("x", x(change)).attr("y", yO - 16).attr("height", 32).attr("rx", 2).attr("width", x(1.18) - x(change)).style("fill", "var(--ltt-bad-soft)").style("stroke", "var(--ltt-bad)");
     const o2t = g.append("text").attr("x", x(change) + 12).attr("y", yO + 5).text("가격 7,900원으로 변경").style("font-weight", 700).style("fill", "var(--ltt-bad)");
-    const cFresh = g.append("rect").attr("x", x(0)).attr("y", yC - 16).attr("height", 32).attr("rx", 10).attr("width", 0).style("fill", "var(--fresh)");
+    const cFresh = g.append("rect").attr("x", x(0)).attr("y", yC - 16).attr("height", 32).attr("rx", 2).attr("width", 0).style("fill", "var(--fresh)");
     const cStale = g.append("rect").attr("x", x(change)).attr("y", yC - 16).attr("height", 32).attr("rx", 0).attr("width", 0).style("fill", "var(--stale)");
     const cText = g.append("text").attr("x", x(0) + 12).attr("y", yC + 5).text("9,900원 보관 중").style("font-weight", 700);
     const ttlLine = g.append("g");
@@ -99,20 +119,21 @@
     const show = (sel, on) => sel.transition().duration(ms / 2).style("opacity", on ? 1 : 0);
     return {
       steps: [
-        { caption: "<b>① 원본 조회</b> — 첫 요청은 캐시에 값이 없어 원본 DB에 묻는다(파란 점). 받은 값을 캐시에 넣고 TTL 시계를 시작한다.",
-          enter: () => { show(o2, 0); show(o2t, 0); show(arrow, 0); show(arrowT, 0); show(ttlLine, 0); cFresh.transition().duration(ms).attr("width", 6); cStale.attr("width", 0); reqs.style("fill", (t) => t === 0 ? color(t) : "var(--ltt-line)"); } },
+        { caption: "<b>① 원본 조회</b> — 첫 요청은 캐시에 값이 없어 원본 DB에 묻는다(초록 점). 받은 값을 캐시에 넣고 TTL 시계를 시작한다.",
+          enter: () => { log(0); show(o2, 0); show(o2t, 0); show(arrow, 0); show(arrowT, 0); show(ttlLine, 0); cFresh.transition().duration(ms).attr("width", 6); cStale.attr("width", 0); reqs.style("fill", (t) => t === 0 ? color(t) : "var(--ltt-line)"); } },
         { caption: "<b>② 캐시 적중</b> — TTL이 끝나기 전까지의 요청은 원본에 묻지 않고 캐시 값을 받는다(회색 점). 원본 DB는 쉰다.",
-          enter: () => { show(o2, 0); show(o2t, 0); show(arrow, 0); show(arrowT, 0); show(ttlLine, 1); cFresh.transition().duration(ms).attr("width", x(1) - x(0)); cStale.attr("width", 0); reqs.style("fill", (t) => t <= 1 ? (t === 0 ? color(t) : "var(--fresh)") : "var(--ltt-line)"); } },
+          enter: () => { log(1); show(o2, 0); show(o2t, 0); show(arrow, 0); show(arrowT, 0); show(ttlLine, 1); cFresh.transition().duration(ms).attr("width", x(1) - x(0)); cStale.attr("width", 0); reqs.style("fill", (t) => t <= 1 ? (t === 0 ? color(t) : "var(--fresh)") : "var(--ltt-line)"); } },
         { caption: "<b>③ 원본이 바뀐다</b> — 가격이 바뀌어도 캐시는 알 길이 없다. 만료까지 남은 시간의 적중은 모두 <b>오래된 응답</b>이다(주황 점).",
-          enter: () => { show(o2, 1); show(o2t, 1); show(arrow, 1); show(arrowT, 1); show(ttlLine, 1); cFresh.attr("width", x(1) - x(0)); cStale.transition().duration(ms).attr("width", x(1) - x(change)); reqs.style("fill", (t) => t <= 1 ? color(t) : "var(--ltt-line)"); } },
-        { caption: "<b>④ 만료</b> — TTL이 지나면 캐시가 값을 버린다. 다음 요청은 다시 원본에 묻고(파란 점) 새 가격을 받아 온다.",
-          enter: () => { show(o2, 1); show(o2t, 1); show(arrow, 1); show(arrowT, 1); show(ttlLine, 1); cStale.attr("width", x(1) - x(change)); reqs.style("fill", color); } },
+          enter: () => { log(2); show(o2, 1); show(o2t, 1); show(arrow, 1); show(arrowT, 1); show(ttlLine, 1); cFresh.attr("width", x(1) - x(0)); cStale.transition().duration(ms).attr("width", x(1) - x(change)); reqs.style("fill", (t) => t <= 1 ? color(t) : "var(--ltt-line)"); } },
+        { caption: "<b>④ 만료</b> — TTL이 지나면 캐시가 값을 버린다. 다음 요청은 다시 원본에 묻고(초록 점) 새 가격을 받아 온다.",
+          enter: () => { log(3); show(o2, 1); show(o2t, 1); show(arrow, 1); show(arrowT, 1); show(ttlLine, 1); cStale.attr("width", x(1) - x(change)); reqs.style("fill", color); } },
       ],
     };
   }
 
   LTT.deck({
     title: "캐시 TTL을 늘리면 무엇을 잃을까?",
+    theme: "terminal",
     glossary: {
       "TTL": "Time To Live. 캐시에 넣은 값을 몇 초 동안 그대로 쓸지 정한 유효 시간. 시간이 지나면 값을 버리고 원본에서 다시 가져온다.",
     },
@@ -130,17 +151,18 @@
           { key: "변경 간격", en: "update interval", icon: "refresh", plain: "원본 값이 평균 몇 분에 한 번 바뀌는지. 데이터마다 크게 다르다.", example: "상품 설명은 하루 1번, 재고는 1분에 1번." },
         ] },
 
-      { kicker: "단계별로 보기", title: "캐시에 담긴 값 하나의 일생", en: "Lifecycle",
-        bare: true,
+      { type: "figure", kicker: "단계별로 보기", title: "캐시에 담긴 값 하나의 일생", en: "Lifecycle",
+        caption: "왼쪽: 원본 DB와 캐시의 두 줄 타임라인, 아래 점 하나가 요청 1건(초록 원본 조회 · 회색 최신 값 · 주황 오래된 응답). 오른쪽: 같은 요청이 남긴 캐시 접근 로그.",
         narration: [
           "캐시는 값을 넣은 순간부터 TTL이 끝날 때까지 원본을 다시 확인하지 않는다. 그래서 그 사이에 원본이 바뀌면 남은 시간 내내 옛 값을 돌려준다.",
           "옛 값이 몇 번 나가는지는 <b>TTL 길이</b>와 <b>그 안에서 원본이 바뀔 가능성</b>(변경 간격)이 같이 정한다.",
         ],
-        mount(body) {
-          const panel = body.appendChild(Object.assign(document.createElement("div"), { className: "ltt-panel" }));
-          const tl = lifeTimeline(panel);
-          LTT.stepper(panel, tl.steps, { interval: 2600 });
-          return {};
+        figure(stage) {
+          const wrap = stage.appendChild(LTT.h("div", "life"));
+          const left = wrap.appendChild(LTT.h("div"));
+          const term = LTT.mock.terminal({ title: "cache-access.log" });
+          wrap.appendChild(term.el);
+          LTT.stepper(left, lifeTimeline(left, term).steps, { interval: 2600 });
         },
         takeaway: "TTL 안에서 원본이 바뀌면, 남은 시간의 적중은 모두 옛 값이다.",
         ask: "\"이 데이터는 평균 몇 분에 한 번 바뀌나요?\"" },
@@ -162,8 +184,8 @@
         },
         why: "약 5건. 요청은 TTL 60초 동안 고르게 오므로, 응답하는 순간의 캐시 값은 저장된 지 평균 30초(TTL의 절반)다. 10분(600초)에 한 번 바뀌는 값이 그 30초 안에 바뀌었을 확률은 30 ÷ 600 = 5%다. <span class=\"ltt-tag\">모델로 계산한 예시</span>" },
 
-      { type: "compare", kicker: "실제 사례", title: "같은 TTL이라도 데이터에 따라 결과가 다르다", layout: "stack",
-        narration: "세 경우 모두 한 상품에 초당 2번 요청이 오고, 다른 것은 <b>변경 간격</b>과 TTL뿐이다. 칸 하나가 응답 1건으로 주황은 옛 값, 회색은 최신 값, 파랑은 DB 조회이고, 아래 숫자는 DB가 받는 부하다. 판정을 보기 전에 어느 쪽이 괜찮을지 먼저 골라 보자.",
+      { type: "compare", form: "table", kicker: "실제 사례", title: "같은 TTL이라도 데이터에 따라 결과가 다르다", layout: "stack",
+        narration: "세 경우 모두 한 상품에 초당 2번 요청이 오고, 다른 것은 <b>변경 간격</b>과 TTL뿐이다. 칸 하나가 응답 1건으로 주황은 옛 값, 회색은 최신 값, 초록은 DB 조회이고, 아래 숫자는 DB가 받는 부하다. 판정을 보기 전에 어느 쪽이 괜찮을지 먼저 골라 보자.",
         items: [
           { label: "상품 설명 · 하루 1번 변경 · TTL 5분", visual: caseVis(86400, 300), tone: "good", verdict: "길게 둬도 된다",
             noteAfter: true, note: "거의 안 바뀌는 데이터라 TTL 5분이어도 옛 값이 1건도 안 된다." },
@@ -175,6 +197,9 @@
         takeaway: "TTL은 '데이터가 바뀌는 속도'에 맞춰 정한다.",
         ask: "\"옛 값이 나가면 사용자에게 무슨 일이 생기나요?\"",
         sources: ["Jung · Berger · Balakrishnan, INFOCOM 2003"] },
+
+      { type: "statement", title: "옛 값을 정하는 것은 TTL 혼자가 아니라 <em>TTL과 변경 간격의 비</em>다.",
+        sub: `같은 TTL 5분이 하루 1번 바뀌는 상품 설명에서는 100건 중 1건도 옛 값으로 보내지 않고, 1분마다 바뀌는 재고에서는 ${model(2, 60, 300).staleN}건을 옛 값으로 보낸다.` },
 
       { kicker: "직접 바꿔 보기", title: "TTL을 움직이면 두 막대가 반대로 간다", en: "Trade-off",
         narration: [

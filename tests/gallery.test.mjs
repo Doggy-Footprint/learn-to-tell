@@ -45,6 +45,17 @@ test("lesson examples carry ltt-meta for picking a reference", () => {
     const m = /<script type="application\/json" id="ltt-meta">(.*?)<\/script>/s.exec(read(page));
     assert.ok(m, `${page} has no ltt-meta`);
     const meta = JSON.parse(m[1]);
-    for (const k of ["domain", "topic", "audience", "pattern", "mode", "decision"]) assert.ok(meta[k], `${page} ltt-meta lacks ${k}`);
+    for (const k of ["domain", "topic", "audience", "pattern", "theme", "medium", "mode", "decision"]) assert.ok(meta[k], `${page} ltt-meta lacks ${k}`);
   }
+});
+
+test("lesson examples pass their theme to the deck and span several media", () => {
+  const used = new Set();
+  for (const page of pages) {
+    if (!scripts(page).includes("/kit/ltt-deck.js") || page === "scenes.html") continue;
+    const meta = JSON.parse(/<script type="application\/json" id="ltt-meta">(.*?)<\/script>/s.exec(read(page))[1]);
+    assert.match(read(page), new RegExp(`theme:\\s*"${meta.theme}"`), `${page} ltt-meta theme is not the deck theme`);
+    used.add(meta.theme);
+  }
+  assert.ok(used.size >= 5, `examples use only ${[...used].join(", ")}`);
 });

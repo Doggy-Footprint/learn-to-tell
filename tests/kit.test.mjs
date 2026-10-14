@@ -115,6 +115,38 @@ test("lint keeps narration to four sentences and points to three", () => {
   assert.ok(rules({ scenes: [{ title: "t", points: pts, mount() {} }, KW] }).includes("many-points"));
 });
 
+test("lint flags runs and majorities of equal card grids, but not non-card forms", () => {
+  const ex = (form) => ({ type: "explain", form, title: "e", steps: [] });
+  const run = [{ type: "hook", text: "h" }, ex(), { type: "compare", title: "c", narration: "n.", items: [] }, ex(), KW];
+  assert.ok(rules({ scenes: run }).includes("card-monotony"));
+  const mixed = [{ type: "hook", text: "h" }, ex(), ex("strip"), { type: "figure", title: "f", caption: "c", figure: "" }, ex("stack"), { type: "compare", form: "table", title: "t", sub: "s", items: [] }, KW];
+  assert.ok(!rules({ scenes: mixed }).includes("card-monotony"));
+  const majority = [ex(), ex(), { type: "statement", title: "s" }, ex(), ex(), { type: "statement", title: "s" }, ex(), KW];
+  assert.ok(rules({ scenes: majority }).includes("card-monotony"));
+});
+
+test("lint wants a signature visual and a known theme", () => {
+  const ex = { type: "explain", title: "e", steps: [] };
+  assert.ok(rules({ scenes: [ex, KW] }).includes("no-signature"));
+  assert.ok(!rules({ scenes: [{ ...ex, layout: "full" }, KW] }).includes("no-signature"));
+  assert.ok(!rules({ scenes: [{ type: "figure", title: "f", caption: "c" }, KW] }).includes("no-signature"));
+  assert.ok(rules({ scenes: [ex, KW] }).includes("no-theme"));
+  assert.ok(rules({ theme: "neon", scenes: [ex, KW] }).includes("unknown-theme"));
+  const ok = rules({ theme: "paper", scenes: [ex, KW] });
+  assert.ok(!ok.includes("no-theme") && !ok.includes("unknown-theme"));
+});
+
+test("figure scenes accept a caption as their reading guide", () => {
+  assert.ok(rules({ scenes: [{ type: "figure", title: "f" }, KW] }).includes("no-reading-guide"));
+  assert.ok(!rules({ scenes: [{ type: "figure", title: "f", caption: "가로축은 시간이다." }, KW] }).includes("no-reading-guide"));
+});
+
+test("every theme is listed with a medium", () => {
+  const { themes } = loadKit();
+  assert.deepEqual([...themes.map((t) => t.name)].sort(), ["blueprint", "lab", "ledger", "paper", "studio", "terminal"]);
+  for (const t of themes) assert.ok(t.medium, `${t.name} has no medium`);
+});
+
 test("diagramLayout centres nodes in grid cells and clips edges to box borders", () => {
   const { diagramLayout } = loadParts();
   const L = diagramLayout({ cols: 2, rows: 1, cell: [200, 100], node: [120, 40], pad: 0,

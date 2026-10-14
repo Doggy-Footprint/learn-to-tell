@@ -53,12 +53,17 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 자료는 사용자가 **혼자 읽고 이해할 수 있어야 한다**. 선생님이 옆에서 말로 메우던 것을 페이지가 대신한다.
 
-1. 수업은 장면 덱이다: `LTT.deck({title, glossary, scenes})` 하나에 장면 데이터를 적는다. 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면. 6–12장면, 학습 자료 20분 이내.
+1. 수업은 장면 덱이다: `LTT.deck({title, theme, glossary, scenes})` 하나에 장면 데이터를 적는다. 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면. 6–12장면, 학습 자료 20분 이내.
    - 먼저 `<skill>/kit/API.md`를 읽고, 필요하면 `http://127.0.0.1:47823/gallery/catalog.html`(부품별 실물과 코드), `gallery/scenes.html`(장면 타입별 예)을 본다.
    - 빈 `<home>/lessons/<id>/lesson.html`에서 부품을 조합해 짠다. gallery 페이지를 복사해 데이터만 고치지 않는다.
-   - 예시 수업: `cache-ttl`(백엔드), `uiux/color-contrast`(UI, 목업·BEFORE/AFTER), `gpu/single-gpu-dataflow`(시스템, 다이어그램 단계 재생), `physics/projectile-drag`(시뮬레이션), `cognition/anchoring`(설명형), `finance/diversification`(도식 + 막대), `pedagogy/retrieval-practice`(실험 설계 다이어그램, 전제 지식 없음), `linear-algebra/matrix-as-transform`(격자 변형). head의 `ltt-meta`(audience, pattern, mode, decision)로 참고할 예를 고른다. `gallery/stale/`은 옛 kit용이라 동작하지 않는다.
+   - 예시 수업(테마·매체): `cache-ttl`(terminal·로그 타임라인), `uiux/color-contrast`·`uiux/visual-hierarchy-spacing`(studio·실제 화면 목업), `gpu/single-gpu-dataflow`(blueprint·블록 도면 단계 재생), `physics/projectile-drag`(lab·궤적 플롯 시뮬레이션), `cognition/anchoring`·`pedagogy/retrieval-practice`(paper·연구 figure), `finance/diversification`(ledger·신문 차트와 비교표), `linear-algebra/matrix-as-transform`(paper·격자 변형). head의 `ltt-meta`(audience, pattern, theme, medium, mode, decision)로 참고할 예를 고른다. 예시는 부품 조합을 보는 용도이고, 장면 구성은 내 주제에 맞게 새로 짠다. `gallery/stale/`은 옛 kit용이라 동작하지 않는다.
    - `index.html`: 시나리오 목록. gallery에 페이지를 추가하면 여기에도 카드를 추가한다.
-2. 독학 기준. 장면마다 독자가 물을 질문에 페이지가 답한다. 장치는 상황에 맞게 고른다.
+2. 도메인 느낌. 장면을 짜기 전에 정한다. 모든 수업이 같은 카드 슬라이드로 보이면 주제가 머리에 남지 않는다.
+   - **매체**: 이 분야 실무자가 실제로 들여다보는 화면이나 종이를 하나 고른다. 논문 figure, 회로·블록 도면, 터미널·로그, 경제 신문 차트, 실험 플롯, 실제 제품 화면 등이다. 그림과 예시는 그 매체의 모양으로 그린다(백엔드라면 카드 대신 로그 줄과 타임라인, 금융이라면 표와 꺾은선).
+   - **테마**: 매체에 맞는 `theme`을 고른다(`kit/API.md` 테마 표). 맞는 것이 없으면 가장 가까운 것을 쓰고 `result.md`의 "kit 후보"에 적는다.
+   - **주 그림(signature visual)**: 수업 전체를 관통하는 그림 하나를 정하고, 여러 장면에서 같은 그림을 단계적으로 바꿔 보인다. 장면마다 새 그림을 만들지 않는다. 이 그림이 들어가는 장면은 `figure`나 `layout: "full"`로 화면을 넓게 준다.
+   - **리듬**: 같은 모양의 장면을 이어 붙이지 않는다. 카드 격자(explain `cards`, compare, terms, summary)는 연속 2장까지, 수업 전체의 절반 이하로 쓴다. 사이에 `figure`, `statement`, explain `strip`/`stack`, compare `table`을 섞는다. lint의 `card-monotony`, `no-signature`가 이를 잡는다.
+3. 독학 기준. 장면마다 독자가 물을 질문에 페이지가 답한다. 장치는 상황에 맞게 고른다.
    - 답은 가능하면 인포그래픽으로 한다. 설명은 따로 문단으로 쓰지 않고 그림 위에 얹는다(번호 주석, 화살표·칸 라벨, 그림 옆 짧은 문구). 그림에 얹을 수 없는 내용만 글로 쓰고, 그 글도 최소화한다.
 
    | 독자의 질문 | 장면의 책임 | 장치 |
@@ -72,31 +77,33 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
    | 결국 뭘 기억하지? | 제목은 명사가 아니라 주장 문장. 핵심 한 문장 | `takeaway`, `summary` |
    | 더 알고 싶으면? | 근거와 찾아볼 곳, agent에게 할 질문 | `basis`, `sources`, `ask`, `keywords` |
 
-3. 장면 순서와 타입
-   - 순서: hook → terms(필요하면) → 원리(explain·단계 재생) → (predict → 인포그래픽 정답) → 사례(contrast·compare) → summary → keywords. 설명 전에 묻지 않는다.
-   - `explain`: 원인 → 과정 → 결과를 칸 2–4개로. 수식 대신 이것을 먼저 쓴다. 칸마다 작은 `visual`을 붙이고, 칸의 글은 그림 라벨 수준으로 줄인다.
+4. 장면 순서와 타입
+   - 고정된 것은 세 가지뿐이다: hook이 처음, keywords가 마지막, predict는 설명 뒤. 나머지 순서와 타입은 내용에 맞춘다. 흔한 흐름은 hook → (terms) → 원리 → (predict) → 사례 → summary → keywords지만, 사례로 시작하거나 주 그림 하나를 여러 장면에 걸쳐 키워 가도 된다.
+   - 원리를 보일 때: 원인 → 과정 → 결과가 한 그림 위에서 보이면 `figure`(번호 주석·단계 재생). 순서가 핵심이면 explain `form: "strip"`(한 줄 흐름) 또는 `"stack"`(세로 타임라인, 단계별 그림). 서로 독립된 요소를 나열할 때만 explain `cards`. 수식보다 먼저 쓴다. 글은 그림 라벨 수준으로 줄인다.
+   - `statement`: 주장 한 문장을 크게. 원리에서 사례로 넘어가는 지점이나, 직관과 반대인 결론을 못 박을 때 쓴다.
    - `contrast`: 같은 대상의 BEFORE/AFTER를 목업과 번호 주석으로. 바뀐 이유를 번호 해설에 쓴다.
-   - `compare`: 실제 사례 2–4개를 같은 질문으로 나란히. 판정은 "판정 보기" 뒤에 공개하고, 판정을 미리 알려 주는 설명은 `noteAfter`로 숨긴다.
+   - `compare`: 실제 사례 2–4개를 같은 질문으로 나란히. 사례가 그림보다 속성 차이로 갈리면 `form: "table"`(행마다 같은 질문). 판정은 "판정 보기" 뒤에 공개하고, 판정을 미리 알려 주는 설명은 `noteAfter`로 숨긴다.
    - 모션: `LTT.diagram`(+`player`), `stepper`, `units`, `bar`, `plane`, `sim`으로 변화·인과를 움직여 보인다. 장식용 반복 애니메이션은 쓰지 않는다(방향을 알리는 점선 흐름만 예외). 정지 화면만으로도 읽혀야 한다.
    - `predict`(짐작해 보기): 퀴즈가 아니다. 직관이 틀리기 쉬운 지점에서만 수업당 최대 1번. 질문에 쓰는 용어는 앞 장면에서 풀어 둔다. 조건은 `visual`의 `LTT.facts`로 보인다. "잘 모르겠다"가 자동으로 붙고, 정답은 `answerVisual`(인포그래픽)과 `why`로 설명한다. 사용자가 **세계·시스템**을 짐작할 때만 쓴다. 사용자 자신의 편향(앵커링, 유창성 등)을 겨냥한 체험은 의도가 드러나 효과가 없으므로 연구 사례 `compare`와 설명으로 대신한다.
    - 슬라이더(`mount` 안의 `LTT.sweep`): 조작 자체가 배움일 때만. 실사용 범위만 움직인다.
    - 수식은 장면의 `tex`로 접어 둔다(KaTeX를 불러야 보인다). 그래프는 모양이 곧 메시지일 때만.
    - `summary`: 장면들의 `takeaway`와 `ask`를 모은다. `keywords`: **필수 마지막 장면**. 개념 이름(한/영), 떠올려야 할 신호, 검색어, 헷갈리는 이웃 개념.
-4. 원칙
+5. 원칙
    - 실제 활용 예와 실패·주의 예를 함께 둔다.
    - 예측을 받았다면 첫 예측은 잠기고 `LTT.record("predict", …)`로 남는다(`predict` 장면이 처리한다).
    - 범위와 상수에는 근거(`basis`)를 적고, 근거가 약하면 "불확실" 태그를 단다. 근거 없는 수치를 지어내지 않는다.
    - 화면 수치에는 "모델로 계산한 예시" 태그를 단다.
-   - 색은 kit 토큰(`--ltt-*`)만 쓴다. 목업 속 '실제 화면' 색은 예외.
+   - 색은 kit 토큰(`--ltt-*`)만 쓴다. 분위기를 바꾸고 싶으면 hex를 적지 말고 `theme`을 바꾼다. 목업 속 '실제 화면' 색은 예외.
    - 페이지에는 모델 함수, 기대값, 장면 데이터, 부품 조합만 둔다. kit에 없는 시각 부품이 필요하면 페이지에 짜고 `result.md`의 "kit 후보"에 적는다.
-5. 검증 (공개 전)
+6. 검증 (공개 전)
    - 수치 모델의 기대값은 독립 서브에이전트가 구하게 한다. 서브에이전트에는 공식과 계산 지점만 주고 모델 코드는 주지 않는다. 서브에이전트를 쓸 수 없으면 모델 코드보다 먼저 직접 적는다. 기대값은 `LTT.expect(label, actual, expected, { tol })`로 넣는다.
    - 불일치가 나면 어느 쪽이 틀렸는지 먼저 손으로 다시 계산한다. 모델에 맞춰 기대값을 고치지 않는다. 한 번 고친 뒤에도 불일치가 남으면 그 부분을 빼거나 "검증 실패"로 표시하고 사용자에게 알린다.
    - 결정 변수에 관한 주장(공식, 범위, 비교표 판정)은 목록으로 뽑아 모델 코드를 보지 않는 독립 서브에이전트에게 검토받는다. 검토할 수 없으면 해당 주장에 "미검증" 태그를 단다. 자기 확언만으로 정확성을 인정하지 않는다.
    - **독자 검토**: 독립 서브에이전트에게 `lesson.html`과 `background.md`만 주고, 그 배경의 사람으로서 혼자 읽게 한다. 정의 없이 쓰인 용어, 설명 없이 건너뛴 단계, 그림만으로 이유를 알 수 없는 장면, 그림으로 보일 수 있는데 글 문단으로 설명한 장면을 장면 번호와 함께 받아 고친다. 서브에이전트를 쓸 수 없으면 직접 같은 목록을 쓰고, 남은 항목에 "미검토"를 표시한다.
    - 페이지를 열어 오른쪽 아래 패널의 기대값 불일치와 수업 점검(lint) 경고가 0건인지 확인한다.
-6. 서버를 백그라운드로 실행한다: `node <skill>/server/server.mjs`. 이미 실행 중이면 그대로 재사용한다. 그다음 `http://127.0.0.1:47823/lessons/<id>/lesson.html`을 안내한다. 포트는 `LTT_PORT`로 바꿀 수 있다.
-7. 사용자가 다 봤다고 하면 `<home>/lessons/<id>/events.jsonl`을 읽어 예측, `term`(눌러서 풀이를 연 용어), `expect-mismatch`, `lint` 이벤트를 확인한다. 여러 번 연 용어는 이해 확인에서 다시 묻는다.
+   - 브라우저 도구가 있으면 장면마다 스크린샷을 찍어 본다. 같은 모양의 화면이 이어지는지, 그림이 무대에 비해 너무 작은지, 테마가 매체처럼 보이는지 확인한다.
+7. 서버를 백그라운드로 실행한다: `node <skill>/server/server.mjs`. 이미 실행 중이면 그대로 재사용한다. 그다음 `http://127.0.0.1:47823/lessons/<id>/lesson.html`을 안내한다. 포트는 `LTT_PORT`로 바꿀 수 있다.
+8. 사용자가 다 봤다고 하면 `<home>/lessons/<id>/events.jsonl`을 읽어 예측, `term`(눌러서 풀이를 연 용어), `expect-mismatch`, `lint` 이벤트를 확인한다. 여러 번 연 용어는 이해 확인에서 다시 묻는다.
 
 ### kit
 

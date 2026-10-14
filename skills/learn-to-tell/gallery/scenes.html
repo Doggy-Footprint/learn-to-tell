@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>장면 타입 데모</title>
-<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"장면 타입 데모: 간격 시스템","audience":"전제 지식 없음","pattern":["hook","terms","explain","custom+points","contrast","predict","compare","summary","keywords"],"mode":"카탈로그용: 장면 타입마다 하나씩, 독학 기준(용어 풀이·읽는 법·이유·핵심)을 지킨 최소 예","decision":"화면 요소 사이 간격을 정해진 스케일에서 고를지"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"장면 타입 데모: 간격 시스템","audience":"전제 지식 없음","pattern":["hook","terms","explain:strip","figure","statement","contrast","explain:stack","predict","compare:table","compare","summary","keywords"],"theme":"studio","medium":"제품 화면","mode":"카탈로그용: 장면 타입·형태마다 하나씩, 독학 기준(용어 풀이·읽는 법·이유·핵심)을 지킨 최소 예. ?theme=paper 처럼 붙이면 같은 덱을 다른 테마로 본다","decision":"화면 요소 사이 간격을 정해진 스케일에서 고를지"}</script>
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
@@ -16,6 +16,14 @@
   .menu .it { display: flex; align-items: center; background: #f6f5f1; border-radius: 12px; }
   .menu .ph { flex: none; width: 46px; height: 46px; border-radius: 12px; background: #e9dccb; }
   .menu b { display: block; font-size: 13px; } .menu small { color: #767676; font-size: 11px; }
+  .rul { display: grid; gap: 36px; font: 15px var(--ltt-mono); color: var(--ltt-muted); width: min(100%, 900px); }
+  .rul .sc { display: flex; align-items: flex-end; gap: 14px; padding-bottom: 14px; border-bottom: 1.5px solid var(--ltt-line-2); }
+  .rul .sc span, .rul .ms span { display: flex; flex-direction: column; gap: 6px; }
+  .rul .sc i { display: block; height: 22px; background: var(--ltt-accent-soft); box-shadow: inset 0 0 0 1.5px var(--ltt-accent); }
+  .rul .ms { display: grid; gap: 14px; }
+  .rul .ms span { flex-direction: row; align-items: center; gap: 16px; color: var(--ltt-ink-2); font-size: 17px; }
+  .rul .ms i { display: block; height: 26px; flex: none; }
+  .rul .bad i { background: var(--ltt-bad); } .rul .warn i { background: var(--ltt-warn); } .rul .good i { background: var(--ltt-good); }
 </style>
 </head>
 <body>
@@ -30,8 +38,21 @@
     return p.el;
   };
 
+  const theme = new URLSearchParams(location.search).get("theme") || "studio";
+  // Spacing ruler drawn as one figure: the scale on top, each menu gap measured against it below.
+  const ruler = () => {
+    const w = LTT.h("div", "rul");
+    const steps = [4, 8, 12, 16, 24, 32];
+    w.innerHTML = `<div class="sc">${steps.map((v) => `<span><i style="width:${v * 6}px"></i>${v}</span>`).join("")}</div>
+      <div class="ms"><span class="bad"><i style="width:${2 * 6}px"></i>메뉴 사이 2 — 안쪽보다 좁다</span>
+      <span class="warn"><i style="width:${12 * 6}px"></i>메뉴 사이 12 — 안쪽과 같다</span>
+      <span class="good"><i style="width:${16 * 6}px"></i>메뉴 사이 16 — 안쪽보다 한 단계 넓다</span></div>`;
+    return w;
+  };
+
   LTT.deck({
     title: "장면 타입 데모 · 간격 시스템",
+    theme,
     glossary: {
       "간격 스케일": "미리 정해 둔 간격 값의 목록. 4·8·16·24처럼 일정한 규칙으로 커지고, 화면의 모든 간격을 여기서만 고른다.",
     },
@@ -47,13 +68,23 @@
           { key: "근접성", en: "proximity", icon: "layers", plain: "가까이 있는 것끼리 한 덩어리로 보이는 눈의 습관.", example: "가격이 다음 메뉴에 붙어 있으면 그 메뉴 가격처럼 보인다." },
         ] },
 
-      { type: "explain", kicker: "explain", title: "간격이 정보를 묶는 방법", en: "How it works",
+      { type: "explain", form: "strip", kicker: "explain · form: strip", title: "간격이 정보를 묶는 방법", en: "How it works",
         steps: [
           { icon: "layers", title: "가까우면 한 덩어리", text: "{{근접성}} 때문에 이름·설명·가격이 붙어 있으면 한 메뉴로 읽힌다." },
           { icon: "ruler", title: "멀면 다른 덩어리", text: "메뉴와 메뉴 사이는 안쪽보다 넓어야 경계가 생긴다." },
           { icon: "check", title: "값은 몇 개만", text: "4·8·16·24처럼 몇 가지 값만 쓰면 규칙이 눈에 보인다." },
         ],
         takeaway: "간격은 장식이 아니라 '무엇과 무엇이 한 묶음인가'를 말한다." },
+
+      { type: "figure", kicker: "figure", title: "메뉴 사이 간격을 스케일 위에 대 보면", en: "Figure",
+        figure: ruler,
+        caption: "위: {{간격 스케일}}(4의 배수). 아래: 메뉴 사이 간격 세 가지를 같은 자로 잰 길이. 카드 안쪽 간격은 12다.",
+        points: [{ title: "안쪽보다 좁거나 같으면", text: "옆 카드와 거리가 같아 경계가 안 생긴다.", tone: "bad" }, { title: "한 단계 넓으면", text: "카드가 덩어리로 나뉜다.", tone: "good" }],
+        takeaway: "바깥 간격은 안쪽 간격보다 스케일 한 단계 위." },
+
+      { type: "statement", kicker: "statement", title: "간격은 장식이 아니라 <em>문장 부호</em>다.",
+        sub: "띄어쓰기가 단어를 나누듯, 간격은 어디서 한 묶음이 끝나는지 알린다.",
+        visual: () => LTT.swatches([4, 8, 16, 24].map((v) => ({ color: "var(--ltt-accent)", label: v, w: v * 2, h: v * 2, r: 3 }))) },
 
       { kicker: "points + narration", title: "숫자가 제각각이면 규칙이 안 보인다", en: "Reading guide",
         narration: [
@@ -82,6 +113,13 @@
         takeaway: "간격은 감으로 정하지 않는다 — 정해진 스케일에서 고른다.",
         ask: "\"간격은 4·8·12·16·24만 써 줘\"" },
 
+      { type: "explain", form: "stack", kicker: "explain · form: stack", title: "간격을 정하는 순서", en: "Sequence",
+        steps: [
+          { title: "스케일을 먼저 정한다", text: "4의 배수 몇 개.", visual: () => LTT.swatches([4, 8, 12, 16, 24].map((v) => ({ color: "var(--ltt-accent)", label: v, w: v * 1.6, h: v * 1.6, r: 2 }))) },
+          { title: "가장 안쪽부터 고른다", text: "사진과 이름 사이 같은 작은 거리부터." },
+          { title: "바깥으로 갈수록 한 단계씩", text: "안쪽 12 → 카드 사이 16 → 구역 사이 24." },
+        ] },
+
       { type: "predict", kicker: "predict", title: "메뉴 사이 간격은 얼마가 좋을까?",
         sub: "카드 안쪽 간격이 12px일 때, 카드와 카드 사이 간격을 고른다.",
         visual: () => LTT.facts([{ icon: "ruler", value: "12px", label: "카드 안쪽 간격" }, { icon: "layers", value: "3개", label: "메뉴 카드" }]),
@@ -89,6 +127,14 @@
         choices: [{ id: "4", text: "4px" }, { id: "12", text: "12px (안쪽과 같게)" }, { id: "16", text: "16–24px" }],
         answer: "16",
         why: "안쪽보다 넓어야 카드 경계가 보인다. 같으면 메뉴 이름과 옆 카드가 같은 거리에 있어 {{근접성}}이 묶음을 못 만든다." },
+
+      { type: "compare", form: "table", kicker: "compare · form: table", title: "간격 값을 정하는 세 가지 방식",
+        sub: "같은 질문(나중에 화면을 고칠 때 규칙이 남는가?)을 행마다 묻는다.",
+        items: [
+          { label: "그때그때 눈대중", visual: "<code>13px · 10px · 7px</code>", tone: "bad", verdict: "규칙이 안 남음", note: "고칠 때마다 새 숫자가 생긴다.", noteAfter: true },
+          { label: "디자인 파일 값 복사", visual: "<code>12.5px · 16px</code>", tone: "warn", verdict: "일부만 남음", note: "도구가 반올림한 값이 섞인다.", noteAfter: true },
+          { label: "스케일 토큰", visual: "<code>space-3 · space-4</code>", tone: "good", verdict: "규칙이 남음", note: "값 대신 단계 이름을 쓴다.", noteAfter: true },
+        ] },
 
       { type: "compare", kicker: "compare", title: "실제 앱에서 카드 사이 간격", layout: "stack",
         narration: "카드 사이 간격만 다른 세 화면이다. 어느 쪽이 메뉴 경계가 잘 보이는지 고른 뒤 판정을 본다.",

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>행렬은 공간을 어떻게 바꾸는가?</title>
-<script type="application/json" id="ltt-meta">{"domain":"선형대수","topic":"행렬 = 공간의 변환, det = 면적 배율, 곱 = 합성","audience":"벡터와 행렬 곱셈 계산 규칙은 안다","pattern":["hook","terms","plane","compare","sweep","predict","explain","summary","keywords"],"mode":"체험형: 용어를 풀고 격자가 변형되는 모습을 보며 열·det·곱 순서를 읽은 뒤, 곱 순서를 짐작해 본다","decision":"행렬의 열(기저 벡터가 가는 곳)과 det로 변환의 모양·면적 배율·가역성을 읽고, 곱 순서를 정한다"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"선형대수","topic":"행렬 = 공간의 변환, det = 면적 배율, 곱 = 합성","audience":"벡터와 행렬 곱셈 계산 규칙은 안다","pattern":["hook","terms","figure","compare","sweep:full","predict","statement","explain","summary","keywords"],"theme":"paper","medium":"교과서 그림: 크게 그린 격자 변형과 그 옆의 행렬 읽기","mode":"체험형: 용어를 풀고 격자가 변형되는 모습을 보며 열·det·곱 순서를 읽은 뒤, 곱 순서를 짐작해 본다","decision":"행렬의 열(기저 벡터가 가는 곳)과 det로 변환의 모양·면적 배율·가역성을 읽고, 곱 순서를 정한다"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
@@ -15,11 +15,20 @@
 <style>
   .cmpp svg { max-width: 170px; }
   .cmpp svg, .pl svg, .ab svg { overflow: hidden; border-radius: 14px; }
-  .pl { display: grid; gap: 12px 28px; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); align-items: center; }
-  .pl svg { max-height: 46vh; }
-  @media (max-width: 720px) { .pl { grid-template-columns: 1fr; justify-items: center; } .pl svg { max-height: 30vh; } }
+  .pl { display: grid; gap: 12px 28px; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); align-items: center; width: 100%; }
+  .pl svg { max-height: 50vh; }
+  .tb { display: grid; gap: 16px clamp(24px, 4vw, 64px); grid-template-columns: minmax(0, 560px) minmax(0, 380px); align-items: center; justify-content: center; width: 100%; }
+  .tb svg { max-height: 58vh; overflow: hidden; border-radius: var(--ltt-r-sm); margin: 0 auto; }
+  .tb .mx p { margin: 0 0 14px; }
+  .tb .mx .lg { font-family: var(--ltt-font-display); font-size: clamp(17px, 1.6vw, 21px); line-height: 1.6; }
+  @media (max-width: 720px) { .pl, .tb { grid-template-columns: 1fr; justify-items: center; } .pl svg, .tb svg { max-height: 30vh; } }
+  .ord { display: flex; align-items: flex-start; gap: 6px; font-family: var(--ltt-font-display); font-size: clamp(54px, 7vw, 96px); line-height: 1; color: var(--ltt-ink); }
+  .ord > span { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .ord small { font: 600 14px var(--ltt-mono); color: var(--ltt-muted); white-space: nowrap; }
+  .ord .first b { color: var(--ltt-accent); } .ord .first small { color: var(--ltt-accent); }
+  .ord b { font-weight: 700; } .ord .pa { color: var(--ltt-muted); font-weight: 400; }
   .mx { font-size: clamp(16px, 1.5vw, 19px); }
-  .i-hat { color: var(--ltt-accent); font-weight: 750; } .j-hat { color: var(--ltt-bad); font-weight: 750; }
+  .i-hat { color: var(--ltt-accent); font-weight: 750; } .j-hat { color: var(--ltt-good); font-weight: 750; }
   .sl { display: grid; gap: 0 16px; grid-template-columns: 1fr 1fr; width: 100%; }
   .sl .ltt-param { margin: 0 0 6px; }
   .ab { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; text-align: center; }
@@ -58,14 +67,27 @@
   LTT.expect("BA[0][1]", mul(RO, SC)[0][1], EXPECTED_BY_HAND.BA[0][1], { tol: 1e-9 });
 
   const fmt = (x) => { const r = Math.round(x * 100) / 100; return (Object.is(r, -0) ? 0 : r).toString(); };
-  const HATS = [{ v: [1, 0], color: "var(--ltt-accent)", label: "î" }, { v: [0, 1], color: "var(--ltt-bad)", label: "ĵ" }];
+  const HATS = [{ v: [1, 0], color: "var(--ltt-accent)", label: "î" }, { v: [0, 1], color: "var(--ltt-good)", label: "ĵ" }];
   const svgEl = () => document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  const mkPlane = (node, range = 4) => { const s = svgEl(); node.appendChild(s); return LTT.plane(s, { range, size: 360, vectors: HATS, shape: SQUARE }); };
+  const mkPlane = (node, range = 4, size = 360) => { const s = svgEl(); node.appendChild(s); return LTT.plane(s, { range, size, vectors: HATS, shape: SQUARE }); };
   const minis = [];
   const card = (m) => (node) => { const p = mkPlane(node, 3); node.classList.add("cmpp"); minis.push([p, m]); };
+  let colPlane = null;
+  const playCols = async () => { if (!colPlane) return; await colPlane.to(I, 0); await new Promise((r) => setTimeout(r, 400)); colPlane.to(A, 1600); };
+  function columnsFigure(node) {
+    const w = node.appendChild(LTT.h("div", "tb"));
+    w.innerHTML = `<div></div><div class="mx"><p><span data-tex="A=\\begin{bmatrix}2&1\\\\0&1\\end{bmatrix}"></span></p>
+      <p class="lg"><span class="i-hat">첫째 열 (2,0)</span> = î가 가는 곳<br><span class="j-hat">둘째 열 (1,1)</span> = ĵ가 가는 곳</p>
+      <p>색칠한 칸(넓이 1)이 두 열이 만드는 평행사변형, 밑변 2 × 높이 1 = 넓이 <b>2</b>가 된다. 이 넓이가 det다.</p>
+      <div class="dk-actions"><button>다시 보기</button></div></div>`;
+    LTT.math(w);
+    colPlane = mkPlane(w.firstElementChild, 4, 560);
+    w.querySelector("button").onclick = playCols;
+  }
 
   LTT.deck({
     title: "행렬은 공간을 어떻게 바꾸는가?",
+    theme: "paper",
     scenes: [
       { type: "hook", art: "layers", kicker: "행렬이 데이터에 하는 일 읽기",
         pre: "행렬은 숫자 표가 아니라",
@@ -79,27 +101,18 @@
           { key: "행렬식", en: "determinant · det", icon: "ruler", plain: "변환 뒤 넓이가 몇 배가 되는지 나타내는 숫자 하나. 음수면 거울처럼 뒤집히고, 0이면 평면이 선으로 찌부러진다.", example: "det 2 = 넓이 2배." },
         ] },
 
-      { kicker: "열 = 도착점", title: "행렬의 두 열은 î와 ĵ가 가는 곳이다", en: "Columns",
+      { type: "figure", kicker: "열 = 도착점", title: "행렬의 두 열은 î와 ĵ가 가는 곳이다", en: "Columns",
+        figure: columnsFigure,
+        enter: () => playCols(),
+        caption: "A가 평면 전체를 옮기는 모습. 옅은 바탕 선이 원래 격자, 색이 든 선이 옮겨진 격자다. 화살표 î는 첫째 열로, 화살표 ĵ는 둘째 열로 간다.",
         narration: [
           "모든 점은 î와 ĵ를 몇 개씩 더한 것이므로, 두 {{기저 벡터}}가 어디로 가는지만 알면 나머지 점이 어디로 갈지 다 정해진다. 행렬의 첫째 열이 î의 도착점, 둘째 열이 ĵ의 도착점이다. 곱셈 규칙대로 A·(1,0)을 계산하면 정확히 첫째 열이 나온다.",
-          "그래서 정사각형 한 칸은 두 열이 만드는 평행사변형(밑변 2 × 높이 1 = 넓이 2)이 되고, 그 넓이가 det다.",
         ],
-        mount: (body) => {
-          body.innerHTML = `<div class="pl"><div></div><div class="mx"><p><span data-tex="A=\\begin{bmatrix}2&1\\\\0&1\\end{bmatrix}"></span></p>
-            <p><span class="i-hat">첫째 열 (2,0)</span> = î가 가는 곳<br><span class="j-hat">둘째 열 (1,1)</span> = ĵ가 가는 곳</p>
-            <p>파란 칸(넓이 1)이 넓이 <b>2</b>인 평행사변형이 된다.</p>
-            <div class="dk-actions"><button>다시 보기</button></div></div></div>`;
-          LTT.math(body);
-          const p = mkPlane(body.querySelector(".pl > div"));
-          const play = async () => { await p.to(I, 0); await new Promise((r) => setTimeout(r, 400)); p.to(A, 1600); };
-          body.querySelector("button").onclick = play;
-          return { enter: play };
-        },
         takeaway: "행렬을 읽을 때는 두 열을 'î와 ĵ의 도착점'으로 본다.",
         ask: "\"이 행렬의 열이 각각 어디를 가리키는지 그려 줘\"" },
 
       { type: "compare", kicker: "네 가지 행렬", title: "모양으로 det(넓이 배율)를 읽는다", layout: "stack",
-        narration: "같은 격자에 행렬 네 개를 각각 적용했다. 파란 칸은 넓이 1인 정사각형이 간 곳, 파란·빨간 화살표는 î와 ĵ의 도착점이다. 칸이 넓어졌는지, 뒤집혔는지(파랑 î에서 빨강 ĵ로 도는 방향이 시계 방향으로 바뀜), 납작해졌는지 보고 det를 짐작한 뒤 판정을 열자.",
+        narration: "같은 격자에 행렬 네 개를 각각 적용했다. 색칠한 칸은 넓이 1인 정사각형이 간 곳, 두 화살표는 î와 ĵ의 도착점이다. 칸이 넓어졌는지, 뒤집혔는지(î에서 ĵ로 도는 방향이 시계 방향으로 바뀜), 납작해졌는지 보고 det를 짐작한 뒤 판정을 열자.",
         items: [
           { label: "[[0.87, −0.5], [0.5, 0.87]]", visual: card(rot30), tone: "good", verdict: "회전 · det 1", noteAfter: true, note: "모양·넓이 그대로, 방향만 돈다." },
           { label: "[[2, 0], [0, 1.5]]", visual: card([[2, 0], [0, 1.5]]), tone: "good", verdict: "늘이기 · det 3", noteAfter: true, note: "넓이 2 × 1.5배." },
@@ -110,7 +123,7 @@
         basis: "카드 제목은 행 단위로 적었다: [[a, b], [c, d]]의 첫째 열은 (a, c)다. 회전 30°는 cos 30° ≈ 0.87, sin 30° = 0.5로 표기했다.",
         takeaway: "det가 넓이 배율, 부호가 뒤집힘, 0이 '되돌릴 수 없음'을 말한다." },
 
-      { kicker: "직접 바꿔 보기", title: "네 숫자를 움직이며 det를 지켜본다", en: "Try it",
+      { kicker: "직접 바꿔 보기", title: "네 숫자를 움직이며 det를 지켜본다", en: "Try it", layout: "full",
         narration: [
           "행렬 [[a, b], [c, d]]의 네 숫자를 바꿔 보자. 큰 숫자가 지금 행렬의 {{행렬식}}이다.",
           "det가 0에 가까워지면 격자가 납작해지고, 0을 지나 음수가 되면 뒤집혀 거울상이 된다. ad − bc는 두 열이 만드는 평행사변형의 넓이를 계산한 식이고, ad와 bc가 같아지면 0이 된다.",
@@ -118,7 +131,7 @@
         mount: (body) => {
           body.innerHTML = `<div class="pl"><div></div><div><div class="ltt-hero"><span id="dv">1</span><small>= det</small></div><p id="dn"></p>
             <div class="sl">${["a", "b", "c", "d"].map((k, i) => `<label class="ltt-param">${k} <b id="${k}-v"></b><input type="range" id="${k}" min="-2" max="2" step="0.01" value="${[1, 0, 0, 1][i]}"></label>`).join("")}</div></div></div>`;
-          const p = mkPlane(body.querySelector(".pl > div"), 5);
+          const p = mkPlane(body.querySelector(".pl > div"), 5, 460);
           LTT.sweep({
             params: { a: { fmt }, b: { fmt }, c: { fmt }, d: { fmt } },
             render: ({ a, b, c, d }) => {
@@ -151,6 +164,10 @@
           const [ab, ba] = [...node.firstChild.children].map((c) => mkPlane(c, 3));
           await Promise.all([ab.to(RO), ba.to(SC)]); ab.to(mul(SC, RO)); ba.to(mul(RO, SC));
         } },
+
+      { type: "statement", kicker: "곱 = 이어서 하기", title: "곱 AB는 <em>오른쪽 B부터</em> 적용한다.",
+        sub: "ABx = A(Bx). 순서를 바꾸면 다른 변환이 되는데, 앞 장면처럼 det는 둘 다 2라서 det만으로는 순서 실수를 잡지 못한다.",
+        visual: `<div class="ord"><span><b>A</b><small>② 나중</small></span><span class="pa">(</span><span class="first"><b>B</b><small>① 먼저</small></span><span><b>x</b><small>점</small></span><span class="pa">)</span></div>` },
 
       { type: "explain", kicker: "어디서 만나나", title: "실제 코드에서 읽는 법 세 가지", arrows: false,
         steps: [

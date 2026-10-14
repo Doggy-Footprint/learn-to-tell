@@ -13,6 +13,8 @@
   main { max-width: 1240px; }
   .top { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
   .top a { font-weight: 700; text-decoration: none; }
+  .themes { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; }
+  .themes button { padding: 6px 12px; font-size: 13px; }
   nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 36px; }
   nav.toc a { text-decoration: none; }
   h2.grp { font-size: 15px; font-weight: 800; color: var(--ltt-accent); margin: 48px 0 14px; letter-spacing: .02em; }
@@ -36,7 +38,7 @@
 </head>
 <body>
 <main>
-  <div class="top"><a href="index.html">← 시나리오 모음</a></div>
+  <div class="top"><a href="index.html">← 시나리오 모음</a><span class="themes" id="themes"></span></div>
   <h1>kit 카탈로그</h1>
   <p class="ltt-lead">수업은 이 부품들을 조합해 빈 파일에서 짠다. 각 칸의 왼쪽은 실제로 동작하는 부품, 오른쪽은 그 부품을 만든 코드 그대로다. 함수 시그니처와 언제 쓰는지는 <code>kit/API.md</code>에 있다.</p>
   <nav class="toc" id="toc"></nav>
@@ -66,7 +68,18 @@
   }
 
   group("기초 · ltt.js");
-  demo("tokens", "--ltt-*", "<b>색은 이 토큰만 쓴다.</b> 페이지 CSS에 hex를 새로 적지 않는다. 다크 모드는 토큰이 알아서 바뀐다.", (el) => {
+  const themeBox = document.getElementById("themes");
+  LTT.themes.forEach((t) => {
+    const b = Object.assign(document.createElement("button"), { className: "ghost", textContent: t.name, title: t.medium });
+    b.onclick = () => {
+      LTT.theme(t.name);
+      themeBox.querySelectorAll("button").forEach((x) => x.classList.toggle("accent", x === b));
+      const f = document.querySelector("iframe.deck");
+      if (f) f.src = "scenes.html?theme=" + t.name;
+    };
+    themeBox.appendChild(b);
+  });
+  demo("tokens", "--ltt-*", "<b>색은 이 토큰만 쓴다.</b> 페이지 CSS에 hex를 새로 적지 않는다. 다크 모드와 테마(<code>LTT.theme(name)</code>, 덱에서는 <code>theme</code>)는 토큰이 알아서 바뀐다. 위쪽 버튼으로 테마를 바꿔 본다.", (el) => {
     const names = ["bg", "card", "card-2", "line", "line-2", "ink", "ink-2", "muted", "accent", "accent-soft", "good", "good-soft", "bad", "bad-soft", "warn", "warn-soft", "dark"];
     el.innerHTML = `<div class="tok">${names.map((n) => `<div><i style="background:var(--ltt-${n})"></i>--ltt-${n}</div>`).join("")}</div>`;
   });
@@ -183,7 +196,7 @@
   });
 
   group("장면 덱 · ltt-deck.js");
-  demo("deck", "LTT.deck({title, glossary, scenes})", "<b>모든 장면 타입을 한 번씩 담은 덱.</b> 장면 공통 필드는 kicker, title, en, sub, chips, narration, points, takeaway, sources, ask, basis, tex, mount, layout. 새 탭에서 열기: <a href=\"scenes.html\">scenes.html</a>", (el) => {
+  demo("deck", "LTT.deck({title, theme, glossary, scenes})", "<b>모든 장면 타입과 형태를 한 번씩 담은 덱.</b> figure, statement, explain <code>form: strip·stack·cards</code>, compare <code>form: table</code>을 포함한다. 장면 공통 필드는 kicker, title, en, sub, chips, narration, points, takeaway, sources, ask, basis, tex, mount, layout(<code>split·stack·full</code>). 위쪽 테마 버튼을 누르면 덱도 그 테마로 바뀐다. 새 탭에서 열기: <a href=\"scenes.html\">scenes.html</a>", (el) => {
     el.innerHTML = `<iframe class="deck" src="scenes.html" title="장면 타입 데모"></iframe>`;
   });
 </script>

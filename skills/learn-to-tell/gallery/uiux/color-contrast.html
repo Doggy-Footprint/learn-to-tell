@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>회색 글자는 얼마나 옅어야 읽기 힘들어질까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"WCAG 2.x 색 대비비","audience":"CSS 색상 코드(#RRGGBB)를 읽을 수 있는 UI 개발자·디자이너","pattern":["hook","terms","explain","contrast","predict","sweep","compare","explain","summary","keywords"],"mode":"체험형: 용어를 풀고 계산 과정을 그림으로 본 뒤, 같은 설정 화면의 BEFORE/AFTER를 번호 주석으로 읽고, 통과하는 회색을 짐작해 본다","decision":"글자색과 배경색 조합이 WCAG AA/AAA 대비비 기준을 넘는지"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"WCAG 2.x 색 대비비","audience":"CSS 색상 코드(#RRGGBB)를 읽을 수 있는 UI 개발자·디자이너","pattern":["hook","terms","figure","explain:stack","contrast","predict","sweep","compare:table","statement","explain","summary","keywords"],"theme":"studio","medium":"실제 제품 화면(설정 화면 목업)과 디자인 툴의 대비 검사 패널","mode":"체험형: 설정 화면 하나를 디자인 리뷰처럼 대비 검사로 잰 뒤, 계산 과정을 단계별로 보고, 같은 화면의 BEFORE/AFTER를 번호 주석으로 읽고, 통과하는 회색을 짐작해 본다","decision":"글자색과 배경색 조합이 WCAG AA/AAA 대비비 기준을 넘는지"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
@@ -40,6 +40,23 @@
   .ruler span { position: absolute; top: 36px; transform: translateX(-50%); font-size: 11px; color: var(--ltt-muted); white-space: nowrap; }
   .pair { display: flex; gap: 8px; }
   .pair span { flex: 1; border-radius: 10px; padding: 8px 6px; text-align: center; font-weight: 800; font-size: 13px; }
+  .set .meas { outline: 1.5px dashed var(--ltt-bad); outline-offset: 3px; }
+  .review { display: flex; align-items: center; justify-content: center; gap: clamp(24px, 5vw, 72px); }
+  .review > * { flex: none; }
+  @media (max-width: 720px) { .review { flex-wrap: wrap; } .review > * { flex: 0 1 auto; } }
+  .insp { width: min(100%, 380px); border-radius: var(--ltt-r-md); background: var(--ltt-card); box-shadow: var(--ltt-shadow), inset 0 0 0 1.5px var(--ltt-line); font-size: 13px; color: var(--ltt-ink-2); }
+  .insp header { padding: 10px 14px; border-bottom: 1px solid var(--ltt-line); font: 700 12px var(--ltt-mono); color: var(--ltt-muted); letter-spacing: .03em; }
+  .insp .r { display: grid; grid-template-columns: 22px 44px 1fr auto; gap: 10px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--ltt-line); }
+  .insp .r:last-child { border-bottom: 0; }
+  .insp .n { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--ltt-bad); color: var(--ltt-on-accent); font: 700 11px var(--ltt-mono); }
+  .insp .aa { display: grid; place-items: center; height: 36px; border-radius: 8px; font-weight: 800; font-size: 15px; box-shadow: inset 0 0 0 1px var(--ltt-line); }
+  .insp b { display: block; color: var(--ltt-ink); font-size: 13.5px; }
+  .insp code { font: 11.5px var(--ltt-mono); color: var(--ltt-muted); }
+  .insp .v { text-align: right; font: 800 17px var(--ltt-mono); color: var(--ltt-ink); }
+  .insp .v .ltt-tag { display: block; margin-top: 4px; font-family: var(--ltt-font); }
+  .stv { display: grid; gap: 12px; width: min(100%, 340px); }
+  .stv div { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px; font: 15px var(--ltt-mono); color: var(--ltt-ink-2); }
+  .stv span { border-radius: 12px; padding: 16px; text-align: center; font: 800 18px var(--ltt-font); }
 </style>
 </head>
 <body>
@@ -83,16 +100,28 @@
   const GRAYS = ["99", "88", "77", "66"];
 
   // The same settings screen twice; only the text colours differ between BEFORE and AFTER.
-  const settings = (c) => () => {
-    const p = LTT.mock.phone({ width: 220, ratio: "9/16.5" });
+  // o.meas outlines the measured text like a redline; point positions are % of the phone frame, so they hold at any width.
+  const settings = (c, o = {}) => () => {
+    const p = LTT.mock.phone({ width: o.width || 220, ratio: "9/16.5" });
+    const m = o.meas ? " meas" : "";
     p.screen.innerHTML = `<div class="set" style="display:flex;flex-direction:column;gap:10px;height:100%">
       <h4>알림 설정</h4>
-      <div class="field" style="color:${c.ph}">이메일 주소를 입력하세요</div>
-      <p class="help" style="color:${c.help}">변경 사항은 저장한 뒤부터 적용돼요.</p>
+      <div class="field${m}" style="color:${c.ph}">이메일 주소를 입력하세요</div>
+      <p class="help${m}" style="color:${c.help}">변경 사항은 저장한 뒤부터 적용돼요.</p>
       <div class="row"><span>새 댓글 알림</span><i class="tg"></i></div>
       <div class="row"><span>주간 요약 메일</span><i class="tg"></i></div>
-      <div class="del" style="background:${c.btn}">계정 삭제</div></div>`;
+      <div class="del${m}" style="background:${c.btn}">계정 삭제</div></div>`;
     return p.el;
+  };
+  const BEFORE = { ph: "#aaaaaa", help: "#999999", btn: "#ff0000" };
+  // Inspector panel in the style of a design tool's contrast check: one row per measured text layer.
+  const inspector = () => {
+    const rows = [["placeholder", "#AAAAAA", "#FFFFFF", "#aaaaaa"], ["도움말", "#999999", "#FFFFFF", "#999999"], ["버튼 글자", "#FFFFFF", "#FF0000", "#ff0000"]];
+    return `<div class="insp"><header>CONTRAST CHECK · 일반 글자</header>${rows.map(([n, f, b, k], i) => {
+      const r = cr(k);
+      return `<div class="r"><span class="n">${i + 1}</span><span class="aa" style="color:${f};background:${b}">Aa</span>
+        <span><b>${n}</b><code>${f} on ${b}</code></span><span class="v">${r}<span class="ltt-tag ${+r >= 4.5 ? "good" : "bad"}">AA 4.5 ${+r >= 4.5 ? "통과" : "미달"}</span></span></div>`;
+    }).join("")}</div>`;
   };
   // Linear 1..8 track: the three thresholds sit far enough apart to label; 21:1 is off the scale.
   const ratioRuler = () => {
@@ -102,6 +131,7 @@
 
   LTT.deck({
     title: "회색 글자는 얼마나 옅어야 읽기 힘들어질까?",
+    theme: "studio",
     scenes: [
       { type: "hook", art: "eye", kicker: "설정 화면의 보조 텍스트 색 고르기",
         pre: "placeholder는 #999면 될까, #777이면 될까?",
@@ -115,7 +145,22 @@
           { key: "WCAG AA", en: "accessibility level", icon: "check", plain: "웹 접근성 국제 지침(WCAG)이 정한 기본 합격선. 일반 글자는 대비비 4.5 이상이어야 한다.", example: "더 엄격한 AAA는 7 이상. 공공기관 사이트는 보통 AA를 요구한다." },
         ] },
 
-      { type: "explain", kicker: "계산 과정", title: "대비비는 이렇게 나온다", en: "How it works",
+      { type: "figure", kicker: "디자인 리뷰 · 대비 검사", title: "눈에는 읽히는 이 화면, 재 보면 세 곳이 실패한다", en: "Redline",
+        figure: () => {
+          const w = LTT.h("div", "review");
+          w.appendChild(settings(BEFORE, { width: 260, meas: true })());
+          w.insertAdjacentHTML("beforeend", inspector());
+          return w;
+        },
+        pointsOn: ".ltt-phone", pointsTone: "bad",
+        points: [
+          { at: [90, 24], title: "placeholder", text: "입력칸 안의 안내 글자." },
+          { at: [64, 37], title: "도움말", text: "입력칸 아래 보조 설명." },
+          { at: [88, 91], title: "버튼 글자", text: "순빨강 위 흰 글자." },
+        ],
+        caption: "빨간 점선 = 검사한 글자. 오른쪽 패널은 디자인 툴의 대비 검사처럼 글자색·배경색과 {{대비비}}를 보인다. 셋 다 일반 글자 기준 4.5에 못 미친다. 숫자가 어디서 나오는지는 다음 장면에서 본다. 모델로 계산한 예시." },
+
+      { type: "explain", form: "stack", kicker: "계산 과정", title: "대비비는 이렇게 나온다", en: "How it works",
         steps: [
           { icon: "palette", title: "색 → 밝기", text: "RGB 각 값(0–255)을 화면 특성에 맞게 보정해 0–1로 바꾼 뒤, 눈의 감도대로 섞어 {{상대 휘도}}를 구한다. 눈은 초록에 가장 민감하다. 예: #767676은 118 → 보정하면 0.18.",
             visual: `<div class="lum">${[["R", "#e5484d", 0.2126], ["G", "#12a066", 0.7152], ["B", "#2f5bff", 0.0722]].map(([k, c, w]) => `<div><span>${k}</span><i style="width:${w * 100}%;background:${c}"></i><span>×${w}</span></div>`).join("")}</div>` },
@@ -131,7 +176,7 @@
       { type: "contrast", kicker: "같은 화면, 색만 바꿨다", title: "옅은 회색 세 곳이 화면을 못 읽게 만든다", en: "Before → After",
         sub: "왼쪽과 오른쪽은 글자 색만 다르다. 번호를 따라 무엇이 바뀌었는지 보자.",
         before: {
-          visual: settings({ ph: "#aaaaaa", help: "#999999", btn: "#ff0000" }),
+          visual: settings(BEFORE),
           points: [
             { at: [90, 24], title: `placeholder #AAA · ${cr("#aaaaaa")}:1`, text: "무엇을 입력할지 알려 주는 안내가 거의 안 보인다." },
             { at: [64, 37], title: `도움말 #999 · ${cr("#999999")}:1`, text: "'옅을수록 덜 중요해 보인다'는 의도가 읽기 자체를 막는다." },
@@ -187,7 +232,7 @@
         },
         takeaway: "같은 회색이라도 큰 글자에는 통과, 본문에는 실패할 수 있다." },
 
-      { type: "compare", kicker: "실제 UI 조각", title: "자주 보는 조각, 일반 글자 AA를 넘을까?", layout: "stack",
+      { type: "compare", form: "table", kicker: "실제 UI 조각", title: "자주 보는 조각, 일반 글자 AA를 넘을까?", layout: "stack",
         narration: "실제로 자주 쓰는 조합 네 가지다. 각 조각을 보고 4.5를 넘을지 먼저 짐작한 뒤 '대비비 보기'를 누르자.",
         revealLabel: "대비비 보기",
         items: [
@@ -205,6 +250,11 @@
             noteAfter: true, note: "색이 달라 보여도 밝기 차이가 4.5에 못 미친다." },
         ],
         basis: "대비비는 WCAG 2.x 식으로 계산했다(모델로 계산한 예시). 배경이 단색일 때만 맞는 값이다." },
+
+      { type: "statement", kicker: "색상보다 밝기", title: "색이 정반대여도 <em>밝기</em>가 비슷하면 읽히지 않는다.",
+        sub: "빨강과 초록은 색상으로는 정반대지만 밝기 차이가 작아 4.5에 못 미친다. 같은 빨강도 조금 어둡게 하면 흰 글자와 통과한다.",
+        visual: () => `<div class="stv"><div><span style="background:#0f0;color:#f00">오류 3건</span>${fl2(ratio([255, 0, 0], [0, 255, 0]))}:1</div>
+          <div><span style="background:#f00;color:#fff">삭제</span>${cr("#ff0000")}:1</div><div><span style="background:#d70015;color:#fff">삭제</span>${cr("#d70015")}:1</div></div>` },
 
       { type: "explain", kicker: "한계", title: "숫자가 맞지 않는 곳", arrows: false,
         steps: [
