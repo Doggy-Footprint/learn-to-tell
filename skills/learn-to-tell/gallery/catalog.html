@@ -198,6 +198,35 @@
       { caption: "<b>③ 도구 실행</b> — 모델이 가진 권한으로 공격자 목표를 수행한다.", hot: ["llm", "tool"], flow: ["llm>tool"], send: [["llm", "tool", { count: 3 }]] },
     ]);
   });
+  demo("diagram paths", "엣지 {via, from, to, shape, radius, points} · 영역 {id, parent} · 라벨 \\n", "<b>꺾이고 돌아가는 화살표, 영역 안의 영역.</b> <code>shape</code>는 straight(기본)·ortho(직각, 모서리 <code>radius</code>)·curve. <code>via: [[c, r]]</code>는 격자 경유점, <code>from</code>·<code>to</code>는 나가고 들어오는 변(top·right·bottom·left). 같은 두 노드 사이 엣지는 <code>parallel</code>(기본 14px) 간격으로 벌어진다. 영역은 <code>id</code>·<code>parent</code>로 중첩되고 자식은 부모 라벨 아래로 들어간다. 노드 <code>l</code>·<code>s</code>의 <code>\\n</code>은 줄바꿈이고 상자가 줄 수만큼 커진다. 자동 배치 결과용 픽셀 입력: 노드 <code>x, y</code>, 엣지 <code>points</code>, 영역 <code>x, y, w, h</code>.", (el) => {
+    const svg = el.appendChild(svgEl());
+    const dg = LTT.diagram(svg, {
+      cols: 4, rows: 3, cell: [210, 110], node: [146, 54], maxWidth: false,
+      zones: [{ id: "vpc", c0: 1, r0: 0, c1: 3, r1: 2, l: "VPC", k: "accent" }, { id: "priv", parent: "vpc", c0: 2, r0: 0, c1: 3, r1: 2, l: "사설 서브넷" }],
+      nodes: [
+        { id: "user", c: 0, r: 1, l: "사용자", icon: "user" },
+        { id: "lb", c: 1, r: 1, l: "로드\n밸런서", icon: "network" },
+        { id: "api", c: 2, r: 0.4, l: "API", s: "인스턴스 3대\n오토스케일", icon: "cpu", k: "accent" },
+        { id: "db", c: 3, r: 0.4, l: "DB", s: "주 노드", icon: "db" },
+        { id: "q", c: 2, r: 1.7, l: "큐", icon: "layers", k: "muted" },
+        { id: "wk", c: 3, r: 1.7, l: "워커", icon: "bolt" },
+      ],
+      edges: [
+        { f: "user", t: "lb", l: "HTTPS" },
+        { f: "lb", t: "api", shape: "ortho", k: "accent" },
+        { f: "api", t: "db", l: "쓰기", k: "accent" },
+        { f: "db", t: "api", l: "읽기", lo: [0, 16], dash: true },
+        { f: "api", t: "q", shape: "curve", from: "bottom", to: "top" },
+        { f: "q", t: "wk", l: "작업" },
+        { id: "ack", f: "wk", t: "user", shape: "ortho", from: "bottom", via: [[3, 2.45], [0, 2.45]], to: "bottom", k: "good", l: "완료 알림" },
+      ],
+    });
+    dg.player(el, [
+      { caption: "<b>① 요청</b> — 로드 밸런서가 API로 꺾어 보낸다.", hot: ["user", "lb", "api"], flow: ["user>lb", "lb>api"], send: [["user", "lb"], ["lb", "api"]] },
+      { caption: "<b>② 쓰기와 읽기</b> — 같은 두 노드 사이 두 엣지는 벌어져 그려진다.", hot: ["api", "db"], send: [["api", "db"], ["db", "api", { color: "var(--ltt-good)" }]] },
+      { caption: "<b>③ 비동기 처리</b> — 큐와 워커를 거쳐 아래로 돌아 사용자에게 알린다.", hot: ["api", "q", "wk", "user"], flow: ["ack"], send: [["api", "q"], ["q", "wk"], ["wk", "user", { color: "var(--ltt-good)" }]] },
+    ]);
+  });
   demo("map", "LTT.map(svg, {projection, extent, countries, places, routes}) → Promise", "<b>지리가 결정 변수일 때.</b> 리전 간 지연, 물류 경로, 공급망. 경로는 대권(great-circle) 호로 그려져 장거리일수록 휜다. <code>countries</code>는 Natural Earth 영어 이름 → tone, <code>places</code>는 <code>{id, lon, lat, l, k, mark}</code>, <code>routes</code>는 <code>{f, t, l, k, dash}</code>. diagram처럼 <code>highlight</code>·<code>flow</code>·<code>send</code>·<code>player</code>가 있다. atlas 테마와 잘 맞는다. <code>topojson-client.min.js</code>가 필요하다.", (el) => {
     const svg = el.appendChild(svgEl());
     LTT.map(svg, {

@@ -132,12 +132,12 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 
 | 이름 | 설명 |
 | --- | --- |
-| `LTT.diagram(svg, spec)` | 격자 좌표 다이어그램. `spec: {cols, rows, cell: [w, h], node: [w, h], pad, maxWidth, label, nodes, edges, zones}`. 노드 `{id, c, r, l, s, k, icon, flaw, w, h}`(c·r은 소수 가능), 엣지 `{f, t, l, lo: [dx, dy], k, dash, both, arrow: false, id}`, 영역 `{c0, r0, c1, r1, l, k}`. k: accent·good·bad·warn·muted·dark. |
+| `LTT.diagram(svg, spec)` | 격자 좌표 다이어그램. `spec: {cols, rows, cell: [w, h], node: [w, h], pad, parallel, width, height, maxWidth, label, nodes, edges, zones}`. 노드 `{id, c, r, l, s, k, icon, flaw, w, h}`(c·r은 소수 가능, 픽셀이면 `x, y` 중심). `l`·`s`의 `\n`은 줄바꿈이고 2줄 이상이면 상자가 커진다(`h`가 우선). 엣지 `{f, t, l, lo: [dx, dy], k, dash, both, arrow: false, id, shape, via, from, to, radius, points}`: `shape`는 `straight`(기본)·`ortho`(직각, 모서리 `radius` 기본 10)·`curve`, `via: [[c, r], ...]`는 격자 경유점, `from`·`to`는 `top|right|bottom|left`(없으면 거리가 긴 축의 변), `points: [[x, y], ...]`는 픽셀 경로 그대로(자동 배치 결과용). 같은 두 노드 사이 엣지는 `parallel`(기본 14px) 간격으로 벌어진다. 라벨은 경로 길이의 절반 지점 + `lo`. 영역 `{id, parent, c0, r0, c1, r1, l, k}` 또는 픽셀 `{x, y, w, h}`: `parent`가 있으면 깊이마다 10px 더 들어가고 부모 라벨 아래·부모 안쪽으로 잘린다. k: accent·good·bad·warn·muted·dark. 자기 루프, 없는 노드·부모, 잘못된 변·모양 이름, 위치 없는 노드·영역은 오류. 반환 `{svg, layout, node(id), edge(id), highlight, flow, send, clear, player}`; `send`의 패킷은 그려진 경로를 따른다. |
 | `.highlight(ids)` | 노드·엣지(`"from>to"`) 외에는 흐리게. 빈 배열·null이면 해제. |
 | `.flow(edgeIds)` | 진행 방향을 보이는 점선 흐름. 방향을 알려야 할 때만. |
 | `.send(from, to, {count, color, ms, gap, r})` → Promise | 엣지를 따라 패킷이 이동. |
 | `.player(el, steps, {interval})` | 단계 재생. `steps: [{caption, hot, flow, send: [[from, to, opts]], enter(dg, i)}]`. 자막이 그림 읽는 법을 말한다. |
-| `LTT.diagramLayout(spec)` | 좌표만 계산(테스트·커스텀 그림용). |
+| `LTT.diagramLayout(spec)` | 좌표만 계산(테스트·커스텀 그림용). 엣지마다 `pts`(꺾는 점 포함), SVG `d`, 라벨 기준점 `lx, ly`, 기존 `x1…y2`; 노드에 `lines`·`sub`; 영역에 `id, parent, depth`. |
 | `LTT.stepper(el, [{caption, enter(i, dir)}], {interval, onStep})` | 한 그림을 단계별로. `enter`는 다시 들어와도 같은 화면이 되게 짠다. |
 | `LTT.units(el, n, cols, {band}).paint(k, cls, alt)` | 단위 그림(100칸 = 100건). `band: true`면 가는 틱의 넓은 띠(예: 2×50, 시간순 요청). |
 | `LTT.bar(el, [{color}]).set(values, labels)` | 비율 막대. |

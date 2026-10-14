@@ -268,31 +268,225 @@
     return { go: go, get index() { return i; } };
   }
 
-  // Grid-placed diagram geometry: nodes sit at cell centres (c, r may be fractional), edges are clipped to box borders.
+  // Diagram geometry, DOM-free so it runs in a bare vm. Nodes sit at grid cells (c, r may be fractional) or pixel offsets (x, y);
+  // edges are straight, orthogonal or curved paths clipped to box borders.
   function diagramLayout(spec) {
     var cell = spec.cell || [210, 120], size = spec.node || [164, 60], pad = spec.pad == null ? 20 : spec.pad;
-    var cols = spec.cols || 1 + d3.max(spec.nodes, function (n) { return n.c; });
-    var rows = spec.rows || 1 + d3.max(spec.nodes, function (n) { return n.r; });
-    var nodes = {};
+    var parallel = spec.parallel == null ? 14 : spec.parallel;
+    var SIDES = { top: [0, -1], right: [1, 0], bottom: [0, 1], left: [-1, 0] }, SHAPES = { straight: 1, ortho: 1, curve: 1 };
+    function G(c, r) { return [pad + (c + 0.5) * cell[0], pad + (r + 0.5) * cell[1]]; }
+    function fx(v) { return String(Math.round(v * 100) / 100 || 0); }
+    function fp(p) { return fx(p[0]) + " " + fx(p[1]); }
+    function isPx(o) { return typeof o.x === "number" && typeof o.y === "number"; }
+
+    var nodes = {}, gridCols = 0, gridRows = 0, pxW = 0, pxH = 0;
     spec.nodes.forEach(function (n) {
-      var w = n.w || size[0], h = n.h || size[1];
-      var cx = pad + (n.c + 0.5) * cell[0], cy = pad + (n.r + 0.5) * cell[1];
-      nodes[n.id] = { x: cx - w / 2, y: cy - h / 2, w: w, h: h, cx: cx, cy: cy };
+      var lines = String(n.l || n.id).split("\n"), sub = n.s != null && n.s !== "" ? String(n.s).split("\n") : [];
+      var w = n.w != null ? n.w : size[0], h = size[1], cx, cy;
+      if (n.h != null) h = n.h;
+      else if (lines.length > 1 || sub.length > 1) h = Math.max(size[1], 24 + 18 * lines.length + 16 * sub.length);
+      if (isPx(n)) {
+        cx = pad + n.x; cy = pad + n.y;
+        pxW = Math.max(pxW, cx + w / 2 + pad); pxH = Math.max(pxH, cy + h / 2 + pad);
+      } else if (typeof n.c === "number" && typeof n.r === "number") {
+        var g = G(n.c, n.r); cx = g[0]; cy = g[1];
+        gridCols = Math.max(gridCols, 1 + n.c); gridRows = Math.max(gridRows, 1 + n.r);
+      } else throw new Error("diagram node " + n.id + " has no position (x, y or c, r)");
+      nodes[n.id] = { x: cx - w / 2, y: cy - h / 2, w: w, h: h, cx: cx, cy: cy, lines: lines, sub: sub };
     });
+
     function clip(b, dx, dy, gap) {
-      var t = Math.min(dx ? (b.w / 2 + gap) / Math.abs(dx) : Infinity, dy ? (b.h / 2 + gap) / Math.abs(dy) : Infinity);
+      if (dx === 0 && dy === 0) { dx = 1; dy = 0; }
+      var t = Math.min(dx !== 0 ? (b.w / 2 + gap) / Math.abs(dx) : Infinity, dy !== 0 ? (b.h / 2 + gap) / Math.abs(dy) : Infinity);
       return [b.cx + dx * t, b.cy + dy * t];
     }
-    var edges = (spec.edges || []).map(function (e, i) {
-      var a = nodes[e.f], b = nodes[e.t];
-      if (!a || !b) throw new Error("diagram edge " + (e.id || i) + " points to a missing node");
-      var dx = b.cx - a.cx, dy = b.cy - a.cy, p = clip(a, dx, dy, 4), q = clip(b, -dx, -dy, 8);
-      return { id: e.id || e.f + ">" + e.t, f: e.f, t: e.t, x1: p[0], y1: p[1], x2: q[0], y2: q[1] };
+    function side(b, s, gap) {
+      return s === "top" ? [b.cx, b.y - gap] : s === "bottom" ? [b.cx, b.y + b.h + gap] : s === "left" ? [b.x - gap, b.cy] : [b.x + b.w + gap, b.cy];
+    }
+    function infer(dx, dy) { return Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? "right" : "left") : (dy > 0 ? "bottom" : "top"); }
+    function shifted(b, ox, oy) {
+      return { x: b.x + ox, y: b.y + oy, w: b.w, h: b.h, cx: b.cx + ox, cy: b.cy + oy };
+    }
+    function unit(dx, dy) { var l = Math.sqrt(dx * dx + dy * dy); return l ? [dx / l, dy / l] : [0, 0]; }
+
+    var raw = spec.edges || [], groups = {};
+    raw.forEach(function (e, i) {
+      var id = e.id != null ? e.id : e.f + ">" + e.t;
+      if (e.f === e.t) throw new Error("diagram edge " + id + " connects node " + e.f + " to itself");
+      if (!nodes[e.f] || !nodes[e.t]) throw new Error("diagram edge " + id + " (#" + i + ") points to a missing node");
+      ["from", "to"].forEach(function (k) {
+        if (e[k] != null && !SIDES.hasOwnProperty(e[k])) throw new Error("diagram edge " + id + " has invalid " + k + " side: " + e[k]);
+      });
+      if (e.shape != null && !SHAPES.hasOwnProperty(e.shape)) throw new Error("diagram edge " + id + " has invalid shape: " + e.shape);
+      if (Array.isArray(e.points) && e.points.length < 2) throw new Error("diagram edge " + id + " needs at least 2 points");
+      if (e.via && e.via.length || Array.isArray(e.points)) return;
+      var key = String(e.f) < String(e.t) ? e.f + "\u0000" + e.t : e.t + "\u0000" + e.f;
+      (groups[key] = groups[key] || []).push(i);
     });
-    var zones = (spec.zones || []).map(function (z) {
-      return { x: pad + z.c0 * cell[0] + 6, y: pad + z.r0 * cell[1] + 6, w: (z.c1 - z.c0 + 1) * cell[0] - 12, h: (z.r1 - z.r0 + 1) * cell[1] - 12 };
+    var offs = [];
+    Object.keys(groups).forEach(function (key) {
+      var idx = groups[key], n = idx.length, e0 = raw[idx[0]], u = unit(nodes[e0.t].cx - nodes[e0.f].cx, nodes[e0.t].cy - nodes[e0.f].cy);
+      if (!u[0] && !u[1]) u = [1, 0];
+      idx.forEach(function (ei, i) {
+        var o = n === 1 ? 0 : (i - (n - 1) / 2) * parallel;
+        offs[ei] = [-u[1] * o, u[0] * o];
+      });
     });
-    return { width: pad * 2 + cols * cell[0], height: pad * 2 + rows * cell[1], nodes: nodes, edges: edges, zones: zones };
+
+    function cleanOrtho(list) {
+      var eps = 1e-6, out = [];
+      list.forEach(function (p) {
+        var l = out[out.length - 1];
+        if (l && Math.abs(l[0] - p[0]) <= eps && Math.abs(l[1] - p[1]) <= eps) return;
+        while (out.length >= 2) {
+          var a = out[out.length - 2], b = out[out.length - 1];
+          if ((Math.abs(a[0] - b[0]) <= eps && Math.abs(b[0] - p[0]) <= eps) || (Math.abs(a[1] - b[1]) <= eps && Math.abs(b[1] - p[1]) <= eps)) out.pop();
+          else break;
+        }
+        out.push(p);
+      });
+      if (out.length === 1) out.push(out[0].slice());
+      return out;
+    }
+    function kinks(p, kp, q, kq) {
+      if (Math.abs(p[0] - q[0]) <= 0.5 || Math.abs(p[1] - q[1]) <= 0.5) return [];
+      var m;
+      if (kp === "H" && kq === "H") { m = (p[0] + q[0]) / 2; return [[m, p[1]], [m, q[1]]]; }
+      if (kp === "V" && kq === "V") { m = (p[1] + q[1]) / 2; return [[p[0], m], [q[0], m]]; }
+      if (kp === "H") return [[q[0], p[1]]];
+      if (kp === "V") return [[p[0], q[1]]];
+      return kq === "H" ? [[p[0], q[1]]] : [[q[0], p[1]]];
+    }
+    function orthoD(pts, radius) {
+      var d = "M " + fp(pts[0]);
+      for (var i = 1; i < pts.length; i++) {
+        var c = pts[i];
+        if (i === pts.length - 1) { d += " L " + fp(c); break; }
+        var p = pts[i - 1], n = pts[i + 1], lp = Math.hypot(c[0] - p[0], c[1] - p[1]), ln = Math.hypot(n[0] - c[0], n[1] - c[1]);
+        var rc = Math.min(radius, lp / 2, ln / 2);
+        if (rc > 0) {
+          d += " L " + fp([c[0] + (p[0] - c[0]) / lp * rc, c[1] + (p[1] - c[1]) / lp * rc]) +
+            " Q " + fp(c) + " " + fp([c[0] + (n[0] - c[0]) / ln * rc, c[1] + (n[1] - c[1]) / ln * rc]);
+        } else d += " L " + fp(c);
+      }
+      return d;
+    }
+    // Same-direction control offsets at both ends; start/end normals are null when an end has no side (points input).
+    function curve(anchors, n0, n1) {
+      var d = "M " + fp(anchors[0]), segs = [];
+      for (var i = 1; i < anchors.length; i++) {
+        var p = anchors[i - 1], q = anchors[i], t = 0.5 * Math.max(Math.abs(q[0] - p[0]), Math.abs(q[1] - p[1]));
+        var o = i === 1 && n0 ? n0 : unit(q[0] - p[0], q[1] - p[1]), bk = i === anchors.length - 1 && n1 ? n1 : unit(p[0] - q[0], p[1] - q[1]);
+        var c1 = [p[0] + o[0] * t, p[1] + o[1] * t], c2 = [q[0] + bk[0] * t, q[1] + bk[1] * t];
+        d += " C " + fp(c1) + " " + fp(c2) + " " + fp(q);
+        segs.push([p, c1, c2, q]);
+      }
+      return { d: d, segs: segs };
+    }
+    function bez(s, t) {
+      var u = 1 - t, a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, e = t * t * t;
+      return [a * s[0][0] + b * s[1][0] + c * s[2][0] + e * s[3][0], a * s[0][1] + b * s[1][1] + c * s[2][1] + e * s[3][1]];
+    }
+    function midpoint(poly) {
+      var total = 0, i, len = [];
+      for (i = 1; i < poly.length; i++) { len.push(Math.hypot(poly[i][0] - poly[i - 1][0], poly[i][1] - poly[i - 1][1])); total += len[i - 1]; }
+      if (poly.length === 2) return [(poly[0][0] + poly[1][0]) / 2, (poly[0][1] + poly[1][1]) / 2];
+      var half = total / 2;
+      for (i = 0; i < len.length; i++) {
+        if (half <= len[i] && len[i] > 0) {
+          var f = half / len[i];
+          return [poly[i][0] + (poly[i + 1][0] - poly[i][0]) * f, poly[i][1] + (poly[i + 1][1] - poly[i][1]) * f];
+        }
+        half -= len[i];
+      }
+      return poly[poly.length - 1].slice();
+    }
+
+    var edges = raw.map(function (e, i) {
+      var id = e.id != null ? e.id : e.f + ">" + e.t, shape = e.shape == null ? "straight" : e.shape;
+      var a = nodes[e.f], b = nodes[e.t], off = offs[i] || [0, 0];
+      var via = (e.via || []).map(function (v) { return G(v[0], v[1]); });
+      var pts, d, poly;
+      if (Array.isArray(e.points)) {
+        var anc = e.points.map(function (p) { return [pad + p[0], pad + p[1]]; });
+        if (shape === "curve") { var cv = curve(anc, null, null); pts = anc; d = cv.d; poly = sample(cv.segs); }
+        else if (shape === "ortho") {
+          var list = [anc[0]];
+          for (var k = 1; k < anc.length; k++) { list = list.concat(kinks(anc[k - 1], "F", anc[k], "F")); list.push(anc[k]); }
+          pts = cleanOrtho(list); d = orthoD(pts, e.radius == null ? 10 : e.radius); poly = pts;
+        } else { pts = anc; d = "M " + pts.map(fp).join(" L "); poly = pts; }
+      } else if (shape === "straight") {
+        var sa = a, sb = b;
+        if (off[0] || off[1]) { sa = shifted(a, off[0], off[1]); sb = shifted(b, off[0], off[1]); }
+        var p, q;
+        if (e.from != null) p = side(sa, e.from, 4);
+        else p = via.length ? clip(sa, via[0][0] - sa.cx, via[0][1] - sa.cy, 4) : clip(sa, sb.cx - sa.cx, sb.cy - sa.cy, 4);
+        if (e.to != null) q = side(sb, e.to, 8);
+        else q = via.length ? clip(sb, via[via.length - 1][0] - sb.cx, via[via.length - 1][1] - sb.cy, 8) : clip(sb, sa.cx - sb.cx, sa.cy - sb.cy, 8);
+        pts = [p].concat(via, [q]); d = "M " + pts.map(fp).join(" L "); poly = pts;
+      } else {
+        var t0 = via.length ? via[0] : [b.cx, b.cy], t1 = via.length ? via[via.length - 1] : [a.cx, a.cy];
+        var s0 = e.from != null ? e.from : infer(t0[0] - a.cx, t0[1] - a.cy), s1 = e.to != null ? e.to : infer(t1[0] - b.cx, t1[1] - b.cy);
+        var hz0 = s0 === "left" || s0 === "right", hz1 = s1 === "left" || s1 === "right";
+        var st = side(a, s0, 4), en = side(b, s1, 8);
+        if (hz0) st[1] += off[1]; else st[0] += off[0];
+        if (hz1) en[1] += off[1]; else en[0] += off[0];
+        var anchors = [st].concat(via, [en]), kinds = ["F"];
+        via.forEach(function () { kinds.push("F"); });
+        kinds[0] = hz0 ? "H" : "V"; kinds.push(hz1 ? "H" : "V");
+        if (shape === "curve") { var cc = curve(anchors, SIDES[s0], SIDES[s1]); pts = anchors; d = cc.d; poly = sample(cc.segs); }
+        else {
+          var lst = [anchors[0]];
+          for (var j = 1; j < anchors.length; j++) { lst = lst.concat(kinks(anchors[j - 1], kinds[j - 1], anchors[j], kinds[j])); lst.push(anchors[j]); }
+          pts = cleanOrtho(lst); d = orthoD(pts, e.radius == null ? 10 : e.radius); poly = pts;
+        }
+      }
+      var mid = midpoint(poly), last = pts[pts.length - 1];
+      return { id: id, f: e.f, t: e.t, shape: shape, x1: pts[0][0], y1: pts[0][1], x2: last[0], y2: last[1], pts: pts, d: d, lx: mid[0], ly: mid[1] };
+    });
+    function sample(segs) {
+      var poly = [segs[0][0]];
+      segs.forEach(function (s) { for (var k = 1; k <= 48; k++) poly.push(bez(s, k / 48)); });
+      return poly;
+    }
+
+    var zs = spec.zones || [], zid = [], zseen = {}, zout = [], zstate = [];
+    zs.forEach(function (z, i) {
+      var id = z.id != null ? z.id : "z" + i;
+      if (zseen.hasOwnProperty(id)) throw new Error("diagram zone id " + id + " is duplicated");
+      zseen[id] = i; zid.push(id);
+    });
+    function zone(i) {
+      if (zout[i]) return zout[i];
+      var z = zs[i], id = zid[i];
+      if (zstate[i]) throw new Error("diagram zone " + id + " is in a parent cycle");
+      zstate[i] = 1;
+      var par = null;
+      if (z.parent != null) {
+        if (!zseen.hasOwnProperty(z.parent)) throw new Error("diagram zone " + id + " has unknown parent " + z.parent);
+        par = zone(zseen[z.parent]);
+      }
+      var depth = par ? par.depth + 1 : 0, inset = 6 + 10 * depth, x, y, w, h;
+      var zpx = ["x", "y", "w", "h"].every(function (k) { return typeof z[k] === "number"; });
+      if (!zpx && !["c0", "r0", "c1", "r1"].every(function (k) { return typeof z[k] === "number"; })) throw new Error("diagram zone " + id + " has no position (x, y, w, h or c0, r0, c1, r1)");
+      if (zpx) { x = pad + z.x; y = pad + z.y; w = z.w; h = z.h; pxW = Math.max(pxW, x + w + pad); pxH = Math.max(pxH, y + h + pad); }
+      else {
+        x = pad + z.c0 * cell[0] + inset; y = pad + z.r0 * cell[1] + inset;
+        w = (z.c1 - z.c0 + 1) * cell[0] - 2 * inset; h = (z.r1 - z.r0 + 1) * cell[1] - 2 * inset;
+      }
+      if (par) {
+        var pl = zs[zseen[z.parent]].l, x0 = Math.max(x, par.x + 10), y0 = Math.max(y, par.y + (pl ? 26 : 10));
+        var x1 = Math.min(x + w, par.x + par.w - 10), y1 = Math.min(y + h, par.y + par.h - 10);
+        x = x0; y = y0; w = x1 - x0; h = y1 - y0;
+        if (w <= 0 || h <= 0) throw new Error("diagram zone " + id + " does not fit inside its parent " + z.parent);
+      }
+      return (zout[i] = { id: id, parent: z.parent != null ? z.parent : null, depth: depth, x: x, y: y, w: w, h: h });
+    }
+    var zones = zs.map(function (z, i) { return zone(i); });
+
+    var width = spec.width != null ? spec.width : Math.max(pad * 2 + (spec.cols != null ? spec.cols : gridCols) * cell[0], pxW);
+    var height = spec.height != null ? spec.height : Math.max(pad * 2 + (spec.rows != null ? spec.rows : gridRows) * cell[1], pxH);
+    return { width: width, height: height, nodes: nodes, edges: edges, zones: zones };
   }
 
   // Box-and-arrow diagram from a grid spec (see diagramLayout); `player` turns it into a captioned step replay.
@@ -308,23 +502,23 @@
         .append("path").attr("d", "M1 1L9 5L1 9z").style("fill", k ? "var(--ltt-" + k + ")" : "var(--ltt-line-2)");
     });
     var gZones = svg.append("g"), gEdges = svg.append("g"), gNodes = svg.append("g"), gPackets = svg.append("g");
-    (spec.zones || []).forEach(function (z, i) {
-      var b = L.zones[i], g = gZones.append("g").attr("class", "z" + (z.k ? " k-" + z.k : ""));
+    // Parents paint before children so nested zones stay visible; stable sort keeps input order within a depth.
+    d3.range((spec.zones || []).length).sort(function (a, b) { return L.zones[a].depth - L.zones[b].depth || a - b; }).forEach(function (i) {
+      var z = spec.zones[i], b = L.zones[i], g = gZones.append("g").attr("class", "z" + (z.k ? " k-" + z.k : ""));
       g.append("rect").attr("x", b.x).attr("y", b.y).attr("width", b.w).attr("height", b.h).attr("rx", 18);
       if (z.l) g.append("text").attr("x", b.x + 14).attr("y", b.y + 18).text(z.l);
     });
     var edgeSel = {}, byPair = {};
     (spec.edges || []).forEach(function (e, i) {
       var g = L.edges[i], k = e.flaw ? "bad" : e.k || "";
-      var line = gEdges.append("line").attr("class", "e" + (k ? " k-" + k : "") + (e.dash ? " dash" : ""))
-        .attr("x1", g.x1).attr("y1", g.y1).attr("x2", g.x2).attr("y2", g.y2)
+      var line = gEdges.append("path").attr("class", "e" + (k ? " k-" + k : "") + (e.dash ? " dash" : "")).attr("d", g.d)
         .attr("marker-end", e.arrow === false ? null : "url(#" + uid + "-m" + (/^(accent|good|bad|warn)$/.test(k) ? k : "") + ")");
       if (e.both) line.attr("marker-start", "url(#" + uid + "-m" + (/^(accent|good|bad|warn)$/.test(k) ? k : "") + ")");
       var label = null;
       if (e.l) {
         var lo = e.lo || [0, -8];
         label = gEdges.append("text").attr("class", "el").attr("text-anchor", "middle")
-          .attr("x", (g.x1 + g.x2) / 2 + lo[0]).attr("y", (g.y1 + g.y2) / 2 + lo[1]).text(e.l);
+          .attr("x", g.lx + lo[0]).attr("y", g.ly + lo[1]).text(e.l);
       }
       edgeSel[g.id] = byPair[e.f + ">" + e.t] = { line: line, label: label, geo: g };
     });
@@ -341,8 +535,13 @@
           .html(LTT.icon(n.icon).replace("<svg ", "<svg width='" + s + "' height='" + s + "' "));
         tx = 14 + s + 10; anchor = "start";
       }
-      g.append("text").attr("class", "l").attr("x", tx).attr("y", n.s ? b.h / 2 - 3 : b.h / 2 + 5).attr("text-anchor", anchor).text(n.l || n.id);
-      if (n.s) g.append("text").attr("class", "s").attr("x", tx).attr("y", b.h / 2 + 14).attr("text-anchor", anchor).text(n.s);
+      var multi = b.lines.length > 1 || b.sub.length > 1, top = b.h / 2 - (18 * b.lines.length + 16 * b.sub.length) / 2;
+      function block(cls, rows, y0, step) {
+        var t = g.append("text").attr("class", cls).attr("text-anchor", anchor);
+        rows.forEach(function (row, j) { t.append("tspan").attr("x", tx).attr("y", y0 + step * j).text(row); });
+      }
+      block("l", b.lines, multi ? top + 13 : b.sub.length ? b.h / 2 - 3 : b.h / 2 + 5, 18);
+      if (b.sub.length) block("s", b.sub, multi ? top + 18 * b.lines.length + 12 : b.h / 2 + 14, 16);
       if (n.flaw) {
         var f = g.append("g").attr("transform", "translate(" + (b.w - 4) + ",4)");
         f.append("circle").attr("r", 9).style("fill", "var(--ltt-bad)");
@@ -350,17 +549,22 @@
       }
       nodeSel[n.id] = g;
     });
-    function ends(from, to) {
-      var e = byPair[from + ">" + to];
-      if (e) return [[e.geo.x1, e.geo.y1], [e.geo.x2, e.geo.y2]];
-      e = byPair[to + ">" + from];
-      if (e) return [[e.geo.x2, e.geo.y2], [e.geo.x1, e.geo.y1]];
-      return [[L.nodes[from].cx, L.nodes[from].cy], [L.nodes[to].cx, L.nodes[to].cy]];
+    // Returns t in [0,1] -> point along the edge's drawn path (reversed for a to->from edge), or the centre line when no edge exists.
+    function track(from, to) {
+      var e = byPair[from + ">" + to], r = false;
+      if (!e) { e = byPair[to + ">" + from]; r = !!e; }
+      if (e) {
+        var path = e.line.node(), len = path.getTotalLength();
+        return function (t) { var q = path.getPointAtLength(len * (r ? 1 - t : t)); return [q.x, q.y]; };
+      }
+      var a = L.nodes[from], b = L.nodes[to];
+      return function (t) { return [a.cx + (b.cx - a.cx) * t, a.cy + (b.cy - a.cy) * t]; };
     }
     var api = {
       svg: svg,
       layout: L,
       node: function (id) { return nodeSel[id]; },
+      edge: function (id) { return edgeSel[id] && edgeSel[id].line; },
       // Ids may name nodes or edges ("from>to" or the edge's id); everything else dims. No ids clears the focus.
       highlight: function (ids) {
         var on = ids && ids.length ? ids : null;
@@ -380,14 +584,18 @@
       // Resolves when the last packet arrives; with reduced motion it resolves immediately.
       send: function (from, to, o) {
         o = o || {};
-        var pts = ends(from, to), a = pts[0], b = pts[1], n = o.count || 5, ms = o.ms || 900, gap = o.gap || 120;
+        var n = o.count || 5, ms = o.ms || 900, gap = o.gap || 120;
         if (!MOTION_MS) return Promise.resolve();
+        var at = track(from, to), a = at(0);
         return new Promise(function (done) {
           d3.range(n).forEach(function (k) {
             gPackets.append("circle").attr("class", "pk").attr("r", o.r || 5.5).style("fill", o.color || "var(--ltt-accent)")
               .attr("cx", a[0]).attr("cy", a[1]).attr("opacity", 0)
               .transition().delay(k * gap).duration(ms).ease(d3.easeCubicInOut)
-              .attr("cx", b[0]).attr("cy", b[1]).attr("opacity", 1).remove()
+              .tween("path", function () {
+                var c = this;
+                return function (t) { var q = at(t); c.setAttribute("cx", q[0]); c.setAttribute("cy", q[1]); };
+              }).attr("opacity", 1).remove()
               .on("end", function () { if (k === n - 1) done(); })
               .on("interrupt", function () { if (k === n - 1) done(); });
           });
