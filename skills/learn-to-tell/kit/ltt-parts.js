@@ -47,6 +47,18 @@
     ".ltt-dg .z.k-bad text{fill:var(--ltt-bad)}.ltt-dg .z.k-accent text{fill:var(--ltt-accent)}.ltt-dg .z.k-good text{fill:var(--ltt-good)}",
     ".ltt-dg .n,.ltt-dg .e,.ltt-dg .el,.ltt-dg .z{transition:opacity .3s}.ltt-dg .dim{opacity:.22}",
     ".ltt-dg .pk{filter:drop-shadow(0 1px 3px rgba(0,0,0,.25))}",
+    ".ltt-map .sea{fill:var(--ltt-sea)}.ltt-map .land{fill:var(--ltt-land);stroke:var(--ltt-border);stroke-width:.6;transition:fill .3s,opacity .3s}",
+    ".ltt-map .land.k-accent{fill:color-mix(in srgb,var(--ltt-accent) 30%,var(--ltt-land))}.ltt-map .land.k-good{fill:color-mix(in srgb,var(--ltt-good) 30%,var(--ltt-land))}",
+    ".ltt-map .land.k-bad{fill:color-mix(in srgb,var(--ltt-bad) 30%,var(--ltt-land))}.ltt-map .land.k-warn{fill:color-mix(in srgb,var(--ltt-warn) 30%,var(--ltt-land))}",
+    ".ltt-map .grat{fill:none;stroke:var(--ltt-border);stroke-opacity:.35;stroke-width:.5}",
+    ".ltt-map .rt{fill:none;stroke:var(--ltt-ink-2);stroke-width:2;stroke-linecap:round;transition:opacity .3s}",
+    ".ltt-map .rt.k-accent{stroke:var(--ltt-accent)}.ltt-map .rt.k-good{stroke:var(--ltt-good)}.ltt-map .rt.k-bad{stroke:var(--ltt-bad)}.ltt-map .rt.k-warn{stroke:var(--ltt-warn)}",
+    ".ltt-map .rt.dash{stroke-dasharray:5 6}.ltt-map .rt.run{stroke-dasharray:7 7;animation:ltt-dash .7s linear infinite}",
+    ".ltt-map .pl circle{fill:var(--ltt-ink);stroke:var(--ltt-card);stroke-width:2}.ltt-map .pl.k-accent circle{fill:var(--ltt-accent)}",
+    ".ltt-map .pl.k-good circle{fill:var(--ltt-good)}.ltt-map .pl.k-bad circle{fill:var(--ltt-bad)}.ltt-map .pl.k-warn circle{fill:var(--ltt-warn)}",
+    ".ltt-map .pl text{font-size:12.5px;font-weight:750;paint-order:stroke;stroke:var(--ltt-card);stroke-width:4px;stroke-linejoin:round}",
+    ".ltt-map .rl{font-size:11.5px;font-weight:650;fill:var(--ltt-muted);paint-order:stroke;stroke:var(--ltt-card);stroke-width:4px;stroke-linejoin:round}",
+    ".ltt-map .dim{opacity:.22}.ltt-map .pk{filter:drop-shadow(0 1px 3px rgba(0,0,0,.25))}",
     ".katex-display{overflow-x:auto;overflow-y:hidden;max-width:100%;padding:2px 0}"
   ].join("");
 
@@ -481,6 +493,119 @@
     return { start: start, stop: stop, reset: reset, runToEnd: runToEnd, get state() { return state; } };
   }
 
+  var WORLD_URL = "/kit/vendor/world-atlas/countries-110m.json", worldData = null;
+  function world() {
+    if (!worldData) worldData = fetch(WORLD_URL).then(function (r) {
+      if (!r.ok) throw new Error("map data " + WORLD_URL + " " + r.status);
+      return r.json();
+    });
+    return worldData;
+  }
+
+  // World map (Natural Earth 1:110m via world-atlas). Routes are great-circle arcs, so long hauls curve the way flights and cables do.
+  // countries keys are Natural Earth English names (e.g. "South Korea", "United States of America").
+  function map(svgEl, o) {
+    o = o || {};
+    var topojson = root.topojson;
+    if (!topojson) return Promise.reject(new Error("LTT.map needs /kit/vendor/topojson-client.min.js"));
+    var W = o.width || 900, H = o.height || 460;
+    var svg = d3.select(el(svgEl)).classed("ltt-svg ltt-map", true).attr("viewBox", "0 0 " + W + " " + H)
+      .attr("role", "img").attr("aria-label", o.label || null);
+    if (o.maxWidth !== false) svg.style("max-width", (o.maxWidth || W) + "px");
+    return (o.data ? Promise.resolve(o.data) : world()).then(function (topo) {
+      var land = topojson.feature(topo, topo.objects.countries);
+      var kind = { equalEarth: d3.geoEqualEarth, mercator: d3.geoMercator, naturalEarth: d3.geoNaturalEarth1, orthographic: d3.geoOrthographic }[o.projection || "equalEarth"];
+      if (!kind) throw new Error("unknown projection '" + o.projection + "'");
+      var proj = kind();
+      if (o.rotate) proj.rotate(o.rotate);
+      var target = o.extent ? { type: "MultiPoint", coordinates: [o.extent[0], o.extent[1], [o.extent[0][0], o.extent[1][1]], [o.extent[1][0], o.extent[0][1]]] } : { type: "Sphere" };
+      proj.fitExtent([[8, 8], [W - 8, H - 8]], target);
+      var path = d3.geoPath(proj);
+      svg.append("clipPath").attr("id", (o.id || "m") + "-clip").append("rect").attr("width", W).attr("height", H);
+      var g = svg.append("g").attr("clip-path", "url(#" + (o.id || "m") + "-clip)");
+      g.append("path").attr("class", "sea").attr("d", path({ type: "Sphere" }));
+      if (o.graticule !== false) g.append("path").attr("class", "grat").attr("d", path(d3.geoGraticule10()));
+      var countries = o.countries || {}, landSel = {};
+      g.append("g").selectAll("path").data(land.features).join("path")
+        .attr("class", function (f) { var k = countries[f.properties.name]; return "land" + (k ? " k-" + k : ""); })
+        .attr("d", path).each(function (f) { landSel[f.properties.name] = d3.select(this); });
+      var places = {};
+      (o.places || []).forEach(function (p) { places[p.id] = p; });
+      var gRoutes = g.append("g"), gPlaces = g.append("g"), gPackets = g.append("g"), routeSel = {};
+      (o.routes || []).forEach(function (r) {
+        var a = places[r.f], b = places[r.t];
+        if (!a || !b) throw new Error("map route " + (r.id || r.f + ">" + r.t) + " points to a missing place");
+        var id = r.id || r.f + ">" + r.t, line = { type: "LineString", coordinates: [[a.lon, a.lat], [b.lon, b.lat]] };
+        var p = gRoutes.append("path").attr("class", "rt" + (r.k ? " k-" + r.k : "") + (r.dash ? " dash" : "")).attr("d", path(line));
+        var label = null;
+        if (r.l) {
+          var mid = proj(d3.geoInterpolate(line.coordinates[0], line.coordinates[1])(0.5)), lo = r.lo || [0, -8];
+          label = gRoutes.append("text").attr("class", "rl").attr("text-anchor", "middle").attr("x", mid[0] + lo[0]).attr("y", mid[1] + lo[1]).text(r.l);
+        }
+        routeSel[id] = { path: p, label: label, f: r.f, t: r.t };
+      });
+      var placeSel = {};
+      (o.places || []).forEach(function (p) {
+        var xy = proj([p.lon, p.lat]), gp = gPlaces.append("g").attr("class", "pl" + (p.k ? " k-" + p.k : "")).attr("transform", "translate(" + xy + ")");
+        if (p.mark) gp.html(LTT.mark(p.mark, { size: 12, color: p.k ? "var(--ltt-" + p.k + ")" : "var(--ltt-ink)" }));
+        else gp.append("circle").attr("r", 5);
+        if (p.l) {
+          var lo = p.lo || [8, 4];
+          gp.append("text").attr("x", lo[0]).attr("y", lo[1]).attr("text-anchor", lo[0] < 0 ? "end" : "start").text(p.l);
+        }
+        placeSel[p.id] = gp;
+      });
+      var api = {
+        svg: svg, projection: proj, path: path,
+        project: function (lon, lat) { return proj([lon, lat]); },
+        // Ids may name places, routes ("from>to" or id) or countries; everything else dims. No ids clears the focus.
+        highlight: function (ids) {
+          var on = ids && ids.length ? ids : null, has = function (x) { return !on || on.indexOf(x) >= 0; };
+          Object.keys(placeSel).forEach(function (id) { placeSel[id].classed("dim", !has(id)); });
+          Object.keys(routeSel).forEach(function (id) {
+            var r = routeSel[id], lit = has(id) || (on && on.indexOf(r.f) >= 0 && on.indexOf(r.t) >= 0);
+            r.path.classed("dim", !lit);
+            if (r.label) r.label.classed("dim", !lit);
+          });
+          var anyCountry = on && on.some(function (x) { return landSel[x]; });
+          Object.keys(landSel).forEach(function (n) { landSel[n].classed("dim", !!anyCountry && on.indexOf(n) < 0); });
+        },
+        flow: function (ids) { Object.keys(routeSel).forEach(function (id) { routeSel[id].path.classed("run", (ids || []).indexOf(id) >= 0); }); },
+        send: function (from, to, so) {
+          so = so || {};
+          var r = routeSel[from + ">" + to], rev = false;
+          if (!r) { r = routeSel[to + ">" + from]; rev = true; }
+          if (!r || !MOTION_MS) return Promise.resolve();
+          var node = r.path.node(), len = node.getTotalLength(), n = so.count || 3, ms = so.ms || 1400, gap = so.gap || 180;
+          return new Promise(function (done) {
+            d3.range(n).forEach(function (k) {
+              gPackets.append("circle").attr("class", "pk").attr("r", so.r || 5).style("fill", so.color || "var(--ltt-accent)")
+                .transition().delay(k * gap).duration(ms).ease(d3.easeCubicInOut)
+                .attrTween("transform", function () { return function (t) { var q = node.getPointAtLength((rev ? 1 - t : t) * len); return "translate(" + q.x + "," + q.y + ")"; }; })
+                .remove().on("end", function () { if (k === n - 1) done(); }).on("interrupt", function () { if (k === n - 1) done(); });
+            });
+          });
+        },
+        clear: function () { gPackets.selectAll("*").interrupt().remove(); },
+        player: function (container, steps, popts) {
+          var run = 0;
+          return stepper(container, steps.map(function (st) {
+            return {
+              caption: st.caption,
+              enter: function (i) {
+                var id = ++run;
+                api.clear(); api.highlight(st.hot || null); api.flow(st.flow || []);
+                (st.send || []).reduce(function (p, x) { return p.then(function () { return id === run ? api.send(x[0], x[1], x[2]) : null; }); }, Promise.resolve());
+                if (st.enter) st.enter(api, i);
+              }
+            };
+          }), popts);
+        }
+      };
+      return api;
+    });
+  }
+
   function math(scope) {
     if (!root.katex) return;
     (scope ? el(scope) : document).querySelectorAll("[data-tex]").forEach(function (n) {
@@ -507,6 +632,7 @@
   LTT.diagram = diagram;
   LTT.diagramLayout = diagramLayout;
   LTT.plane = plane;
+  LTT.map = map;
   LTT.sim = sim;
   LTT.math = math;
 })(typeof globalThis !== "undefined" ? globalThis : this);

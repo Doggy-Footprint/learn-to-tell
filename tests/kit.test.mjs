@@ -163,7 +163,7 @@ test("auditScene judges rendered measurements", () => {
 
 test("every theme is listed with a medium", () => {
   const { themes } = loadKit();
-  assert.deepEqual([...themes.map((t) => t.name)].sort(), ["blueprint", "lab", "ledger", "paper", "studio", "terminal"]);
+  assert.deepEqual([...themes.map((t) => t.name)].sort(), ["atlas", "blueprint", "lab", "ledger", "paper", "sketch", "studio", "terminal"]);
   for (const t of themes) assert.ok(t.medium, `${t.name} has no medium`);
 });
 
@@ -179,4 +179,64 @@ test("diagramLayout centres nodes in grid cells and clips edges to box borders",
   assert.equal(e.x2, 300 - 60 - 8);
   assert.equal(e.y1, 50);
   assert.throws(() => diagramLayout({ nodes: [{ id: "a", c: 0, r: 0 }], edges: [{ f: "a", t: "zz" }] }));
+});
+
+// WCAG relative luminance and OKLab distance; CVD by Machado et al. (2009) severity-1.0 matrices on linear RGB.
+const hexRgb = (h) => (h.length === 4 ? [1, 2, 3].map((i) => parseInt(h[i] + h[i], 16) / 255) : [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255));
+const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+const unlin = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
+const luminance = (rgb) => { const [r, g, b] = rgb.map(lin); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const contrast = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+const oklab = (rgb) => {
+  const [r, g, b] = rgb.map(lin);
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b), m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b),
+    s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
+};
+const CVD = {
+  protan: [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]],
+  deutan: [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.01182, 0.04294, 0.968881]],
+  tritan: [[1.255528, -0.076749, -0.178779], [-0.078411, 0.930809, 0.147602], [0.004733, 0.691367, 0.3039]],
+};
+const simulate = (rgb, k) => { const v = rgb.map(lin); return CVD[k].map((r) => unlin(Math.min(1, Math.max(0, r[0] * v[0] + r[1] * v[1] + r[2] * v[2])))); };
+const okDist = (a, b) => Math.hypot(...oklab(a).map((x, i) => x - oklab(b)[i]));
+
+test("every theme's palette has 6 colours readable on its surfaces and distinct under colour-vision deficiency", () => {
+  const { themes, palette, themeTokens } = loadKit();
+  for (const { name } of themes) for (const scheme of ["light", "dark"]) {
+    const pal = [...palette(name, scheme)], tk = themeTokens(name, scheme), at = `${name}/${scheme}`;
+    assert.equal(pal.length, 6, at);
+    for (const c of pal) {
+      assert.match(c, /^#[0-9a-f]{6}$/i, `${at} ${c}`);
+      for (const surface of ["bg", "card", "card-2"]) assert.ok(contrast(hexRgb(c), hexRgb(tk[surface])) >= 3, `${at} ${c} on ${surface} ${tk[surface]}`);
+    }
+    for (let i = 0; i < 6; i++) for (let j = i + 1; j < 6; j++) {
+      const a = hexRgb(pal[i]), b = hexRgb(pal[j]);
+      assert.ok(okDist(a, b) >= 0.06, `${at} ${pal[i]} vs ${pal[j]}`);
+      for (const k of Object.keys(CVD)) assert.ok(okDist(simulate(a, k), simulate(b, k)) >= 0.06, `${at} ${pal[i]} vs ${pal[j]} under ${k}`);
+    }
+  }
+});
+
+test("palette outside a browser falls back to the studio light set", () => {
+  const { palette } = loadKit();
+  assert.deepEqual([...palette()], [...palette("studio", "light")]);
+});
+
+test("mark draws each shape centred on the origin and rejects unknown kinds", () => {
+  const { mark, marks } = loadKit();
+  assert.deepEqual([...marks], ["square", "ring", "dot", "diamond", "cross"]);
+  assert.match(mark("square", { size: 18, color: "red" }), /x='-9' y='-9' width='18' height='18'.*fill:red/);
+  assert.match(mark("dot", { size: 10 }), /<circle r='5'/);
+  assert.match(mark("ring", { size: 18, weight: 2 }), /r='8'.*stroke-width:2/);
+  assert.match(mark("cross"), /stroke-linecap:round/);
+  assert.match(mark("diamond", { inline: true }), /^<svg class='ltt-ic ltt-mark-ic' viewBox=/);
+  assert.throws(() => mark("star"), /unknown mark/);
+});
+
+test("icons include the borrowed Lucide set and render with the kit stroke", () => {
+  const { icon, icons } = loadKit();
+  for (const n of ["globe", "map-pin", "route", "git-branch", "network", "truck"]) assert.ok(icons.includes(n), n);
+  assert.match(icon("globe"), /stroke-width='1.8'/);
+  assert.equal(new Set(icons).size, icons.length);
 });

@@ -7,13 +7,15 @@
   var TOKENS_LIGHT = "--ltt-bg:#f2f1ec;--ltt-card:#fff;--ltt-card-2:#f7f6f2;--ltt-line:#e6e3dc;--ltt-line-2:#d6d2c8;" +
     "--ltt-ink:#16171b;--ltt-ink-2:#3b3c43;--ltt-muted:#77777e;--ltt-accent:#2f5bff;--ltt-accent-soft:#e9eeff;" +
     "--ltt-good:#12a066;--ltt-good-soft:#e2f5ec;--ltt-bad:#e5484d;--ltt-bad-soft:#fdebeb;--ltt-warn:#d48700;--ltt-warn-soft:#fcf1dc;" +
-    "--ltt-dark:#18191d;--ltt-on-dark:#f4f3ef;--ltt-on-accent:#fff;--ltt-accent-on-dark:#9fb3ff;--ltt-shadow:0 1px 2px rgba(22,23,27,.05),0 10px 30px rgba(22,23,27,.06);";
+    "--ltt-dark:#18191d;--ltt-on-dark:#f4f3ef;--ltt-on-accent:#fff;--ltt-accent-on-dark:#9fb3ff;--ltt-shadow:0 1px 2px rgba(22,23,27,.05),0 10px 30px rgba(22,23,27,.06);" +
+    "--ltt-c1:#2b5fb0;--ltt-c2:#d0492b;--ltt-c3:#008a8f;--ltt-c4:#7b2b54;--ltt-c5:#8a5ad8;--ltt-c6:#5f5200;";
   var TOKENS_DARK = "--ltt-bg:#121316;--ltt-card:#1c1d21;--ltt-card-2:#232429;--ltt-line:#2d2e35;--ltt-line-2:#3a3b43;" +
     "--ltt-ink:#efeee9;--ltt-ink-2:#cfcec8;--ltt-muted:#9a9aa3;--ltt-accent:#7e98ff;--ltt-accent-soft:#222a47;" +
     "--ltt-good:#3fcf93;--ltt-good-soft:#16302a;--ltt-bad:#ff6b70;--ltt-bad-soft:#3a1d20;--ltt-warn:#f0b13c;--ltt-warn-soft:#352914;" +
-    "--ltt-dark:#050608;--ltt-on-dark:#f4f3ef;--ltt-on-accent:#fff;--ltt-accent-on-dark:#9fb3ff;--ltt-shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);";
+    "--ltt-dark:#050608;--ltt-on-dark:#f4f3ef;--ltt-on-accent:#fff;--ltt-accent-on-dark:#9fb3ff;--ltt-shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);" +
+    "--ltt-c1:#6aa1f0;--ltt-c2:#f57a52;--ltt-c3:#f2c14e;--ltt-c4:#3fd6d0;--ltt-c5:#d48ab4;--ltt-c6:#9cd59b;";
 
-  var SERIF = "'Noto Serif KR','Nanum Myeongjo','AppleMyungjo','Batang',Georgia,serif";
+  var SERIF = "'LTT Serif','Noto Serif KR','Nanum Myeongjo','AppleMyungjo','Batang',Georgia,serif";
   // Each theme imitates the medium practitioners of a field already read (paper figures, drawings, terminals, financial press, plot paper).
   // `shape` holds non-colour tokens shared by both schemes; `css` is extra surface styling scoped to the theme.
   var THEMES = {
@@ -93,6 +95,34 @@
       shape: "--ltt-radius:10px;--ltt-r-lg:10px;--ltt-r-md:8px;--ltt-display-weight:800;--ltt-display-track:-.035em;",
       css: "[data-ltt-theme=lab] .dk-no{font-family:var(--ltt-mono);font-weight:500;letter-spacing:-.04em}" +
         "[data-ltt-theme=lab] .dk-kicker{font-family:var(--ltt-mono);border-radius:4px;font-size:12px}"
+    },
+    // Diagrams switch to hand-drawn strokes under this theme when rough.js is loaded (see ltt-parts.js diagram).
+    sketch: {
+      label: "Sketch", medium: "화이트보드·손그림 설명",
+      light: "--ltt-bg:#fbfaf6;--ltt-card:#fff;--ltt-card-2:#f4f2ec;--ltt-line:#e4e0d6;--ltt-line-2:#b9b3a6;--ltt-ink:#1e1d1b;--ltt-ink-2:#3a3833;" +
+        "--ltt-muted:#736f66;--ltt-accent:#1f5fc4;--ltt-accent-soft:#e4ecfa;--ltt-good:#1f8a4c;--ltt-good-soft:#e0f1e6;--ltt-bad:#d2382f;--ltt-bad-soft:#fbe2df;" +
+        "--ltt-warn:#b86b00;--ltt-warn-soft:#fbedd6;--ltt-dark:#22211f;--ltt-on-dark:#f6f4ee;--ltt-accent-on-dark:#9dbbf2;--ltt-shadow:none;",
+      dark: "--ltt-bg:#1f2a24;--ltt-card:#24312a;--ltt-card-2:#2a3830;--ltt-line:#35463c;--ltt-line-2:#5a7062;--ltt-ink:#eef2ea;--ltt-ink-2:#d2dacd;" +
+        "--ltt-muted:#a3b1a3;--ltt-accent:#8fc0ff;--ltt-accent-soft:#24384a;--ltt-good:#8ee3a8;--ltt-good-soft:#213d2c;--ltt-bad:#ff8d84;--ltt-bad-soft:#45282a;" +
+        "--ltt-warn:#ffd06a;--ltt-warn-soft:#433a22;--ltt-dark:#121a16;--ltt-on-dark:#eef2ea;--ltt-on-accent:#102030;--ltt-accent-on-dark:#8fc0ff;--ltt-shadow:none;",
+      shape: "--ltt-radius:12px;--ltt-r-lg:14px;--ltt-r-md:10px;--ltt-display-weight:800;--ltt-display-track:-.03em;--ltt-border-w:2px;",
+      css: "[data-ltt-theme=sketch] .ltt-card{border-width:2px;border-color:var(--ltt-line-2)}" +
+        "[data-ltt-theme=sketch] .dk-kicker,[data-ltt-theme=sketch] .dk-top h1{box-shadow:none;background:none;padding-left:0;border-bottom:2.5px solid var(--ltt-accent);border-radius:0}" +
+        "[data-ltt-theme=sketch] .ltt-dg .e{stroke-width:2.2}[data-ltt-theme=sketch] .ltt-dg .n rect.box{stroke:var(--ltt-ink-2)}"
+    },
+    atlas: {
+      label: "Atlas", medium: "지도·지리·물류",
+      light: "--ltt-bg:#eef2f1;--ltt-card:#fbfcfa;--ltt-card-2:#e6ecea;--ltt-line:#d3dcd9;--ltt-line-2:#b3c1bd;--ltt-ink:#17262b;--ltt-ink-2:#2f4248;" +
+        "--ltt-muted:#5f7277;--ltt-accent:#0f6e8c;--ltt-accent-soft:#dcecf0;--ltt-good:#2c7a3f;--ltt-good-soft:#e0eedf;--ltt-bad:#c0392b;--ltt-bad-soft:#f6dfdb;" +
+        "--ltt-warn:#a86500;--ltt-warn-soft:#f6e8cf;--ltt-dark:#13232a;--ltt-on-dark:#e8f0ef;--ltt-accent-on-dark:#7fcbe0;--ltt-shadow:none;" +
+        "--ltt-sea:#d9e7ec;--ltt-land:#f7f5ee;--ltt-border:#b4ae9c;",
+      dark: "--ltt-bg:#0f1a1f;--ltt-card:#14232a;--ltt-card-2:#1a2c34;--ltt-line:#24393f;--ltt-line-2:#3a5960;--ltt-ink:#e3eeee;--ltt-ink-2:#c2d3d4;" +
+        "--ltt-muted:#8aa1a5;--ltt-accent:#5cc2df;--ltt-accent-soft:#163843;--ltt-good:#6fd08c;--ltt-good-soft:#173323;--ltt-bad:#ff7d70;--ltt-bad-soft:#3d201d;" +
+        "--ltt-warn:#f0b45a;--ltt-warn-soft:#3a2c17;--ltt-dark:#071014;--ltt-on-dark:#e3eeee;--ltt-on-accent:#062028;--ltt-accent-on-dark:#7fcbe0;--ltt-shadow:none;" +
+        "--ltt-sea:#0f2730;--ltt-land:#1d2f35;--ltt-border:#3d575e;",
+      shape: "--ltt-radius:8px;--ltt-r-lg:10px;--ltt-r-md:6px;--ltt-r-sm:4px;--ltt-display-weight:780;--ltt-display-track:-.025em;",
+      css: "[data-ltt-theme=atlas] .dk-kicker,[data-ltt-theme=atlas] .dk-top h1{text-transform:uppercase;font-size:12px;letter-spacing:.1em;border-radius:3px}" +
+        "[data-ltt-theme=atlas] .dk-no{font-family:var(--ltt-mono);font-weight:500;letter-spacing:0}"
     }
   };
 
@@ -108,10 +138,16 @@
   var STYLE = [
     "@font-face{font-family:'Pretendard Variable';font-weight:45 920;font-style:normal;font-display:swap;",
     "src:url('/kit/vendor/pretendard/PretendardVariable.woff2') format('woff2-variations')}",
+    // Serif and mono faces are subsets (KS X 1001 Hangul + Latin); syllables outside fall through to the next family in the stack.
+    "@font-face{font-family:'LTT Serif';font-weight:200 900;font-style:normal;font-display:swap;",
+    "src:url('/kit/vendor/noto-serif-kr/NotoSerifKR-ksx.woff2') format('woff2-variations')}",
+    "@font-face{font-family:'LTT Mono';font-weight:400;font-style:normal;font-display:swap;src:url('/kit/vendor/d2coding/D2Coding-ksx.woff2') format('woff2')}",
+    "@font-face{font-family:'LTT Mono';font-weight:700;font-style:normal;font-display:swap;src:url('/kit/vendor/d2coding/D2CodingBold-ksx.woff2') format('woff2')}",
     ":root{" + TOKENS_LIGHT + "--ltt-radius:20px;--ltt-r-lg:24px;--ltt-r-md:14px;--ltt-r-sm:8px;--ltt-border-w:1px;--ltt-pattern:none;",
     "--ltt-display-weight:850;--ltt-display-track:-.04em;--ltt-font-display:var(--ltt-font);",
     "--ltt-font:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Segoe UI',sans-serif;",
-    "--ltt-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}",
+    "--ltt-mono:'LTT Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;",
+    "--ltt-sea:color-mix(in srgb,var(--ltt-accent) 9%,var(--ltt-card-2));--ltt-land:var(--ltt-card);--ltt-border:var(--ltt-line-2);color-scheme:light}",
     "@media (prefers-color-scheme:dark){:root:not([data-theme=light]){" + TOKENS_DARK + "color-scheme:dark}}",
     ":root[data-theme=dark]{" + TOKENS_DARK + "color-scheme:dark}",
     "body{margin:0;background:var(--ltt-pattern),var(--ltt-bg);background-color:var(--ltt-bg);color:var(--ltt-ink);font:16px/1.6 var(--ltt-font);",
@@ -174,7 +210,7 @@
     "#ltt-expect .warn{color:var(--ltt-warn)}"
   ].join("") + themeCss();
 
-  // Hand-drawn 24×24 stroke icons; each value is SVG inner markup drawn with currentColor.
+  // 24×24 stroke icons; each value is SVG inner markup drawn with currentColor.
   var ICONS = {
     check: "<path d='M5 12.5l4.5 4.5L19 7.5'/>",
     x: "<path d='M6.5 6.5l11 11M17.5 6.5l-11 11'/>",
@@ -219,7 +255,24 @@
     question: "<circle cx='12' cy='12' r='8.5'/><path d='M9.5 9.5a2.5 2.5 0 114 2c-.9.6-1.5 1.1-1.5 2.3M12 16.8v.2'/>",
     bulb: "<path d='M9 17.5h6M10 20.5h4M12 3.5a5.5 5.5 0 00-3.2 10c.6.5 1.2 1.3 1.2 2.2v1.8h4v-1.8c0-.9.6-1.7 1.2-2.2A5.5 5.5 0 0012 3.5z'/>",
     link: "<path d='M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1'/>",
-    inbox: "<path d='M3.5 13l2.5-7.5h12l2.5 7.5V19H3.5v-6z'/><path d='M3.5 13H8l1.5 2.5h5L16 13h4.5'/>"
+    inbox: "<path d='M3.5 13l2.5-7.5h12l2.5 7.5V19H3.5v-6z'/><path d='M3.5 13H8l1.5 2.5h5L16 13h4.5'/>",
+    // From Lucide 1.48.0 (ISC, kit/vendor/LICENSE-lucide), copied per icon; drawn on the same 24 grid, so icon() applies the kit stroke width.
+    globe: "<circle cx='12' cy='12' r='10'/><path d='M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20'/><path d='M2 12h20'/>",
+    "map-pin": "<path d='M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0'/><circle cx='12' cy='10' r='3'/>",
+    route: "<circle cx='6' cy='19' r='3'/><path d='M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15'/><circle cx='18' cy='5' r='3'/>",
+    "git-branch": "<path d='M15 6a9 9 0 0 0-9 9V3'/><circle cx='18' cy='6' r='3'/><circle cx='6' cy='18' r='3'/>",
+    timer: "<line x1='10' x2='14' y1='2' y2='2'/><line x1='12' x2='15' y1='14' y2='11'/><circle cx='12' cy='14' r='8'/>",
+    "database-zap": "<ellipse cx='12' cy='5' rx='9' ry='3'/><path d='M3 5V19A9 3 0 0 0 15 21.84'/><path d='M21 5V8'/><path d='M21 12L18 17H22L19 22'/><path d='M3 12A9 3 0 0 0 14.59 14.87'/>",
+    network: "<rect x='16' y='16' width='6' height='6' rx='1'/><rect x='2' y='16' width='6' height='6' rx='1'/><rect x='9' y='2' width='6' height='6' rx='1'/><path d='M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3'/><path d='M12 12V8'/>",
+    "shield-check": "<path d='M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z'/><path d='m9 12 2 2 4-4'/>",
+    "key-round": "<path d='M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z'/><circle cx='16.5' cy='7.5' r='.5' fill='currentColor'/>",
+    mail: "<path d='m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7'/><rect x='2' y='4' width='20' height='16' rx='2'/>",
+    package: "<path d='M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z'/><path d='M12 22V12'/><polyline points='3.29 7 12 12 20.71 7'/><path d='m7.5 4.27 9 5.15'/>",
+    truck: "<path d='M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2'/><path d='M15 18H9'/><path d='M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14'/><circle cx='17' cy='18' r='2'/><circle cx='7' cy='18' r='2'/>",
+    wifi: "<path d='M12 20h.01'/><path d='M2 8.82a15 15 0 0 1 20 0'/><path d='M5 12.859a10 10 0 0 1 14 0'/><path d='M8.5 16.429a5 5 0 0 1 7 0'/>",
+    cloud: "<path d='M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z'/>",
+    gauge: "<path d='m12 14 4-4'/><path d='M3.34 19a10 10 0 1 1 17.32 0'/>",
+    workflow: "<rect width='8' height='8' x='3' y='3' rx='2'/><path d='M7 11v4a2 2 0 0 0 2 2h4'/><rect width='8' height='8' x='13' y='13' rx='2'/>"
   };
 
   function icon(name, opts) {
@@ -228,6 +281,49 @@
     var o = opts || {};
     return "<svg class='ltt-ic" + (o.cls ? " " + o.cls : "") + "' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='" +
       (o.weight || 1.8) + "' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>" + body + "</svg>";
+  }
+
+  function parseTokens(str, into) {
+    String(str || "").split(";").forEach(function (decl) {
+      var i = decl.indexOf(":");
+      if (i > 0 && decl.slice(0, i).trim().indexOf("--ltt-") === 0) into[decl.slice(6, i).trim()] = decl.slice(i + 1).trim();
+    });
+    return into;
+  }
+
+  // Effective colour tokens of a theme without a document: defaults overlaid by the theme's scheme ("light" | "dark").
+  function themeTokens(name, scheme) {
+    var t = THEMES[name] || THEMES.studio, dark = scheme === "dark";
+    return parseTokens(dark ? t.dark : t.light, parseTokens(t.shape, parseTokens(dark ? TOKENS_DARK : TOKENS_LIGHT, {})));
+  }
+
+  // Categorical series colours c1..c6. Without arguments it reads the live page (so it follows theme and colour scheme).
+  function palette(name, scheme) {
+    if (name == null && typeof document !== "undefined" && root.getComputedStyle) {
+      var cs = root.getComputedStyle(document.documentElement), live = [];
+      for (var i = 1; i <= 6; i++) live.push(cs.getPropertyValue("--ltt-c" + i).trim());
+      if (live[0]) return live;
+    }
+    var tk = themeTokens(name || "studio", scheme);
+    return [1, 2, 3, 4, 5, 6].map(function (i) { return tk["c" + i]; });
+  }
+
+  var MARKS = { square: 1, ring: 1, dot: 1, diamond: 1, cross: 1 };
+
+  // Shape markers centred on (0,0) so series stay distinguishable without hue; `inline` wraps one in a 1em <svg> for legends and prose.
+  function mark(kind, opts) {
+    var o = opts || {}, s = o.size || 18, h = s / 2, c = o.color || "currentColor", sw = o.weight || 2.5, body;
+    if (!MARKS[kind]) throw new Error("unknown mark '" + kind + "' (" + Object.keys(MARKS).join(", ") + ")");
+    if (kind === "square") body = "<rect x='" + -h + "' y='" + -h + "' width='" + s + "' height='" + s + "' rx='2' style='fill:" + c + "'/>";
+    else if (kind === "dot") body = "<circle r='" + h + "' style='fill:" + c + "'/>";
+    else if (kind === "ring") body = "<circle r='" + (h - sw / 2) + "' style='fill:" + (o.fill || "var(--ltt-bg)") + ";stroke:" + c + ";stroke-width:" + sw + "'/>";
+    else if (kind === "diamond") body = "<path d='M0 " + -h * 1.15 + "L" + h * 1.15 + " 0L0 " + h * 1.15 + "L" + -h * 1.15 + " 0Z' style='fill:" + c + "'/>";
+    else body = "<path d='M" + -h * 0.8 + " " + -h * 0.8 + "L" + h * 0.8 + " " + h * 0.8 + "M" + h * 0.8 + " " + -h * 0.8 + "L" + -h * 0.8 + " " + h * 0.8 +
+      "' style='fill:none;stroke:" + c + ";stroke-width:" + sw + ";stroke-linecap:round'/>";
+    var g = "<g class='ltt-mark m-" + kind + "'>" + body + "</g>";
+    if (!o.inline) return g;
+    var v = h * 1.15 + sw;
+    return "<svg class='ltt-ic ltt-mark-ic' viewBox='" + [-v, -v, 2 * v, 2 * v].join(" ") + "' aria-hidden='true'>" + g + "</svg>";
   }
 
   function lessonId(pathname) {
@@ -520,7 +616,7 @@
 
   var LTT = root.LTT = {
     lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
-    icon: icon, icons: Object.keys(ICONS), theme: theme,
+    icon: icon, icons: Object.keys(ICONS), theme: theme, themeTokens: themeTokens, palette: palette, mark: mark, marks: Object.keys(MARKS),
     themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
     termsIn: termsIn, sceneText: sceneText, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene,
     setGlossary: setGlossary, linkTerms: linkTerms

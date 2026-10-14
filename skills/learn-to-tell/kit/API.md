@@ -25,9 +25,12 @@
 | 이름 | 설명 |
 | --- | --- |
 | `LTT.theme(name)`, `LTT.themes` | 도메인 테마를 고른다. 덱에서는 `LTT.deck({theme})`로 넘긴다. 테마는 토큰 값과 표면(모서리, 그림자, 제목 폰트, 배경 격자)만 바꾸므로 같은 부품이 다른 매체처럼 보인다. 아래 표. |
-| 토큰 | `--ltt-bg` `--ltt-card` `--ltt-card-2` `--ltt-line` `--ltt-line-2` `--ltt-ink` `--ltt-ink-2` `--ltt-muted` `--ltt-accent(-soft)` `--ltt-good(-soft)` `--ltt-bad(-soft)` `--ltt-warn(-soft)` `--ltt-dark` `--ltt-on-dark` `--ltt-on-accent` `--ltt-accent-on-dark` `--ltt-shadow` `--ltt-font` `--ltt-font-display` `--ltt-mono` `--ltt-r-lg` `--ltt-r-md` `--ltt-r-sm`. 다크 모드는 `prefers-color-scheme`를 따르고, `<html data-theme="light|dark">`로 고정할 수 있다. |
-| 폰트 | Pretendard Variable(`/kit/vendor/pretendard/`). 숫자·코드는 `var(--ltt-mono)`. |
-| `LTT.icon(name, {weight, cls})` | 선 아이콘 SVG 문자열. 이름 목록은 `LTT.icons`. hook `art`, explain·terms·facts `icon`, diagram 노드 `icon`에는 이름만 넘긴다. 이모지도 받는다. |
+| 토큰 | `--ltt-bg` `--ltt-card` `--ltt-card-2` `--ltt-line` `--ltt-line-2` `--ltt-ink` `--ltt-ink-2` `--ltt-muted` `--ltt-accent(-soft)` `--ltt-good(-soft)` `--ltt-bad(-soft)` `--ltt-warn(-soft)` `--ltt-dark` `--ltt-on-dark` `--ltt-on-accent` `--ltt-accent-on-dark` `--ltt-shadow` `--ltt-font` `--ltt-font-display` `--ltt-mono` `--ltt-r-lg` `--ltt-r-md` `--ltt-r-sm`, 범주형 `--ltt-c1`…`--ltt-c6`, 지도 `--ltt-sea` `--ltt-land` `--ltt-border`. 다크 모드는 `prefers-color-scheme`를 따르고, `<html data-theme="light|dark">`로 고정할 수 있다. |
+| 폰트 | 본문 Pretendard Variable, 세리프 `'LTT Serif'`(Noto Serif KR), 모노 `'LTT Mono'`(D2Coding). 세리프·모노는 KS X 1001 한글 2,350자 + 라틴 subset이라 빠진 음절은 시스템 폰트로 그린다. 숫자·코드는 `var(--ltt-mono)`, 세리프 제목은 테마의 `--ltt-font-display`. |
+| `LTT.palette()`, `LTT.palette(theme, "light"\|"dark")` | 범주형 색 6개 배열. 인자 없이 부르면 지금 페이지의 테마·다크 모드 값. 계열 구분에만 쓰고 판정(good·bad)에는 쓰지 않는다. 모든 테마에서 배경 대비 3:1 이상, 색각 이상(적록·청황) 시뮬레이션에서도 구분된다(`tests/kit.test.mjs`). |
+| `LTT.mark(kind, {size, color, weight, fill, inline})` | 모양 표식 SVG 문자열(square, ring, dot, diamond, cross, 목록은 `LTT.marks`). (0,0) 중심이라 d3 `g.html(...)`에 넣는다. `inline: true`면 1em `<svg>`로 감싸 본문·범례에 쓴다. 색만으로 계열을 가르지 않게 모양을 함께 쓴다. |
+| `LTT.themeTokens(theme, scheme)` | 문서 없이 테마의 색 토큰 객체(`{bg, ink, c1, …}`). 테스트·서버 쪽 계산용. |
+| `LTT.icon(name, {weight, cls})` | 선 아이콘 SVG 문자열. 이름 목록은 `LTT.icons`. hook `art`, explain·terms·facts `icon`, diagram 노드 `icon`에는 이름만 넘긴다. 이모지도 받는다. 손으로 그린 44개 + Lucide에서 가져온 16개(globe, map-pin, route, git-branch, timer, database-zap, network, shield-check, key-round, mail, package, truck, wifi, cloud, gauge, workflow). 더 필요하면 Lucide에서 그 아이콘만 `ICONS`에 옮긴다(전체 세트는 넣지 않는다). |
 | `{{용어}}`, `{{보이는 말\|용어}}` | 본문 속 용어 표시. 덱이 풀이 팝오버로 바꾼다(마우스 올리기·탭). 처음 나온 장면은 진하게 표시된다. |
 | `LTT.linkTerms(el, sceneIndex)` | 덱 밖이나 나중에 그린 DOM의 `{{}}`를 바꾼다. 덱은 장면 마운트, predict 공개, compare 공개, stepper 자막에서 알아서 부른다. |
 | `LTT.lintDeck(spec)` | 독학 기준 점검. `[{scene, rule, msg}]`. 덱이 시작할 때 실행해 경고를 화면 오른쪽 아래 패널에 띄우고 `lint` 이벤트로 남긴다. 규칙은 아래. |
@@ -45,6 +48,8 @@
 | `ledger` | 경제 신문 차트: 살구색 종이, 세리프 헤드라인, 각진 표 | 금융, 경제, 비즈니스 지표 |
 | `lab` | 실험 노트·모눈 플롯: 모눈 배경, 주황 펜 색 | 물리, 공학, 시뮬레이션 |
 | `studio` | 제품 화면·디자인 툴: 중립 회색, 둥근 카드 (기본) | UI/UX, 제품 |
+| `sketch` | 화이트보드·손그림 설명: 흰 보드(다크는 칠판), 굵은 마커 선. `rough.js`를 불러오면 diagram이 손그림 선으로 그려진다 | 개념 첫 소개, 아키텍처 스케치, 브레인스토밍 |
+| `atlas` | 지도·지리·물류: 바다·육지 색 토큰, 모노 번호 | 지리, 물류, 리전·지연 시간, 공급망 |
 
 테마는 매체를 고르는 것이지 장식이 아니다. 페이지 CSS에서 토큰을 다시 정의하지 않는다.
 

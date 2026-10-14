@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Learn to Tell kit 카탈로그</title>
 <script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/topojson-client.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
 <script src="/kit/ltt-ui.js"></script>
@@ -83,8 +84,24 @@
     const names = ["bg", "card", "card-2", "line", "line-2", "ink", "ink-2", "muted", "accent", "accent-soft", "good", "good-soft", "bad", "bad-soft", "warn", "warn-soft", "dark"];
     el.innerHTML = `<div class="tok">${names.map((n) => `<div><i style="background:var(--ltt-${n})"></i>--ltt-${n}</div>`).join("")}</div>`;
   });
-  demo("icon", "LTT.icon(name, {weight, cls})", "<b>이모지 대신 쓰는 선 아이콘.</b> 문자열(SVG)을 돌려준다. hook의 art, explain·terms의 icon, diagram 노드의 icon에 이름만 넘기면 된다.", (el) => {
+  demo("icon", "LTT.icon(name, {weight, cls})", "<b>이모지 대신 쓰는 선 아이콘.</b> 문자열(SVG)을 돌려준다. globe부터 workflow까지 16개는 Lucide에서 가져왔다. hook의 art, explain·terms의 icon, diagram 노드의 icon에 이름만 넘기면 된다.", (el) => {
     el.innerHTML = `<div class="ics">${LTT.icons.map((n) => `<div>${LTT.icon(n)}${n}</div>`).join("")}</div>`;
+  });
+  demo("palette", "LTT.palette() · --ltt-c1…c6", "<b>여러 계열을 구분하는 범주형 색 6개.</b> 테마·다크 모드마다 배경 대비 3:1 이상이고, 적록·청황 색각 이상에서도 서로 구분되게 맞췄다. 차트에는 <code>LTT.palette()</code>(현재 테마 값 배열)나 <code>var(--ltt-c1)</code>을 쓴다. 판정(good·bad)에는 쓰지 않는다.", (el) => {
+    const draw = () => {
+      el.innerHTML = `<div class="tok">${LTT.palette().map((c, i) => `<div><i style="background:var(--ltt-c${i + 1})"></i>--ltt-c${i + 1} ${c}</div>`).join("")}</div>`;
+    };
+    draw();
+    new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-ltt-theme", "data-theme"] });
+  });
+  demo("mark", "LTT.mark(kind, {size, color, weight, fill, inline})", "<b>색 말고 모양으로 계열을 가른다.</b> square·ring·dot·diamond·cross. (0,0) 중심의 SVG 문자열이라 d3 <code>g.html(...)</code>에 넣거나, <code>inline: true</code>로 본문·범례에 쓴다. 본문에서는 \"빨간 점\" 대신 \"사각형\"처럼 모양으로 가리킨다.", (el) => {
+    const legend = LTT.marks.map((k, i) => `<span class="ltt-key" style="font-size:16px;color:var(--ltt-ink-2)">${LTT.mark(k, { inline: true, color: `var(--ltt-c${i + 1})` })}${k}</span>`).join("");
+    el.innerHTML = `<div>${legend}</div>`;
+  });
+  demo("fonts", "--ltt-font · --ltt-font-display · --ltt-mono", "<b>테마 폰트는 kit에 들어 있다.</b> 본문 Pretendard, 세리프 테마(paper, ledger) 제목 Noto Serif KR, 모노 D2Coding. 세리프·모노는 KS X 1001 한글 2,350자 + 라틴만 담았고, 빠진 글자는 시스템 폰트로 넘어간다. 폰트 파일은 그 글꼴을 쓰는 화면에서만 내려받는다.", (el) => {
+    el.innerHTML = `<p style="font:700 26px/1.3 'LTT Serif',serif;margin:0">세리프: 조건별 결과 figure</p>` +
+      `<p style="font:16px/1.5 var(--ltt-mono);margin:0">모노: $ curl -I /api/주문 → 200 OK</p>` +
+      `<p style="margin:0">본문: 그림을 읽는 법을 먼저 알려 준다.</p>`;
   });
   demo("glossary", "{{용어}} · {{보이는 말|용어}}", "<b>처음 나오는 용어에 풀이를 붙인다.</b> 덱의 <code>glossary</code>나 <code>terms</code> 장면에 정의하고, 본문에서 <code>{{용어}}</code>로 표시한다. 마우스를 올리거나 누르면 풀이가 뜬다. 정의 전에 쓰거나 한 장면에 새 용어가 3개 이상이면 덱이 경고한다.", (el) => {
     LTT.setGlossary({ "TTL": "캐시에 넣은 값을 몇 초 동안 그대로 쓸지 정한 유효 시간." }, { "TTL": 0 });
@@ -168,6 +185,23 @@
       { caption: "<b>② 숨은 명령</b> — 문서 속 문장이 지시처럼 읽힌다.", hot: ["doc", "llm"], flow: ["doc>llm"], send: [["doc", "llm", { count: 4, color: "var(--ltt-bad)" }]] },
       { caption: "<b>③ 도구 실행</b> — 모델이 가진 권한으로 공격자 목표를 수행한다.", hot: ["llm", "tool"], flow: ["llm>tool"], send: [["llm", "tool", { count: 3 }]] },
     ]);
+  });
+  demo("map", "LTT.map(svg, {projection, extent, countries, places, routes}) → Promise", "<b>지리가 결정 변수일 때.</b> 리전 간 지연, 물류 경로, 공급망. 경로는 대권(great-circle) 호로 그려져 장거리일수록 휜다. <code>countries</code>는 Natural Earth 영어 이름 → tone, <code>places</code>는 <code>{id, lon, lat, l, k, mark}</code>, <code>routes</code>는 <code>{f, t, l, k, dash}</code>. diagram처럼 <code>highlight</code>·<code>flow</code>·<code>send</code>·<code>player</code>가 있다. atlas 테마와 잘 맞는다. <code>topojson-client.min.js</code>가 필요하다.", (el) => {
+    const svg = el.appendChild(svgEl());
+    LTT.map(svg, {
+      width: 900, height: 420, maxWidth: false, rotate: [165, 0], extent: [[110, 10], [-65, 60]],
+      countries: { "South Korea": "accent", "United States of America": "good" },
+      places: [
+        { id: "icn", lon: 126.9, lat: 37.5, l: "서울 리전", k: "accent", lo: [-8, 16] },
+        { id: "pdx", lon: -119.7, lat: 45.8, l: "오리건", lo: [-8, -10] },
+        { id: "iad", lon: -77.5, lat: 39, l: "버지니아", k: "good", lo: [-8, 18] },
+      ],
+      routes: [{ f: "icn", t: "pdx", l: "왕복 약 130ms", k: "accent" }, { f: "icn", t: "iad", l: "왕복 약 190ms", dash: true, lo: [0, 18] }],
+    }).then((m) => m.player(el, [
+      { caption: "<b>① 사용자는 서울</b> — 같은 리전이면 왕복 몇 ms로 끝난다.", hot: ["icn"] },
+      { caption: "<b>② 원본이 오리건</b> — 북태평양을 건너는 대권 경로다. 지도에서 휘어 보이는 선이 실제 최단 경로다.", hot: ["icn", "pdx"], flow: ["icn>pdx"], send: [["icn", "pdx"]] },
+      { caption: "<b>③ 원본이 버지니아</b> — 대륙을 하나 더 건너 왕복이 약 60ms 늘어난다.", hot: ["icn", "iad"], flow: ["icn>iad"], send: [["icn", "iad"]] },
+    ]));
   });
   demo("units · bar · tween", "LTT.units(el, n, cols).paint(k) · LTT.bar(el, parts).set(values) · LTT.tween(el, to)", "<b>비율을 세어 볼 수 있게.</b> 100칸 그림은 '100건 중 몇 건', 막대는 구성비, tween은 숫자가 바뀌는 순간을 보인다.", (el) => {
     el.innerHTML = `<div style="display:flex;gap:20px;align-items:center"><div id="cu" style="width:160px"></div><div style="flex:1"><div class="ltt-stat"><span id="cn">0</span><small>/ 100</small></div><div id="cb" style="margin-top:10px"></div></div></div>`;

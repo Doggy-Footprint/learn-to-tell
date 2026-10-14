@@ -33,9 +33,9 @@
 
   // Every figure shares one mark grammar so the reader learns it once: square = anchor heard first, open ring = independent estimate, filled dot = answer given after the anchor.
   // Shape, not hue, separates the marks because the paper theme's accent and bad colours are both reds.
-  const anchorMark = (g) => g.append("rect").attr("x", -9).attr("y", -9).attr("width", 18).attr("height", 18).attr("rx", 2).style("fill", "var(--ltt-bad)");
-  const dot = (g, color) => g.append("circle").attr("r", 9).style("fill", color);
-  const ring = (g) => g.append("circle").attr("r", 8).style("fill", "var(--ltt-bg)").style("stroke", "var(--ltt-ink)").style("stroke-width", 2.5);
+  const anchorMark = (g) => g.html(LTT.mark("square", { color: "var(--ltt-bad)" }));
+  const dot = (g, color) => g.html(LTT.mark("dot", { color }));
+  const ring = (g) => g.html(LTT.mark("ring", { color: "var(--ltt-ink)" }));
   const ms = () => LTT.MOTION_MS;
 
   // Concept sketch on a 0..12 week line; positions are illustrative, not measured effect sizes.
