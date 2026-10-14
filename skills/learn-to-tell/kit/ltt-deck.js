@@ -80,9 +80,9 @@
     ".dk-steps.strip .dk-step:last-child .dk-node{background:var(--ltt-accent);color:var(--ltt-on-accent)}",
     ".dk-steps.stack{grid-template-columns:1fr!important;gap:0;max-width:1100px}",
     ".dk-steps.stack .dk-step{display:grid;grid-template-columns:54px minmax(0,1fr) minmax(0,1.15fr);column-gap:clamp(14px,2vw,32px);align-items:start;",
-    "padding-bottom:clamp(12px,2.6vh,28px)}",
+    "padding-bottom:clamp(6px,1.4vh,18px)}",
     ".dk-steps.stack .dk-step:not(:last-child)::before{content:'';position:absolute;left:26px;top:54px;bottom:0;border-left:2px solid var(--ltt-line-2)}",
-    ".dk-steps.stack .dk-step .tx{display:flex;flex-direction:column;gap:6px;padding-top:12px}",
+    ".dk-steps.stack .dk-step .tx{display:flex;flex-direction:column;gap:4px;padding-top:8px}",
     ".dk-steps.stack .dk-step .vis{margin:0;padding:0}",
     ".dk-steps.stack .dk-step:not(:has(.vis)){grid-template-columns:54px minmax(0,1fr)}",
     /* terms */
@@ -434,6 +434,44 @@
     }
   }
 
+  var MOCKS = ".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code";
+  var VISUALS = "svg.ltt-svg,svg.ltt-dg,.ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code,canvas,img,.ltt-ba,.dk-fig-stage>*,[data-visual]";
+
+  function area(r) { return Math.max(0, r.width) * Math.max(0, r.height); }
+
+  // Rendered-layout measurements for LTT.auditScene; hidden scenes still lay out, so this runs without showing them.
+  function measure(s, el) {
+    var inner = el.firstChild, body = el.querySelector(".dk-body"), stage = area(el.getBoundingClientRect()) || 1;
+    var zoom = parseFloat(inner.style.zoom) || 1, ih = inner.getBoundingClientRect().height;
+    var biggest = 0;
+    [].forEach.call(body.querySelectorAll(VISUALS), function (v) { biggest = Math.max(biggest, area(v.getBoundingClientRect()) * zoom * zoom); });
+    // Compare rows read as one figure together, so their visuals count as a sum rather than the largest one.
+    if (s.type === "compare") {
+      var sum = 0;
+      [].forEach.call(body.querySelectorAll(".dk-item .vis"), function (v) { sum += area(v.getBoundingClientRect()) * zoom * zoom; });
+      biggest = Math.max(biggest, sum);
+    }
+    var fig = el.querySelector(".dk-fig-stage"), figRatio = null;
+    if (fig && fig.firstElementChild) {
+      var fr = fig.getBoundingClientRect(), cr = fig.firstElementChild.getBoundingClientRect();
+      figRatio = Math.min(1, area(cr) / (area(fr) || 1));
+    }
+    var sizes = {};
+    [].forEach.call(body.querySelectorAll("*"), function (n) {
+      if (n.closest(MOCKS) || n.closest("svg") || n.closest(".ltt-mk")) return;
+      var own = [].some.call(n.childNodes, function (c) { return c.nodeType === 3 && c.nodeValue.trim(); });
+      if (own) sizes[Math.round(parseFloat(getComputedStyle(n).fontSize))] = 1;
+    });
+    return {
+      type: s.type || "", layout: s.layout || "", zoom: zoom, narrow: innerWidth <= 720,
+      hscroll: Math.max(0, Math.round(Math.max(inner.scrollWidth, body.scrollWidth) - inner.clientWidth - 1)),
+      overflow: innerWidth > 720 && ih * zoom > el.clientHeight + 2,
+      visualRatio: body.querySelector(VISUALS) ? biggest / stage : null,
+      figRatio: figRatio, fill: Math.min(1, (ih * zoom) / (el.clientHeight || 1)),
+      fontSizes: Object.keys(sizes).length
+    };
+  }
+
   // Scenes mount lazily on first visit; `enter` runs on every visit so motion replays when the viewer comes back.
   function deck(spec) {
     var style = h("style");
@@ -560,9 +598,26 @@
       if (e.key === "ArrowRight" || e.key === "PageDown") { e.preventDefault(); go(cur + 1); }
       if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(cur - 1); }
     });
+    // Mounts every scene and checks the rendered layout; `?audit` in the URL runs it on load.
+    function audit() {
+      var found = [];
+      scenes.forEach(function (s, i) {
+        if (!mounted[i]) mount(i);
+        mounted[i].fit();
+        LTT.auditScene(measure(s, stage.children[i])).forEach(function (w) { found.push({ scene: i + 1, rule: w.rule, msg: w.msg }); });
+      });
+      found.forEach(function (w) { LTT.warn("화면 점검 · 장면 " + w.scene + ": " + w.msg); });
+      document.documentElement.setAttribute("data-ltt-audit", found.length);
+      LTT.record("layout-audit", { viewport: [innerWidth, innerHeight], found: found });
+      return found;
+    }
+
     var start = parseInt((location.hash || "").slice(1), 10);
     go(isFinite(start) ? start - 1 : 0);
-    return { go: go, lint: lint, get index() { return cur; } };
+    if (/[?&]audit\b/.test(location.search)) {
+      if (document.fonts) document.fonts.ready.then(function () { setTimeout(audit, 300); }); else setTimeout(audit, 300);
+    }
+    return { go: go, lint: lint, audit: audit, get index() { return cur; } };
   }
 
   LTT.deck = deck;

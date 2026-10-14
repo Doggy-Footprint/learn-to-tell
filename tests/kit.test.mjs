@@ -141,6 +141,26 @@ test("figure scenes accept a caption as their reading guide", () => {
   assert.ok(!rules({ scenes: [{ type: "figure", title: "f", caption: "가로축은 시간이다." }, KW] }).includes("no-reading-guide"));
 });
 
+test("lint flags filler text but not the UI word placeholder", () => {
+  assert.ok(rules({ scenes: [{ type: "explain", title: "항목 1과 샘플 텍스트", steps: [] }, KW] }).includes("filler-content"));
+  assert.ok(!rules({ scenes: [{ type: "explain", title: "placeholder 글자색은 옅다", steps: [] }, KW] }).includes("filler-content"));
+});
+
+test("auditScene judges rendered measurements", () => {
+  const { auditScene } = loadKit();
+  const r = (m) => [...auditScene({ type: "figure", zoom: 1, visualRatio: 0.4, figRatio: 0.8, fill: 0.9, fontSizes: 5, ...m })].map((w) => w.rule);
+  assert.deepEqual(r({}), []);
+  assert.deepEqual(r({ overflow: true, zoom: 0.78 }), ["overflow"]);
+  assert.deepEqual(r({ zoom: 0.8 }), ["shrunk"]);
+  assert.deepEqual(r({ visualRatio: 0.15 }), ["small-visual"]);
+  assert.deepEqual(r({ type: "", visualRatio: 0.15 }), []);
+  assert.deepEqual(r({ figRatio: 0.2 }), ["loose-figure"]);
+  assert.deepEqual(r({ fill: 0.4 }), ["empty-stage"]);
+  assert.deepEqual(r({ fontSizes: 9 }), ["many-sizes"]);
+  assert.deepEqual(r({ type: "statement", visualRatio: 0.01 }), []);
+  assert.deepEqual(r({ narrow: true, visualRatio: 0.01, zoom: 0.5, hscroll: 30 }), ["hscroll"]);
+});
+
 test("every theme is listed with a medium", () => {
   const { themes } = loadKit();
   assert.deepEqual([...themes.map((t) => t.name)].sort(), ["blueprint", "lab", "ledger", "paper", "studio", "terminal"]);

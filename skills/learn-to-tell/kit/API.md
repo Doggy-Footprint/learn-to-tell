@@ -67,6 +67,22 @@
 | `card-monotony` | 카드 격자 장면(explain `cards`, compare, terms, summary)이 3장 연속이거나, hook·keywords를 뺀 장면의 60% 초과 |
 | `no-signature` | 그림이 주인공인 장면(`figure`, `contrast`, `layout: "full"`, 타입 없는 `mount`)이 없다 |
 | `no-theme`, `unknown-theme` | `theme`을 고르지 않았거나 없는 이름이다 |
+| `filler-content` | "항목 1", "샘플 텍스트", lorem, TODO 같은 채움 글 |
+
+### 화면 점검 (`?audit`)
+
+lint는 장면 데이터만 본다. 실제로 그려진 화면은 URL에 `?audit`을 붙여 연다. 덱이 모든 장면을 그려 재고, 결과를 패널 경고, `layout-audit` 이벤트, `<html data-ltt-audit="건수">`로 남긴다. `LTT.deck(...)`가 돌려주는 객체의 `audit()`으로 직접 부를 수도 있다. 판정은 `LTT.auditScene(측정값)`이 한다.
+
+| rule | 뜻 |
+| --- | --- |
+| `overflow`, `shrunk` | 78%로 줄여도 넘친다 / 화면에 맞추느라 88% 미만으로 줄었다 |
+| `small-visual` | 가장 큰 그림(compare는 칸 그림의 합)이 화면 넓이의 10% 미만, figure·full 장면은 22% 미만 |
+| `loose-figure` | figure 그림이 figure 무대의 35% 미만 |
+| `empty-stage` | figure·full 장면이 화면 높이의 60% 미만만 쓴다 |
+| `many-sizes` | 장면 본문(목업·SVG 제외)의 글자 크기가 7단계 초과 |
+| `hscroll` | 가로로 넘친다. 휴대폰 폭(720px 이하)에서는 이것만 본다 |
+
+1440×900과 390×844 두 크기에서 0건이어야 한다.
 
 공개 전 경고는 0건이어야 한다. lint는 표시된 용어만 안다. 표시하지 않은 전문 용어는 독자 검토(SKILL.md)로 잡는다.
 

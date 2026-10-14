@@ -16,13 +16,13 @@
   .menu .it { display: flex; align-items: center; background: #f6f5f1; border-radius: 12px; }
   .menu .ph { flex: none; width: 46px; height: 46px; border-radius: 12px; background: #e9dccb; }
   .menu b { display: block; font-size: 13px; } .menu small { color: #767676; font-size: 11px; }
-  .rul { display: grid; gap: 36px; font: 15px var(--ltt-mono); color: var(--ltt-muted); width: min(100%, 900px); }
-  .rul .sc { display: flex; align-items: flex-end; gap: 14px; padding-bottom: 14px; border-bottom: 1.5px solid var(--ltt-line-2); }
+  .rul { display: grid; gap: 36px; font: 15px var(--ltt-mono); color: var(--ltt-muted); width: min(100%, 1000px); }
+  .rul .sc { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; padding-bottom: 14px; border-bottom: 1.5px solid var(--ltt-line-2); }
   .rul .sc span, .rul .ms span { display: flex; flex-direction: column; gap: 6px; }
-  .rul .sc i { display: block; height: 22px; background: var(--ltt-accent-soft); box-shadow: inset 0 0 0 1.5px var(--ltt-accent); }
+  .rul .sc i { display: block; height: 30px; background: var(--ltt-accent-soft); box-shadow: inset 0 0 0 1.5px var(--ltt-accent); }
   .rul .ms { display: grid; gap: 14px; }
   .rul .ms span { flex-direction: row; align-items: center; gap: 16px; color: var(--ltt-ink-2); font-size: 17px; }
-  .rul .ms i { display: block; height: 26px; flex: none; }
+  .rul .ms i { display: block; height: 34px; flex: none; }
   .rul .bad i { background: var(--ltt-bad); } .rul .warn i { background: var(--ltt-warn); } .rul .good i { background: var(--ltt-good); }
 </style>
 </head>
@@ -30,7 +30,7 @@
 <script>
   // Same three menu rows; only the spacing values differ, so the reader compares spacing alone.
   const menu = (g) => () => {
-    const p = LTT.mock.phone({ width: 230, ratio: "9/14" });
+    const p = LTT.mock.phone({ width: 300, ratio: "9/14" });
     p.screen.innerHTML = `<b style="font-size:18px">메뉴</b><div class="menu" style="gap:${g.row}px">${["아메리카노|4,500원", "카페 라떼|5,000원", "바닐라 라떼|5,800원"].map((t, i) => {
       const [n, w] = t.split("|");
       return `<div class="it" style="gap:${g.in[i]}px;padding:${g.pad[i]}px"><i class="ph"></i><div><b>${n}</b><small>${w}</small></div></div>`;
@@ -43,10 +43,10 @@
   const ruler = () => {
     const w = LTT.h("div", "rul");
     const steps = [4, 8, 12, 16, 24, 32];
-    w.innerHTML = `<div class="sc">${steps.map((v) => `<span><i style="width:${v * 6}px"></i>${v}</span>`).join("")}</div>
-      <div class="ms"><span class="bad"><i style="width:${2 * 6}px"></i>메뉴 사이 2 — 안쪽보다 좁다</span>
-      <span class="warn"><i style="width:${12 * 6}px"></i>메뉴 사이 12 — 안쪽과 같다</span>
-      <span class="good"><i style="width:${16 * 6}px"></i>메뉴 사이 16 — 안쪽보다 한 단계 넓다</span></div>`;
+    w.innerHTML = `<div class="sc">${steps.map((v) => `<span><i style="width:calc(${v} * min(8px, 1vw))"></i>${v}</span>`).join("")}</div>
+      <div class="ms"><span class="bad"><i style="width:calc(2 * min(8px, 1vw))"></i>메뉴 사이 2 — 안쪽보다 좁다</span>
+      <span class="warn"><i style="width:calc(12 * min(8px, 1vw))"></i>메뉴 사이 12 — 안쪽과 같다</span>
+      <span class="good"><i style="width:calc(16 * min(8px, 1vw))"></i>메뉴 사이 16 — 안쪽보다 한 단계 넓다</span></div>`;
     return w;
   };
 

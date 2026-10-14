@@ -363,6 +363,9 @@
     return s.type === "figure" || s.type === "contrast" || s.layout === "full" || (!s.type && !!s.mount);
   }
 
+  // Filler that signals unreal content; "placeholder" itself is a legitimate UI term, so it is not listed.
+  var FILLER = /lorem|ipsum|\bTODO\b|\bTBD\b|xxx|더미 ?(텍스트|데이터)|샘플 ?텍스트|임시 ?텍스트|\bItem [A-D]\b|항목 ?[0-9]\b/i;
+
   // Static checks for self-study readiness; returns [{scene, rule, msg}] (scene is 1-based, 0 for the deck).
   function lintDeck(spec) {
     var out = [], glossary = {}, scenes = spec.scenes || [];
@@ -398,6 +401,8 @@
       if (s.type !== "hook" && s.type !== "keywords" && s.type !== "summary" && !s.title) add(i, "no-title", "제목이 없다");
       if (s.narration && sentences(s.narration) > 4) add(i, "long-narration", "해설이 4문장을 넘는다 (장면을 나눌 것)");
       if (s.points && s.points.length > 3) add(i, "many-points", "번호 주석이 " + s.points.length + "개 (3개 이하)");
+      var filler = FILLER.exec(stripMarks(text));
+      if (filler) add(i, "filler-content", "채움 글 '" + filler[0] + "' (실제 사례·값으로 바꿀 것)");
     });
     var run = 0, cards = 0, body = 0;
     scenes.forEach(function (s, i) {
@@ -414,6 +419,27 @@
     var last = scenes[scenes.length - 1];
     if (!last || last.type !== "keywords") out.push({ scene: 0, rule: "keywords-last", msg: "마지막 장면이 keywords가 아니다" });
     Object.keys(glossary).forEach(function (k) { if (!(k in first)) out.push({ scene: 0, rule: "unused-term", msg: "glossary의 '" + k + "'가 어디에도 표시되지 않았다" }); });
+    return out;
+  }
+
+  var AUDIT_SKIP = { hook: 1, terms: 1, summary: 1, keywords: 1, statement: 1, predict: 1 };
+
+  // Judges measurements of one rendered scene (see ltt-deck.js audit). Phones (narrow) only check sideways overflow, since scenes
+  // scroll there by design and a wide figure is always small against the screen area. Thresholds were calibrated on the gallery at 1440×900:
+  // below them a figure read as a thumbnail or the scene needed the zoom floor; kit parts alone already use about 7 text sizes.
+  function auditScene(m) {
+    var out = [], hero = m.type === "figure" || m.layout === "full";
+    function add(rule, msg) { out.push({ rule: rule, msg: msg }); }
+    if (m.hscroll) add("hscroll", "가로로 넘친다 (폭 " + m.hscroll + "px 초과). 고정 폭을 max-width:100%로 바꿀 것");
+    if (m.narrow) return out;
+    if (m.overflow) add("overflow", "한 화면에 안 들어간다 (78%로 줄여도 넘친다). 해설·캡션을 줄이거나 장면을 나눌 것");
+    else if (m.zoom < 0.88) add("shrunk", "화면에 맞추느라 " + Math.round(m.zoom * 100) + "%로 줄었다. 글을 줄이거나 장면을 나눌 것");
+    if (!AUDIT_SKIP[m.type] && m.visualRatio != null && m.visualRatio < (hero ? 0.22 : 0.1))
+      add("small-visual", "가장 큰 그림이 화면의 " + Math.round(m.visualRatio * 100) + "%뿐이다. 그림을 키우거나 layout: \"full\"");
+    if (m.type === "figure" && m.figRatio != null && m.figRatio < 0.35)
+      add("loose-figure", "그림이 figure 무대의 " + Math.round(m.figRatio * 100) + "%만 채운다. 그림 폭·높이를 키우거나 가로로 배치할 것");
+    if (hero && m.fill != null && m.fill < 0.6) add("empty-stage", "장면이 화면 높이의 " + Math.round(m.fill * 100) + "%만 쓴다. 그림을 키울 것");
+    if (m.fontSizes > 7) add("many-sizes", "본문 글자 크기가 " + m.fontSizes + "단계다 (kit 부품 포함 7단계 이하). 페이지 CSS의 font-size를 kit 크기에 맞출 것");
     return out;
   }
 
@@ -496,7 +522,7 @@
     lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
     icon: icon, icons: Object.keys(ICONS), theme: theme,
     themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
-    termsIn: termsIn, sceneText: sceneText, termIndex: termIndex, lintDeck: lintDeck,
+    termsIn: termsIn, sceneText: sceneText, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene,
     setGlossary: setGlossary, linkTerms: linkTerms
   };
 })(typeof globalThis !== "undefined" ? globalThis : this);
