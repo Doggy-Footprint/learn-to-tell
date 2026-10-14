@@ -10,6 +10,7 @@
 <script src="/kit/vendor/d3-sankey.min.js"></script>
 <script src="/kit/vendor/prism/prism.min.js"></script>
 <script src="/kit/vendor/elk.bundled.js"></script>
+<script src="/kit/vendor/rough.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
 <script src="/kit/ltt-ui.js"></script>
@@ -258,6 +259,40 @@
       { caption: "<b>① 들어오는 길</b> — 웹·앱·제휴사 요청이 엣지 계층을 지나 게이트웨이에 모인다.", hot: ["web", "app", "partner", "cdn", "waf", "lb", "gw"], flow: ["web>cdn", "cdn>waf", "waf>lb", "lb>gw"], send: [["web", "cdn"], ["cdn", "waf"], ["waf", "lb"], ["lb", "gw"]] },
       { caption: "<b>② 주문과 결제</b> — 주문 서비스 안의 결제 묶음이 이상 거래를 걸러 PG사로 보낸다.", hot: ["gw", "order", "payapi", "fraud", "pg"], send: [["gw", "order"], ["order", "payapi"], ["payapi", "fraud"], ["fraud", "pg"]] },
       { caption: "<b>③ 나머지는 비동기</b> — 주문 완료 이벤트 하나가 배송·메일·집계·검색으로 퍼진다.", hot: ["order", "queue", "ship", "mail", "stats", "search", "courier"], flow: ["queue>ship", "queue>mail", "queue>stats", "queue>search"], send: [["order", "queue"]] },
+    ]);
+  });
+  demo("state", "LTT.state(svg, {states, transitions, initial, direction}) → Promise<diagram>", "<b>무엇이 무엇으로 바뀌는가.</b> 주문 상태, 연결 상태, 재시도처럼 상태와 전이가 핵심일 때. 상태 <code>{id, l, s, k, icon, final}</code>, 전이 <code>{f, t, l, k, dash}</code>. <code>initial</code> 상태 앞에 시작 점이 붙고 <code>final</code>은 이중 테두리. 자기 자신으로의 전이는 상태 아래 <code>↻ 이벤트</code> 줄이 된다. autoLayout으로 배치하므로 <code>elk.bundled.js</code>가 필요하고, 돌려받은 diagram으로 <code>player</code>를 쓴다.", async (el) => {
+    const svg = el.appendChild(svgEl());
+    const dg = await LTT.state(svg, {
+      label: "결제 상태", initial: "pending", maxWidth: false,
+      states: [
+        { id: "pending", l: "대기", s: "결제 요청됨" }, { id: "auth", l: "승인", k: "accent" }, { id: "captured", l: "매입", k: "good", final: true },
+        { id: "failed", l: "실패", k: "bad" }, { id: "refunded", l: "환불", final: true },
+      ],
+      transitions: [
+        { f: "pending", t: "auth", l: "승인 OK" }, { f: "pending", t: "failed", l: "거절", k: "bad" }, { f: "pending", t: "pending", l: "재시도" },
+        { f: "auth", t: "captured", l: "매입" }, { f: "auth", t: "failed", l: "만료", dash: true }, { f: "captured", t: "refunded", l: "환불 요청" }, { f: "failed", t: "pending", l: "다시 결제" },
+      ],
+    });
+    dg.player(el, [
+      { caption: "<b>① 정상 흐름</b> — 승인 뒤 매입되면 끝난다.", hot: ["__start", "pending", "auth", "captured"], send: [["pending", "auth"], ["auth", "captured", { color: "var(--ltt-good)" }]] },
+      { caption: "<b>② 실패와 재시도</b> — 거절·만료는 실패로, 실패는 다시 대기로 돌아간다.", hot: ["pending", "auth", "failed"], send: [["auth", "failed", { color: "var(--ltt-bad)" }], ["failed", "pending"]] },
+    ]);
+  });
+  demo("sketch", "LTT.diagram(svg, {..., sketch: true}) · theme: \"sketch\"", "<b>칠판에 그린 듯한 첫 소개.</b> <code>rough.js</code>를 불러오면 sketch 테마의 diagram·autoLayout·state가 손그림 선으로 그려진다(다른 테마에서도 <code>sketch: true</code>, 끄려면 <code>sketch: false</code>). 채우기·화살표·패킷·하이라이트는 그대로이고, 같은 페이지는 매번 같은 선으로 그려진다.", (el) => {
+    const svg = el.appendChild(svgEl());
+    const dg = LTT.diagram(svg, {
+      sketch: true, cols: 3, rows: 2, cell: [200, 110], node: [150, 56], maxWidth: false,
+      zones: [{ c0: 1, r0: 0, c1: 2, r1: 1, l: "서버" }],
+      nodes: [
+        { id: "u", c: 0, r: 0.5, l: "브라우저", icon: "monitor" }, { id: "api", c: 1, r: 0, l: "API", icon: "cpu", k: "accent" },
+        { id: "db", c: 2, r: 0, l: "DB", icon: "db" }, { id: "q", c: 1, r: 1, l: "큐", s: "나중에 처리", icon: "layers" }, { id: "w", c: 2, r: 1, l: "워커", icon: "bolt", k: "good" },
+      ],
+      edges: [{ f: "u", t: "api", l: "요청" }, { f: "api", t: "db", k: "accent" }, { f: "api", t: "q", shape: "ortho" }, { f: "q", t: "w", shape: "curve", from: "right", to: "left", dash: true }],
+    });
+    dg.player(el, [
+      { caption: "<b>① 바로 답하는 일</b>", hot: ["u", "api", "db"], send: [["u", "api"], ["api", "db"]] },
+      { caption: "<b>② 미뤄 두는 일</b>", hot: ["api", "q", "w"], flow: ["q>w"], send: [["api", "q"]] },
     ]);
   });
   demo("map", "LTT.map(svg, {projection, extent, countries, places, routes}) → Promise", "<b>지리가 결정 변수일 때.</b> 리전 간 지연, 물류 경로, 공급망. 경로는 대권(great-circle) 호로 그려져 장거리일수록 휜다. <code>countries</code>는 Natural Earth 영어 이름 → tone, <code>places</code>는 <code>{id, lon, lat, l, k, mark}</code>, <code>routes</code>는 <code>{f, t, l, k, dash}</code>. diagram처럼 <code>highlight</code>·<code>flow</code>·<code>send</code>·<code>player</code>가 있다. atlas 테마와 잘 맞는다. <code>topojson-client.min.js</code>가 필요하다.", (el) => {

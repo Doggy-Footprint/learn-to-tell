@@ -21,7 +21,7 @@ test("gallery pages load vendor scripts before the kit", () => {
     const kit = srcs.indexOf("/kit/ltt.js");
     assert.ok(kit >= 0, `${page} does not load /kit/ltt.js`);
     srcs.forEach((src, i) => { if (src.startsWith("/kit/vendor/")) assert.ok(i < kit, `${page} loads ${src} after the kit`); });
-    for (const [use, need] of [[/LTT\.map\(/, "/kit/vendor/topojson-client.min.js"], [/LTT\.sankey\(/, "/kit/vendor/d3-sankey.min.js"], [/LTT\.plot\(/, "/kit/vendor/plot.umd.min.js"], [/LTT\.autoLayout\(/, "/kit/vendor/elk.bundled.js"]])
+    for (const [use, need] of [[/LTT\.map\(/, "/kit/vendor/topojson-client.min.js"], [/LTT\.sankey\(/, "/kit/vendor/d3-sankey.min.js"], [/LTT\.plot\(/, "/kit/vendor/plot.umd.min.js"], [/LTT\.autoLayout\(/, "/kit/vendor/elk.bundled.js"], [/LTT\.state\(/, "/kit/vendor/elk.bundled.js"]])
       if (use.test(read(page))) assert.ok(srcs.includes(need), `${page} uses ${use.source} without ${need}`);
   }
 });

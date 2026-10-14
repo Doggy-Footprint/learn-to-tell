@@ -48,6 +48,12 @@
     ".ltt-dg .z.k-bad text{fill:var(--ltt-bad)}.ltt-dg .z.k-accent text{fill:var(--ltt-accent)}.ltt-dg .z.k-good text{fill:var(--ltt-good)}",
     ".ltt-dg .n,.ltt-dg .e,.ltt-dg .el,.ltt-dg .z{transition:opacity .3s}.ltt-dg .dim{opacity:.22}",
     ".ltt-dg .pk{filter:drop-shadow(0 1px 3px rgba(0,0,0,.25))}",
+    ".ltt-dg .n rect.ring{fill:none;stroke:var(--ltt-line-2);stroke-width:1.5}.ltt-dg .n.k-accent rect.ring{stroke:var(--ltt-accent)}.ltt-dg .n.k-good rect.ring{stroke:var(--ltt-good)}.ltt-dg .n.k-bad rect.ring{stroke:var(--ltt-bad)}.ltt-dg .n.k-warn rect.ring{stroke:var(--ltt-warn)}",
+    ".ltt-dg.rk rect.box,.ltt-dg.rk rect.ring,.ltt-dg.rk .z rect,.ltt-dg.rk path.e:not(.rkl){stroke:transparent}",
+    ".ltt-dg .rkl{fill:none;stroke-linecap:round;stroke-linejoin:round;transition:opacity .3s,stroke-width .3s}",
+    ".ltt-dg .n .rkl{stroke:var(--ltt-ink-2);stroke-width:1.6}.ltt-dg .n.hot .rkl{stroke-width:2.6}.ltt-dg .z .rkl{stroke:var(--ltt-line-2);stroke-width:1.3}.ltt-dg .rkl.e{stroke:var(--ltt-line-2);stroke-width:2}",
+    ".ltt-dg .n.k-accent .rkl,.ltt-dg .z.k-accent .rkl,.ltt-dg .rkl.e.k-accent{stroke:var(--ltt-accent)}.ltt-dg .n.k-good .rkl,.ltt-dg .z.k-good .rkl,.ltt-dg .rkl.e.k-good{stroke:var(--ltt-good)}",
+    ".ltt-dg .n.k-bad .rkl,.ltt-dg .n.flaw .rkl,.ltt-dg .z.k-bad .rkl,.ltt-dg .rkl.e.k-bad{stroke:var(--ltt-bad)}.ltt-dg .n.k-warn .rkl,.ltt-dg .rkl.e.k-warn{stroke:var(--ltt-warn)}.ltt-dg .n.k-dark .rkl{stroke:var(--ltt-dark)}",
     ".ltt-map .sea{fill:var(--ltt-sea)}.ltt-map .land{fill:var(--ltt-land);stroke:var(--ltt-border);stroke-width:.6;transition:fill .3s,opacity .3s}",
     ".ltt-map .land.k-accent{fill:color-mix(in srgb,var(--ltt-accent) 30%,var(--ltt-land))}.ltt-map .land.k-good{fill:color-mix(in srgb,var(--ltt-good) 30%,var(--ltt-land))}",
     ".ltt-map .land.k-bad{fill:color-mix(in srgb,var(--ltt-bad) 30%,var(--ltt-land))}.ltt-map .land.k-warn{fill:color-mix(in srgb,var(--ltt-warn) 30%,var(--ltt-land))}",
@@ -506,10 +512,25 @@
         .append("path").attr("d", "M1 1L9 5L1 9z").style("fill", k ? "var(--ltt-" + k + ")" : "var(--ltt-line-2)");
     });
     var gZones = svg.append("g"), gEdges = svg.append("g"), gNodes = svg.append("g"), gPackets = svg.append("g");
+    // Under the sketch theme (or spec.sketch: true) with rough.js loaded, strokes are redrawn by hand while the plain
+    // shapes stay underneath for fills, markers and packet paths. Seeds are fixed so a page redraws identically.
+    var themed = svgEl && svgEl.closest ? svgEl.closest("[data-ltt-theme]") : null;
+    var gen = root.rough && (spec.sketch === true || (spec.sketch !== false && themed && themed.getAttribute("data-ltt-theme") === "sketch")) ? root.rough.generator() : null, seed = 0;
+    svg.classed("rk", !!gen);
+    function scribble(parent, drawable, cls) {
+      var out = null;
+      gen.toPaths(drawable).forEach(function (p) {
+        if (p.stroke === "none") return;
+        out = parent.append("path").attr("class", "rkl" + (cls ? " " + cls : "")).attr("d", p.d);
+      });
+      return out;
+    }
+    function rough(kind, args) { return gen[kind].apply(gen, args.concat([{ seed: ++seed, roughness: 1.1, bowing: 0.8, stroke: "#000", strokeWidth: 1 }])); }
     // Parents paint before children so nested zones stay visible; stable sort keeps input order within a depth.
     d3.range((spec.zones || []).length).sort(function (a, b) { return L.zones[a].depth - L.zones[b].depth || a - b; }).forEach(function (i) {
       var z = spec.zones[i], b = L.zones[i], g = gZones.append("g").attr("class", "z" + (z.k ? " k-" + z.k : ""));
       g.append("rect").attr("x", b.x).attr("y", b.y).attr("width", b.w).attr("height", b.h).attr("rx", 18);
+      if (gen) scribble(g, rough("rectangle", [b.x, b.y, b.w, b.h]));
       if (z.l) g.append("text").attr("x", b.x + 14).attr("y", b.y + 18).text(z.l);
     });
     var edgeSel = {}, byPair = {};
@@ -518,13 +539,14 @@
       var line = gEdges.append("path").attr("class", "e" + (k ? " k-" + k : "") + (e.dash ? " dash" : "")).attr("d", g.d)
         .attr("marker-end", e.arrow === false ? null : "url(#" + uid + "-m" + (/^(accent|good|bad|warn)$/.test(k) ? k : "") + ")");
       if (e.both) line.attr("marker-start", "url(#" + uid + "-m" + (/^(accent|good|bad|warn)$/.test(k) ? k : "") + ")");
+      var rk = gen ? scribble(gEdges, rough("path", [g.d]), "e" + (k ? " k-" + k : "") + (e.dash ? " dash" : "")) : null;
       var label = null;
       if (e.l) {
         var lo = e.lo || [0, -8];
         label = gEdges.append("text").attr("class", "el").attr("text-anchor", "middle")
           .attr("x", g.lx + lo[0]).attr("y", g.ly + lo[1]).text(e.l);
       }
-      edgeSel[g.id] = byPair[e.f + ">" + e.t] = { line: line, label: label, geo: g };
+      edgeSel[g.id] = byPair[e.f + ">" + e.t] = { line: line, rk: rk, label: label, geo: g };
     });
     var nodeSel = {};
     spec.nodes.forEach(function (n) {
@@ -532,6 +554,11 @@
       var g = gNodes.append("g").attr("class", "n" + (n.k ? " k-" + n.k : "") + (n.flaw ? " flaw" : ""))
         .attr("transform", "translate(" + b.x + "," + b.y + ")");
       g.append("rect").attr("class", "box").attr("width", b.w).attr("height", b.h).attr("rx", Math.min(14, b.h / 2));
+      if (n.ring) g.append("rect").attr("class", "ring").attr("x", 4).attr("y", 4).attr("width", b.w - 8).attr("height", b.h - 8).attr("rx", Math.max(0, Math.min(14, b.h / 2) - 4));
+      if (gen) {
+        scribble(g, b.h <= 30 && b.w <= 30 ? rough("ellipse", [b.w / 2, b.h / 2, b.w, b.h]) : rough("rectangle", [0, 0, b.w, b.h]));
+        if (n.ring) scribble(g, rough("rectangle", [4, 4, b.w - 8, b.h - 8]));
+      }
       var tx = b.w / 2, anchor = "middle";
       if (n.icon && LTT.icon) {
         var s = Math.min(26, b.h - 20);
@@ -578,12 +605,17 @@
         Object.keys(edgeSel).forEach(function (id) {
           var e = edgeSel[id], lit = !on || on.indexOf(id) >= 0 || (on.indexOf(e.geo.f) >= 0 && on.indexOf(e.geo.t) >= 0);
           e.line.classed("dim", !lit);
+          if (e.rk) e.rk.classed("dim", !lit);
           if (e.label) e.label.classed("dim", !lit);
         });
       },
       // Marching dashes show direction of travel only; pass [] to stop them.
       flow: function (ids) {
-        Object.keys(edgeSel).forEach(function (id) { edgeSel[id].line.classed("run", (ids || []).indexOf(id) >= 0); });
+        Object.keys(edgeSel).forEach(function (id) {
+          var on = (ids || []).indexOf(id) >= 0;
+          edgeSel[id].line.classed("run", on);
+          if (edgeSel[id].rk) edgeSel[id].rk.classed("run", on);
+        });
       },
       // Resolves when the last packet arrives; with reduced motion it resolves immediately.
       send: function (from, to, o) {
@@ -1307,6 +1339,40 @@
     });
   }
 
+  // State machine → autoLayout input. Self-transitions cannot be routed by the layered layout, so they become a
+  // "↻ event" line under the state's name; the initial state gets an entry dot; final states get a double border.
+  function stateSpec(o) {
+    var start = "__start", byId = {}, loops = {};
+    (o.states || []).forEach(function (st) { byId[st.id] = st; });
+    if (o.initial != null && !byId[o.initial]) throw new Error("state: initial " + o.initial + " is not a state");
+    var edges = [];
+    (o.transitions || []).forEach(function (t, i) {
+      if (!byId[t.f] || !byId[t.t]) throw new Error("state: transition " + (t.id || t.f + ">" + t.t) + " (#" + i + ") points to a missing state");
+      if (t.f === t.t) (loops[t.f] = loops[t.f] || []).push("↻ " + (t.l || ""));
+      else edges.push(Object.assign({}, t));
+    });
+    var nodes = (o.states || []).map(function (st) {
+      var n = Object.assign({}, st);
+      if (loops[st.id]) n.s = (st.s ? st.s + "\n" : "") + loops[st.id].join("\n");
+      if (st.final) { n.ring = true; delete n.final; }
+      return n;
+    });
+    if (o.initial != null) {
+      nodes.unshift({ id: start, l: " ", w: 22, h: 22, k: "dark" });
+      edges.unshift({ id: start + ">" + o.initial, f: start, t: o.initial });
+    }
+    var out = { nodes: nodes, edges: edges, groups: o.groups || [], direction: o.direction || "RIGHT", node: o.node || [148, 52], spacing: o.spacing || [100, 40] };
+    ["pad", "radius", "label", "maxWidth"].forEach(function (k) { if (o[k] !== undefined) out[k] = o[k]; });
+    return out;
+  }
+
+  // Resolves to the diagram api (player, highlight, send ...); rejects without elk.bundled.js or on bad input.
+  function state(svgEl, o) {
+    return new Promise(function (resolve) { resolve(stateSpec(o)); })
+      .then(autoLayout)
+      .then(function (spec) { return diagram(svgEl, spec); });
+  }
+
   LTT.tween = tween;
   LTT.units = units;
   LTT.bar = bar;
@@ -1316,6 +1382,8 @@
   LTT.diagram = diagram;
   LTT.diagramLayout = diagramLayout;
   LTT.autoLayout = autoLayout;
+  LTT.stateSpec = stateSpec;
+  LTT.state = state;
   LTT.plane = plane;
   LTT.map = map;
   LTT.sequence = sequence;
