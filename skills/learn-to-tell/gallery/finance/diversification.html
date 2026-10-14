@@ -13,18 +13,9 @@
 <script src="/kit/ltt-ui.js"></script>
 <script src="/kit/ltt-deck.js"></script>
 <style>
-  .np { width: min(100%, 980px); border-top: 1px solid var(--ltt-ink); padding-top: 10px; position: relative; }
-  .np::before { content: ""; position: absolute; top: -1px; left: 0; width: 64px; height: 5px; background: var(--ltt-ink); }
-  .np h3 { font: var(--ltt-display-weight) clamp(17px, 1.6vw, 22px)/1.25 var(--ltt-font-display); margin: 6px 0 2px; }
-  .np .dek { margin: 0 0 8px; color: var(--ltt-ink-2); font-size: clamp(13px, 1.1vw, 15px); }
-  .np .src { margin: 6px 0 0; color: var(--ltt-muted); font-size: 12px; }
-  .np svg { width: 100%; height: auto; display: block; }
-  .np text { font-family: var(--ltt-mono); font-size: 13px; fill: var(--ltt-muted); }
-  .np .lab { font-family: var(--ltt-font); font-size: 15px; font-weight: 700; fill: var(--ltt-ink); }
-  .np .val { font-size: 15px; font-weight: 700; fill: var(--ltt-ink); }
-  .np .grid line { stroke: var(--ltt-line-2); stroke-width: 1; }
-  .np .zero { stroke: var(--ltt-ink); stroke-width: 1.2; }
-  .np .ltt-stepper, .np .ltt-caption { margin-top: 8px; }
+  .ltt-cf text { font-family: var(--ltt-mono); font-size: 13px; fill: var(--ltt-muted); }
+  .ltt-cf .grid line { stroke: var(--ltt-line-2); stroke-width: 1; }
+  .ltt-cf .zero { stroke: var(--ltt-ink); stroke-width: 1.2; }
   .spark svg { width: 220px; max-width: 100%; height: auto; }
   .wl { display: flex; gap: 14px; font-size: 13px; color: var(--ltt-muted); margin-top: 6px; }
   .wl i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; }
@@ -71,42 +62,16 @@
   const rhoItem = (label, rho, tone, note) => ({ label, tone, verdict: "변동성 " + pc(vol(0.5, rho)), noteAfter: true, note,
     visual: (n) => { n.classList.add("spark"); waves(n, rho); } });
 
-  const np = (title, dek, src) => {
-    const w = LTT.h("div", "np");
-    w.innerHTML = `<h3></h3><p class="dek"></p>`;
-    w.querySelector("h3").innerHTML = title;
-    w.querySelector(".dek").innerHTML = dek;
-    return { el: w, foot: () => w.appendChild(LTT.h("p", "src", src)) };
-  };
+  const np = (title, dek, source) => LTT.chartFrame({ title, dek, source });
 
-  // Newspaper-style horizontal bars on a fixed 0–20% axis, so every chart in the lesson is measured against the unmixed 20%.
+  // Fixed 0–20% axis, so every chart in the lesson is measured against the unmixed 20%.
   const volBars = (title, dek, rows) => (body) => {
     const f = np(title, dek, "계산: 변동성 20%짜리 자산, 모델로 계산한 예시");
     body.appendChild(f.el);
-    const W = 820, L = 250, R = 70, rowH = 54, top = 30, H = top + rows.length * rowH + 6;
-    const x = d3.scaleLinear([0, 20], [L, W - R]);
-    const svg = d3.select(f.el).append("svg").attr("viewBox", `0 0 ${W} ${H}`);
-    const grid = svg.append("g").attr("class", "grid");
-    [0, 5, 10, 15, 20].forEach((t) => {
-      grid.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", top - 6).attr("y2", H);
-      svg.append("text").attr("x", x(t)).attr("y", top - 12).attr("text-anchor", "middle").text(t === 20 ? "20%" : t);
-    });
-    const bars = rows.map(([lab, v, tone], k) => {
-      const y = top + k * rowH + 12;
-      svg.append("text").attr("class", "lab").attr("x", 0).attr("y", y + 19).text(lab);
-      const bar = svg.append("rect").attr("x", x(0)).attr("y", y).attr("height", 28).attr("width", 0)
-        .style("fill", tone === "floor" ? "none" : tone === "bad" ? "var(--ltt-bad)" : "var(--ltt-accent)")
-        .style("stroke", tone === "floor" ? "var(--ltt-accent)" : "none").style("stroke-width", 2).style("stroke-dasharray", tone === "floor" ? "5 4" : null);
-      const val = svg.append("text").attr("class", "val").attr("x", x(0) + 8).attr("y", y + 20).text(pc(v));
-      return { bar, val, v };
-    });
-    svg.append("line").attr("class", "zero").attr("x1", x(0)).attr("x2", x(0)).attr("y1", top - 6).attr("y2", H);
+    const bars = LTT.hbars(f.el, { domain: [0, 20], ticks: [0, 5, 10, 15, 20], tickFormat: (t) => (t === 20 ? "20%" : t), fmt: pc,
+      rows: rows.map(([label, value, tone]) => ({ label, value, tone })) });
     f.foot();
-    return { enter: () => bars.forEach(({ bar, val, v }, k) => {
-      bar.attr("width", 0); val.attr("x", x(0) + 8).style("opacity", 0);
-      bar.transition().delay(60 + k * 150).duration(LTT.MOTION_MS * 1.5).attr("width", x(v) - x(0));
-      val.transition().delay(60 + k * 150).duration(LTT.MOTION_MS * 1.5).attr("x", x(v) + 8).style("opacity", 1);
-    }) };
+    return { enter: bars.play };
   };
 
   const LEG = `<div class="wl"><span><i style="background:var(--ltt-muted)"></i>자산 A</span><span><i style="background:var(--ltt-warn)"></i>자산 B</span><span><i style="background:var(--ltt-accent);height:4px"></i>반반 섞은 결과</span></div>`;

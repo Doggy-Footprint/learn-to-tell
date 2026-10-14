@@ -86,7 +86,24 @@
     ".ltt-fact.bad .ic{background:var(--ltt-bad-soft);color:var(--ltt-bad)}.ltt-fact.good .ic{background:var(--ltt-good-soft);color:var(--ltt-good)}.ltt-fact.warn .ic{background:var(--ltt-warn-soft);color:var(--ltt-warn)}",
     /* figure frame */
     ".ltt-panel{background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:var(--ltt-r-lg);padding:clamp(14px,1.6vw,22px);box-shadow:var(--ltt-shadow)}",
-    ".ltt-panel.soft{background:var(--ltt-card-2);box-shadow:none}"
+    ".ltt-panel.soft{background:var(--ltt-card-2);box-shadow:none}",
+    ".ltt-cf{width:min(100%,980px);border-top:1px solid var(--ltt-ink);padding-top:10px;position:relative}",
+    ".ltt-cf::before{content:'';position:absolute;top:-1px;left:0;width:64px;height:5px;background:var(--ltt-ink)}",
+    ".ltt-cf h3{font:var(--ltt-display-weight) clamp(17px,1.6vw,22px)/1.25 var(--ltt-font-display);margin:6px 0 2px}",
+    ".ltt-cf .dek{margin:0 0 8px;color:var(--ltt-ink-2);font-size:clamp(13px,1.1vw,15px)}.ltt-cf .src{margin:6px 0 0;color:var(--ltt-muted);font-size:12px}",
+    ".ltt-cf svg{width:100%;height:auto;display:block}.ltt-cf .ltt-stepper,.ltt-cf .ltt-caption{margin-top:8px}",
+    ".ltt-insp{width:min(100%,380px);border-radius:var(--ltt-r-md);background:var(--ltt-card);box-shadow:var(--ltt-shadow),inset 0 0 0 1.5px var(--ltt-line);font-size:13px;color:var(--ltt-ink-2)}",
+    ".ltt-insp header{padding:10px 14px;border-bottom:1px solid var(--ltt-line);font:700 12px var(--ltt-mono);color:var(--ltt-muted);letter-spacing:.03em}",
+    ".ltt-insp .r{display:grid;grid-template-columns:22px 44px 1fr auto;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--ltt-line)}",
+    ".ltt-insp .r:last-child{border-bottom:0}",
+    ".ltt-insp .n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--ltt-muted);color:var(--ltt-on-accent);font:700 11px var(--ltt-mono)}",
+    ".ltt-insp .r.fail .n{background:var(--ltt-bad)}.ltt-insp .r.pass .n{background:var(--ltt-good)}",
+    ".ltt-insp .aa{display:grid;place-items:center;height:36px;border-radius:8px;font-weight:800;font-size:15px;box-shadow:inset 0 0 0 1px var(--ltt-line)}",
+    ".ltt-insp b{display:block;color:var(--ltt-ink);font-size:13.5px}.ltt-insp code{font:11.5px var(--ltt-mono);color:var(--ltt-muted)}",
+    ".ltt-insp .v{text-align:right;font:800 17px var(--ltt-mono);color:var(--ltt-ink)}.ltt-insp .v .ltt-tag{display:block;margin:4px 0 0;font-family:var(--ltt-font)}",
+    ".ltt-redline [data-gap]{position:relative}",
+    ".ltt-redline [data-gap]::after{content:attr(data-gap);position:absolute;right:var(--ltt-redline-x,-14px);bottom:100%;height:var(--g);display:flex;align-items:center;",
+    "padding-right:6px;border-right:1.5px solid var(--ltt-accent);font:700 10px var(--ltt-mono);color:var(--ltt-accent);white-space:nowrap}"
   ].join("");
 
   function h(tag, cls, html) {
@@ -261,6 +278,41 @@
     return w;
   }
 
+  // Newspaper chart frame: rule with a thick tab, headline, dek, then the chart, then a source line added by foot().
+  function chartFrame(o) {
+    var w = h("div", "ltt-cf");
+    w.appendChild(h("h3", null, o.title || ""));
+    if (o.dek) w.appendChild(h("p", "dek", o.dek));
+    return { el: w, foot: function () { if (o.source) w.appendChild(h("p", "src", o.source)); return w; } };
+  }
+
+  // Design-tool style contrast check. rows: [{name, fg, bg, ratio, swatch}]; ratio defaults to LTT.contrast(fg, bg).
+  function inspector(o) {
+    var min = o.min || 4.5, label = o.level || "AA " + min;
+    return "<div class='ltt-insp'><header>" + (o.title || "CONTRAST CHECK") + "</header>" + o.rows.map(function (r, i) {
+      var v = r.ratio != null ? +r.ratio : LTT.contrast(r.fg, r.bg), ok = v >= min, shown = r.ratio != null ? r.ratio : v.toFixed(2);
+      return "<div class='r " + (ok ? "pass" : "fail") + "'><span class='n'>" + (i + 1) + "</span><span class='aa' style='color:" + r.fg + ";background:" + r.bg + "'>Aa</span>" +
+        "<span><b>" + r.name + "</b><code>" + r.fg + " on " + r.bg + "</code></span><span class='v'>" + shown +
+        "<span class='ltt-tag " + (ok ? "good" : "bad") + "'>" + label + " " + (ok ? "통과" : "미달") + "</span></span></div>";
+    }).join("") + "</div>";
+  }
+
+  // Measurement bars for the margin above each target, drawn in the container's right padding; call update() after restyling.
+  // Inline margin-top is read first because a figure is often styled before it is attached, when computed style is empty.
+  function redline(container, o) {
+    o = o || {};
+    container.classList.add("ltt-redline");
+    if (o.x != null) container.style.setProperty("--ltt-redline-x", o.x + "px");
+    function update() {
+      container.querySelectorAll(o.selector || ":scope > *").forEach(function (n) {
+        var g = Math.round(parseFloat(n.style.marginTop || getComputedStyle(n).marginTop) || 0);
+        if (g > 0) { n.dataset.gap = g; n.style.setProperty("--g", g + "px"); } else { delete n.dataset.gap; n.style.removeProperty("--g"); }
+      });
+    }
+    update();
+    return { update: update };
+  }
+
   if (typeof document !== "undefined") {
     var style = document.createElement("style");
     style.id = "ltt-ui-style";
@@ -279,4 +331,7 @@
   LTT.callout = callout;
   LTT.swatches = swatches;
   LTT.facts = facts;
+  LTT.chartFrame = chartFrame;
+  LTT.inspector = inspector;
+  LTT.redline = redline;
 })(typeof globalThis !== "undefined" ? globalThis : this);

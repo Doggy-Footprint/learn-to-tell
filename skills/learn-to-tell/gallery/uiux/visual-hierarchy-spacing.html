@@ -15,12 +15,6 @@
   .pc { display: flex; flex-direction: column; font-size: 15px; color: #222; }
   .pc .img { height: 92px; border-radius: 10px; background: #eceae4; margin-bottom: 12px; }
   .pc > * { position: relative; transition: all .35s ease; }
-  /* redline: a measurement bar spans each element's margin-top, drawn in the screen's right padding */
-  .pc [data-gap]::after { content: attr(data-gap); position: absolute; right: -14px; bottom: 100%; height: var(--g); display: flex; align-items: center;
-    padding-right: 6px; border-right: 1.5px solid var(--ltt-accent); font: 700 10px var(--ltt-mono); color: var(--ltt-accent); white-space: nowrap; }
-  .review { display: grid; grid-template-columns: auto minmax(0, 420px); gap: clamp(24px, 4vw, 60px); align-items: center; }
-  .review .ltt-caption { font-size: clamp(15px, 1.3vw, 18px); line-height: 1.6; }
-  @media (max-width: 720px) { .review { grid-template-columns: 1fr; } }
   .pc .btn { margin-top: 10px; text-align: center; border-radius: 10px; padding: 9px; font-weight: 700; }
   .fm { display: flex; flex-direction: column; font-size: 14px; color: #222; }
   .fm .in { height: 30px; border: 1px solid #d6d2c8; border-radius: 8px; background: #fff; }
@@ -69,13 +63,11 @@
       <div data-k="name">무선 키보드 K3</div><div data-k="price">₩89,000</div>
       <div data-k="desc">저소음 스위치 · 블루투스 5.1</div><div data-k="rate">★ 4.7 (리뷰 1,284)</div>
       <div data-k="ship">내일 도착 · 무료배송</div><div class="btn" data-k="btn">장바구니 담기</div></div>`;
+    const rl = LTT.redline(b.screen.querySelector(".pc"), { selector: "[data-k]" });
     const paint = (k) => {
       const s = cardStyle(k);
-      b.screen.querySelectorAll("[data-k]").forEach((n) => {
-        n.style.cssText = s[n.dataset.k];
-        const g = +((s[n.dataset.k].match(/margin-top:(\d+)px/) || [])[1] || 0);
-        if (g) { n.dataset.gap = g; n.style.setProperty("--g", g + "px"); } else delete n.dataset.gap;
-      });
+      b.screen.querySelectorAll("[data-k]").forEach((n) => { n.style.cssText = s[n.dataset.k]; });
+      rl.update();
     };
     return { el: b.el, paint };
   };
@@ -122,21 +114,14 @@
 
       { type: "figure", kicker: "디자인 리뷰 · 단계별로 보기", title: "강조는 키우기보다 나머지를 낮춰서 만든다", en: "Building hierarchy",
         caption: "같은 상품 카드를 네 번 손본다. 오른쪽 파란 측정선은 각 줄 위의 간격(px)이다. '다음'을 누르며 눈이 가장 먼저 가는 곳이 어떻게 바뀌는지 보자. 핵심은 2단계다. 가격을 더 키우는 대신 설명·평점·배송을 작고 옅게 낮추자, 가격이 저절로 떠오른다.",
-        figure: () => {
-          const c = cardMock();
-          const w = LTT.h("div", "review");
-          w.appendChild(c.el);
-          const ctl = w.appendChild(LTT.h("div", "", ""));
-          const caps = [
+        figure: cardMock,
+        steps: [
             "<b>0. 모두 같은 무게</b>: 15px 굵게, 같은 색, 같은 간격 10px. 어디부터 읽을지 정해진 곳이 없다.",
             "<b>1. 가장 중요한 것 하나</b>: 이 카드의 질문은 '뭐고 얼마냐'다. 이름과 가격만 키웠다.",
             "<b>2. 나머지를 낮춘다</b>: 설명·평점·배송을 13px, 보통 굵기, 회색 #6b6b6b로. 지우지 않고 '나중에 읽게' 했다.",
             "<b>3. 간격으로 묶는다</b>: 이름–가격 4px, 보조 정보끼리 4px, 묶음 사이 16px, 버튼 앞 24px. 선 없이 세 묶음이 보인다.",
             "<b>4. 행동 하나에만 색</b>: 누를 곳만 파랑. 색이 하나뿐이라 '여기를 누르세요'라는 신호가 된다(색 체계는 다음 회차).",
-          ];
-          LTT.stepper(ctl, caps.map((caption) => ({ caption, enter: (k) => c.paint(k) })), { interval: 2600 });
-          return w;
-        },
+        ].map((caption) => ({ caption, enter: (k, card) => card.paint(k) })),
         basis: "'덜 중요한 것을 낮춰 강조를 만든다'는 Wathan & Schoger, Refactoring UI의 'Emphasize by de-emphasizing'. 회색 #6b6b6b는 옅어도 흰 배경에서 읽기 기준을 넘는 진하기다(다음 장면에서 설명).",
         takeaway: "가장 중요한 것 하나를 고르고, 나머지를 작게·옅게 낮춘다.",
         sources: ["Refactoring UI — Hierarchy is everything"],

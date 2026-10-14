@@ -114,6 +114,9 @@
     ".dk-fig{margin:0;display:flex;flex-direction:column;gap:12px;min-width:0}",
     ".dk-fig-stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:min(30vh,320px);min-width:0}",
     ".dk-fig-stage>*{max-width:100%}",
+    ".dk-figsteps{display:grid;grid-template-columns:auto minmax(0,420px);gap:clamp(24px,4vw,60px);align-items:center}",
+    ".dk-figsteps>*{min-width:0}.dk-figsteps .ltt-caption{font-size:clamp(15px,1.3vw,18px);line-height:1.6}",
+    "@media (max-width:720px){.dk-figsteps{grid-template-columns:1fr}}",
     ".dk-fig figcaption{font-size:clamp(14px,1.2vw,16px);color:var(--ltt-ink-2);line-height:1.55;max-width:90ch;border-top:1px solid var(--ltt-line-2);padding-top:10px}",
     ".dk-fig figcaption b{font-family:var(--ltt-font-display);margin-right:6px;color:var(--ltt-ink)}",
     ".dk-main.full{grid-template-columns:minmax(0,1fr)}",
@@ -136,8 +139,9 @@
     ".dk-cmp.table .dk-item .lab{grid-area:lab;font-size:clamp(15px,1.3vw,18px);color:var(--ltt-ink)}.dk-cmp.table .dk-item .vis{grid-area:vis;min-height:0;justify-content:flex-start}",
     ".dk-cmp.table .dk-item .vd{grid-area:vd;align-self:end}.dk-cmp.table .dk-item .note{grid-area:note;align-self:start}",
     ".dk-cmp.table.shown .dk-item.good,.dk-cmp.table.shown .dk-item.bad,.dk-cmp.table.shown .dk-item.warn{box-shadow:inset 4px 0 0 var(--tc)}",
+    ".dk-cmp.table .dk-head{display:grid;grid-template-columns:minmax(120px,.7fr) minmax(0,2fr) minmax(150px,.9fr);column-gap:clamp(12px,2vw,28px);padding:8px 4px;border-bottom:1px solid var(--ltt-line-2);font:700 12px var(--ltt-mono);color:var(--ltt-muted);letter-spacing:.02em}",
     ".dk-cmp.table .dk-item.good{--tc:var(--ltt-good)}.dk-cmp.table .dk-item.bad{--tc:var(--ltt-bad)}.dk-cmp.table .dk-item.warn{--tc:var(--ltt-warn)}",
-    "@media (max-width:720px){.dk-cmp.table .dk-item{grid-template-columns:1fr;grid-template-areas:'lab' 'vis' 'vd' 'note'}.dk-st{grid-template-columns:1fr}",
+    "@media (max-width:720px){.dk-cmp.table .dk-head{display:none}.dk-cmp.table .dk-item{grid-template-columns:1fr;grid-template-areas:'lab' 'vis' 'vd' 'note'}.dk-st{grid-template-columns:1fr}",
     ".dk-steps.strip{grid-template-columns:1fr!important}.dk-steps.strip::before{display:none}.dk-steps.stack .dk-step{grid-template-columns:54px minmax(0,1fr)}.dk-steps.stack .dk-step .vis{grid-column:2}}",
     /* predict */
     ".dk-pred{display:flex;flex-direction:column;gap:12px}",
@@ -272,8 +276,14 @@
       var w = h("div", "dk-cmp" + (s.form === "table" ? " table" : ""));
       w.style.setProperty("--n", s.items.length);
       if (s.cols) w.style.setProperty("--m", s.cols);
+      if (s.form === "table" && s.head) {
+        var hd = w.appendChild(h("div", "dk-head"));
+        s.head.forEach(function (t) { hd.appendChild(h("span", null, t)); });
+      }
+      var cells = [];
       s.items.forEach(function (it) {
         var c = h("div", "dk-item " + (it.tone || ""));
+        cells.push(c);
         var vis = h("div", "vis");
         var ic = { good: "check", bad: "x", warn: "alert" }[it.tone];
         c.append(h("div", "lab", it.label), vis, h("div", "vd", (ic ? LTT.icon(ic, { weight: 3 }) : "") + "<span>" + (it.verdict || "") + "</span>"),
@@ -287,20 +297,33 @@
         var b = h("button", null, s.revealLabel || "판정 보기");
         b.onclick = function () {
           w.classList.add("shown"); b.disabled = true;
-          s.items.forEach(function (it, k) { if (it.onReveal) it.onReveal(w.children[k].querySelector(".vis")); });
+          s.items.forEach(function (it, k) { if (it.onReveal) it.onReveal(cells[k].querySelector(".vis")); });
           LTT.linkTerms(w, ctx.index);
           ctx.fit();
           LTT.record("compare-reveal", { scene: s.title });
         };
         body.appendChild(h("div", "dk-actions")).appendChild(b);
       }
-      return { enter: function () { rise(w.children); s.items.forEach(function (it, k) { if (it.enter) it.enter(w.children[k].querySelector(".vis")); }); } };
+      return { enter: function () { rise(cells); s.items.forEach(function (it, k) { if (it.enter) it.enter(cells[k].querySelector(".vis")); }); } };
     },
+    // With `steps`, the figure sits left and a stepper caption column right; figure() may return {el, ...api} and each step's
+    // enter(k, api) receives that object, so one drawing can be walked through several states.
     figure: function (s, body, ctx) {
       var f = h("figure", "dk-fig");
       var st = f.appendChild(h("div", "dk-fig-stage"));
       st.setAttribute("data-annotate", "");
-      fill(st, s.figure, ctx);
+      if (s.steps) {
+        var row = st.appendChild(h("div", "dk-figsteps")), pic = row.appendChild(h("div", "pic")), ret = null;
+        if (typeof s.figure === "function") {
+          ret = s.figure(pic, ctx);
+          if (ret && ret.el instanceof Node) pic.appendChild(ret.el);
+          else if (ret != null && !(ret && ret.el)) fill(pic, ret, ctx);
+        } else fill(pic, s.figure, ctx);
+        var api = ret && ret.el ? ret : pic;
+        LTT.stepper(row.appendChild(h("div", "ctl")), s.steps.map(function (x) {
+          return { caption: x.caption, enter: function (k, dir) { if (x.enter) x.enter(k, api, dir); } };
+        }), { interval: s.interval || 2600 });
+      } else fill(st, s.figure, ctx);
       if (s.caption) {
         var n = ctx.scenes.slice(0, ctx.index + 1).filter(function (x) { return x.type === "figure"; }).length;
         var cap = f.appendChild(h("figcaption", null, "<b></b><span></span>"));
@@ -536,7 +559,8 @@
       var anno = null;
       if (rail && s.narration) rail.appendChild(LTT.narration(s.narration));
       if (s.points) {
-        var target = s.pointsOn ? body.querySelector(s.pointsOn) : body.querySelector("[data-annotate]") || body.firstElementChild;
+        var target = s.pointsOn ? body.querySelector(s.pointsOn) :
+          (s.type === "figure" && body.querySelector(".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code")) || body.querySelector("[data-annotate]") || body.firstElementChild;
         anno = LTT.annotate(target, s.points, { tone: s.pointsTone });
         if (rail) { if (s.narration && !full) rail.appendChild(h("hr")); rail.appendChild(anno.list); }
         else inner.insertBefore(anno.list, main.nextSibling);

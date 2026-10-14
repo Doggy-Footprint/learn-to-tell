@@ -21,9 +21,6 @@
   .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } .duo b { display: block; font-size: 14px; margin-bottom: 6px; }
   .big { font-family: var(--ltt-mono); font-weight: 600; }
   .dwg { width: 100%; }
-  .ltt-svg.tmg text { font: 12px var(--ltt-mono); fill: var(--ltt-muted); }
-  .ltt-svg.tmg .ln { font: 600 14px var(--ltt-mono); fill: var(--ltt-ink); }
-  .ltt-svg.tmg .val { font: 600 14px var(--ltt-mono); }
   @media (max-width: 720px) { .big { font-size: 18px; } .mini { font-size: 11px; } }
 </style>
 </head>
@@ -97,31 +94,13 @@
   };
 
   // Timing drawing: both lanes share one ms axis so the 300× gap reads as length, not as two numbers.
-  const timing = (node) => {
-    const VW = 880, VH = 190, X0 = 230, X1 = VW - 40, sc = (X1 - X0) / 5e-3;
-    const s = d3.select(node).append("svg").attr("class", "ltt-svg tmg").attr("viewBox", `0 0 ${VW} ${VH}`);
-    const lanes = [
-      { y: 22, l: "HBM → SM 옮기기", s: "16 GB ÷ 3.35 TB/s", t: m81.tMem, c: "var(--mem)", v: d3.format(".2f")(m81.tMem * 1e3) + " ms" },
-      { y: 92, l: "SM 계산", s: "160억 회 ÷ 초당 989조 회", t: m81.tComp, c: "var(--cmp)", v: d3.format(".3f")(m81.tComp * 1e3) + " ms" },
-    ];
-    s.append("g").selectAll("line").data(d3.range(0, 6)).join("line")
-      .attr("x1", (d) => X0 + d * 1e-3 * sc).attr("x2", (d) => X0 + d * 1e-3 * sc).attr("y1", 10).attr("y2", 150)
-      .style("stroke", "var(--ltt-line)").attr("stroke-dasharray", "2 4");
-    s.append("line").attr("x1", X0).attr("x2", X1).attr("y1", 150).attr("y2", 150).style("stroke", "var(--ltt-line-2)").attr("stroke-width", 1.5);
-    s.append("g").selectAll("text").data(d3.range(0, 6)).join("text")
-      .attr("x", (d) => X0 + d * 1e-3 * sc).attr("y", 170).attr("text-anchor", "middle").text((d) => d + " ms");
-    const bars = lanes.map((ln) => {
-      s.append("text").attr("class", "ln").attr("x", 0).attr("y", ln.y + 20).text(ln.l);
-      s.append("text").attr("x", 0).attr("y", ln.y + 38).text(ln.s);
-      const r = s.append("rect").attr("x", X0).attr("y", ln.y).attr("height", 40).attr("width", 0).style("fill", ln.c);
-      const v = s.append("text").attr("class", "val").attr("y", ln.y + 25).style("fill", ln.c).text(ln.v);
-      return { r, v, w: Math.max(2, ln.t * sc) };
-    });
-    return () => bars.forEach((b) => {
-      b.r.interrupt().attr("width", 0).transition().duration(LTT.MOTION_MS * 2).attr("width", b.w);
-      b.v.attr("x", X0 + b.w + 10);
-    });
-  };
+  const timing = (node) => LTT.lanes(node, {
+    width: 880, labelW: 230, axis: { max: 5, step: 1, fmt: (d) => d + " ms" },
+    lanes: [
+      { l: "HBM → SM 옮기기", s: "16 GB ÷ 3.35 TB/s", value: m81.tMem * 1e3, color: "var(--mem)", text: d3.format(".2f")(m81.tMem * 1e3) + " ms" },
+      { l: "SM 계산", s: "160억 회 ÷ 초당 989조 회", value: m81.tComp * 1e3, color: "var(--cmp)", text: d3.format(".3f")(m81.tComp * 1e3) + " ms" },
+    ],
+  }).play;
 
   LTT.deck({
     title: "GPU가 2배 빨라지면 글 생성도 2배 빨라질까?",

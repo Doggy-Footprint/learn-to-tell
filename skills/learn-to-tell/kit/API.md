@@ -11,6 +11,9 @@
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/plot.umd.min.js"></script>              <!-- Plot을 쓸 때만, 전역 Plot -->
 <script src="/kit/vendor/katex/katex.min.js"></script>           <!-- 수식이 있을 때만 -->
+<script src="/kit/vendor/d3-sankey.min.js"></script>             <!-- LTT.sankey를 쓸 때만 -->
+<script src="/kit/vendor/topojson-client.min.js"></script>       <!-- LTT.map을 쓸 때만 -->
+<script src="/kit/vendor/prism/prism.min.js"></script>           <!-- mock.code의 lang을 쓸 때만 -->
 <script src="/kit/ltt.js"></script>       <!-- 토큰·폰트·아이콘·용어·기록·검증 -->
 <script src="/kit/ltt-parts.js"></script> <!-- 움직이는 그림 -->
 <script src="/kit/ltt-ui.js"></script>    <!-- 설명 부품 -->
@@ -37,6 +40,7 @@
 | `LTT.record(type, data)` | lesson 페이지에서만 서버로 이벤트를 보낸다. |
 | `LTT.expect(label, actual, expected, {tol})` | 기대값 대조. 불일치는 패널과 서버에 남는다. |
 | `LTT.warn(msg)` | 패널에 경고 한 줄. |
+| `LTT.contrast(a, b)` | 두 hex 색의 WCAG 대비비. |
 
 ### 테마
 
@@ -106,6 +110,9 @@ lint는 장면 데이터만 본다. 실제로 그려진 화면은 URL에 `?audit
 | `LTT.callout(html, {tone, title, icon})` | 흔한 오해나 주의 한 가지. |
 | `LTT.swatches([{color, label, w, h, r, border}], {caption})` | '무엇을 썼나'를 실물 견본으로. 색·크기·모서리 값 목록. |
 | `LTT.takeaway(text, sources)` | 검은 '핵심' 바 + '찾아볼 곳'. 장면에서는 `takeaway`·`sources` 필드. |
+| `LTT.chartFrame({title, dek, source})` → `{el, foot()}` | 신문식 차트 틀: 굵은 괘선, 헤드라인(주장), dek(단위·조건), 차트, `foot()`가 붙이는 출처 줄. 차트는 `el`에 그린다. |
+| `LTT.inspector({title, rows: [{name, fg, bg, ratio}], min, level})` | 디자인 툴식 대비 검사 패널(문자열). `ratio`가 없으면 `LTT.contrast`로 계산, `min`(기본 4.5) 미만이면 미달. |
+| `LTT.redline(container, {selector, x})` → `{update}` | 대상마다 위쪽 margin을 오른쪽 여백에 px 측정선으로. 스타일을 바꾼 뒤 `update()`. |
 | `LTT.h(tag, cls, html)`, `LTT.fill(node, v)` | 작은 DOM 도우미. `fill`은 문자열·노드·함수(노드를 채우거나 노드/문자열을 돌려줌)를 받는다. |
 
 ## ltt-mock.js: 목업
@@ -116,8 +123,8 @@ lint는 장면 데이터만 본다. 실제로 그려진 화면은 URL에 `?audit
 | --- | --- |
 | `LTT.mock.phone(o)` | `width`(px), `ratio`(기본 `"9/17.5"`), `dark`, `bg`, `time`, `content` |
 | `LTT.mock.browser(o)` | `url` 또는 `title`, `width`, `height`, `bg`, `content` |
-| `LTT.mock.terminal(o)` → `+ add(line)` | `title`, `lines: ["$ 명령", "출력", {t: "ok"\|"err"\|"dim"\|"out"\|"cmd", text}]` |
-| `LTT.mock.code(o)` → `+ line(n)` | `code`(원문 그대로), `title`, `marks: {줄번호: "good"\|"bad"\|"accent"\|"warn"}`, `start`, `numbers: false` |
+| `LTT.mock.terminal(o)` → `+ add(line)` | `title`, `lines: ["$ 명령", "출력", {t: "ok"\|"warn"\|"err"\|"dim"\|"out"\|"cmd", text}]`. 줄 색은 `--ltt-term-*` 변수(터미널은 테마와 무관하게 어둡다). 캐시 로그라면 미스=ok, 적중=out, 오래된 값=warn, 원본 쓰기=err처럼 의미를 골라 쓴다 |
+| `LTT.mock.code(o)` → `+ line(n)` | `code`(원문 그대로), `lang`(javascript, typescript, python, bash, json, sql. Prism을 불러왔을 때 문법 색), `title`, `marks: {줄번호: "good"\|"bad"\|"accent"\|"warn"}`, `start`, `numbers: false` |
 
 UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '실제 화면'이라 토큰 대신 hex를 써도 된다.
 
@@ -132,13 +139,22 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `.player(el, steps, {interval})` | 단계 재생. `steps: [{caption, hot, flow, send: [[from, to, opts]], enter(dg, i)}]`. 자막이 그림 읽는 법을 말한다. |
 | `LTT.diagramLayout(spec)` | 좌표만 계산(테스트·커스텀 그림용). |
 | `LTT.stepper(el, [{caption, enter(i, dir)}], {interval, onStep})` | 한 그림을 단계별로. `enter`는 다시 들어와도 같은 화면이 되게 짠다. |
-| `LTT.units(el, n, cols).paint(k, cls, alt)` | 단위 그림(100칸 = 100건). |
+| `LTT.units(el, n, cols, {band}).paint(k, cls, alt)` | 단위 그림(100칸 = 100건). `band: true`면 가는 틱의 넓은 띠(예: 2×50, 시간순 요청). |
 | `LTT.bar(el, [{color}]).set(values, labels)` | 비율 막대. |
 | `LTT.tween(el, to, fmt, ms)` | 숫자 변화. |
 | `LTT.sweep({params: {id: {map, fmt}}, render, presets})` | range 입력 → `render(values)`. 조작 자체가 배움일 때만, 실사용 범위만. |
 | `LTT.predict({...})` | 첫 짐작을 잠그고 기록. 덱의 predict 장면이 쓴다. |
 | `LTT.plane(svg, {range, vectors, shape}).to(m)` | 2×2 행렬 변환. |
 | `LTT.sim({init, step, draw, until, dt, onEnd})` | 고정 간격 시뮬레이션. `runToEnd()`는 화면 없이 결과만. |
+| `LTT.sequence(svg, {actors, items, spans, col, row})` | 시퀀스 다이어그램. 배우 `{id, l, s, icon, k}`, `items`는 시간순으로 메시지 `{f, t, l, kind: "sync"\|"async"\|"reply", k, flaw, id}`와 메모 `{note, over: [ids]}`. sync는 받는 쪽 활성 막대를 열고, 그 배우의 다음 reply가 닫는다. f = t면 자기 호출 고리. `spans: [{from, to, l, k}]`는 두 메시지 id 사이 시간 구간(왼쪽 괄호). `.show(n)`, `.highlight(ids)`, `.send(id)`, `.player(el, [{caption, upto, hot}])`(upto 기본 = 단계 번호 + 1, 마지막 메시지에 패킷). 재시도·인증·타임아웃 순서 수업. |
+| `LTT.sequenceLayout(spec)` | 좌표만 계산(테스트용). |
+| `LTT.axisPlot(svg \| el, {width, height, x, y, equal, ticks, labels: {x, y}, series: [{id, color \| k, dash, dot}], margin, cls})` → `{set(id, points), px, x, y}` | 축이 고정된 함수·궤적 플롯. `equal: true`(또는 `y: [y0]`)면 x 축척으로 y 범위를 정해 모양이 실제와 같다. 계열 색 기본 `--ltt-c1…`. |
+| `LTT.lanes(svg \| el, {axis: {max, step, fmt}, lanes: [{l, s, value, text, color \| k}], labelW})` → `{play}` | 같은 시간 축의 레인 막대. 어느 단계에서 시간이 드는지. |
+| `LTT.hbars(svg \| el, {domain, ticks, tickFormat, fmt, rows: [{label, value, text, tone}]})` → `{play}` | 고정 축 가로 막대. `tone: "floor"`는 바닥(하한)을 점선 테두리로. `chartFrame` 안에 그리면 신문 차트가 된다. |
+| `LTT.plot(options)`, `LTT.plotTheme(options)` | Observable Plot을 테마 팔레트·모노 눈금·투명 배경 기본값으로. 막대·선·점·분포. `plot.umd.min.js` 필요. |
+| `LTT.sankey(svg \| el, {nodes: [{id, l, k}], links: [{f, t, value, k}], fmt})` → `{highlight(ids)}` | 흐름량(비용·트래픽·퍼널). 띠 굵기 = 값. `d3-sankey.min.js` 필요. |
+| `LTT.map(svg, {projection, rotate, extent, countries, places, routes, width, height})` → Promise | 세계 지도(Natural Earth 1:110m). `projection`: equalEarth(기본)·mercator·naturalEarth·orthographic. `extent: [[lon0, lat0], [lon1, lat1]]`로 지역에 맞추고, 날짜변경선을 넘는 지역은 `rotate: [-중심경도, 0]`. `countries: {영어 이름: tone}`, `places: [{id, lon, lat, l, lo, k, mark}]`, `routes: [{f, t, l, lo, k, dash}]`(대권 호). 결과에 `highlight`·`flow`·`send`·`player`·`project(lon, lat)`. `topojson-client.min.js` 필요. |
+| 트리·트리맵 | kit 부품 없이 `d3.hierarchy` + `d3.tree`/`d3.treemap`. 예시는 catalog. |
 | `LTT.math(scope)` | `data-tex` 요소를 KaTeX로. |
 | `LTT.MOTION_MS` | 기본 모션 길이. reduced-motion이면 0. |
 
@@ -172,10 +188,10 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `hook` | `art`(아이콘 이름·이모지·HTML), `pre`, `text`, `sub`, `kicker`, `chips`. 첫 장면 |
 | `terms` | `terms: [{key, word, en, icon, plain, example}]`. 용어를 쉬운 말로 먼저 푼다. key는 glossary에 자동 등록 |
 | `explain` | `steps: [{icon, title, text, visual}]`, `form`, `arrows`. `form`: `"cards"`(기본, 독립된 요소 나열), `"strip"`(이어진 한 줄 흐름, 카드 없이 선과 마디), `"stack"`(세로 타임라인, 단계마다 오른쪽에 그림) |
-| `figure` | `figure`(그림: 노드·HTML·함수), `caption`, `label`. 그림 하나가 화면을 차지하고 아래에 "그림 n." 캡션이 붙는다. `points`의 `at`은 그림 무대 전체 기준 %라서, 목업 위에 찍으려면 `pointsOn: ".ltt-phone"`처럼 목업을 대상으로 준다. 단계 재생은 `figure` 함수 안에서 `player`/`stepper`로 |
+| `figure` | `figure`(그림: 노드·HTML·함수), `caption`, `label`, `steps`, `interval`. 그림 하나가 화면을 차지하고 아래에 "그림 n." 캡션이 붙는다. `points`의 `at`은 무대 안 첫 목업(phone·browser·terminal·code)이 있으면 그 틀 기준, 없으면 무대 전체 기준 %다(`pointsOn`으로 바꾼다). `steps: [{caption, enter(k, fig)}]`를 주면 그림 왼쪽, 단계 자막 오른쪽으로 놓인다. `figure` 함수가 `{el, ...}`를 돌려주면 `enter`의 `fig`로 그 객체가 온다(같은 그림의 여러 상태). 장면에 들어올 때마다 다시 그리려면 공통 필드 `enter(body, ctx)` |
 | `statement` | `title`(큰 주장 한 문장, `<em>`은 강조색), `sub`, `visual`(작은 근거 그림, 선택). 카드 없이 리듬을 바꾸는 장면 |
 | `contrast` | `before`, `after`(위 beforeAfter의 각 쪽) |
-| `compare` | `items: [{label, visual, tone, verdict, note, noteAfter, enter, onReveal}]`, `form`, `cols`, `reveal`, `revealLabel`. `form: "table"`이면 사례가 행이 되는 비교표(라벨 \| 그림 \| 판정) |
+| `compare` | `items: [{label, visual, tone, verdict, note, noteAfter, enter, onReveal}]`, `form`, `cols`, `reveal`, `revealLabel`. `form: "table"`이면 사례가 행이 되는 비교표(라벨 \| 그림 \| 판정), `head: ["라벨 열", "그림 열", "판정 열"]`은 열 머리글(휴대폰 폭에서는 숨김) |
 | `predict` | `choices`, `answer`, `question`, `hint`, `visual`, `answerVisual`, `why`, `button`, `unsure`, `reveal` |
 | `summary` | 앞 장면의 `takeaway`를 카드로 모은다. `cards`로 직접 줄 수도 있다. `extra: {title, text}`는 검은 카드 |
 | `keywords` | `terms: [{ko, en}]`, `signals`, `queries`, `neighbors: [{term, diff}]`. 마지막 장면 |

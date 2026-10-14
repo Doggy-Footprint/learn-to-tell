@@ -24,10 +24,8 @@
   .life { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); gap: clamp(16px, 2.4vw, 32px); align-items: center; width: 100%; }
   .life .ltt-term-mock { font-size: 12.5px; }
   .life .ltt-term-mock .screen { min-height: 15em; }
-  .ltt-term-mock .miss { color: #5fd6a0; } .ltt-term-mock .hit { color: #b4b3ad; }
-  .ltt-term-mock .stale { color: #ffb000; } .ltt-term-mock .db { color: #ff8a8d; }
   @media (max-width: 860px) { .life { grid-template-columns: 1fr; } }
-  .reqs .ltt-units { max-width: 520px; gap: 2px; margin: 0; } .reqs .ltt-unit { border-radius: 1px; }
+  .reqs .ltt-units { max-width: 520px; margin: 0; }
   .reqs .num { text-align: left; font-family: var(--ltt-mono); margin-top: 8px; } .reqs .num b { font-size: 20px; }
 </style>
 </head>
@@ -74,20 +72,20 @@
     const m = model(2, interval, ttl), box = document.createElement("div");
     box.className = "reqs";
     node.appendChild(box);
-    paint(LTT.units(box.appendChild(document.createElement("div")), 100, 50).cells, m);
+    paint(LTT.units(box.appendChild(document.createElement("div")), 100, 50, { band: true }).cells, m);
     box.insertAdjacentHTML("beforeend", `<p class="num"><b>${m.staleN || "<1"}</b> / 100 오래된 응답<br>원본 조회 분당 ${sig2(m.perMin)}회</p>`);
   };
   const BASE = model(2, 600, 60);
 
   // Access-log lines matching the nine request dots at each stepper step (step ② paints req 5–8 fresh, step ③ re-reads them as stale).
-  const hit = (n, stale) => ({ t: stale ? "stale" : "hit", text: `req ${n}  HIT    GET /items/42 → 9,900원${stale ? "  STALE" : ""}` });
-  const MISS1 = { t: "miss", text: "req 1  MISS   GET /items/42 → DB 조회, 9,900원 저장, TTL 시작" };
-  const AFTER_CHANGE = [MISS1, ...[2, 3, 4].map((n) => hit(n)), { t: "db", text: "db     UPDATE items/42 price=7,900  (캐시는 모름)" }, ...[5, 6, 7, 8].map((n) => hit(n, true))];
+  const hit = (n, stale) => ({ t: stale ? "warn" : "out", text: `req ${n}  HIT    GET /items/42 → 9,900원${stale ? "  STALE" : ""}` });
+  const MISS1 = { t: "ok", text: "req 1  MISS   GET /items/42 → DB 조회, 9,900원 저장, TTL 시작" };
+  const AFTER_CHANGE = [MISS1, ...[2, 3, 4].map((n) => hit(n)), { t: "err", text: "db     UPDATE items/42 price=7,900  (캐시는 모름)" }, ...[5, 6, 7, 8].map((n) => hit(n, true))];
   const LOG = [
     [MISS1],
     [MISS1, ...[2, 3, 4, 5, 6, 7, 8].map((n) => hit(n))],
     AFTER_CHANGE,
-    [...AFTER_CHANGE, { t: "dim", text: "cache  EXPIRE items/42 (TTL 만료)" }, { t: "miss", text: "req 9  MISS   GET /items/42 → DB 조회, 7,900원 저장" }],
+    [...AFTER_CHANGE, { t: "dim", text: "cache  EXPIRE items/42 (TTL 만료)" }, { t: "ok", text: "req 9  MISS   GET /items/42 → DB 조회, 7,900원 저장" }],
   ];
 
   // One cached value's life on a 0..TTL axis: origin lane on top, requests hitting the cache lane below.

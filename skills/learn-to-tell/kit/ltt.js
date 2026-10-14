@@ -308,6 +308,18 @@
     return [1, 2, 3, 4, 5, 6].map(function (i) { return tk["c" + i]; });
   }
 
+  // WCAG 2.x contrast ratio of two #rgb/#rrggbb colours.
+  function contrast(a, b) {
+    function lum(hex) {
+      var x = hex.replace("#", "");
+      if (x.length === 3) x = x.replace(/./g, "$&$&");
+      var c = [0, 2, 4].map(function (i) { var v = parseInt(x.slice(i, i + 2), 16) / 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    }
+    var la = lum(a), lb = lum(b);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  }
+
   var MARKS = { square: 1, ring: 1, dot: 1, diamond: 1, cross: 1 };
 
   // Shape markers centred on (0,0) so series stay distinguishable without hue; `inline` wraps one in a 1em <svg> for legends and prose.
@@ -616,7 +628,7 @@
 
   var LTT = root.LTT = {
     lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
-    icon: icon, icons: Object.keys(ICONS), theme: theme, themeTokens: themeTokens, palette: palette, mark: mark, marks: Object.keys(MARKS),
+    icon: icon, icons: Object.keys(ICONS), theme: theme, themeTokens: themeTokens, palette: palette, contrast: contrast, mark: mark, marks: Object.keys(MARKS),
     themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
     termsIn: termsIn, sceneText: sceneText, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene,
     setGlossary: setGlossary, linkTerms: linkTerms

@@ -240,3 +240,60 @@ test("icons include the borrowed Lucide set and render with the kit stroke", () 
   assert.match(icon("globe"), /stroke-width='1.8'/);
   assert.equal(new Set(icons).size, icons.length);
 });
+
+function loadAll() {
+  const context = { console: { info() {}, warn() {} } };
+  vm.createContext(context);
+  for (const f of ["vendor/d3.min.js", "ltt.js", "ltt-parts.js", "ltt-ui.js"]) {
+    vm.runInContext(readFileSync(new URL("../skills/learn-to-tell/kit/" + f, import.meta.url), "utf8"), context);
+  }
+  return context.LTT;
+}
+
+test("sequenceLayout places messages in time order and opens activations on sync calls until the reply", () => {
+  const { sequenceLayout } = loadAll();
+  const L = sequenceLayout({ col: 200, row: 40, pad: 20, head: 50, actors: [{ id: "c" }, { id: "s" }],
+    items: [{ f: "c", t: "s", l: "req", id: "a" }, { note: "wait", over: ["s"] }, { f: "s", t: "c", kind: "reply", id: "b" }],
+    spans: [{ from: "a", to: "b", l: "1s" }] });
+  assert.deepEqual([L.actors.c.x, L.actors.s.x], [120, 320]);
+  const [a, note, b] = L.items;
+  assert.equal(a.y, 20 + 50 + 32);
+  assert.equal(note.type, "note");
+  assert.equal(b.y - a.y, 80);
+  assert.equal(L.activations.length, 1);
+  assert.deepEqual([L.activations[0].actor, L.activations[0].y1, L.activations[0].y2], ["s", a.y, b.y]);
+  assert.ok(a.x2 <= 315 && b.x1 === 315, "arrows stop at and leave from the activation bar edge (bar is 10 wide on the lifeline)");
+  assert.deepEqual([L.spans[0].y1, L.spans[0].y2], [a.y, b.y]);
+  assert.throws(() => sequenceLayout({ actors: [{ id: "c" }], items: [{ f: "c", t: "x" }] }), /missing actor 'x'/);
+});
+
+test("sequenceLayout keeps a sync call without reply open to the end and loops self messages", () => {
+  const { sequenceLayout } = loadAll();
+  const L = sequenceLayout({ row: 40, actors: [{ id: "a" }, { id: "b" }], items: [{ f: "a", t: "b" }, { f: "b", t: "b", l: "retry" }] });
+  assert.equal(L.activations.length, 1);
+  assert.ok(L.activations[0].y2 > L.items[1].y);
+  assert.match(L.items[1].d, /^M[\d.]+,[\d.]+H[\d.]+V[\d.]+H/);
+});
+
+test("contrast follows WCAG 2.x", () => {
+  const { contrast } = loadKit();
+  assert.equal(contrast("#000", "#fff"), 21);
+  assert.equal(contrast("#767676", "#ffffff").toFixed(2), "4.54");
+  assert.equal(contrast("#fff", "#fff"), 1);
+});
+
+test("plotTheme fills palette and theme defaults but keeps caller options", () => {
+  const { plotTheme, palette } = loadAll();
+  const o = plotTheme({ y: { label: "ms" }, color: { legend: true } });
+  assert.equal(o.className, "ltt-plot");
+  assert.deepEqual([...o.color.range], [...palette()]);
+  assert.equal(o.color.legend, true);
+  assert.deepEqual([o.y.label, o.y.grid], ["ms", true]);
+});
+
+test("inspector judges each row against the threshold", () => {
+  const { inspector } = loadAll();
+  const html = inspector({ rows: [{ name: "a", fg: "#999999", bg: "#FFFFFF" }, { name: "b", fg: "#595959", bg: "#FFFFFF" }] });
+  assert.match(html, /class='r fail'.*2\.85.*미달/s);
+  assert.match(html, /class='r pass'.*7\.00.*통과/s);
+});

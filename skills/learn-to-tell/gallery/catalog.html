@@ -6,6 +6,9 @@
 <title>Learn to Tell kit 카탈로그</title>
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/topojson-client.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/vendor/d3-sankey.min.js"></script>
+<script src="/kit/vendor/prism/prism.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
 <script src="/kit/ltt-ui.js"></script>
@@ -153,6 +156,15 @@
     return LTT.takeaway("간격은 감으로 정하지 않는다 — 정해진 스케일에서 고른다.", ["Material 3 · Layout", "Refactoring UI"]);
   });
 
+  demo("inspector", "LTT.inspector({title, rows: [{name, fg, bg, ratio}], min})", "<b>디자인 툴의 대비 검사 패널.</b> 글자색·배경색·대비비와 통과 태그. <code>ratio</code>를 안 주면 <code>LTT.contrast(fg, bg)</code>로 계산한다. 목업 옆에 두고 번호를 맞춘다.", (el) => {
+    el.innerHTML = LTT.inspector({ title: "CONTRAST CHECK · 일반 글자", rows: [{ name: "도움말", fg: "#999999", bg: "#FFFFFF" }, { name: "고친 도움말", fg: "#6B6B6B", bg: "#FFFFFF" }] });
+  });
+  demo("redline", "LTT.redline(container, {selector, x}) → {update}", "<b>화면 간격을 px 막대로 잰다.</b> 대상마다 위쪽 margin을 오른쪽 여백에 측정선으로 그린다. 스타일을 바꾼 뒤 <code>update()</code>.", (el) => {
+    const b = LTT.mock.browser({ url: "shop.example.com", width: 260 });
+    b.screen.innerHTML = `<div style="display:flex;flex-direction:column;color:#222"><b style="font-size:17px">무선 키보드 K3</b><b style="font-size:22px;margin-top:4px">₩89,000</b><span style="font-size:13px;color:#6b6b6b;margin-top:16px">내일 도착 · 무료배송</span></div>`;
+    LTT.redline(b.screen.firstChild);
+    el.appendChild(b.el);
+  });
   group("목업 · ltt-mock.js");
   demo("mock.phone · mock.browser", "LTT.mock.phone({width, ratio, dark, content}) → {el, screen}", "<b>실제 화면처럼 보이는 틀.</b> UI 예시는 맨 HTML 조각 대신 틀에 넣는다. <code>el</code>에 annotate를 걸면 번호가 틀 기준으로 찍힌다.", (el) => {
     const row = div("", ""); row.style.cssText = "display:flex;gap:20px;align-items:center;flex-wrap:wrap";
@@ -161,9 +173,9 @@
     row.append(p.el, b.el);
     return row;
   });
-  demo("mock.terminal · mock.code", "LTT.mock.terminal({title, lines}) · LTT.mock.code({code, marks, title})", "<b>명령과 코드 예시.</b> code의 <code>marks</code>는 <code>{줄번호: \"good\"|\"bad\"|\"accent\"|\"warn\"}</code>로 줄을 칠한다.", (el) => {
-    el.appendChild(LTT.mock.terminal({ title: "zsh", lines: ["$ curl -I api/products/42", "HTTP/1.1 200 OK", { t: "ok", text: "x-cache: HIT" }, { t: "err", text: "age: 290  # 거의 만료" }] }).el);
-    el.appendChild(LTT.mock.code({ title: "cache.ts", code: "const ttl = 300; // 5분\ncache.set(key, value, { ttl });\n// 재고는 1분마다 바뀐다", marks: { 1: "bad", 3: "warn" } }).el);
+  demo("mock.terminal · mock.code", "LTT.mock.terminal({title, lines}) · LTT.mock.code({code, lang, marks, title})", "<b>명령과 코드 예시.</b> 터미널 줄 <code>t</code>: cmd·out·ok·warn·err·dim. code의 <code>marks</code>는 <code>{줄번호: \"good\"|\"bad\"|\"accent\"|\"warn\"}</code>로 줄을 칠한다. <code>lang</code>(javascript, typescript, python, bash, json, sql)을 주고 <code>prism/prism.min.js</code>를 불러오면 문법 색이 테마 토큰으로 칠해진다.", (el) => {
+    el.appendChild(LTT.mock.terminal({ title: "zsh", lines: ["$ curl -I api/products/42", "HTTP/1.1 200 OK", { t: "ok", text: "x-cache: HIT" }, { t: "warn", text: "age: 290  # 거의 만료" }, { t: "err", text: "x-origin: timeout" }] }).el);
+    el.appendChild(LTT.mock.code({ title: "cache.ts", lang: "typescript", code: "const ttl = 300; // 5분\ncache.set(key, value, { ttl });\n// 재고는 1분마다 바뀐다", marks: { 1: "bad", 3: "warn" } }).el);
   });
 
   group("움직이는 그림 · ltt-parts.js");
@@ -202,6 +214,65 @@
       { caption: "<b>② 원본이 오리건</b> — 북태평양을 건너는 대권 경로다. 지도에서 휘어 보이는 선이 실제 최단 경로다.", hot: ["icn", "pdx"], flow: ["icn>pdx"], send: [["icn", "pdx"]] },
       { caption: "<b>③ 원본이 버지니아</b> — 대륙을 하나 더 건너 왕복이 약 60ms 늘어난다.", hot: ["icn", "iad"], flow: ["icn>iad"], send: [["icn", "iad"]] },
     ]));
+  });
+  demo("sequence", "LTT.sequence(svg, {actors, items, spans})", "<b>누가 누구에게 언제 보내는가.</b> 재시도·인증·타임아웃처럼 순서가 핵심일 때. <code>items</code>는 시간순 메시지 <code>{f, t, l, kind: sync|async|reply, k, id}</code>와 메모 <code>{note, over}</code>. sync는 받는 쪽에 활성 막대를 열고 그 쪽의 다음 reply가 닫는다. <code>spans</code>는 두 메시지 사이 시간 구간. <code>.player(el, steps)</code>는 메시지를 하나씩 드러낸다.", (el) => {
+    const svg = el.appendChild(svgEl());
+    const sq = LTT.sequence(svg, {
+      maxWidth: false,
+      actors: [{ id: "app", l: "앱", icon: "phone" }, { id: "api", l: "결제 API", icon: "server", k: "accent" }, { id: "pg", l: "PG사", icon: "shield-check" }],
+      items: [
+        { f: "app", t: "api", l: "POST /pay", id: "req" },
+        { f: "api", t: "pg", l: "승인 요청" },
+        { note: "PG 응답 지연", over: ["pg"] },
+        { f: "app", t: "api", l: "재시도 (같은 키)", kind: "async", k: "warn", id: "retry" },
+        { f: "pg", t: "api", l: "승인 완료", kind: "reply" },
+        { f: "api", t: "app", l: "200 OK (한 번만 청구)", kind: "reply", k: "good", id: "ok" },
+      ],
+      spans: [{ from: "req", to: "ok", l: "3.2초" }],
+    });
+    sq.player(el, [
+      { caption: "<b>① 결제 요청</b> — 앱이 결제 API를 부르고 응답을 기다린다(활성 막대).", upto: 2 },
+      { caption: "<b>② 응답이 늦다</b> — PG사 쪽에서 지연이 생긴다.", upto: 3 },
+      { caption: "<b>③ 재시도</b> — 같은 멱등 키로 다시 보낸다. 서버는 이미 진행 중인 요청으로 알아본다.", upto: 4, hot: ["retry"] },
+      { caption: "<b>④ 한 번만 청구</b> — 두 요청이 결과 하나를 공유한다.", hot: ["ok"], upto: 6 },
+    ]);
+  });
+  demo("axisPlot", "LTT.axisPlot(svg | el, {x, y, equal, ticks, labels, series}) → {set(id, points), px}", "<b>축이 고정된 함수·궤적 플롯.</b> 값을 바꿔도 축이 그대로라 곡선끼리 길이로 비교된다. <code>equal: true</code>면 x·y 축척이 같아 궤적 모양이 실제와 같다. 계열 색은 기본 <code>--ltt-c1…</code>.", (el) => {
+    const p = LTT.axisPlot(el, { width: 560, height: 220, x: [0, 10], y: [0, 1.2], ticks: [5, 3], labels: { x: "시간 (s)", y: "남은 비율" },
+      series: [{ id: "fast", dot: true }, { id: "slow", dash: true, dot: true }] });
+    const curve = (k) => d3.range(0, 10.01, 0.1).map((t) => [t, Math.exp(-k * t)]);
+    p.set("fast", curve(0.6)).set("slow", curve(0.15));
+  });
+  demo("lanes", "LTT.lanes(svg | el, {axis: {max, step, fmt}, lanes: [{l, s, value, text, color}]}) → {play}", "<b>시간이 어디서 드는가.</b> 단계마다 한 줄, 모두 같은 시간 축이라 300배 차이가 길이로 읽힌다.", (el) => {
+    const ln = LTT.lanes(el, { axis: { max: 120, step: 20, fmt: (d) => d + " ms" },
+      lanes: [{ l: "DNS + TLS", s: "첫 연결만", value: 38 }, { l: "서버 처리", s: "DB 쿼리 2회", value: 22 }, { l: "응답 전송", s: "1.2 MB", value: 96, k: "bad" }] });
+    ln.play();
+  });
+  demo("chartFrame · hbars", "LTT.chartFrame({title, dek, source}) · LTT.hbars(el, {domain, ticks, rows}) → {play}", "<b>신문식 차트 틀과 고정 축 가로 막대.</b> 헤드라인이 주장, dek이 단위·조건, 아래 출처. hbars의 <code>tone: \"floor\"</code>는 넘을 수 없는 바닥을 점선으로 그린다. ledger 테마와 잘 맞는다.", (el) => {
+    const f = LTT.chartFrame({ title: "섞을수록 줄지만 바닥이 있다", dek: "변동성(%), 서로 상관계수 0.3", source: "모델로 계산한 예시" });
+    el.appendChild(f.el);
+    LTT.hbars(f.el, { domain: [0, 20], ticks: [0, 10, 20], fmt: (v) => v.toFixed(1) + "%",
+      rows: [{ label: "1개", value: 20 }, { label: "10개", value: 12.2 }, { label: "무한히 많이", value: 11, tone: "floor" }] }).play();
+    f.foot();
+  });
+  demo("plot", "LTT.plot(options) · LTT.plotTheme(options)", "<b>막대·선·점·분포는 Observable Plot.</b> <code>LTT.plot</code>은 테마 팔레트, 모노 눈금, 투명 배경을 기본으로 넣은 <code>Plot.plot</code>이다. 옵션은 Plot 그대로. <code>plot.umd.min.js</code>가 필요하다.", (el) => {
+    const data = ["월", "화", "수", "목", "금"].flatMap((d, i) => [{ d, s: "캐시", v: 40 + i * 6 }, { d, s: "DB", v: 30 - i * 3 }]);
+    el.appendChild(LTT.plot({ width: 520, height: 220, marks: [Plot.barY(data, { x: "d", y: "v", fill: "s" }), Plot.ruleY([0])], color: { legend: true }, y: { label: "요청 (천 건)" }, x: { label: null } }));
+  });
+  demo("sankey", "LTT.sankey(svg | el, {nodes, links}) → {highlight}", "<b>흐름량이 어디로 갈라지는가.</b> 비용·트래픽·전환 퍼널. 띠 굵기 = 값. <code>d3-sankey.min.js</code>가 필요하다.", (el) => {
+    LTT.sankey(el, { width: 640, height: 260, fmt: (v) => v + "만 건",
+      nodes: [{ id: "req", l: "요청" }, { id: "hit", l: "캐시 적중" }, { id: "miss", l: "캐시 미스" }, { id: "db", l: "DB" }, { id: "err", l: "타임아웃", k: "bad" }],
+      links: [{ f: "req", t: "hit", value: 82 }, { f: "req", t: "miss", value: 18 }, { f: "miss", t: "db", value: 15 }, { f: "miss", t: "err", value: 3 }] }).highlight(["miss"]);
+  });
+  demo("tree (d3.hierarchy)", "d3.tree · d3.treemap", "<b>계층은 kit 부품 없이 d3로.</b> 디렉터리·조직·비용 구성. 색은 <code>LTT.palette()</code>, 글자는 kit 크기를 쓴다.", (el) => {
+    const root = d3.hierarchy({ name: "월 비용", children: [{ name: "컴퓨트", children: [{ name: "API", v: 42 }, { name: "배치", v: 18 }] }, { name: "저장소", children: [{ name: "DB", v: 25 }, { name: "객체", v: 9 }] }, { name: "네트워크", v: 6 }] })
+      .sum((d) => d.v || 0).sort((a, b) => b.value - a.value);
+    d3.treemap().size([560, 220]).paddingInner(3).paddingTop(18)(root);
+    const pal = LTT.palette(), svg = d3.select(el).append("svg").attr("class", "ltt-svg").attr("viewBox", "0 0 560 220");
+    const g = svg.selectAll("g").data(root.descendants().slice(1)).join("g").attr("transform", (d) => `translate(${d.x0},${d.y0})`);
+    g.append("rect").attr("width", (d) => d.x1 - d.x0).attr("height", (d) => d.y1 - d.y0).attr("rx", 3)
+      .style("fill", (d) => (d.children ? "none" : pal[root.children.indexOf(d.parent === root ? d : d.parent)])).style("stroke", (d) => (d.children ? "var(--ltt-line-2)" : "none"));
+    g.append("text").attr("x", 6).attr("y", 13).text((d) => `${d.data.name} ${d.value}`).style("fill", (d) => (d.children ? "var(--ltt-ink-2)" : "var(--ltt-bg)")).style("font-weight", 700);
   });
   demo("units · bar · tween", "LTT.units(el, n, cols).paint(k) · LTT.bar(el, parts).set(values) · LTT.tween(el, to)", "<b>비율을 세어 볼 수 있게.</b> 100칸 그림은 '100건 중 몇 건', 막대는 구성비, tween은 숫자가 바뀌는 순간을 보인다.", (el) => {
     el.innerHTML = `<div style="display:flex;gap:20px;align-items:center"><div id="cu" style="width:160px"></div><div style="flex:1"><div class="ltt-stat"><span id="cn">0</span><small>/ 100</small></div><div id="cb" style="margin-top:10px"></div></div></div>`;

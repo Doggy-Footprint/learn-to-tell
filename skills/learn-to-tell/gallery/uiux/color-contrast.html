@@ -46,16 +46,6 @@
   .review { display: flex; align-items: center; justify-content: center; gap: clamp(24px, 5vw, 72px); }
   .review > * { flex: none; }
   @media (max-width: 720px) { .review { flex-wrap: wrap; } .review > * { flex: 0 1 auto; } }
-  .insp { width: min(100%, 380px); border-radius: var(--ltt-r-md); background: var(--ltt-card); box-shadow: var(--ltt-shadow), inset 0 0 0 1.5px var(--ltt-line); font-size: 13px; color: var(--ltt-ink-2); }
-  .insp header { padding: 10px 14px; border-bottom: 1px solid var(--ltt-line); font: 700 12px var(--ltt-mono); color: var(--ltt-muted); letter-spacing: .03em; }
-  .insp .r { display: grid; grid-template-columns: 22px 44px 1fr auto; gap: 10px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--ltt-line); }
-  .insp .r:last-child { border-bottom: 0; }
-  .insp .n { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--ltt-bad); color: var(--ltt-on-accent); font: 700 11px var(--ltt-mono); }
-  .insp .aa { display: grid; place-items: center; height: 36px; border-radius: 8px; font-weight: 800; font-size: 15px; box-shadow: inset 0 0 0 1px var(--ltt-line); }
-  .insp b { display: block; color: var(--ltt-ink); font-size: 13.5px; }
-  .insp code { font: 11.5px var(--ltt-mono); color: var(--ltt-muted); }
-  .insp .v { text-align: right; font: 800 17px var(--ltt-mono); color: var(--ltt-ink); }
-  .insp .v .ltt-tag { display: block; margin-top: 4px; font-family: var(--ltt-font); }
   .stv { display: grid; gap: 12px; width: min(100%, 340px); }
   .stv div { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px; font: 15px var(--ltt-mono); color: var(--ltt-ink-2); }
   .stv span { border-radius: 12px; padding: 16px; text-align: center; font: 800 18px var(--ltt-font); }
@@ -116,15 +106,9 @@
     return p.el;
   };
   const BEFORE = { ph: "#aaaaaa", help: "#999999", btn: "#ff0000" };
-  // Inspector panel in the style of a design tool's contrast check: one row per measured text layer.
-  const inspector = () => {
-    const rows = [["placeholder", "#AAAAAA", "#FFFFFF", "#aaaaaa"], ["도움말", "#999999", "#FFFFFF", "#999999"], ["버튼 글자", "#FFFFFF", "#FF0000", "#ff0000"]];
-    return `<div class="insp"><header>CONTRAST CHECK · 일반 글자</header>${rows.map(([n, f, b, k], i) => {
-      const r = cr(k);
-      return `<div class="r"><span class="n">${i + 1}</span><span class="aa" style="color:${f};background:${b}">Aa</span>
-        <span><b>${n}</b><code>${f} on ${b}</code></span><span class="v">${r}<span class="ltt-tag ${+r >= 4.5 ? "good" : "bad"}">AA 4.5 ${+r >= 4.5 ? "통과" : "미달"}</span></span></div>`;
-    }).join("")}</div>`;
-  };
+  const inspector = () => LTT.inspector({ title: "CONTRAST CHECK · 일반 글자",
+    rows: [["placeholder", "#AAAAAA", "#FFFFFF", "#aaaaaa"], ["도움말", "#999999", "#FFFFFF", "#999999"], ["버튼 글자", "#FFFFFF", "#FF0000", "#ff0000"]]
+      .map(([name, fg, bg, k]) => ({ name, fg, bg, ratio: cr(k) })) });
   // Linear 1..8 track: the three thresholds sit far enough apart to label; 21:1 is off the scale.
   const ratioRuler = () => {
     const x = (v) => `${((v - 1) / 7) * 100}%`;
