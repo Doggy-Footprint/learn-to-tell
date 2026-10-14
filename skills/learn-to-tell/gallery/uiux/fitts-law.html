@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>버튼을 크게 만들면 클릭이 얼마나 빨라질까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"Fitts 법칙: 버튼 크기·거리와 클릭 시간","audience":"버튼 배치를 정해 본 적 있는 프런트엔드·디자인 입문자(로그 함수만 알면 됨)","pattern":["predict-choice","sweep","chart"],"decision":"버튼 너비 W와 시작점에서의 거리 D를 어떻게 잡을지"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<style>
+  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; --ltt-guess: #b9c4f6; }
+  .row { margin: 10px 0 0; }
+  .row b { font-size: 14px; }
+  .row .t { float: right; font-variant-numeric: tabular-nums; color: var(--ltt-muted); font-size: 14px; }
+  .two { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .verdict { font-size: 17px; margin: 12px 0 0; }
+  .checks { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+  #chart svg { max-width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>버튼을 크게 만들면 클릭이 얼마나 빨라질까?</h1>
+  <p class="ltt-lead">작업: 화면에 주요 버튼을 어디에, 얼마나 크게 둘지 정한다.
+    결정 변수: <span data-tip="버튼 너비 W는 커서가 움직이는 방향의 폭, 거리 D는 시작점에서 버튼 중심까지의 거리.">너비 W와 거리 D</span>.</p>
+
+  <section class="ltt-card" id="predict-card">
+    <h2>먼저 예측</h2>
+    <p>마우스 포인터가 왼쪽 시작점에서 버튼까지 가는 시간은 아래 식을 따른다고 한다.
+      <span data-tex="MT = a + b\,\log_2\!\left(\frac{D}{W}+1\right)" data-display></span></p>
+    <div class="row"><b>A. 작고 가까운 버튼</b> (W=20, D=100)<span class="t" id="tA"></span></div>
+    <svg id="stA"></svg>
+    <div class="row"><b>B. 크고 먼 버튼</b> (W=80, D=400)<span class="t" id="tB"></span></div>
+    <svg id="stB"></svg>
+    <p class="ask"><b>어느 쪽이 더 빨리 클릭될까?</b></p>
+    <div id="choices">
+      <button data-choice="A">A가 더 빠르다</button>
+      <button data-choice="B">B가 더 빠르다</button>
+      <button data-choice="same">거의 같다</button>
+    </div>
+    <p><button id="lock">예측 잠그고 결과 보기</button></p>
+    <p class="verdict ltt-hidden" id="verdict"></p>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="explore">
+    <h2>조건을 바꿔 보기 <span class="ltt-tag">모델로 계산한 예시</span></h2>
+    <div class="ltt-hero"><span id="mt">0</span><small>ms 예상 이동 시간</small></div>
+    <svg id="stage"></svg>
+    <label class="ltt-param">거리 D <b id="D-v"></b><input type="range" id="D" min="50" max="800" step="10" value="300"></label>
+    <label class="ltt-param">너비 W <b id="W-v"></b><input type="range" id="W" min="10" max="200" step="2" value="40"></label>
+    <p class="ltt-basis">범위 근거: 노트북 화면 가로 폭(약 900px)에 들어가는 이동 거리와 아이콘~큰 CTA 크기를 예시로 잡았다. 실제 기기·해상도에 맞춰 바꿔야 한다.
+      <span class="ltt-tag warn">불확실</span></p>
+    <div class="checks">
+      <label><input type="checkbox" id="edge"> 화면 가장자리에 붙은 버튼</label>
+      <button class="preset" data-preset='{"D":100,"W":20}'>A (작고 가까움)</button>
+      <button class="preset" data-preset='{"D":400,"W":80}'>B (크고 멈)</button>
+      <button class="preset" data-preset='{"D":300,"W":44}'>너비 44</button>
+      <button id="replay">▶ 이동 재생 (3배 느리게)</button>
+    </div>
+    <p class="ltt-basis">상수 a=100ms, b=200ms/bit는 이 페이지의 예시값이다. 포인팅 실험에서 처리량(1/b)이 대략 3–5 bit/s로 보고된다는 기억에 맞췄고, 장치·사용자·과제마다 크게 달라 직접 측정해야 한다. <span class="ltt-tag warn">불확실</span></p>
+    <div id="chart"></div>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="cases">
+    <h2>활용과 주의</h2>
+    <div class="two">
+      <div>
+        <h3>활용: 화면 가장자리</h3>
+        <p>커서가 벽에서 멈추므로 가장자리 방향 유효 너비가 매우 크다. D=400, W=20일 때:</p>
+        <p class="ltt-stat"><span id="cNormal">0</span><small>ms 일반 버튼</small></p>
+        <p class="ltt-stat"><span id="cEdge">0</span><small>ms 가장자리 버튼</small></p>
+        <p class="ltt-basis">가장자리 유효 너비는 무한이 아니라 큰 값(2000)으로 가정했다. 식을 단순화하려는 모델 선택이다. <span class="ltt-tag warn">불확실</span></p>
+      </div>
+      <div>
+        <h3>주의: 터치와 오류율</h3>
+        <p>손가락 터치는 마우스와 a, b가 다르고 손가락이 목표를 가린다. 최소 크기 가이드(<span data-tip="Apple HIG 44pt, Material Design 48dp. 속도가 아니라 오터치를 줄이기 위한 값이다.">44pt / 48dp</span>)는 속도 예측이 아니라 오터치 방지 기준이다.</p>
+        <p>이 식은 시간만 예측한다. W를 줄여도 시간은 로그로만 늘지만, 오클릭은 따로 늘어난다.</p>
+        <span class="ltt-tag warn">터치에 이 a, b를 그대로 쓰면 틀림</span>
+      </div>
+    </div>
+    <p class="verdict"><b>정리:</b> 시간은 크기와 거리의 비율 D/W로만 정해지므로 W를 두 배로 하는 것과 D를 절반으로 하는 것은 같은 효과다.</p>
+  </section>
+</main>
+<script>
+  // a=100, b=200, log2(D/W+1) 손계산 (log2 6=2.58496, log2 11=3.45943, log2 2.25=1.16993, log2 21=4.39232, log2 1.2=0.26303)
+  const EXPECTED_BY_HAND = {
+    A_small_near: 100 + 200 * 2.58496,
+    B_big_far: 100 + 200 * 2.58496,
+    W40_D400: 100 + 200 * 3.45943,
+    W80_D100: 100 + 200 * 1.16993,
+    D400_W20: 100 + 200 * 4.39232,
+    D400_edge: 100 + 200 * 0.26303,
+  };
+  const A = 100, B = 200, EDGE_W = 2000, SLOW = 3;
+  const mt = (D, W) => A + B * Math.log2(D / W + 1);
+
+  LTT.expect("A 작고 가까움", mt(100, 20), EXPECTED_BY_HAND.A_small_near, { tol: 0.05 });
+  LTT.expect("B 크고 멈", mt(400, 80), EXPECTED_BY_HAND.B_big_far, { tol: 0.05 });
+  LTT.expect("W=40, D=400", mt(400, 40), EXPECTED_BY_HAND.W40_D400, { tol: 0.05 });
+  LTT.expect("W=80, D=100", mt(100, 80), EXPECTED_BY_HAND.W80_D100, { tol: 0.05 });
+  LTT.expect("D=400, W=20", mt(400, 20), EXPECTED_BY_HAND.D400_W20, { tol: 0.05 });
+  LTT.expect("D=400, 가장자리", mt(400, EDGE_W), EXPECTED_BY_HAND.D400_edge, { tol: 0.05 });
+
+  function stage(id) {
+    const X0 = 30, S = 0.9;
+    const svg = d3.select("#" + id).attr("class", "ltt-svg").attr("viewBox", "0 0 880 100");
+    svg.append("rect").attr("width", 880).attr("height", 80).attr("rx", 10).attr("fill", "none").attr("stroke", "var(--ltt-line)");
+    const tgt = svg.append("rect").attr("y", 10).attr("height", 60).attr("rx", 4).attr("fill", "var(--ltt-on)").attr("fill-opacity", 0.85);
+    const dLine = svg.append("line").attr("y1", 40).attr("y2", 40).attr("x1", X0).attr("stroke", "var(--ltt-muted)").attr("stroke-dasharray", "4 4");
+    svg.append("circle").attr("cx", X0).attr("cy", 40).attr("r", 8).attr("fill", "none").attr("stroke", "var(--ltt-muted)").attr("stroke-width", 2);
+    const dText = svg.append("text").attr("y", 32).attr("text-anchor", "middle");
+    const wText = svg.append("text").attr("y", 96).attr("text-anchor", "middle");
+    const cur = svg.append("circle").attr("cy", 40).attr("r", 6).attr("fill", "var(--ltt-alt)");
+    let cx = X0;
+    return {
+      set(D, W, edge, atEnd) {
+        cx = X0 + D * S;
+        const left = cx - W * S / 2;
+        tgt.attr("x", left).attr("width", edge ? 880 - left : W * S);
+        dLine.attr("x2", cx);
+        dText.attr("x", (X0 + cx) / 2).text("D = " + D);
+        wText.attr("x", cx).text(edge ? "W = 가장자리까지" : "W = " + W);
+        cur.interrupt().attr("cx", atEnd ? cx : X0);
+      },
+      go(ms) { cur.interrupt().attr("cx", X0).transition().duration(LTT.MOTION_MS ? ms : 0).ease(d3.easeCubicOut).attr("cx", cx); },
+    };
+  }
+
+  const sA = stage("stA"), sB = stage("stB");
+  sA.set(100, 20, false, false);
+  sB.set(400, 80, false, false);
+
+  LTT.predict({
+    question: "작고 가까운 버튼(W=20,D=100)과 크고 먼 버튼(W=80,D=400) 중 어느 쪽이 빨리 클릭되는가",
+    choices: "choices",
+    button: "lock",
+    answer: "same",
+    show: ["explore", "cases"],
+    reveal: () => {
+      const tA = mt(100, 20), tB = mt(400, 80);
+      LTT.$("tA").textContent = Math.round(tA) + " ms";
+      LTT.$("tB").textContent = Math.round(tB) + " ms";
+      sA.go(tA * SLOW); sB.go(tB * SLOW);
+      const v = LTT.$("verdict");
+      v.classList.remove("ltt-hidden");
+      v.innerHTML = "둘 다 <b>" + Math.round(tA) + " ms</b>. D/W가 5로 같아 log2(5+1)이 같기 때문이다. 이동 모션은 3배 느리게 재생된다.";
+      explore.render();
+    },
+  });
+
+  const stg = stage("stage");
+  const explore = LTT.sweep({
+    immediate: false,
+    presets: "#explore .preset",
+    params: { D: { fmt: (v) => v + " px" }, W: { fmt: (v) => v + " px" } },
+    render: ({ D, W }) => {
+      const edge = LTT.$("edge").checked, We = edge ? EDGE_W : W, t = mt(D, We);
+      LTT.tween("mt", t);
+      stg.set(D, W, edge, true);
+      const curve = d3.range(10, 201, 5).map((w) => ({ w, t: mt(D, edge ? EDGE_W : w) }));
+      const bg = [];
+      [100, 400, 800].forEach((d) => d3.range(10, 201, 5).forEach((w) => bg.push({ w, t: mt(d, w), d: "D=" + d })));
+      LTT.$("chart").replaceChildren(Plot.plot({
+        height: 240, marginLeft: 50,
+        x: { label: "버튼 너비 W (px)" }, y: { label: "예상 시간 (ms)", grid: true, domain: [0, 1400] },
+        color: { legend: true, domain: ["D=100", "D=400", "D=800"], range: ["#9aa6d4", "#4f6bed", "#1f2f9a"] },
+        marks: [
+          Plot.line(bg, { x: "w", y: "t", stroke: "d" }),
+          Plot.line(curve, { x: "w", y: "t", stroke: "#d6455d", strokeDasharray: "4 3" }),
+          Plot.dot([{ w: W, t }], { x: "w", y: "t", r: 6, fill: "#d6455d" }),
+        ],
+      }));
+    },
+  });
+  LTT.$("edge").addEventListener("change", () => explore.render());
+  LTT.$("replay").addEventListener("click", () => {
+    const { D, W } = explore.values();
+    stg.set(D, W, LTT.$("edge").checked, false);
+    stg.go(mt(D, LTT.$("edge").checked ? EDGE_W : W) * SLOW);
+  });
+
+  LTT.tween("cNormal", mt(400, 20));
+  LTT.tween("cEdge", mt(400, EDGE_W));
+</script>
+</body>
+</html>

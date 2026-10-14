@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>수업 템플릿</title>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<style>
+  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; }
+</style>
+</head>
+<body>
+<main>
+  <h1>질문 형태의 제목</h1>
+  <p class="ltt-lead">작업: <b>원래 작업 한 줄</b>. 결정 변수: <b>무엇을 고를지</b>.</p>
+
+  <section class="ltt-card" id="predict-card">
+    <h2>먼저 예측</h2>
+    <p>예측 질문. <span data-tex="P = \frac{a}{b}"></span></p>
+    <div class="ltt-hero" id="hero"><span>0</span><small>/ 100</small></div>
+    <div id="units"></div>
+    <label class="ltt-param">내 예측 <b id="guess-v"></b><input type="range" id="guess" min="0" max="100" value="50"></label>
+    <button id="lock">예측 잠그고 결과 보기</button>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="explore">
+    <h2>조건을 바꿔 보기 <span class="ltt-tag">모델로 계산한 예시</span></h2>
+    <label class="ltt-param">변수 x <b id="x-v"></b><input type="range" id="x" min="1" max="100" value="30"></label>
+    <p class="ltt-basis">범위 근거: 출처나 이유를 적는다.</p>
+    <button class="preset" data-preset='{"x":10}'>사례 A</button>
+    <button class="preset" data-preset='{"x":80}'>사례 B</button>
+    <div id="chart"></div>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="steps-card">
+    <h2>단계별로 보기</h2>
+    <svg id="diagram"></svg>
+    <div id="steps"></div>
+  </section>
+</main>
+<script>
+  const model = (x) => x / 100;
+
+  LTT.expect("x=30", model(30), 0.3, { tol: 1e-9 });
+
+  const grid = LTT.units("units");
+  LTT.predict({
+    question: "예측 질문 원문",
+    input: "guess",
+    button: "lock",
+    preview: (g) => { LTT.$("guess-v").textContent = g; LTT.$("hero").firstChild.textContent = g; grid.paint(g, "guess"); },
+    show: ["explore", "steps-card"],
+    reveal: () => explore.render(),
+  });
+
+  const explore = LTT.sweep({
+    immediate: false,
+    presets: "#explore .preset",
+    params: { x: { fmt: (v) => v + "%" } },
+    render: ({ x }) => {
+      const k = Math.round(model(x) * 100);
+      grid.paint(k, "on", 100 - k);
+      LTT.tween(LTT.$("hero").firstChild, k);
+      LTT.$("chart").replaceChildren(Plot.plot({
+        height: 220, y: { domain: [0, 1], grid: true },
+        marks: [Plot.line(d3.range(1, 101), { x: (d) => d, y: model }), Plot.dot([x], { x: (d) => d, y: model, r: 6 })],
+      }));
+    },
+  });
+
+  const fl = LTT.flow("diagram", {
+    viewBox: "0 0 880 160",
+    nodes: { a: { x: 20, y: 50, w: 160, h: 60, label: "A", sub: "설명" }, b: { x: 700, y: 50, w: 160, h: 60, label: "B" } },
+    links: [{ from: "a", to: "b", label: "연결 이름" }],
+  });
+  LTT.stepper("steps", [
+    { caption: "1단계 설명", enter: () => { fl.clear(); fl.highlight(["a"]); } },
+    { caption: "2단계 설명", enter: () => { fl.highlight(["a", "b"]); fl.send("a", "b"); } },
+  ]);
+</script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>처음 본 숫자가 내 추정을 끌어당길까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"인지과학","topic":"앵커링과 조정 부족","audience":"견적이나 일정을 추정해 본 적이 있다","pattern":["predict-slider","sweep","units","chart"],"decision":"견적·일정 추정에서 첫 숫자를 보여 줄 시점과 독립 추정을 먼저 받을지"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<style>
+  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; --ltt-guess: #b9c4f6; }
+  #wheel { width: 160px; height: 160px; display: block; margin: 8px auto; }
+  #wheel text { font: 700 26px sans-serif; fill: var(--ltt-ink); }
+  .row { display: grid; grid-template-columns: 112px 1fr; gap: 10px; align-items: center; margin: 8px 0; font-size: 14px; }
+  .row .ltt-bar span { transition: flex-grow .8s; }
+  .row.me .ltt-bar { outline: 2px solid var(--ltt-on); }
+  #weeks { --ltt-cols: 12; max-width: 420px; }
+  .cap { font-size: 12px; color: var(--ltt-muted); margin: 4px 0 10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>처음 본 숫자가 내 추정을 끌어당길까?</h1>
+  <p class="ltt-lead">작업: <b>견적이나 일정을 추정</b>해야 한다. 결정 변수: <b>누군가 먼저 말한 숫자를 보기 전에 독립 추정을 받을지</b>
+    (<span data-tip="Tversky &amp; Kahneman 1974: 관련 없는 숫자라도 먼저 보면 추정이 그 방향으로 치우친다. 조정이 충분히 이루어지지 않는다(anchoring and adjustment).">앵커링</span>).</p>
+
+  <section class="ltt-card" id="predict-card">
+    <h2>먼저 예측</h2>
+    <p>바퀴를 돌린다. 나온 숫자는 질문과 상관없다. <b>UN 회원국 중 아프리카 국가는 몇 %일까?</b></p>
+    <svg id="wheel" viewBox="0 0 160 160" aria-label="바퀴"></svg>
+    <p><button id="spin">바퀴 돌리기</button> <span id="anchor-note" class="cap"></span></p>
+    <div id="ask" class="ltt-hidden">
+      <p>그 숫자보다 높을까, 낮을까? 그리고 정확히 몇 %일까?</p>
+      <div class="ltt-hero" id="hero"><span>50</span><small>% 내 추정</small></div>
+      <div id="units"></div>
+      <label class="ltt-param">내 추정 <b id="guess-v"></b><input type="range" id="guess" min="0" max="100" value="50"></label>
+      <button id="lock">예측 잠그고 결과 보기</button>
+    </div>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="result">
+    <h2>연구와 비교 <span class="ltt-tag">출처: Tversky &amp; Kahneman 1974</span></h2>
+    <p>바퀴는 <b>처음부터 <span id="rig"></span>만 나오게 조작</b>되어 있었다(원 실험도 같은 방식). 연구의 두 집단 중앙값과 내 추정:</p>
+    <div class="row me"><span>내 추정</span><div id="b-me"></div></div>
+    <div class="row"><span>바퀴 10 집단</span><div id="b-10"></div></div>
+    <div class="row"><span>바퀴 65 집단</span><div id="b-65"></div></div>
+    <p class="ltt-basis">연구 중앙값: 앵커 10 → 25, 앵커 65 → 45 (논문 보고값). 두 집단 사이 차이 <b>20%p</b>.
+      <span class="ltt-tag warn">불확실</span> 한 사람의 추정으로는 효과를 확인할 수 없다. 이 효과는 집단 중앙값에서 드러난다.</p>
+    <p id="mine" class="cap"></p>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="explore">
+    <h2>일정 견적에서는 <span class="ltt-tag">모델로 계산한 예시</span></h2>
+    <p class="ltt-basis">팀장이 "2주면 되지?"라고 먼저 말했다. 내가 앵커 없이 잡은 독립 추정은 6주다. 끌림이 생기는 구간을 본다. (끌림의 크기는 사람과 과제마다 달라 수치를 싣지 않고 방향과 간격만 보인다.)</p>
+    <div class="ltt-hero" id="gap"><span>0</span><small>주 차이 (앵커가 끌어당기는 구간)</small></div>
+    <div id="weeks"></div>
+    <p class="cap">파랑: 앵커와 독립 추정이 겹치는 구간. 빨강: 둘 사이의 차이.</p>
+    <label class="ltt-param">먼저 제시된 숫자 <b id="anc-v"></b><input type="range" id="anc" min="1" max="12" value="2"></label>
+    <label class="ltt-param">내 독립 추정 <b id="own-v"></b><input type="range" id="own" min="1" max="12" value="6"></label>
+    <button class="preset" data-preset='{"anc":2,"own":6}'>낮은 앵커 (2주)</button>
+    <button class="preset" data-preset='{"anc":12,"own":6}'>높은 앵커 (12주)</button>
+    <button class="preset" data-preset='{"anc":6,"own":6}'>앵커 없음과 같은 값</button>
+    <p id="pull" class="cap"></p>
+    <p><b>활용:</b> 숫자를 보여 주기 전에 독립 추정(낙관·보통·비관 세 값)을 먼저 받는다. 첫 제시 숫자를 쓸 때는 근거와 함께 "참고값"으로만 준다.
+      <span class="ltt-tag bad">주의</span> 앵커는 무작위 숫자여도 작동한다. 그럴듯한 근거가 붙은 숫자가 틀렸는지는 따로 확인해야 한다.</p>
+    <p><b>한 줄 정리:</b> 먼저 나온 숫자는 근거가 없어도 기준이 된다. 내 추정을 먼저 적고 그다음에 비교한다.</p>
+  </section>
+</main>
+<script>
+  const EXPECTED_BY_HAND = { gap_2_6: 4, gap_12_6: 6, gap_6_6: 0, study_diff: 20 };
+  const STUDY = { 10: 25, 65: 45 };
+  const gap = (anc, own) => Math.abs(anc - own);
+  LTT.expect("gap 2 vs 6", gap(2, 6), EXPECTED_BY_HAND.gap_2_6, { tol: 0 });
+  LTT.expect("gap 12 vs 6", gap(12, 6), EXPECTED_BY_HAND.gap_12_6, { tol: 0 });
+  LTT.expect("gap equal", gap(6, 6), EXPECTED_BY_HAND.gap_6_6, { tol: 0 });
+  LTT.expect("study median diff", STUDY[65] - STUDY[10], EXPECTED_BY_HAND.study_diff, { tol: 0 });
+
+  const ANCHOR = Math.random() < 0.5 ? 10 : 65;
+  const wheel = d3.select("#wheel");
+  const seg = d3.arc().innerRadius(0).outerRadius(76);
+  const slice = Math.PI * 2 / 8;
+  const g = wheel.append("g").attr("transform", "translate(80,80)");
+  g.append("g").attr("id", "rot").selectAll("path").data(d3.range(8)).join("path")
+    .attr("d", (i) => seg({ startAngle: i * slice, endAngle: (i + 1) * slice }))
+    .attr("fill", (i) => (i % 2 ? "#e3e6ef" : "#cfd6f7")).attr("stroke", "#fff");
+  g.append("path").attr("d", "M0,-82L-7,-70L7,-70Z").attr("fill", "var(--ltt-alt)");
+  const label = g.append("text").attr("text-anchor", "middle").attr("dy", ".35em").text("?");
+
+  LTT.$("spin").addEventListener("click", () => {
+    LTT.$("spin").disabled = true;
+    const turn = 720 + Math.random() * 360;
+    d3.select("#rot").transition().duration(LTT.MOTION_MS ? 1600 : 0).ease(d3.easeCubicOut)
+      .attrTween("transform", () => d3.interpolateString("rotate(0)", "rotate(" + turn + ")"))
+      .on("end", () => {
+        label.text(ANCHOR);
+        LTT.$("anchor-note").textContent = "나온 숫자: " + ANCHOR;
+        LTT.$("ask").classList.remove("ltt-hidden");
+        LTT.$("ask").classList.add("ltt-rise");
+      });
+  });
+
+  const grid = LTT.units("units");
+  LTT.predict({
+    question: "UN 회원국 중 아프리카 국가 비율(%) 추정 (바퀴 앵커 " + ANCHOR + ")",
+    input: "guess",
+    button: "lock",
+    preview: (v) => { LTT.$("guess-v").textContent = v + "%"; LTT.$("hero").firstChild.textContent = v; grid.paint(v, "guess"); },
+    show: ["result", "explore"],
+    reveal: (v) => {
+      LTT.$("rig").textContent = ANCHOR + "";
+      grid.paint(v, "on");
+      const rows = [["b-me", v, "var(--ltt-on)"], ["b-10", STUDY[10], "var(--ltt-alt)"], ["b-65", STUDY[65], "var(--ltt-alt)"]];
+      rows.forEach(([id, val, color]) => LTT.bar(id, [{ color }, { color: "transparent" }]).set([0, 100], ["", ""]));
+      setTimeout(() => rows.forEach(([id, val, color]) =>
+        LTT.bar(id, [{ color }, { color: "transparent" }]).set([val, 100 - val], [val + "%", ""])), 60);
+      const nearer = Math.abs(v - STUDY[ANCHOR]) <= Math.abs(v - STUDY[ANCHOR === 10 ? 65 : 10]) ? "받은 앵커 집단" : "반대 앵커 집단";
+      LTT.$("mine").textContent = "내 추정(" + v + "%)은 " + nearer + "의 중앙값에 더 가깝다. 한 번의 값이라 효과의 증거는 아니다.";
+      ex.render();
+    },
+  });
+
+  const ex = LTT.sweep({
+    immediate: false,
+    presets: "#explore .preset",
+    params: { anc: { fmt: (v) => v + "주" }, own: { fmt: (v) => v + "주" } },
+    render: ({ anc, own }) => {
+      const d = gap(anc, own);
+      weeks.paint(Math.min(anc, own), "on", d);
+      LTT.tween(LTT.$("gap").firstChild, d);
+      LTT.$("pull").textContent = d === 0 ? "앵커와 같은 값: 끌림이 있어도 드러나지 않는다. 그래서 독립 추정을 먼저 받아야 구분된다."
+        : anc < own ? "끌림 방향: 내 추정이 낮아지는 쪽 (앵커가 더 작음)" : "끌림 방향: 내 추정이 높아지는 쪽 (앵커가 더 큼)";
+    },
+  });
+  const weeks = LTT.units("weeks", 12, 12);
+</script>
+</body>
+</html>

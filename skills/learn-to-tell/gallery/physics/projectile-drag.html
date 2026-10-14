@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>공기저항이 있으면 가장 멀리 날아가는 각도는 얼마나 낮아질까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"물리학","topic":"공기저항이 있는 투사체의 최대 사거리 각도","audience":"등가속도 운동과 sin2θ 사거리 공식을 알고 있다","pattern":["predict-slider","sweep","sim","chart"],"decision":"공기저항을 무시해도 되는지, 최대 사거리 각도를 45°로 둘 수 있는지"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<style>
+  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; --ltt-guess: #9aa6d4; --vac: #8a93ab; --drag: #d6455d; }
+  .split { display: grid; gap: 24px; grid-template-columns: minmax(200px, 300px) 1fr; align-items: center; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+  .row button.ghost { background: var(--ltt-line); color: var(--ltt-ink); }
+  .scene { width: 100%; height: auto; display: block; }
+  .scene text { font: 12px -apple-system, 'Apple SD Gothic Neo', sans-serif; fill: var(--ltt-muted); }
+  .facts { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 8px 0; }
+  .facts b { font-size: 24px; font-variant-numeric: tabular-nums; }
+  .facts span { display: block; font-size: 13px; color: var(--ltt-muted); }
+  #chart svg { max-width: 100%; height: auto; }
+  .case { border-left: 4px solid var(--ltt-good); padding-left: 12px; }
+  .case.warn { border-color: var(--ltt-warn); }
+</style>
+</head>
+<body>
+<main>
+  <h1>공기저항이 있으면 가장 멀리 날아가는 각도는 얼마나 낮아질까?</h1>
+  <p class="ltt-lead">작업: <b>공을 가장 멀리 보낼 발사각을 정해야 한다</b>. 결정 변수: <b>공기저항을 무시하고 45°로 둘지, 몇 도로 낮출지</b>.</p>
+
+  <section class="ltt-card" id="predict-card">
+    <h2>먼저 예측</h2>
+    <p>야구공(<span data-tip="질량 약 145 g, 지름 약 7.3 cm, 항력계수 Cd 0.35, 공기밀도 1.2 kg/m³. 근거는 아래 basis 참고.">조건</span>)을 지면에서 <b>40 m/s</b>로 던진다. 공기저항이 있을 때 가장 멀리 가는 각도는?
+      진공이면 <span data-tex="R = v^2\sin 2\theta / g"></span> 라서 45°다.</p>
+    <div class="split">
+      <svg class="scene" id="aim" viewBox="0 0 300 180" role="img" aria-label="발사각 그림">
+        <line x1="20" y1="160" x2="290" y2="160" stroke="var(--ltt-line)" stroke-width="3"/>
+        <line id="aim-45" x1="20" y1="160" x2="190" y2="-10" stroke="var(--vac)" stroke-dasharray="4 4"/>
+        <text x="196" y="12">진공 45°</text>
+        <line id="aim-g" x1="20" y1="160" x2="190" y2="-10" stroke="var(--ltt-on)" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="20" cy="160" r="6" fill="var(--ltt-on)"/>
+      </svg>
+      <div>
+        <div class="ltt-hero" id="hero"><span>45</span><small>° 내 예측</small></div>
+        <label class="ltt-param">최대 사거리 각도 <b id="guess-v"></b><input type="range" id="guess" min="20" max="60" step="1" value="45"></label>
+        <button id="lock">예측 잠그고 결과 보기</button>
+        <p class="ltt-basis">확정한 예측은 바꿀 수 없습니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="explore">
+    <h2>조건을 바꿔 보기 <span class="ltt-tag">모델로 계산한 예시</span></h2>
+    <div class="ltt-hero" id="opt"><span>0</span><small>° 항력 있을 때 최대 사거리 각도 (내 예측 <span id="mine"></span>°)</small></div>
+    <div class="facts">
+      <div><b id="r-vac">-</b><span>진공 사거리 (m)</span></div>
+      <div><b id="r-drag" style="color:var(--drag)">-</b><span>항력 사거리 (m)</span></div>
+      <div><b id="r-loss">-</b><span>항력으로 줄어든 비율</span></div>
+    </div>
+    <svg class="scene" id="scene" viewBox="0 0 880 400" role="img" aria-label="진공과 항력 궤적"></svg>
+    <div class="row">
+      <button id="throw">던지기</button>
+      <span class="ltt-key"><i style="background:var(--vac)"></i>진공</span>
+      <span class="ltt-key"><i style="background:var(--drag)"></i>항력 있음</span>
+    </div>
+    <label class="ltt-param">발사각 <b id="angle-v"></b><input type="range" id="angle" min="10" max="70" step="1" value="45"></label>
+    <label class="ltt-param">던지는 속력 <b id="speed-v"></b><input type="range" id="speed" min="10" max="45" step="1" value="40"></label>
+    <p class="ltt-basis">속력 범위 근거: 10 m/s는 가벼운 캐치볼, 45 m/s는 약 100 mph(44.7 m/s) 직구 수준.</p>
+    <button class="preset ghost" data-preset='{"speed":15,"angle":45}'>캐치볼 15 m/s</button>
+    <button class="preset ghost" data-preset='{"speed":30,"angle":45}'>외야 송구 30 m/s</button>
+    <button class="preset ghost" data-preset='{"speed":45,"angle":45}'>최고 구속 45 m/s</button>
+    <h3>각도별 사거리</h3>
+    <div id="chart"></div>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="cases">
+    <h2>어디에 쓰이고 어디서 틀리나</h2>
+    <div class="ltt-grid">
+      <div class="case"><b>활용</b> 야구·골프 비거리 추정, 포탄 사표 계산처럼 속력이 빠를수록 항력이 커지는 곳. 느린 공(캐치볼)은 45°에 가깝다.</div>
+      <div class="case warn"><b>주의 1</b> 항력 없이도 45°가 안 맞는 경우가 있다. 지면보다 높은 곳에서 던지면 진공에서도 최적각이 45°보다 낮다(포환던지기 등).</div>
+      <div class="case warn"><b>주의 2</b> 이 모델은 회전(마그누스 힘), 바람, 속도에 따라 변하는 Cd를 무시한다. 실제 홈런 비거리는 이 값과 다를 수 있다.</div>
+    </div>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="wrap">
+    <h2>한 줄 정리</h2>
+    <p>빠른 공일수록 최적각은 45°에서 내려가지만 각도 변화는 몇 도뿐이고, 사거리는 진공 값보다 훨씬 크게 줄어든다. 느린 공은 45°에 가깝다. 항력이 사거리를 얼마나 깎는지는 <span data-tex="F = \tfrac12 \rho C_d A v^2"></span>에서 나온다.</p>
+    <p class="ltt-basis">상수 근거.
+      질량 145 g, 지름 7.3 cm: MLB 공식 규격(질량 5–5.25 oz = 142–149 g, 둘레 9–9.25 in = 지름 7.3–7.5 cm)에서 가져옴.
+      공기밀도 1.2 kg/m³: 해수면 약 20 °C 표준값.
+      Cd 0.35: 야구공 Cd는 대략 0.3–0.5로 알려져 있고 속도와 표면(실밥)에 따라 변한다 <span class="ltt-tag warn">불확실</span> (이 페이지는 문헌값을 직접 확인하지 못한 기억 기반 값이다).
+      Cd를 키우면 최적각은 더 내려간다. 던지는 높이는 0 m, 바람은 0으로 둔다.</p>
+    <p class="ltt-basis">검증 방식. 진공 사거리는 손계산(<span data-tex="v^2\sin 2\theta/g"></span>)과 대조했다. 항력 모델은 닫힌 해가 없어 손계산 기대값이 없으므로 (1) Cd=0이면 진공 값과 같은지, (2) dt를 절반으로 줄여도 사거리가 수렴하는지로 점검했다. 항력 사거리의 절대 정확도는 검증하지 않았다.</p>
+  </section>
+</main>
+<script>
+  const EXPECTED_BY_HAND = {
+    g: 9.81,
+    vac45: 1600 / 9.81,                    // 163.0989 m
+    vac30: 1600 * Math.sin(Math.PI / 3) / 9.81,  // sin60 = 0.8660254 -> 141.2478 m
+    vac20: 1600 * Math.sin(2 * Math.PI / 9) / 9.81,
+    convTol: 0.001,                        // m, |R(dt) - R(dt/2)|
+  };
+
+  // MODEL-BEGIN
+  const G = 9.81, MASS = 0.145, DIAM = 0.0732, CD = 0.35, RHO = 1.2;
+  const AREA = Math.PI * (DIAM / 2) ** 2;
+  const K = 0.5 * RHO * CD * AREA / MASS;   // a_drag = K v |v|, unit 1/m
+  const rad = (d) => d * Math.PI / 180;
+  const vacRange = (v, deg) => v * v * Math.sin(2 * rad(deg)) / G;
+  const deriv = (s, k) => { const v = Math.hypot(s[2], s[3]); return [s[2], s[3], -k * v * s[2], -G - k * v * s[3]]; };
+  function rk4(s, dt, k) {
+    const add = (a, b, h) => a.map((x, i) => x + h * b[i]);
+    const k1 = deriv(s, k), k2 = deriv(add(s, k1, dt / 2), k), k3 = deriv(add(s, k2, dt / 2), k), k4 = deriv(add(s, k3, dt), k);
+    return s.map((x, i) => x + dt / 6 * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]));
+  }
+  function landing(s, n, f) {            // linear interpolation to y = 0 within the last step
+    const t = s[1] / (s[1] - n[1]);
+    return [s[0] + (n[0] - s[0]) * t, 0, s[2] + (n[2] - s[2]) * t, s[3] + (n[3] - s[3]) * t, f * t];
+  }
+  function range(v, deg, k, dt) {
+    let s = [0, 0, v * Math.cos(rad(deg)), v * Math.sin(rad(deg))];
+    for (let i = 0; i < 1e6; i++) {
+      const n = rk4(s, dt, k);
+      if (n[1] < 0) return s[0] + (n[0] - s[0]) * s[1] / (s[1] - n[1]);
+      s = n;
+    }
+    return NaN;
+  }
+  function bestAngle(v, k, dt) {
+    let best = 0, br = -1;
+    for (let a = 5; a <= 85; a += 1) { const r = range(v, a, k, dt); if (r > br) { br = r; best = a; } }
+    let lo = best - 1, hi = best + 1;     // range(angle) is unimodal; golden section
+    const phi = (Math.sqrt(5) - 1) / 2;
+    let c = hi - phi * (hi - lo), d = lo + phi * (hi - lo);
+    for (let i = 0; i < 30; i++) {
+      if (range(v, c, k, dt) > range(v, d, k, dt)) hi = d; else lo = c;
+      c = hi - phi * (hi - lo); d = lo + phi * (hi - lo);
+    }
+    return (lo + hi) / 2;
+  }
+  // MODEL-END
+
+  const near = (a, b) => Math.abs(a - b);
+  LTT.expect("진공 45° 사거리 (손계산 163.099 m)", vacRange(40, 45), EXPECTED_BY_HAND.vac45, { tol: 1e-9 });
+  LTT.expect("진공 30° 사거리 (손계산 141.248 m)", vacRange(40, 30), EXPECTED_BY_HAND.vac30, { tol: 1e-9 });
+  LTT.expect("Cd=0 수치 사거리 = 진공 45°", range(40, 45, 0, 1 / 200), EXPECTED_BY_HAND.vac45, { tol: EXPECTED_BY_HAND.convTol });
+  LTT.expect("Cd=0 수치 사거리 = 진공 20°", range(40, 20, 0, 1 / 200), EXPECTED_BY_HAND.vac20, { tol: EXPECTED_BY_HAND.convTol });
+  [30, 45, 60].forEach((a) => LTT.expect("dt 절반 수렴 " + a + "°", near(range(40, a, K, 1 / 200), range(40, a, K, 1 / 400)), 0, { tol: EXPECTED_BY_HAND.convTol }));
+
+  const mine = { v: null };
+  const aimLine = LTT.$("aim-g");
+  const aim = (deg) => { aimLine.setAttribute("x2", 20 + 240 * Math.cos(rad(deg))); aimLine.setAttribute("y2", 160 - 240 * Math.sin(rad(deg))); };
+  LTT.$("aim-45").setAttribute("x2", 20 + 240 * Math.cos(rad(45))); LTT.$("aim-45").setAttribute("y2", 160 - 240 * Math.sin(rad(45)));
+
+  LTT.predict({
+    question: "야구공을 40 m/s로 던질 때 공기저항이 있으면 최대 사거리 각도는?",
+    input: "guess", button: "lock",
+    preview: (g) => { LTT.$("guess-v").textContent = g + "°"; LTT.$("hero").firstChild.textContent = g; aim(g); },
+    show: ["explore", "cases", "wrap"],
+    reveal: (g) => { mine.v = g; LTT.$("mine").textContent = g; sweepCtl.render(); },
+  });
+
+  // Scene geometry is fixed per speed so changing the angle moves the curve, not the axes.
+  const W = 880, H = 400, X0 = 20, Y0 = 380;
+  const svg = d3.select("#scene");
+  svg.append("line").attr("x1", X0).attr("x2", W - 10).attr("y1", Y0).attr("y2", Y0).attr("stroke", "var(--ltt-line)").attr("stroke-width", 3);
+  const pathVac = svg.append("path").attr("fill", "none").attr("stroke", "var(--vac)").attr("stroke-width", 2.5).attr("stroke-dasharray", "6 5");
+  const pathDrag = svg.append("path").attr("fill", "none").attr("stroke", "var(--drag)").attr("stroke-width", 3);
+  const dotVac = svg.append("circle").attr("r", 6).attr("fill", "var(--vac)");
+  const dotDrag = svg.append("circle").attr("r", 6).attr("fill", "var(--drag)");
+  const tickG = svg.append("g");
+  let cur = { angle: 45, speed: 40, scale: 1 };
+  const px = (x, y) => [X0 + x * cur.scale, Y0 - y * cur.scale];
+  const line = d3.line();
+  const vacPt = (t) => { const v = cur.speed, a = rad(cur.angle); return [v * Math.cos(a) * t, v * Math.sin(a) * t - G * t * t / 2]; };
+  const tVac = () => 2 * cur.speed * Math.sin(rad(cur.angle)) / G;
+
+  const flight = LTT.sim({
+    dt: 1 / 120, speed: 1.4,
+    init: () => ({ s: [0, 0, cur.speed * Math.cos(rad(cur.angle)), cur.speed * Math.sin(rad(cur.angle))], done: false, trail: [[0, 0]], vtrail: [[0, 0]] }),
+    step: (st, dt, t) => {
+      const vt = Math.min(t + dt, tVac());
+      const vtrail = st.vtrail.concat([vacPt(vt)]);
+      if (st.done) return { s: st.s, done: true, trail: st.trail, vtrail };
+      const n = rk4(st.s, dt, K);
+      if (n[1] < 0) { const f = st.s[1] / (st.s[1] - n[1]); n[0] = st.s[0] + (n[0] - st.s[0]) * f; n[1] = 0; return { s: n, done: true, trail: st.trail.concat([[n[0], 0]]), vtrail }; }
+      return { s: n, done: false, trail: st.trail.concat([[n[0], n[1]]]), vtrail };
+    },
+    until: (st, t) => st.done && t >= tVac(),
+    draw: (st) => {
+      pathDrag.attr("d", line(st.trail.map((p) => px(p[0], p[1]))));
+      pathVac.attr("d", line(st.vtrail.map((p) => px(p[0], Math.max(0, p[1])))));
+      const lv = st.vtrail[st.vtrail.length - 1], ld = st.trail[st.trail.length - 1];
+      dotVac.attr("cx", px(lv[0], Math.max(0, lv[1]))[0]).attr("cy", px(lv[0], Math.max(0, lv[1]))[1]);
+      dotDrag.attr("cx", px(ld[0], ld[1])[0]).attr("cy", px(ld[0], ld[1])[1]);
+    },
+  });
+
+  function drawFull() {
+    const v = cur.speed, a = rad(cur.angle), T = tVac();
+    const vt = d3.range(0, 61).map((i) => vacPt(T * i / 60));
+    let s = [0, 0, v * Math.cos(a), v * Math.sin(a)], dt = 1 / 120, tr = [[0, 0]];
+    for (let i = 0; i < 1e5; i++) { const n = rk4(s, dt, K); if (n[1] < 0) { tr.push([s[0] + (n[0] - s[0]) * s[1] / (s[1] - n[1]), 0]); break; } s = n; tr.push([s[0], s[1]]); }
+    pathVac.attr("d", line(vt.map((p) => px(p[0], p[1]))));
+    pathDrag.attr("d", line(tr.map((p) => px(p[0], p[1]))));
+    dotVac.attr("cx", px(vt[60][0], 0)[0]).attr("cy", Y0);
+    dotDrag.attr("cx", px(tr[tr.length - 1][0], 0)[0]).attr("cy", Y0);
+  }
+
+  function ticks() {
+    tickG.selectAll("*").remove();
+    const step = cur.speed >= 30 ? 50 : cur.speed >= 20 ? 25 : 10;
+    for (let m = step; m * cur.scale < W - 40; m += step) {
+      tickG.append("line").attr("x1", px(m, 0)[0]).attr("x2", px(m, 0)[0]).attr("y1", Y0).attr("y2", Y0 + 6).attr("stroke", "var(--ltt-muted)");
+      tickG.append("text").attr("x", px(m, 0)[0]).attr("y", Y0 + 18).attr("text-anchor", "middle").text(m + " m");
+    }
+  }
+
+  const sweepCtl = LTT.sweep({
+    immediate: false, presets: "#explore .preset",
+    params: { angle: { fmt: (v) => v + "°" }, speed: { fmt: (v) => v + " m/s" } },
+    render: ({ angle, speed }) => {
+      flight.stop();
+      cur = { angle, speed, scale: (W - 60) / (speed * speed / G * 1.02) };
+      ticks(); drawFull();
+      const rv = vacRange(speed, angle), rd = range(speed, angle, K, 1 / 200);
+      LTT.tween(LTT.$("r-vac"), rv, d3.format(".1f"));
+      LTT.tween(LTT.$("r-drag"), rd, d3.format(".1f"));
+      LTT.tween(LTT.$("r-loss"), (1 - rd / rv) * 100, (x) => d3.format(".0f")(x) + "%");
+      const best = bestAngle(speed, K, 1 / 200);
+      LTT.tween(LTT.$("opt").firstChild, best, d3.format(".1f"));
+      const curve = d3.range(10, 71).map((a) => ({ a, vac: vacRange(speed, a), drag: range(speed, a, K, 1 / 200) }));
+      LTT.$("chart").replaceChildren(Plot.plot({
+        height: 260, marginLeft: 48, x: { label: "발사각 (°)", domain: [10, 70] }, y: { label: "사거리 (m)", grid: true },
+        marks: [
+          Plot.line(curve, { x: "a", y: "vac", stroke: "#8a93ab", strokeDasharray: "5 4" }),
+          Plot.line(curve, { x: "a", y: "drag", stroke: "#d6455d", strokeWidth: 2.5 }),
+          Plot.ruleX([45], { stroke: "#8a93ab", strokeOpacity: 0.5 }),
+          Plot.ruleX([best], { stroke: "#d6455d", strokeOpacity: 0.5 }),
+          Plot.dot([{ a: angle, y: rd }], { x: "a", y: "y", fill: "#d6455d", r: 6 }),
+          Plot.text([{ a: best, y: range(speed, best, K, 1 / 200) }], { x: "a", y: "y", text: (d) => "최적 " + d3.format(".1f")(best) + "°", dy: -12, fill: "#d6455d" }),
+        ],
+      }));
+    },
+  });
+  LTT.$("throw").addEventListener("click", () => { cur.angle = sweepCtl.values().angle; flight.start(); });
+</script>
+</body>
+</html>

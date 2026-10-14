@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>같은 4번 복습, 언제 하느냐에 따라 얼마나 달라질까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"교육학","topic":"간격 반복과 망각 곡선","audience":"지수 함수 정도만 알면 된다","pattern":["predict-slider","sweep","units","chart"],"decision":"복습 4회를 언제 배치할지(간격)"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<style>
+  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; --ltt-guess: #b9c4f6; --curve: #4f6bed; --ghost: #b4bacb; --mark: #e0a33a; }
+  .split { display: grid; gap: 24px; grid-template-columns: minmax(200px, 320px) 1fr; align-items: center; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .ask { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .row button { background: var(--ltt-card); color: var(--ltt-ink); border: 2px solid var(--ltt-line); }
+  .sl { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 4px 14px; }
+  .pair { display: flex; gap: 24px; flex-wrap: wrap; align-items: baseline; }
+  #tl { touch-action: none; }
+  #tl text { font: 11px sans-serif; fill: var(--ltt-muted); }
+  #tl .mk { cursor: ew-resize; fill: var(--mark); stroke: #fff; stroke-width: 2; }
+  .cases { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+</style>
+</head>
+<body>
+<main>
+  <h1>같은 4번 복습, 언제 하느냐에 따라 얼마나 달라질까?</h1>
+  <p class="ltt-lead">작업: 시험이나 자격증을 앞두고 <b>복습 4번을 어디에 배치할지</b> 정한다. 결정 변수: <b data-tip="복습 사이의 시간 간격. 복습 시점이 모여 있으면 기억 강도 S가 거의 늘지 않는다고 이 모델은 가정한다.">복습 시점(간격)</b>.</p>
+
+  <section class="ltt-card" id="predict-card">
+    <p class="ask">첫 학습 후 복습 4번을 (A) 하루에 몰아서 한 경우와 (B) 1, 3, 7, 14일째에 나눠 한 경우, 30일째 기억률은 몇 %p 차이날까?</p>
+    <div class="split">
+      <div id="units"></div>
+      <div>
+        <div class="ltt-hero" id="hero"><span>50</span><small>%p 차이</small></div>
+        <label class="ltt-param">내 예측 <b id="guess-v"></b><input type="range" id="guess" min="0" max="100" value="50" aria-label="예측: B가 A보다 몇 %p 높은가"></label>
+        <button id="lock">예측 잠그고 결과 보기</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="explore">
+    <h2>복습 시점을 끌어 보기 <span class="ltt-tag">모델로 계산한 예시</span></h2>
+    <p>
+      <span data-tex="R(t)=e^{-(t-t_k)/S}"></span>,
+      <span data-tex="S \leftarrow S\,\bigl(1+a\,(1-R)\bigr)"></span>
+      <span class="ltt-tag warn">불확실</span>
+    </p>
+    <div class="pair">
+      <div class="ltt-hero" id="h30"><span>0</span><small>% (30일째)</small></div>
+      <div class="ltt-stat" id="s60"><span>0</span><small>% (60일째)</small></div>
+    </div>
+    <div class="ltt-units" id="u30"></div>
+    <svg id="tl" class="ltt-svg" viewBox="0 0 640 260" role="img" aria-label="복습 시점에 따른 기억률 곡선. 노란 점을 끌어 시점을 바꾼다"></svg>
+    <div class="row">
+      <button class="preset" data-preset='{"r1":0.0833,"r2":0.1667,"r3":0.25,"r4":0.3333}'>하루에 몰아서</button>
+      <button class="preset" data-preset='{"r1":1,"r2":3,"r3":7,"r4":14}'>점점 넓히기</button>
+      <button class="preset" data-preset='{"r1":7,"r2":14,"r3":21,"r4":28}'>일주일 간격</button>
+      <button class="preset" data-preset='{"r1":26,"r2":27,"r3":28,"r4":29}'>시험 직전 몰아서</button>
+    </div>
+    <div class="sl">
+      <label class="ltt-param">복습 ① <b id="r1-v"></b><input type="range" id="r1" min="0.0833" max="29" step="0.0833" value="1"></label>
+      <label class="ltt-param">복습 ② <b id="r2-v"></b><input type="range" id="r2" min="0.0833" max="29" step="0.0833" value="3"></label>
+      <label class="ltt-param">복습 ③ <b id="r3-v"></b><input type="range" id="r3" min="0.0833" max="29" step="0.0833" value="7"></label>
+      <label class="ltt-param">복습 ④ <b id="r4-v"></b><input type="range" id="r4" min="0.0833" max="29" step="0.0833" value="14"></label>
+    </div>
+    <p class="ltt-basis">
+      상수: 첫 학습 직후 S=1일, a=4 <span class="ltt-tag warn">불확실</span> (복습 때 잊은 만큼 S가 커진다는 가정. 값은 이 예시용으로 정했고 출처 없음).
+      범위: 복습은 학습 후 2시간~29일, 시험은 30일째. 간격을 둔 학습이 몰아서 한 학습보다 지연 시험 성적이 높다는 방향은 Cepeda 외(2006) 메타분석이 근거. 곡선의 모양은 Ebbinghaus(1885)의 지수형 근사를 따랐다.
+    </p>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="use">
+    <h2>어디에 쓰고, 어디서 틀리나</h2>
+    <div class="cases">
+      <div>
+        <span class="ltt-tag good">실제 활용</span>
+        <p><b data-tip="Anki 같은 SRS는 카드를 맞힐 때마다 다음 복습 간격을 늘린다(SM-2 계열은 기본 배수 약 2.5, FSRS는 기억 모델로 간격을 계산). 위의 점점 넓히기와 같은 구조다.">Anki 같은 간격 반복 앱</b>은 복습 간격을 자동으로 넓힌다.</p>
+      </div>
+      <div>
+        <span class="ltt-tag bad">한계</span>
+        <p>실제 S 증가는 <span data-tip="과목, 자료 난이도, 학습자, 시험 형식에 따라 다르다. 이 모델의 a=4는 하나의 가정일 뿐이다.">과목마다 다르고</span> 모델은 단순화다. 시험 직전 몰아서 하기는 30일째엔 높아도 이후 빨리 떨어진다(60일째 값 비교).</p>
+      </div>
+    </div>
+    <p><b>정리:</b> 복습 횟수가 같아도 간격이 S의 성장을 정하고, 그 S가 며칠 뒤의 기억률을 정한다.</p>
+  </section>
+</main>
+<script>
+  const A = 4, S0 = 1;
+  function schedule(times) {
+    const ts = times.slice().sort((x, y) => x - y);
+    let tk = 0, S = S0;
+    const segs = [{ t: 0, S }];
+    for (const t of ts) { const R = Math.exp(-(t - tk) / S); S = S * (1 + A * (1 - R)); tk = t; segs.push({ t, S }); }
+    return (t) => { let s = segs[0]; for (const g of segs) if (g.t <= t) s = g; return Math.exp(-(t - s.t) / s.S); };
+  }
+
+  // EXPECTED_BY_HAND: 손계산(S 단계: 3.528, 9.636, 22.73, 46.83). 모델 코드보다 먼저 적음.
+  const EXPECTED_BY_HAND = { spaced30: 0.7106, crammed30: 0.0 };
+  LTT.expect("1,3,7,14일 복습 후 30일째", schedule([1, 3, 7, 14])(30), EXPECTED_BY_HAND.spaced30, { tol: 0.002 });
+  LTT.expect("하루 몰아서 후 30일째", schedule([1 / 12, 1 / 6, 1 / 4, 1 / 3])(30), EXPECTED_BY_HAND.crammed30, { tol: 1e-4 });
+  LTT.expect("복습 없이 t=1일", schedule([])(1), Math.exp(-1), { tol: 1e-9 });
+
+  const g1 = LTT.units("units");
+  LTT.predict({
+    question: "같은 4회 복습: 하루 몰아서(A) 대비 간격(B)의 30일째 기억률 차이(%p)",
+    input: "guess", button: "lock",
+    preview: (g) => { LTT.$("guess-v").textContent = g + "%p"; LTT.$("hero").firstChild.textContent = g; g1.paint(g, "guess"); },
+    show: ["explore", "use"],
+    reveal: () => { ex.render(); },
+  });
+
+  const u30 = LTT.units("u30"); u30.cells.forEach((c) => c.style.borderRadius = "2px");
+  document.getElementById("u30").style.maxWidth = "220px";
+  const svg = d3.select("#tl"), W = 640, H = 260, L = 36, B = 40, T = 12, TMAX = 60;
+  const x = d3.scaleLinear([0, TMAX], [L, W - 12]), y = d3.scaleLinear([0, 1], [H - B, T]);
+  svg.append("g").selectAll("line").data([0, 0.5, 1]).join("line").attr("x1", L).attr("x2", W - 12)
+    .attr("y1", (d) => y(d)).attr("y2", (d) => y(d)).attr("stroke", "var(--ltt-line)");
+  svg.append("g").selectAll("text").data([0, 0.5, 1]).join("text").attr("x", L - 6).attr("y", (d) => y(d) + 4).attr("text-anchor", "end").text((d) => d * 100 + "%");
+  svg.append("g").selectAll("text").data([0, 10, 20, 30, 40, 50, 60]).join("text").attr("x", x).attr("y", H - B + 30).attr("text-anchor", "middle").text((d) => d + "일");
+  svg.append("line").attr("x1", x(30)).attr("x2", x(30)).attr("y1", T).attr("y2", H - B).attr("stroke", "var(--ltt-alt)").attr("stroke-dasharray", "4 4");
+  svg.append("text").attr("x", x(30) + 4).attr("y", T + 10).text("시험(30일째)");
+  const line = d3.line().x((d) => x(d[0])).y((d) => y(d[1]));
+  const grid = d3.range(0, TMAX + 0.05, 0.05);
+  const ghost = svg.append("path").attr("fill", "none").attr("stroke", "var(--ghost)").attr("stroke-width", 2).attr("stroke-dasharray", "5 4");
+  const curve = svg.append("path").attr("fill", "none").attr("stroke", "var(--curve)").attr("stroke-width", 3);
+  const markers = svg.append("g");
+  let prevYs = null, dragging = false;
+
+  function render(ids, animate) {
+    const times = ids.map((id) => Number(LTT.$(id).value));
+    const R = schedule(times), ys = grid.map(R);
+    const draw = (v) => line(grid.map((t, i) => [t, v[i]]));
+    if (prevYs) ghost.attr("d", draw(prevYs));
+    const from = prevYs || ys;
+    if (animate && LTT.MOTION_MS) {
+      curve.interrupt().transition().duration(LTT.MOTION_MS).attrTween("d", () => (k) => draw(ys.map((v, i) => from[i] + (v - from[i]) * k)));
+    } else curve.interrupt().attr("d", draw(ys));
+    prevYs = ys;
+    markers.selectAll("circle").data(ids.map((id, i) => ({ id, t: times[i] }))).join((e) => e.append("circle").attr("class", "mk").attr("r", 9).attr("cy", y(0))
+      .call(d3.drag().on("start", () => { dragging = true; }).on("drag", (ev, d) => {
+        const v = Math.max(0.0833, Math.min(29, Math.round(x.invert(ev.x) * 4) / 4));
+        LTT.$(d.id).value = v; ex.render(false);
+      }).on("end", () => { dragging = false; })))
+      .attr("cx", (d) => x(d.t));
+    return { r30: R(30), r60: R(60) };
+  }
+  const fmtT = (v) => v < 1 ? Math.round(v * 24) + "시간 뒤" : (+v.toFixed(2)) + "일째";
+  const ids = ["r1", "r2", "r3", "r4"];
+  const params = {}; ids.forEach((id) => params[id] = { fmt: fmtT });
+  let animateNext = true;
+  ids.forEach((id) => LTT.$(id).addEventListener("input", () => { animateNext = false; }));
+  const ex = LTT.sweep({
+    immediate: false, presets: "#explore .preset", params,
+    render: () => {
+      const r = render(ids, animateNext);
+      animateNext = true;
+      const p30 = Math.round(r.r30 * 100);
+      u30.paint(p30, "on");
+      LTT.tween(LTT.$("h30").firstChild, p30, undefined, dragging ? 0 : undefined);
+      LTT.tween(LTT.$("s60").firstChild, Math.round(r.r60 * 100), undefined, dragging ? 0 : undefined);
+    },
+  });
+  const baseRender = ex.render;
+  ex.render = (animate) => { animateNext = animate !== false; baseRender(); };
+</script>
+</body>
+</html>

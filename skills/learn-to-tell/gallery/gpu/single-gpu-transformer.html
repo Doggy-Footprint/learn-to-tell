@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>batch를 키우면 GPU는 언제 연산에 묶일까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"gpu","topic":"single-gpu-transformer","audience":"Transformer(attention, Q/K/V, layer)를 안다. GPU 메모리 계층은 모른다","pattern":["predict-choice","sweep","chart","units"],"decision":"한 GPU에서 batch와 문맥 길이를 얼마로 잡을지, prefill과 decode가 각각 무엇에 묶이는지"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<style>
+  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; --ltt-guess: #b9c4f6; --w: #8a93b2; --kv: #e0a33a; --pre: #d6455d; --dec: #4f6bed; }
+  .split { display: grid; gap: 20px; grid-template-columns: minmax(0, 260px) 1fr; align-items: center; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .bar-text { font-size: 13px; color: var(--ltt-muted); margin: 6px 0; }
+  .bar-text b { color: var(--ltt-ink); font-variant-numeric: tabular-nums; }
+  .ltt-bar span { font-size: 12px; color: #fff; padding: 0 8px; line-height: 34px; white-space: nowrap; overflow: hidden; }
+  #roof { max-width: 560px; }
+  #roof .tick text { font-size: 11px; fill: var(--ltt-muted); }
+  #roof .dot-label { font-weight: 700; }
+  #roof .region { fill: var(--ltt-muted); font-size: 11px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>batch를 키우면 GPU는 언제 연산에 묶일까?</h1>
+  <p class="ltt-lead">작업: Llama-3-8B를 H100 한 장에서 서빙할 때 batch와 문맥 길이를 정한다. 결정 변수: <span data-tip="한 번 읽은 바이트당 몇 번 계산하는가(FLOP/byte). 이 값이 ridge point보다 작으면 메모리 대역폭에 묶인다">arithmetic intensity</span>와 <span data-tip="batch 하나당 문맥 토큰마다 2 × 층 × KV head × head_dim × 바이트 만큼 HBM을 쓴다">KV cache</span>가 정하는 최대 batch.
+  <span class="ltt-tag warn">모든 계산은 이상적 상한(roofline)이다</span></p>
+
+  <section class="ltt-card" id="predict-card">
+    <h2>먼저 예측</h2>
+    <p>roofline에서 ridge point는 연산 피크 ÷ 메모리 대역폭 ≈ 989 TFLOPS / 3.35 TB/s ≈ <b>295 FLOP/byte</b>다. 이보다 작으면 메모리에 묶이고 크면 연산에 묶인다. batch 1 decode의 arithmetic intensity는 ridge point보다 큰가, 작은가?</p>
+    <div id="choices">
+      <button data-choice="bigger">ridge point보다 크다 (연산에 묶임)</button>
+      <button data-choice="smaller">ridge point보다 훨씬 작다 (메모리에 묶임)</button>
+    </div>
+    <p><button id="lock">예측 잠그고 결과 보기</button></p>
+    <p id="result" class="ltt-hidden"></p>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="explore">
+    <h2>roofline 위에서 점 움직이기 <span class="ltt-tag">모델로 계산한 예시</span></h2>
+    <div class="split">
+      <div>
+        <div class="ltt-hero"><span id="hero-n">0</span><small>% decode 연산기 활용률</small></div>
+        <p class="bar-text">decode AI <b id="ai-d"></b> FLOP/byte · prefill AI <b id="ai-p"></b></p>
+        <p class="bar-text"><span id="fitTag" class="ltt-tag"></span> 이 문맥 길이의 최대 batch <b id="maxb"></b></p>
+      </div>
+      <svg id="roof"></svg>
+    </div>
+    <p class="bar-text">HBM 80 GB 사용 (가중치 16 GB + KV cache): <b id="kvtxt"></b></p>
+    <div id="hbm"></div>
+    <label class="ltt-param">decode batch <b id="bi-v"></b><input type="range" id="bi" min="0" max="9" value="0"></label>
+    <label class="ltt-param">문맥 길이(= prefill 프롬프트 길이) <b id="si-v"></b><input type="range" id="si" min="0" max="6" value="3"></label>
+    <p>
+      <button class="preset" data-preset='{"bi":0,"si":3}'>batch 1 개인 챗</button>
+      <button class="preset" data-preset='{"bi":6,"si":3}'>서버 batch 64</button>
+      <button class="preset" data-preset='{"bi":7,"si":3}'>batch 128 (HBM 초과)</button>
+      <button class="preset" data-preset='{"bi":3,"si":6}'>긴 문서 32k, batch 8</button>
+    </p>
+    <p class="ltt-basis">
+      근거: H100 SXM 데이터시트 기준 HBM3 약 3.35 TB/s, BF16 dense 약 989 TFLOPS, HBM 80 GB (작성 시 원문 재확인 안 함 <span class="ltt-tag warn">불확실</span>).
+      Llama-3-8B: 32층, KV head 8(GQA), head_dim 128, KV는 BF16(2바이트) → KV cache = 2 × 32 × 8 × 128 × 2 = 131,072 B/토큰. 가중치는 8B × 2바이트 = 16 GB로 단순화(실제 8.03B).
+      decode 한 스텝 = 가중치 16 GB + KV 전체 읽기, 연산은 2 × 8B × batch FLOP. attention 연산 FLOP은 무시했다(문맥 4096에서 가중치 연산의 약 13%). prefill은 가중치 1회 읽기 + KV 쓰기.
+      최대 batch = 가중치를 뺀 64 GB를 KV로 채운 값이며 활성값·프레임워크 여유 공간은 무시했다 <span class="ltt-tag warn">불확실</span>. 1 GB = 10^9 B.
+    </p>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="cases">
+    <h2>활용과 주의</h2>
+    <div class="ltt-grid">
+      <div><span class="ltt-tag good">활용</span> prompt가 길면 prefill은 연산을 꽉 채우고(AI 수천), decode는 batch로 읽기를 나눠 쓴다. 둘을 나눠 최적화한다.</div>
+      <div><span class="ltt-tag good">활용</span> GQA는 KV head를 32에서 8로 줄여 KV cache를 4분의 1로 만든다. 같은 HBM에 batch가 4배 올라간다.</div>
+      <div><span class="ltt-tag bad">주의</span> 문맥 4096에서도 HBM이 차는 batch 119의 AI는 약 24다. 295에 닿기 전에 HBM이 먼저 찬다.</div>
+      <div><span class="ltt-tag warn">주의</span> 문맥이 길수록 최대 batch가 줄어든다. 32k에서는 14다.</div>
+    </div>
+    <p><b>한 줄 정리:</b> decode는 batch를 키워도 KV cache가 HBM을 채우기 전까지 ridge에 닿기 어렵고, prefill은 길이만으로 연산에 묶인다.</p>
+  </section>
+</main>
+<script>
+  // 손으로 계산한 기대값 (모델 코드보다 먼저)
+  // KV/토큰 = 2*32*8*128*2 = 131,072 B. 문맥 4096 한 사용자 = 131,072*4096 = 536,870,912 B
+  // 최대 batch(4096) = floor(64e9 / 536,870,912) = floor(119.2) = 119, (8192) = floor(64e9 / 1,073,741,824) = floor(59.6) = 59, (32768) = floor(14.9) = 14
+  // ridge = 989/3.35 = 295.224
+  // decode AI(b=1, 4096) = 16e9 / (16e9 + 536,870,912) = 0.96753
+  // decode AI(b=119, 4096) = 16e9*119 / (16e9 + 119*536,870,912) = 1.904e12 / 7.98876e10 = 23.8335
+  // prefill AI(4096) = 2*8e9*4096 / (16e9 + 536,870,912) = 6.5536e13 / 1.65369e10 = 3963.0
+  // 활용률(b=1, 4096) = 3.35e12 * 0.96753 / 989e12 = 0.3277 %
+  const EXPECTED_BY_HAND = { kvTok: 131072, kvSeq: 536870912, max4k: 119, max8k: 59, max32k: 14, ridge: 295.224, aiD1: 0.96753, aiD119: 23.8335, aiP4k: 3963.0, util1: 0.3277 };
+
+  const BW = 3.35, PEAK = 989, W = 16e9, HBM = 80e9, P = 8e9, KVTOK = 2 * 32 * 8 * 128 * 2;
+  const kvSeq = (S) => KVTOK * S;
+  const maxBatch = (S) => Math.floor((HBM - W) / kvSeq(S));
+  const aiDecode = (b, S) => (2 * P * b) / (W + b * kvSeq(S));
+  const aiPrefill = (S) => (2 * P * S) / (W + kvSeq(S));
+  const attain = (ai) => Math.min(PEAK, BW * ai);
+
+  LTT.expect("KV B/토큰", KVTOK, EXPECTED_BY_HAND.kvTok, { tol: 0 });
+  LTT.expect("KV B/사용자(4096)", kvSeq(4096), EXPECTED_BY_HAND.kvSeq, { tol: 0 });
+  LTT.expect("최대 batch 4096", maxBatch(4096), EXPECTED_BY_HAND.max4k, { tol: 0 });
+  LTT.expect("최대 batch 8192", maxBatch(8192), EXPECTED_BY_HAND.max8k, { tol: 0 });
+  LTT.expect("최대 batch 32768", maxBatch(32768), EXPECTED_BY_HAND.max32k, { tol: 0 });
+  LTT.expect("ridge", PEAK / BW, EXPECTED_BY_HAND.ridge, { tol: 1e-3 });
+  LTT.expect("decode AI b=1", aiDecode(1, 4096), EXPECTED_BY_HAND.aiD1, { tol: 1e-4 });
+  LTT.expect("decode AI b=119", aiDecode(119, 4096), EXPECTED_BY_HAND.aiD119, { tol: 1e-3 });
+  LTT.expect("prefill AI 4096", aiPrefill(4096), EXPECTED_BY_HAND.aiP4k, { tol: 0.1 });
+  LTT.expect("활용률 % b=1", (attain(aiDecode(1, 4096)) / PEAK) * 100, EXPECTED_BY_HAND.util1, { tol: 1e-3 });
+
+  const fmtAI = (v) => (v >= 100 ? d3.format(",.0f")(v) : d3.format(".2f")(v));
+  const gb = (x) => d3.format(".1f")(x / 1e9) + " GB";
+
+  // roofline: 로그-로그 축
+  const VW = 520, VH = 300, M = { l: 52, r: 14, t: 14, b: 42 };
+  const x = d3.scaleLog([0.5, 10000], [M.l, VW - M.r]), y = d3.scaleLog([1, 2000], [VH - M.b, M.t]);
+  const svg = d3.select("#roof").attr("class", "ltt-svg").attr("viewBox", "0 0 " + VW + " " + VH);
+  svg.append("g").attr("class", "ax").attr("transform", "translate(0," + (VH - M.b) + ")").call(d3.axisBottom(x).ticks(5, "~s"));
+  svg.append("g").attr("class", "ax").attr("transform", "translate(" + M.l + ",0)").call(d3.axisLeft(y).ticks(4, "~s"));
+  svg.selectAll(".ax text").style("font-size", "11px");
+  svg.append("text").attr("x", (M.l + VW - M.r) / 2).attr("y", VH - 6).attr("text-anchor", "middle").text("arithmetic intensity (FLOP/byte)");
+  svg.append("text").attr("transform", "rotate(-90)").attr("x", -(VH - M.b + M.t) / 2).attr("y", 12).attr("text-anchor", "middle").text("달성 TFLOPS");
+  const roofPts = d3.range(0.5, 10000, 1).concat([PEAK / BW, 10000]).sort((a, b) => a - b);
+  svg.append("path").datum(roofPts).attr("fill", "none").attr("stroke", "var(--ltt-ink)").attr("stroke-width", 2.5)
+    .attr("d", d3.line().x(x).y((v) => y(attain(v))));
+  svg.append("line").attr("x1", x(PEAK / BW)).attr("x2", x(PEAK / BW)).attr("y1", y(PEAK)).attr("y2", VH - M.b)
+    .attr("stroke", "var(--ltt-muted)").attr("stroke-dasharray", "4 4");
+  svg.append("text").attr("class", "region").attr("x", x(PEAK / BW) + 5).attr("y", VH - M.b - 6).text("ridge ≈ 295");
+  svg.append("text").attr("class", "region").attr("x", M.l + 8).attr("y", y(20)).text("메모리에 묶임");
+  svg.append("text").attr("class", "region").attr("x", VW - M.r - 6).attr("y", y(PEAK) - 6).attr("text-anchor", "end").text("연산에 묶임 (피크 989)");
+  const mkDot = (color, label) => {
+    const g = svg.append("g");
+    g.append("circle").attr("r", 8).attr("fill", color).attr("stroke", "#fff").attr("stroke-width", 2);
+    g.append("text").attr("class", "dot-label").attr("x", 12).attr("y", -10).style("fill", color).text(label);
+    return g;
+  };
+  const dotD = mkDot("var(--dec)", "decode"), dotP = mkDot("var(--pre)", "prefill");
+  const place = (g, ai, anchorEnd) => {
+    const t = "translate(" + x(ai) + "," + y(attain(ai)) + ")";
+    if (g.attr("transform")) g.interrupt().transition().duration(LTT.MOTION_MS).ease(d3.easeCubicInOut).attr("transform", t);
+    else g.attr("transform", t);
+    g.select("text").attr("text-anchor", anchorEnd ? "end" : "start").attr("x", anchorEnd ? -12 : 12);
+  };
+
+  const hbm = LTT.bar("hbm", [{ color: "var(--w)" }, { color: "var(--kv)" }, { color: "var(--ltt-line)" }]);
+
+  const explore = LTT.sweep({
+    immediate: false,
+    presets: "#explore .preset",
+    params: {
+      bi: { map: (v) => 2 ** v, fmt: (v) => v + "명" },
+      si: { map: (v) => 512 * 2 ** v, fmt: (v) => d3.format(",")(v) + " 토큰" },
+    },
+    render: ({ bi, si }) => {
+      const aiD = aiDecode(bi, si), aiP = aiPrefill(si), mb = maxBatch(si), over = bi > mb;
+      const kv = bi * kvSeq(si), room = HBM - W;
+      LTT.tween("hero-n", (attain(aiD) / PEAK) * 100, d3.format(".2f"));
+      LTT.$("ai-d").textContent = fmtAI(aiD); LTT.$("ai-p").textContent = fmtAI(aiP);
+      LTT.$("maxb").textContent = mb + "명";
+      const tag = LTT.$("fitTag");
+      tag.textContent = over ? "HBM 초과: 이 batch는 못 올림" : "HBM에 들어감";
+      tag.className = "ltt-tag " + (over ? "bad" : "good");
+      LTT.$("kvtxt").textContent = "KV cache " + gb(kv) + " / 여유 " + gb(room);
+      hbm.set([W, Math.min(kv, room), Math.max(0, room - kv)], ["가중치 16 GB", kv > 4e9 || over ? "KV" : "", ""]);
+      dotD.select("circle").attr("fill", over ? "var(--ltt-alt)" : "var(--dec)");
+      place(dotD, aiD, aiD > 1000); place(dotP, aiP, true);
+    },
+  });
+
+  LTT.predict({
+    question: "batch 1 decode의 arithmetic intensity는 ridge point보다 큰가 작은가",
+    choices: "choices",
+    button: "lock",
+    answer: "smaller",
+    show: ["result", "explore", "cases"],
+    reveal: (g) => {
+      LTT.$("result").innerHTML = (g === "smaller" ? "맞다. " : "달랐다. ") + "토큰 1개를 위해 표 16 GB를 읽고 2 × 8B FLOP만 하므로 AI는 약 <b>1</b>이고 ridge 295의 300분의 1이다. 연산기는 0.3%만 쓴다.";
+      explore.render();
+    },
+  });
+</script>
+</body>
+</html>

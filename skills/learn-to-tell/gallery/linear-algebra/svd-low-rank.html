@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>특이값 몇 개면 행렬을 거의 복원할 수 있는가?</title>
+<script type="application/json" id="ltt-meta">{"domain":"선형대수","topic":"SVD와 rank-k 근사 (Eckart–Young, LoRA)","audience":"행렬 곱, 고유값·직교 행렬(회전)의 뜻을 안다","pattern":["predict-slider","plane","stepper","sweep","chart"],"decision":"유지할 rank k(또는 LoRA의 r)를 에너지 비율과 저장 비용으로 고른다"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<style>
+  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; --ltt-guess: #b9c4f6; }
+  .two { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); align-items: start; }
+  .two h3 { margin: 0 0 4px; font-size: 15px; }
+  .img { width: 100%; height: auto; display: block; image-rendering: pixelated; border: 1px solid var(--ltt-line); }
+  .stats { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 10px 0; }
+  .bars rect.on { fill: var(--ltt-on); } .bars rect.off { fill: var(--ltt-line); }
+  .bars text { font-size: 10px; fill: var(--ltt-muted); }
+  .ltt-card .mat { font-size: 17px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>특이값 몇 개면 행렬을 거의 복원할 수 있는가?</h1>
+  <p class="ltt-lead">작업: 큰 가중치 행렬(이미지, 임베딩, LoRA 어댑터)을 작게 줄이거나 어댑터의 rank를 정해야 한다. 결정 변수: 남길 <b>rank k</b> = 에너지 비율 대 저장 비용.</p>
+
+  <section class="ltt-card" id="predict-card">
+    <h2>먼저 예측 <span class="ltt-tag">모델로 계산한 예시</span></h2>
+    <p>아래 24×32 흑백 이미지(합성 데이터)를 <span data-tex="A_k=\sum_{i\le k}\sigma_i u_i v_i^\top"></span>로 근사한다. 에너지 비율 <span data-tex="\sum_{i\le k}\sigma_i^2/\sum\sigma_i^2"></span>이 <b>99% 이상</b>이 되는 최소 k는? (전체 rank는 최대 24)
+      <span data-tip="에너지 99%는 상대 오차 ‖A−A_k‖_F/‖A‖_F ≤ 10%와 같다(오차² = 버린 σ²의 합이므로 √0.01).">왜 99%?</span></p>
+    <div class="two"><div><h3>원본</h3><svg id="img-orig" class="img"></svg></div>
+      <div><div class="ltt-hero" id="hero0"><span>12</span><small>= 내 예측 k</small></div><div id="units"></div></div></div>
+    <label class="ltt-param">내 예측 k <b id="guess-v"></b><input type="range" id="guess" min="1" max="24" value="12"></label>
+    <button id="lock">예측 잠그고 SVD 보기</button>
+    <p class="ltt-basis">이미지: 24×32, 배경 기울기 + 원 + 대각선 띠 + 시드 고정 잡음(±0.02). 임의로 만든 합성 데이터이며 실제 이미지의 값이 아니다.</p>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="geo">
+    <h2>SVD는 무엇인가: 회전 → 축 스케일 → 회전 <span class="ltt-tag">모델로 계산한 예시</span></h2>
+    <p><span data-tex="A=\begin{bmatrix}3&0\\4&5\end{bmatrix}=U\Sigma V^\top"></span>. 단위원이 타원이 된다. 타원의 반지름이 특이값이다.</p>
+    <div class="two"><svg id="pl-svd"></svg><div><div class="mat" id="svd-mat"></div><div id="svd-vals"></div></div></div>
+    <div id="steps"></div>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="explore">
+    <h2>rank k로 줄여 보기 <span class="ltt-tag">모델로 계산한 예시</span></h2>
+    <div class="ltt-hero" id="hero"><span>0</span><small>% 에너지 보존</small></div>
+    <div class="two">
+      <div><h3>rank-k 근사 <span id="kk"></span></h3><svg id="img-k" class="img"></svg></div>
+      <div><h3>특이값 σ<sub>i</sub> (로그 축)</h3><svg id="sv" class="bars" viewBox="0 0 300 160"></svg></div>
+    </div>
+    <label class="ltt-param">k <b id="k-v"></b><input type="range" id="k" min="1" max="24" value="1"></label>
+    <button class="preset" data-preset='{"k":1}'>k=1</button>
+    <button class="preset" id="p99" data-preset='{"k":1}'>99% 처음 넘는 k</button>
+    <button class="preset" id="pbe" data-preset='{"k":13}'>저장 이득의 끝</button>
+    <button class="preset" id="pbe1" data-preset='{"k":14}'>그 다음 k</button>
+    <button class="preset" data-preset='{"k":24}'>전체 rank</button>
+    <div class="stats">
+      <div><div class="ltt-stat" id="st-store">0</div><small>저장 수 k(m+n+1) vs mn=768</small></div>
+      <div><div class="ltt-stat" id="st-err">0</div><small>상대 오차 ‖A−A<sub>k</sub>‖<sub>F</sub>/‖A‖<sub>F</sub></small></div>
+    </div>
+    <p id="store-note"></p>
+    <p><b>Eckart–Young:</b> <span data-tex="\min_{\operatorname{rank}B\le k}\|A-B\|_F=\|A-A_k\|_F=\sqrt{\textstyle\sum_{i>k}\sigma_i^2}"></span>, 즉 같은 rank로는 SVD 절단보다 나은 근사가 없다.</p>
+    <p class="ltt-basis">저장 수: A_k는 U의 k열(m×k), V의 k열(n×k), σ k개를 저장하므로 k(m+n+1)이다. k(m+n+1) &lt; mn일 때만 압축이 된다. 1열이 큰 이유: 픽셀 값이 0~1로 양수라 평균 성분이 σ<sub>1</sub>에 몰린다.</p>
+  </section>
+
+  <section class="ltt-card ltt-hidden" id="uses">
+    <h2>실제 활용과 주의</h2>
+    <p><b>LoRA:</b> 가중치 변화 <span data-tex="\Delta W=BA"></span>를 <span data-tex="B\in\mathbb R^{d\times r},A\in\mathbb R^{r\times d}"></span>로 제한한다. 즉 rank-r 근사 구조를 처음부터 학습한다. d=4096, r=8이면:</p>
+    <div id="lora-bar"></div>
+    <p id="lora-text"></p>
+    <p class="ltt-basis">d=4096은 7B급 LLM(예: LLaMA-7B)의 hidden size로 알고 있는 값이다. 어떤 r이 충분한지는 과제마다 다르다. <span class="ltt-tag warn">불확실</span> 논문(Hu et al., 2021)이 작은 r(1~8 수준)에서도 성능이 유지된다고 보고한 것으로 기억하나 원문은 확인하지 않았다.</p>
+    <ul>
+      <li>주의: k를 늘려도 k(m+n+1) &gt; mn이면 원 행렬을 그대로 저장하는 편이 작다(위 슬라이더의 k=14).</li>
+      <li>주의: 에너지 비율은 Frobenius 오차 기준이다. 작은 특이값 방향에 중요한 정보(희귀 패턴)가 있어도 에너지는 작다.</li>
+    </ul>
+    <p><b>한 줄 정리:</b> 특이값이 빨리 줄어드는 행렬은 k(m+n+1) 개의 수로 거의 복원되고, 그 한계는 버린 σ<sup>2</sup>의 합이 정확히 정한다.</p>
+  </section>
+</main>
+<script>
+  // 손계산 기대값: A=[[3,0],[4,5]], AtA=[[25,20],[20,25]] -> 고유값 45, 5
+  const EXPECTED_BY_HAND = {
+    sigma: [Math.sqrt(45), Math.sqrt(5)],
+    frobSq: 50,
+    detAbs: 15,
+    v1: [1 / Math.SQRT2, 1 / Math.SQRT2],
+    u1: [1 / Math.sqrt(10), 3 / Math.sqrt(10)],
+    u2: [-3 / Math.sqrt(10), 1 / Math.sqrt(10)],
+    fullRankErr: 0,
+    lora: { full: 4096 * 4096, lora: 2 * 4096 * 8 },
+  };
+
+  const T = (M) => M[0].map((_, j) => M.map((r) => r[j]));
+  const mm = (P, Q) => P.map((r) => Q[0].map((_, j) => d3.sum(r, (x, k) => x * Q[k][j])));
+  const frobSq = (M) => d3.sum(M.flat(), (x) => x * x);
+
+  // 대칭행렬 S의 Jacobi 회전법. 고유값 내림차순, 고유벡터는 V의 열.
+  function jacobiEig(S) {
+    const n = S.length, a = S.map((r) => r.slice());
+    const V = d3.range(n).map((i) => d3.range(n).map((j) => (i === j ? 1 : 0)));
+    for (let sweep = 0; sweep < 60; sweep++) {
+      let off = 0;
+      for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) off += a[p][q] * a[p][q];
+      if (off < 1e-24) break;
+      for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) {
+        if (Math.abs(a[p][q]) < 1e-300) continue;
+        const th = (a[q][q] - a[p][p]) / (2 * a[p][q]);
+        const t = (th >= 0 ? 1 : -1) / (Math.abs(th) + Math.sqrt(th * th + 1));
+        const c = 1 / Math.sqrt(t * t + 1), s = t * c;
+        for (let k = 0; k < n; k++) { const x = a[k][p], y = a[k][q]; a[k][p] = c * x - s * y; a[k][q] = s * x + c * y; }
+        for (let k = 0; k < n; k++) { const x = a[p][k], y = a[q][k]; a[p][k] = c * x - s * y; a[q][k] = s * x + c * y; }
+        for (let k = 0; k < n; k++) { const x = V[k][p], y = V[k][q]; V[k][p] = c * x - s * y; V[k][q] = s * x + c * y; }
+      }
+    }
+    const order = d3.range(n).sort((i, j) => a[j][j] - a[i][i]);
+    return { vals: order.map((i) => a[i][i]), V: V.map((r) => order.map((i) => r[i])) };
+  }
+
+  // A(m×n) = U diag(s) Vt. m<n이면 전치해서 작은 쪽 Gram 행렬을 쓴다.
+  function svd(A) {
+    const m = A.length, n = A[0].length;
+    if (m < n) { const r = svd(T(A)); return { U: r.V, s: r.s, V: r.U }; }
+    const { vals, V } = jacobiEig(mm(T(A), A));
+    const s = vals.map((l) => Math.sqrt(Math.max(l, 0)));
+    const AV = mm(A, V);
+    const U = AV.map((row) => row.map((x, j) => (s[j] > 1e-10 ? x / s[j] : 0)));
+    return { U, s, V };
+  }
+  const rankK = (f, k) => {
+    const m = f.U.length, n = f.V.length;
+    return d3.range(m).map((i) => d3.range(n).map((j) => d3.sum(d3.range(k), (t) => f.s[t] * f.U[i][t] * f.V[j][t])));
+  };
+
+  // ---- 2×2 검증
+  const A2 = [[3, 0], [4, 5]];
+  const f2 = svd(A2);
+  const sgn = Math.sign(f2.V[0][0]) || 1;                        // v1 첫 성분을 양수로
+  const v1 = [f2.V[0][0] * sgn, f2.V[1][0] * sgn], u1 = [f2.U[0][0] * sgn, f2.U[1][0] * sgn];
+  LTT.expect("σ1 (2×2)", f2.s[0], EXPECTED_BY_HAND.sigma[0], { tol: 1e-9 });
+  LTT.expect("σ2 (2×2)", f2.s[1], EXPECTED_BY_HAND.sigma[1], { tol: 1e-9 });
+  LTT.expect("Σσ² = ‖A‖F² (2×2)", d3.sum(f2.s, (x) => x * x), EXPECTED_BY_HAND.frobSq, { tol: 1e-9 });
+  LTT.expect("σ1σ2 = |det|", f2.s[0] * f2.s[1], EXPECTED_BY_HAND.detAbs, { tol: 1e-9 });
+  LTT.expect("v1 x", v1[0], EXPECTED_BY_HAND.v1[0], { tol: 1e-9 });
+  LTT.expect("u1 y", u1[1], EXPECTED_BY_HAND.u1[1], { tol: 1e-9 });
+  // 2×2 단계 재생용: det(V)=+1 이 되도록 v2 부호를 맞춰 회전으로 보이게 한다
+  const V2 = [[v1[0], 0], [v1[1], 0]];
+  const v2 = [-v1[1], v1[0]];
+  V2[0][1] = v2[0]; V2[1][1] = v2[1];
+  const U2 = mm(A2, V2).map((r) => r.map((x, j) => x / f2.s[j]));
+  LTT.expect("u2 x", U2[0][1], EXPECTED_BY_HAND.u2[0], { tol: 1e-9 });
+  LTT.expect("det U = +1", U2[0][0] * U2[1][1] - U2[0][1] * U2[1][0], 1, { tol: 1e-9 });
+
+  // ---- 24×32 합성 이미지 (d3 생성, 시드 고정)
+  const M = 24, N = 32, rnd = d3.randomLcg(7);
+  const IMG = d3.range(M).map((i) => d3.range(N).map((j) => {
+    const x = j / (N - 1), y = i / (M - 1);
+    let v = 0.2 + 0.25 * x + 0.1 * y;
+    if ((x - 0.35) ** 2 + (y - 0.45) ** 2 < 0.04) v += 0.45;
+    if (Math.abs(x + y - 1.1) < 0.06) v += 0.25;
+    return Math.max(0, Math.min(1, v + 0.04 * (rnd() - 0.5)));
+  }));
+  const F = svd(IMG);
+  const total = d3.sum(F.s, (x) => x * x);
+  LTT.expect("Σσ² = ‖A‖F² (24×32)", total, frobSq(IMG), { tol: 1e-6 * frobSq(IMG) });
+  LTT.expect("전체 rank 복원 오차", Math.sqrt(frobSq(IMG.map((r, i) => r.map((x, j) => x - rankK(F, M)[i][j])))), EXPECTED_BY_HAND.fullRankErr, { tol: 1e-5 });
+  for (const k of [1, 5, 12]) {
+    const R = rankK(F, k), E = IMG.map((r, i) => r.map((x, j) => x - R[i][j]));
+    LTT.expect("Eckart–Young 오차²=Σ_{i>k}σ², k=" + k, frobSq(E), d3.sum(F.s.slice(k), (x) => x * x), { tol: 1e-6 * total });
+  }
+  LTT.expect("LoRA 파라미터 수", 2 * 4096 * 8, EXPECTED_BY_HAND.lora.lora, { tol: 0 });
+
+  const energy = (k) => d3.sum(F.s.slice(0, k), (x) => x * x) / total;
+  const k99 = d3.range(1, M + 1).find((k) => energy(k) >= 0.99);
+  const kBreak = Math.floor((M * N - 1) / (M + N + 1));          // k(m+n+1) < mn 인 최대 k
+  const gray = d3.scaleLinear().domain([0, 1]).range(["#101524", "#f5f6fb"]).clamp(true);
+  const drawImg = (id, R) => {
+    const svg = d3.select("#" + id).attr("viewBox", `0 0 ${N} ${M}`);
+    svg.selectAll("rect").data(R.flat()).join("rect")
+      .attr("x", (_, i) => i % N).attr("y", (_, i) => Math.floor(i / N)).attr("width", 1.02).attr("height", 1.02)
+      .attr("fill", (v) => gray(v));
+  };
+  drawImg("img-orig", IMG);
+  document.getElementById("p99").dataset.preset = JSON.stringify({ k: k99 });
+  document.getElementById("pbe").dataset.preset = JSON.stringify({ k: kBreak });
+  document.getElementById("pbe1").dataset.preset = JSON.stringify({ k: kBreak + 1 });
+
+  // ---- 예측
+  const grid = LTT.units("units", M, 12);
+  LTT.predict({
+    question: "24×32 합성 이미지의 에너지 99% 이상에 필요한 최소 k",
+    input: "guess", button: "lock",
+    preview: (g) => { LTT.$("guess-v").textContent = g; LTT.$("hero0").firstChild.textContent = g; grid.paint(g, "guess"); },
+    show: ["geo", "explore", "uses"],
+    reveal: (g) => {
+      LTT.$("hero0").querySelector("small").textContent = `= 내 예측 (실제 k=${k99})`;
+      grid.paint(k99, "on", Math.max(0, g - k99));
+      explore.render(); svdSteps.go(0);
+    },
+  });
+
+  // ---- 2×2 단계 재생
+  const plane = LTT.plane("pl-svd", {
+    range: 8, size: 360,
+    shape: d3.range(73).map((i) => [Math.cos(i * Math.PI / 36.5), Math.sin(i * Math.PI / 36.5)]),
+    vectors: [{ v: v1, color: "var(--ltt-on)", label: "v₁" }, { v: v2, color: "var(--ltt-alt)", label: "v₂" }],
+  });
+  const Sig = [[f2.s[0], 0], [0, f2.s[1]]], VT = T(V2);
+  const bm = (m) => `\\begin{bmatrix}${m.map((r) => r.map((x) => (Math.round(x * 100) / 100)).join("&")).join("\\\\")}\\end{bmatrix}`;
+  const setTex = (tex) => { const n = LTT.$("svd-mat"); n.dataset.tex = tex; LTT.math("svd-mat"); };
+  const svdSteps = LTT.stepper("steps", [
+    { caption: "시작: 단위원과 오른쪽 특이벡터 v₁, v₂", enter: () => { plane.to([[1, 0], [0, 1]], 0); setTex("I"); } },
+    { caption: "① <b>Vᵀ</b>: 회전. 원은 그대로 원이고, v₁·v₂가 좌표축으로 눕는다", enter: () => { plane.to(VT); setTex("V^\\top=" + bm(VT)); } },
+    { caption: "② <b>Σ</b>: 축을 따라 σ₁=6.71배, σ₂=2.24배. 원이 타원이 된다", enter: () => { plane.to(mm(Sig, VT)); setTex("\\Sigma V^\\top=" + bm(mm(Sig, VT))); } },
+    { caption: "③ <b>U</b>: 다시 회전. 결과는 A를 한 번에 적용한 것과 같다", enter: () => { plane.to(A2); setTex("U\\Sigma V^\\top=A=" + bm(A2)); } },
+  ], { interval: 2400 });
+  LTT.$("svd-vals").innerHTML = `<p>σ₁=√45≈${f2.s[0].toFixed(2)}, σ₂=√5≈${f2.s[1].toFixed(2)} <span data-tip="AᵀA=[[25,20],[20,25]]의 고유값 45, 5의 제곱근이다. σ₁σ₂=15=|det A|.">손계산</span></p>`;
+
+  // ---- rank-k 탐색
+  const bars = d3.select("#sv");
+  const yS = d3.scaleLog().domain([d3.min(F.s) * 0.7, F.s[0]]).range([145, 8]);
+  const xS = d3.scaleBand().domain(d3.range(M)).range([6, 296]).padding(0.15);
+  bars.selectAll("rect").data(F.s).join("rect").attr("x", (_, i) => xS(i)).attr("width", xS.bandwidth())
+    .attr("y", (s) => yS(s)).attr("height", (s) => 150 - yS(s));
+  bars.selectAll("text").data([0, 5, 11, 23]).join("text").attr("x", (i) => xS(i) + xS.bandwidth() / 2).attr("y", 158)
+    .attr("text-anchor", "middle").text((i) => i + 1);
+  const explore = LTT.sweep({
+    immediate: false, presets: "#explore .preset",
+    params: { k: { fmt: (v) => v } },
+    render: ({ k }) => {
+      drawImg("img-k", rankK(F, k));
+      bars.selectAll("rect").attr("class", (_, i) => (i < k ? "on" : "off"));
+      LTT.tween(LTT.$("hero").firstChild, energy(k) * 100, d3.format(".1f"));
+      LTT.$("kk").textContent = `k=${k}`;
+      const store = k * (M + N + 1);
+      LTT.$("st-store").textContent = `${store} / ${M * N}`;
+      LTT.$("st-store").style.color = store >= M * N ? "var(--ltt-bad)" : "";
+      LTT.$("st-err").textContent = (Math.sqrt(1 - energy(k)) * 100).toFixed(1) + "%";
+      LTT.$("store-note").innerHTML = store >= M * N ? '<span class="ltt-tag bad">압축 아님</span> 근사가 원본보다 많은 수를 저장한다'
+        : `<span class="ltt-tag good">${((1 - store / (M * N)) * 100).toFixed(0)}% 절약</span>`;
+    },
+  });
+
+  // ---- LoRA
+  const L = EXPECTED_BY_HAND.lora, lb = LTT.bar("lora-bar", [{ color: "var(--ltt-on)", label: "" }, { color: "var(--ltt-line)", label: "" }]);
+  lb.set([L.lora, L.full - L.lora], ["", ""]);
+  LTT.$("lora-text").innerHTML = `ΔW 전체 ${L.full.toLocaleString()}개 vs BA ${L.lora.toLocaleString()}개 = <b>${(L.lora / L.full * 100).toFixed(2)}%</b> <span class="ltt-tag">모델로 계산한 예시</span>`;
+  LTT.math();
+</script>
+</body>
+</html>

@@ -46,6 +46,8 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
    - `payment-retry.html`: 단계별 상태·흐름. 선택지 예측, 한 단계씩 진행하는 시퀀스 다이어그램과 상태 패널, 조건 조합 결과 행렬, 버그·수정 코드 비교.
    - `realtime-transport.html`: 조건 토글 비교표. 선택지 예측, ✓/△/✗ 표에서 조건을 켜고 끄면 추천 열이 이동, 메시지 흐름 그림, 규칙의 한계를 보이는 사례.
    - `visual-catalog.html`: 수업이 아니라 시각 요소 부품 모음(ID별: 핵심 수치, 비율·건수, 그래프, 흐름·상태, 비교·결정, 예측 입력, 주석).
+   - `template.html`: `ltt-parts.js` 공통 함수만으로 짠 최소 수업. 비슷한 예제가 없으면 여기서 시작한다.
+   - `<domain>/*.html`(uiux, pedagogy, finance, physics, cognition, linear-algebra, gpu): 코딩 밖 도메인의 예제. 모두 `ltt-parts.js`로 짰다. 각 페이지 head의 `ltt-meta`(audience, pattern, decision)를 보고 고른다. GPU 3편은 같은 주제를 전제 지식 수준별로 나눈 예다(`single-gpu-dataflow` = Transformer 모름, `single-gpu-transformer` = Transformer 앎).
    - `index.html`: 시나리오 목록. 복사 대상이 아니다. gallery에 페이지를 추가하면 여기에도 카드를 추가한다.
 2. 시각화 기준: 인포그래픽 + 애니메이션
    - 핵심 수치 하나를 `ltt-hero`로 크게 보인다. 비율은 `ltt-units`(100칸 단위 그림)나 `ltt-bar`(비율 막대)로 건수처럼 보인다.
@@ -67,11 +69,21 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 ### kit (`/kit/ltt.js`)
 
-- 불러오는 순서: `/kit/vendor/d3.min.js`, `/kit/vendor/plot.umd.min.js`(Observable Plot 0.6.17, 전역 `Plot`), `/kit/ltt.js`.
+- 불러오는 순서: `/kit/vendor/d3.min.js`, `/kit/vendor/plot.umd.min.js`(Observable Plot 0.6.17, 전역 `Plot`), 수식이 있으면 `/kit/vendor/katex/katex.min.js`(+ `katex.min.css`), `/kit/ltt.js`, `/kit/ltt-parts.js`. `gallery/template.html`이 이 순서의 최소 예제다.
 - `LTT.record(type, data)`: lesson 페이지에서만 서버로 이벤트를 보낸다.
 - `LTT.expect(label, actual, expected, { tol })`: 결과를 화면 오른쪽 아래 패널에 표시하고, 불일치하면 서버에도 알린다. 모두 일치하면 패널은 요약 한 줄로 접혀 있고, 불일치가 하나라도 있으면 펼쳐진다.
 - CSS 클래스: `ltt-card`, `ltt-grid`, `ltt-stat`, `ltt-tag`(`warn`/`bad`/`good`), `ltt-param`, `ltt-basis`, `ltt-lead`, `ltt-hidden`, `ltt-hero`, `ltt-units`·`ltt-unit`(열 수 `--ltt-cols`), `ltt-bar`(자식 `span`의 `flex-grow`로 비율), `ltt-key`(범례), `ltt-rise`(등장, 순서 `--i`). 단위 그림은 `--i`를 칸마다 주면 순서대로 칠해진다.
-- 단위 그림 채우기, 숫자 tween 같은 JS 헬퍼는 아직 kit 어휘가 아니다. gallery 예제의 함수를 복사해 쓴다.
+- `ltt-parts.js` 공통 함수. 새 수업은 이것으로 짜고, 페이지에는 모델 함수와 설정만 둔다.
+  - `LTT.predict({question, input | choices, button, preview, answer, hide, show, reveal})`: 첫 예측을 잠그고 기록한 뒤 공개한다. 선택지는 `data-choice` 버튼으로 둔다.
+  - `LTT.sweep({params: {id: {fmt, map}}, render, presets})`: range 입력들이 하나의 `render(values)`를 움직인다. `#<id>-v`에 값을 표시하고, `data-preset` JSON 버튼으로 값을 한꺼번에 바꾼다.
+  - `LTT.units(el, n, cols).paint(k, cls, alt)`, `LTT.bar(el, parts).set(values)`, `LTT.tween(el, to, fmt)`: 단위 그림, 비율 막대, 숫자 tween.
+  - `LTT.stepper(el, [{caption, enter(i, dir)}])`: 이전/다음/자동 재생. `enter`는 다시 들어와도 같은 화면이 되게 짠다.
+  - `LTT.flow(svg, {nodes, links}).send(from, to, {count, color})`: 박스와 화살표 그림, 패킷 이동(데이터 흐름, 메시지).
+  - `LTT.plane(svg, {range, vectors, shape}).to([[a,b],[c,d]])`: 2×2 행렬로 격자와 벡터를 변형한다.
+  - `LTT.sim({init, step, draw, until, dt})`: 고정 시간 간격 시뮬레이션. `runToEnd()`로 화면 없이 결과를 계산한다.
+  - `LTT.math()`: `data-tex`(블록 수식은 `data-display`도 붙임) 요소를 KaTeX로 그린다. 로드 시 자동 실행된다.
+  - 이 함수들은 `prefers-reduced-motion`이면 애니메이션 길이를 0으로 둔다.
+- gallery 페이지의 `<script type="application/json" id="ltt-meta">`(domain, topic, audience, pattern, decision)로 복사할 예제를 고른다.
 - 수업마다 반복되는 패턴은 kit 어휘 후보다. `result.md`의 "kit 후보" 항목에 적는다.
 
 ## 4. 이해 확인 (대화)
