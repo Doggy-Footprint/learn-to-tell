@@ -7,3 +7,8 @@ File: 190db09929e4196e-distribute-as-harness-extension.md
 Summary: learn-to-tell을 harness 확장으로 배포하고, 방식이 정해질 때까지 원본 위치·상대 경로·개발용 링크 규칙을 둔다
 Related Files: skills/learn-to-tell/SKILL.md, .claude/skills/learn-to-tell
 Related Symbols: 없음
+---
+File: 90dd94ba2dec2365-auto-layout-with-elkjs.md
+Summary: 도식 자동 배치에 elkjs(EPL-2.0, layered)를 vendor하고 dagre·Mermaid를 기각한 결정
+Related Files: skills/learn-to-tell/kit/vendor/elk.bundled.js, skills/learn-to-tell/kit/vendor/LICENSE-elkjs, skills/learn-to-tell/kit/ltt-parts.js
+Related Symbols: LTT.autoLayout, LTT.state

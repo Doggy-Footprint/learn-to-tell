@@ -3,7 +3,7 @@ Summary: learn-to-tell-PROJECT.md에서 옮긴 v0 폐기 설계 표를 rejection
 Related Files: learn-to-tell-PROJECT.md, agent-docs/rejections/index.md
 Related Symbols: 없음
 ---
-File: 4f7ea6efa16f46da-kit-library-expansion.md
-Summary: kit 확장 계획: 테마 자산(팔레트·폰트·아이콘), 설명 형태별 라이브러리, 도식 꺾인 화살표·중첩 영역·자동 배치·시퀀스 다이어그램, 부품 백로그
-Related Files: skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-parts.js, skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/kit/vendor/VERSIONS, skills/learn-to-tell/gallery/catalog.html
-Related Symbols: THEMES, ICONS, diagramLayout, LTT.diagram, LTT.auditScene
+File: 3d2bdfc94cd5e417-kit-3d-lessons.md
+Summary: 3D가 핵심인 수업이 생기면 three.js를 kit에 넣는 남은 작업(kit 확장 handoff에서 보류된 항목)
+Related Files: skills/learn-to-tell/kit/vendor/VERSIONS, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/gallery/catalog.html
+Related Symbols: 없음
