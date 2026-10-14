@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learn to Tell kit 카탈로그</title>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-mock.js"></script>
+<style>
+  main { max-width: 1240px; }
+  .top { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .top a { font-weight: 700; text-decoration: none; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 36px; }
+  nav.toc a { text-decoration: none; }
+  h2.grp { font-size: 15px; font-weight: 800; color: var(--ltt-accent); margin: 48px 0 14px; letter-spacing: .02em; }
+  .demo { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 0; background: var(--ltt-card); border: 1px solid var(--ltt-line); border-radius: 24px; overflow: hidden; margin: 0 0 18px; box-shadow: var(--ltt-shadow); }
+  .demo .info { grid-column: 1 / -1; padding: 20px 24px 0; }
+  .demo .info h3 { margin: 0; font-size: 20px; font-weight: 850; letter-spacing: -.02em; }
+  .demo .info h3 code { font-size: 15px; color: var(--ltt-accent); margin-left: 8px; font-weight: 600; }
+  .demo .info p { margin: 6px 0 0; color: var(--ltt-muted); font-size: 15px; }
+  .demo .info p b { color: var(--ltt-ink-2); }
+  .demo .live { padding: 22px 24px 24px; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+  .demo pre { margin: 0; padding: 18px 20px; background: var(--ltt-card-2); border-left: 1px solid var(--ltt-line); font: 12.5px/1.6 var(--ltt-mono); color: var(--ltt-ink-2); overflow: auto; max-height: 460px; white-space: pre; }
+  .tok { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+  .tok div { font: 12px var(--ltt-mono); color: var(--ltt-muted); }
+  .tok i { display: block; height: 44px; border-radius: 12px; margin-bottom: 6px; box-shadow: inset 0 0 0 1px var(--ltt-line); }
+  .ics { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+  .ics div { display: flex; flex-direction: column; align-items: center; gap: 6px; font: 11px var(--ltt-mono); color: var(--ltt-muted); padding: 10px 4px; border-radius: 12px; background: var(--ltt-card-2); }
+  .ics .ltt-ic { font-size: 26px; color: var(--ltt-ink); }
+  iframe.deck { width: 100%; height: 640px; border: 0; border-radius: 18px; box-shadow: inset 0 0 0 1px var(--ltt-line); background: var(--ltt-bg); }
+  @media (max-width: 900px) { .demo { grid-template-columns: 1fr; } .demo pre { border-left: 0; border-top: 1px solid var(--ltt-line); } }
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><a href="index.html">← 시나리오 모음</a></div>
+  <h1>kit 카탈로그</h1>
+  <p class="ltt-lead">수업은 이 부품들을 조합해 빈 파일에서 짠다. 각 칸의 왼쪽은 실제로 동작하는 부품, 오른쪽은 그 부품을 만든 코드 그대로다. 함수 시그니처와 언제 쓰는지는 <code>kit/API.md</code>에 있다.</p>
+  <nav class="toc" id="toc"></nav>
+  <div id="root"></div>
+</main>
+<script>
+  const root = document.getElementById("root"), toc = document.getElementById("toc");
+  const svgEl = () => document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const div = (cls, html) => Object.assign(document.createElement("div"), { className: cls || "", innerHTML: html || "" });
+  // The code panel shows each builder's own source, so what you read is exactly what renders on the left.
+  function src(fn) {
+    const s = fn.toString(), body = s.slice(s.indexOf("{") + 1, s.lastIndexOf("}"));
+    const lines = body.replace(/^\n/, "").replace(/\s+$/, "").split("\n");
+    const pad = Math.min(...lines.filter((l) => l.trim()).map((l) => l.match(/^ */)[0].length));
+    return lines.map((l) => l.slice(pad)).join("\n");
+  }
+  function group(title) { root.appendChild(Object.assign(document.createElement("h2"), { className: "grp", textContent: title })); }
+  function demo(name, sig, when, build) {
+    const d = div("demo");
+    d.id = name;
+    d.innerHTML = `<div class="info"><h3>${name}<code>${sig}</code></h3><p>${when}</p></div><div class="live"></div><pre></pre>`;
+    d.querySelector("pre").textContent = src(build);
+    root.appendChild(d);
+    const live = d.querySelector(".live"), ret = build(live);
+    if (ret instanceof Node) live.appendChild(ret);
+    toc.appendChild(LTT.chips([{ text: `<a href="#${name}">${name}</a>` }]).firstChild);
+  }
+
+  group("기초 · ltt.js");
+  demo("tokens", "--ltt-*", "<b>색은 이 토큰만 쓴다.</b> 페이지 CSS에 hex를 새로 적지 않는다. 다크 모드는 토큰이 알아서 바뀐다.", (el) => {
+    const names = ["bg", "card", "card-2", "line", "line-2", "ink", "ink-2", "muted", "accent", "accent-soft", "good", "good-soft", "bad", "bad-soft", "warn", "warn-soft", "dark"];
+    el.innerHTML = `<div class="tok">${names.map((n) => `<div><i style="background:var(--ltt-${n})"></i>--ltt-${n}</div>`).join("")}</div>`;
+  });
+  demo("icon", "LTT.icon(name, {weight, cls})", "<b>이모지 대신 쓰는 선 아이콘.</b> 문자열(SVG)을 돌려준다. hook의 art, explain·terms의 icon, diagram 노드의 icon에 이름만 넘기면 된다.", (el) => {
+    el.innerHTML = `<div class="ics">${LTT.icons.map((n) => `<div>${LTT.icon(n)}${n}</div>`).join("")}</div>`;
+  });
+  demo("glossary", "{{용어}} · {{보이는 말|용어}}", "<b>처음 나오는 용어에 풀이를 붙인다.</b> 덱의 <code>glossary</code>나 <code>terms</code> 장면에 정의하고, 본문에서 <code>{{용어}}</code>로 표시한다. 마우스를 올리거나 누르면 풀이가 뜬다. 정의 전에 쓰거나 한 장면에 새 용어가 3개 이상이면 덱이 경고한다.", (el) => {
+    LTT.setGlossary({ "TTL": "캐시에 넣은 값을 몇 초 동안 그대로 쓸지 정한 유효 시간." }, { "TTL": 0 });
+    el.innerHTML = `<p class="ltt-narr">{{TTL}}을 늘리면 DB는 편해지고, 사용자는 바뀌기 전 값을 받는다. 두 번째로 나온 {{TTL}}은 옅은 밑줄이다.</p>`;
+    LTT.linkTerms(el, 0);
+  });
+
+  group("설명 · ltt-ui.js");
+  demo("narration", "LTT.narration(html | [html])", "<b>그림만으로 이유가 안 보일 때</b> 원인 → 과정 → 결과를 2–4문장으로 쓴다. 덱에서는 장면의 <code>narration</code> 필드로 쓰면 설명 레일에 들어간다.", () => {
+    return LTT.narration(["캐시는 값을 넣은 순간부터 TTL이 끝날 때까지 원본을 다시 확인하지 않는다.", "그래서 그 사이에 원본이 바뀌면 남은 시간 내내 <b>옛 값</b>을 돌려준다."]);
+  });
+  demo("annotate", "LTT.annotate(target, points, {tone})", "<b>그림 위 번호 ↔ 해설 목록.</b> <code>at: [x%, y%]</code>로 위치를 찍는다. 번호와 목록에 마우스를 올리면 서로 강조된다. 덱에서는 장면의 <code>points</code> 필드로 쓴다. 3개 이하.", (el) => {
+    const b = LTT.mock.browser({ url: "dashboard.example.com", content: `<b style="font-size:17px">매출 대시보드</b><div style="display:flex;gap:8px;margin-top:12px"><div style="flex:1;background:#f6f5f1;border-radius:10px;padding:10px"><small>매출</small><br><b style="font-size:20px">₩48.2M</b></div><div style="flex:1;background:#f6f5f1;border-radius:10px;padding:10px"><small>주문</small><br><b style="font-size:20px">1,284</b></div></div><div style="height:70px;margin-top:10px;border-radius:10px;background:linear-gradient(90deg,#e6e3dc 70%,#2f5bff 0)"></div>` });
+    el.appendChild(b.el);
+    const a = LTT.annotate(b.el, [
+      { at: [30, 48], title: "숫자 카드", text: "같은 높이, 같은 배경색으로 묶는다." },
+      { at: [93, 82], title: "강조는 하나", text: "가장 중요한 막대만 포인트 컬러.", tone: "good" },
+    ]);
+    el.appendChild(a.list);
+    a.replay();
+  });
+  demo("beforeAfter", "LTT.beforeAfter({before, after})", "<b>같은 대상의 실패 예와 고친 예.</b> 각 쪽은 <code>{visual, points, foot}</code>. 덱에서는 <code>type: \"contrast\"</code> 장면이 이것을 쓴다. 고친 이유는 번호 해설에 적는다.", (el) => {
+    const card = (bg, fg) => () => { const p = LTT.mock.phone({ width: 150, ratio: "9/12" }); p.screen.innerHTML = `<b>안내</b><div style="color:${fg};font-size:12px">변경 사항은 저장 후 적용돼요.</div><div style="margin-top:auto;background:${bg};color:#fff;border-radius:10px;padding:8px;text-align:center;font-weight:800;font-size:12px">저장</div>`; return p.el; };
+    const ba = LTT.beforeAfter({
+      before: { visual: card("#ff0000", "#aaa"), points: [{ at: [80, 42], title: "#AAA 2.32:1", text: "안 읽힌다." }] },
+      after: { visual: card("#d70015", "#767676"), points: [{ at: [80, 42], title: "#767676 4.54:1", text: "AA 통과." }] },
+    });
+    el.appendChild(ba.el);
+    ba.replay();
+  });
+  demo("facts", "LTT.facts([{icon, value, label, tone}])", "<b>상황의 조건을 숫자 카드로.</b> predict 장면의 <code>visual</code>에 넣으면 무엇을 근거로 짐작할지 보인다.", () => {
+    return LTT.facts([
+      { icon: "users", value: "초당 2번", label: "한 상품 요청" },
+      { icon: "refresh", value: "평균 10분", label: "가격 변경 간격" },
+      { icon: "hourglass", value: "60초", label: "캐시 TTL", tone: "warn" },
+    ]);
+  });
+  demo("chips · badge", "LTT.chips([..]) · LTT.badge(kind, text)", "<b>키워드 묶음과 상태 표시.</b> 장면의 <code>chips</code> 필드는 제목 아래에 키워드를 단다. badge 종류: before, after, good, bad, warn, accent.", (el) => {
+    el.appendChild(LTT.chips(["8pt 그리드", "간격 스케일", { text: "근접성", tone: "accent" }, { text: "통과", tone: "good", icon: "check" }]));
+    el.appendChild(div("", ["before", "after", "warn", "accent"].map((k) => LTT.badge(k)).join(" ")));
+  });
+  demo("callout", "LTT.callout(html, {tone, title, icon})", "<b>흔한 오해나 주의 한 가지.</b> 장면마다 많아야 하나.", () => {
+    return LTT.callout("TTL을 늘려도 원본이 거의 안 바뀌면 옛 값은 늘지 않는다. 먼저 변경 간격을 묻는다.", { tone: "warn", title: "흔한 오해" });
+  });
+  demo("swatches", "LTT.swatches([{color, label, w, h, r}], {caption})", "<b>'무엇을 썼나'를 보이는 미니 인포그래픽.</b> 색, 크기, 모서리 같은 값의 목록을 실물로 보인다. beforeAfter의 <code>foot</code>에 잘 맞는다.", () => {
+    return LTT.swatches([4, 8, 16, 24, 32].map((v) => ({ color: v === 16 || v === 24 ? "var(--ltt-bad)" : "var(--ltt-line-2)", label: v, w: v, h: v, r: 4 })), { caption: "간격 스케일 · 4의 배수" });
+  });
+  demo("takeaway", "LTT.takeaway(text, sources)", "<b>장면의 핵심 한 문장.</b> 장면의 <code>takeaway</code> 필드로 쓰면 아래에 붙고, <code>summary</code> 장면이 이것들을 모은다. <code>sources</code>는 '찾아볼 곳'.", () => {
+    return LTT.takeaway("간격은 감으로 정하지 않는다 — 정해진 스케일에서 고른다.", ["Material 3 · Layout", "Refactoring UI"]);
+  });
+
+  group("목업 · ltt-mock.js");
+  demo("mock.phone · mock.browser", "LTT.mock.phone({width, ratio, dark, content}) → {el, screen}", "<b>실제 화면처럼 보이는 틀.</b> UI 예시는 맨 HTML 조각 대신 틀에 넣는다. <code>el</code>에 annotate를 걸면 번호가 틀 기준으로 찍힌다.", (el) => {
+    const row = div("", ""); row.style.cssText = "display:flex;gap:20px;align-items:center;flex-wrap:wrap";
+    const p = LTT.mock.phone({ width: 170, ratio: "9/14", content: "<b>메뉴</b><div style='background:#f2f1ec;border-radius:10px;padding:8px;font-size:12px;color:#767676'>메뉴 검색</div>" });
+    const b = LTT.mock.browser({ url: "localhost:3000", width: 300, content: "<b>주문 내역</b><p style='color:#767676;font-size:13px'>아직 주문이 없어요</p>" });
+    row.append(p.el, b.el);
+    return row;
+  });
+  demo("mock.terminal · mock.code", "LTT.mock.terminal({title, lines}) · LTT.mock.code({code, marks, title})", "<b>명령과 코드 예시.</b> code의 <code>marks</code>는 <code>{줄번호: \"good\"|\"bad\"|\"accent\"|\"warn\"}</code>로 줄을 칠한다.", (el) => {
+    el.appendChild(LTT.mock.terminal({ title: "zsh", lines: ["$ curl -I api/products/42", "HTTP/1.1 200 OK", { t: "ok", text: "x-cache: HIT" }, { t: "err", text: "age: 290  # 거의 만료" }] }).el);
+    el.appendChild(LTT.mock.code({ title: "cache.ts", code: "const ttl = 300; // 5분\ncache.set(key, value, { ttl });\n// 재고는 1분마다 바뀐다", marks: { 1: "bad", 3: "warn" } }).el);
+  });
+
+  group("움직이는 그림 · ltt-parts.js");
+  demo("diagram", "LTT.diagram(svg, {cols, rows, cell, node, nodes, edges, zones})", "<b>박스와 화살표를 격자 좌표로.</b> 노드 <code>{id, c, r, l, s, k, icon, flaw}</code>, 엣지 <code>{f, t, l, k, dash}</code>, 영역 <code>{c0, r0, c1, r1, l, k}</code>. k는 accent·good·bad·warn·muted·dark. <code>.player(el, steps)</code>로 단계 재생과 자막을 붙인다.", (el) => {
+    const svg = el.appendChild(svgEl());
+    const dg = LTT.diagram(svg, {
+      cols: 3, rows: 2, cell: [190, 100], node: [150, 56], maxWidth: false,
+      zones: [{ c0: 0, r0: 0, c1: 1, r1: 1, l: "하나의 프롬프트", k: "bad" }],
+      nodes: [
+        { id: "user", c: 0, r: 0, l: "사용자 지시", s: "진짜 목표", icon: "user" },
+        { id: "doc", c: 0, r: 1, l: "외부 문서", s: "공격자 통제", icon: "doc", k: "bad", flaw: true },
+        { id: "llm", c: 1, r: 0.5, l: "LLM", s: "구분 못 함", icon: "cpu", k: "accent" },
+        { id: "tool", c: 2, r: 0.5, l: "도구 실행", icon: "bolt", k: "dark" },
+      ],
+      edges: [{ f: "user", t: "llm" }, { f: "doc", t: "llm", k: "bad", l: "숨은 명령", lo: [-24, 16] }, { f: "llm", t: "tool", k: "accent" }],
+    });
+    dg.player(el, [
+      { caption: "<b>① 두 입력</b> — 사용자 지시와 외부 문서가 같은 자리로 들어간다.", hot: ["user", "doc", "llm"] },
+      { caption: "<b>② 숨은 명령</b> — 문서 속 문장이 지시처럼 읽힌다.", hot: ["doc", "llm"], flow: ["doc>llm"], send: [["doc", "llm", { count: 4, color: "var(--ltt-bad)" }]] },
+      { caption: "<b>③ 도구 실행</b> — 모델이 가진 권한으로 공격자 목표를 수행한다.", hot: ["llm", "tool"], flow: ["llm>tool"], send: [["llm", "tool", { count: 3 }]] },
+    ]);
+  });
+  demo("units · bar · tween", "LTT.units(el, n, cols).paint(k) · LTT.bar(el, parts).set(values) · LTT.tween(el, to)", "<b>비율을 세어 볼 수 있게.</b> 100칸 그림은 '100건 중 몇 건', 막대는 구성비, tween은 숫자가 바뀌는 순간을 보인다.", (el) => {
+    el.innerHTML = `<div style="display:flex;gap:20px;align-items:center"><div id="cu" style="width:160px"></div><div style="flex:1"><div class="ltt-stat"><span id="cn">0</span><small>/ 100</small></div><div id="cb" style="margin-top:10px"></div></div></div>`;
+    const u = LTT.units("cu", 100);
+    const b = LTT.bar("cb", [{ color: "var(--ltt-warn)" }, { color: "var(--ltt-line-2)" }, { color: "var(--ltt-accent)" }]);
+    setTimeout(() => { u.paint(5); b.set([5, 94, 1], ["5", "94", ""]); LTT.tween("cn", 5); }, 300);
+  });
+  demo("stepper", "LTT.stepper(el, [{caption, enter(i, dir)}], {interval})", "<b>한 그림을 단계별로.</b> 단계마다 자막(caption)이 그림을 읽는 법을 말한다. <code>enter</code>는 다시 들어와도 같은 화면이 되게 짠다.", (el) => {
+    const box = div("", ""); box.style.cssText = "display:flex;gap:10px";
+    el.appendChild(box);
+    const cells = [0, 1, 2, 3].map(() => box.appendChild(div("", "")));
+    cells.forEach((c) => c.style.cssText = "flex:1;height:44px;border-radius:12px;background:var(--ltt-line);transition:background .3s");
+    LTT.stepper(el, ["저장", "적중", "원본 변경", "만료"].map((t, i) => ({
+      caption: `<b>${i + 1}. ${t}</b> — 칸 ${i + 1}까지 칠한다.`,
+      enter: (k) => cells.forEach((c, j) => c.style.background = j <= k ? (j === 2 ? "var(--ltt-warn)" : "var(--ltt-accent)") : "var(--ltt-line)"),
+    })));
+  });
+  demo("sweep", "LTT.sweep({params: {id: {map, fmt}}, render})", "<b>조작 자체가 배움일 때만.</b> range 입력이 하나의 <code>render(values)</code>를 움직인다. 실사용 범위만 움직인다.", (el) => {
+    el.innerHTML = `<label class="ltt-param">TTL <b id="sw-v"></b><input type="range" id="sw" min="1" max="600" value="60"></label><div id="sw-b"></div>`;
+    const b = LTT.bar("sw-b", [{ color: "var(--ltt-warn)" }, { color: "var(--ltt-line-2)" }]);
+    LTT.sweep({ params: { sw: { fmt: (v) => v + "초" } }, render: ({ sw }) => { const s = Math.round(100 * sw / 1200); b.set([s, 100 - s], [s + "%", ""]); } });
+  });
+  demo("predict", "LTT.predict({question, choices, button, answer, show, reveal})", "<b>낮은 부담의 짐작.</b> 덱에서는 <code>type: \"predict\"</code>가 이것을 쓰고 '잘 모르겠다'를 자동으로 붙인다. 질문에 쓰는 용어는 앞 장면에서 풀어 둔다.", (el) => {
+    el.innerHTML = `<div id="pc"><button data-choice="a">거의 0건</button><button data-choice="b">5건쯤</button><button data-choice="c">절반쯤</button></div><div class="dk-actions" style="margin-top:10px"><button id="pb" class="accent">정답 보기</button></div><p id="pa" class="ltt-hidden ltt-narr">약 5건. 평균 30초 묵은 값이 10분 안에 바뀔 확률은 5%.</p>`;
+    LTT.predict({ question: "카탈로그 예시", choices: "pc", button: "pb", answer: "b", show: ["pa"] });
+  });
+
+  group("장면 덱 · ltt-deck.js");
+  demo("deck", "LTT.deck({title, glossary, scenes})", "<b>모든 장면 타입을 한 번씩 담은 덱.</b> 장면 공통 필드는 kicker, title, en, sub, chips, narration, points, takeaway, sources, ask, basis, tex, mount, layout. 새 탭에서 열기: <a href=\"scenes.html\">scenes.html</a>", (el) => {
+    el.innerHTML = `<iframe class="deck" src="scenes.html" title="장면 타입 데모"></iframe>`;
+  });
+</script>
+</body>
+</html>

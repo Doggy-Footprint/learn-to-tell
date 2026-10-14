@@ -68,12 +68,12 @@ test("health identifies the server", async () => {
 });
 
 test("serves kit, vendor and gallery files from the skill directory", async () => {
-  for (const path of ["/kit/ltt.js", "/kit/vendor/plot.umd.min.js", "/kit/vendor/d3.min.js"]) {
+  for (const path of ["/kit/ltt.js", "/kit/ltt-ui.js", "/kit/ltt-mock.js", "/kit/vendor/plot.umd.min.js", "/kit/vendor/d3.min.js"]) {
     const res = await fetch(base + path);
     assert.equal(res.status, 200, path);
     assert.match(res.headers.get("content-type"), /text\/javascript/);
   }
-  const gallery = await fetch(base + "/gallery/alert-precision.html");
+  const gallery = await fetch(base + "/gallery/cache-ttl.html");
   assert.equal(gallery.status, 200);
   assert.match(gallery.headers.get("content-type"), /text\/html/);
 });
@@ -86,7 +86,7 @@ test("serves lesson files from LTT_HOME", async () => {
 });
 
 test("rejects path traversal out of each root", async () => {
-  assert.equal((await fetch(base + "/kit/%2e%2e%2fgallery%2falert-precision.html")).status, 403);
+  assert.equal((await fetch(base + "/kit/%2e%2e%2fgallery%2fcache-ttl.html")).status, 403);
   assert.equal((await fetch(base + "/lessons/20261013-demo/%2e%2e%2f%2e%2e%2fsecret.html")).status, 403);
   assert.equal((await fetch(base + "/lessons/Bad_Id/lesson.html")).status, 400);
   assert.equal((await fetch(base + "/kit/%E0%A4%A")).status, 400);

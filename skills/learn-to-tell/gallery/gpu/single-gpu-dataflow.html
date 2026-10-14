@@ -4,24 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GPU가 2배 빨라지면 글 생성도 2배 빨라질까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"gpu","topic":"single-gpu-dataflow","audience":"Transformer 구조를 모름. 모델은 큰 숫자 표라는 정도만 안다","pattern":["hook","explain","flow","predict","compare","flow","compare","explain","keywords"],"mode":"체험형: 표가 흘러가는 모습을 보고 연산기 업그레이드 효과를 직접 예측한다","decision":"토큰당 시간을 정하는 것이 메모리 대역폭인지 연산 속도인지, batch가 이를 어떻게 바꾸는지"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"gpu","topic":"single-gpu-dataflow","audience":"Transformer 구조를 모름. 모델은 큰 숫자 표라는 정도만 안다","pattern":["hook","terms","diagram-player","bars","predict","compare","diagram-player","compare","explain","summary","keywords"],"mode":"체험형: 용어를 풀고, 표가 GPU 안을 흘러가는 과정을 단계별 다이어그램으로 본 뒤, 연산기 업그레이드 효과를 짐작한다","decision":"토큰당 시간을 정하는 것이 메모리 대역폭인지 연산 속도인지, batch가 이를 어떻게 바꾸는지"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
 <script src="/kit/ltt-deck.js"></script>
 <style>
-  :root { --mem: #4f6bed; --cmp: #e0a33a; --user: #1f9d6b; }
-  .fl { max-width: 400px; max-height: 38vh; margin: 0 auto; }
-  .tm { display: grid; gap: 6px; max-width: 520px; margin: 0 auto; width: 100%; font-size: 14px; }
-  .tm .ltt-bar span { font-size: 12px; white-space: nowrap; }
-  .mini { width: 100%; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px; font-size: 13px; } .mini .big { grid-column: 1 / -1; }
+  :root { --mem: var(--ltt-accent); --cmp: var(--ltt-warn); --user: var(--ltt-good); }
+  .mini { width: 100%; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px; font-size: 13px; } .mini .big { grid-column: 1 / -1; }
   .mini .ltt-bar { height: 22px; }
-  .big { font-size: 28px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; }
-  @media (max-width: 720px) { .big { font-size: 17px; } .mini { font-size: 11px; } }
-  .big small { display: block; font-size: 12px; font-weight: 600; color: var(--ltt-muted); }
-  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .duo > div > b { font-size: 14px; }
+  .big { font-size: 30px; font-weight: 850; letter-spacing: -.03em; text-align: center; font-variant-numeric: tabular-nums; }
+  .big small { display: block; font-size: 12px; font-weight: 600; color: var(--ltt-muted); letter-spacing: 0; }
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } .duo b { display: block; font-size: 14px; margin-bottom: 6px; }
+  .time { display: grid; gap: 18px; }
+  .time .row { display: grid; grid-template-columns: 120px 1fr; gap: 14px; align-items: center; }
+  .time .row b { font-size: 15px; } .time .row small { display: block; color: var(--ltt-muted); font-size: 12.5px; font-weight: 500; }
+  .time .ltt-bar { height: 40px; }
+  @media (max-width: 720px) { .big { font-size: 18px; } .mini { font-size: 11px; } }
 </style>
 </head>
 <body>
@@ -55,39 +57,11 @@
 
   const fmtN = d3.format(",.0f");
   const svgEl = () => document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  const SRC = "H100 SXM 데이터시트 기준 HBM3 약 3.35 TB/s, BF16 dense 약 989 TFLOPS (작성 시 원문 재확인 안 함). BF16은 파라미터당 2바이트, 토큰당 파라미터당 곱셈·덧셈 2회로 단순화. KV cache·커널 오버헤드·실제 대역폭 효율은 무시한 이상적 상한(roofline)이다.";
-
-  function makeFlow(body) {
-    const s = svgEl(); s.classList.add("fl"); body.appendChild(s);
-    const fl = LTT.flow(s, {
-      viewBox: "0 0 440 380",
-      nodes: {
-        hbm: { x: 110, y: 8, w: 220, h: 58, label: "HBM (표 16 GB)", sub: "약 3.35 TB/s" },
-        l2: { x: 110, y: 112, w: 220, h: 58, label: "L2 캐시", sub: "통과만 한다" },
-        sm: { x: 110, y: 216, w: 220, h: 58, label: "SM (연산기)", sub: "곱하고 더한다" },
-        out: { x: 110, y: 320, w: 220, h: 52, label: "생성된 토큰" },
-      },
-      links: [{ from: "hbm", to: "l2", label: "표 조각 흐름" }, { from: "l2", to: "sm" }, { from: "sm", to: "out" }],
-    });
-    let run = 0;
-    const loop = async (users) => {
-      const id = ++run;
-      fl.clear(); fl.highlight(["hbm", "l2", "sm", "out"]);
-      while (id === run) {
-        await fl.send("hbm", "l2", { count: 8, ms: 900, gap: 110 });
-        if (id !== run) return;
-        await fl.send("l2", "sm", { count: 8, ms: 500, gap: 60 });
-        if (id !== run) return;
-        await fl.send("sm", "out", { count: users, ms: 600, gap: 120, r: 8, color: "var(--user)" });
-        if (!LTT.MOTION_MS) return;
-      }
-    };
-    return { loop, stop: () => { run++; fl.clear(); } };
-  }
+  const SRC = "H100 SXM 데이터시트 기준 HBM3 약 3.35 TB/s, BF16 dense 약 989 TFLOPS (작성 시 원문 재확인 안 함). BF16은 파라미터당 2바이트, 토큰당 파라미터당 곱셈·덧셈 2회로 단순화. 대화 기록(KV cache)·커널 오버헤드·실제 대역폭 효율은 무시한 이상적 상한이다.";
 
   const mini = (r, top) => (node) => {
     const w = document.createElement("div"); w.className = "mini";
-    w.innerHTML = `<div class="big">${fmtN(r.total)}<small>tok/s (전체)</small></div><div>읽기</div><div class="a"></div><div>계산</div><div class="b"></div>`;
+    w.innerHTML = `<div class="big">${fmtN(r.total)}<small>토큰/초 (전체)</small></div><div>읽기</div><div class="a"></div><div>계산</div><div class="b"></div>`;
     node.appendChild(w);
     LTT.bar(w.querySelector(".a"), [{ color: "var(--mem)" }, { color: "var(--ltt-line)" }]).set([r.tMem, top - r.tMem], ["", ""]);
     LTT.bar(w.querySelector(".b"), [{ color: "var(--cmp)" }, { color: "var(--ltt-line)" }]).set([r.tComp, top - r.tComp], ["", ""]);
@@ -95,32 +69,87 @@
 
   LTT.deck({
     title: "GPU가 2배 빨라지면 글 생성도 2배 빨라질까?",
+    glossary: {
+      "메모리 병목": "계산할 거리는 적은데 데이터를 가져오는 속도가 전체 속도를 정하는 상태. 연산기를 빠르게 해도 기다리는 시간만 늘어난다. 영어로 memory-bound.",
+      "batch": "여러 사용자의 요청을 묶어 한 번에 처리하는 것. 표를 한 번 읽어서 여러 명의 토큰을 같이 만든다.",
+    },
     scenes: [
-      { type: "hook", art: "🐢",
+      { type: "hook", art: "cpu", kicker: "챗봇 서빙용 GPU 고르기",
+        pre: "다음 세대 GPU는 연산 속도가 2배라는데…",
         text: "더 비싼 GPU를 사면<br>챗봇 답이 <u>그만큼</u> 빨리 나올까?",
-        sub: "모델을 GPU 한 장에 올려 서빙할 때, 어떤 성능 숫자에 돈을 써야 생성 속도가 오르는지 정하는 이야기." },
+        sub: "GPU 사양표에는 숫자가 많다. 그중 글 생성 속도를 실제로 정하는 숫자는 하나다. 이 수업을 마치면 어떤 숫자에 돈을 써야 응답이 빨라지는지, 사용자가 많을 때는 무엇이 달라지는지 말할 수 있다." },
 
-      { type: "explain", kicker: "원리", title: "토큰 하나 = 큰 표를 처음부터 끝까지 한 번 읽기",
-        steps: [
-          { icon: "📚", title: "모델은 큰 숫자 표", text: "8B 모델이면 표가 16 GB다. GPU 메모리(HBM)에 들어 있다." },
-          { icon: "🚚", title: "표를 연산기로 옮긴다", text: "토큰 하나마다 표 전체가 HBM에서 연산기로 흘러간다." },
-          { icon: "⚙️", title: "곱하고 더해 토큰 1개", text: "연산기는 받은 숫자로 계산해 다음 글자 하나를 낸다." },
+      { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
+        terms: [
+          { key: "토큰", en: "token", icon: "doc", plain: "모델이 한 번에 만들어 내는 글 조각. 한국어는 대략 글자 한두 개.", example: "챗봇 답이 '안녕하세요'면 토큰 몇 개를 하나씩 차례로 만든다." },
+          { key: "가중치", en: "weights", icon: "layers", plain: "모델이 학습으로 얻은 거대한 숫자 표. 8B 모델이면 숫자가 80억 개이고, 숫자 하나가 2바이트라 16 GB다.", example: "토큰 하나를 만들 때마다 이 표 전체를 한 번 쓴다." },
+          { key: "HBM", en: "GPU 메모리", icon: "memory", plain: "GPU 칩 옆에 붙은 메모리. 가중치 표가 여기에 들어 있다.", example: "H100은 80 GB HBM을 갖고 있다." },
+          { key: "메모리 대역폭", en: "bandwidth", icon: "bolt", plain: "HBM에서 연산기로 1초에 옮길 수 있는 데이터 양. 길의 폭이라고 생각하면 된다.", example: "H100은 초당 약 3.35 TB." },
         ] },
 
-      { kicker: "흐름", title: "어디서 시간이 걸리나", sub: "표가 흘러가는 시간이 계산하는 시간보다 300배쯤 길다.",
-        mount: (body) => {
-          const f = makeFlow(body);
-          const tm = document.createElement("div"); tm.className = "tm";
-          tm.innerHTML = `<span>표 읽기 ${d3.format(".2f")(m81.tMem * 1e3)} ms · 계산 ${d3.format(".3f")(m81.tComp * 1e3)} ms <span class="ltt-tag">모델로 계산한 예시</span></span><div></div>`;
-          body.appendChild(tm);
-          LTT.bar(tm.lastChild, [{ color: "var(--mem)" }, { color: "var(--cmp)" }]).set([m81.tMem, m81.tComp], ["읽기", ""]);
-          return { enter: () => f.loop(1), leave: f.stop };
+      { kicker: "단계별로 보기", title: "토큰 하나가 만들어지는 길", en: "Dataflow",
+        layout: "stack",
+        narration: [
+          "GPU 안에서 {{가중치}} 표는 {{HBM}}에 있고, 계산은 SM이라는 연산기에서 한다. 연산기 옆의 임시 보관소(L2 캐시)는 수십 MB뿐이라 16 GB 표를 담아 둘 수 없다.",
+          "다음 글자를 계산할 때 표의 모든 숫자가 한 번씩 쓰이므로, 토큰마다 표 전체가 이 길을 다시 지나간다.",
+        ],
+        mount(body) {
+          const panel = body.appendChild(Object.assign(document.createElement("div"), { className: "ltt-panel" }));
+          const svg = panel.appendChild(svgEl());
+          const dg = LTT.diagram(svg, {
+            cols: 4, rows: 1, cell: [220, 130], node: [180, 70], maxWidth: false,
+            zones: [{ c0: 0, r0: 0, c1: 2, r1: 0, l: "GPU 한 장", k: "accent" }],
+            nodes: [
+              { id: "hbm", c: 0, r: 0, l: "HBM", s: "가중치 16 GB", icon: "memory" },
+              { id: "l2", c: 1, r: 0, l: "L2 캐시", s: "작은 임시 보관소", icon: "layers", k: "muted" },
+              { id: "sm", c: 2, r: 0, l: "SM 연산기", s: "곱하고 더한다", icon: "cpu" },
+              { id: "out", c: 3, r: 0, l: "토큰 1개", s: "다음 글자", icon: "doc", k: "good" },
+            ],
+            edges: [{ f: "hbm", t: "l2", l: "3.35 TB/s", lo: [0, -16], k: "accent" }, { f: "l2", t: "sm", k: "accent" }, { f: "sm", t: "out", k: "good" }],
+          });
+          dg.player(panel, [
+            { caption: "<b>① 표는 HBM에 있다</b> — 8B 모델의 가중치 16 GB가 GPU 메모리에 들어 있다. 연산기에는 없다.", hot: ["hbm"] },
+            { caption: "<b>② 표를 연산기로 옮긴다</b> — 토큰 하나를 만들려면 16 GB 전체가 HBM → L2 → SM으로 흘러가야 한다.", hot: ["hbm", "l2", "sm"], flow: ["hbm>l2", "l2>sm"],
+              send: [["hbm", "l2", { count: 8, ms: 800, gap: 90 }], ["l2", "sm", { count: 8, ms: 450, gap: 60 }]] },
+            { caption: "<b>③ 곱하고 더해 토큰 1개</b> — 연산기는 받은 숫자로 계산해 다음 글자 하나를 낸다. 계산 자체는 금방 끝난다.", hot: ["sm", "out"], flow: ["sm>out"],
+              send: [["sm", "out", { count: 1, ms: 600, r: 9, color: "var(--user)" }]] },
+            { caption: "<b>④ 다음 토큰도 처음부터</b> — 답이 100토큰이면 16 GB를 100번 읽는다. 시간이 어디서 드는지 다음 장면에서 잰다.", flow: ["hbm>l2", "l2>sm", "sm>out"],
+              send: [["hbm", "l2", { count: 6, ms: 700, gap: 80 }], ["l2", "sm", { count: 6, ms: 400, gap: 50 }], ["sm", "out", { count: 1, ms: 500, r: 9, color: "var(--user)" }]] },
+          ], { interval: 3000 });
+          return {};
         },
-        basis: "패킷 수와 속도는 연출이다. L2 캐시는 가중치를 통과시킬 뿐 재사용하지 못한다고 단순화했다(불확실). " + SRC },
+        basis: "패킷 수와 속도는 연출이다. L2 캐시는 가중치를 통과시킬 뿐 재사용하지 못한다고 단순화했다(불확실).",
+        takeaway: "토큰 하나마다 가중치 표 전체가 메모리에서 연산기로 한 번 흘러간다.",
+        ask: "\"이 모델 가중치는 몇 GB인가요?\"" },
+
+      { kicker: "시간 재기", title: "옮기는 시간이 계산 시간보다 300배 길다", en: "Where time goes",
+        narration: [
+          "16 GB를 초당 3.35 TB 길로 옮기면 약 4.8 ms가 걸린다. 계산은 숫자 하나당 곱셈·덧셈 2번, 모두 160억 회인데 연산기는 초당 989조 회를 하므로 0.016 ms면 끝난다.",
+          "즉 연산기는 대부분의 시간을 표가 오기를 기다린다. 이런 상태를 {{메모리 병목}}이라고 부른다.",
+        ],
+        mount(body) {
+          body.innerHTML = `<div class="time">
+            <div class="row"><b>표 옮기기<small>16 GB ÷ 3.35 TB/s</small></b><div class="ltt-bar" id="tb1"></div></div>
+            <div class="row"><b>계산<small>160억 회 ÷ 초당 989조 회</small></b><div class="ltt-bar" id="tb2"></div></div></div>
+            <p class="ltt-basis">8B 모델, 사용자 1명 · <span class="ltt-tag">모델로 계산한 예시</span></p>`;
+          const a = LTT.bar("tb1", [{ color: "var(--mem)" }, { color: "transparent" }]), b = LTT.bar("tb2", [{ color: "var(--cmp)" }, { color: "transparent" }]);
+          return { enter: () => {
+            a.set([0, 1], ["", ""]); b.set([0, 1], ["", ""]);
+            setTimeout(() => { a.set([m81.tMem, 0], [d3.format(".2f")(m81.tMem * 1e3) + " ms", ""]); b.set([m81.tComp, m81.tMem - m81.tComp], ["", ""]); }, 150);
+          } };
+        },
+        basis: SRC,
+        takeaway: "토큰 속도는 '표를 옮기는 속도', 즉 메모리 대역폭이 정한다." },
 
       { type: "predict", kicker: "짐작해 보기", title: "연산기만 2배 빠른 GPU로 바꾸면?",
-        sub: "8B 모델, 사용자 1명. 메모리 속도는 그대로다.",
-        question: "연산기만 2배 빠른 GPU로 바꾸면 8B 모델 batch 1 생성 속도는 몇 배가 되는가",
+        sub: "메모리 대역폭은 그대로 두고 연산기만 2배 빨라진 GPU다. 사용자 한 명이 체감하는 생성 속도는 어떻게 될까?",
+        visual: () => LTT.facts([
+          { icon: "layers", value: "8B · 16 GB", label: "모델 가중치" },
+          { icon: "user", value: "1명", label: "동시 사용자" },
+          { icon: "cpu", value: "×2", label: "연산 속도", tone: "good" },
+          { icon: "bolt", value: "그대로", label: "메모리 대역폭", tone: "warn" },
+        ]),
+        question: "연산기만 2배 빠른 GPU로 바꾸면 8B 모델, 사용자 1명일 때 생성 속도는 몇 배가 되는가",
         choices: [{ id: "two", text: "약 2배" }, { id: "onefive", text: "약 1.4배" }, { id: "same", text: "거의 그대로" }, { id: "half", text: "오히려 느려짐" }],
         answer: "same",
         answerVisual(node) {
@@ -128,48 +157,68 @@
           const [x, y] = node.querySelectorAll(".duo > div");
           mini(m81, m81.tMem)(x); setTimeout(() => mini(model(8, 1, 2), m81.tMem)(y), 500);
         },
-        why: `거의 그대로다. 표 16 GB를 읽는 ${d3.format(".1f")(m81.tMem * 1e3)} ms가 그대로라 <b>${fmtN(m81.total)} → ${fmtN(model(8, 1, 2).total)} tok/s</b>. 연산기는 원래도 대부분 기다리고 있었다. <span class="ltt-tag">모델로 계산한 예시</span>` },
+        why: `거의 그대로다. 표 16 GB를 옮기는 ${d3.format(".1f")(m81.tMem * 1e3)} ms는 변하지 않고, 원래도 짧던 계산 막대만 더 짧아졌다. <b>${fmtN(m81.total)} → ${fmtN(model(8, 1, 2).total)} 토큰/초</b>. <span class="ltt-tag">모델로 계산한 예시</span>` },
 
-      { type: "compare", kicker: "세 가지 업그레이드", title: "사용자 1명일 때 무엇이 속도를 올리나", cols: 3,
-        sub: "8B 모델 기준 한 가지씩만 바꿨다. 막대는 읽기·계산 시간.",
+      { type: "compare", kicker: "세 가지 업그레이드", title: "사용자 1명일 때 무엇이 속도를 올리나", cols: 3, layout: "stack",
+        narration: "8B 모델에서 한 가지씩만 바꿨다. 각 카드의 위 숫자는 초당 만드는 토큰 수, 아래 두 막대는 표를 옮기는 시간(파랑)과 계산 시간(주황)이다. 어느 쪽이 빨라질지 고른 뒤 판정을 보자.",
         items: [
           { label: "연산기 2배", visual: mini(model(8, 1, 2), m81.tMem), tone: "bad", verdict: "×1.0 그대로", noteAfter: true, note: "줄어든 건 원래도 짧던 계산 막대뿐." },
-          { label: "메모리 대역폭 2배", visual: mini(model(8, 1, 1, 2), m81.tMem), tone: "good", verdict: "×2.0", noteAfter: true, note: "긴 읽기 막대가 절반이 된다." },
-          { label: "모델을 4B로", visual: mini(model(4, 1), m81.tMem), tone: "good", verdict: "×2.0", noteAfter: true, note: "읽을 표가 절반. 양자화(바이트 수 줄이기)도 같은 방향." },
+          { label: "메모리 대역폭 2배", visual: mini(model(8, 1, 1, 2), m81.tMem), tone: "good", verdict: "×2.0", noteAfter: true, note: "긴 옮기기 막대가 절반이 된다." },
+          { label: "모델을 4B로", visual: mini(model(4, 1), m81.tMem), tone: "good", verdict: "×2.0", noteAfter: true, note: "옮길 표가 절반. 숫자를 작게 저장하는 양자화도 같은 효과." },
         ],
-        basis: "모델로 계산한 예시. " + SRC },
+        basis: "모델로 계산한 예시. " + SRC,
+        takeaway: "사용자가 적을 때는 대역폭을 늘리거나 표를 줄여야 빨라진다.",
+        ask: "\"이 GPU의 메모리 대역폭은 몇 TB/s인가요?\"" },
 
-      { kicker: "묶기(batch)", title: "한 번 읽고 여러 명에게 토큰을 나눠 준다",
-        sub: "사용자를 묶어도 읽는 양은 같다. 나오는 토큰만 늘어난다.",
-        mount: (body) => {
-          const f = makeFlow(body);
-          const row = document.createElement("div"); row.className = "dk-actions";
-          let users = 1;
-          [1, 4].forEach((n) => {
-            const b = document.createElement("button"); b.textContent = n + "명 묶기";
-            b.onclick = () => { users = n; f.loop(n); };
-            row.appendChild(b);
+      { kicker: "여러 명 묶기", title: "한 번 읽고 여러 명에게 나눠 준다", en: "Batching",
+        bare: true,
+        narration: [
+          "{{batch}}로 사용자를 묶으면 표를 한 번 옮기는 동안 여러 명의 토큰을 같이 계산한다. 옮기는 양은 같으니 시간은 거의 그대로다.",
+          "그래서 한 사람의 속도는 그대로지만, GPU 한 장이 1초에 내놓는 전체 토큰 수는 묶은 인원만큼 늘어난다.",
+        ],
+        mount(body) {
+          const panel = body.appendChild(Object.assign(document.createElement("div"), { className: "ltt-panel" }));
+          const svg = panel.appendChild(svgEl());
+          const us = [0, 1, 2, 3];
+          const dg = LTT.diagram(svg, {
+            cols: 3, rows: 4, cell: [250, 70], node: [180, 54], maxWidth: false,
+            nodes: [
+              { id: "hbm", c: 0, r: 1.5, l: "HBM", s: "가중치 16 GB", icon: "memory", h: 70 },
+              { id: "sm", c: 1, r: 1.5, l: "SM 연산기", s: "한 번에 여러 명", icon: "cpu", h: 70 },
+              ...us.map((i) => ({ id: "u" + i, c: 2, r: i, l: "사용자 " + (i + 1), icon: "user", w: 150, h: 48 })),
+            ],
+            edges: [{ f: "hbm", t: "sm", k: "accent", l: "표 1번" }, ...us.map((i) => ({ f: "sm", t: "u" + i, k: "good" }))],
           });
-          body.appendChild(row);
-          return { enter: () => f.loop(users), leave: f.stop };
-        } },
+          dg.player(panel, [
+            { caption: "<b>사용자 1명</b> — 16 GB를 한 번 옮겨서 토큰 1개를 만든다.", hot: ["hbm", "sm", "u0"], flow: ["hbm>sm"],
+              send: [["hbm", "sm", { count: 8, ms: 900, gap: 80 }], ["sm", "u0", { count: 1, ms: 500, r: 8, color: "var(--user)" }]] },
+            { caption: "<b>4명 묶기</b> — 같은 16 GB를 한 번 옮기고, 네 명의 토큰을 함께 만든다. 옮기는 시간은 그대로다.", hot: ["hbm", "sm", "u0", "u1", "u2", "u3"], flow: ["hbm>sm"],
+              send: [["hbm", "sm", { count: 8, ms: 900, gap: 80 }], ...us.map((i) => ["sm", "u" + i, { count: 1, ms: 380, r: 8, color: "var(--user)" }])] },
+          ], { interval: 3200 });
+          return {};
+        },
+        takeaway: "batch는 전체 처리량을 올린다. 한 사람의 속도는 올리지 않는다." },
 
-      { type: "compare", kicker: "실제 서빙 규모", title: "묶는 인원별로 무엇에 묶이나", cols: 3,
-        sub: "같은 GPU, 8B 모델. 처리량과 읽기·계산 막대로 판정해 보자.",
+      { type: "compare", kicker: "실제 서빙 규모", title: "묶는 인원이 늘면 병목이 바뀐다", cols: 3, layout: "stack",
+        narration: "같은 GPU, 같은 8B 모델이다. 묶는 인원이 늘면 계산 막대(주황)가 길어진다. 1명분 계산 0.016 ms × N명이 옮기기 4.8 ms와 같아지는 N이 약 295명이다. 그보다 많이 묶으면 연산 속도가 병목이 된다.",
         items: [
-          { label: "개인 챗 (1명)", visual: mini(m81, m81.tMem), tone: "", verdict: "메모리에 묶임", noteAfter: true, note: "연산기는 거의 논다." },
-          { label: "서버 64명", visual: mini(model(8, 64), m81.tMem), tone: "good", verdict: "메모리에 묶임 · 처리량 64배", noteAfter: true, note: "같은 읽기로 64토큰. 한 사람 속도는 그대로." },
-          { label: "서버 512명", visual: mini(model(8, 512), model(8, 512).tComp), tone: "warn", verdict: "연산에 묶임", noteAfter: true, note: "약 295명을 넘으면 계산이 읽기보다 길어 한 사람 속도가 떨어진다." },
+          { label: "개인 챗봇 · 1명", visual: mini(m81, m81.tMem), tone: "", verdict: "메모리에 묶임", noteAfter: true, note: "연산기는 거의 논다." },
+          { label: "서버 · 64명", visual: mini(model(8, 64), m81.tMem), tone: "good", verdict: "메모리에 묶임 · 처리량 64배", noteAfter: true, note: "같은 옮기기로 토큰 64개. 한 사람 속도는 그대로." },
+          { label: "서버 · 512명", visual: mini(model(8, 512), model(8, 512).tComp), tone: "warn", verdict: "연산에 묶임", noteAfter: true, note: "약 295명을 넘으면 계산이 옮기기보다 길어져 한 사람 속도가 떨어진다." },
         ],
         tex: "t_{\\text{token}}=\\max\\!\\left(\\frac{\\text{가중치 바이트}}{\\text{대역폭}},\\ \\frac{2\\times\\text{파라미터}\\times\\text{batch}}{\\text{연산 속도}}\\right),\\quad \\text{꺾이는 batch}=\\frac{989}{3.35}\\approx 295",
-        basis: "모델로 계산한 예시. 막대 길이는 카드마다 가장 긴 막대 기준. " + SRC },
+        basis: "모델로 계산한 예시. 막대 길이는 카드마다 가장 긴 막대 기준. " + SRC,
+        takeaway: "약 295명까지는 대역폭이, 그 이상은 연산 속도가 속도를 정한다." },
 
       { type: "explain", kicker: "주의", title: "batch가 만능은 아니다", arrows: false,
         steps: [
-          { icon: "🙋", title: "한 사람 속도는 그대로", text: "batch는 전체 처리량을 올린다. 개인 체감 속도는 오르지 않는다." },
-          { icon: "📉", title: "약 295를 넘으면", text: "계산이 읽기보다 길어져 오히려 한 스텝이 느려진다." },
-          { icon: "🧠", title: "대화 기록 공간", text: "사용자마다 KV cache가 HBM을 차지해 무한히 묶을 수 없다. single-gpu-transformer에서 다룬다." },
-        ] },
+          { icon: "user", title: "한 사람 속도는 그대로", text: "batch는 전체 처리량을 올린다. 사용자가 느끼는 응답 속도는 오르지 않는다." },
+          { icon: "trend", title: "약 295명을 넘으면", text: "계산이 옮기기보다 길어져 오히려 한 단계가 느려진다." },
+          { icon: "memory", title: "대화 기록 공간", text: "사용자마다 대화 기록(KV cache)이 HBM을 차지해서 무한히 묶을 수 없다. 이 공간 계산은 다음 회차 주제다." },
+        ],
+        takeaway: "묶는 인원은 메모리 공간과 응답 속도 목표가 함께 정한다." },
+
+      { type: "summary", title: "GPU를 고르기 전에 물어볼 것", en: "Recap" },
 
       { type: "keywords", title: "다음에 비슷한 걸 만나면",
         terms: [
@@ -178,13 +227,13 @@
           { ko: "배치 처리", en: "batching / continuous batching" },
         ],
         signals: [
-          "GPU 사양표에서 TFLOPS만 보고 생성 속도를 기대할 때",
+          "GPU 사양표에서 연산 속도(TFLOPS)만 보고 생성 속도를 기대할 때",
           "사용자 한 명 응답이 느린데 GPU 사용률은 낮게 나올 때",
           "서버 처리량과 개인 응답 속도가 따로 노는 것 같을 때",
         ],
         queries: ["LLM decode memory bandwidth bound", "roofline model GPU inference", "tokens per second HBM bandwidth", "continuous batching LLM serving", "weight quantization decode speed"],
         neighbors: [
-          { term: "연산 병목", diff: "compute-bound. 긴 프롬프트 처리(prefill)나 큰 batch에서 생긴다." },
+          { term: "연산 병목", diff: "compute-bound. 긴 프롬프트를 처음 읽을 때(prefill)나 큰 batch에서 생긴다." },
           { term: "지연 vs 처리량", diff: "latency는 한 사람 속도, throughput은 전체 토큰 수. batch는 뒤쪽만 올린다." },
         ] },
     ],

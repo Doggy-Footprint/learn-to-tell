@@ -17,7 +17,7 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 - 작업 세션의 context가 100k tokens 이상으로 보이면 새 세션에서 학습하길 권한다. 이때 작업 맥락(목표, 막힌 결정, 이미 정한 것)을 `<home>/lessons/<id>/context.md`로 남기고, 새 세션에서 그 파일을 읽게 한다.
 - lesson id는 `YYYYMMDD-<kebab-slug>`이고, 디렉터리는 `<home>/lessons/<id>/`다.
 - `<home>/map.md`가 있으면 먼저 읽고, 이미 학습한 개념과 다음 후보를 진단에 반영한다.
-- `<home>/background.md`가 있으면 함께 읽고, 개념 사다리의 시작 단, 예시, gallery 예제(`ltt-meta`의 audience)를 사용자 배경에 맞춘다.
+- `<home>/background.md`가 있으면 함께 읽고, 개념 사다리의 시작 단, 예시, 풀어 줄 용어를 사용자 배경에 맞춘다.
 
 ### background 기록
 
@@ -51,53 +51,55 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 ## 3. 자료 (시뮬레이션 경로)
 
-1. 수업은 장면 덱이다: `LTT.deck({title, scenes})` 하나에 장면 데이터를 적는다(`kit/ltt-deck.js`). 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면. 6–12장면, 학습 자료 20분 이내.
-   - `<skill>/gallery/`에서 가장 비슷한 예제를 골라 `<home>/lessons/<id>/lesson.html`로 복사한 뒤 장면 데이터만 고친다. 각 페이지 head의 `ltt-meta`(audience, pattern, mode, decision)로 고른다.
-   - 코딩 예제: `cache-ttl`, `concurrent-calls`, `payment-retry`, `realtime-transport`, `alert-precision`. 도메인 예제: `<domain>/*.html`(uiux, pedagogy, finance, physics, cognition, linear-algebra, gpu). GPU 3편은 같은 주제를 전제 지식 수준별로 나눈 예다(`single-gpu-dataflow` = Transformer 모름, `single-gpu-transformer` = Transformer 앎).
-   - `template.html`: 장면 타입마다 하나씩 둔 최소 덱. 비슷한 예제가 없으면 여기서 시작한다.
-   - `index.html`: 시나리오 목록. 복사 대상이 아니다. gallery에 페이지를 추가하면 여기에도 카드를 추가한다.
-2. 장면 타입 고르기
-   - `hook`: 이 개념이 내 작업의 어떤 결정을 바꾸는지 한 문장. 첫 장면.
-   - 순서: hook → 상황·용어 설명 → (짐작해 보기 → 인포그래픽 정답) → 사례 비교 → 정리 → keywords. 설명 전에 묻지 않는다.
-   - `explain`: 원인 → 과정 → 결과를 아이콘 칸 2–4개로. 수식 대신 이것을 먼저 쓴다.
-   - `compare`: 실제 사례가 여럿이면 2–4개를 같은 질문으로 나란히 둔다. 판정은 "판정 보기" 뒤에 공개하고, 판정을 미리 알려 주는 설명은 `noteAfter`로 숨긴다.
-   - 모션(`mount`가 `{enter, leave}`를 돌려주는 장면): `LTT.flow`, `units`, `bar`, `plane`, `sim`으로 변화·인과를 움직여 보인다. 장식용 반복 애니메이션은 쓰지 않는다. 정지 화면만으로도 읽혀야 한다.
-   - `predict`(짐작해 보기): 퀴즈가 아니다. 상황과 용어를 explain·사례로 먼저 보여 준 뒤, 직관이 틀리기 쉬운 지점에서만 수업당 최대 1번 묻는다. "잘 모르겠다"가 자동으로 붙고, 고르면 정답을 `answerVisual`(인포그래픽, 함수면 공개 때 실행)과 짧은 `why`로 설명한다. 사용자가 **세계·시스템**을 짐작할 때만 쓴다. 사용자 자신의 편향(앵커링, 유창성 등)을 겨냥한 체험은 의도가 드러나 효과가 없으므로 연구 사례 `compare`와 설명으로 대신한다. 추측할 재료가 없는 주제면 빼고 설명형으로 간다.
+자료는 사용자가 **혼자 읽고 이해할 수 있어야 한다**. 선생님이 옆에서 말로 메우던 것을 페이지가 대신한다.
+
+1. 수업은 장면 덱이다: `LTT.deck({title, glossary, scenes})` 하나에 장면 데이터를 적는다. 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면. 6–12장면, 학습 자료 20분 이내.
+   - 먼저 `<skill>/kit/API.md`를 읽고, 필요하면 `http://127.0.0.1:47823/gallery/catalog.html`(부품별 실물과 코드), `gallery/scenes.html`(장면 타입별 예)을 본다.
+   - 빈 `<home>/lessons/<id>/lesson.html`에서 부품을 조합해 짠다. gallery 페이지를 복사해 데이터만 고치지 않는다.
+   - 예시 수업: `cache-ttl`(백엔드), `uiux/color-contrast`(UI, 목업·BEFORE/AFTER), `gpu/single-gpu-dataflow`(시스템, 다이어그램 단계 재생), `physics/projectile-drag`(시뮬레이션), `cognition/anchoring`(설명형), `finance/diversification`(도식 + 막대), `pedagogy/retrieval-practice`(실험 설계 다이어그램, 전제 지식 없음), `linear-algebra/matrix-as-transform`(격자 변형). head의 `ltt-meta`(audience, pattern, mode, decision)로 참고할 예를 고른다. `gallery/stale/`은 옛 kit용이라 동작하지 않는다.
+   - `index.html`: 시나리오 목록. gallery에 페이지를 추가하면 여기에도 카드를 추가한다.
+2. 독학 기준. 장면마다 독자가 물을 질문에 페이지가 답한다. 장치는 상황에 맞게 고른다.
+
+   | 독자의 질문 | 장면의 책임 | 장치 |
+   | --- | --- | --- |
+   | 이걸 왜 보지? | 첫 장면이 내 작업의 어떤 결정과 이어지는지, 끝나면 무엇을 말할 수 있는지 | `hook` |
+   | 이 말이 무슨 뜻이지? | `background.md`와 진단에서 안다고 확인되지 않은 용어는 처음 나올 때 쉬운 말로 푼다. 새 용어는 장면당 2개 이하 | `terms` 장면, `{{용어}}` 풀이, 본문 속 정의 |
+   | 그림에서 어딜 보지? | 그림마다 읽는 법(색·칸·축이 무엇인지, 어디를 비교할지) | `points` 번호 주석, `sub`, 범례, 단계 재생 자막 |
+   | 왜 그렇게 되지? | 그림만으로 이유가 안 보이면 원인 → 과정 → 결과를 2–4문장 | `narration`, `explain` |
+   | 내 일에선 어떤 모습이지? | 추상 주장마다 사용자 맥락의 구체 예 하나 | 목업, 실제 사례 `compare` |
+   | 흔히 어디서 틀리지? | 직관과 다른 지점, 실패 예 | `predict` + `why`, `contrast`, `callout` |
+   | 결국 뭘 기억하지? | 제목은 명사가 아니라 주장 문장. 핵심 한 문장 | `takeaway`, `summary` |
+   | 더 알고 싶으면? | 근거와 찾아볼 곳, agent에게 할 질문 | `basis`, `sources`, `ask`, `keywords` |
+
+3. 장면 순서와 타입
+   - 순서: hook → terms(필요하면) → 원리(explain·단계 재생) → (predict → 인포그래픽 정답) → 사례(contrast·compare) → summary → keywords. 설명 전에 묻지 않는다.
+   - `explain`: 원인 → 과정 → 결과를 칸 2–4개로. 수식 대신 이것을 먼저 쓴다. 칸마다 작은 `visual`을 붙일 수 있다.
+   - `contrast`: 같은 대상의 BEFORE/AFTER를 목업과 번호 주석으로. 바뀐 이유를 번호 해설에 쓴다.
+   - `compare`: 실제 사례 2–4개를 같은 질문으로 나란히. 판정은 "판정 보기" 뒤에 공개하고, 판정을 미리 알려 주는 설명은 `noteAfter`로 숨긴다.
+   - 모션: `LTT.diagram`(+`player`), `stepper`, `units`, `bar`, `plane`, `sim`으로 변화·인과를 움직여 보인다. 장식용 반복 애니메이션은 쓰지 않는다(방향을 알리는 점선 흐름만 예외). 정지 화면만으로도 읽혀야 한다.
+   - `predict`(짐작해 보기): 퀴즈가 아니다. 직관이 틀리기 쉬운 지점에서만 수업당 최대 1번. 질문에 쓰는 용어는 앞 장면에서 풀어 둔다. 조건은 `visual`의 `LTT.facts`로 보인다. "잘 모르겠다"가 자동으로 붙고, 정답은 `answerVisual`(인포그래픽)과 `why`로 설명한다. 사용자가 **세계·시스템**을 짐작할 때만 쓴다. 사용자 자신의 편향(앵커링, 유창성 등)을 겨냥한 체험은 의도가 드러나 효과가 없으므로 연구 사례 `compare`와 설명으로 대신한다.
    - 슬라이더(`mount` 안의 `LTT.sweep`): 조작 자체가 배움일 때만. 실사용 범위만 움직인다.
    - 수식은 장면의 `tex`로 접어 둔다(KaTeX를 불러야 보인다). 그래프는 모양이 곧 메시지일 때만.
-   - `keywords`: **필수 마지막 장면**. 개념 이름(한/영), 떠올려야 할 신호, 검색어, 헷갈리는 이웃 개념. 학습 목표는 숙련이 아니라 다음에 비슷한 상황에서 무엇을 검색할지 떠올리는 것이다.
-3. 원칙
+   - `summary`: 장면들의 `takeaway`와 `ask`를 모은다. `keywords`: **필수 마지막 장면**. 개념 이름(한/영), 떠올려야 할 신호, 검색어, 헷갈리는 이웃 개념.
+4. 원칙
    - 실제 활용 예와 실패·주의 예를 함께 둔다.
    - 예측을 받았다면 첫 예측은 잠기고 `LTT.record("predict", …)`로 남는다(`predict` 장면이 처리한다).
    - 범위와 상수에는 근거(`basis`)를 적고, 근거가 약하면 "불확실" 태그를 단다. 근거 없는 수치를 지어내지 않는다.
    - 화면 수치에는 "모델로 계산한 예시" 태그를 단다.
-   - 페이지에는 장면 데이터, 모델 함수, 작은 시각 CSS만 둔다. 레이아웃은 덱이 맡는다.
-4. 검증 (공개 전)
+   - 색은 kit 토큰(`--ltt-*`)만 쓴다. 목업 속 '실제 화면' 색은 예외.
+   - 페이지에는 모델 함수, 기대값, 장면 데이터, 부품 조합만 둔다. kit에 없는 시각 부품이 필요하면 페이지에 짜고 `result.md`의 "kit 후보"에 적는다.
+5. 검증 (공개 전)
    - 수치 모델의 기대값은 독립 서브에이전트가 구하게 한다. 서브에이전트에는 공식과 계산 지점만 주고 모델 코드는 주지 않는다. 서브에이전트를 쓸 수 없으면 모델 코드보다 먼저 직접 적는다. 기대값은 `LTT.expect(label, actual, expected, { tol })`로 넣는다.
    - 불일치가 나면 어느 쪽이 틀렸는지 먼저 손으로 다시 계산한다. 모델에 맞춰 기대값을 고치지 않는다. 한 번 고친 뒤에도 불일치가 남으면 그 부분을 빼거나 "검증 실패"로 표시하고 사용자에게 알린다.
    - 결정 변수에 관한 주장(공식, 범위, 비교표 판정)은 목록으로 뽑아 모델 코드를 보지 않는 독립 서브에이전트에게 검토받는다. 검토할 수 없으면 해당 주장에 "미검증" 태그를 단다. 자기 확언만으로 정확성을 인정하지 않는다.
-5. 서버를 백그라운드로 실행한다: `node <skill>/server/server.mjs`. 이미 실행 중이면 그대로 재사용한다. 그다음 `http://127.0.0.1:47823/lessons/<id>/lesson.html`을 안내한다. 포트는 `LTT_PORT`로 바꿀 수 있다.
-6. 사용자가 다 봤다고 하면 `<home>/lessons/<id>/events.jsonl`을 읽어 예측과 `expect-mismatch` 이벤트를 확인한다.
+   - **독자 검토**: 독립 서브에이전트에게 `lesson.html`과 `background.md`만 주고, 그 배경의 사람으로서 혼자 읽게 한다. 정의 없이 쓰인 용어, 설명 없이 건너뛴 단계, 그림만으로 이유를 알 수 없는 장면을 장면 번호와 함께 받아 고친다. 서브에이전트를 쓸 수 없으면 직접 같은 목록을 쓰고, 남은 항목에 "미검토"를 표시한다.
+   - 페이지를 열어 오른쪽 아래 패널의 기대값 불일치와 수업 점검(lint) 경고가 0건인지 확인한다.
+6. 서버를 백그라운드로 실행한다: `node <skill>/server/server.mjs`. 이미 실행 중이면 그대로 재사용한다. 그다음 `http://127.0.0.1:47823/lessons/<id>/lesson.html`을 안내한다. 포트는 `LTT_PORT`로 바꿀 수 있다.
+7. 사용자가 다 봤다고 하면 `<home>/lessons/<id>/events.jsonl`을 읽어 예측, `term`(눌러서 풀이를 연 용어), `expect-mismatch`, `lint` 이벤트를 확인한다. 여러 번 연 용어는 이해 확인에서 다시 묻는다.
 
-### kit (`/kit/ltt.js`)
+### kit
 
-- 불러오는 순서: `/kit/vendor/d3.min.js`, `/kit/vendor/plot.umd.min.js`(Observable Plot 0.6.17, 전역 `Plot`), 수식이 있으면 `/kit/vendor/katex/katex.min.js`(+ `katex.min.css`), `/kit/ltt.js`, `/kit/ltt-parts.js`, `/kit/ltt-deck.js`. Plot과 KaTeX는 쓸 때만 불러온다. `gallery/template.html`이 최소 예제다.
-- `LTT.record(type, data)`: lesson 페이지에서만 서버로 이벤트를 보낸다.
-- `LTT.expect(label, actual, expected, { tol })`: 결과를 화면 오른쪽 아래 패널에 표시하고, 불일치하면 서버에도 알린다. 모두 일치하면 패널을 숨기고, 불일치가 하나라도 있으면 펼친 채로 보인다.
-- CSS 클래스: `ltt-card`, `ltt-grid`, `ltt-stat`, `ltt-tag`(`warn`/`bad`/`good`), `ltt-param`, `ltt-basis`, `ltt-lead`, `ltt-hidden`, `ltt-hero`, `ltt-units`·`ltt-unit`(열 수 `--ltt-cols`), `ltt-bar`(자식 `span`의 `flex-grow`로 비율), `ltt-key`(범례), `ltt-rise`(등장, 순서 `--i`). 단위 그림은 `--i`를 칸마다 주면 순서대로 칠해진다.
-- `ltt-parts.js` 공통 함수. 새 수업은 이것으로 짜고, 페이지에는 모델 함수와 설정만 둔다.
-  - `LTT.predict({question, input | choices, button, preview, answer, hide, show, reveal})`: 첫 예측을 잠그고 기록한 뒤 공개한다. 선택지는 `data-choice` 버튼으로 둔다.
-  - `LTT.sweep({params: {id: {fmt, map}}, render, presets})`: range 입력들이 하나의 `render(values)`를 움직인다. `#<id>-v`에 값을 표시하고, `data-preset` JSON 버튼으로 값을 한꺼번에 바꾼다.
-  - `LTT.units(el, n, cols).paint(k, cls, alt)`, `LTT.bar(el, parts).set(values)`, `LTT.tween(el, to, fmt)`: 단위 그림, 비율 막대, 숫자 tween.
-  - `LTT.stepper(el, [{caption, enter(i, dir)}])`: 이전/다음/자동 재생. `enter`는 다시 들어와도 같은 화면이 되게 짠다.
-  - `LTT.flow(svg, {nodes, links}).send(from, to, {count, color})`: 박스와 화살표 그림, 패킷 이동(데이터 흐름, 메시지).
-  - `LTT.plane(svg, {range, vectors, shape}).to([[a,b],[c,d]])`: 2×2 행렬로 격자와 벡터를 변형한다.
-  - `LTT.sim({init, step, draw, until, dt})`: 고정 시간 간격 시뮬레이션. `runToEnd()`로 화면 없이 결과를 계산한다.
-  - `LTT.math()`: `data-tex`(블록 수식은 `data-display`도 붙임) 요소를 KaTeX로 그린다. 로드 시 자동 실행된다.
-  - `LTT.deck({title, scenes})`: 장면 타입 `hook`·`explain`·`compare`·`predict`·`keywords`, 모든 장면 공통 필드 `kicker`·`title`·`sub`·`basis`·`tex`·`mount(body, ctx) → {enter, leave}`. 장면은 처음 방문할 때 만들고 `enter`는 방문할 때마다 실행한다. ←/→ 키, URL `#n`, `scene` 이벤트 기록.
-  - 이 함수들은 `prefers-reduced-motion`이면 애니메이션 길이를 0으로 둔다.
-- gallery 페이지의 `<script type="application/json" id="ltt-meta">`(domain, topic, audience, pattern, decision)로 복사할 예제를 고른다.
-- 수업마다 반복되는 패턴은 kit 어휘 후보다. `result.md`의 "kit 후보" 항목에 적는다.
+부품 목록, 시그니처, 불러오는 순서, lint 규칙은 `<skill>/kit/API.md`에 있다. 수업마다 반복되는 패턴은 kit 어휘 후보다. `result.md`의 "kit 후보" 항목에 적는다.
 
 ## 4. 이해 확인 (대화)
 

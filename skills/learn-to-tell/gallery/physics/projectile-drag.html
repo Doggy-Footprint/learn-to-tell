@@ -4,20 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>공기저항이 있으면 가장 멀리 날아가는 각도는 얼마나 낮아질까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"물리학","topic":"공기저항이 있는 투사체의 최대 사거리 각도","audience":"등가속도 운동과 sin2θ 사거리 공식을 알고 있다","pattern":["hook","explain","predict","sim","compare","explain","keywords"],"mode":"체험형: 항력의 뜻을 먼저 보이고 최적각을 짐작한 뒤 사거리 막대로 답을 보이고 진공과 항력 궤적을 나란히 날려 보고 속력별 사례를 비교한다","decision":"공기저항을 무시해도 되는지, 최대 사거리 각도를 45°로 둘 수 있는지"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"물리학","topic":"공기저항이 있는 투사체의 최대 사거리 각도","audience":"등가속도 운동과 sin2θ 사거리 공식을 알고 있다","pattern":["hook","terms","explain","predict","sim","compare","explain","summary","keywords"],"mode":"체험형: 사거리·발사각·항력을 먼저 풀고 낮게 던져야 하는 이유를 설명한 뒤 최적각을 짐작한 뒤 사거리 막대로 답을 보이고 진공과 항력 궤적을 나란히 날려 보고 속력별 사례를 비교한다","decision":"공기저항을 무시해도 되는지, 최대 사거리 각도를 45°로 둘 수 있는지"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
 <script src="/kit/ltt-deck.js"></script>
 <style>
-  :root { --vac: #8a93ab; --drag: #d6455d; }
-  .scene { max-height: 29vh; }
-  .facts { display: flex; gap: 24px; flex-wrap: wrap; align-items: baseline; font-size: 14px; color: var(--ltt-muted); }
-  .facts b { font-size: 26px; color: var(--ltt-ink); font-variant-numeric: tabular-nums; }
+  :root { --vac: var(--ltt-muted); --drag: var(--ltt-bad); }
+  .scene { max-height: 34vh; }
+  .facts { display: flex; gap: 24px; flex-wrap: wrap; align-items: baseline; font-size: 15px; color: var(--ltt-muted); }
+  .facts b { font-size: 30px; font-weight: 850; color: var(--ltt-ink); font-variant-numeric: tabular-nums; }
   .traj path { fill: none; stroke-width: 2.5; }
-  .pk { display: grid; grid-template-columns: 150px 1fr; gap: 8px; align-items: center; font-size: 13px; margin: 2px 0; }
+  .pk { display: grid; grid-template-columns: 170px 1fr; gap: 10px; align-items: center; font-size: 15px; margin: 8px 0; }
 </style>
 </head>
 <body>
@@ -73,7 +74,7 @@
 
   const DT = 1 / 200, f0 = d3.format(".0f"), f1 = d3.format(".1f");
   const best40 = bestAngle(40, K, DT), loss = (v, a) => 1 - range(v, a, K, DT) / vacRange(v, 45);
-  const SRC = "야구공 질량 145 g, 지름 7.3 cm(MLB 규격 142–149 g, 지름 7.3–7.5 cm), 공기밀도 1.2 kg/m³(해수면 약 20 °C), Cd 0.35(야구공 Cd는 대략 0.3–0.5로 알려져 있고 속도·실밥에 따라 변한다, 기억 기반 값이라 불확실). 던지는 높이 0 m, 바람 0. 항력 사거리는 dt를 절반으로 줄여 수렴만 확인했고 절대 정확도는 검증하지 않았다.";
+  const SRC = "야구공 질량 145 g, 지름 7.3 cm(MLB 규격 142–149 g, 지름 7.3–7.5 cm), 공기밀도 1.2 kg/m³(해수면 약 20 °C), Cd 0.35(야구공 Cd는 대략 0.3–0.5로 알려져 있고 속도·실밥에 따라 변한다, 기억 기반 값이라 불확실). 던지는 높이 0 m, 바람 0. 항력 사거리는 계산 시간 간격(dt)을 절반으로 줄여도 결과가 거의 같은지만 확인했고 절대 정확도는 검증하지 않았다.";
 
   // 진공(점선)과 항력(실선) 궤적. 축척은 진공 45° 사거리에 맞춰 각도를 바꿔도 축이 고정된다.
   function traj(node, v, VW = 300, VH = 130) {
@@ -94,33 +95,53 @@
 
   LTT.deck({
     title: "공기저항이 있으면 가장 멀리 날아가는 각도는 얼마나 낮아질까?",
+    glossary: {
+      "진공": "공기가 없는 상태. 교과서 포물선 공식은 공기저항을 0으로 둔 이 상태를 가정한다.",
+    },
     scenes: [
-      { type: "hook", art: "⚾",
-        text: "교과서의 답은 45°.<br>그런데 그건 <u>공기가 없을 때</u>다.",
-        sub: "공을 가장 멀리 보낼 발사각을 정할 때, 공기저항을 무시해도 되는지 판단하는 이야기." },
+      { type: "hook", art: "ball", kicker: "공을 가장 멀리 보내는 각도 정하기",
+        pre: "교과서의 답은 45°.",
+        text: "그런데 그건<br><u>공기가 없을 때</u>의 답이다.",
+        sub: "실제 공은 공기를 밀고 나가며 속도를 잃는다. 이 수업을 마치면 공기저항이 최적 각도와 거리를 얼마나 바꾸는지, 언제 무시해도 되는지 말할 수 있다." },
 
-      { type: "explain", kicker: "용어", title: "공기저항(항력)이 하는 일", arrows: false,
-        steps: [
-          { icon: "💨", title: "항력", text: "공이 나아가는 반대 방향으로 미는 힘. 속력의 제곱에 비례해 빠를수록 급격히 커진다." },
-          { icon: "📐", title: "진공의 45°", text: "공기가 없으면 R = v² sin 2θ / g 라서 45°에서 가장 멀리 간다." },
-          { icon: "⏱️", title: "높이 던지면", text: "공중에 오래 머문다. 그동안 항력이 계속 속도를 깎는다." },
+      { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
+        terms: [
+          { key: "사거리", en: "range", icon: "ruler", plain: "던진 곳에서 공이 다시 땅에 닿은 곳까지의 수평 거리.", example: "외야에서 홈까지 송구 거리 약 80 m." },
+          { key: "발사각", en: "launch angle", icon: "trend", plain: "공을 던지는 순간 지면과 이루는 각도. 0°는 수평, 90°는 수직.", example: "공기가 없으면 45°일 때 사거리가 가장 길다." },
+          { key: "항력", en: "drag", icon: "wind", plain: "공이 공기를 밀고 나갈 때 진행 반대 방향으로 받는 힘. 속력의 제곱에 비례해, 2배 빠르면 4배 세다.", example: "손을 차창 밖으로 내밀면 빠를수록 세게 밀린다." },
         ] },
 
+      { type: "explain", kicker: "원리", title: "항력이 있으면 왜 낮게 던져야 할까", en: "Why lower",
+        steps: [
+          { icon: "trend", title: "높이 던지면 오래 뜬다", text: "{{발사각}}이 클수록 공중에 오래 머물지만 앞으로 가는 속도는 작다. {{진공}}에서 45°는 이 둘이 균형을 이루는 각도다." },
+          { icon: "wind", title: "뜬 동안 계속 깎인다", text: "공중에 있는 내내 {{항력}}이 속도를 깎는다. 오래 떠 있을수록 잃는 속도가 크다." },
+          { icon: "target", title: "그래서 낮게, 빨리", text: "항력이 공중 시간에 비용을 얹으니, 균형점이 공중 시간이 짧은 쪽(45°보다 낮은 각도)으로 옮겨 간다. 항력은 속력의 제곱으로 커져 빠른 공일수록 더 내려간다." },
+        ],
+        takeaway: "공기저항은 '오래 떠 있는 비용'을 만들고, 그래서 최적 각도가 낮아진다." },
+
       { type: "predict", kicker: "짐작해 보기", title: "40 m/s로 던진 야구공, 가장 멀리 가는 각도는?",
-        sub: "지면에서 던진다. 진공이면 R = v² sin 2θ / g 라서 45°다.",
+        sub: "지면 높이에서 바람 없이 던진다. 공기가 없다면 45°일 때 가장 멀리 간다.",
+        visual: () => LTT.facts([
+          { icon: "ball", value: "145 g", label: "야구공 무게" },
+          { icon: "bolt", value: "40 m/s", label: "던지는 속력 (시속 144 km)" },
+          { icon: "wind", value: "있음", label: "공기저항", tone: "warn" },
+        ]),
         question: "야구공을 40 m/s로 던질 때 공기저항이 있으면 최대 사거리 각도는?",
         choices: [{ id: "45", text: "45° 그대로" }, { id: "41", text: "약 41°" }, { id: "35", text: "약 35°" }, { id: "28", text: "약 28°" }],
         answer: "41",
         answerVisual(node) {
-          node.innerHTML = [["진공 · 45°", vacRange(40, 45), "#9aa1b5"], [`항력 · ${f1(best40)}°`, range(40, best40, K, DT), "var(--drag)"]]
-            .map(([l, r]) => `<div class="pk"><span>${l} · ${f0(r)} m</span><div></div></div>`).join("");
-          const top = vacRange(40, 45), cols = ["#9aa1b5", "var(--drag)"], rs = [top, range(40, best40, K, DT)];
+          node.innerHTML = [["진공 · 45°", vacRange(40, 45)], [`항력 · ${f1(best40)}°`, range(40, best40, K, DT)]]
+            .map(([l, r]) => `<div class="pk"><span>${l} · <b>${f0(r)} m</b></span><div></div></div>`).join("");
+          const top = vacRange(40, 45), cols = ["var(--vac)", "var(--drag)"], rs = [top, range(40, best40, K, DT)];
           node.querySelectorAll(".pk > div").forEach((d, i) => setTimeout(() => LTT.bar(d, [{ color: cols[i] }, { color: "transparent" }]).set([rs[i], top - rs[i]], ["", ""]), 100 + 400 * i));
         },
-        why: `약 <b>${f1(best40)}°</b>. 각도는 몇 도만 내려가지만 사거리는 진공 ${f0(vacRange(40, 45))} m에서 ${f0(range(40, best40, K, DT))} m로 <b>${f0(loss(40, best40) * 100)}%</b> 줄어든다. 각도보다 거리가 훨씬 크게 틀린다. <span class="ltt-tag">모델로 계산한 예시</span>` },
+        why: `약 <b>${f1(best40)}°</b>. 각도는 몇 도만 내려가지만 사거리는 ${f0(vacRange(40, 45))} m에서 ${f0(range(40, best40, K, DT))} m로 <b>${f0(loss(40, best40) * 100)}%</b> 줄어든다. 각도보다 거리가 훨씬 크게 틀린다. <span class="ltt-tag">모델로 계산한 예시</span>` },
 
-      { kicker: "날려 보기", title: "같은 공, 공기가 있을 때와 없을 때",
-        sub: "점선 = 진공, 빨간 선 = 항력 있음. 항력 궤적은 내려올 때 더 가파르다.",
+      { kicker: "날려 보기", title: "같은 공, 공기가 있을 때와 없을 때", en: "Simulation",
+        narration: [
+          "회색 점선은 진공에서의 궤적, 빨간 선은 항력이 있을 때의 궤적이다. 두 공은 같은 시계로 움직인다.",
+          "빨간 공은 앞으로 가는 속도를 계속 잃어서, 내려올 때 더 가파르게 떨어진다. 45°와 최적 각도로 번갈아 던져 거리 차이를 비교해 보자.",
+        ],
         mount: (body) => {
           body.innerHTML = `<div class="dk-actions"><button data-a="45">45°로 던지기</button><button data-a="best" class="ghost">${f1(best40)}°로 던지기</button></div><div></div>
             <div class="facts"><span>진공 <b id="rv">-</b> m</span><span style="color:var(--drag)">항력 <b id="rd">-</b> m</span><span class="ltt-tag">모델로 계산한 예시</span></div>`;
@@ -141,31 +162,37 @@
           body.querySelectorAll("[data-a]").forEach((b) => b.onclick = () => throwAt(b.dataset.a === "best" ? best40 : 45));
           return { enter: () => throwAt(45), leave: () => sim && sim.stop() };
         },
-        tex: "F_{\\text{drag}}=\\tfrac12\\rho C_d A v^2,\\qquad R_{\\text{진공}}=\\frac{v^2\\sin 2\\theta}{g}",
-        basis: "두 공은 같은 시간 축으로 움직인다. " + SRC },
+        tex: "F_{\\text{drag}}=\\tfrac12\\rho C_d A v^2,\\qquad R_{\\text{진공}}=\\frac{v^2\\sin 2\\theta}{g}\\quad(\\rho\\text{: 공기 밀도, } C_d\\text{: 항력 계수(모양에 따른 저항 정도), } A\\text{: 공 단면적})",
+        basis: SRC,
+        takeaway: "항력은 각도보다 거리를 훨씬 크게 바꾼다.",
+        ask: "\"이 계산에 공기저항이 들어가 있나요?\"" },
 
-      { type: "compare", kicker: "속력별", title: "공이 빠를수록 무엇이 달라지나",
-        sub: "각 속력에서 그 속력의 최적각으로 던졌다. 축척은 카드마다 진공 45° 사거리 기준.",
+      { type: "compare", kicker: "속력별", title: "공이 빠를수록 공기의 영향이 커진다", layout: "stack",
+        narration: "점선은 진공에서 45°로, 빨간 선은 항력이 있을 때 그 속력의 최적 각도로 던진 궤적이다. 항력은 속력의 제곱으로 커지므로 빠른 공일수록 차이가 크다. 카드마다 축척은 그 속력의 진공 45° 사거리에 맞췄다.",
         items: [15, 30, 45].map((v, i) => {
           const a = bestAngle(v, K, DT);
-          return { label: ["캐치볼 15 m/s", "외야 송구 30 m/s", "최고 구속급 45 m/s"][i],
+          return { label: ["캐치볼 · 15 m/s", "외야 송구 · 30 m/s", "최고 구속급 · 45 m/s"][i],
             visual: (n) => traj(n, v).set(vacPath(v, 45), path(v, a, K, DT)),
             tone: ["good", "warn", "bad"][i],
             verdict: `최적 ${f1(a)}° · 사거리 −${f0(loss(v, a) * 100)}%`,
             note: i === 2 ? "45 m/s는 약 100 mph(44.7 m/s) 직구 수준." : "" };
         }),
-        basis: "모델로 계산한 예시. 사거리 감소는 진공 45° 대비. " + SRC },
+        basis: "모델로 계산한 예시. 사거리 감소는 진공 45° 대비. " + SRC,
+        takeaway: "느린 공은 교과서 공식으로 충분하고, 빠른 공은 항력을 꼭 넣어야 한다." },
 
       { type: "explain", kicker: "주의", title: "45°가 틀리는 다른 이유들", arrows: false,
         steps: [
-          { icon: "🏔️", title: "높은 곳에서 던지면", text: "항력이 없어도 최적각이 45°보다 낮다(포환던지기 등)." },
-          { icon: "🌀", title: "회전과 바람", text: "이 모델은 마그누스 힘, 바람, 속도에 따라 변하는 Cd를 무시한다. 실제 홈런 비거리와 다를 수 있다." },
-          { icon: "🐌", title: "느린 공", text: "캐치볼처럼 느리면 45°에 가깝다. 항력은 속력의 제곱으로 커진다." },
-        ] },
+          { icon: "home", title: "높은 곳에서 던지면", text: "항력이 없어도 최적각이 45°보다 낮다. 떨어지는 높이만큼 공중 시간이 각도와 상관없이 덤으로 생겨서, 앞으로 가는 속도가 더 값지기 때문이다(포환던지기)." },
+          { icon: "refresh", title: "회전과 바람", text: "공의 회전이 만드는 옆 방향 힘(마그누스 힘), 바람, 속도에 따라 변하는 공기 저항 정도는 이 모델에 없다." },
+          { icon: "ball", title: "느린 공", text: "캐치볼처럼 느리면 45°에 가깝다. 항력은 속력의 제곱으로 커지기 때문이다." },
+        ],
+        takeaway: "이 모델은 방향을 보여 주는 단순화다. 실제 비거리는 회전과 바람까지 넣어 계산한다." },
+
+      { type: "summary", title: "궤적을 계산하기 전에 물어볼 것", en: "Recap" },
 
       { type: "keywords", title: "다음에 비슷한 걸 만나면",
         terms: [
-          { ko: "이차 항력", en: "quadratic drag" },
+          { ko: "이차 항력 (속력² 항력)", en: "quadratic drag" },
           { ko: "항력 계수", en: "drag coefficient Cd" },
           { ko: "최적 발사각", en: "optimal launch angle" },
         ],
@@ -176,7 +203,7 @@
         ],
         queries: ["projectile motion quadratic drag optimal angle", "baseball drag coefficient", "terminal velocity drag force 1/2 rho Cd A v^2", "Magnus effect baseball trajectory", "launch angle from height optimal"],
         neighbors: [
-          { term: "선형 항력", diff: "속도에 비례하는 저항. 아주 느리거나 작은 물체(점성 영역)에 맞는다." },
+          { term: "선형 항력", diff: "속도에 그냥 비례하는 저항. 꿀 속의 구슬처럼 아주 느리거나 작은 물체에 맞는다." },
           { term: "종단 속도", diff: "항력이 중력과 같아져 더 빨라지지 않는 속도. 낙하 문제에서 만난다." },
         ] },
     ],

@@ -6,25 +6,47 @@
 
   var STYLE = [
     ".ltt-unit.on{background:var(--ltt-on,var(--ltt-accent))}.ltt-unit.alt{background:var(--ltt-alt,var(--ltt-bad))}",
-    ".ltt-unit.guess{background:var(--ltt-guess,#b9c4f6)}",
-    ".ltt-choices{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}",
-    ".ltt-choices button{background:var(--ltt-card);color:var(--ltt-ink);border:2px solid var(--ltt-line);text-align:left;",
-    "font-weight:600;transition:border-color .2s,background-color .2s}",
-    ".ltt-choices button[aria-pressed=true]{border-color:var(--ltt-accent);background:#eef1fd}",
-    ".ltt-choices button.right{border-color:var(--ltt-good);background:#e6f6ef}",
-    ".ltt-choices button.wrong{border-color:var(--ltt-bad);background:#fdecef}",
+    ".ltt-unit.guess{background:var(--ltt-guess,color-mix(in srgb,var(--ltt-accent) 35%,var(--ltt-card)))}",
+    ".ltt-choices{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}",
+    ".ltt-choices button{background:var(--ltt-card);color:var(--ltt-ink);box-shadow:inset 0 0 0 1.5px var(--ltt-line-2);text-align:left;",
+    "border-radius:16px;font-weight:650;transition:box-shadow .2s,background-color .2s}",
+    ".ltt-choices button:hover:not(:disabled){box-shadow:inset 0 0 0 1.5px var(--ltt-ink)}",
+    ".ltt-choices button[aria-pressed=true]{box-shadow:inset 0 0 0 2px var(--ltt-accent);background:var(--ltt-accent-soft)}",
+    ".ltt-choices button.right{box-shadow:inset 0 0 0 2px var(--ltt-good);background:var(--ltt-good-soft)}",
+    ".ltt-choices button.wrong{box-shadow:inset 0 0 0 2px var(--ltt-bad);background:var(--ltt-bad-soft)}",
     ".ltt-stepper{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 0}",
-    ".ltt-stepper button.ghost{background:var(--ltt-line);color:var(--ltt-ink)}",
-    ".ltt-dots{display:flex;gap:5px;flex:1}.ltt-dots i{flex:1;max-width:40px;height:6px;border-radius:3px;background:var(--ltt-line);",
+    ".ltt-stepper button{padding:7px 14px;font-size:14px}",
+    ".ltt-dots{display:flex;gap:5px;flex:1}.ltt-dots i{flex:1;max-width:40px;height:5px;border-radius:3px;background:var(--ltt-line);",
     "transition:background-color .3s}.ltt-dots i.done{background:var(--ltt-accent)}",
-    ".ltt-caption{min-height:3em;margin:10px 0 0;font-size:15px}",
+    ".ltt-caption{min-height:3em;margin:12px 0 0;font-size:clamp(15px,1.35vw,18px);line-height:1.6}",
+    ".ltt-caption b{color:var(--ltt-accent)}",
     ".ltt-svg{width:100%;height:auto;display:block;overflow:visible}",
-    ".ltt-svg text{font:12px -apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;fill:var(--ltt-ink)}",
-    ".ltt-node rect{fill:var(--ltt-card);stroke:var(--ltt-line);stroke-width:1.5;transition:fill .3s,stroke .3s}",
-    ".ltt-node.hot rect{stroke:var(--ltt-accent);fill:#eef1fd}",
-    ".ltt-node text.sub{fill:var(--ltt-muted);font-size:11px}",
-    ".ltt-link{stroke:var(--ltt-line);fill:none}",
-    ".ltt-link-label{fill:var(--ltt-muted)!important;font-size:11px!important}",
+    ".ltt-svg text{font:13px var(--ltt-font);fill:var(--ltt-ink)}",
+    ".ltt-dg .n rect.box{fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:1.5;transition:fill .3s,stroke .3s}",
+    ".ltt-dg .n .l{font-size:14px;font-weight:750;fill:var(--ltt-ink)}.ltt-dg .n .s{font-size:11.5px;fill:var(--ltt-muted)}",
+    ".ltt-dg .n .ic{color:var(--ltt-ink-2)}",
+    ".ltt-dg .n.k-accent rect.box{stroke:var(--ltt-accent);fill:var(--ltt-accent-soft)}.ltt-dg .n.k-accent .ic{color:var(--ltt-accent)}",
+    ".ltt-dg .n.k-good rect.box{stroke:var(--ltt-good);fill:var(--ltt-good-soft)}.ltt-dg .n.k-good .ic{color:var(--ltt-good)}",
+    ".ltt-dg .n.k-bad rect.box{stroke:var(--ltt-bad);fill:var(--ltt-bad-soft)}.ltt-dg .n.k-bad .ic{color:var(--ltt-bad)}",
+    ".ltt-dg .n.k-warn rect.box{stroke:var(--ltt-warn);fill:var(--ltt-warn-soft)}.ltt-dg .n.k-warn .ic{color:var(--ltt-warn)}",
+    ".ltt-dg .n.k-dark rect.box{stroke:var(--ltt-dark);fill:var(--ltt-dark)}.ltt-dg .n.k-dark .l,.ltt-dg .n.k-dark .s{fill:var(--ltt-on-dark)}.ltt-dg .n.k-dark .ic{color:var(--ltt-on-dark)}",
+    ".ltt-dg .n.k-muted rect.box{fill:var(--ltt-card-2);stroke-dasharray:4 4}",
+    ".ltt-dg .n.flaw rect.box{stroke:var(--ltt-bad);stroke-width:2}",
+    ".ltt-dg .n.hot rect.box{stroke-width:2.5;filter:drop-shadow(0 6px 14px color-mix(in srgb,var(--ltt-accent) 22%,transparent))}",
+    ".ltt-dg .e{fill:none;stroke:var(--ltt-line-2);stroke-width:2;transition:stroke .3s,opacity .3s}",
+    ".ltt-dg .e.k-accent{stroke:var(--ltt-accent)}.ltt-dg .e.k-good{stroke:var(--ltt-good)}.ltt-dg .e.k-bad{stroke:var(--ltt-bad)}.ltt-dg .e.k-warn{stroke:var(--ltt-warn)}",
+    ".ltt-dg .e.dash{stroke-dasharray:5 6}",
+    ".ltt-dg .e.run{stroke-dasharray:7 7;animation:ltt-dash .7s linear infinite}",
+    "@keyframes ltt-dash{to{stroke-dashoffset:-14}}",
+    ".ltt-dg .el{font-size:11.5px;font-weight:650;fill:var(--ltt-muted);paint-order:stroke;stroke:var(--ltt-card);stroke-width:4px;stroke-linejoin:round}",
+    ".ltt-dg .z rect{fill:color-mix(in srgb,var(--ltt-ink) 2.5%,transparent);stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:5 6}",
+    ".ltt-dg .z.k-bad rect{stroke:var(--ltt-bad);fill:color-mix(in srgb,var(--ltt-bad) 5%,transparent)}",
+    ".ltt-dg .z.k-accent rect{stroke:var(--ltt-accent);fill:color-mix(in srgb,var(--ltt-accent) 5%,transparent)}",
+    ".ltt-dg .z.k-good rect{stroke:var(--ltt-good);fill:color-mix(in srgb,var(--ltt-good) 5%,transparent)}",
+    ".ltt-dg .z text{font-size:11.5px;font-weight:750;fill:var(--ltt-muted);letter-spacing:.02em}",
+    ".ltt-dg .z.k-bad text{fill:var(--ltt-bad)}.ltt-dg .z.k-accent text{fill:var(--ltt-accent)}.ltt-dg .z.k-good text{fill:var(--ltt-good)}",
+    ".ltt-dg .n,.ltt-dg .e,.ltt-dg .el,.ltt-dg .z{transition:opacity .3s}.ltt-dg .dim{opacity:.22}",
+    ".ltt-dg .pk{filter:drop-shadow(0 1px 3px rgba(0,0,0,.25))}",
     ".katex-display{overflow-x:auto;overflow-y:hidden;max-width:100%;padding:2px 0}"
   ].join("");
 
@@ -176,8 +198,8 @@
     caption.className = "ltt-caption";
     var bar = document.createElement("div");
     bar.className = "ltt-stepper";
-    var prev = document.createElement("button"); prev.className = "ghost"; prev.textContent = "◀ 이전";
-    var next = document.createElement("button"); next.textContent = "다음 ▶";
+    var prev = document.createElement("button"); prev.className = "ghost"; prev.textContent = "← 이전";
+    var next = document.createElement("button"); next.textContent = "다음 →";
     var play = document.createElement("button"); play.className = "ghost"; play.textContent = "자동 재생";
     var dots = document.createElement("div"); dots.className = "ltt-dots";
     steps.forEach(function () { dots.appendChild(document.createElement("i")); });
@@ -187,6 +209,7 @@
       k = Math.max(0, Math.min(steps.length - 1, k));
       i = k;
       caption.innerHTML = steps[k].caption || "";
+      if (LTT.linkTerms) LTT.linkTerms(caption);
       [].forEach.call(dots.children, function (d, j) { d.classList.toggle("done", j <= k); });
       prev.disabled = k === 0;
       next.disabled = k === steps.length - 1;
@@ -206,52 +229,151 @@
     return { go: go, get index() { return i; } };
   }
 
-  // Box-and-arrow diagram whose arrows can carry animated packets; sizes are in viewBox units.
-  function flow(svgEl, spec) {
-    var svg = d3.select(el(svgEl)).classed("ltt-svg", true).attr("viewBox", spec.viewBox || "0 0 880 360");
-    var gLinks = svg.append("g"), gNodes = svg.append("g"), gPackets = svg.append("g");
-    var nodes = spec.nodes;
-    function center(id) { var n = nodes[id]; return [n.x + n.w / 2, n.y + n.h / 2]; }
-    (spec.links || []).forEach(function (l) {
-      var a = center(l.from), b = center(l.to);
-      gLinks.append("line").attr("class", "ltt-link").attr("x1", a[0]).attr("y1", a[1]).attr("x2", b[0]).attr("y2", b[1])
-        .attr("stroke-width", l.width || 3);
-      if (l.label) gLinks.append("text").attr("class", "ltt-link-label").attr("x", (a[0] + b[0]) / 2 + 6)
-        .attr("y", (a[1] + b[1]) / 2 - 6).text(l.label);
+  // Grid-placed diagram geometry: nodes sit at cell centres (c, r may be fractional), edges are clipped to box borders.
+  function diagramLayout(spec) {
+    var cell = spec.cell || [210, 120], size = spec.node || [164, 60], pad = spec.pad == null ? 20 : spec.pad;
+    var cols = spec.cols || 1 + d3.max(spec.nodes, function (n) { return n.c; });
+    var rows = spec.rows || 1 + d3.max(spec.nodes, function (n) { return n.r; });
+    var nodes = {};
+    spec.nodes.forEach(function (n) {
+      var w = n.w || size[0], h = n.h || size[1];
+      var cx = pad + (n.c + 0.5) * cell[0], cy = pad + (n.r + 0.5) * cell[1];
+      nodes[n.id] = { x: cx - w / 2, y: cy - h / 2, w: w, h: h, cx: cx, cy: cy };
+    });
+    function clip(b, dx, dy, gap) {
+      var t = Math.min(dx ? (b.w / 2 + gap) / Math.abs(dx) : Infinity, dy ? (b.h / 2 + gap) / Math.abs(dy) : Infinity);
+      return [b.cx + dx * t, b.cy + dy * t];
+    }
+    var edges = (spec.edges || []).map(function (e, i) {
+      var a = nodes[e.f], b = nodes[e.t];
+      if (!a || !b) throw new Error("diagram edge " + (e.id || i) + " points to a missing node");
+      var dx = b.cx - a.cx, dy = b.cy - a.cy, p = clip(a, dx, dy, 4), q = clip(b, -dx, -dy, 8);
+      return { id: e.id || e.f + ">" + e.t, f: e.f, t: e.t, x1: p[0], y1: p[1], x2: q[0], y2: q[1] };
+    });
+    var zones = (spec.zones || []).map(function (z) {
+      return { x: pad + z.c0 * cell[0] + 6, y: pad + z.r0 * cell[1] + 6, w: (z.c1 - z.c0 + 1) * cell[0] - 12, h: (z.r1 - z.r0 + 1) * cell[1] - 12 };
+    });
+    return { width: pad * 2 + cols * cell[0], height: pad * 2 + rows * cell[1], nodes: nodes, edges: edges, zones: zones };
+  }
+
+  // Box-and-arrow diagram from a grid spec (see diagramLayout); `player` turns it into a captioned step replay.
+  function diagram(svgEl, spec) {
+    var L = diagramLayout(spec), uid = "dg" + Math.random().toString(36).slice(2, 8);
+    var svg = d3.select(el(svgEl)).classed("ltt-svg ltt-dg", true).attr("viewBox", "0 0 " + L.width + " " + L.height)
+      .attr("role", "img").attr("aria-label", spec.label || null);
+    if (spec.maxWidth !== false) svg.style("max-width", (spec.maxWidth || L.width) + "px");
+    var defs = svg.append("defs");
+    ["", "accent", "good", "bad", "warn"].forEach(function (k) {
+      defs.append("marker").attr("id", uid + "-m" + k).attr("viewBox", "0 0 10 10").attr("refX", 8).attr("refY", 5)
+        .attr("markerWidth", 7).attr("markerHeight", 7).attr("orient", "auto-start-reverse")
+        .append("path").attr("d", "M1 1L9 5L1 9z").style("fill", k ? "var(--ltt-" + k + ")" : "var(--ltt-line-2)");
+    });
+    var gZones = svg.append("g"), gEdges = svg.append("g"), gNodes = svg.append("g"), gPackets = svg.append("g");
+    (spec.zones || []).forEach(function (z, i) {
+      var b = L.zones[i], g = gZones.append("g").attr("class", "z" + (z.k ? " k-" + z.k : ""));
+      g.append("rect").attr("x", b.x).attr("y", b.y).attr("width", b.w).attr("height", b.h).attr("rx", 18);
+      if (z.l) g.append("text").attr("x", b.x + 14).attr("y", b.y + 18).text(z.l);
+    });
+    var edgeSel = {}, byPair = {};
+    (spec.edges || []).forEach(function (e, i) {
+      var g = L.edges[i], k = e.flaw ? "bad" : e.k || "";
+      var line = gEdges.append("line").attr("class", "e" + (k ? " k-" + k : "") + (e.dash ? " dash" : ""))
+        .attr("x1", g.x1).attr("y1", g.y1).attr("x2", g.x2).attr("y2", g.y2)
+        .attr("marker-end", e.arrow === false ? null : "url(#" + uid + "-m" + (/^(accent|good|bad|warn)$/.test(k) ? k : "") + ")");
+      if (e.both) line.attr("marker-start", "url(#" + uid + "-m" + (/^(accent|good|bad|warn)$/.test(k) ? k : "") + ")");
+      var label = null;
+      if (e.l) {
+        var lo = e.lo || [0, -8];
+        label = gEdges.append("text").attr("class", "el").attr("text-anchor", "middle")
+          .attr("x", (g.x1 + g.x2) / 2 + lo[0]).attr("y", (g.y1 + g.y2) / 2 + lo[1]).text(e.l);
+      }
+      edgeSel[g.id] = byPair[e.f + ">" + e.t] = { line: line, label: label, geo: g };
     });
     var nodeSel = {};
-    Object.keys(nodes).forEach(function (id) {
-      var n = nodes[id];
-      var g = gNodes.append("g").attr("class", "ltt-node").attr("transform", "translate(" + n.x + "," + n.y + ")");
-      g.append("rect").attr("width", n.w).attr("height", n.h).attr("rx", 10).style("fill", n.fill || null);
-      g.append("text").attr("x", n.w / 2).attr("y", n.sub ? n.h / 2 - 4 : n.h / 2 + 4).attr("text-anchor", "middle")
-        .style("font-weight", 700).text(n.label || id);
-      if (n.sub) g.append("text").attr("class", "sub").attr("x", n.w / 2).attr("y", n.h / 2 + 13).attr("text-anchor", "middle").text(n.sub);
-      nodeSel[id] = g;
+    spec.nodes.forEach(function (n) {
+      var b = L.nodes[n.id];
+      var g = gNodes.append("g").attr("class", "n" + (n.k ? " k-" + n.k : "") + (n.flaw ? " flaw" : ""))
+        .attr("transform", "translate(" + b.x + "," + b.y + ")");
+      g.append("rect").attr("class", "box").attr("width", b.w).attr("height", b.h).attr("rx", Math.min(14, b.h / 2));
+      var tx = b.w / 2, anchor = "middle";
+      if (n.icon && LTT.icon) {
+        var s = Math.min(26, b.h - 20);
+        g.append("g").attr("class", "ic").attr("transform", "translate(14," + (b.h - s) / 2 + ")")
+          .html(LTT.icon(n.icon).replace("<svg ", "<svg width='" + s + "' height='" + s + "' "));
+        tx = 14 + s + 10; anchor = "start";
+      }
+      g.append("text").attr("class", "l").attr("x", tx).attr("y", n.s ? b.h / 2 - 3 : b.h / 2 + 5).attr("text-anchor", anchor).text(n.l || n.id);
+      if (n.s) g.append("text").attr("class", "s").attr("x", tx).attr("y", b.h / 2 + 14).attr("text-anchor", anchor).text(n.s);
+      if (n.flaw) {
+        var f = g.append("g").attr("transform", "translate(" + (b.w - 4) + ",4)");
+        f.append("circle").attr("r", 9).style("fill", "var(--ltt-bad)");
+        f.append("text").attr("text-anchor", "middle").attr("y", 4).style("fill", "#fff").style("font-weight", 800).style("font-size", "12px").text("!");
+      }
+      nodeSel[n.id] = g;
     });
-    return {
+    function ends(from, to) {
+      var e = byPair[from + ">" + to];
+      if (e) return [[e.geo.x1, e.geo.y1], [e.geo.x2, e.geo.y2]];
+      e = byPair[to + ">" + from];
+      if (e) return [[e.geo.x2, e.geo.y2], [e.geo.x1, e.geo.y1]];
+      return [[L.nodes[from].cx, L.nodes[from].cy], [L.nodes[to].cx, L.nodes[to].cy]];
+    }
+    var api = {
       svg: svg,
+      layout: L,
       node: function (id) { return nodeSel[id]; },
+      // Ids may name nodes or edges ("from>to" or the edge's id); everything else dims. No ids clears the focus.
       highlight: function (ids) {
-        Object.keys(nodeSel).forEach(function (id) { nodeSel[id].classed("hot", ids.indexOf(id) >= 0); });
+        var on = ids && ids.length ? ids : null;
+        Object.keys(nodeSel).forEach(function (id) {
+          nodeSel[id].classed("dim", !!on && on.indexOf(id) < 0).classed("hot", !!on && on.indexOf(id) >= 0);
+        });
+        Object.keys(edgeSel).forEach(function (id) {
+          var e = edgeSel[id], lit = !on || on.indexOf(id) >= 0 || (on.indexOf(e.geo.f) >= 0 && on.indexOf(e.geo.t) >= 0);
+          e.line.classed("dim", !lit);
+          if (e.label) e.label.classed("dim", !lit);
+        });
+      },
+      // Marching dashes show direction of travel only; pass [] to stop them.
+      flow: function (ids) {
+        Object.keys(edgeSel).forEach(function (id) { edgeSel[id].line.classed("run", (ids || []).indexOf(id) >= 0); });
       },
       // Resolves when the last packet arrives; with reduced motion it resolves immediately.
       send: function (from, to, o) {
         o = o || {};
-        var a = center(from), b = center(to), n = o.count || 5, ms = o.ms || 900, gap = o.gap || 120;
+        var pts = ends(from, to), a = pts[0], b = pts[1], n = o.count || 5, ms = o.ms || 900, gap = o.gap || 120;
         if (!MOTION_MS) return Promise.resolve();
         return new Promise(function (done) {
           d3.range(n).forEach(function (k) {
-            gPackets.append("circle").attr("r", o.r || 5).attr("fill", o.color || "var(--ltt-accent)")
-              .attr("cx", a[0]).attr("cy", a[1])
+            gPackets.append("circle").attr("class", "pk").attr("r", o.r || 5.5).style("fill", o.color || "var(--ltt-accent)")
+              .attr("cx", a[0]).attr("cy", a[1]).attr("opacity", 0)
               .transition().delay(k * gap).duration(ms).ease(d3.easeCubicInOut)
-              .attr("cx", b[0]).attr("cy", b[1]).remove()
-              .on("end", function () { if (k === n - 1) done(); });
+              .attr("cx", b[0]).attr("cy", b[1]).attr("opacity", 1).remove()
+              .on("end", function () { if (k === n - 1) done(); })
+              .on("interrupt", function () { if (k === n - 1) done(); });
           });
         });
       },
-      clear: function () { gPackets.selectAll("*").interrupt().remove(); }
+      clear: function () { gPackets.selectAll("*").interrupt().remove(); },
+      // steps: [{caption, hot, flow, send: [[from, to, opts], ...], enter(diagram, i)}]; sends run one after another.
+      player: function (container, steps, opts) {
+        var run = 0;
+        return stepper(container, steps.map(function (st) {
+          return {
+            caption: st.caption,
+            enter: function (i) {
+              var id = ++run;
+              api.clear(); api.highlight(st.hot || null); api.flow(st.flow || []);
+              (st.send || []).reduce(function (p, s) {
+                return p.then(function () { return id === run ? api.send(s[0], s[1], s[2]) : null; });
+              }, Promise.resolve());
+              if (st.enter) st.enter(api, i);
+            }
+          };
+        }), opts);
+      }
     };
+    return api;
   }
 
   // 2D plane that morphs a unit grid and vectors under a 2x2 matrix [[a,b],[c,d]] (column vectors i-hat=(a,c), j-hat=(b,d)).
@@ -280,12 +402,12 @@
       gGrid.selectAll("line").data(lines).join("line")
         .attr("x1", function (l) { return px(l[0])[0]; }).attr("y1", function (l) { return px(l[0])[1]; })
         .attr("x2", function (l) { return px(l[1])[0]; }).attr("y2", function (l) { return px(l[1])[1]; })
-        .attr("stroke", function (l) { return l[2] ? "var(--ltt-muted)" : "#c5cdf3"; })
+        .attr("stroke", function (l) { return l[2] ? "var(--ltt-muted)" : "color-mix(in srgb,var(--ltt-accent) 30%,var(--ltt-card))"; })
         .attr("stroke-width", function (l) { return l[2] ? 1.5 : 1; });
       if (shape) {
         gShape.selectAll("path").data([shape]).join("path")
           .attr("d", function (pts) { return "M" + pts.map(function (p) { return px(apply(m, p)).join(","); }).join("L") + "Z"; })
-          .attr("fill", o.shapeFill || "rgba(79,107,237,.18)").attr("stroke", "var(--ltt-accent)");
+          .attr("fill", o.shapeFill || "color-mix(in srgb,var(--ltt-accent) 18%,transparent)").attr("stroke", "var(--ltt-accent)");
       }
       var vs = gVec.selectAll("g").data(vectors).join(function (enter) {
         var g = enter.append("g");
@@ -382,7 +504,8 @@
   LTT.predict = predict;
   LTT.sweep = sweep;
   LTT.stepper = stepper;
-  LTT.flow = flow;
+  LTT.diagram = diagram;
+  LTT.diagramLayout = diagramLayout;
   LTT.plane = plane;
   LTT.sim = sim;
   LTT.math = math;

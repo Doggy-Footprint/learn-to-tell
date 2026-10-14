@@ -2,56 +2,140 @@
   "use strict";
 
   var LESSON_PATH = /^\/lessons\/([a-z0-9][a-z0-9-]*)\//;
+  var TERM = /\{\{([^{}|]+?)(?:\|([^{}]+?))?\}\}/g;
+
+  var TOKENS_LIGHT = "--ltt-bg:#f2f1ec;--ltt-card:#fff;--ltt-card-2:#f7f6f2;--ltt-line:#e6e3dc;--ltt-line-2:#d6d2c8;" +
+    "--ltt-ink:#16171b;--ltt-ink-2:#3b3c43;--ltt-muted:#77777e;--ltt-accent:#2f5bff;--ltt-accent-soft:#e9eeff;" +
+    "--ltt-good:#12a066;--ltt-good-soft:#e2f5ec;--ltt-bad:#e5484d;--ltt-bad-soft:#fdebeb;--ltt-warn:#d48700;--ltt-warn-soft:#fcf1dc;" +
+    "--ltt-dark:#18191d;--ltt-on-dark:#f4f3ef;--ltt-shadow:0 1px 2px rgba(22,23,27,.05),0 10px 30px rgba(22,23,27,.06);";
+  var TOKENS_DARK = "--ltt-bg:#121316;--ltt-card:#1c1d21;--ltt-card-2:#232429;--ltt-line:#2d2e35;--ltt-line-2:#3a3b43;" +
+    "--ltt-ink:#efeee9;--ltt-ink-2:#cfcec8;--ltt-muted:#9a9aa3;--ltt-accent:#7e98ff;--ltt-accent-soft:#222a47;" +
+    "--ltt-good:#3fcf93;--ltt-good-soft:#16302a;--ltt-bad:#ff6b70;--ltt-bad-soft:#3a1d20;--ltt-warn:#f0b13c;--ltt-warn-soft:#352914;" +
+    "--ltt-dark:#050608;--ltt-on-dark:#f4f3ef;--ltt-shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);";
 
   var STYLE = [
-    ":root{--ltt-bg:#f6f7fb;--ltt-card:#fff;--ltt-ink:#1f2433;--ltt-muted:#6b7285;--ltt-accent:#4f6bed;",
-    "--ltt-good:#1f9d6b;--ltt-bad:#d6455d;--ltt-warn:#c98a12;--ltt-line:#e3e6ef;--ltt-radius:14px}",
-    "body{margin:0;background:var(--ltt-bg);color:var(--ltt-ink);",
-    "font:16px/1.55 -apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pretendard','Segoe UI',sans-serif}",
-    "main{max-width:960px;margin:0 auto;padding:32px 20px 96px}",
-    "h1{font-size:28px;margin:0 0 4px}h2{font-size:19px;margin:0 0 12px}",
-    ".ltt-lead{color:var(--ltt-muted);margin:0 0 24px}",
+    "@font-face{font-family:'Pretendard Variable';font-weight:45 920;font-style:normal;font-display:swap;",
+    "src:url('/kit/vendor/pretendard/PretendardVariable.woff2') format('woff2-variations')}",
+    ":root{" + TOKENS_LIGHT + "--ltt-radius:20px;--ltt-r-md:14px;--ltt-r-sm:8px;",
+    "--ltt-font:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Segoe UI',sans-serif;",
+    "--ltt-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}",
+    "@media (prefers-color-scheme:dark){:root:not([data-theme=light]){" + TOKENS_DARK + "color-scheme:dark}}",
+    ":root[data-theme=dark]{" + TOKENS_DARK + "color-scheme:dark}",
+    "body{margin:0;background:var(--ltt-bg);color:var(--ltt-ink);font:16px/1.6 var(--ltt-font);",
+    "-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}",
+    "main{max-width:1080px;margin:0 auto;padding:40px 20px 96px}",
+    "h1{font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-.035em;line-height:1.15;margin:0 0 8px}",
+    "h2{font-size:20px;font-weight:800;letter-spacing:-.02em;margin:0 0 12px}",
+    "code,kbd,.ltt-mono{font-family:var(--ltt-mono);font-size:.92em}",
+    "a{color:var(--ltt-accent)}",
+    ".ltt-lead{color:var(--ltt-muted);font-size:17px;margin:0 0 28px}",
     ".ltt-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}",
     ".ltt-card{background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:var(--ltt-radius);",
-    "padding:20px;margin:0 0 16px;box-shadow:0 1px 2px rgba(20,30,60,.04)}",
-    ".ltt-stat{font-size:40px;font-weight:700;letter-spacing:-.02em;line-height:1.1}",
-    ".ltt-stat small{font-size:15px;font-weight:500;color:var(--ltt-muted);margin-left:6px}",
-    ".ltt-tag{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;",
-    "background:#eef1fd;color:var(--ltt-accent);margin-right:6px;vertical-align:middle}",
-    ".ltt-tag.warn{background:#fdf4e3;color:var(--ltt-warn)}.ltt-tag.bad{background:#fdecef;color:var(--ltt-bad)}",
-    ".ltt-tag.good{background:#e6f6ef;color:var(--ltt-good)}",
-    "label.ltt-param{display:block;margin:0 0 14px}label.ltt-param b{float:right;font-variant-numeric:tabular-nums}",
-    "input[type=range]{width:100%;accent-color:var(--ltt-accent);margin:6px 0 2px}",
-    ".ltt-basis{font-size:12px;color:var(--ltt-muted)}",
-    "button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:9px 16px;",
-    "background:var(--ltt-accent);color:#fff;cursor:pointer}button:disabled{opacity:.45;cursor:default}",
-    "input[type=number],input[type=text]{font:inherit;padding:7px 10px;border:1px solid var(--ltt-line);border-radius:10px}",
+    "padding:22px;margin:0 0 16px;box-shadow:var(--ltt-shadow)}",
+    ".ltt-stat{font-size:44px;font-weight:800;letter-spacing:-.03em;line-height:1.05;font-variant-numeric:tabular-nums}",
+    ".ltt-stat small{font-size:15px;font-weight:600;color:var(--ltt-muted);margin-left:6px;letter-spacing:0}",
+    ".ltt-tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;",
+    "background:var(--ltt-accent-soft);color:var(--ltt-accent);margin-right:6px;vertical-align:middle;line-height:1.6;white-space:nowrap}",
+    ".ltt-tag.warn{background:var(--ltt-warn-soft);color:var(--ltt-warn)}.ltt-tag.bad{background:var(--ltt-bad-soft);color:var(--ltt-bad)}",
+    ".ltt-tag.good{background:var(--ltt-good-soft);color:var(--ltt-good)}.ltt-tag.muted{background:var(--ltt-card-2);color:var(--ltt-muted)}",
+    "label.ltt-param{display:block;margin:0 0 14px;font-weight:600;font-size:15px}",
+    "label.ltt-param b{float:right;font-variant-numeric:tabular-nums;font-family:var(--ltt-mono)}",
+    "input[type=range]{width:100%;accent-color:var(--ltt-accent);margin:8px 0 2px}",
+    ".ltt-basis{font-size:13px;color:var(--ltt-muted);line-height:1.5}",
+    "button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:10px 18px;background:var(--ltt-ink);",
+    "color:var(--ltt-bg);cursor:pointer;transition:transform .12s,background-color .2s,opacity .2s}",
+    "button:active:not(:disabled){transform:scale(.97)}button:disabled{opacity:.35;cursor:default}",
+    "button.ghost{background:transparent;color:var(--ltt-ink);box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
+    "button.accent{background:var(--ltt-accent);color:#fff}",
+    ":focus-visible{outline:2.5px solid var(--ltt-accent);outline-offset:2px}",
+    "input[type=number],input[type=text]{font:inherit;padding:8px 12px;border:1.5px solid var(--ltt-line-2);border-radius:12px;background:var(--ltt-card);color:var(--ltt-ink)}",
     "input[type=number]{width:6em}",
     ".ltt-hidden{display:none!important}",
-    ".ltt-hero{font-size:72px;font-weight:800;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}",
-    ".ltt-hero small{font-size:20px;font-weight:600;color:var(--ltt-muted);margin-left:8px;letter-spacing:0}",
+    ".ltt-hero{font-size:76px;font-weight:850;letter-spacing:-.05em;line-height:1;font-variant-numeric:tabular-nums}",
+    ".ltt-hero small{font-size:20px;font-weight:700;color:var(--ltt-muted);margin-left:8px;letter-spacing:0}",
     ".ltt-units{display:grid;grid-template-columns:repeat(var(--ltt-cols,10),1fr);gap:4px;max-width:360px}",
     ".ltt-unit{aspect-ratio:1;border-radius:4px;background:var(--ltt-line);",
     "transition:background-color .35s ease;transition-delay:calc(var(--i,0)*8ms)}",
-    ".ltt-bar{display:flex;height:34px;border-radius:8px;overflow:hidden;background:var(--ltt-line)}",
+    ".ltt-bar{display:flex;height:34px;border-radius:10px;overflow:hidden;background:var(--ltt-line)}",
     ".ltt-bar>span{display:flex;align-items:center;padding:0 8px;min-width:4px;color:#fff;font-size:13px;",
     "font-weight:700;white-space:nowrap;overflow:hidden;transition:flex-grow .6s cubic-bezier(.2,.7,.2,1)}",
     ".ltt-key{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ltt-muted);margin-right:14px}",
-    ".ltt-key i{width:12px;height:12px;border-radius:3px;display:inline-block}",
+    ".ltt-key i{width:12px;height:12px;border-radius:4px;display:inline-block}",
+    ".ltt-ic{width:1em;height:1em;display:inline-block;vertical-align:-.14em;flex:none}",
     "@keyframes ltt-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}",
-    ".ltt-rise{animation:ltt-rise .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0)*120ms)}",
+    ".ltt-rise{animation:ltt-rise .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0)*90ms)}",
     "@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:1ms!important;",
     "animation-delay:0s!important;transition-duration:1ms!important;transition-delay:0s!important}}",
-    "[data-tip]{position:relative;cursor:help;border-bottom:1px dotted var(--ltt-muted)}",
-    "[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:0;top:calc(100% + 6px);z-index:10;",
-    "width:max-content;max-width:280px;padding:8px 10px;border-radius:8px;background:var(--ltt-ink);color:#fff;",
-    "font-size:13px;font-weight:400;line-height:1.45;white-space:normal}",
-    "#ltt-expect{position:fixed;right:16px;bottom:16px;max-width:360px;max-height:40vh;overflow:auto;font-size:13px;",
-    "background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:12px;padding:8px 12px;",
-    "box-shadow:0 4px 16px rgba(20,30,60,.12)}#ltt-expect summary{cursor:pointer;font-weight:700;color:var(--ltt-good)}",
-    "#ltt-expect[data-fails] summary{color:var(--ltt-bad)}#ltt-expect:not([data-fails]){display:none}",
-    "#ltt-expect div{margin:2px 0}#ltt-expect .ok{color:var(--ltt-good)}#ltt-expect .fail{color:var(--ltt-bad);font-weight:600}"
+    ".ltt-term{border-bottom:1.5px dotted var(--ltt-muted);cursor:help;font-weight:inherit}",
+    ".ltt-term.first{border-bottom:2px solid color-mix(in srgb,var(--ltt-accent) 55%,transparent);background:color-mix(in srgb,var(--ltt-accent) 7%,transparent);border-radius:3px 3px 0 0;padding:0 2px}",
+    "#ltt-pop{position:fixed;z-index:50;max-width:min(320px,calc(100vw - 24px));padding:12px 14px;border-radius:14px;",
+    "background:var(--ltt-dark);color:var(--ltt-on-dark);font-size:14px;line-height:1.5;box-shadow:0 12px 32px rgba(0,0,0,.25);",
+    "opacity:0;transform:translateY(4px);transition:opacity .15s,transform .15s;pointer-events:none}",
+    "#ltt-pop.on{opacity:1;transform:none}#ltt-pop b{display:block;font-size:13px;color:#9fb3ff;margin-bottom:2px}",
+    "#ltt-expect{position:fixed;right:16px;bottom:88px;z-index:40;max-width:380px;max-height:40vh;overflow:auto;font-size:13px;",
+    "background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:14px;padding:8px 12px;",
+    "box-shadow:var(--ltt-shadow)}#ltt-expect summary{cursor:pointer;font-weight:700;color:var(--ltt-good)}",
+    "#ltt-expect[data-fails] summary{color:var(--ltt-bad)}#ltt-expect[data-warns]:not([data-fails]) summary{color:var(--ltt-warn)}",
+    "#ltt-expect:not([data-fails]):not([data-warns]){display:none}",
+    "#ltt-expect div{margin:2px 0}#ltt-expect .ok{color:var(--ltt-good)}#ltt-expect .fail{color:var(--ltt-bad);font-weight:600}",
+    "#ltt-expect .warn{color:var(--ltt-warn)}"
   ].join("");
+
+  // Hand-drawn 24×24 stroke icons; each value is SVG inner markup drawn with currentColor.
+  var ICONS = {
+    check: "<path d='M5 12.5l4.5 4.5L19 7.5'/>",
+    x: "<path d='M6.5 6.5l11 11M17.5 6.5l-11 11'/>",
+    arrow: "<path d='M4.5 12h15M13.5 6l6 6-6 6'/>",
+    "arrow-down": "<path d='M12 4.5v15M6 13.5l6 6 6-6'/>",
+    plus: "<path d='M12 5v14M5 12h14'/>",
+    minus: "<path d='M5 12h14'/>",
+    clock: "<circle cx='12' cy='12' r='8.5'/><path d='M12 7.5V12l3 2'/>",
+    hourglass: "<path d='M7 3.5h10M7 20.5h10M8 3.5c0 5 8 5.5 8 8.5s-8 3.5-8 8.5M16 3.5c0 5-8 5.5-8 8.5s8 3.5 8 8.5'/>",
+    db: "<ellipse cx='12' cy='6' rx='7' ry='2.8'/><path d='M5 6v12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V6M5 12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8'/>",
+    server: "<rect x='4' y='4' width='16' height='7' rx='2'/><rect x='4' y='13' width='16' height='7' rx='2'/><path d='M8 7.5h.01M8 16.5h.01'/>",
+    cache: "<rect x='4' y='5' width='16' height='14' rx='3'/><path d='M8 9.5h8M8 14.5h5'/><path d='M17.5 13.5l1.5 1.5-1.5 1.5'/>",
+    cpu: "<rect x='6.5' y='6.5' width='11' height='11' rx='2'/><rect x='9.5' y='9.5' width='5' height='5' rx='1'/><path d='M9.5 3.5v3M14.5 3.5v3M9.5 17.5v3M14.5 17.5v3M3.5 9.5h3M3.5 14.5h3M17.5 9.5h3M17.5 14.5h3'/>",
+    memory: "<rect x='3.5' y='7' width='17' height='9' rx='1.5'/><path d='M7 16v3M11 16v3M15 16v3M7 10.5h2M11 10.5h2M15 10.5h2'/>",
+    user: "<circle cx='12' cy='8.5' r='3.8'/><path d='M4.5 20c.8-4 3.8-6 7.5-6s6.7 2 7.5 6'/>",
+    users: "<circle cx='9' cy='9' r='3.3'/><path d='M3 19.5c.6-3.4 3-5.2 6-5.2s5.4 1.8 6 5.2'/><path d='M15.5 5.8a3.3 3.3 0 010 6.4M17.5 14.6c1.8.7 3 2.3 3.5 4.9'/>",
+    doc: "<path d='M7 3.5h7l4 4V20a.5.5 0 01-.5.5h-10A.5.5 0 017 20V3.5z'/><path d='M14 3.5V8h4M9.5 12h6M9.5 15.5h6'/>",
+    search: "<circle cx='10.5' cy='10.5' r='6'/><path d='M15 15l5 5'/>",
+    eye: "<path d='M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z'/><circle cx='12' cy='12' r='2.8'/>",
+    alert: "<path d='M12 4l9 15.5H3L12 4z'/><path d='M12 10v4M12 16.8v.2'/>",
+    bolt: "<path d='M13 3L5.5 13.5H12L11 21l7.5-10.5H12L13 3z'/>",
+    refresh: "<path d='M19.5 11a7.5 7.5 0 00-13.4-4.2M4.5 13a7.5 7.5 0 0013.4 4.2'/><path d='M6 3.5v3.5h3.5M18 20.5V17h-3.5'/>",
+    target: "<circle cx='12' cy='12' r='8.5'/><circle cx='12' cy='12' r='4.8'/><circle cx='12' cy='12' r='1.2'/>",
+    chart: "<path d='M4 20V4M4 20h16'/><path d='M8 16v-4M12 16V8M16 16v-6'/>",
+    trend: "<path d='M4 17l5-5 4 3 7-8'/><path d='M15 7h5v5'/>",
+    phone: "<rect x='7' y='3' width='10' height='18' rx='2.5'/><path d='M11 18h2'/>",
+    monitor: "<rect x='3.5' y='4.5' width='17' height='11.5' rx='2'/><path d='M9 20h6M12 16v4'/>",
+    cursor: "<path d='M6 4l12 7-5.2 1.3L10.5 18 6 4z'/>",
+    lock: "<rect x='5.5' y='10.5' width='13' height='10' rx='2'/><path d='M8.5 10.5V8a3.5 3.5 0 017 0v2.5'/>",
+    send: "<path d='M20 4L3.5 11l6.5 2.5L12.5 20 20 4z'/><path d='M10 13.5L20 4'/>",
+    layers: "<path d='M12 4l8.5 4.5L12 13 3.5 8.5 12 4z'/><path d='M3.5 12.5L12 17l8.5-4.5M3.5 16.5L12 21l8.5-4.5'/>",
+    wind: "<path d='M3.5 9h11a3 3 0 10-3-3M3.5 13h15a3 3 0 11-3 3M3.5 17h6'/>",
+    ruler: "<rect x='3' y='8' width='18' height='8' rx='1.5'/><path d='M7 8v3M11 8v4M15 8v3M19 8v2'/>",
+    scale: "<path d='M12 4v16M7 20h10M5 7h14'/><path d='M5 7l-2.5 6a2.5 2.5 0 005 0L5 7zM19 7l-2.5 6a2.5 2.5 0 005 0L19 7z'/>",
+    dice: "<rect x='4' y='4' width='16' height='16' rx='3.5'/><circle cx='9' cy='9' r='.9'/><circle cx='15' cy='15' r='.9'/><circle cx='15' cy='9' r='.9'/><circle cx='9' cy='15' r='.9'/>",
+    home: "<path d='M4 11l8-6.5 8 6.5V20H4v-9z'/><path d='M10 20v-5.5h4V20'/>",
+    anchor: "<circle cx='12' cy='5.5' r='2'/><path d='M12 7.5V20M8 11h8M4.5 13.5a7.5 7.5 0 0015 0'/>",
+    pencil: "<path d='M15.5 4.5l4 4L9 19H5v-4L15.5 4.5z'/>",
+    palette: "<path d='M12 3.5a8.5 8.5 0 100 17c1.2 0 1.8-.8 1.8-1.7 0-1.4-1.2-1.7-1.2-2.8 0-1 .8-1.6 1.8-1.6h2.4a3.7 3.7 0 003.7-3.7C20.5 6.6 16.7 3.5 12 3.5z'/><circle cx='8' cy='11' r='1'/><circle cx='11' cy='7.5' r='1'/><circle cx='15.5' cy='8' r='1'/>",
+    sun: "<circle cx='12' cy='12' r='4'/><path d='M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4'/>",
+    ball: "<circle cx='12' cy='12' r='8.5'/><path d='M6 6c2.5 2 2.5 10 0 12M18 6c-2.5 2-2.5 10 0 12'/>",
+    question: "<circle cx='12' cy='12' r='8.5'/><path d='M9.5 9.5a2.5 2.5 0 114 2c-.9.6-1.5 1.1-1.5 2.3M12 16.8v.2'/>",
+    bulb: "<path d='M9 17.5h6M10 20.5h4M12 3.5a5.5 5.5 0 00-3.2 10c.6.5 1.2 1.3 1.2 2.2v1.8h4v-1.8c0-.9.6-1.7 1.2-2.2A5.5 5.5 0 0012 3.5z'/>",
+    link: "<path d='M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1'/>",
+    inbox: "<path d='M3.5 13l2.5-7.5h12l2.5 7.5V19H3.5v-6z'/><path d='M3.5 13H8l1.5 2.5h5L16 13h4.5'/>"
+  };
+
+  function icon(name, opts) {
+    var body = ICONS[name];
+    if (!body) return "";
+    var o = opts || {};
+    return "<svg class='ltt-ic" + (o.cls ? " " + o.cls : "") + "' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='" +
+      (o.weight || 1.8) + "' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>" + body + "</svg>";
+  }
 
   function lessonId(pathname) {
     var m = LESSON_PATH.exec(pathname || "");
@@ -92,15 +176,16 @@
   }
 
   function summarize(panel) {
-    var total = panel.querySelectorAll("div").length;
+    var total = panel.querySelectorAll("div.ok,div.fail").length;
     var fails = panel.querySelectorAll("div.fail").length;
-    panel.firstChild.textContent = fails
-      ? "기대값 대조 ✗ " + fails + "건 불일치 / " + total + "건"
-      : "기대값 대조 ✓ " + total + "건 일치";
-    if (fails) {
-      panel.dataset.fails = fails;
-      panel.open = true;
-    }
+    var warns = panel.querySelectorAll("div.warn").length;
+    var parts = [];
+    if (total) parts.push(fails ? "기대값 대조 ✗ " + fails + "건 불일치 / " + total + "건" : "기대값 대조 ✓ " + total + "건 일치");
+    if (warns) parts.push("수업 점검 경고 " + warns + "건");
+    panel.firstChild.textContent = parts.join(" · ");
+    if (fails) panel.dataset.fails = fails;
+    if (warns) panel.dataset.warns = warns;
+    if (fails || warns) panel.open = true;
   }
 
   function expect(label, actual, expected, opts) {
@@ -118,12 +203,179 @@
     return r.ok;
   }
 
+  function warn(msg) {
+    if (typeof document === "undefined") return;
+    var row = document.createElement("div");
+    row.className = "warn";
+    row.textContent = "⚠ " + msg;
+    var panel = expectPanel();
+    panel.insertBefore(row, panel.firstChild.nextSibling);
+    summarize(panel);
+  }
+
+  /* ---------- glossary ---------- */
+
+  // `{{key}}` or `{{shown text|key}}`; returns [{key, shown}] in order of appearance.
+  function termsIn(text) {
+    var out = [], m;
+    if (typeof text !== "string") return out;
+    TERM.lastIndex = 0;
+    while ((m = TERM.exec(text))) out.push(m[2] ? { key: m[2].trim(), shown: m[1] } : { key: m[1].trim(), shown: m[1] });
+    return out;
+  }
+
+  // Fields an author fills with prose; everything else (ids, tones, answers) is not reader-facing text.
+  var NON_TEXT = { type: 1, tone: 1, answer: 1, id: 1, icon: 1, art: 1, tex: 1, at: 1, pointsOn: 1, layout: 1, cols: 1, k: 1, c: 1, r: 1, f: 1, t: 1, color: 1, mountIn: 1 };
+
+  function sceneText(scene) {
+    var out = [];
+    (function walk(v, key) {
+      if (key && NON_TEXT[key]) return;
+      if (typeof v === "string") out.push(v);
+      else if (Array.isArray(v)) v.forEach(function (x) { walk(x); });
+      else if (v && typeof v === "object" && !(typeof Node !== "undefined" && v instanceof Node)) {
+        Object.keys(v).forEach(function (k) { walk(v[k], k); });
+      }
+    })(scene);
+    return out.join("\n");
+  }
+
+  function stripMarks(text) { return text.replace(TERM, ""); }
+
+  // First scene that marks each glossary term; a `terms` scene defines every term it lists.
+  function termIndex(spec) {
+    var first = {};
+    (spec.scenes || []).forEach(function (s, i) {
+      if (s.type === "terms") (s.terms || []).forEach(function (t) { if (!(t.key in first)) first[t.key] = i; });
+      termsIn(sceneText(s)).forEach(function (t) { if (!(t.key in first)) first[t.key] = i; });
+    });
+    return first;
+  }
+
+  function sentences(html) {
+    var plain = String(html || "").replace(/<[^>]+>/g, "").replace(TERM, "$1").trim();
+    if (!plain) return 0;
+    return (plain.match(/[.?!…](?=\s|$)/g) || []).length || 1;
+  }
+
+  var VISUAL_TYPES = { compare: 1, contrast: 1 };
+
+  // Static checks for self-study readiness; returns [{scene, rule, msg}] (scene is 1-based, 0 for the deck).
+  function lintDeck(spec) {
+    var out = [], glossary = {}, scenes = spec.scenes || [];
+    Object.keys(spec.glossary || {}).forEach(function (k) { glossary[k] = spec.glossary[k]; });
+    scenes.forEach(function (s) { if (s.type === "terms") (s.terms || []).forEach(function (t) { glossary[t.key] = t.plain; }); });
+    var first = termIndex(spec), predicts = 0, explained = false;
+    function add(i, rule, msg) { out.push({ scene: i + 1, rule: rule, msg: msg }); }
+    scenes.forEach(function (s, i) {
+      var text = sceneText(s), marks = termsIn(text), seen = {};
+      marks.forEach(function (t) {
+        if (!(t.key in glossary) && s.type !== "terms") add(i, "unknown-term", "풀이가 없는 용어 {{" + t.key + "}}");
+      });
+      (s.type === "terms" ? s.terms || [] : []).forEach(function (t) { if (!t.plain) add(i, "unknown-term", "terms 장면의 '" + t.key + "'에 plain 풀이가 없다"); });
+      var plain = stripMarks(text);
+      Object.keys(glossary).forEach(function (key) {
+        var at = first[key];
+        if (plain.indexOf(key) >= 0 && (at == null || at > i)) add(i, "used-before-defined", "'" + key + "'가 풀이(첫 {{" + key + "}})보다 먼저 쓰였다");
+      });
+      Object.keys(first).forEach(function (k) { if (first[k] === i) seen[k] = 1; });
+      var fresh = Object.keys(seen).length;
+      if (fresh > (s.type === "terms" ? 4 : 2)) add(i, "too-many-terms", "새 용어 " + fresh + "개 (장면당 " + (s.type === "terms" ? 4 : 2) + "개 이하)");
+      if (s.type === "predict") {
+        predicts++;
+        if (!explained) add(i, "predict-before-explain", "설명 장면보다 predict가 먼저 나온다");
+        var asked = sceneText({ title: s.title, sub: s.sub, question: s.question, hint: s.hint, choices: s.choices });
+        termsIn(asked).forEach(function (t) {
+          if (seen[t.key]) { add(i, "predict-new-term", "predict 질문에서 처음 나온 용어 '" + t.key + "' (앞 장면에서 풀이할 것)"); seen[t.key] = 0; }
+        });
+      } else if (s.type !== "hook" && s.type !== "keywords" && s.type !== "summary") explained = true;
+      var hasVisual = VISUAL_TYPES[s.type] || (!s.type && s.mount);
+      if (hasVisual && !s.narration && !s.points && !s.sub && !(s.before && s.before.points))
+        add(i, "no-reading-guide", "그림을 읽는 법(narration, points, sub)이 없다");
+      if (s.type !== "hook" && s.type !== "keywords" && s.type !== "summary" && !s.title) add(i, "no-title", "제목이 없다");
+      if (s.narration && sentences(s.narration) > 4) add(i, "long-narration", "해설이 4문장을 넘는다 (장면을 나눌 것)");
+      if (s.points && s.points.length > 3) add(i, "many-points", "번호 주석이 " + s.points.length + "개 (3개 이하)");
+    });
+    if (predicts > 1) out.push({ scene: 0, rule: "many-predicts", msg: "predict가 " + predicts + "개 (수업당 1개)" });
+    var last = scenes[scenes.length - 1];
+    if (!last || last.type !== "keywords") out.push({ scene: 0, rule: "keywords-last", msg: "마지막 장면이 keywords가 아니다" });
+    Object.keys(glossary).forEach(function (k) { if (!(k in first)) out.push({ scene: 0, rule: "unused-term", msg: "glossary의 '" + k + "'가 어디에도 표시되지 않았다" }); });
+    return out;
+  }
+
+  var glossaryState = { defs: {}, first: {} };
+
+  function setGlossary(defs, first) {
+    glossaryState.defs = defs || {};
+    glossaryState.first = first || {};
+  }
+
+  // Replaces {{term}} marks in text nodes under `scope` with hover/tap definitions.
+  function linkTerms(scope, sceneIndex) {
+    if (!scope || typeof document === "undefined") return;
+    var walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, null), hits = [], n;
+    while ((n = walker.nextNode())) if (n.nodeValue.indexOf("{{") >= 0) hits.push(n);
+    hits.forEach(function (node) {
+      var frag = document.createDocumentFragment(), text = node.nodeValue, last = 0, m;
+      TERM.lastIndex = 0;
+      while ((m = TERM.exec(text))) {
+        frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        var key = (m[2] || m[1]).trim(), span = document.createElement("span");
+        span.className = "ltt-term" + (glossaryState.first[key] === sceneIndex ? " first" : "");
+        span.tabIndex = 0;
+        span.dataset.term = key;
+        span.textContent = m[1];
+        frag.appendChild(span);
+        last = TERM.lastIndex;
+      }
+      frag.appendChild(document.createTextNode(text.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+
+  function initPopover() {
+    var pop = document.createElement("div");
+    pop.id = "ltt-pop";
+    pop.setAttribute("role", "tooltip");
+    document.body.appendChild(pop);
+    var pinned = null;
+    function show(t) {
+      var key = t.dataset.term, def = glossaryState.defs[key];
+      pop.innerHTML = "<b></b><span></span>";
+      pop.firstChild.textContent = key;
+      pop.lastChild.innerHTML = def || "(풀이 없음)";
+      var r = t.getBoundingClientRect();
+      pop.style.left = "0px"; pop.style.top = "0px";
+      pop.classList.add("on");
+      var w = pop.offsetWidth, hgt = pop.offsetHeight;
+      var x = Math.max(12, Math.min(innerWidth - w - 12, r.left + r.width / 2 - w / 2));
+      var y = r.bottom + 8 + hgt > innerHeight - 8 ? r.top - hgt - 8 : r.bottom + 8;
+      pop.style.left = x + "px"; pop.style.top = y + "px";
+    }
+    function hide() { pop.classList.remove("on"); pinned = null; }
+    document.addEventListener("mouseover", function (e) { var t = e.target.closest && e.target.closest(".ltt-term"); if (t) show(t); });
+    document.addEventListener("mouseout", function (e) { var t = e.target.closest && e.target.closest(".ltt-term"); if (t && !pinned) pop.classList.remove("on"); });
+    document.addEventListener("focusin", function (e) { if (e.target.classList && e.target.classList.contains("ltt-term")) show(e.target); });
+    document.addEventListener("focusout", function (e) { if (e.target.classList && e.target.classList.contains("ltt-term") && !pinned) pop.classList.remove("on"); });
+    document.addEventListener("click", function (e) {
+      var t = e.target.closest && e.target.closest(".ltt-term");
+      if (t) { pinned = t; show(t); LTT.record("term", { term: t.dataset.term }); } else if (pinned) hide();
+    });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") hide(); });
+  }
+
   if (typeof document !== "undefined") {
     var style = document.createElement("style");
     style.id = "ltt-style";
     style.textContent = STYLE;
     document.head.appendChild(style);
+    if (document.body) initPopover(); else document.addEventListener("DOMContentLoaded", initPopover);
   }
 
-  root.LTT = { lessonId: lessonId, compare: compare, record: record, expect: expect };
+  var LTT = root.LTT = {
+    lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
+    icon: icon, icons: Object.keys(ICONS),
+    termsIn: termsIn, sceneText: sceneText, termIndex: termIndex, lintDeck: lintDeck,
+    setGlossary: setGlossary, linkTerms: linkTerms
+  };
 })(typeof globalThis !== "undefined" ? globalThis : this);
