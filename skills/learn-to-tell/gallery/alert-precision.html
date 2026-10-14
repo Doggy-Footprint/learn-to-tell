@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>알림이 울리면 진짜 장애일까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"운영·모니터링","topic":"기저율과 알림 정밀도","audience":"탐지율과 오탐률은 안다","pattern":["hook","predict","motion","compare","sweep","explain","keywords"],"mode":"체험형: 기저율이 낮으면 정밀도가 크게 떨어진다는 결과가 직관과 달라 예측 후 건수 흐름으로 보여 준다","decision":"알림 임계 (탐지율과 오탐률 사이)"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"운영·모니터링","topic":"기저율과 알림 정밀도","audience":"탐지율과 오탐률은 안다","pattern":["hook","explain","predict","compare","sweep","explain","keywords"],"mode":"체험형: 세 숫자의 뜻을 먼저 보이고, 정밀도를 짐작한 뒤 건수 흐름 막대로 답을 보여 준다","decision":"알림 임계 (탐지율과 오탐률 사이)"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
@@ -63,35 +63,29 @@
         text: "탐지율 95%짜리 알림이 울렸다.<br>진짜 장애일 확률은 <u>95%가 아니다</u>.",
         sub: "알림 임계를 정하기 전에, 장애가 원래 얼마나 드문지(기저율)를 함께 봐야 한다." },
 
-      { type: "predict", kicker: "예측", title: "알림 100건이 울렸다. 진짜 장애는 몇 건?",
-        sub: "기저율 1% (확인 시점에 실제 장애인 비율) · 탐지율 95% · 오탐률 5%",
+      { type: "explain", kicker: "용어", title: "알림 하나를 정하는 세 숫자", arrows: false,
+        steps: [
+          { icon: "🎯", title: "기저율 1%", text: "확인할 때 실제로 장애인 비율. 100번 중 1번만 진짜 장애다." },
+          { icon: "📡", title: "탐지율 95%", text: "진짜 장애 중 알림이 울리는 비율. 장애 100건 중 95건을 잡는다." },
+          { icon: "🔔", title: "오탐률 5%", text: "정상인데 알림이 울리는 비율. 정상 100번 중 5번 울린다." },
+        ] },
+
+      { type: "predict", kicker: "짐작해 보기", title: "알림 100건이 울렸다. 진짜 장애는 몇 건?",
+        sub: "기저율 1% · 탐지율 95% · 오탐률 5%",
         question: "알림 100건 중 진짜 장애 건수 (기저율 1%, 탐지율 95%, 오탐률 5%)",
         choices: [{ id: "95", text: "95건쯤" }, { id: "50", text: "50건쯤" }, { id: "16", text: "16건쯤" }, { id: "5", text: "5건쯤" }],
         answer: "16",
-        why: "약 16건. 드문 장애의 95%보다 흔한 정상의 5%가 더 많기 때문이다. <span class=\"ltt-tag\">모델로 계산한 예시</span>" },
-
-      { kicker: "모델로 계산한 예시", title: "확인 10,000회를 건수로 따라가면",
-        mount(body) {
+        answerVisual(node) {
           const f = flow(0.01, 0.95, 0.05);
-          body.innerHTML = `<div class="fl"><span class="lb">확인 10,000회</span><div class="ltt-bar" id="fa"></div>
-            <div class="ar">↓ 알림이 울린 것만</div><span class="lb">울린 알림 ${int(f.alerts)}건</span><div class="ltt-bar" id="fb"></div><p>${KEY}</p></div>`;
-          const a = LTT.bar("fa", [{ color: "var(--ltt-on)" }, { color: "#8fa0c8" }]);
-          const b = LTT.bar("fb", [{ color: "var(--ltt-on)" }, { color: "var(--ltt-alt)" }]);
-          const fl = body.querySelector(".fl");
-          let timers = [];
-          // Reset without transition, then wait for the deck's slide-in so the bars grow on a still scene.
-          return { enter() {
-            timers.forEach(clearTimeout);
-            fl.classList.add("reset");
-            a.set([0, 0], ["", ""]); b.set([0, 0], ["", ""]);
-            void fl.offsetWidth;
-            fl.classList.remove("reset");
-            timers = [setTimeout(() => a.set([f.fail, f.ok], [`장애 ${int(f.fail)}`, `정상 ${int(f.ok)}`]), 550),
-              setTimeout(() => b.set([f.truePos, f.falsePos], [`탐지 ${int(f.truePos)}`, `오탐 ${int(f.falsePos)}`]), 1600)];
-          }, leave() { timers.forEach(clearTimeout); } };
+          node.innerHTML = `<div class="fl"><span class="lb">확인 10,000회</span><div class="ltt-bar"></div>
+            <div class="ar">↓ 알림이 울린 것만</div><span class="lb">울린 알림 ${int(f.alerts)}건</span><div class="ltt-bar"></div><p>${KEY}</p></div>`;
+          const [ea, eb] = node.querySelectorAll(".ltt-bar");
+          const a = LTT.bar(ea, [{ color: "var(--ltt-on)" }, { color: "#8fa0c8" }]);
+          const b = LTT.bar(eb, [{ color: "var(--ltt-on)" }, { color: "var(--ltt-alt)" }]);
+          setTimeout(() => a.set([f.fail, f.ok], [`장애 ${int(f.fail)}`, `정상 ${int(f.ok)}`]), 100);
+          setTimeout(() => b.set([f.truePos, f.falsePos], [`탐지 ${int(f.truePos)}`, `오탐 ${int(f.falsePos)}`]), 1100);
         },
-        tex: String.raw`\text{정밀도}=\frac{s\,p}{s\,p+f\,(1-p)}=\frac{95}{95+495}\approx 16\%`,
-        basis: "윗 막대에서 장애 100건은 얇은 띠지만, 정상 9,900건의 5%인 오탐 495건이 알림의 대부분을 차지한다." },
+        why: "약 16건(95 ÷ 590). 드문 장애의 95%(95건)보다 흔한 정상의 5%(495건)가 더 많다. <span class=\"ltt-tag\">모델로 계산한 예시</span>" },
 
       { type: "compare", kicker: "사례", title: "같은 알림 규칙, 다른 시점과 임계",
         sub: "칸 그림은 울린 알림 100건(모델로 계산한 예시). 붉은 칸이 진짜 장애.", cols: 3,

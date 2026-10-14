@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>API 5개를 한꺼번에 부르면?</title>
-<script type="application/json" id="ltt-meta">{"domain":"프론트엔드·JavaScript","topic":"Promise.all·allSettled·동시 실행 제한의 실패 동작","audience":"순차 호출과 동시 호출의 차이는 안다","pattern":["hook","predict","motion","compare","sweep","explain","keywords"],"mode":"체험형: Promise.all이 실패 후에도 요청을 멈추지 않는다는 점이 직관과 달라 예측 후 타임라인으로 보여 준다","decision":"동시 호출 방식과 실패 처리"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"프론트엔드·JavaScript","topic":"Promise.all·allSettled·동시 실행 제한의 실패 동작","audience":"순차 호출과 동시 호출의 차이는 안다","pattern":["hook","motion","predict","compare","sweep","compare","keywords"],"mode":"체험형: 요청 5개의 순차 타임라인을 먼저 보이고, Promise.all의 실패 동작을 짐작한 뒤 타임라인으로 답을 보여 준다","decision":"동시 호출 방식과 실패 처리"}</script>
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
@@ -144,7 +144,7 @@
         mount: tlScene("seq", false),
         basis: `${KEY}<br>요청별 소요 시간 고정 가정(0.3, 0.5, 0.2, 0.4, 0.3초). 모델로 계산한 예시.` },
 
-      { type: "predict", kicker: "예측", title: "Promise.all로 보냈는데 3번째가 0.2초에 실패하면?",
+      { type: "predict", kicker: "짐작해 보기", title: "Promise.all로 보냈는데 3번째가 0.2초에 실패하면?",
         question: "Promise.all로 요청 5개, 3번째가 0.2초에 실패하면? (a–d)",
         choices: [
           { id: "a", text: "0.5초 뒤, 성공 4개와 실패 1개를 함께 돌려준다" },
@@ -153,12 +153,12 @@
           { id: "d", text: "1.7초 뒤 에러를 던진다" },
         ],
         answer: "c",
-        why: "Promise.all은 첫 실패에서 바로 reject하지만, 이미 보낸 요청을 멈추지 않는다. (a)는 allSettled, (d)는 순차 await의 동작이다." },
-
-      { kicker: "모델로 계산한 예시", title: "에러는 0.2초에 왔는데 요청은 0.5초까지 돈다",
-        sub: "흐린 막대: 성공했지만 아무도 받지 않는 결과. 취소하려면 AbortController로 직접 abort()해야 한다.",
-        mount: tlScene("all", true),
-        basis: "이미 서버에 도달한 요청은 클라이언트가 abort해도 서버에서 계속 처리될 수 있다. 근거: MDN Promise.all, AbortController." },
+        answerVisual(node) {
+          const t = timeline(node, simulate("all", true));
+          node.insertAdjacentHTML("beforeend", `<p>${KEY}</p>`);
+          setTimeout(t.enter, 100);
+        },
+        why: "Promise.all은 첫 실패에서 바로 reject하지만 이미 보낸 요청을 멈추지 않는다(흐린 막대: 아무도 받지 않는 결과). 취소는 AbortController로 직접 abort()해야 하고, 서버에 도달한 요청은 그래도 처리될 수 있다. (a)는 allSettled, (d)는 순차 await의 동작이다. <span class=\"ltt-tag\">근거: MDN Promise.all, AbortController</span>" },
 
       { type: "compare", kicker: "네 방식", title: "같은 실패, 네 가지 결말",
         sub: "모두 3번째 요청이 실패. 세로선은 호출 반환 시점(모델로 계산한 예시).",

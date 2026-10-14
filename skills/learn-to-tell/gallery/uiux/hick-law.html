@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>메뉴 항목이 두 배가 되면 고르는 시간도 두 배가 될까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"Hick 법칙: 선택지 수와 결정 시간","audience":"메뉴·설정 화면을 설계해 본 적 있는 입문자(로그 함수만 알면 됨)","pattern":["hook","explain","predict","compare","keywords"],"mode":"체험형: 메뉴 크기에 따른 결정 시간을 예측한다(시스템 동작 예측이라 자기 편향을 겨냥하지 않는다)","decision":"한 화면에 보여 줄 선택지 수 n을 얼마로 제한할지"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"Hick 법칙: 선택지 수와 결정 시간","audience":"메뉴·설정 화면을 설계해 본 적 있는 입문자(로그 함수만 알면 됨)","pattern":["hook","explain","predict","compare","keywords"],"mode":"체험형: 메뉴 크기에 따른 결정 시간을 짐작해 본 뒤 인포그래픽 정답으로 확인한다(시스템 동작 예측이라 자기 편향을 겨냥하지 않는다)","decision":"한 화면에 보여 줄 선택지 수 n을 얼마로 제한할지"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
@@ -45,7 +45,6 @@
   const ms = (v) => Math.round(v) + " ms";
   const menu = (n, cls = n > 8 ? "wide" : "") => `<div class="menu ${cls}">${"<i></i>".repeat(n)}</div>`;
   const two = (c) => [{ color: c }, { color: "transparent" }];
-  let bars;
 
   LTT.deck({
     title: "메뉴 항목이 두 배가 되면 고르는 시간도 두 배가 될까?",
@@ -63,22 +62,21 @@
         tex: "RT = b\\,\\log_2(n+1)",
         basis: "Hick-Hyman 법칙. b=150ms/bit는 예시값이고 과제와 사용자에 따라 크게 달라진다(불확실)." },
 
-      { type: "predict", kicker: "예측", title: "8개 메뉴를 1배라 할 때, 16개 메뉴는 몇 배?",
+      { type: "predict", kicker: "짐작해 보기", title: "8개 메뉴를 1배라 할 때, 16개 메뉴는 몇 배?",
         question: "선택지가 8개에서 16개로 늘면 결정 시간은 몇 배가 되는가",
         choices: [{ id: "2", text: "2배" }, { id: "1.6", text: "약 1.6배" }, { id: "1.3", text: "약 1.3배" }, { id: "1", text: "거의 같다" }],
         answer: "1.3",
         why: `모델은 <b>${(rt(16) / rt(8)).toFixed(2)}배</b>(${ms(rt(8))} → ${ms(rt(16))}, 모델로 계산한 예시). 늘어난 건 반씩 좁히기 한 번, 약 b만큼이다.`,
-        mount(body) {
+        answerVisual(n) {
           const box = document.createElement("div");
           box.className = "bars";
           box.innerHTML = "<div></div><div></div>";
-          body.prepend(box);
-          bars = [LTT.bar(box.children[0], two("var(--ltt-on)")), LTT.bar(box.children[1], two("var(--ltt-alt)"))];
+          n.appendChild(box);
+          const bars = [LTT.bar(box.children[0], two("var(--ltt-on)")), LTT.bar(box.children[1], two("var(--ltt-alt)"))];
           bars[0].set([1, 1], ["8개 = 1배", ""]);
           bars[1].set([0, 2], ["", ""]);
-          return {};
-        },
-        reveal: () => bars[1].set([rt(16) / rt(8), 2 - rt(16) / rt(8)], [`16개 = ${(rt(16) / rt(8)).toFixed(2)}배`, ""]) },
+          setTimeout(() => bars[1].set([rt(16) / rt(8), 2 - rt(16) / rt(8)], [`16개 = ${(rt(16) / rt(8)).toFixed(2)}배`, ""]), 300);
+        } },
 
       { type: "compare", kicker: "실제 메뉴", title: "메뉴 모양별 예상 결정 시간",
         sub: "모두 처음 보는 사용자, 항목이 고르게 쓰인다고 가정.",

@@ -163,11 +163,17 @@
         },
         basis: "polling은 변경 뒤 최대 한 주기 늦게 받는다. SSE는 응답 하나를 열어 두고 흘려보내며, 프록시 유휴 끊김을 막으려 약 15초마다 주석(keep-alive)을 보내길 권장한다." },
 
-      { type: "predict", kicker: "예측", title: "주문 상태 알림, 무엇을 고를까?",
+      { type: "predict", kicker: "짐작해 보기", title: "주문 상태 알림, 무엇을 고를까?",
         sub: "서버 → 브라우저 한 방향 · 1초 안에 · 브라우저와 서버 사이 HTTP/2",
         question: "주문 상태 알림(서버→브라우저, 1초, HTTP/2)의 전달 방식",
         choices: OPTIONS.map((o, i) => ({ id: String(i), text: `${o.name} — ${o.sub}` })),
         answer: String(recommend(["c7"]).index),
+        answerVisual(node) {
+          const r = recommend(["c7"]), c7 = CONDITIONS.find((c) => c.id === "c7");
+          node.innerHTML = `<table class="ct"><thead><tr><th></th>${OPTIONS.map((o, i) => `<th class="${i === r.index ? "rec" : ""}">${o.name}</th>`).join("")}</tr></thead>
+            <tbody><tr><td>${c7.short}</td>${c7.cells.map((x) => `<td class="${SYM[x[0]]}">${x[0]}</td>`).join("")}</tr>
+            <tr><td>규칙</td>${OPTIONS.map((o, i) => `<td class="ltt-rise" style="--i:${i}">${r.warn[i] ? `△${r.warn[i]} → 밀림` : i === r.index ? "더 단순 → 추천" : "양방향은 안 씀"}</td>`).join("")}</tr></tbody></table>`;
+        },
         why: "SSE. 한 방향이면 WebSocket의 양방향은 쓰지 않는 복잡도다. SSE는 일반 HTTP 응답이라 재연결(Last-Event-ID)이 브라우저에 내장돼 있고, polling은 1초를 맞추려면 요청이 너무 많다." },
 
       { type: "compare", kicker: "사례", title: "조건 하나가 바뀌면 답도 바뀐다",

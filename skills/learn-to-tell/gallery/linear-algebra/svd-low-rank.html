@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>특이값 몇 개면 행렬을 거의 복원할 수 있는가?</title>
-<script type="application/json" id="ltt-meta">{"domain":"선형대수","topic":"SVD와 rank-k 근사 (Eckart–Young, LoRA)","audience":"행렬 곱, 고유값·직교 행렬(회전)의 뜻을 안다","pattern":["hook","plane","predict","chart","compare","infographic","explain","keywords"],"mode":"체험형: SVD 분해를 움직임으로 보고, 필요한 k를 예측한 뒤 rank별 복원본을 나란히 비교한다","decision":"유지할 rank k(또는 LoRA의 r)를 에너지 비율과 저장 비용으로 고른다"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"선형대수","topic":"SVD와 rank-k 근사 (Eckart–Young, LoRA)","audience":"행렬 곱, 고유값·직교 행렬(회전)의 뜻을 안다","pattern":["hook","plane","predict","compare","infographic","explain","keywords"],"mode":"체험형: SVD 분해를 움직임으로 보고, 필요한 k를 짐작한 뒤 σ 막대로 답을 보이고 rank별 복원본을 나란히 비교한다","decision":"유지할 rank k(또는 LoRA의 r)를 에너지 비율과 저장 비용으로 고른다"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
@@ -22,6 +22,7 @@
   .lora { display: flex; gap: clamp(16px, 4vw, 48px); align-items: flex-end; justify-content: center; text-align: center; font-size: 14px; }
   .lora .sq { background: var(--ltt-line); border-radius: 6px; }
   .lora .st { background: var(--ltt-accent); border-radius: 2px; }
+  @media (max-width: 720px) { .img { max-width: 120px; } }
 </style>
 </head>
 <body>
@@ -149,30 +150,26 @@
         tex: "A=U\\Sigma V^\\top,\\quad A_k=\\sum_{i\\le k}\\sigma_i u_i v_i^\\top,\\quad \\sigma_1=\\sqrt{45},\\ \\sigma_2=\\sqrt5",
         basis: "σ는 AᵀA = [[25,20],[20,25]]의 고유값 45, 5의 제곱근이다. σ₁σ₂ = 15 = |det A|." },
 
-      { type: "predict", kicker: "먼저 예측", title: "이 이미지를 99% 복원하려면 방향 몇 개가 필요할까?",
+      { type: "predict", kicker: "짐작해 보기", title: "이 이미지를 99% 복원하려면 방향 몇 개가 필요할까?",
         sub: "24×32 흑백 이미지(전체 rank 최대 24). '99%'는 σ² 합(에너지) 기준이다.",
-        mount: (body) => { drawImg(IMG)(body.insertBefore(document.createElement("div"), body.firstChild)); body.querySelector(".img").style.maxHeight = "24vh"; return {}; },
+        mount: (body) => { drawImg(IMG)(body.insertBefore(document.createElement("div"), body.firstChild)); body.querySelector(".img").style.maxHeight = "15vh"; return {}; },
         question: "24×32 합성 이미지의 에너지 99% 이상에 필요한 최소 k",
         choices: [{ id: "2", text: "1~2개" }, { id: "7", text: "7개 안팎" }, { id: "16", text: "16개 안팎" }, { id: "24", text: "24개 전부" }],
         answer: String(k99),
-        why: `k = <b>${k99}</b>. 첫 방향 하나가 이미 ${pct(energy(1))}를 담는다. 픽셀 값이 모두 양수라 평균 밝기가 σ₁에 몰리기 때문이다. <span class="ltt-tag">모델로 계산한 예시</span>`,
-        basis: SYN },
-
-      { kicker: "특이값의 모양", title: "σ가 빨리 줄어들수록 적은 k로 충분하다",
-        sub: "막대 = σᵢ (로그 축). 파란 막대까지 남기면 에너지 99%.",
-        mount: (body) => {
-          const svg = d3.select(body).append("svg").attr("class", "bars ltt-svg").attr("viewBox", "0 0 300 170").style("max-height", "44vh");
+        answerVisual(node) {
+          const svg = d3.select(node).append("svg").attr("class", "bars ltt-svg").attr("viewBox", "0 0 300 170").style("max-height", "15vh");
           const y = d3.scaleLog().domain([d3.min(F.s) * 0.7, F.s[0]]).range([150, 10]), x = d3.scaleBand().domain(d3.range(M)).range([6, 296]).padding(0.15);
-          const r = svg.selectAll("rect").data(F.s).join("rect").attr("x", (_, i) => x(i)).attr("width", x.bandwidth()).attr("y", 150).attr("height", 0);
+          svg.selectAll("rect").data(F.s).join("rect").attr("x", (_, i) => x(i)).attr("width", x.bandwidth()).attr("y", 150).attr("height", 0)
+            .transition().delay((_, i) => i * 50).duration(LTT.MOTION_MS).attr("y", (s) => y(s)).attr("height", (s) => 150 - y(s))
+            .on("end", function (_, i) { d3.select(this).classed("on", i < k99); });
           svg.selectAll("text").data([0, k99 - 1, 23]).join("text").attr("x", (i) => x(i) + x.bandwidth() / 2).attr("y", 164).attr("text-anchor", "middle").text((i) => i + 1);
-          return { enter: () => r.attr("y", 150).attr("height", 0).classed("on", false).transition().delay((_, i) => i * 50).duration(LTT.MOTION_MS)
-            .attr("y", (s) => y(s)).attr("height", (s) => 150 - y(s)).on("end", function (_, i) { d3.select(this).classed("on", i < k99); }) };
         },
-        tex: "\\frac{\\sum_{i\\le k}\\sigma_i^2}{\\sum_i\\sigma_i^2}\\ge 0.99\\iff\\frac{\\|A-A_k\\|_F}{\\|A\\|_F}\\le 10\\%,\\qquad \\min_{\\operatorname{rank}B\\le k}\\|A-B\\|_F=\\sqrt{\\textstyle\\sum_{i>k}\\sigma_i^2}",
-        basis: "모델로 계산한 예시. Eckart–Young: 같은 rank로는 SVD 절단보다 나은 근사가 없다." },
+        why: `막대 = σᵢ(로그 축), 파란 막대까지 남기면 99%. k = <b>${k99}</b>. 첫 방향 하나가 이미 ${pct(energy(1))}를 담는다. 픽셀 값이 모두 양수라 평균 밝기가 σ₁에 몰리기 때문이다. <span class="ltt-tag">모델로 계산한 예시</span>`,
+        basis: SYN },
 
       { type: "compare", kicker: "rank별 복원본", title: "어느 k가 저장 이득과 화질을 함께 챙기나",
         sub: `원본은 숫자 ${M * N}개. rank k 근사는 k(m+n+1)개를 저장한다.`,
+
         items: [
           { label: `k = 1 · 숫자 ${store(1)}개`, visual: drawImg(rankK(F, 1)), tone: "warn", verdict: `에너지 ${pct(energy(1))} · 형태만`, noteAfter: true, note: "밝기 기울기만 남고 원과 띠가 뭉개진다." },
           { label: `k = ${k99} · 숫자 ${store(k99)}개`, visual: drawImg(rankK(F, k99)), tone: "good", verdict: `에너지 ${pct(energy(k99))} · ${d3.format(".0f")((1 - store(k99) / (M * N)) * 100)}% 절약` },
@@ -192,10 +189,12 @@
         basis: "모델로 계산한 예시(얇은 막대는 보이도록 최소 2px로 그림). d = 4096은 7B급 LLM(예: LLaMA-7B)의 hidden size로 알고 있는 값이다. Hu et al.(2021)이 작은 r에서도 성능이 유지된다고 보고한 것으로 기억하나 원문은 확인하지 않았다(불확실)." },
 
       { type: "explain", kicker: "주의", title: "k를 고를 때 걸리는 두 가지", arrows: false,
+        tex: "\\frac{\\sum_{i\\le k}\\sigma_i^2}{\\sum_i\\sigma_i^2}\\ge 0.99\\iff\\frac{\\|A-A_k\\|_F}{\\|A\\|_F}\\le 10\\%,\\qquad \\min_{\\operatorname{rank}B\\le k}\\|A-B\\|_F=\\sqrt{\\textstyle\\sum_{i>k}\\sigma_i^2}",
         steps: [
           { icon: "📦", title: "저장 손익분기", text: "k(m+n+1) ≥ mn이면 원 행렬을 그대로 두는 편이 작다." },
           { icon: "🔎", title: "에너지 ≠ 중요도", text: "작은 특이값 방향에 희귀하지만 중요한 패턴이 있어도 에너지 비율은 작게 나온다." },
-        ] },
+        ],
+        basis: "Eckart–Young: 같은 rank로는 SVD 절단보다 나은 근사가 없다." },
 
       { type: "keywords", title: "다음에 비슷한 걸 만나면",
         terms: [

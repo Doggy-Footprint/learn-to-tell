@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>금리가 오르면 채권 가격은 얼마나 떨어질까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"경제·금융","topic":"금리 변화와 채권 가격(듀레이션)","audience":"복리와 현재가치(할인)를 대략 알고 채권은 처음인 사람","pattern":["hook","explain","predict","compare","keywords"],"mode":"체험형: 금리 변화에 따른 가격 변화를 예측한다(계산 결과 예측이라 자기 편향을 겨냥하지 않는다)","decision":"만기와 금리 변동폭에 따라 채권 가격이 얼마나 움직이는지(듀레이션)"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"경제·금융","topic":"금리 변화와 채권 가격(듀레이션)","audience":"복리와 현재가치(할인)를 대략 알고 채권은 처음인 사람","pattern":["hook","explain","predict","compare","keywords"],"mode":"체험형: 금리 변화에 따른 가격 변화를 짐작해 본 뒤 인포그래픽 정답으로 확인한다(계산 결과 예측이라 자기 편향을 겨냥하지 않는다)","decision":"만기와 금리 변동폭에 따라 채권 가격이 얼마나 움직이는지(듀레이션)"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
@@ -56,7 +56,6 @@
     return { to };
   }
   const KEY = `<span class="cfkey"><i style="background:var(--ltt-line)"></i>받을 돈<i style="background:var(--ltt-accent)"></i>지금 가치</span>`;
-  let cf10;
   const matItem = (n, tone, note) => ({ label: `${n}년 만기, 쿠폰 3%`, tone, verdict: "가격 " + pct(chg(5, n)), noteAfter: true, note,
     visual: (node) => { const c = cashflow(node, n, Y0, 90); setTimeout(() => c.to(5), 500); } });
 
@@ -76,21 +75,20 @@
         tex: "P=\\sum_{t=1}^{n}\\frac{C_t}{(1+y)^t}",
         basis: "단순화: 액면 100, 연 1회 쿠폰, 모든 만기의 금리가 같다(평평한 수익률 곡선). 실제 채권은 반년 지급이 많고 신용위험이 얹힌다." },
 
-      { type: "predict", kicker: "예측", title: "쿠폰 3%·10년 채권, 금리가 3% → 5%면 가격은?",
+      { type: "predict", kicker: "짐작해 보기", title: "쿠폰 3%·10년 채권, 금리가 3% → 5%면 가격은?",
         sub: "금리 3%일 때 이 채권은 액면 100에 거래된다.",
         question: "시장 금리 3%→5%일 때 10년 만기 3% 쿠폰 채권(연 1회 지급) 가격 변화(%)",
         choices: [{ id: "2", text: "약 −2% (금리 오른 만큼)" }, { id: "8", text: "약 −8%" }, { id: "15", text: "약 −15%" }, { id: "30", text: "약 −30%" }],
         answer: "15",
         why: `<b>${pct(chg(5, 10))}</b>, 가격 ${f1(price(5, 10))}(모델로 계산한 예시). 파란 막대가 줄어든 만큼이 손실이고, 10년째 원금이 가장 많이 줄었다.`,
-        mount(body) {
+        answerVisual(n) {
           const box = document.createElement("div");
           box.innerHTML = KEY;
           box.style.maxWidth = "560px";
-          body.prepend(box);
-          cf10 = cashflow(box, 10, Y0, 110);
-          return {};
-        },
-        reveal: () => cf10.to(5) },
+          n.appendChild(box);
+          const cf = cashflow(box, 10, Y0, 110);
+          setTimeout(() => cf.to(5), 400);
+        } },
 
       { type: "compare", kicker: "만기별", title: "같은 금리 +2%p, 만기만 다른 세 채권",
         sub: `쿠폰 3%, 금리 3% → 5%. ${KEY}`,

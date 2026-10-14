@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>공기저항이 있으면 가장 멀리 날아가는 각도는 얼마나 낮아질까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"물리학","topic":"공기저항이 있는 투사체의 최대 사거리 각도","audience":"등가속도 운동과 sin2θ 사거리 공식을 알고 있다","pattern":["hook","predict","sim","compare","explain","keywords"],"mode":"체험형: 최적각을 예측한 뒤 진공과 항력 궤적을 나란히 날려 보고 속력별 사례를 비교한다","decision":"공기저항을 무시해도 되는지, 최대 사거리 각도를 45°로 둘 수 있는지"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"물리학","topic":"공기저항이 있는 투사체의 최대 사거리 각도","audience":"등가속도 운동과 sin2θ 사거리 공식을 알고 있다","pattern":["hook","explain","predict","sim","compare","explain","keywords"],"mode":"체험형: 항력의 뜻을 먼저 보이고 최적각을 짐작한 뒤 사거리 막대로 답을 보이고 진공과 항력 궤적을 나란히 날려 보고 속력별 사례를 비교한다","decision":"공기저항을 무시해도 되는지, 최대 사거리 각도를 45°로 둘 수 있는지"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
@@ -13,10 +13,11 @@
 <script src="/kit/ltt-deck.js"></script>
 <style>
   :root { --vac: #8a93ab; --drag: #d6455d; }
-  .scene { max-height: 32vh; }
+  .scene { max-height: 29vh; }
   .facts { display: flex; gap: 24px; flex-wrap: wrap; align-items: baseline; font-size: 14px; color: var(--ltt-muted); }
   .facts b { font-size: 26px; color: var(--ltt-ink); font-variant-numeric: tabular-nums; }
   .traj path { fill: none; stroke-width: 2.5; }
+  .pk { display: grid; grid-template-columns: 150px 1fr; gap: 8px; align-items: center; font-size: 13px; margin: 2px 0; }
 </style>
 </head>
 <body>
@@ -98,11 +99,24 @@
         text: "교과서의 답은 45°.<br>그런데 그건 <u>공기가 없을 때</u>다.",
         sub: "공을 가장 멀리 보낼 발사각을 정할 때, 공기저항을 무시해도 되는지 판단하는 이야기." },
 
-      { type: "predict", kicker: "먼저 예측", title: "40 m/s로 던진 야구공, 가장 멀리 가는 각도는?",
+      { type: "explain", kicker: "용어", title: "공기저항(항력)이 하는 일", arrows: false,
+        steps: [
+          { icon: "💨", title: "항력", text: "공이 나아가는 반대 방향으로 미는 힘. 속력의 제곱에 비례해 빠를수록 급격히 커진다." },
+          { icon: "📐", title: "진공의 45°", text: "공기가 없으면 R = v² sin 2θ / g 라서 45°에서 가장 멀리 간다." },
+          { icon: "⏱️", title: "높이 던지면", text: "공중에 오래 머문다. 그동안 항력이 계속 속도를 깎는다." },
+        ] },
+
+      { type: "predict", kicker: "짐작해 보기", title: "40 m/s로 던진 야구공, 가장 멀리 가는 각도는?",
         sub: "지면에서 던진다. 진공이면 R = v² sin 2θ / g 라서 45°다.",
         question: "야구공을 40 m/s로 던질 때 공기저항이 있으면 최대 사거리 각도는?",
         choices: [{ id: "45", text: "45° 그대로" }, { id: "41", text: "약 41°" }, { id: "35", text: "약 35°" }, { id: "28", text: "약 28°" }],
         answer: "41",
+        answerVisual(node) {
+          node.innerHTML = [["진공 · 45°", vacRange(40, 45), "#9aa1b5"], [`항력 · ${f1(best40)}°`, range(40, best40, K, DT), "var(--drag)"]]
+            .map(([l, r]) => `<div class="pk"><span>${l} · ${f0(r)} m</span><div></div></div>`).join("");
+          const top = vacRange(40, 45), cols = ["#9aa1b5", "var(--drag)"], rs = [top, range(40, best40, K, DT)];
+          node.querySelectorAll(".pk > div").forEach((d, i) => setTimeout(() => LTT.bar(d, [{ color: cols[i] }, { color: "transparent" }]).set([rs[i], top - rs[i]], ["", ""]), 100 + 400 * i));
+        },
         why: `약 <b>${f1(best40)}°</b>. 각도는 몇 도만 내려가지만 사거리는 진공 ${f0(vacRange(40, 45))} m에서 ${f0(range(40, best40, K, DT))} m로 <b>${f0(loss(40, best40) * 100)}%</b> 줄어든다. 각도보다 거리가 훨씬 크게 틀린다. <span class="ltt-tag">모델로 계산한 예시</span>` },
 
       { kicker: "날려 보기", title: "같은 공, 공기가 있을 때와 없을 때",

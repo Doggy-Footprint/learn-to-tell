@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>결제 요청이 타임아웃되면 다시 보내도 될까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"백엔드·결제","topic":"타임아웃 재시도와 멱등성 키","audience":"HTTP 요청·응답과 타임아웃은 안다","pattern":["hook","predict","motion","compare","motion","compare","explain","keywords"],"mode":"체험형: '응답 유실 + 재시도 = 중복 결제'는 직관과 달라 예측 후 단계 흐름으로 보여 준다","decision":"재시도와 멱등성 키 정책"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"백엔드·결제","topic":"타임아웃 재시도와 멱등성 키","audience":"HTTP 요청·응답과 타임아웃은 안다","pattern":["hook","explain","predict","motion","compare","motion","compare","explain","keywords"],"mode":"체험형: 결제가 지나가는 길과 멱등성 키를 먼저 보이고, 청구 횟수를 짐작한 뒤 사건 흐름 칩과 단계 흐름으로 보여 준다","decision":"재시도와 멱등성 키 정책"}</script>
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
@@ -17,6 +17,8 @@
   pre.c { font-size: 11.5px; background: #f4f6fb; border-radius: 8px; padding: 8px; margin: 0; white-space: pre-wrap; text-align: left; width: 100%; }
   @media (max-width: 720px) { pre.c { font-size: 10px; padding: 6px; } .cards { font-size: 24px; } }
   pre.c mark { background: #fdf4e3; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .chips span { padding: 5px 9px; border-radius: 8px; background: var(--ltt-card); border: 1px solid var(--ltt-line); font-size: 13px; }
+  .chips span.bad { color: var(--ltt-bad); font-weight: 700; } .chips i { color: var(--ltt-muted); font-style: normal; }
 </style>
 </head>
 <body>
@@ -137,6 +139,8 @@
       return { enter() { if (!st) st = LTT.stepper(body.lastChild, steps); else st.go(0); } };
     };
   }
+  const CHIP = { req: (e) => `📤 요청 ${e.attempt}`, timeout: () => "⏱ 타임아웃", charge: (e) => `💳 청구 ${e.charge.n}`, replay: () => "↩ 저장된 결과", res: (e) => e.lost ? "✕ 응답 유실" : "✓ 성공 응답" };
+  const chips = (f, k) => `<div class="chips">${simulate(f, k).events.map((e, i) => `${i ? "<i>→</i>" : ""}<span class="ltt-rise ${e.lost || e.charge?.dup ? "bad" : ""}" style="--i:${i}">${CHIP[e.type](e)}</span>`).join("")}</div>`;
   const cards = (f, k) => { const c = simulate(f, k).ledger.length; return `<div class="cards">${"💳".repeat(c)}</div>`; };
 
   LTT.deck({
@@ -146,11 +150,20 @@
         text: "타임아웃은 '실패'가 아니라<br><u>'결과 모름'</u>이다.",
         sub: "결제 API 클라이언트에 재시도를 붙이기 전에, 서버가 같은 결제를 알아볼 수 있는지부터 정해야 한다." },
 
-      { type: "predict", kicker: "예측", title: "고객 카드는 몇 번 청구될까?",
+      { type: "explain", kicker: "상황", title: "결제 한 번이 지나가는 길", arrows: true,
+        steps: [
+          { icon: "📱", title: "앱이 요청", text: "결제 API에 POST를 보내고 응답을 기다린다." },
+          { icon: "💳", title: "서버가 청구", text: "카드사에 청구하고 장부에 적은 뒤 성공 응답을 보낸다." },
+          { icon: "⏱️", title: "응답이 안 오면", text: "앱은 정해진 시간 뒤 타임아웃으로 보고 같은 요청을 다시 보낸다." },
+          { icon: "🔑", title: "멱등성 키", text: "요청에 붙이는 고유 ID. 서버가 같은 결제의 재시도인지 알아보는 표시다." },
+        ] },
+
+      { type: "predict", kicker: "짐작해 보기", title: "고객 카드는 몇 번 청구될까?",
         sub: "서버는 결제를 처리했지만 성공 응답이 도중에 사라졌다. 앱은 타임아웃 후 같은 요청을 한 번 다시 보낸다(멱등성 키 없음).",
         question: "응답 유실 + 키 없는 재시도 1회: 카드 청구 횟수",
         choices: [{ id: "0", text: "0회" }, { id: "1", text: "1회" }, { id: "2", text: "2회" }],
         answer: "2",
+        answerVisual: chips("F2", "K0"),
         why: "2회. 키가 없으면 서버는 재시도를 새 결제로 본다. 앱 화면은 성공으로 끝나서 중복을 알아채기도 어렵다. <span class=\"ltt-tag\">모델로 계산한 예시</span>" },
 
       { kicker: "키 없음 · 응답 유실", title: "한 단계씩: 화면은 정상, 카드는 두 번",

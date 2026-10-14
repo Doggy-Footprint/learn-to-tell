@@ -19,6 +19,7 @@
   .curve path.c { fill: none; stroke-width: 2.5; }
   .tac { font-size: 54px; text-align: center; }
   @media (max-width: 720px) { .dk-pred .ltt-choices { grid-template-columns: 1fr 1fr; } .tac { font-size: 32px; white-space: nowrap; } .dk-cmp > .dk-item:nth-child(3):last-child { grid-column: 1 / -1; } }
+  .pk { display: grid; grid-template-columns: 150px 1fr; gap: 8px; align-items: center; font-size: 13px; margin: 2px 0; }
 </style>
 </head>
 <body>
@@ -128,13 +129,18 @@
         },
         basis: "블록 변위는 화면에 맞게 잘라 그렸다(ζ = 0.05의 정상 진폭은 화면 밖으로 나간다). " + SRC },
 
-      { type: "predict", kicker: "먼저 예측", title: "ζ를 줄이면 주파수별 응답 곡선의 피크는?",
+      { type: "predict", kicker: "짐작해 보기", title: "ζ를 줄이면 주파수별 응답 곡선의 피크는?",
         sub: "같은 크기의 힘을 여러 주파수로 가했을 때 진폭을 이은 곡선이다. 지금은 ζ = 0.5.",
-        mount: (body) => { const d = document.createElement("div"); body.prepend(d); predPaths = curve(d, [0.5, 0.2, 0.05], { colors: ["#c5cdf3", "#8a9cf0", "var(--ltt-accent)"] }); predPaths.slice(1).forEach((p) => p.style("opacity", 0)); d.querySelector("svg").style.maxHeight = "31vh"; return {}; },
+        mount: (body) => { const d = document.createElement("div"); body.prepend(d); predPaths = curve(d, [0.5, 0.2, 0.05], { colors: ["#c5cdf3", "#8a9cf0", "var(--ltt-accent)"] }); predPaths.slice(1).forEach((p) => p.style("opacity", 0)); d.querySelector("svg").style.maxHeight = "18vh"; return {}; },
         question: "감쇠비 ζ를 줄이면 공진 피크는 어떻게 변하나?",
         choices: [{ id: "A", text: "낮아지고 넓어진다" }, { id: "B", text: "높아지고 좁아진다" }, { id: "C", text: "높이만 커지고 폭은 그대로" }, { id: "D", text: "피크 위치만 옆으로 이동" }],
         answer: "B",
         reveal: () => { predPaths.slice(1).forEach((p) => p.style("opacity", 1)); draw(predPaths.slice(1)); },
+        answerVisual(node) {
+          const zs = [0.5, 0.2, 0.05], top = peakGain(0.05), cols = ["#c5cdf3", "#8a9cf0", "var(--ltt-accent)"];
+          node.innerHTML = zs.map((z) => `<div class="pk"><span>ζ = ${z} · 피크 ×${f1(peakGain(z))}</span><div></div></div>`).join("");
+          node.querySelectorAll(".pk > div").forEach((d, i) => setTimeout(() => LTT.bar(d, [{ color: cols[i] }, { color: "transparent" }]).set([peakGain(zs[i]), top - peakGain(zs[i])], ["", ""]), 300 * i));
+        },
         why: `높아지고 좁아진다. ζ = 0.2의 피크는 약 ${f1(peakGain(0.2))}배, ζ = 0.05는 약 ${f1(peakGain(0.05))}배. 공진에서 높이는 대략 1/(2ζ)배로 솟는다. <span class="ltt-tag">모델로 계산한 예시</span>`,
         tex: "A(\\omega)=\\frac{F_0/m}{\\sqrt{(\\omega_0^2-\\omega^2)^2+(2\\zeta\\omega_0\\omega)^2}},\\qquad A_{\\text{peak}}\\approx\\frac{1}{2\\zeta}\\ (\\text{정적 변위 배})" },
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>캐시 TTL을 늘리면 무엇을 잃을까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"백엔드","topic":"캐시 TTL과 오래된 응답 비율","audience":"캐시 적중률과 TTL 만료는 안다","pattern":["hook","explain","predict","motion","compare","sweep","keywords"],"mode":"체험형: 오래된 응답 비율은 직관보다 작거나 크게 빗나가므로 예측 후 공개한다","decision":"TTL (원본 부하와 오래된 응답 사이)"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"백엔드","topic":"캐시 TTL과 오래된 응답 비율","audience":"캐시 적중률과 TTL 만료는 안다","pattern":["hook","explain","predict","compare","sweep","explain","keywords"],"mode":"체험형: 캐시 값의 생애를 먼저 보이고, 오래된 응답 비율을 짐작한 뒤 응답 100칸으로 답을 보여 준다","decision":"TTL (원본 부하와 오래된 응답 사이)"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
@@ -20,6 +20,7 @@
   .row .ltt-units { width: min(300px, 70vw); }
   @media (max-width: 720px) { .row .ltt-units { width: min(300px, 70vw, 26vh); } }
   .num { font-size: 13px; color: var(--ltt-muted); text-align: center; } .num b { font-size: 22px; color: var(--ltt-ink); }
+  .dk-avis .row .ltt-units { width: min(220px, 50vw, 20vh); }
 </style>
 </head>
 <body>
@@ -85,22 +86,17 @@
           { icon: "⌛", title: "만료", text: "다음 요청이 다시 miss. 원본 조회 1회." },
         ] },
 
-      { type: "predict", kicker: "예측", title: "응답 100건 중 옛 값은 몇 건?",
+      { type: "predict", kicker: "짐작해 보기", title: "응답 100건 중 옛 값은 몇 건?",
         sub: "상품 정보 API. 원본은 평균 10분에 한 번 바뀌고, 한 상품에 초당 2번 요청. TTL 60초.",
         question: "응답 100건 중 오래된 값 건수 (요청 2회/초, 변경 평균 10분, TTL 60초)",
         choices: [{ id: "0", text: "거의 0건" }, { id: "5", text: "5건쯤" }, { id: "25", text: "25건쯤" }, { id: "50", text: "절반쯤" }],
         answer: "5",
-        why: "약 5건. 적중한 값의 나이는 0–60초에 고르게 퍼져 평균 30초이고, 그 30초 안에 원본이 바뀔 확률은 30/600 ≈ 5%다. <span class=\"ltt-tag\">모델로 계산한 예시</span>" },
-
-      { kicker: "모델로 계산한 예시", title: "같은 조건의 응답 100칸",
-        sub: "칸 하나가 응답 하나. 원본 조회는 100건 중 1건뿐이고, 오래된 값은 5건.",
-        mount(body) {
-          body.innerHTML = `<div class="row"><div></div><div><p>${KEY}</p><div class="ltt-stat"><span>0</span><small>/ 100 오래된 값</small></div><p class="ltt-basis">적중률 ${d3.format(".1f")(100 * BASE.h)}% · 원본 조회 분당 ${sig2(BASE.perMin)}회</p></div></div>`;
-          const u = LTT.units(body.querySelector(".row > div"), 100);
-          return { enter() { u.cells.forEach((c) => c.className = "ltt-unit"); setTimeout(() => paint(u.cells, BASE), 200); LTT.tween(body.querySelector(".ltt-stat span"), BASE.staleN); } };
+        answerVisual(node) {
+          node.innerHTML = `<div class="row"><div></div><div><p>${KEY}</p><div class="ltt-stat"><span>0</span><small>/ 100 오래된 값</small></div><p class="ltt-basis">적중률 ${d3.format(".1f")(100 * BASE.h)}% · 원본 조회 분당 ${sig2(BASE.perMin)}회</p></div></div>`;
+          const u = LTT.units(node.querySelector(".row > div"), 100);
+          setTimeout(() => paint(u.cells, BASE), 200); LTT.tween(node.querySelector(".ltt-stat span"), BASE.staleN);
         },
-        tex: String.raw`\text{적중률}=\frac{\lambda T}{1+\lambda T},\quad \text{적중 중 오래된 비율}=1-\frac{1-e^{-\mu T}}{\mu T}`,
-        basis: "가정: 요청과 원본 변경이 독립 Poisson 과정, 변경 시 캐시를 지우지 않음. 적중률 식은 Jung, Berger, Balakrishnan (INFOCOM 2003) Theorem 1. 몰려 오는(bursty) 실제 트래픽은 적중률이 더 높게 나온다." },
+        why: "약 5건. 적중한 값의 나이는 0–60초에 고르게 퍼져 평균 30초이고, 그 30초 안에 원본이 바뀔 확률은 30/600 ≈ 5%다. <span class=\"ltt-tag\">모델로 계산한 예시</span>" },
 
       { type: "compare", kicker: "사례", title: "TTL은 '데이터가 바뀌는 속도'에 맞춰야 한다",
         sub: "모두 한 상품에 초당 2회 요청. 칸 그림은 응답 100건(모델로 계산한 예시).",
@@ -132,6 +128,8 @@
         basis: "TTL이 변경 간격(10분)에 다가가면 오래된 값이 급격히 늘고, 원본 조회는 이미 바닥이라 더 줄 것이 없다." },
 
       { type: "explain", kicker: "어림 규칙", title: "숫자 감각 세 가지", arrows: false,
+        tex: String.raw`\text{적중률}=\frac{\lambda T}{1+\lambda T},\quad \text{적중 중 오래된 비율}=1-\frac{1-e^{-\mu T}}{\mu T}`,
+        basis: "가정: 요청과 원본 변경이 독립 Poisson 과정, 변경 시 캐시를 지우지 않음. 적중률 식은 Jung, Berger, Balakrishnan (INFOCOM 2003) Theorem 1. 몰려 오는(bursty) 실제 트래픽은 적중률이 더 높게 나온다.",
         steps: [
           { icon: "½", title: "옛 값 ≈ (TTL ÷ 변경 간격) ÷ 2", text: "TTL이 변경 간격보다 충분히 짧을 때만 맞는 어림." },
           { icon: "🔟", title: "적중률 99% → 99.9%", text: "숫자는 비슷해 보여도 원본 조회는 1%에서 0.1%, 10분의 1이 된다." },

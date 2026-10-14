@@ -94,11 +94,12 @@
         ],
         tex: "\\text{AI}=\\frac{\\text{FLOP}}{\\text{byte}},\\qquad \\text{ridge}=\\frac{989\\ \\text{TFLOPS}}{3.35\\ \\text{TB/s}}\\approx 295" },
 
-      { type: "predict", kicker: "먼저 예측", title: "batch 1 decode는 ridge의 어느 쪽에 있나",
+      { type: "predict", kicker: "짐작해 보기", title: "batch 1 decode는 ridge의 어느 쪽에 있나",
         sub: "토큰 1개를 만들려고 가중치 16 GB를 읽는다.",
         question: "batch 1 decode의 arithmetic intensity는 ridge point보다 큰가 작은가",
         choices: [{ id: "bigger", text: "ridge보다 크다 (연산에 묶임)" }, { id: "smaller", text: "ridge보다 훨씬 작다 (메모리에 묶임)" }],
         answer: "smaller",
+        answerVisual(node) { gauge(aiDecode(1, 4096))(node); node.firstChild.style.maxWidth = "420px"; setTimeout(() => slideDots(node), 100); },
         why: `훨씬 작다. 표 16 GB를 읽고 2 × 8B FLOP만 하므로 AI는 약 <b>${fmtAI(aiDecode(1, 4096))}</b>, ridge의 300분의 1이다. 연산기는 ${d3.format(".2f")(attain(aiDecode(1, 4096)) / PEAK * 100)}%만 쓴다. <span class="ltt-tag">모델로 계산한 예시</span>` },
 
       { type: "compare", kicker: "세 구간", title: "같은 GPU, 어느 구역에 떨어질까",

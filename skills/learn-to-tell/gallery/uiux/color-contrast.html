@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>회색 글자는 얼마나 옅어야 읽기 힘들어질까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"WCAG 2.x 색 대비비","audience":"CSS 색상 코드(#RRGGBB)를 읽을 수 있는 UI 개발자·디자이너","pattern":["hook","explain","predict","compare","sweep","keywords"],"mode":"체험형: 실제 UI 조각을 나란히 놓고 대비비 통과 여부를 예측한다(시스템 계산을 맞히는 것이라 자기 편향을 겨냥하지 않는다)","decision":"글자색과 배경색 조합이 WCAG AA/AAA 대비비 기준을 넘는지"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"WCAG 2.x 색 대비비","audience":"CSS 색상 코드(#RRGGBB)를 읽을 수 있는 UI 개발자·디자이너","pattern":["hook","explain","predict","compare","sweep","keywords"],"mode":"체험형: 실제 UI 조각을 나란히 놓고 대비비 통과 여부를 짐작해 본 뒤 인포그래픽 정답으로 확인한다(시스템 계산을 맞히는 것이라 자기 편향을 겨냥하지 않는다)","decision":"글자색과 배경색 조합이 WCAG AA/AAA 대비비 기준을 넘는지"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
@@ -12,6 +12,8 @@
 <script src="/kit/ltt-parts.js"></script>
 <script src="/kit/ltt-deck.js"></script>
 <style>
+  .crow { display: grid; grid-template-columns: 64px 1fr 70px; gap: 10px; align-items: center; }
+  .crow .hex { margin: 0; }
   .hex { display: block; font: 12px ui-monospace, monospace; color: var(--ltt-muted); margin-top: 4px; }
   .ui { width: 100%; border-radius: 10px; padding: 14px; border: 1px solid var(--ltt-line); font-size: 15px; }
   .ui input { width: 100%; font: inherit; border: 1px solid #ccc; border-radius: 8px; padding: 8px; box-sizing: border-box; }
@@ -72,15 +74,17 @@
         tex: "CR = \\frac{L_1 + 0.05}{L_2 + 0.05},\\quad L = 0.2126R + 0.7152G + 0.0722B",
         basis: "WCAG 2.x 성공 기준 1.4.3(AA), 1.4.6(AAA), 1.4.11(UI 요소, 2.1부터). 큰 글자는 24px 이상 또는 약 18.7px 굵게." },
 
-      { type: "predict", kicker: "예측", title: "흰 배경에서 AA(4.5:1)를 넘는 회색은?",
+      { type: "predict", kicker: "짐작해 보기", title: "흰 배경에서 AA(4.5:1)를 넘는 회색은?",
         question: "흰 배경 위 회색 글자(#999, #888, #777, #666) 중 대비비 4.5:1을 넘는 것",
-        choices: GRAYS.map((g) => ({ id: g + g + g, text: `<span style="color:#${g}${g}${g}">저장하지 않은 변경 사항</span><span class="hex">#${g}${g}${g}</span><span class="res"></span>` })),
+        choices: GRAYS.map((g) => ({ id: g + g + g, text: `<span style="color:#${g}${g}${g}">저장하지 않은 변경 사항</span><span class="hex">#${g}${g}${g}</span>` })),
         answer: "666666",
         why: "#666만 통과한다. #777은 <b>4.48:1</b>로 0.02 모자라 실패한다. 눈으로는 구분되지 않는 차이다.",
-        reveal: () => document.querySelectorAll(".dk-pred .res").forEach((s, i) => {
-          const r = ratio(gr(parseInt(GRAYS[i], 16)), W);
-          s.innerHTML = `<span class="ltt-tag ${r >= 4.5 ? "good" : "bad"}">${fl2(r)}:1</span>`;
-        }) },
+        answerVisual: (n) => {
+          n.innerHTML = GRAYS.map((g, i) => {
+            const r = ratio(gr(parseInt(g, 16)), W);
+            return `<div class="crow ltt-rise" style="--i:${i}"><span class="hex">#${g}${g}${g}</span><div class="ltt-bar"><span style="flex-grow:${r};background:#${g}${g}${g}"></span><span style="flex-grow:${7 - r}"></span></div><span class="ltt-tag ${r >= 4.5 ? "good" : "bad"}">${fl2(r)}:1</span></div>`;
+          }).join("") + `<p class="ltt-basis">막대 끝 = 7:1(AAA). 4.5:1(AA)은 막대의 64% 지점.</p>`;
+        } },
 
       { type: "compare", kicker: "실제 UI", title: "자주 보는 UI 조각, 일반 글자 AA를 넘을까?",
         revealLabel: "대비비 보기",

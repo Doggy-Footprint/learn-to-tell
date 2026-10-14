@@ -45,7 +45,10 @@
     ".dk-item.good .vd{color:var(--ltt-good)}.dk-item.bad .vd{color:var(--ltt-bad)}.dk-item.warn .vd{color:var(--ltt-warn)}",
     ".dk-item .note{font-size:14px;color:var(--ltt-muted);margin:0;transition:opacity .4s}.dk-cmp:not(.shown) .dk-item .note.after{opacity:0}",
     /* predict */
-    ".dk-pred .ltt-choices button{padding:14px 16px;font-size:clamp(15px,1.5vw,17px)}",
+    ".dk-pred .ltt-choices button{padding:14px 16px;font-size:clamp(15px,1.5vw,17px)}.dk-pred .ltt-choices button.unsure{color:var(--ltt-muted);font-weight:500;border-style:dashed}.dk-pred .ltt-choices button.unsure.wrong{border-color:var(--ltt-line);background:var(--ltt-card)}",
+    ".dk-hint2{font-size:13px;color:var(--ltt-muted);margin:0 0 8px}.dk-pred.done .dk-hint2,.dk-pred.done .dk-actions{display:none}",
+    ".dk-pred.done .ltt-choices button:not(.right):not([aria-pressed=true]){display:none}",
+    ".dk-ans{display:grid;gap:12px;margin-top:14px}.dk-avis:empty{display:none}",
     ".dk-why{font-size:clamp(15px,1.6vw,18px);background:var(--ltt-card);border-left:4px solid var(--ltt-accent);padding:12px 16px;border-radius:0 12px 12px 0;margin:0}",
     /* keywords */
     ".dk-kw{display:grid;grid-template-columns:1.1fr 1fr;gap:clamp(12px,2vw,24px)}",
@@ -131,22 +134,31 @@
       }
       return { enter: function () { rise(w.children); replays.forEach(function (it, k) { it.enter(w.children[s.items.indexOf(it)].querySelector(".vis")); }); } };
     },
+    // A low-stakes guess, not a quiz: "모르겠다" is always offered and the answer arrives as an infographic.
     predict: function (s, body) {
       var w = h("div", "dk-pred");
       var box = h("div");
-      s.choices.forEach(function (c) {
-        var b = h("button", null, c.text);
+      var choices = s.choices.concat(s.unsure === false ? [] : [{ id: "unsure", text: "잘 모르겠다" }]);
+      choices.forEach(function (c) {
+        var b = h("button", c.id === "unsure" ? "unsure" : null, c.text);
         b.dataset.choice = c.id;
         box.appendChild(b);
       });
-      var lock = h("button", null, s.button || "이걸로 정하고 확인");
-      var why = h("p", "dk-why ltt-hidden", s.why || "");
+      var lock = h("button", null, s.button || "정답 보기");
+      var ans = h("div", "dk-ans ltt-hidden");
+      var av = h("div", "dk-avis");
+      ans.append(av, s.why ? h("p", "dk-why", s.why) : "");
       if (s.visual) { var pv = h("div", "dk-pvis"); fill(pv, s.visual); w.appendChild(pv); }
-      w.append(box, h("div", "dk-actions"), why);
+      w.append(h("p", "dk-hint2", s.hint || "틀려도 괜찮다. 감으로 하나 고른다."), box, h("div", "dk-actions"), ans);
       w.querySelector(".dk-actions").appendChild(lock);
       body.appendChild(w);
-      LTT.predict({ question: s.question || s.title, choices: box, button: lock, answer: s.answer, show: [why],
-        reveal: s.reveal });
+      LTT.predict({ question: s.question || s.title, choices: box, button: lock, answer: s.answer, show: [ans],
+        reveal: function (v) {
+          w.classList.add("done");
+          if (typeof s.answerVisual === "function") s.answerVisual(av, v);
+          else if (s.answerVisual) av.innerHTML = s.answerVisual;
+          if (s.reveal) s.reveal(v);
+        } });
       return {};
     },
     keywords: function (s, body) {

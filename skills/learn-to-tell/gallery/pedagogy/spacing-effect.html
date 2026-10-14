@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>같은 4번 복습, 언제 하느냐에 따라 얼마나 달라질까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"교육학","topic":"간격 반복과 망각 곡선","audience":"지수 함수 정도만 알면 된다","pattern":["hook","explain","predict","compare","keywords"],"mode":"체험형: 복습 일정별 기억률을 모델로 예측한다(사용자 자신의 편향을 시험하지 않는다)","decision":"복습 4회를 언제 배치할지(간격)"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"교육학","topic":"간격 반복과 망각 곡선","audience":"지수 함수 정도만 알면 된다","pattern":["hook","explain","predict","compare","keywords"],"mode":"체험형: 복습 일정별 기억률을 모델로 짐작해 본 뒤 인포그래픽 정답으로 확인한다(사용자 자신의 편향을 시험하지 않는다)","decision":"복습 4회를 언제 배치할지(간격)"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
@@ -60,7 +60,6 @@
     return { label: PLANS[k].label, tone, verdict: `30일째 ${pc(R(30))} · 60일째 ${pc(R(60))}`, noteAfter: true, note,
       visual: (n) => setTimeout(curves(n, [k], 80), 300) };
   };
-  let playAB;
 
   LTT.deck({
     title: "같은 4번 복습, 언제 하느냐에 따라 얼마나 달라질까?",
@@ -78,13 +77,12 @@
         tex: "R(t)=e^{-(t-t_k)/S},\\qquad S \\leftarrow S\\,\\bigl(1+a\\,(1-R)\\bigr)",
         basis: "첫 학습 직후 S=1일, a=4는 예시용으로 정한 값이다(출처 없음, 불확실). 간격 학습이 몰아서 한 학습보다 지연 시험에 낫다는 방향은 Cepeda 외(2006) 메타분석이 근거." },
 
-      { type: "predict", kicker: "예측", title: "하루에 몰아서 vs 1·3·7·14일, 30일째 기억률 차이는?",
+      { type: "predict", kicker: "짐작해 보기", title: "하루에 몰아서 vs 1·3·7·14일, 30일째 기억률 차이는?",
         question: "같은 4회 복습: 하루 몰아서(A) 대비 간격(B)의 30일째 기억률 차이(%p)",
         choices: [{ id: "5", text: "거의 없다 (5%p 안쪽)" }, { id: "20", text: "약 20%p" }, { id: "40", text: "약 40%p" }, { id: "70", text: "약 70%p" }],
         answer: "70",
         why: `간격 ${pc(schedule(PLANS.spaced.t)(30))}, 몰아서 ${pc(schedule(PLANS.cram.t)(30))} — 약 <b>70%p</b>(모델로 계산한 예시). 몰아서 한 복습은 S를 거의 키우지 못했다.`,
-        mount(body) { const n = document.createElement("div"); n.className = "curves"; body.prepend(n); playAB = curves(n, ["cram", "spaced"]); return {}; },
-        reveal: () => playAB() },
+        answerVisual: (n) => { const c = document.createElement("div"); c.className = "curves"; n.appendChild(c); const play = curves(c, ["cram", "spaced"]); setTimeout(play, 100); } },
 
       { type: "compare", kicker: "일정별", title: "네 가지 복습 일정, 30일째와 60일째",
         revealLabel: "기억률 보기",

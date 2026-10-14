@@ -53,7 +53,6 @@
     return { go: () => cur.interrupt().attr("cx", X0).transition().duration(LTT.MOTION_MS ? mt(D, edge ? EDGE_W : W) * SLOW : 0).ease(d3.easeCubicOut).attr("cx", cx) };
   }
   const ms = (D, W) => Math.round(mt(D, W)) + " ms";
-  let lanesAB = [];
   const caseItem = (label, D, W, edge, tone, note) => ({
     label, tone, verdict: ms(D, edge ? EDGE_W : W), noteAfter: true, note,
     visual: (n) => { const l = lane(n, D, W, edge); n.onclick = l.go; setTimeout(l.go, 400); },
@@ -75,12 +74,12 @@
         tex: "MT = a + b\\,\\log_2\\!\\left(\\frac{D}{W}+1\\right)",
         basis: "a=100ms, b=200ms/bit는 이 페이지의 예시값이다. 장치·사용자·과제마다 크게 달라 직접 측정해야 한다(불확실)." },
 
-      { type: "predict", kicker: "예측", title: "어느 쪽이 더 빨리 클릭될까?",
+      { type: "predict", kicker: "짐작해 보기", title: "어느 쪽이 더 빨리 클릭될까?",
         question: "작고 가까운 버튼(W=20,D=100)과 크고 먼 버튼(W=80,D=400) 중 어느 쪽이 빨리 클릭되는가",
         choices: [{ id: "A", text: "A. 작고 가까운 버튼이 빠르다" }, { id: "B", text: "B. 크고 먼 버튼이 빠르다" }, { id: "same", text: "거의 같다" }],
         answer: "same",
         why: `둘 다 <b>${ms(100, 20)}</b>(모델로 계산한 예시). D/W가 5로 같아 log2(6)이 같다. 이동은 3배 느리게 재생했다.`,
-        mount(body) {
+        answerVisual(n) {
           const box = document.createElement("div");
           box.className = "lanes";
           [["A. 작고 가까운 버튼 (W=20, D=100)", 100, 20], ["B. 크고 먼 버튼 (W=80, D=400)", 400, 80]].forEach(([t, D, W]) => {
@@ -88,12 +87,11 @@
             row.className = "lane-row";
             row.innerHTML = `<b>${t}</b><span></span>`;
             box.appendChild(row);
-            lanesAB.push({ l: lane(row, D, W, false), s: row.querySelector("span"), D, W });
+            row.querySelector("span").textContent = ms(D, W);
+            lane(row, D, W, false).go();
           });
-          body.prepend(box);
-          return {};
-        },
-        reveal: () => lanesAB.forEach((x) => { x.s.textContent = ms(x.D, x.W); x.l.go(); }) },
+          n.appendChild(box);
+        } },
 
       { type: "compare", kicker: "실제 배치", title: "400px 떨어진 곳에 둘 버튼, 어느 배치가 빠를까?",
         revealLabel: "예상 시간 보기",

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>다시 읽기와 인출 연습, 1주 뒤엔 어느 쪽이 더 남을까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"교육학","topic":"인출 연습(testing effect)","audience":"전제 지식 없음","pattern":["hook","explain","predict","compare","keywords"],"mode":"체험형: 다른 사람들이 참여한 실험 결과를 예측한다(사용자 자신의 편향을 시험하지 않는다)","decision":"복습 시간을 다시 읽기와 인출 연습 중 어디에 쓸지"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"교육학","topic":"인출 연습(testing effect)","audience":"전제 지식 없음","pattern":["hook","explain","predict","compare","keywords"],"mode":"체험형: 다른 사람들이 참여한 실험 결과를 짐작해 본 뒤 인포그래픽 정답으로 확인한다(사용자 자신의 편향을 시험하지 않는다)","decision":"복습 시간을 다시 읽기와 인출 연습 중 어디에 쓸지"}</script>
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
@@ -34,7 +34,6 @@
     r.set([0, 100]); t.set([0, 100]);
     return () => { r.set([d.read, 100 - d.read], [`다시 읽기 ${d.read}%`, ""]); t.set([d.test, 100 - d.test], [`인출 ${d.test}%`, ""]); };
   }
-  let fire1wk;
   const SRC = "Roediger & Karpicke (2006) Psychological Science 실험 1(대학생, 산문 글, 떠올릴 때 정답 안 알려 줌). 방향과 1주 뒤 차이 약 21%p는 검색으로 확인. 83/71, 40/61 개별 값은 기억에 의존했고 원문 표로 재확인하지 못했다(불확실).";
   const ex = (icon, t) => `<div class="ex"><b>${icon}</b>${t}</div>`;
 
@@ -52,14 +51,13 @@
           { icon: "📆", title: "며칠 뒤 차이", text: "시험도 '꺼내기'다. 꺼내 본 연습이 많을수록 지연 시험에서 남는다." },
         ] },
 
-      { type: "predict", kicker: "연구 예측", title: "1주 뒤 시험, 어느 조가 더 많이 기억했을까?",
+      { type: "predict", kicker: "짐작해 보기", title: "1주 뒤 시험, 어느 조가 더 많이 기억했을까?",
         sub: "같은 글을 한 조는 4번 읽고, 다른 조는 1번 읽은 뒤 3번 책 없이 떠올려 썼다.",
         question: "4번 읽기 vs 1번 읽고 3번 떠올리기, 1주 뒤 어느 쪽이 더 높은가",
         choices: [{ id: "read", text: "4번 읽은 조" }, { id: "test", text: "떠올려 쓴 조" }, { id: "same", text: "비슷하다" }],
         answer: "test",
         why: "떠올려 쓴 조가 약 <b>21%p</b> 높았다. 읽은 횟수는 적었는데도.",
-        mount(body) { const n = document.createElement("div"); body.prepend(n); fire1wk = pair(n, DATA[1]); return {}; },
-        reveal: () => fire1wk(),
+        answerVisual: (n) => { const fire = pair(n, DATA[1]); setTimeout(fire, 100); },
         basis: SRC },
 
       { type: "compare", kicker: "같은 실험, 시험 시점만 다르게", title: "5분 뒤 시험과 1주 뒤 시험에서 순위가 뒤집혔다",

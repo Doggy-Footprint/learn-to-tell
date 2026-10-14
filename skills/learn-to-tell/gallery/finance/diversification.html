@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>두 자산을 섞으면 위험은 얼마나 줄까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"경제·금융","topic":"분산투자와 상관계수","audience":"표준편차를 변동성(위험)으로 읽을 줄 아는 사람","pattern":["hook","explain","predict","compare","keywords"],"mode":"체험형: 섞은 포트폴리오의 변동성을 예측한다(계산 결과 예측이라 자기 편향을 겨냥하지 않는다)","decision":"자산 간 상관계수와 비중이 포트폴리오 변동성을 얼마나 줄이는지"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"경제·금융","topic":"분산투자와 상관계수","audience":"표준편차를 변동성(위험)으로 읽을 줄 아는 사람","pattern":["hook","explain","predict","compare","keywords"],"mode":"체험형: 섞은 포트폴리오의 변동성을 짐작해 본 뒤 인포그래픽 정답으로 확인한다(계산 결과 예측이라 자기 편향을 겨냥하지 않는다)","decision":"자산 간 상관계수와 비중이 포트폴리오 변동성을 얼마나 줄이는지"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
@@ -64,7 +64,6 @@
       return LTT.bar(r.lastChild, [{ color: "var(--ltt-accent)" }, { color: "transparent" }]); });
     return { enter: () => rows.forEach(([, v], i) => { bs[i].set([0, 20], ["", ""]); setTimeout(() => bs[i].set([v, 20 - v], [pc(v), ""]), 60 + i * 150); }) };
   };
-  let grid;
 
   LTT.deck({
     title: "두 자산을 섞으면 위험은 얼마나 줄까?",
@@ -81,20 +80,19 @@
         ],
         tex: "\\sigma_p^2=w^2\\sigma_1^2+(1-w)^2\\sigma_2^2+2w(1-w)\\rho\\,\\sigma_1\\sigma_2" },
 
-      { type: "predict", kicker: "예측", title: "ρ=0.3, 변동성 각 20%를 50:50으로 섞으면?",
+      { type: "predict", kicker: "짐작해 보기", title: "ρ=0.3, 변동성 각 20%를 50:50으로 섞으면?",
         question: "ρ=0.3, 변동성 각 20%인 두 자산을 50:50으로 섞은 포트폴리오 변동성(%)",
         choices: [{ id: "20", text: "20% 그대로" }, { id: "16", text: "약 16%" }, { id: "10", text: "약 10% (절반)" }, { id: "0", text: "거의 0%" }],
         answer: "16",
         why: `<b>${pc(vol(0.5, 0.3))}</b>(모델로 계산한 예시). 아무것도 더 사지 않았는데 섞기만으로 약 4%p 줄었다. 100칸 = 변동성 25%.`,
-        mount(body) {
+        answerVisual(n) {
           const u = document.createElement("div");
-          body.prepend(u);
-          grid = LTT.units(u, 100, 25);
+          n.appendChild(u);
+          const grid = LTT.units(u, 100, 25);
           u.style.maxWidth = "520px";
           grid.paint(80, "guess");
-          return {};
-        },
-        reveal: () => grid.paint(Math.round(vol(0.5, 0.3) * 4), "on", 80 - Math.round(vol(0.5, 0.3) * 4)) },
+          setTimeout(() => grid.paint(Math.round(vol(0.5, 0.3) * 4), "on", 80 - Math.round(vol(0.5, 0.3) * 4)), 400);
+        } },
 
       { type: "compare", kicker: "상관에 따라", title: "같은 20%짜리 둘도 짝에 따라 다르다",
         sub: "회색·주황 = 두 자산, 파랑 = 50:50으로 섞은 결과.",

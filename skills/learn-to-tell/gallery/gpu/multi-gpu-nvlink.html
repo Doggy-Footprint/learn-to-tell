@@ -22,6 +22,7 @@
   .big { font-size: 26px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; }
   @media (max-width: 720px) { .big { font-size: 17px; } .st { font-size: 11px; } }
   .big small { display: block; font-size: 12px; font-weight: 600; color: var(--ltt-muted); }
+  .dk-avis .big { font-size: 18px; } .dk-avis .big small { display: none; }
 </style>
 </head>
 <body>
@@ -116,11 +117,16 @@
         },
         basis: "패킷 수는 연출이며 실제 바이트 비를 나타내지 않는다." },
 
-      { type: "predict", kicker: "먼저 예측", title: "텐서 병렬 8장, 길을 PCIe로 바꾸면 무엇이 병목?",
+      { type: "predict", kicker: "짐작해 보기", title: "텐서 병렬 8장, 길을 PCIe로 바꾸면 무엇이 병목?",
         sub: "긴 프롬프트(토큰 2048개)를 한 스텝에 처리하는 상황.",
         question: "텐서 병렬 8-way에서 NVLink 대신 PCIe를 쓰면 무엇이 병목인가",
         choices: [{ id: "hbm", text: "GPU 메모리(HBM) 용량" }, { id: "comp", text: "GPU 연산 속도" }, { id: "comm", text: "GPU 사이 통신(합치기)" }, { id: "count", text: "GPU 개수" }],
         answer: "comm",
+        answerVisual(node) {
+          node.innerHTML = `<div class="two" style="grid-template-columns:1fr 1fr"><div><b>NVLink</b></div><div><b>PCIe</b></div></div>`;
+          const [x, y] = node.querySelectorAll(".two > div");
+          step(a, b.total)(x); setTimeout(() => step(b, b.total)(y), 500);
+        },
         why: `통신이다. 계산은 ${ms(a.g)}로 그대로인데 통신이 ${ms(a.c)}(NVLink)에서 ${ms(b.c)}(PCIe)로 늘어 전체가 <b>${d3.format(".1f")(b.total / a.total)}배</b> 느려진다. <span class="ltt-tag">모델로 계산한 예시</span>` },
 
       { type: "compare", kicker: "같은 8장, 다른 길과 일", title: "언제 통신이 시간을 먹나", cols: 3,
@@ -130,7 +136,6 @@
           { label: "PCIe · 프롬프트 2048토큰", visual: step(b, b.total), tone: "bad", verdict: "약 3.2배 느림", noteAfter: true, note: "통신이 계산보다 길다." },
           { label: "PCIe · 답변 토큰 1개", visual: step(tp(8, 1, PC), b.total), tone: "warn", verdict: "바이트로는 차이 1% 남짓", noteAfter: true, note: "160번 합치는 지연(latency)은 모델 밖. 실제로는 더 클 수 있다(미검증)." },
         ],
-        tex: "\\text{통신량}=80\\ \\text{층}\\times 2\\ \\text{회}\\times\\frac{2(N-1)}{N}\\times(\\text{토큰 수}\\times 8192\\times 2\\ \\text{B}),\\quad t=\\max(\\text{읽기},\\text{계산})+\\text{통신}",
         basis: "모델로 계산한 예시. " + SRC },
 
       { type: "compare", kicker: "답변 생성 지연", title: "요청 하나, 토큰 하나를 만드는 데 걸리는 시간",
@@ -142,6 +147,7 @@
         basis: "모델로 계산한 예시. 파이프라인은 마이크로배치 없이 요청 하나일 때다. " + SRC },
 
       { type: "explain", kicker: "선택 기준", title: "길이 나누는 방식을 정한다", arrows: false,
+        tex: "\\text{통신량}=80\\ \\text{층}\\times 2\\ \\text{회}\\times\\frac{2(N-1)}{N}\\times(\\text{토큰 수}\\times 8192\\times 2\\ \\text{B}),\\quad t=\\max(\\text{읽기},\\text{계산})+\\text{통신}",
         steps: [
           { icon: "🔗", title: "같은 서버(NVLink)", text: "텐서 병렬. 읽는 표가 GPU당 1/N이 되어 지연이 줄어든다." },
           { icon: "🌐", title: "느린 길(서버 사이)", text: "통신이 적은 파이프라인 병렬. 대신 요청이 적으면 GPU들이 번갈아 쉰다." },
