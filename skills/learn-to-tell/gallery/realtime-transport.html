@@ -4,213 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>실시간 업데이트, 무엇으로 보낼까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"웹·네트워크","topic":"polling·SSE·WebSocket 선택과 운영 조건","audience":"WebSocket은 알고 SSE는 애매하다","pattern":["hook","motion","predict","compare","sweep","explain","keywords"],"mode":"체험형: 기능만 보면 WebSocket을 고르기 쉬워, 조건을 켜고 끄며 추천이 바뀌는 것을 직접 보게 한다","decision":"전달 방식 (polling / SSE / WebSocket)"}</script>
 <script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/vendor/plot.umd.min.js"></script>
 <script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-deck.js"></script>
 <style>
   :root { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --deemph: #c3c9da; --lifeline: #c9cedb; }
-  .ask { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
-  .chips { margin: 0 0 18px; }
-  .options { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 16px; }
-  @media (max-width: 720px) { .options { grid-template-columns: 1fr; } }
-  .opt { all: unset; box-sizing: border-box; display: block; cursor: pointer; background: var(--ltt-card);
-         border: 1px solid var(--ltt-line); border-top: 4px solid var(--c); border-radius: 12px; padding: 12px 14px 10px;
-         transition: box-shadow .2s ease, transform .2s ease; }
-  .opt:hover:not([aria-disabled=true]) { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(20, 30, 60, .08); }
-  .opt:focus-visible { outline: 2px solid var(--ltt-accent); outline-offset: 2px; }
-  .opt[aria-pressed=true] { box-shadow: 0 0 0 2px var(--ltt-ink); }
-  .opt[aria-disabled=true] { cursor: default; }
-  .opt-name { font-size: 18px; font-weight: 700; }
-  .opt-sub { display: block; font-size: 13px; color: var(--ltt-muted); }
-  .opt svg { display: block; width: 100%; max-width: 220px; height: auto; margin: 10px 0 6px; }
-  .opt-mark { display: block; min-height: 20px; font-size: 13px; font-weight: 700; }
-  .opt-mark .good { color: var(--ltt-good); }
-  .verdict { font-size: 17px; margin: 0 0 4px; }
-
-  h2 .ghost, .ghost { background: transparent; color: var(--ltt-accent); padding: 2px 6px; font-size: 14px; margin-left: 6px; }
-  .lane { margin: 0 0 6px; }
-  .lane-head { display: flex; align-items: baseline; gap: 8px; font-size: 15px; }
-  .lane-head b { font-size: 15px; }
-  .lane-head span { font-size: 13px; color: var(--ltt-muted); }
-  .okey { display: inline-block; width: 16px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; transform: translateY(-2px); }
-  .lane svg { display: block; width: 100%; height: auto; overflow: visible; }
-  .lane svg text { font-size: 12px; fill: var(--ltt-muted); }
-  .lane svg .hit { cursor: help; }
-  .lane svg .hit:focus { outline: none; }
-  .lane svg .hit:focus + .msg, .lane svg .hit:hover + .msg { stroke-width: 3; }
-  .ftip { position: fixed; z-index: 20; max-width: 280px; padding: 8px 10px; border-radius: 8px; background: var(--ltt-ink);
-          color: #fff; font-size: 13px; line-height: 1.45; pointer-events: none; }
-
-  .rec { display: flex; gap: 16px; align-items: stretch; margin: 4px 0 18px; }
-  .rec-key { width: 8px; border-radius: 4px; background: var(--deemph); transition: background-color .4s ease; }
-  .rec-label { font-size: 13px; font-weight: 600; color: var(--ltt-muted); }
-  .rec-name { font-size: 60px; }
-  .rec-why { margin: 6px 0 0; color: var(--ltt-muted); }
-  .rec-why b { color: var(--ltt-ink); }
-
-  .tbl-wrap { position: relative; }
-  .col-hl { position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: 12px; pointer-events: none;
-            border: 2px solid var(--hl, transparent); background: color-mix(in srgb, var(--hl, transparent) 8%, transparent); }
-  .col-hl.ready { transition: left .5s cubic-bezier(.2, .7, .2, 1), width .5s cubic-bezier(.2, .7, .2, 1),
-                  border-color .4s ease, background-color .4s ease; }
-  #tbl { position: relative; width: 100%; border-collapse: collapse; table-layout: fixed; }
-  #tbl th, #tbl td { padding: 10px 12px; border-bottom: 1px solid var(--ltt-line); text-align: left; vertical-align: middle; font-weight: 400; }
-  #tbl thead th { font-weight: 700; font-size: 15px; white-space: nowrap; }
-  #tbl thead th:first-child { font-weight: 600; font-size: 13px; color: var(--ltt-muted); }
-  #tbl col.c-cond { width: 40%; }
-  .best-tag { visibility: hidden; margin-left: 4px; }
-  .best .best-tag { visibility: visible; }
-  label.cond { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
-  label.cond input { margin-top: 4px; accent-color: var(--ltt-accent); width: 16px; height: 16px; flex: none; }
-  label.cond small { display: block; font-size: 12px; color: var(--ltt-muted); }
-  #tbl tr.off th, #tbl tr.off td { color: var(--ltt-muted); }
-  #tbl tr.off .v { opacity: .4; }
-  #tbl tbody tr:not(.off) th { font-weight: 600; }
-  .v { white-space: nowrap; }
-  .v b, .sym { font-weight: 800; margin-right: 3px; }
-  .ok b, .sym.ok { color: var(--ltt-good); }
-  .warn b, .sym.warn { color: var(--ltt-warn); }
-  .bad b, .sym.bad { color: var(--ltt-bad); }
-  .tip-left[data-tip]:hover::after { left: auto; right: 0; }
-  .tiny { font-size: 11px; padding: 1px 6px; margin: 0 0 0 4px; }
-  #tbl tfoot th { font-size: 13px; font-weight: 600; color: var(--ltt-muted); }
-  #tbl tfoot td { font-weight: 700; font-variant-numeric: tabular-nums; }
-  #tbl tfoot tr:last-child th, #tbl tfoot tr:last-child td { border-bottom: 0; }
-  .drop-cell.bad { color: var(--ltt-bad); }
-  .drop-cell.none { color: var(--ltt-muted); font-weight: 400; }
-  .rule { margin: 14px 0 6px; }
-
-  .cases { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
-  .cases strong { font-size: 16px; }
-  .case-conds { margin: 10px 0 8px; }
-  .case-conds .ltt-tag { background: #f0f1f6; color: var(--ltt-ink); font-weight: 500; margin: 0 4px 4px 0; }
-  .pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
-  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 10px; border-radius: 999px;
-          border: 1px solid var(--ltt-line); }
-  .pill i { width: 12px; height: 4px; border-radius: 2px; }
-  .pill.best { box-shadow: inset 0 0 0 2px var(--c); border-color: transparent; font-weight: 600; }
-  .pill.best b { color: var(--ltt-good); }
-  .pill.dropped { opacity: .6; }
-  .pill.dropped span { text-decoration: line-through; }
-  .pill.dropped b { color: var(--ltt-bad); }
-  .cases button { margin-top: 2px; background: transparent; color: var(--ltt-accent); padding: 4px 0; }
-  .sources a { color: var(--ltt-muted); }
+  .lane { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 8px; }
+  .lane b { font-size: 15px; } .lane small { display: block; color: var(--ltt-muted); font-size: 12px; }
+  .lane svg { max-height: 12vh; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+  .ct { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .ct td, .ct th { padding: 5px 8px; border-bottom: 1px solid var(--ltt-line); text-align: center; }
+  .ct td:first-child { text-align: left; } .ct tr.off td:not(:first-child) { opacity: .25; }
+  .ct th.rec { background: #e6f6ef; } .ct th.drop { text-decoration: line-through; color: var(--ltt-bad); }
+  .sym-w { color: var(--ltt-warn); font-weight: 700; } .sym-x { color: var(--ltt-bad); font-weight: 700; } .sym-o { color: var(--ltt-good); }
 </style>
 </head>
 <body>
-<main>
-  <h1>실시간 업데이트, 무엇으로 보낼까?</h1>
-  <p class="ltt-lead">
-    결정 변수: 전달 방식 —
-    <span data-tip="정해진 주기마다 클라이언트가 묻는 short polling. 응답을 붙잡아 두는 long-polling과는 다르다.">polling</span> /
-    <span data-tip="서버가 HTTP 응답 하나를 열어 두고 이벤트를 계속 흘려보낸다 (브라우저 EventSource).">SSE</span> /
-    <span data-tip="프로토콜을 업그레이드한 뒤 연결 하나로 양방향 메시지를 주고받는다.">WebSocket</span>
-  </p>
-
-  <section class="ltt-card" id="predict-card">
-    <p class="ask">주문 상태 알림. 무엇을 고를까?</p>
-    <div class="chips">
-      <span class="ltt-tag" data-tip="클라이언트가 실시간으로 서버에 보낼 것은 없다">서버 → 브라우저 한 방향</span>
-      <span class="ltt-tag" data-tip="상태가 바뀌면 1초 안에 화면에 보여야 한다">1초 안에</span>
-      <span class="ltt-tag" data-tip="브라우저와 서버 사이가 HTTP/2. 도메인당 연결 수 제한 문제가 작다">HTTP/2</span>
-    </div>
-    <div class="options" id="options"></div>
-    <div id="guess-ui">
-      <button id="lock" disabled>예측 확정</button>
-      <p class="ltt-basis">하나를 고르고 확정하세요. 확정한 예측은 바꿀 수 없습니다.</p>
-    </div>
-    <div id="result-ui" class="ltt-hidden">
-      <p class="verdict" id="verdict"></p>
-      <span class="ltt-tag">가중치 없는 단순 규칙의 답</span>
-    </div>
-  </section>
-
-  <div id="reveal" class="ltt-hidden">
-    <section class="ltt-card ltt-rise" style="--i:1">
-      <h2>세 방식의 메시지 흐름<button class="ghost" id="replay">다시 보기</button></h2>
-      <p class="ltt-basis">서버 상태가 같은 시점에 두 번 바뀐다(◆ 변경). ↓ 브라우저 → 서버, ↑ 서버 → 브라우저. 메시지에 마우스를 올리면 설명이 나온다.</p>
-      <div id="lanes"></div>
-    </section>
-
-    <section class="ltt-card ltt-rise" style="--i:2" id="table-card">
-      <h2>조건을 켜고 끄면 추천이 바뀐다</h2>
-      <div class="rec">
-        <i class="rec-key" id="rec-key"></i>
-        <div>
-          <span class="rec-label">이 조건에서의 추천</span>
-          <div class="ltt-hero rec-name" id="rec-name">—</div>
-          <p class="rec-why" id="rec-why"></p>
-        </div>
-      </div>
-      <div class="tbl-wrap" id="tbl-wrap">
-        <div class="col-hl" id="col-hl"></div>
-        <table id="tbl">
-          <colgroup><col class="c-cond"><col><col><col></colgroup>
-          <thead><tr id="thead-row"><th>조건 (켜면 반영)</th></tr></thead>
-          <tbody id="tbody"></tbody>
-          <tfoot>
-            <tr id="warn-row"><th>△ 개수</th></tr>
-            <tr id="drop-row"><th>✗ 있으면 제외</th></tr>
-          </tfoot>
-        </table>
-      </div>
-      <p class="ltt-basis rule">
-        <span class="ltt-tag">가중치 없는 단순 규칙</span>
-        ✗가 하나라도 있으면 제외 → △가 적은 쪽 → 같으면
-        <span data-tip="polling(일반 HTTP 요청) < SSE(일반 HTTP 응답 스트림, 재연결 내장) < WebSocket(프로토콜 업그레이드, 재연결 직접 구현). 단, SSE도 프록시 유휴 끊김을 막으려면 주기적 주석(keep-alive, 약 15초) 전송이 권장된다.">더 단순한 쪽(polling &lt; SSE &lt; WebSocket)</span>.
-        실제 결정에서는 △의 무게가 다르고, SSE + POST 같은 조합도 흔하다.
-      </p>
-      <p>
-        <span class="ltt-key"><b class="sym ok">✓</b>적합</span>
-        <span class="ltt-key"><b class="sym warn">△</b>주의: 가능하지만 비용·제약</span>
-        <span class="ltt-key"><b class="sym bad">✗</b>피함</span>
-      </p>
-    </section>
-
-    <div class="cases">
-      <section class="ltt-card ltt-rise" style="--i:3" data-case="c7">
-        <span class="ltt-tag good">활용</span><strong>주문 상태 알림</strong>
-        <div class="case-conds"></div>
-        <div class="pills"></div>
-        <span class="ltt-basis">서버 → 브라우저 한 방향, HTTP/2. 예측 문제의 조건.</span><br>
-        <button data-apply="c7">이 조건으로 보기 →</button>
-      </section>
-      <section class="ltt-card ltt-rise" style="--i:4" data-case="c7,c4">
-        <span class="ltt-tag bad">주의</span><strong>같은 알림, HTTP/1.1 + 탭 여러 개</strong>
-        <div class="case-conds"></div>
-        <div class="pills"></div>
-        <span class="ltt-basis" data-tip="SSE 연결이 브라우저의 도메인당 연결 제한(보통 6개)을 탭마다 하나씩 차지한다. HTTP/2로 바꿔 SSE를 유지하는 것도 방법이다.">SSE가 △로 내려가 WebSocket이 앞선다.</span><br>
-        <button data-apply="c7,c4">이 조건으로 보기 →</button>
-      </section>
-      <section class="ltt-card ltt-rise" style="--i:5" data-case="c1,c7">
-        <span class="ltt-tag">대안</span><strong>채팅</strong>
-        <div class="case-conds"></div>
-        <div class="pills"></div>
-        <span class="ltt-basis" data-tip="입력도 실시간으로 보내야 하면 한 연결에서 양방향으로 주고받는 쪽이 맞는다.">보내기도 실시간이면 WebSocket.</span><br>
-        <button data-apply="c1,c7">이 조건으로 보기 →</button>
-      </section>
-      <section class="ltt-card ltt-rise" style="--i:6" data-case="c1,c7,c5">
-        <span class="ltt-tag bad">주의</span><strong>규칙의 한계: 채팅 + WebSocket 차단 프록시</strong>
-        <div class="case-conds"></div>
-        <div class="pills"></div>
-        <span class="ltt-basis">규칙은 polling을 고르지만(△ 2 동점, 더 단순), 실제로는 SSE + POST나 long-polling(Socket.IO 대체 경로)을 많이 쓴다. 표는 생각을 돕는 도구이지 정답을 내지 않는다.</span><br>
-        <button data-apply="c1,c7,c5">이 조건으로 보기 →</button>
-      </section>
-    </div>
-
-    <p class="ltt-basis sources ltt-rise" style="--i:7">
-      출처:
-      <a href="https://developer.mozilla.org/en-US/docs/Web/API/EventSource" target="_blank" rel="noopener">MDN EventSource</a> ·
-      <a href="https://html.spec.whatwg.org/multipage/server-sent-events.html" target="_blank" rel="noopener">WHATWG HTML Server-sent events</a> ·
-      <a href="https://www.rfc-editor.org/rfc/rfc6455" target="_blank" rel="noopener">RFC 6455</a> ·
-      <a href="https://socket.io/docs/v4/" target="_blank" rel="noopener">Socket.IO docs</a> ·
-      <a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering" target="_blank" rel="noopener">nginx proxy_buffering</a> ·
-      <a href="https://www.rfc-editor.org/rfc/rfc9113" target="_blank" rel="noopener">RFC 9113</a>
-    </p>
-    <p class="ltt-basis">다 보았으면 대화로 돌아가 다음 질문에 답해 주세요.</p>
-  </div>
-</main>
-<div class="ftip ltt-hidden" id="ftip" role="tooltip"></div>
 <script>
   // Hand-derived by an independent subagent from the verdict table and rule only; the model must match these, not the reverse.
   const EXPECTED_BY_HAND = [
@@ -277,35 +89,6 @@
     LTT.expect(`${c.label} △ polling/SSE/WebSocket = ${c.warn.join("/")}`, warnCode(r.warn), warnCode(c.warn), { tol: 0 });
     if (c.wsDropped !== undefined) LTT.expect(`${c.label} WebSocket 제외`, r.dropped[2] ? 1 : 0, c.wsDropped, { tol: 0 });
   }
-
-  const $ = (id) => document.getElementById(id);
-  const MOTION_MS = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700;
-  const VERDICT = { "✓": ["ok", "적합"], "△": ["warn", "주의"], "✗": ["bad", "피함"] };
-
-  function el(tag, cls, text) {
-    const e = document.createElement(tag);
-    if (cls) e.className = cls;
-    if (text != null) e.textContent = text;
-    return e;
-  }
-
-  function tweenNumber(node, to, fmt = (v) => Math.round(v)) {
-    const from = Number(node.dataset.v ?? 0);
-    node.dataset.v = to;
-    d3.select(node).interrupt().transition().duration(MOTION_MS).ease(d3.easeCubicOut)
-      .tween("text", () => { const i = d3.interpolateNumber(from, to); return (t) => { node.textContent = fmt(i(t)); }; });
-  }
-
-  const ftip = $("ftip");
-  function showTip(text, x, y) {
-    ftip.textContent = text;
-    ftip.classList.remove("ltt-hidden");
-    const w = ftip.offsetWidth;
-    ftip.style.left = Math.min(x + 12, innerWidth - w - 8) + "px";
-    ftip.style.top = y + 16 + "px";
-  }
-  const hideTip = () => ftip.classList.add("ltt-hidden");
-
   // Shared timeline: server state changes at t=35 and t=72 (0–100 units); a message departs at t and lands at t+3.
   const CHANGES = [35, 72];
   const FLOWS = [
@@ -336,279 +119,110 @@
     ] },
   ];
 
-  const BIG = { W: 880, H: 126, B: 40, S: 100, x: (t) => 80 + t * 7.8, labels: true, head: 7, stroke: 2 };
-  const MINI = { W: 150, H: 40, B: 7, S: 33, x: (t) => 4 + t * 1.42, labels: false, head: 4, stroke: 1.5 };
-
-  function drawFlow(svgEl, i, G, animate) {
-    const flow = FLOWS[i], color = OPTIONS[i].color;
-    const k = animate ? (MOTION_MS * 3) / 100 : 0;
-    const svg = d3.select(svgEl);
+  const G = { W: 880, H: 110, B: 22, S: 92, x: (t) => 10 + t * 8.5 };
+  // Time runs left to right at the same scale in all three lanes, so latency after ◆ is directly comparable.
+  function drawFlow(svgEl, i) {
+    const flow = FLOWS[i], color = OPTIONS[i].color, k = LTT.MOTION_MS * 3 / 100;
+    const svg = d3.select(svgEl).attr("viewBox", `0 0 ${G.W} ${G.H}`).attr("class", "ltt-svg");
     svg.selectAll("*").interrupt().remove();
-    svg.attr("viewBox", `0 0 ${G.W} ${G.H}`);
-    const fadeIn = (sel, delay) => (k ? sel.attr("opacity", 0).transition().delay(delay).duration(160).attr("opacity", 1) : sel);
-
+    const fade = (sel, delay) => k ? sel.attr("opacity", 0).transition().delay(delay).duration(160).attr("opacity", 1) : sel;
     if (flow.band) {
-      const x0 = G.x(flow.band.from), x1 = G.x(100);
-      const band = svg.append("rect").attr("x", x0).attr("y", G.B).attr("height", G.S - G.B)
-        .attr("fill", color).attr("fill-opacity", 0.08).attr("width", k ? 0 : x1 - x0);
-      if (k) band.transition().delay(flow.band.from * k).duration((100 - flow.band.from) * k).ease(d3.easeLinear).attr("width", x1 - x0);
-      if (G.labels) fadeIn(svg.append("text").attr("x", x1 - 4).attr("y", G.S - 7).attr("text-anchor", "end").text(flow.band.label), 100 * k);
+      const x0 = G.x(flow.band.from), r = svg.append("rect").attr("x", x0).attr("y", G.B).attr("height", G.S - G.B)
+        .attr("fill", color).attr("fill-opacity", 0.08).attr("width", k ? 0 : G.x(100) - x0);
+      if (k) r.transition().delay(flow.band.from * k).duration((100 - flow.band.from) * k).ease(d3.easeLinear).attr("width", G.x(100) - x0);
+      fade(svg.append("text").attr("x", G.x(100) - 4).attr("y", G.S - 6).attr("text-anchor", "end").text(flow.band.label), 100 * k);
     }
-
-    for (const y of [G.B, G.S]) {
-      svg.append("line").attr("x1", G.x(0) - 4).attr("x2", G.x(100) + 4).attr("y1", y).attr("y2", y)
-        .attr("stroke", "var(--lifeline)").attr("stroke-width", G.stroke * 0.75);
-    }
-    if (G.labels) {
-      svg.append("text").attr("x", 68).attr("y", G.B + 4).attr("text-anchor", "end").text("브라우저");
-      svg.append("text").attr("x", 68).attr("y", G.S + 4).attr("text-anchor", "end").text("서버");
-    }
-
-    for (const t of CHANGES) {
-      const g = svg.append("g").attr("transform", `translate(${G.x(t)},${G.S})`);
-      const r = G.labels ? 5 : 3;
-      g.append("path").attr("d", `M0,${-r}L${r},0L0,${r}L${-r},0Z`).attr("fill", "var(--ltt-ink)");
-      if (G.labels) g.append("text").attr("y", 18).attr("text-anchor", "middle").text("변경");
-      fadeIn(g, t * k);
-    }
-
-    for (const [a, b] of G.labels ? flow.delays : []) {
-      const y = G.B - 14, g = svg.append("g");
-      g.append("path").attr("d", `M${G.x(a)},${y + 4}V${y}H${G.x(b)}V${y + 4}`).attr("fill", "none")
-        .attr("stroke", "var(--ltt-muted)").attr("stroke-width", 1);
-      g.append("text").attr("x", (G.x(a) + G.x(b)) / 2).attr("y", y - 5).attr("text-anchor", "middle").text("지연");
-      fadeIn(g, b * k);
-    }
-
+    for (const y of [G.B, G.S]) svg.append("line").attr("x1", G.x(0)).attr("x2", G.x(100)).attr("y1", y).attr("y2", y).attr("stroke", "var(--lifeline)");
+    for (const t of CHANGES) fade(svg.append("path").attr("d", `M${G.x(t)},${G.S - 6}l6,6l-6,6l-6,-6Z`).attr("fill", "var(--ltt-ink)"), t * k);
     for (const m of flow.msgs) {
-      const x1 = G.x(m.t), x2 = G.x(m.t + 3);
-      const [y1, y2] = m.dir === "down" ? [G.B, G.S] : [G.S, G.B];
-      const stroke = m.muted ? "var(--deemph)" : color;
-      const len = Math.hypot(x2 - x1, y2 - y1);
-      const angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
-      const g = svg.append("g");
-      if (G.labels) {
-        const hit = g.append("line").attr("class", "hit").attr("x1", x1).attr("y1", y1).attr("x2", x2).attr("y2", y2)
-          .attr("stroke", "transparent").attr("stroke-width", 16).attr("tabindex", 0).attr("aria-label", m.tip).attr("role", "img");
-        hit.on("pointerenter pointermove", (ev) => showTip(m.tip, ev.clientX, ev.clientY)).on("pointerleave blur", hideTip)
-          .on("focus", (ev) => { const r = ev.target.getBoundingClientRect(); showTip(m.tip, r.right, r.top + r.height / 2); });
-      }
-      const line = g.append("line").attr("class", "msg").attr("x1", x1).attr("y1", y1).attr("x2", x2).attr("y2", y2)
-        .attr("stroke", stroke).attr("stroke-width", G.stroke).attr("stroke-linecap", "round").attr("pointer-events", "none");
-      const head = g.append("path").attr("d", `M0,0L${-G.head},${-G.head / 2}L${-G.head},${G.head / 2}Z`)
-        .attr("transform", `translate(${x2},${y2}) rotate(${angle})`).attr("fill", stroke).attr("pointer-events", "none");
-      if (k) {
-        line.attr("stroke-dasharray", len).attr("stroke-dashoffset", len)
-          .transition().delay(m.t * k).duration(Math.max(3 * k, 160)).ease(d3.easeLinear).attr("stroke-dashoffset", 0);
-        fadeIn(head, m.t * k + Math.max(3 * k, 160));
-      }
-      if (G.labels && m.label) {
-        const ty = m.dir === "up" ? G.B + 15 : G.S - 7;
-        fadeIn(g.append("text").attr("x", x2 + 5).attr("y", ty).attr("pointer-events", "none").text(m.label),
-          m.t * k + Math.max(3 * k, 160));
-      }
+      const x1 = G.x(m.t), x2 = G.x(m.t + 3), [y1, y2] = m.dir === "down" ? [G.B, G.S] : [G.S, G.B];
+      const stroke = m.muted ? "var(--deemph)" : color, len = Math.hypot(x2 - x1, y2 - y1);
+      const line = svg.append("line").attr("x1", x1).attr("y1", y1).attr("x2", x2).attr("y2", y2).attr("stroke", stroke).attr("stroke-width", 2.5);
+      line.append("title").text(m.tip);
+      if (k) line.attr("stroke-dasharray", len).attr("stroke-dashoffset", len).transition().delay(m.t * k).duration(160).attr("stroke-dashoffset", 0);
+      if (m.label) fade(svg.append("text").attr("x", x2 + 4).attr("y", m.dir === "up" ? G.B + 14 : G.S - 6).text(m.label), m.t * k + 160);
     }
   }
+  const SYM = { "✓": "sym-o", "△": "sym-w", "✗": "sym-x" };
+  const chips = (ids) => `<div class="chips">${ids.map((id) => `<span class="ltt-tag">${CONDITIONS.find((c) => c.id === id).short}</span>`).join("")}</div>`;
+  const recOf = (ids) => OPTIONS[recommend(ids).index].name;
 
-  function drawLanes(animate) {
-    const host = $("lanes");
-    if (!host.children.length) {
-      OPTIONS.forEach((o) => {
-        const lane = el("div", "lane");
-        const head = el("div", "lane-head");
-        const key = el("i", "okey");
-        key.style.background = o.color;
-        const name = el("b", null, o.name);
-        head.append(key, name, el("span", null, o.sub));
-        lane.append(head, document.createElementNS("http://www.w3.org/2000/svg", "svg"));
-        host.appendChild(lane);
-      });
-    }
-    [...host.querySelectorAll("svg")].forEach((svg, i) => drawFlow(svg, i, BIG, animate));
-  }
+  LTT.deck({
+    title: "실시간 업데이트, 무엇으로 보낼까?",
+    scenes: [
+      { type: "hook", art: "📡",
+        text: "polling, SSE, WebSocket.<br>기능보다 <u>운영 조건</u>이 답을 바꾼다.",
+        sub: "주문 상태 알림을 붙일 때, '양방향이 필요한가'와 '연결이 어떤 길을 지나가나'가 먼저다." },
 
-  // Predict
-  const answer = recommend(["c7"]).index;
-  let picked = null, locked = false;
-  const optButtons = OPTIONS.map((o, i) => {
-    const b = el("button", "opt");
-    b.type = "button";
-    b.style.setProperty("--c", o.color);
-    b.setAttribute("aria-pressed", "false");
-    b.append(el("span", "opt-name", o.name), el("span", "opt-sub", o.sub));
-    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    icon.setAttribute("aria-hidden", "true");
-    b.append(icon, el("span", "opt-mark"));
-    drawFlow(icon, i, MINI, false);
-    b.addEventListener("click", () => {
-      if (locked) return;
-      picked = i;
-      optButtons.forEach((x, j) => x.setAttribute("aria-pressed", String(j === i)));
-      $("lock").disabled = false;
-    });
-    $("options").appendChild(b);
-    return b;
+      { kicker: "흐름", title: "같은 변경 두 번(◆), 세 방식의 메시지",
+        sub: "위 선이 브라우저, 아래 선이 서버. 회색 화살표는 '변경 없음' 응답. 선에 마우스를 올리면 설명.",
+        mount(body) {
+          body.innerHTML = OPTIONS.map((o) => `<div class="lane"><div><b style="color:${o.color}">${o.name}</b><small>${o.sub}</small></div><svg></svg></div>`).join("");
+          const svgs = body.querySelectorAll("svg");
+          return { enter() { svgs.forEach((s, i) => drawFlow(s, i)); } };
+        },
+        basis: "polling은 변경 뒤 최대 한 주기 늦게 받는다. SSE는 응답 하나를 열어 두고 흘려보내며, 프록시 유휴 끊김을 막으려 약 15초마다 주석(keep-alive)을 보내길 권장한다." },
+
+      { type: "predict", kicker: "예측", title: "주문 상태 알림, 무엇을 고를까?",
+        sub: "서버 → 브라우저 한 방향 · 1초 안에 · 브라우저와 서버 사이 HTTP/2",
+        question: "주문 상태 알림(서버→브라우저, 1초, HTTP/2)의 전달 방식",
+        choices: OPTIONS.map((o, i) => ({ id: String(i), text: `${o.name} — ${o.sub}` })),
+        answer: String(recommend(["c7"]).index),
+        why: "SSE. 한 방향이면 WebSocket의 양방향은 쓰지 않는 복잡도다. SSE는 일반 HTTP 응답이라 재연결(Last-Event-ID)이 브라우저에 내장돼 있고, polling은 1초를 맞추려면 요청이 너무 많다." },
+
+      { type: "compare", kicker: "사례", title: "조건 하나가 바뀌면 답도 바뀐다",
+        sub: "가중치 없는 단순 규칙: ✗가 있으면 제외 → △가 적은 쪽 → 같으면 더 단순한 쪽.",
+        revealLabel: "규칙의 답 보기",
+        items: [
+          { label: "주문 상태 알림", visual: chips(["c7"]), tone: "good", verdict: recOf(["c7"]) },
+          { label: "같은 알림, HTTP/1.1 + 탭 여러 개", visual: chips(["c7", "c4"]), tone: "warn", verdict: recOf(["c7", "c4"]),
+            noteAfter: true, note: "SSE가 탭마다 도메인당 연결(보통 6개)을 하나씩 차지. HTTP/2로 바꿔 SSE를 유지하는 길도 있다." },
+          { label: "채팅", visual: chips(["c1", "c7"]), tone: "good", verdict: recOf(["c1", "c7"]),
+            noteAfter: true, note: "보내기도 실시간이면 한 연결 양방향이 맞다." },
+          { label: "채팅 + WebSocket 차단 프록시", visual: chips(["c1", "c7", "c5"]), tone: "bad", verdict: `규칙: ${recOf(["c1", "c7", "c5"])} (한계)`,
+            noteAfter: true, note: "실제로는 SSE + POST나 long-polling(Socket.IO 대체 경로)을 많이 쓴다. 규칙은 생각을 돕는 도구일 뿐." },
+        ] },
+
+      { kicker: "직접 바꿔 보기", title: "조건을 켜고 끄면 추천 열이 움직인다",
+        sub: "기호에 마우스를 올리면 이유가 나온다. ✓ 적합 · △ 주의 · ✗ 피함",
+        mount(body) {
+          body.innerHTML = `<table class="ct"><thead><tr><th></th>${OPTIONS.map((o) => `<th>${o.name}</th>`).join("")}</tr></thead><tbody>${CONDITIONS.map((c) =>
+            `<tr class="off"><td><label><input type="checkbox" data-id="${c.id}"> ${c.label}</label></td>${c.cells.map((x) =>
+              `<td class="${SYM[x[0]]}" title="${(x[1] || "").replace(/"/g, "&quot;")}">${x[0]}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+          const ths = body.querySelectorAll("thead th");
+          const render = () => {
+            const on = [...body.querySelectorAll("input:checked")].map((i) => i.dataset.id);
+            body.querySelectorAll("tbody tr").forEach((tr) => tr.classList.toggle("off", !tr.querySelector("input").checked));
+            const r = recommend(on);
+            OPTIONS.forEach((o, i) => { ths[i + 1].className = r.dropped[i] ? "drop" : i === r.index ? "rec" : ""; ths[i + 1].textContent = `${o.name} △${r.warn[i]}`; });
+          };
+          body.querySelector("[data-id=c7]").checked = true;
+          body.addEventListener("change", render);
+          render();
+          return {};
+        },
+        basis: "초록 열이 규칙의 추천. 실제 결정에서는 △의 무게가 다르다. WebSocket 연결 수 관리가 HTTP 풀과 별개라는 점은 브라우저 소스 기준이며 공식 문서는 아니다(불확실)." },
+
+      { type: "explain", kicker: "운영 함정", title: "배포하고 나서야 보이는 것", arrows: false,
+        steps: [
+          { icon: "6️⃣", title: "HTTP/1.1 연결 제한", text: "도메인당 동시 연결 보통 6개. SSE 탭이 많으면 고갈. HTTP/2는 한 연결에 다중화(흔히 100 스트림)." },
+          { icon: "🧱", title: "프록시", text: "WebSocket 업그레이드를 막는 기업망이 있다. SSE는 버퍼링에 막힐 수 있다(nginx X-Accel-Buffering: no)." },
+          { icon: "🔁", title: "재연결", text: "SSE는 브라우저가 자동 재연결 + Last-Event-ID. WebSocket은 직접 구현하거나 라이브러리." },
+          { icon: "🔤", title: "바이너리", text: "SSE 이벤트는 UTF-8 텍스트만. base64면 크기 약 33% 증가." },
+        ],
+        basis: "출처: MDN EventSource · WHATWG HTML Server-sent events · RFC 6455 · Socket.IO docs · nginx proxy_buffering · RFC 9113" },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [{ ko: "서버 전송 이벤트", en: "Server-Sent Events (EventSource)" }, { ko: "웹소켓", en: "WebSocket (RFC 6455)" }, { ko: "롱 폴링", en: "long polling" }],
+        signals: ["\"실시간\"이라는 말에 WebSocket부터 떠오를 때", "알림이 사내망·특정 고객사에서만 안 올 때", "탭을 여러 개 열면 페이지가 멈출 때"],
+        queries: ["SSE vs WebSocket vs long polling", "EventSource Last-Event-ID reconnect", "SSE HTTP/1.1 6 connection limit", "nginx X-Accel-Buffering SSE", "Socket.IO fallback long-polling corporate proxy"],
+        neighbors: [
+          { term: "long polling", diff: "응답을 변경 때까지 붙잡아 두는 polling. 짧은 주기 polling과 지연·부하가 다르다." },
+          { term: "WebTransport", diff: "HTTP/3 위의 양방향 전송. 브라우저·서버 지원을 따로 확인해야 한다." },
+          { term: "Web Push", diff: "탭이 닫혀 있어도 오는 OS 알림. 열린 페이지 실시간 갱신과 다른 문제." },
+        ] },
+    ],
   });
-
-  $("lock").addEventListener("click", () => {
-    if (picked == null || locked) return;
-    locked = true;
-    LTT.record("predict", { question: "주문 상태 알림(서버→브라우저, 1초 안, HTTP/2)의 전달 방식", choice: OPTIONS[picked].name });
-    optButtons.forEach((b, i) => {
-      b.setAttribute("aria-disabled", "true");
-      const mark = b.querySelector(".opt-mark");
-      if (i === picked) mark.append(el("span", null, "내 예측 "));
-      if (i === answer) mark.append(el("span", "good", "✓ 규칙의 답"));
-    });
-    $("guess-ui").classList.add("ltt-hidden");
-    $("result-ui").classList.remove("ltt-hidden");
-    const v = $("verdict");
-    v.replaceChildren("예측 ", el("b", null, OPTIONS[picked].name), " → 규칙의 답 ", el("b", null, OPTIONS[answer].name), ". ");
-    v.append(el("span", "ltt-basis",
-      "WebSocket도 적합(△ 0)하지만 같은 점수면 더 단순한 쪽을 고른다. polling은 주기를 1초 이하로 줄여야 해 △."));
-
-    $("reveal").classList.remove("ltt-hidden");
-    setActive(["c7"]);
-    drawLanes(true);
-  });
-
-  $("replay").addEventListener("click", () => drawLanes(true));
-
-  // Comparison table
-  let active = new Set();
-  const headCells = [], warnCells = [], dropCells = [];
-
-  function buildTable() {
-    OPTIONS.forEach((o, i) => {
-      const th = el("th");
-      const key = el("i", "okey");
-      key.style.background = o.color;
-      th.append(key, el("span", null, o.name), el("span", "ltt-tag good best-tag", "✓ 추천"));
-      $("thead-row").appendChild(th);
-      headCells.push(th);
-      const w = el("td");
-      const num = el("span", null, "0");
-      w.append("△ ", num);
-      $("warn-row").appendChild(w);
-      warnCells.push(num);
-      const d = el("td", "drop-cell none", "—");
-      $("drop-row").appendChild(d);
-      dropCells.push(d);
-    });
-    for (const c of CONDITIONS) {
-      const tr = el("tr", "off");
-      tr.dataset.id = c.id;
-      const th = el("th");
-      th.scope = "row";
-      const label = el("label", "cond");
-      const box = el("input");
-      box.type = "checkbox";
-      box.value = c.id;
-      box.addEventListener("change", () => {
-        box.checked ? active.add(c.id) : active.delete(c.id);
-        render();
-      });
-      const text = el("span", null, c.label);
-      text.append(el("small", null, c.sub));
-      label.append(box, text);
-      th.appendChild(label);
-      tr.appendChild(th);
-      c.cells.forEach(([sym, why, uncertain], i) => {
-        const [cls, word] = VERDICT[sym];
-        const td = el("td");
-        const v = el("span", "v " + cls + (i === OPTIONS.length - 1 ? " tip-left" : ""));
-        v.append(el("b", null, sym), word);
-        if (why) v.dataset.tip = why;
-        td.appendChild(v);
-        if (uncertain) td.appendChild(el("span", "ltt-tag warn tiny", "불확실"));
-        tr.appendChild(td);
-      });
-      $("tbody").appendChild(tr);
-    }
-  }
-
-  function explain(r) {
-    if (r.index < 0) return ["모든 방식이 ✗로 제외", ""];
-    const dropped = OPTIONS.filter((_, i) => r.dropped[i]).map((o) => o.name);
-    const tied = OPTIONS.filter((_, i) => !r.dropped[i] && r.warn[i] === r.warn[r.index]).map((o) => o.name);
-    return [
-      `△ ${r.warn[r.index]} · ${dropped.length ? "제외: " + dropped.join(", ") : "제외 없음"}`,
-      tied.length > 1 ? `△ 동점(${tied.join(" · ")}) → 더 단순한 쪽` : "△가 가장 적다",
-    ];
-  }
-
-  let shownIndex = null;
-  function positionHighlight(i) {
-    const hl = $("col-hl");
-    if (i < 0) { hl.style.width = "0px"; return; }
-    const wrap = $("tbl-wrap").getBoundingClientRect();
-    const th = headCells[i].getBoundingClientRect();
-    const tbl = $("tbl").getBoundingClientRect();
-    hl.style.left = th.left - wrap.left + "px";
-    hl.style.width = th.width + "px";
-    hl.style.top = tbl.top - wrap.top + "px";
-    hl.style.height = tbl.height + "px";
-    hl.style.setProperty("--hl", OPTIONS[i].color);
-    if (!hl.classList.contains("ready")) requestAnimationFrame(() => hl.classList.add("ready"));
-  }
-
-  function render() {
-    const r = recommend([...active]);
-    for (const tr of $("tbody").children) {
-      const on = active.has(tr.dataset.id);
-      tr.classList.toggle("off", !on);
-      tr.querySelector("input").checked = on;
-    }
-    OPTIONS.forEach((_, i) => {
-      tweenNumber(warnCells[i], r.warn[i]);
-      dropCells[i].textContent = r.dropped[i] ? "✗ 제외" : "—";
-      dropCells[i].className = "drop-cell " + (r.dropped[i] ? "bad" : "none");
-      headCells[i].classList.toggle("best", i === r.index);
-    });
-
-    const name = $("rec-name");
-    name.textContent = r.index < 0 ? "없음" : OPTIONS[r.index].name;
-    if (shownIndex !== null && shownIndex !== r.index && MOTION_MS) {
-      name.animate([{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }],
-        { duration: MOTION_MS * 0.6, easing: "cubic-bezier(.2,.7,.2,1)" });
-    }
-    shownIndex = r.index;
-    $("rec-key").style.background = r.index < 0 ? "var(--deemph)" : OPTIONS[r.index].color;
-    const [summary, reason] = explain(r);
-    $("rec-why").replaceChildren(el("b", null, summary), reason ? ` — ${reason}` : "");
-    positionHighlight(r.index);
-  }
-
-  function setActive(ids) {
-    active = new Set(ids);
-    render();
-  }
-
-  buildTable();
-  addEventListener("resize", () => { if (shownIndex !== null) positionHighlight(shownIndex); });
-
-  // Case cards
-  const SHORT = Object.fromEntries(CONDITIONS.map((c) => [c.id, c.short]));
-  for (const card of document.querySelectorAll("[data-case]")) {
-    const ids = card.dataset.case.split(",");
-    card.querySelector(".case-conds").replaceChildren(...ids.map((id) => el("span", "ltt-tag", SHORT[id])));
-    const r = recommend(ids);
-    card.querySelector(".pills").replaceChildren(...OPTIONS.map((o, i) => {
-      const p = el("span", "pill" + (i === r.index ? " best" : "") + (r.dropped[i] ? " dropped" : ""));
-      p.style.setProperty("--c", o.color);
-      const key = el("i");
-      key.style.background = o.color;
-      const status = r.dropped[i] ? "✗ 제외" : i === r.index ? `✓ 추천 · △${r.warn[i]}` : `△${r.warn[i]}`;
-      p.append(key, el("span", null, o.name), el("b", null, status));
-      return p;
-    }));
-  }
-  for (const btn of document.querySelectorAll("[data-apply]")) {
-    btn.addEventListener("click", () => {
-      setActive(btn.dataset.apply.split(","));
-      $("table-card").scrollIntoView({ behavior: MOTION_MS ? "smooth" : "auto", block: "start" });
-    });
-  }
 </script>
 </body>
 </html>

@@ -49,7 +49,7 @@
     "#ltt-expect{position:fixed;right:16px;bottom:16px;max-width:360px;max-height:40vh;overflow:auto;font-size:13px;",
     "background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:12px;padding:8px 12px;",
     "box-shadow:0 4px 16px rgba(20,30,60,.12)}#ltt-expect summary{cursor:pointer;font-weight:700;color:var(--ltt-good)}",
-    "#ltt-expect[data-fails] summary{color:var(--ltt-bad)}",
+    "#ltt-expect[data-fails] summary{color:var(--ltt-bad)}#ltt-expect:not([data-fails]){display:none}",
     "#ltt-expect div{margin:2px 0}#ltt-expect .ok{color:var(--ltt-good)}#ltt-expect .fail{color:var(--ltt-bad);font-weight:600}"
   ].join("");
 

@@ -4,84 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>두 자산을 섞으면 위험은 얼마나 줄까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"경제·금융","topic":"분산투자와 상관계수","audience":"표준편차를 변동성(위험)으로 읽을 줄 아는 사람","pattern":["predict-slider","sweep","units","chart"],"decision":"자산 간 상관계수와 비중이 포트폴리오 변동성을 얼마나 줄이는지"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"경제·금융","topic":"분산투자와 상관계수","audience":"표준편차를 변동성(위험)으로 읽을 줄 아는 사람","pattern":["hook","explain","predict","compare","keywords"],"mode":"체험형: 섞은 포트폴리오의 변동성을 예측한다(계산 결과 예측이라 자기 편향을 겨냥하지 않는다)","decision":"자산 간 상관계수와 비중이 포트폴리오 변동성을 얼마나 줄이는지"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/vendor/plot.umd.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-deck.js"></script>
 <style>
-  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; --ltt-guess: #b9c4f6; --floor: #d6455d; --ref: #9aa1b5; }
-  .split { display: grid; gap: 24px; grid-template-columns: minmax(200px, 340px) 1fr; align-items: center; }
-  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
-  .ltt-units { --ltt-cols: 20; max-width: 340px; gap: 2px; }
-  .ltt-unit { border-radius: 2px; }
-  .cmp { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin: 12px 0; }
-  .cmp .ltt-stat { font-size: 30px; }
-  .pre button { margin: 4px 6px 4px 0; }
-  .charts { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
-  @media (max-width: 720px) { .charts { grid-template-columns: 1fr; } }
-  .charts svg { max-width: 100%; height: auto; }
+  .vis svg { width: 100%; height: auto; }
+  .nrows { display: grid; gap: 10px; }
+  .nrows label { font-size: 14px; font-weight: 700; }
 </style>
 </head>
 <body>
-<main>
-  <h1>두 자산을 섞으면 위험은 얼마나 줄까?</h1>
-  <p class="ltt-lead">작업: 비슷한 위험의 자산 두 개로 포트폴리오를 짜는 중, 섞으면 위험이 얼마나 줄어드는지 알아야 한다.
-    결정 변수: 두 자산의 <span data-tip="두 자산 수익률이 같이 움직이는 정도. +1이면 완전히 같이, 0이면 무관, -1이면 정반대로 움직인다.">상관계수 ρ</span>와 비중 w.</p>
-  <p class="ltt-basis">두 자산 모두 연 변동성(표준편차) 20%로 둔다. 과거 자료가 아니라 계산용 가정이다. 이 페이지는 투자 조언이 아니다.</p>
-
-  <section class="ltt-card" id="predict-card">
-    <h2>먼저 예측</h2>
-    <p>상관계수 ρ=0.3, 변동성 각 20%인 두 자산을 <b>50:50</b>으로 섞으면 포트폴리오 변동성은 얼마일까?
-      (둘 다 20%니까 20%일까, 더 낮을까?)</p>
-    <div class="split">
-      <div class="ltt-hero" id="hero"><span>0</span><small>% 변동성</small></div>
-      <div id="units"></div>
-    </div>
-    <p class="ltt-basis">100칸 = 변동성 25%, 한 칸 0.25%p.</p>
-    <label class="ltt-param">내 예측 <b id="guess-v"></b><input type="range" id="guess" min="5" max="25" step="0.5" value="20"></label>
-    <button id="lock">예측 잠그고 결과 보기</button>
-  </section>
-
-  <section class="ltt-card ltt-hidden" id="explore">
-    <h2>비중과 상관계수를 바꿔 보기 <span class="ltt-tag">모델로 계산한 예시</span></h2>
-    <p><span data-tex="\sigma_p^2=w^2\sigma_1^2+(1-w)^2\sigma_2^2+2w(1-w)\rho\,\sigma_1\sigma_2" data-display></span></p>
-    <div class="pre">
-      <button class="preset" data-preset='{"w":50,"rho":0.3}'>ρ=0.3 (질문 조건)</button>
-      <button class="preset" data-preset='{"w":50,"rho":1}'>ρ=1: 분산 효과 없음</button>
-      <button class="preset" data-preset='{"w":50,"rho":0}'>ρ=0</button>
-      <button class="preset" data-preset='{"w":50,"rho":-1}'>ρ=-1: 위험 소멸</button>
-    </div>
-    <div class="ltt-hero" id="hero2"><span>0</span><small>% 포트폴리오 변동성</small></div>
-    <label class="ltt-param">자산 1 비중 w <b id="w-v"></b><input type="range" id="w" min="0" max="100" step="5" value="50"></label>
-    <label class="ltt-param">상관계수 ρ <b id="rho-v"></b><input type="range" id="rho" min="-1" max="1" step="0.1" value="0.3"></label>
-    <p class="ltt-basis">기대수익률 자산1 8%, 자산2 5%는 곡선을 그리기 위한 가정이다. <span class="ltt-tag warn">불확실</span> 실제 값이 아니다.</p>
-    <div class="charts">
-      <div><div id="rr"></div><span class="ltt-key"><i style="background:var(--ltt-on)"></i>현재 ρ의 곡선</span><span class="ltt-key"><i style="background:var(--ref)"></i>ρ=1 (직선)</span></div>
-      <div><div id="nchart"></div><span class="ltt-key"><i style="background:var(--ltt-on)"></i>동일 자산 N개</span><span class="ltt-key"><i style="background:var(--floor)"></i>하한 √ρ·σ</span></div>
-    </div>
-    <div class="cmp">
-      <div><div class="ltt-stat" id="s-ret">-</div><small>기대수익률</small></div>
-      <div><div class="ltt-stat" id="s-n10">-</div><small>동일 자산 10개일 때</small></div>
-      <div><div class="ltt-stat" id="s-floor" style="color:var(--floor)">-</div><small data-tip="개수를 늘려도 못 없애는 위험. 자산들이 공통으로 맞는 시장 전체 요인(체계적 위험) 때문이다.">N→∞ 하한(체계적 위험)</small></div>
-    </div>
-  </section>
-
-  <section class="ltt-card ltt-hidden" id="notes">
-    <h2>활용과 주의</h2>
-    <p><b>활용</b>: 상관이 낮은 자산을 섞을수록 같은 기대수익에서 변동성이 줄어든다. 처음 몇 개를 더하는 효과가 가장 크고, 뒤로 갈수록 줄어든다.</p>
-    <p><b>주의</b>: 위기 때는 자산들이 같이 떨어져 상관계수가 평소보다 오르는 경향이 보고되어 왔다. <span class="ltt-tag warn">불확실</span> 이 페이지는 그 크기를 검증하지 않았고, 아래는 ρ만 바꿔 본 계산이다.</p>
-    <div class="cmp">
-      <div><div class="ltt-stat" id="c-calm">-</div><small>평시 ρ=0.3, 50:50</small></div>
-      <div><div class="ltt-stat" id="c-crisis" style="color:var(--floor)">-</div><small>ρ=0.8로 올랐다면, 50:50</small></div>
-      <div><div class="ltt-stat" id="c-floor" style="color:var(--floor)">-</div><small>ρ=0.8일 때 N→∞ 하한</small></div>
-    </div>
-  </section>
-
-  <p class="ltt-lead">한 줄 정리: 상관이 1보다 작으면 섞는 것만으로 위험이 줄지만, 자산을 늘려도 √ρ·σ 아래로는 못 내려가고 위기에는 ρ가 올라 효과가 줄어든다. 투자 조언이 아니라 계산 예시다.</p>
-</main>
 <script>
   // EXPECTED_BY_HAND (모델 코드보다 먼저 손계산. σ1=σ2=20, 분산 0.04 기준)
   // w=.5, ρ=.3: .25*.04 + .25*.04 + 2*.25*.3*.04 = .01+.01+.006 = .026 -> sqrt = 16.1245%
@@ -90,13 +26,11 @@
   // ρ=.8, w=.5: .02+2*.25*.8*.04 = .036 -> 18.9737%.  하한 sqrt(.8)*20 = 17.8885%
   // 기대수익률 w=.5: .5*8+.5*5 = 6.5%
   const EXPECTED_BY_HAND = { base: 16.1245, rho1: 20, rhoM1: 0, rho0: 14.1421, n10: 12.1655, floor: 10.9545, crisis: 18.9737, crisisFloor: 17.8885, ret: 6.5 };
-
   const S = 20, MU1 = 8, MU2 = 5;
   const vol = (w, rho) => Math.sqrt(Math.max(0, w * w * S * S + (1 - w) ** 2 * S * S + 2 * w * (1 - w) * rho * S * S));
   const volN = (n, rho) => S * Math.sqrt(1 / n + (1 - 1 / n) * rho);
   const floorVol = (rho) => S * Math.sqrt(Math.max(rho, 0));
   const ret = (w) => w * MU1 + (1 - w) * MU2;
-
   LTT.expect("w=.5 ρ=.3", vol(0.5, 0.3), EXPECTED_BY_HAND.base, { tol: 1e-3 });
   LTT.expect("ρ=1", vol(0.5, 1), EXPECTED_BY_HAND.rho1, { tol: 1e-9 });
   LTT.expect("ρ=-1", vol(0.5, -1), EXPECTED_BY_HAND.rhoM1, { tol: 1e-6 });
@@ -107,59 +41,92 @@
   LTT.expect("위기 하한", floorVol(0.8), EXPECTED_BY_HAND.crisisFloor, { tol: 1e-3 });
   LTT.expect("기대수익률", ret(0.5), EXPECTED_BY_HAND.ret, { tol: 1e-9 });
 
-  const f1 = d3.format(".1f");
-  const grid = LTT.units("units", 100, 20);
-  const cells = (v) => Math.max(0, Math.min(100, Math.round(v * 4)));
+  const f1 = d3.format(".1f"), pc = (v) => f1(v) + "%";
+  // Two equal-amplitude sines with phase gap acos(ρ) have correlation ρ, so their average has amplitude √((1+ρ)/2) — the same ratio as vol(0.5, ρ)/σ.
+  function waves(node, rho) {
+    const VW = 240, VH = 100, phi = Math.acos(rho), xs = d3.range(0, 4 * Math.PI, 0.1);
+    const svg = d3.select(node).append("svg").attr("class", "ltt-svg").attr("viewBox", `0 0 ${VW} ${VH}`);
+    const x = d3.scaleLinear([0, 4 * Math.PI], [0, VW]), y = (v) => VH / 2 - v * 40;
+    const path = (f, c, wd, op) => svg.append("path").attr("fill", "none").attr("stroke", c).attr("stroke-width", wd).attr("opacity", op)
+      .attr("d", d3.line().x(x).y((t) => y(f(t)))(xs));
+    path((t) => Math.sin(t), "var(--ltt-muted)", 1.5, 0.45);
+    path((t) => Math.sin(t + phi), "var(--ltt-warn)", 1.5, 0.45);
+    const avg = path((t) => (Math.sin(t) + Math.sin(t + phi)) / 2, "var(--ltt-accent)", 3.5, 1);
+    const len = avg.node().getTotalLength();
+    avg.attr("stroke-dasharray", len).attr("stroke-dashoffset", len).transition().duration(LTT.MOTION_MS * 2).attr("stroke-dashoffset", 0);
+  }
+  const rhoItem = (label, rho, tone, note) => ({ label, tone, verdict: "변동성 " + pc(vol(0.5, rho)), noteAfter: true, note, visual: (n) => waves(n, rho) });
+  const barRows = (rows) => (body) => {
+    const box = document.createElement("div");
+    box.className = "nrows";
+    body.appendChild(box);
+    const bs = rows.map(([lab]) => { const r = document.createElement("div"); r.innerHTML = `<label>${lab}</label><div></div>`; box.appendChild(r);
+      return LTT.bar(r.lastChild, [{ color: "var(--ltt-accent)" }, { color: "transparent" }]); });
+    return { enter: () => rows.forEach(([, v], i) => { bs[i].set([0, 20], ["", ""]); setTimeout(() => bs[i].set([v, 20 - v], [pc(v), ""]), 60 + i * 150); }) };
+  };
+  let grid;
 
-  LTT.predict({
-    question: "ρ=0.3, 변동성 각 20%인 두 자산을 50:50으로 섞은 포트폴리오 변동성(%)",
-    input: "guess",
-    button: "lock",
-    preview: (g) => {
-      LTT.$("guess-v").textContent = f1(g) + "%";
-      LTT.$("hero").firstChild.textContent = f1(g);
-      grid.paint(cells(g), "guess");
-    },
-    show: ["explore", "notes"],
-    reveal: () => {
-      const v = vol(0.5, 0.3);
-      grid.paint(cells(v), "on", cells(S) - cells(v));
-      LTT.tween(LTT.$("hero").firstChild, v, d3.format(".1f"));
-      LTT.$("c-calm").textContent = f1(vol(0.5, 0.3)) + "%";
-      LTT.$("c-crisis").textContent = f1(vol(0.5, 0.8)) + "%";
-      LTT.$("c-floor").textContent = f1(floorVol(0.8)) + "%";
-      explore.render();
-    },
-  });
+  LTT.deck({
+    title: "두 자산을 섞으면 위험은 얼마나 줄까?",
+    scenes: [
+      { type: "hook", art: "🧺",
+        text: "변동성 20%짜리 둘을 반반 섞으면<br>여전히 <u>20%</u>일까?",
+        sub: "비슷한 위험의 자산 두 개로 포트폴리오를 짤 때, 결과를 정하는 건 '얼마나 같이 움직이나'다. 투자 조언이 아닌 계산 예시다." },
 
-  const explore = LTT.sweep({
-    immediate: false,
-    presets: "#explore .preset",
-    params: { w: { map: (v) => v / 100, fmt: (v) => Math.round(v * 100) + " : " + Math.round((1 - v) * 100) }, rho: { fmt: (v) => f1(v) } },
-    render: ({ w, rho }) => {
-      const v = vol(w, rho);
-      LTT.tween(LTT.$("hero2").firstChild, v, d3.format(".1f"));
-      LTT.$("s-ret").textContent = f1(ret(w)) + "%";
-      LTT.$("s-n10").textContent = f1(volN(10, rho)) + "%";
-      LTT.$("s-floor").textContent = f1(floorVol(rho)) + "%";
-      const ws = d3.range(0, 1.0001, 0.02);
-      LTT.$("rr").replaceChildren(Plot.plot({
-        height: 240, marginLeft: 44, x: { label: "변동성(%)", domain: [0, 22] }, y: { label: "기대수익률(%)", domain: [4, 9], grid: true },
-        marks: [
-          Plot.line(ws, { x: (u) => vol(u, 1), y: ret, stroke: "#9aa1b5", strokeDasharray: "4 4" }),
-          Plot.line(ws, { x: (u) => vol(u, rho), y: ret, stroke: "#4f6bed", strokeWidth: 2.5 }),
-          Plot.dot([w], { x: (u) => vol(u, rho), y: ret, r: 7, fill: "#4f6bed" }),
+      { type: "explain", kicker: "원리", title: "따로 흔들리면 서로 상쇄한다",
+        steps: [
+          { icon: "〰️", title: "각자 흔들린다", text: "두 자산 모두 연 변동성 20%라고 둔다(계산용 가정)." },
+          { icon: "🔀", title: "엇갈린 만큼 상쇄", text: "한쪽이 오를 때 다른 쪽이 덜 오르거나 내리면 합은 덜 흔들린다." },
+          { icon: "🎚️", title: "상관계수 ρ가 결정", text: "ρ=1이면 상쇄 없음, 0이면 무관, −1이면 완전 상쇄." },
         ],
-      }));
-      const ns = d3.range(1, 51);
-      LTT.$("nchart").replaceChildren(Plot.plot({
-        height: 240, marginLeft: 44, x: { label: "자산 개수 N", domain: [1, 50] }, y: { label: "변동성(%)", domain: [0, 21], grid: true },
-        marks: [
-          Plot.line(ns, { x: (n) => n, y: (n) => volN(n, rho), stroke: "#4f6bed", strokeWidth: 2.5 }),
-          Plot.ruleY([floorVol(rho)], { stroke: "#d6455d", strokeDasharray: "5 4" }),
+        tex: "\\sigma_p^2=w^2\\sigma_1^2+(1-w)^2\\sigma_2^2+2w(1-w)\\rho\\,\\sigma_1\\sigma_2" },
+
+      { type: "predict", kicker: "예측", title: "ρ=0.3, 변동성 각 20%를 50:50으로 섞으면?",
+        question: "ρ=0.3, 변동성 각 20%인 두 자산을 50:50으로 섞은 포트폴리오 변동성(%)",
+        choices: [{ id: "20", text: "20% 그대로" }, { id: "16", text: "약 16%" }, { id: "10", text: "약 10% (절반)" }, { id: "0", text: "거의 0%" }],
+        answer: "16",
+        why: `<b>${pc(vol(0.5, 0.3))}</b>(모델로 계산한 예시). 아무것도 더 사지 않았는데 섞기만으로 약 4%p 줄었다. 100칸 = 변동성 25%.`,
+        mount(body) {
+          const u = document.createElement("div");
+          body.prepend(u);
+          grid = LTT.units(u, 100, 25);
+          u.style.maxWidth = "520px";
+          grid.paint(80, "guess");
+          return {};
+        },
+        reveal: () => grid.paint(Math.round(vol(0.5, 0.3) * 4), "on", 80 - Math.round(vol(0.5, 0.3) * 4)) },
+
+      { type: "compare", kicker: "상관에 따라", title: "같은 20%짜리 둘도 짝에 따라 다르다",
+        sub: "회색·주황 = 두 자산, 파랑 = 50:50으로 섞은 결과.",
+        revealLabel: "변동성 보기",
+        items: [
+          rhoItem("ρ = 1 · 같은 지수 ETF 둘", 1, "bad", "상쇄 없음."),
+          rhoItem("ρ = 0.3", 0.3, "warn", "질문의 조건."),
+          rhoItem("ρ = 0", 0, "good", "1/√2로 준다."),
+          rhoItem("ρ = −1 · 이론상", -1, "good", "완전 상쇄. 현실엔 드묾."),
         ],
-      }));
-    },
+        basis: "ρ 값은 계산용 가정이다. 물결은 상관만 보이려고 그린 도식이고 실제 수익률 경로가 아니다." },
+
+      { type: "live", kicker: "개수를 늘리면", title: "자산을 계속 더해도 바닥이 있다",
+        sub: "모두 변동성 20%, 서로 ρ=0.3인 자산을 같은 비중으로 N개 섞을 때.",
+        mount: barRows([["N = 1", S], ["N = 2", vol(0.5, 0.3)], ["N = 10", volN(10, 0.3)], ["N → ∞ 하한 √ρ·σ", floorVol(0.3)]]),
+        tex: "\\sigma_N=\\sigma\\sqrt{\\tfrac{1}{N}+\\left(1-\\tfrac{1}{N}\\right)\\rho}\\;\\to\\;\\sqrt{\\rho}\\,\\sigma",
+        basis: "모델로 계산한 예시. 처음 몇 개를 더할 때 가장 크게 줄고, 남는 바닥은 시장 전체 요인(체계적 위험) 때문이다." },
+
+      { type: "live", kicker: "주의", title: "위기 때는 ρ가 올라 효과가 줄어든다",
+        sub: "위기 때 자산들이 같이 떨어져 상관이 평소보다 오르는 경향이 보고되어 왔다(크기는 이 페이지에서 검증하지 않음).",
+        mount: barRows([["평시 ρ=0.3, 50:50", vol(0.5, 0.3)], ["ρ=0.8로 오르면, 50:50", vol(0.5, 0.8)], ["ρ=0.8일 때 N→∞ 하한", floorVol(0.8)]]),
+        basis: "모델로 계산한 예시. ρ만 바꿔 본 계산이다." },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [{ ko: "분산투자와 상관계수", en: "diversification, correlation" }, { ko: "체계적 위험", en: "systematic risk" }],
+        signals: ["\"여러 종목에 나눠 담았으니 안전하다\"는 말을 들을 때", "비슷해 보이는 펀드·ETF 두 개를 같이 담으려 할 때", "위기 때 분산 효과가 사라졌다는 뉴스를 볼 때"],
+        queries: ["portfolio variance two assets correlation", "diversification limit systematic risk", "correlation breakdown in crises", "efficient frontier two asset"],
+        neighbors: [
+          { term: "리밸런싱", diff: "비중 w를 다시 맞추는 일. 상관이 아니라 비중이 흐트러진 것을 다룬다." },
+          { term: "베타", diff: "시장 전체와의 민감도. 두 자산끼리의 상관 ρ와 다르다." },
+        ] },
+    ],
   });
 </script>
 </body>

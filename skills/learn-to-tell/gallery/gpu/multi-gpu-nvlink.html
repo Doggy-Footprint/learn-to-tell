@@ -4,89 +4,27 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>모델을 GPU 여러 장에 쪼개면 무엇이 병목이 될까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"gpu","topic":"multi-gpu-nvlink","audience":"Transformer 세부는 모름. 층마다 결과를 합쳐야 한다는 정도만 안다","pattern":["predict-choice","sweep","stepper","flow","bar"],"decision":"모델을 나누는 방식(텐서 병렬 vs 파이프라인 병렬)과 GPU 사이 통신 경로(NVLink vs PCIe) 선택"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"gpu","topic":"multi-gpu-nvlink","audience":"Transformer 세부는 모름. 층마다 결과를 합쳐야 한다는 정도만 안다","pattern":["hook","explain","flow","predict","compare","compare","explain","keywords"],"mode":"체험형: 두 쪼개기 방식의 패킷 흐름을 링크 속도별로 보고 병목을 예측한다","decision":"모델을 나누는 방식(텐서 병렬 vs 파이프라인 병렬)과 GPU 사이 통신 경로(NVLink vs PCIe) 선택"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/vendor/plot.umd.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-deck.js"></script>
 <style>
-  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; --ltt-guess: #b9c4f6; --cmp: #e0a33a; --comm: #d6455d; --fit: #1f9d6b; }
-  .split { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
-  .row { display: grid; gap: 4px; margin: 10px 0; }
-  .bar-text { font-size: 13px; color: var(--ltt-muted); }
-  .bar-text b { font-variant-numeric: tabular-nums; color: var(--ltt-ink); }
-  .ltt-bar span { font-size: 12px; color: #fff; padding: 0 8px; line-height: 34px; white-space: nowrap; overflow: hidden; }
-  .ltt-bar span.seg-pad { background: var(--ltt-line); }
-  .ltt-svg { max-width: 450px; margin: 0 auto; }
-  .linkpick button { background: var(--ltt-card); color: var(--ltt-ink); border: 2px solid var(--ltt-line); margin-right: 6px; }
-  .linkpick button[aria-pressed=true] { border-color: var(--ltt-accent); background: #eef1fd; }
+  :root { --cmp: #e0a33a; --comm: #d6455d; }
+  .two { display: grid; gap: 8px 24px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .two b { font-size: 14px; }
+  .two svg { max-height: 22vh; }
+  .fit { max-width: 520px; width: 100%; }
+  .st { width: 100%; display: grid; gap: 6px; font-size: 13px; }
+  .st .ltt-bar span { font-size: 12px; white-space: nowrap; }
+  .big { font-size: 26px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; }
+  @media (max-width: 720px) { .big { font-size: 17px; } .st { font-size: 11px; } }
+  .big small { display: block; font-size: 12px; font-weight: 600; color: var(--ltt-muted); }
 </style>
 </head>
 <body>
-<main>
-  <h1>모델을 GPU 8장에 쪼개면 무엇이 병목이 될까?</h1>
-  <p class="ltt-lead">작업: 70B 모델(BF16 140 GB)을 80 GB GPU 여러 장에 나눠 서빙한다. 결정 변수: <span data-tip="텐서 병렬은 층 하나를 GPU들이 나눠 계산하고, 파이프라인 병렬은 층을 묶음으로 나눠 GPU에 배정한다">나누는 방식</span>과 GPU 사이 통신 경로(NVLink인지 PCIe인지).
-  <span class="ltt-tag warn">모든 계산은 이상적 상한(roofline)이며 통신량 수식은 단순화했다</span></p>
-
-  <section class="ltt-card" id="predict-card">
-    <h2>먼저 예측</h2>
-    <p>70B 모델의 표(가중치)는 140 GB라 GPU 한 장(80 GB)에 안 들어간다.</p>
-    <div id="fit"></div>
-    <p class="bar-text">GPU 8장에 층마다 쪼개 놓고(텐서 병렬), 층이 끝날 때마다 8장의 부분 결과를 합친다. 합치는 길을 NVLink 대신 PCIe로 바꾸면 <b>무엇이 병목</b>이 될까?</p>
-    <div id="choices">
-      <button data-choice="hbm">GPU 메모리(HBM) 용량</button>
-      <button data-choice="comp">GPU 연산 속도</button>
-      <button data-choice="comm">GPU 사이 통신(합치기)</button>
-      <button data-choice="count">GPU 개수</button>
-    </div>
-    <p><button id="lock">예측 잠그고 결과 보기</button></p>
-    <p id="result" class="ltt-hidden"></p>
-  </section>
-
-  <section class="ltt-card ltt-hidden" id="explore">
-    <h2>NVLink와 PCIe 비교 <span class="ltt-tag">모델로 계산한 예시</span></h2>
-    <div class="ltt-hero"><span id="hero-n">0</span><small>배 느려짐 (PCIe / NVLink, 토큰 한 스텝)</small></div>
-    <div class="row"><span class="bar-text">NVLink: 계산 <b id="t-nv-g"></b> + 통신 <b id="t-nv-c"></b></span><div id="bar-nv"></div></div>
-    <div class="row"><span class="bar-text">PCIe: 계산 <b id="t-pc-g"></b> + 통신 <b id="t-pc-c"></b></span><div id="bar-pc"></div></div>
-    <label class="ltt-param">GPU 개수 <b id="ni-v"></b><input type="range" id="ni" min="1" max="3" value="3"></label>
-    <label class="ltt-param">한 스텝에 처리하는 토큰 수 <b id="ti-v"></b><input type="range" id="ti" min="0" max="13" value="11"></label>
-    <p class="bar-text">GPU당 가중치 <b id="perg"></b>. 한 스텝 지연 — 파이프라인 병렬: <b id="pp-t"></b> / 텐서 병렬(NVLink): <b id="tp-t"></b></p>
-    <p>
-      <button class="preset" data-preset='{"ni":3,"ti":0}'>답변 생성 (토큰 1개씩)</button>
-      <button class="preset" data-preset='{"ni":3,"ti":11}'>긴 프롬프트 처리 (2048 토큰)</button>
-      <button class="preset" data-preset='{"ni":1,"ti":11}'>GPU 2장, 2048 토큰</button>
-    </p>
-    <p class="ltt-basis">
-      근거: H100 SXM 데이터시트 기준 HBM3 약 3.35 TB/s, BF16 dense 약 989 TFLOPS, NVLink 4 약 900 GB/s(양방향 합계 → 한 방향 450 GB/s로 계산), PCIe Gen5 x16 약 64 GB/s(단방향). 작성 시 원문 재확인 안 함 <span class="ltt-tag warn">불확실</span>.
-      모델은 Llama-3-70B 규격(80층, 은닉 크기 8192)에 파라미터 70B로 단순화했다. 통신량 = 80층 × 층당 2회 합치기 × ring all-reduce 계수 2(N-1)/N × (토큰 수 × 8192 × 2바이트). 한 스텝 = max(읽기, 계산) + 통신(겹치지 않음).
-      통신 지연(latency)·실제 대역폭 효율·PCIe 경유 방식은 모델에 없다 <span class="ltt-tag warn">불확실</span>. 토큰 1개일 때는 바이트가 아니라 지연이 병목일 수 있고 이 모델은 그것을 모른다 <span class="ltt-tag warn">미검증</span>.
-    </p>
-  </section>
-
-  <section class="ltt-card ltt-hidden" id="steps-card">
-    <h2>두 가지 쪼개기를 단계로 비교 (그림은 GPU 4장)</h2>
-    <p class="linkpick">패킷이 달리는 길:
-      <button id="lk-nv" aria-pressed="true">NVLink</button><button id="lk-pc" aria-pressed="false">PCIe (7배 느림)</button></p>
-    <div class="split">
-      <div><h3>텐서 병렬: 층마다 합친다</h3><svg id="tp"></svg><div id="tp-steps"></div></div>
-      <div><h3>파이프라인 병렬: 활성값을 넘긴다</h3><svg id="pp"></svg><div id="pp-steps"></div></div>
-    </div>
-    <p class="ltt-basis">패킷 이동 시간은 링크 대역폭 비(450 / 64 = 약 7)를 그대로 쓴다. 패킷 수는 연출이며 실제 바이트 비를 나타내지 않는다.</p>
-  </section>
-
-  <section class="ltt-card ltt-hidden" id="cases">
-    <h2>활용과 주의</h2>
-    <div class="ltt-grid">
-      <div><span class="ltt-tag good">활용</span> 같은 서버 안(NVLink)에서는 텐서 병렬로 토큰당 읽는 표가 1/N이 되어 지연이 줄어든다.</div>
-      <div><span class="ltt-tag good">활용</span> 서버 사이처럼 느린 길에서는 통신이 적은 파이프라인 병렬이 맞다. 대신 요청이 하나면 GPU들이 번갈아 쉰다.</div>
-      <div><span class="ltt-tag bad">주의</span> PCIe로 텐서 병렬 8-way를 하면 프롬프트 처리처럼 토큰이 많은 구간에서 통신이 계산을 압도한다.</div>
-      <div><span class="ltt-tag warn">주의</span> 토큰 1개 구간은 이 모델의 바이트 계산으로는 통신이 작지만, 160번 합치는 지연은 따로 든다(미검증).</div>
-    </div>
-    <p><b>한 줄 정리:</b> 쪼갠 모델의 병목은 GPU 안이 아니라 GPU 사이 길이고, 그 길이 NVLink인지가 나누는 방식을 정한다.</p>
-  </section>
-</main>
 <script>
   // 손으로 계산한 기대값 (모델 코드보다 먼저)
   // N=8, T=2048: 합치기 1회 = 2048*8192*2 = 33,554,432 B; ring 계수 2*7/8 = 1.75 -> 58,720,256 B; 160회 -> 9.3952e9 B
@@ -104,7 +42,6 @@
   const commBytes = (N, T) => LAYERS * 2 * (2 * (N - 1) / N) * (T * HID * 2);
   const tp = (N, T, bw) => { const g = gpuTime(N, T), c = commBytes(N, T) / bw; return { g, c, total: g + c }; };
   const pp = (N, T, bw) => N * gpuTime(N, T) + ((N - 1) * T * HID * 2) / bw;
-
   const a = tp(8, 2048, NV), b = tp(8, 2048, PC);
   LTT.expect("NVLink 통신 ms", a.c * 1e3, EXPECTED_BY_HAND.nvC, { tol: 1e-3 });
   LTT.expect("PCIe 통신 ms", b.c * 1e3, EXPECTED_BY_HAND.pcC, { tol: 1e-2 });
@@ -116,70 +53,119 @@
   LTT.expect("계산=읽기 토큰 수", FLOPS / BW, EXPECTED_BY_HAND.ridgeT, { tol: 0.1 });
 
   const ms = (s) => (s * 1e3 < 1 ? d3.format(".2f")(s * 1e3) : d3.format(".1f")(s * 1e3)) + " ms";
-  const fit = LTT.bar("fit", [{ color: "var(--fit)", label: "GPU 1장 80 GB" }, { color: "var(--ltt-alt)", label: "못 들어가는 60 GB" }]);
-  fit.set([80, 60]);
-  const mkBar = (id) => LTT.bar(id, [{ color: "var(--cmp)" }, { color: "var(--comm)" }, { color: "var(--ltt-line)" }]);
-  const barNv = mkBar("bar-nv"), barPc = mkBar("bar-pc");
+  const svgEl = () => document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const SRC = "H100 SXM 데이터시트 기준 HBM3 약 3.35 TB/s, BF16 dense 약 989 TFLOPS, NVLink 4 약 900 GB/s(양방향 합 → 한 방향 450 GB/s), PCIe Gen5 x16 약 64 GB/s (작성 시 원문 재확인 안 함). Llama-3-70B 규격(80층, 은닉 8192)에 파라미터 70B로 단순화. 통신 지연(latency)·실제 효율은 모델에 없다(불확실).";
 
-  const explore = LTT.sweep({
-    immediate: false,
-    presets: "#explore .preset",
-    params: {
-      ni: { map: (v) => 2 ** v, fmt: (v) => v + "장" },
-      ti: { map: (v) => 2 ** v, fmt: (v) => d3.format(",")(v) + "개" },
-    },
-    render: ({ ni, ti }) => {
-      const x = tp(ni, ti, NV), y = tp(ni, ti, PC), top = y.total;
-      const set = (bar, r) => bar.set([r.g, r.c, top - r.total], [r.g / top > 0.12 ? "계산" : "", r.c / top > 0.12 ? "통신" : "", ""]);
-      set(barNv, x); set(barPc, y);
-      LTT.$("t-nv-g").textContent = ms(x.g); LTT.$("t-nv-c").textContent = ms(x.c);
-      LTT.$("t-pc-g").textContent = ms(y.g); LTT.$("t-pc-c").textContent = ms(y.c);
-      LTT.tween("hero-n", y.total / x.total, d3.format(".1f"));
-      LTT.$("perg").textContent = d3.format(".0f")(WBYTES / ni / 1e9) + " GB (HBM 80 GB 중)";
-      LTT.$("pp-t").textContent = ms(pp(ni, ti, NV)); LTT.$("tp-t").textContent = ms(x.total);
-    },
-  });
-
-  LTT.predict({
-    question: "텐서 병렬 8-way에서 NVLink 대신 PCIe를 쓰면 무엇이 병목인가",
-    choices: "choices",
-    button: "lock",
-    answer: "comm",
-    show: ["result", "explore", "steps-card", "cases"],
-    reveal: (g) => {
-      LTT.$("result").innerHTML = (g === "comm" ? "맞다. " : "달랐다. ") + "토큰 2048개 스텝에서 계산은 36 ms로 그대로인데 통신이 21 ms(NVLink)에서 147 ms(PCIe)로 7배 늘어 전체가 <b>3.2배 느려진다</b>.";
-      explore.render();
-    },
-  });
-
-  // 링크 속도: 패킷 이동 시간은 대역폭에 반비례
-  let linkBw = NV;
-  const hop = (count) => ({ count, ms: (250 * NV) / linkBw, gap: 110 });
-  const pick = (id) => { linkBw = id === "lk-nv" ? NV : PC; ["lk-nv", "lk-pc"].forEach((k) => LTT.$(k).setAttribute("aria-pressed", String(k === id))); };
-  ["lk-nv", "lk-pc"].forEach((k) => LTT.$(k).addEventListener("click", () => pick(k)));
+  const step = (r, top) => (node) => {
+    const w = document.createElement("div"); w.className = "st";
+    w.innerHTML = `<div class="big">${ms(r.total)}<small>토큰 한 스텝</small></div><div></div><div>계산 ${ms(r.g)} · 통신 ${ms(r.c)}</div>`;
+    node.appendChild(w);
+    LTT.bar(w.children[1], [{ color: "var(--cmp)" }, { color: "var(--comm)" }, { color: "var(--ltt-line)" }])
+      .set([r.g, r.c, top - r.total], [r.g / top > 0.15 ? "계산" : "", r.c / top > 0.15 ? "통신" : "", ""]);
+  };
 
   const gpuNodes = (subs) => Object.fromEntries(subs.map((s, i) => ["g" + i, { x: 6 + i * 116, y: 20, w: 96, h: 58, label: "GPU " + (i + 1), sub: s }]));
   const chain = [{ from: "g0", to: "g1" }, { from: "g1", to: "g2" }, { from: "g2", to: "g3" }];
-  const all = ["g0", "g1", "g2", "g3"];
 
-  const tpf = LTT.flow("tp", { viewBox: "0 0 450 100", nodes: gpuNodes(["모든 층의 1/4", "모든 층의 1/4", "모든 층의 1/4", "모든 층의 1/4"]), links: chain });
-  const merge = () => [[0, 1], [1, 2], [2, 3], [1, 0], [2, 1], [3, 2]].forEach(([i, j]) => tpf.send("g" + i, "g" + j, hop(3)));
-  LTT.stepper("tp-steps", [
-    { caption: "모든 GPU가 모든 층의 조각을 갖는다. 읽는 표가 GPU당 1/N로 줄어든다.", enter: () => { tpf.clear(); tpf.highlight(all); } },
-    { caption: "한 층에서 각자 자기 조각만 계산한다. 결과는 아직 부분 합이다.", enter: () => { tpf.clear(); tpf.highlight(all); } },
-    { caption: "층이 끝날 때마다 부분 결과를 합친다(all-reduce). 모든 GPU가 동시에 주고받는다.", enter: () => { tpf.clear(); tpf.highlight(all); merge(); } },
-    { caption: "다음 층에서 같은 일을 반복한다. 70B 모델은 층마다 2번씩 160번 합친다.", enter: () => { tpf.clear(); tpf.highlight(all); merge(); } },
-  ], { interval: 3000 });
+  LTT.deck({
+    title: "모델을 GPU 여러 장에 쪼개면 무엇이 병목이 될까?",
+    scenes: [
+      { type: "hook", art: "🧩",
+        text: "70B 모델은 140 GB.<br>GPU 한 장(80 GB)에 <u>안 들어간다</u>.",
+        sub: "여러 장에 나눠 올릴 때 나누는 방식과 GPU 사이 길(NVLink인지 PCIe인지)을 정하는 이야기.",
+        mount: (body) => {
+          const d = document.createElement("div"); d.className = "fit"; body.appendChild(d);
+          LTT.bar(d, [{ color: "var(--ltt-good)", label: "GPU 1장 80 GB" }, { color: "var(--ltt-bad)", label: "못 들어가는 60 GB" }]).set([80, 60]);
+          return {};
+        } },
 
-  const ppf = LTT.flow("pp", { viewBox: "0 0 450 100", nodes: gpuNodes(["층 1–20", "층 21–40", "층 41–60", "층 61–80"]), links: chain });
-  const pass = (i) => { ppf.clear(); ppf.highlight(["g" + i, "g" + (i + 1)]); ppf.send("g" + i, "g" + (i + 1), hop(1)); };
-  LTT.stepper("pp-steps", [
-    { caption: "GPU마다 층 묶음을 맡는다. 각자 자기 층의 표만 읽는다.", enter: () => { ppf.clear(); ppf.highlight(all); } },
-    { caption: "GPU 1이 자기 층을 계산한다. 나머지는 쉰다.", enter: () => { ppf.clear(); ppf.highlight(["g0"]); } },
-    { caption: "계산 결과(활성값)를 다음 GPU로 한 번 넘긴다. 합치는 것보다 보내는 양이 훨씬 적다.", enter: () => pass(0) },
-    { caption: "GPU 2가 받아 계산하고 다시 넘긴다.", enter: () => pass(1) },
-    { caption: "마지막 GPU까지 가야 토큰 1개가 나온다. 요청이 하나면 거의 한 장씩만 일해서 지연은 줄지 않는다.", enter: () => { pass(2); } },
-  ], { interval: 3000 });
+      { type: "explain", kicker: "두 가지 쪼개기", title: "층을 가로로 자를까, 세로로 묶을까",
+        steps: [
+          { icon: "🍰", title: "텐서 병렬 (TP)", text: "모든 층을 N조각으로 나눠 GPU마다 1조각. 층이 끝날 때마다 부분 결과를 모두 합친다(all-reduce)." },
+          { icon: "🚂", title: "파이프라인 병렬 (PP)", text: "층 묶음을 GPU마다 배정. 계산 결과를 다음 GPU로 한 번 넘긴다." },
+        ], arrows: false },
+
+      { kicker: "흐름 보기", title: "합치기 vs 넘기기, 길이 느려지면?",
+        sub: "그림은 GPU 4장. 패킷 이동 시간은 링크 대역폭 비(450 / 64 ≈ 7)를 따른다.",
+        mount: (body) => {
+          body.innerHTML = `<div class="dk-actions"><button data-bw="nv">NVLink</button><button data-bw="pc" class="ghost">PCIe (약 7배 느림)</button></div>
+            <div class="two"><div><b>텐서 병렬: 층마다 모두 합친다 (70B는 160번)</b></div><div><b>파이프라인 병렬: 다음 GPU로 넘긴다</b></div></div>`;
+          const [c1, c2] = body.querySelectorAll(".two > div");
+          const s1 = svgEl(), s2 = svgEl(); c1.appendChild(s1); c2.appendChild(s2);
+          const tpf = LTT.flow(s1, { viewBox: "0 0 450 100", nodes: gpuNodes(["층마다 1/4", "층마다 1/4", "층마다 1/4", "층마다 1/4"]), links: chain });
+          const ppf = LTT.flow(s2, { viewBox: "0 0 450 100", nodes: gpuNodes(["층 1–20", "층 21–40", "층 41–60", "층 61–80"]), links: chain });
+          let bw = NV, run = 0;
+          const hop = (count) => ({ count, ms: (250 * NV) / bw, gap: 110 });
+          const go = async () => {
+            const id = ++run; tpf.clear(); ppf.clear();
+            tpf.highlight(["g0", "g1", "g2", "g3"]);
+            const pass = async () => { for (let i = 0; i < 3 && id === run; i++) { ppf.highlight(["g" + i, "g" + (i + 1)]); await ppf.send("g" + i, "g" + (i + 1), hop(1)); } };
+            while (id === run) {
+              pass();
+              await Promise.all([[0, 1], [1, 2], [2, 3], [1, 0], [2, 1], [3, 2]].map(([i, j]) => tpf.send("g" + i, "g" + j, hop(3))));
+              await new Promise((r) => setTimeout(r, 300));
+              if (!LTT.MOTION_MS) return;
+            }
+          };
+          body.querySelectorAll("[data-bw]").forEach((btn) => btn.onclick = () => {
+            bw = btn.dataset.bw === "nv" ? NV : PC;
+            body.querySelectorAll("[data-bw]").forEach((o) => o.classList.toggle("ghost", o !== btn));
+            go();
+          });
+          return { enter: go, leave: () => { run++; tpf.clear(); ppf.clear(); } };
+        },
+        basis: "패킷 수는 연출이며 실제 바이트 비를 나타내지 않는다." },
+
+      { type: "predict", kicker: "먼저 예측", title: "텐서 병렬 8장, 길을 PCIe로 바꾸면 무엇이 병목?",
+        sub: "긴 프롬프트(토큰 2048개)를 한 스텝에 처리하는 상황.",
+        question: "텐서 병렬 8-way에서 NVLink 대신 PCIe를 쓰면 무엇이 병목인가",
+        choices: [{ id: "hbm", text: "GPU 메모리(HBM) 용량" }, { id: "comp", text: "GPU 연산 속도" }, { id: "comm", text: "GPU 사이 통신(합치기)" }, { id: "count", text: "GPU 개수" }],
+        answer: "comm",
+        why: `통신이다. 계산은 ${ms(a.g)}로 그대로인데 통신이 ${ms(a.c)}(NVLink)에서 ${ms(b.c)}(PCIe)로 늘어 전체가 <b>${d3.format(".1f")(b.total / a.total)}배</b> 느려진다. <span class="ltt-tag">모델로 계산한 예시</span>` },
+
+      { type: "compare", kicker: "같은 8장, 다른 길과 일", title: "언제 통신이 시간을 먹나", cols: 3,
+        sub: "텐서 병렬 8-way. 막대 길이는 세 카드 공통 기준(가장 긴 스텝).",
+        items: [
+          { label: "NVLink · 프롬프트 2048토큰", visual: step(a, b.total), tone: "good", verdict: "기준" },
+          { label: "PCIe · 프롬프트 2048토큰", visual: step(b, b.total), tone: "bad", verdict: "약 3.2배 느림", noteAfter: true, note: "통신이 계산보다 길다." },
+          { label: "PCIe · 답변 토큰 1개", visual: step(tp(8, 1, PC), b.total), tone: "warn", verdict: "바이트로는 차이 1% 남짓", noteAfter: true, note: "160번 합치는 지연(latency)은 모델 밖. 실제로는 더 클 수 있다(미검증)." },
+        ],
+        tex: "\\text{통신량}=80\\ \\text{층}\\times 2\\ \\text{회}\\times\\frac{2(N-1)}{N}\\times(\\text{토큰 수}\\times 8192\\times 2\\ \\text{B}),\\quad t=\\max(\\text{읽기},\\text{계산})+\\text{통신}",
+        basis: "모델로 계산한 예시. " + SRC },
+
+      { type: "compare", kicker: "답변 생성 지연", title: "요청 하나, 토큰 하나를 만드는 데 걸리는 시간",
+        sub: "GPU 8장, 토큰 1개 스텝. 막대 길이는 두 카드 공통 기준.",
+        items: [
+          { label: "텐서 병렬 · NVLink", visual: step(tp(8, 1, NV), pp(8, 1, NV)), tone: "good", verdict: "짧다", noteAfter: true, note: "8장이 동시에 1/8씩 읽는다." },
+          { label: "파이프라인 병렬 · NVLink", visual: step({ g: pp(8, 1, NV), c: 0, total: pp(8, 1, NV) }, pp(8, 1, NV)), tone: "warn", verdict: "약 8배 길다", noteAfter: true, note: "한 번에 한 장씩만 일하고 나머지는 쉰다. 통신은 거의 없다." },
+        ],
+        basis: "모델로 계산한 예시. 파이프라인은 마이크로배치 없이 요청 하나일 때다. " + SRC },
+
+      { type: "explain", kicker: "선택 기준", title: "길이 나누는 방식을 정한다", arrows: false,
+        steps: [
+          { icon: "🔗", title: "같은 서버(NVLink)", text: "텐서 병렬. 읽는 표가 GPU당 1/N이 되어 지연이 줄어든다." },
+          { icon: "🌐", title: "느린 길(서버 사이)", text: "통신이 적은 파이프라인 병렬. 대신 요청이 적으면 GPU들이 번갈아 쉰다." },
+          { icon: "⚠️", title: "PCIe + 텐서 병렬", text: "토큰이 많은 구간(프롬프트 처리)에서 통신이 계산을 압도한다." },
+        ] },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [
+          { ko: "텐서 병렬", en: "tensor parallelism" },
+          { ko: "파이프라인 병렬", en: "pipeline parallelism" },
+          { ko: "올리듀스", en: "all-reduce / NVLink" },
+        ],
+        signals: [
+          "모델 가중치가 GPU 한 장 메모리보다 클 때",
+          "GPU를 늘렸는데 속도가 비례해 오르지 않을 때",
+          "클라우드 인스턴스 사양에 NVLink/NVSwitch 유무가 나뉠 때",
+        ],
+        queries: ["tensor parallel vs pipeline parallel inference", "all-reduce communication volume ring", "NVLink vs PCIe tensor parallel", "Megatron-LM tensor parallelism", "pipeline bubble microbatch"],
+        neighbors: [
+          { term: "데이터 병렬", diff: "모델 전체를 GPU마다 복제해 요청을 나눈다. 모델이 한 장에 들어갈 때만 가능." },
+          { term: "전문가 병렬", diff: "MoE의 expert를 GPU에 나눈다. 통신은 all-to-all이다." },
+        ] },
+    ],
+  });
 </script>
 </body>
 </html>

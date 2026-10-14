@@ -4,81 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>조건을 한꺼번에 묻는 질문은 왜 틀리게 만들까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"인지과학","topic":"작업 기억 한계와 질문의 인지 부하","audience":"사용자에게 질문하거나 질문을 받아 본 적이 있다","pattern":["predict-choice","sweep","stepper","units"],"decision":"한 질문에 동시에 담을 조건 수와, 질문을 몇 단계로 쪼갤지"}</script>
-<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script type="application/json" id="ltt-meta">{"domain":"인지과학","topic":"작업 기억 한계와 질문의 인지 부하","audience":"사용자에게 질문하거나 질문을 받아 본 적이 있다","pattern":["hook","explain","compare","keywords"],"mode":"설명형: 읽는 사람 자신의 작업 기억을 시험하는 체험은 답이 뻔해 실패하므로, 질문 다시 쓰기 사례와 연구 근거로 보여 준다","decision":"한 질문에 동시에 담을 조건 수와, 질문을 몇 단계로 쪼갤지"}</script>
 <script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/vendor/plot.umd.min.js"></script>
-<script src="/kit/vendor/katex/katex.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-deck.js"></script>
 <style>
-  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; --ltt-guess: #b9c4f6; }
-  .pair { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-  .q { border: 1px solid var(--ltt-line); border-radius: 10px; padding: 12px 14px; background: #fff; font-size: 15px; }
-  .q h3 { margin: 0 0 6px; font-size: 14px; color: var(--ltt-muted); }
-  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 0; }
-  .chips i { font-style: normal; font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #eef1fd; border: 1px solid var(--ltt-guess); }
-  #slots, #slots2 { --ltt-cols: 8; max-width: 440px; }
-  #slots .ltt-unit, #slots2 .ltt-unit { height: 34px; border: 2px solid var(--ltt-line); background: transparent; transition: background-color .4s, border-color .4s; }
-  #slots .ltt-unit:nth-child(n+5), #slots2 .ltt-unit:nth-child(n+5) { border-style: dashed; opacity: .55; }
-  #slots .ltt-unit.on, #slots2 .ltt-unit.on { border-color: var(--ltt-on); background: var(--ltt-on); }
-  #slots .ltt-unit.alt, #slots2 .ltt-unit.alt { border-color: var(--ltt-alt); background: var(--ltt-alt); opacity: 1; }
-  .cap { font-size: 12px; color: var(--ltt-muted); margin: 4px 0 10px; }
-  #step-q { min-height: 4.5em; }
-  .rank { font-weight: 700; }
+  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; }
+  .q { font-size: 14px; line-height: 1.5; background: var(--ltt-bg); border-radius: 10px; padding: 10px 12px; width: 100%; box-sizing: border-box; }
+  .slots { width: 100%; } .slots .ltt-units { max-width: none; }
+  .slots .ltt-unit { aspect-ratio: 1.6; }
+  .slots .ltt-unit:nth-child(n+5) { outline: 2px dashed var(--ltt-line); outline-offset: -2px; background: transparent; }
+  .slots .ltt-unit.alt:nth-child(n+5) { background: var(--ltt-alt); outline: 0; }
+  .vis { flex-direction: column; gap: 8px; }
 </style>
 </head>
 <body>
-<main>
-  <h1>조건을 한꺼번에 묻는 질문은 왜 틀리게 만들까?</h1>
-  <p class="ltt-lead">작업: <b>사용자에게(또는 agent에게) 조건이 여러 개 걸린 질문을 던져 결정을 받아야</b> 한다.
-    결정 변수: <b>한 질문에 담을 조건 수와 쪼갤 단계 수</b>
-    (<span data-tip="Cowan 2001: 작업 기억은 연습·묶기를 막았을 때 대략 4개 안팎의 덩어리(chunk)만 동시에 유지한다. 4는 과제에 따라 달라지는 근사값이다.">작업 기억 한계</span>).</p>
-
-  <section class="ltt-card" id="predict-card">
-    <h2>먼저 예측</h2>
-    <p>같은 내용을 묻는 두 질문이다. 한 번만 읽고 답할 때 <b>오답이 더 많이 나올 질문</b>은?</p>
-    <div class="pair">
-      <div class="q"><h3>질문 A: 한 문장에 전부</h3>
-        로그를 30일 보관하고, 암호화가 필수이며, 국내 리전에서, 월 20만 원 이하로, 운영 인원 3명이, 기존 S3를 쓰면서 관리할 저장 방식은 무엇이 좋은가?
-        <div class="chips"><i>30일</i><i>암호화</i><i>국내</i><i>20만 원</i><i>3명</i><i>기존 S3</i></div></div>
-      <div class="q"><h3>질문 B: 단계로 나누고 선택지를 줌</h3>
-        1) 기존 S3를 계속 쓸까요? (예/아니오)<br>2) 보관 기간은? (7일 / 30일 / 90일)<br>3) 나머지 조건은 위 답에 맞춰 제가 확인합니다.</div>
-    </div>
-    <div id="choices"><button data-choice="A">질문 A</button><button data-choice="B">질문 B</button><button data-choice="same">비슷하다</button></div>
-    <p><button id="lock">예측 잠그고 결과 보기</button></p>
-  </section>
-
-  <section class="ltt-card ltt-hidden" id="explore">
-    <h2>머릿속에 동시에 둘 항목 <span class="ltt-tag">모델로 계산한 예시</span> <span class="ltt-tag warn">불확실</span></h2>
-    <div class="ltt-hero" id="hero"><span>0</span><small>개 넘침 (4칸을 넘은 항목)</small></div>
-    <div id="slots"></div>
-    <p class="cap">실선 4칸 = 작업 기억 한계 근사. 점선 칸은 한계 밖. 파랑은 유지 중, 빨강은 넘쳐 놓치기 쉬운 항목.</p>
-    <label class="ltt-param">조건 수 <b id="n-v"></b><input type="range" id="n" min="1" max="8" value="6"></label>
-    <label class="ltt-param">나눈 단계 수 <b id="steps-v"></b><input type="range" id="steps" min="1" max="4" value="1"></label>
-    <button class="preset" data-preset='{"n":6,"steps":1}'>질문 A (6조건, 한 번에)</button>
-    <button class="preset" data-preset='{"n":6,"steps":3}'>3단계로 나눔</button>
-    <button class="preset" data-preset='{"n":8,"steps":2}'>8조건, 2단계만</button>
-    <p class="ltt-basis">모델: 동시 유지 = ceil(조건 수 / 단계 수), 단계가 둘 이상이면 앞 단계 결과 1개를 더 들고 간다.
-      한계 4는 Cowan 2001의 근사이고 조건끼리 묶이면(chunk) 더 많이 유지될 수 있다. "앞 단계 결과 1개"는 이 페이지의 단순화 가정이다.
-      <span class="ltt-tag warn">불확실</span> 오답률의 크기는 과제에 따라 달라 숫자로 싣지 않는다. 방향만 보인다.</p>
-    <p class="rank" id="dir"></p>
-  </section>
-
-  <section class="ltt-card ltt-hidden" id="steps-card">
-    <h2>질문 다시 쓰기 <span class="ltt-tag" data-tip="Sweller의 인지 부하 이론: 내재 부하는 내용 자체의 요소 간 상호작용, 외재 부하는 제시 방식이 만드는 불필요한 부하. 질문 쓰기는 외재 부하만 줄일 수 있다.">내재 vs 외재 부하</span></h2>
-    <div class="q" id="step-q"></div>
-    <div id="slots2"></div>
-    <div id="steps"></div>
-  </section>
-
-  <section class="ltt-card ltt-hidden" id="use">
-    <h2>쓰는 곳과 주의</h2>
-    <p><b>활용:</b> quick survey에서 조건 5개를 한 번에 묻지 않고 하나씩 묻는다. 선택지를 주면 답을 만들어 내는 대신 고르는 일이 된다.</p>
-    <p><span class="ltt-tag bad">주의</span> 너무 잘게 쪼개면 앞 단계 맥락을 계속 들고 가야 해서 오히려 늘고, 조건 사이 상호작용이라는 내재 부하는 쪼개도 사라지지 않는다. 사용자 숙련도가 높으면 묶인 조건은 한 덩어리로 유지된다.</p>
-    <p><b>한 줄 정리:</b> 질문 하나에 동시에 4개를 넘겨 담지 말고, 넘으면 단계로 나눠 묻는다.</p>
-  </section>
-</main>
 <script>
   // Hand-computed from the model in the text: hold = ceil(n/steps) + (steps>1 ? 1 : 0); overflow = max(0, hold - 4).
   const EXPECTED_BY_HAND = [
@@ -98,44 +39,76 @@
     LTT.expect(`over n=${e.n} s=${e.s}`, over(e.n, e.s), e.over, { tol: 0 });
   });
 
-  const slots = LTT.units("slots", 8, 8);
-  const slots2 = LTT.units("slots2", 8, 8);
-  slots2.cells.forEach((c) => c.style.cssText = "height:22px");
-  const paint = (u, n, s) => u.paint(Math.min(hold(n, s), CAP), "on", over(n, s));
-  const DIR = (n, s) => over(n, s) > 0
-    ? "한계를 넘음: 항목을 놓치거나 섞을 가능성이 커진다 (방향). 질문 A가 여기에 해당."
-    : "한계 안: 같은 내용이라도 오답 위험이 낮은 쪽 (방향).";
-
-  LTT.predict({
-    question: "조건 6개 한 문장 질문(A)과 단계·선택지 질문(B) 중 오답이 많을 쪽",
-    choices: "choices",
-    answer: "A",
-    button: "lock",
-    show: ["explore", "steps-card", "use"],
-    reveal: () => explore.render(),
-  });
-
-  const explore = LTT.sweep({
-    immediate: false,
-    presets: "#explore .preset",
-    params: { n: { fmt: (v) => v + "개" }, steps: { fmt: (v) => v + "단계" } },
-    render: ({ n, steps }) => {
-      paint(slots, n, steps);
-      LTT.tween(LTT.$("hero").firstChild, over(n, steps));
-      LTT.$("dir").textContent = DIR(n, steps);
+  // Eight slots: the first four (solid) approximate working-memory capacity, the dashed rest are outside it.
+  const rewrite = (label, q, n, s, tone, note) => ({
+    label, tone, note, noteAfter: true,
+    verdict: over(n, s) ? `동시에 ${hold(n, s)}개 · ${over(n, s)}개 넘침` : `동시에 ${hold(n, s)}개 · 한계 안`,
+    visual: (node) => {
+      node.innerHTML = `<div class="q">${q}</div><div class="slots"><div></div></div>`;
+      const u = LTT.units(node.querySelector(".slots div"), 8, 8);
+      setTimeout(() => u.paint(Math.min(hold(n, s), CAP), "on", over(n, s)), 300);
     },
   });
+  const scene = (icon, t) => `<div class="q" style="text-align:center"><div style="font-size:30px">${icon}</div>${t}</div>`;
 
-  const STEPS = [
-    { n: 6, s: 1, q: "30일 보관, 암호화, 국내, 월 20만 원 이하, 3명 운영, 기존 S3 조건에서 저장 방식은?", c: "<b>원문.</b> 조건 6개를 한꺼번에 들고 있어야 답할 수 있다." },
-    { n: 6, s: 2, q: "먼저 정책 조건(30일·암호화·국내)만 묻고, 답을 받은 뒤 운영 조건(비용·인원·S3)을 묻는다.", c: "<b>2단계로 분할.</b> 한 번에 3개, 앞 결과 1개. 조건 간 상호작용(내재 부하)은 그대로다." },
-    { n: 6, s: 3, q: "기존 S3 계속 사용? → 보관 기간? → 비용 상한? 나머지는 앞 답에 맞춰 제가 확인합니다.", c: "<b>3단계 + 조건 일부를 agent가 부담.</b> 동시에 둘 항목 2개 + 앞 결과 1개." },
-    { n: 6, s: 3, q: "보관 기간은? [7일] [30일] [90일] (고르기만 하면 됩니다)", c: "<b>선택지 추가.</b> 칸 수는 그대로지만 답을 떠올려 만드는 일이 고르는 일로 바뀐다(외재 부하 감소). 이 효과는 칸으로 표현하지 못한다." },
-  ];
-  LTT.stepper("steps", STEPS.map((st) => ({
-    caption: st.c,
-    enter: () => { LTT.$("step-q").textContent = st.q; paint(slots2, st.n, st.s); },
-  })));
+  LTT.deck({
+    title: "조건을 한꺼번에 묻는 질문은 왜 틀리게 만들까?",
+    scenes: [
+      { type: "hook", art: "🧠",
+        text: "조건 여섯 개를 한 문장에 담은 질문은<br>답하는 사람이 <u>몇 개를 놓친 채</u> 답하게 만든다.",
+        sub: "사용자에게(또는 agent에게) 조건이 여러 개인 결정을 물을 때, 한 번에 담을 조건 수와 쪼갤 단계를 정한다." },
+
+      { type: "explain", kicker: "원리", title: "머릿속 작업대에는 네 칸 정도만 있다",
+        steps: [
+          { icon: "📥", title: "조건을 읽는다", text: "답하려면 조건을 모두 동시에 들고 있어야 한다." },
+          { icon: "🗃️", title: "약 4덩어리 한계", text: "연습·묶기를 막으면 작업 기억은 대략 4개 안팎의 덩어리만 유지한다(Cowan 2001)." },
+          { icon: "🫳", title: "넘치면 놓친다", text: "넘친 조건은 빠지거나 다른 조건과 섞인 채 답이 나온다." },
+        ],
+        basis: "4는 과제에 따라 달라지는 근사값이다. 조건끼리 묶이면(chunk) 더 많이 유지된다. 오답률의 크기는 과제마다 달라 숫자로 싣지 않는다." },
+
+      { type: "compare", kicker: "질문 다시 쓰기", title: "같은 결정을 묻는 네 가지 질문",
+        sub: "실선 4칸 = 작업 기억 한계 근사, 점선 칸은 한계 밖. 단계마다 앞 단계 결과 1개를 더 들고 간다고 단순화했다.",
+        reveal: false,
+        items: [
+          rewrite("원문: 한 문장에 전부", "30일 보관, 암호화 필수, 국내 리전, 월 20만 원 이하, 3명 운영, 기존 S3 유지 — 어떤 저장 방식이 좋은가?", 6, 1, "bad", "조건 6개를 한꺼번에 들고 답해야 한다."),
+          rewrite("2단계로 분할", "① 정책 조건(30일·암호화·국내)만 묻고 ② 답을 받은 뒤 운영 조건(비용·인원·S3)을 묻는다.", 6, 2, "warn", "한계에 딱 맞음. 조건 간 상호작용(내재 부하)은 그대로다."),
+          rewrite("3단계 + 일부는 agent가", "기존 S3 계속 사용? → 보관 기간? → 비용 상한? 나머지는 제가 확인합니다.", 6, 3, "good", "동시에 2개 + 앞 결과 1개."),
+          rewrite("선택지 추가", "보관 기간은? [7일] [30일] [90일]", 6, 3, "good", "칸 수는 같지만 답을 만들던 일이 고르는 일로 바뀐다. 이 이득은 칸으로 표현되지 않는다."),
+        ],
+        basis: "모델로 계산한 예시: 동시 유지 = ⌈조건 수 / 단계 수⌉ + (단계 > 1이면 1). '앞 단계 결과 1개'는 이 페이지의 단순화 가정이다(불확실)." },
+
+      { type: "explain", kicker: "무엇을 줄일 수 있나", title: "질문을 고쳐 쓰면 '외재 부하'만 준다",
+        steps: [
+          { icon: "🧩", title: "내재 부하", text: "조건끼리 얽힌 정도. 내용 자체라 쪼개도 사라지지 않는다." },
+          { icon: "🧾", title: "외재 부하", text: "한 문장에 몰아 쓰기, 열린 질문처럼 제시 방식이 만드는 부하. 고쳐 쓰면 준다." },
+          { icon: "🧑‍🎓", title: "숙련도", text: "익숙한 사람은 묶인 조건을 한 덩어리로 들고 간다. 같은 질문도 사람마다 부하가 다르다." },
+        ],
+        basis: "Sweller의 인지 부하 이론 구분." },
+
+      { type: "compare", kicker: "자주 보는 장면", title: "어디서 같은 문제가 생길까?",
+        revealLabel: "고치는 방향 보기",
+        items: [
+          { label: "회원가입 폼 한 페이지", visual: scene("📝", "필드 15개, 오류는 제출 후 한꺼번에"), tone: "warn", verdict: "단계형 + 즉시 오류 표시", noteAfter: true, note: "오류 여러 개를 동시에 기억하며 고치게 하지 않는다." },
+          { label: "agent에게 요구사항 한 문단", visual: scene("🤖", "제약 8개를 쉼표로 이어 쓴 프롬프트"), tone: "warn", verdict: "번호 목록 + 확인 질문", noteAfter: true, note: "목록으로 쓰면 빠진 조건이 눈에 보인다." },
+          { label: "quick survey", visual: scene("❓", "\"예산·일정·인원·기술 스택은?\""), tone: "warn", verdict: "하나씩 + 선택지", noteAfter: true, note: "답한 내용을 다음 질문에 반영해 묻는다." },
+        ] },
+
+      { type: "explain", kicker: "주의", title: "쪼개기에도 비용이 있다",
+        steps: [
+          { icon: "🔪", title: "너무 잘게", text: "단계가 많으면 앞 단계 맥락을 계속 들고 가야 해서 오히려 늘 수 있다." },
+          { icon: "🔗", title: "얽힌 조건", text: "서로 영향을 주는 조건을 따로 물으면 나중에 충돌이 드러난다. 함께 묻고 표로 보여 준다." },
+        ] },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [{ ko: "작업 기억 용량", en: "working memory capacity" }, { ko: "인지 부하", en: "cognitive load (intrinsic / extraneous)" }],
+        signals: ["질문 하나에 조건이 4개를 넘을 때", "\"제가 말한 조건 하나를 빠뜨렸네요\"가 반복될 때", "폼·설문·프롬프트를 한 번에 길게 쓰고 있을 때"],
+        queries: ["Cowan 2001 magical number 4", "cognitive load theory intrinsic extraneous", "multi-step form vs single page", "chunking working memory"],
+        neighbors: [
+          { term: "Miller의 7±2", diff: "더 오래된 추정. 묶기를 막으면 4 안팎이라는 것이 Cowan의 수정." },
+          { term: "Hick 법칙", diff: "선택지 수와 고르는 시간. 동시에 들고 있어야 할 조건 수와는 다르다." },
+        ] },
+    ],
+  });
 </script>
 </body>
 </html>

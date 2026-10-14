@@ -4,156 +4,93 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>읽기 쉬우면 왜 더 믿게 될까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"인지과학","topic":"처리 유창성과 반복에 의한 착각 진실 효과","audience":"agent 출력을 읽고 판단해 본 적이 있다","pattern":["predict-choice","sweep","chart"],"decision":"agent 답변을 믿을지 정할 때 문체·형식이 아닌 검증 가능한 근거로 판단하는 기준"}</script>
-<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script type="application/json" id="ltt-meta">{"domain":"인지과학","topic":"처리 유창성과 반복에 의한 착각 진실 효과","audience":"agent 출력을 읽고 판단해 본 적이 있다","pattern":["hook","explain","compare","keywords"],"mode":"설명형: 사용자 자신의 편향을 겨냥하므로 체험시키지 않고 연구 사례를 보여 준다","decision":"agent 답변을 믿을지 정할 때 문체·형식이 아닌 검증 가능한 근거로 판단하는 기준"}</script>
 <script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/vendor/plot.umd.min.js"></script>
-<script src="/kit/vendor/katex/katex.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-deck.js"></script>
 <style>
-  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; --ltt-guess: #b9c4f6; }
-  .fl { border: 1px solid var(--ltt-line); border-radius: 10px; padding: 12px 14px; background: #fff; }
-  .fl .claim { transition: color .6s, font-size .6s, font-weight .6s, letter-spacing .6s; margin: 6px 0; }
-  .fl .extra { overflow: hidden; max-height: 4em; transition: max-height .6s, opacity .6s; }
-  .fl .tagline { font-size: 12px; color: var(--ltt-muted); }
-  .fl[data-v="low"] .claim { color: #b4b9c6; font-size: 13px; }
-  .fl[data-v="high"] .claim { color: #000; font-size: 19px; font-weight: 800; }
-  .fl[data-v="jargon"] .claim { font-size: 15px; font-style: italic; letter-spacing: .01em; }
-  .fl.plain .claim { color: var(--ltt-ink); font-size: 16px; font-weight: 400; font-style: normal; }
-  .fl.plain .extra { max-height: 0; opacity: 0; }
-  .fl .ltt-bar { margin-top: 8px; height: 22px; }
-  .fl .ltt-bar span { transition: flex-grow .7s; }
-  .agent { border-left: 4px solid var(--ltt-line); padding: 10px 14px; transition: all .5s; background: #fff; }
-  .agent[data-lv="0"] { color: #6b7285; font-size: 14px; }
-  .agent[data-lv="1"] { border-color: var(--ltt-guess); }
-  .agent[data-lv="2"] { border-color: var(--ltt-on); background: #eef1fd; font-weight: 600; }
-  .verdict { font-weight: 700; margin: 8px 0 0; }
+  .claim { font-size: 15px; text-align: center; line-height: 1.4; }
+  .claim.low { color: #b4b9c6; font-size: 13px; }
+  .claim.high { color: #000; font-weight: 800; font-size: 17px; }
+  .claim.rep { display: grid; gap: 4px; }
+  .claim.rep span:nth-child(n+2) { opacity: .55; font-size: 13px; }
+  .reply { font-size: 14px; border-left: 4px solid var(--ltt-line); padding: 6px 10px; text-align: left; }
+  .reply.slick { border-color: var(--ltt-accent); background: #eef1fd; font-weight: 600; }
+  .meter { display: flex; gap: 4px; justify-content: center; }
+  .meter i { width: 14px; height: 14px; border-radius: 3px; background: var(--ltt-line); }
+  .meter i.on { background: var(--ltt-accent); }
 </style>
 </head>
 <body>
-<main>
-  <h1>읽기 쉬우면 왜 더 믿게 될까?</h1>
-  <p class="ltt-lead">작업: <b>agent가 쓴 답변과 문서를 읽고 맞는지 판단</b>해야 한다. 결정 변수: <b>무엇을 근거로 믿을지</b>
-    (<span data-tip="Reber &amp; Schwarz 1999: 같은 문장도 읽기 쉽게(대비 높게) 보이면 참이라고 판단하는 경향. 읽는 데 드는 노력이 적은 느낌(처리 유창성)이 진실감으로 읽힌다.">처리 유창성</span>인가, 검증 가능한 근거인가).</p>
-
-  <section class="ltt-card" id="predict-card">
-    <h2>먼저 예측</h2>
-    <p>아래 네 카드는 <b>같은 주장을 모양만 바꿔</b> 보여 준다고 하자. 사람들의 "그럴듯함" 평가는 어떻게 될까?</p>
-    <div id="choices">
-      <button data-choice="same">거의 같다. 내용이 같으니까</button>
-      <button data-choice="differ">모양에 따라 달라진다</button>
-    </div>
-    <p><button id="lock">예측 잠그고 카드 보기</button></p>
-  </section>
-
-  <section class="ltt-card ltt-hidden" id="rate">
-    <h2>직접 평가하기 <span class="ltt-tag">내 응답</span></h2>
-    <p>카드마다 "얼마나 그럴듯한가"를 0–100으로 매긴다.</p>
-    <div class="ltt-grid" id="cards"></div>
-    <p><button id="reveal">평가 끝, 정체 공개</button></p>
-    <div id="after" class="ltt-hidden">
-      <div class="ltt-hero" id="hero"><span>0</span><small>점, 표면만 바꿨는데 내 평가가 벌어진 폭</small></div>
-      <p class="verdict" id="verdict"></p>
-      <p class="ltt-basis">연구 방향(효과 크기는 과제마다 달라 숫자를 싣지 않는다):
-        <span class="ltt-tag" data-tip="Reber &amp; Schwarz 1999: 대비가 높은 글씨의 문장이 더 참으로 판단됨">대비 높음 → 참 판단 증가</span>
-        <span class="ltt-tag" data-tip="Hasher, Goldstein &amp; Toppino 1977: 같은 진술을 반복해 본 참가자는 반복하지 않은 진술보다 더 타당하다고 평가(착각 진실 효과). 거짓 진술에서도 나타남.">반복 → 타당 평가 증가</span>
-        <span class="ltt-tag" data-tip="Pennycook 외 2015: 그럴듯한 전문용어로 이어 붙인 무의미한 문장을 '심오하다'고 평가하는 정도에 개인차가 크다. 분석적 사고 성향이 낮을수록 더 수용.">전문 용어 → 심오하다는 평가</span>
-        <span class="ltt-tag warn">개인 한 번의 평가는 노이즈가 크다. 위 효과는 집단 평균에서 보고된 경향</span></p>
-    </div>
-  </section>
-
-  <section class="ltt-card ltt-hidden" id="agent-card">
-    <h2>agent 답변에서는? <span class="ltt-tag">같은 내용, 다른 문체</span></h2>
-    <p class="ltt-basis">질문: "이 마이그레이션을 운영 중에 돌려도 되나?" 아래 세 답은 <b>똑같이 검증되지 않은 주장</b>이다.</p>
-    <div>
-      <button class="preset" data-preset='{"lv":0}'>거친 초안</button>
-      <button class="preset" data-preset='{"lv":1}'>보통</button>
-      <button class="preset" data-preset='{"lv":2}'>매끈한 전문가 어조</button>
-      <input type="range" id="lv" min="0" max="2" step="1" value="0" hidden>
-    </div>
-    <div class="agent" id="agent" data-lv="0"></div>
-    <div class="ltt-grid">
-      <div><div class="ltt-stat"><span id="s-fl">낮음</span><small>읽는 동안의 확신 느낌 (방향만, 수치 아님)</small></div></div>
-      <div><div class="ltt-stat" id="s-ev">0건<small>바뀐 검증 근거</small></div></div>
-    </div>
-    <p class="ltt-basis">실사용: 주장을 읽는 순서를 "근거 확인 → 문체"로 뒤집는다. 실행해 보기, 로그, 출처 같은 확인 가능한 것에 점수를 준다.
-      <span class="ltt-tag bad">주의</span> 읽기 쉬움은 오히려 틀린 답을 놓치게 만든다. 거친 문체라도 맞을 수 있다.</p>
-  </section>
-
-  <section class="ltt-card ltt-hidden" id="sum">
-    <p><b>한 줄 정리:</b> 매끈함은 맞다는 증거가 아니라 읽기 쉬웠다는 증거다. 믿기 전에 "실행·출처로 확인했나"를 묻는다.</p>
-  </section>
-</main>
 <script>
-  const EXPECTED_BY_HAND = { spread_30_70_55_40: 40, spread_all_equal: 0, spread_single: 0 };
-  const spread = (a) => Math.max(...a) - Math.min(...a);
-  LTT.expect("spread [30,70,55,40]", spread([30, 70, 55, 40]), EXPECTED_BY_HAND.spread_30_70_55_40, { tol: 0 });
-  LTT.expect("spread all equal", spread([50, 50, 50, 50]), EXPECTED_BY_HAND.spread_all_equal, { tol: 0 });
-  LTT.expect("spread single", spread([42]), EXPECTED_BY_HAND.spread_single, { tol: 0 });
-
+  const meter = (k, of = 5) => `<div class="meter">${Array.from({ length: of }, (_, i) => `<i class="${i < k ? "on" : ""}"></i>`).join("")}</div>`;
   const CORE = "사용자 수가 늘면 서버 비용도 함께 늘어난다.";
-  const CARDS = [
-    { v: "low", name: "흐린 작은 글씨", text: CORE },
-    { v: "high", name: "굵고 선명한 큰 글씨", text: CORE },
-    { v: "rep", name: "세 곳에서 본 것처럼 반복", text: CORE, extra: [CORE, CORE] },
-    { v: "jargon", name: "전문 용어", text: "사용자 집단의 확장은 서버 자원 소비의 증분적 상승을 수반한다." },
-  ];
-  document.getElementById("cards").innerHTML = CARDS.map((c, i) => `
-    <div class="fl" data-v="${c.v}" id="fl${i}">
-      <div class="tagline">${c.name}</div>
-      <div class="claim">${c.text}</div>
-      ${c.extra ? `<div class="extra claim">${c.extra.join("<br>")}</div>` : ""}
-      <label class="ltt-param">그럴듯함 <b id="r${i}-v">50</b><input type="range" id="r${i}" min="0" max="100" value="50"></label>
-      <div id="bar${i}" class="ltt-hidden"></div>
-    </div>`).join("");
 
-  CARDS.forEach((_, i) => LTT.$("r" + i).addEventListener("input", () => (LTT.$("r" + i + "-v").textContent = LTT.$("r" + i).value)));
+  LTT.deck({
+    title: "읽기 쉬우면 왜 더 믿게 될까?",
+    scenes: [
+      { type: "hook", art: "🪞",
+        text: "매끈하게 쓴 답은 <u>맞아 보인다</u>.<br>그런데 '맞아 보임'은 내용이 아니라 읽기 편했다는 신호다.",
+        sub: "agent 답변·문서를 믿을지 정할 때 이 착시를 아는 것만으로 확인 순서가 바뀐다." },
 
-  LTT.predict({
-    question: "같은 주장을 네 모양으로 보여 주면 그럴듯함 평가는?",
-    choices: "choices",
-    button: "lock",
-    show: ["rate"],
-  });
+      { type: "explain", kicker: "원리", title: "뇌는 '읽기 쉬움'을 '참'으로 착각한다",
+        steps: [
+          { icon: "👀", title: "읽는다", text: "선명한 글씨, 익숙한 표현, 이미 본 문장은 빨리 처리된다." },
+          { icon: "⚡", title: "쉽다는 느낌", text: "처리 속도 자체가 하나의 느낌(유창성)으로 남는다." },
+          { icon: "✅", title: "참이라고 판단", text: "그 느낌의 출처를 따지지 않고 '익숙하니 맞겠지'로 읽는다." },
+        ] },
 
-  LTT.$("reveal").addEventListener("click", () => {
-    const vals = CARDS.map((_, i) => Number(LTT.$("r" + i).value));
-    LTT.record("ratings", { vals });
-    LTT.$("reveal").disabled = true;
-    CARDS.forEach((c, i) => {
-      const card = LTT.$("fl" + i);
-      LTT.$("r" + i).disabled = true;
-      card.classList.add("plain");
-      setTimeout(() => (card.querySelector(".claim").textContent = CORE), LTT.MOTION_MS / 2);
-      LTT.$("bar" + i).classList.remove("ltt-hidden");
-      LTT.bar("bar" + i, [{ color: "var(--ltt-on)" }, { color: "transparent" }]).set([vals[i], 100 - vals[i]], [vals[i], ""]);
-    });
-    const sp = spread(vals);
-    LTT.$("after").classList.remove("ltt-hidden");
-    LTT.tween(LTT.$("hero").firstChild, sp);
-    LTT.$("verdict").textContent = sp > 0
-      ? `네 카드의 문장은 전부 "${CORE}"와 같은 뜻이다. 바뀐 것은 표면뿐인데 평가가 벌어졌다.`
-      : "이번에는 평가가 흔들리지 않았다. 한 사람의 한 번은 노이즈가 커서, 효과는 여러 사람 평균에서 보인다.";
-    ["agent-card", "sum"].forEach((id) => { const n = LTT.$(id); n.classList.remove("ltt-hidden"); n.classList.add("ltt-rise"); });
-    agent.render();
-  });
+      { type: "compare", kicker: "연구 사례", title: "같은 문장, 모양만 바꿨을 때 사람들의 판단",
+        sub: "실험 참가자들이 본 것을 재현했다. 네 카드의 내용은 모두 같다.",
+        items: [
+          { label: "흐린 글씨", visual: `<div class="claim low">${CORE}</div>`, tone: "bad", verdict: "덜 참이라고 판단",
+            noteAfter: true, note: "Reber & Schwarz 1999: 대비가 낮으면 참 판단이 줄었다." },
+          { label: "선명한 글씨", visual: `<div class="claim high">${CORE}</div>`, tone: "good", verdict: "더 참이라고 판단",
+            noteAfter: true, note: "같은 연구: 대비만 높였는데 참 판단이 늘었다." },
+          { label: "여러 번 본 문장", visual: `<div class="claim rep"><span>${CORE}</span><span>${CORE}</span><span>${CORE}</span></div>`, tone: "good", verdict: "더 타당하다고 평가",
+            noteAfter: true, note: "Hasher 외 1977: 반복 노출만으로 타당 평가가 올랐다. 거짓 문장에서도." },
+          { label: "전문 용어로 포장", visual: `<div class="claim"><i>사용자 집단의 확장은 서버 자원 소비의 증분적 상승을 수반한다.</i></div>`, tone: "warn", verdict: "'심오하다' 평가, 개인차 큼",
+            noteAfter: true, note: "Pennycook 외 2015: 그럴듯한 용어 나열을 심오하게 보는 경향." },
+        ],
+        basis: "효과 크기는 과제마다 달라 숫자를 싣지 않았다. 모두 여러 사람의 평균에서 나온 경향이다." },
 
-  const AGENT = [
-    "음, 락 안 잡는 것 같음. 아마 괜찮을 듯?",
-    "이 마이그레이션은 테이블 락을 잡지 않으므로 운영 중에 실행해도 됩니다.",
-    "본 마이그레이션은 비차단(non-blocking) 방식의 온라인 스키마 변경으로 설계되어 있어, 트래픽 중에도 무중단으로 안전하게 적용할 수 있음을 확인했습니다.",
-  ];
-  const agent = LTT.sweep({
-    immediate: false,
-    presets: "#agent-card .preset",
-    params: { lv: {} },
-    render: ({ lv }) => {
-      const a = LTT.$("agent");
-      a.dataset.lv = lv;
-      a.textContent = AGENT[lv];
-      LTT.$("s-fl").textContent = ["낮음", "중간", "높음"][lv];
-    },
+      { type: "compare", kicker: "내 작업에서", title: "agent 답 세 개 중 무엇을 더 믿어야 할까?",
+        sub: "질문: \"이 마이그레이션을 운영 중에 돌려도 되나?\"",
+        revealLabel: "근거 개수 보기",
+        items: [
+          { label: "거친 초안", visual: `<div class="reply">음, 락 안 잡는 것 같음. 아마 괜찮을 듯?</div>`, tone: "warn",
+            verdict: "확인한 근거 0건", note: `확신 느낌 ${meter(1)}` },
+          { label: "매끈한 전문가 어조", visual: `<div class="reply slick">본 마이그레이션은 비차단 온라인 스키마 변경으로 설계되어 무중단 적용이 가능함을 확인했습니다.</div>`, tone: "bad",
+            verdict: "확인한 근거 0건", note: `확신 느낌 ${meter(5)}` },
+          { label: "근거를 붙인 답", visual: `<div class="reply">스테이징에서 <code>EXPLAIN</code>과 락 모니터로 확인: <code>ACCESS EXCLUSIVE</code> 없음. 로그 첨부.</div>`, tone: "good",
+            verdict: "확인한 근거 2건", note: `확신 느낌 ${meter(3)}` },
+        ],
+        basis: "확신 느낌 막대는 방향만 보인 그림이다(측정값 아님). 앞의 두 답은 문체만 다르고 근거는 똑같이 없다." },
+
+      { type: "explain", kicker: "실전 습관", title: "읽는 순서를 뒤집는다", arrows: true,
+        steps: [
+          { icon: "🔍", title: "근거부터 찾기", text: "실행 결과, 로그, 출처 링크, 재현 방법이 있는가?" },
+          { icon: "🧪", title: "없으면 요청", text: "\"어떻게 확인했나? 명령과 출력 보여줘\"라고 되묻는다." },
+          { icon: "📝", title: "문체는 마지막", text: "매끈함은 가산점이 아니다. 거친 답도 맞을 수 있다." },
+        ] },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [
+          { ko: "처리 유창성", en: "processing fluency" },
+          { ko: "착각 진실 효과", en: "illusory truth effect" },
+        ],
+        signals: [
+          "근거 없이 \"확인했습니다\"라는 말에 안심이 될 때",
+          "같은 주장을 여러 곳에서 봤다는 이유로 믿게 될 때",
+          "용어가 어려워 반박하기 귀찮을 때",
+        ],
+        queries: ["processing fluency truth judgment", "illusory truth effect repetition", "pseudo-profound bullshit receptivity", "LLM overconfidence verification"],
+        neighbors: [
+          { term: "확증 편향", diff: "믿고 싶은 쪽 근거만 찾는 것. 유창성은 근거와 무관하게 '느낌'이 판단을 바꾼다." },
+          { term: "권위 편향", diff: "말한 사람의 지위를 믿는 것. 유창성은 말의 모양을 믿는 것." },
+        ] },
+    ],
   });
 </script>
 </body>

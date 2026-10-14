@@ -4,97 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>회색 글자는 얼마나 옅어야 읽기 힘들어질까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"WCAG 2.x 색 대비비","audience":"CSS 색상 코드(#RRGGBB)를 읽을 수 있는 UI 개발자·디자이너","pattern":["predict-choice","sweep"],"decision":"글자색과 배경색 조합이 WCAG AA/AAA 대비비 기준을 넘는지"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"WCAG 2.x 색 대비비","audience":"CSS 색상 코드(#RRGGBB)를 읽을 수 있는 UI 개발자·디자이너","pattern":["hook","explain","predict","compare","sweep","keywords"],"mode":"체험형: 실제 UI 조각을 나란히 놓고 대비비 통과 여부를 예측한다(시스템 계산을 맞히는 것이라 자기 편향을 겨냥하지 않는다)","decision":"글자색과 배경색 조합이 WCAG AA/AAA 대비비 기준을 넘는지"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/vendor/plot.umd.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-deck.js"></script>
 <style>
-  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; --ltt-guess: #b9c4f6; }
-  #choices button { background: #fff; padding: 14px; }
-  #choices button.right, #choices button.wrong { background: #fff; }
-  #choices .hex { display: block; font: 12px ui-monospace, monospace; color: #6b7285; margin-top: 6px; }
-  #choices .res { display: block; margin-top: 4px; }
-  .sliders { display: grid; gap: 4px 20px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-  .sliders h3 { margin: 8px 0 0; font-size: 14px; }
-  .preview { border-radius: 10px; padding: 18px; margin: 12px 0; border: 1px solid var(--ltt-line); }
-  .preview .big { font-size: 24px; font-weight: 700; margin: 0 0 6px; }
-  .preview .small { font-size: 16px; margin: 0 0 10px; }
-  .preview .ui { display: inline-block; padding: 6px 12px; border-radius: 6px; border: 2px solid; font-size: 14px; }
-  .badges { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 12px; }
-  .badges .ltt-tag { font-size: 14px; padding: 4px 10px; }
-  .calc { font: 13px/1.6 ui-monospace, monospace; background: #f6f7fb; border-radius: 8px; padding: 10px 12px; overflow-wrap: anywhere; }
-  .ratio-head { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
-  .verdict { font-size: 17px; margin: 12px 0 0; }
+  .hex { display: block; font: 12px ui-monospace, monospace; color: var(--ltt-muted); margin-top: 4px; }
+  .ui { width: 100%; border-radius: 10px; padding: 14px; border: 1px solid var(--ltt-line); font-size: 15px; }
+  .ui input { width: 100%; font: inherit; border: 1px solid #ccc; border-radius: 8px; padding: 8px; box-sizing: border-box; }
+  .ui .btn { display: inline-block; padding: 8px 14px; border-radius: 8px; font-weight: 700; }
+  .mono { font: 13px ui-monospace, monospace; }
+  .live { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center; }
+  .live .ui { padding: 22px; }
+  @media (max-width: 720px) { .live { grid-template-columns: 1fr; } .ltt-hero { font-size: 52px; } }
 </style>
 </head>
 <body>
-<main>
-  <h1>회색 글자는 얼마나 옅어야 읽기 힘들어질까?</h1>
-  <p class="ltt-lead">작업: 흰 배경의 보조 텍스트(placeholder, 캡션)에 쓸 회색을 고른다.
-    결정 변수: 글자색과 배경색의 <span data-tip="WCAG 2.x가 정한 값. 1:1(같은 색)부터 21:1(검정 대 흰색)까지.">대비비</span>가 AA(일반 글자 4.5:1)를 넘는지.</p>
-
-  <section class="ltt-card" id="predict-card">
-    <h2>먼저 예측</h2>
-    <p>대비비는 두 색의 상대 휘도 L로 계산한다.
-      <span data-tex="CR = \frac{L_1 + 0.05}{L_2 + 0.05},\quad L = 0.2126R + 0.7152G + 0.0722B" data-display></span></p>
-    <p><b>흰 배경 위의 회색 글자 중 4.5:1을 넘는 카드는 어느 것일까?</b></p>
-    <div id="choices">
-      <button data-choice="999"><span style="color:#999999">저장하지 않은 변경 사항</span><span class="hex">#999999</span><span class="res" data-r="99"></span></button>
-      <button data-choice="888"><span style="color:#888888">저장하지 않은 변경 사항</span><span class="hex">#888888</span><span class="res" data-r="88"></span></button>
-      <button data-choice="777"><span style="color:#777777">저장하지 않은 변경 사항</span><span class="hex">#777777</span><span class="res" data-r="77"></span></button>
-      <button data-choice="666"><span style="color:#666666">저장하지 않은 변경 사항</span><span class="hex">#666666</span><span class="res" data-r="66"></span></button>
-    </div>
-    <p><button id="lock">예측 잠그고 결과 보기</button></p>
-    <p class="verdict ltt-hidden" id="verdict"></p>
-  </section>
-
-  <section class="ltt-card ltt-hidden" id="explore">
-    <h2>색을 바꿔 보기 <span class="ltt-tag">모델로 계산한 예시</span></h2>
-    <div class="ratio-head">
-      <div class="ltt-hero"><span id="cr">0</span><small>: 1</small></div>
-      <div class="badges" id="badges"></div>
-    </div>
-    <div class="preview" id="preview">
-      <p class="big">큰 글자 24px 굵게</p>
-      <p class="small">일반 글자 16px. 저장하지 않은 변경 사항이 있습니다.</p>
-      <span class="ui">UI 경계선</span>
-    </div>
-    <div class="sliders">
-      <div><h3>글자색 <span id="fhex"></span></h3>
-        <label class="ltt-param">R <b id="fr-v"></b><input type="range" id="fr" min="0" max="255" value="119"></label>
-        <label class="ltt-param">G <b id="fg-v"></b><input type="range" id="fg" min="0" max="255" value="119"></label>
-        <label class="ltt-param">B <b id="fb-v"></b><input type="range" id="fb" min="0" max="255" value="119"></label></div>
-      <div><h3>배경색 <span id="bhex"></span></h3>
-        <label class="ltt-param">R <b id="br-v"></b><input type="range" id="br" min="0" max="255" value="255"></label>
-        <label class="ltt-param">G <b id="bg-v"></b><input type="range" id="bg" min="0" max="255" value="255"></label>
-        <label class="ltt-param">B <b id="bb-v"></b><input type="range" id="bb" min="0" max="255" value="255"></label></div>
-    </div>
-    <p class="ltt-basis">기준 근거: WCAG 2.x 성공 기준 1.4.3(AA 일반 4.5, 큰 글자 3), 1.4.6(AAA 7, 큰 글자 4.5), 1.4.11(UI 요소 3, WCAG 2.1부터). 큰 글자는 18pt(24px) 이상 또는 14pt(약 18.7px) 굵게. 슬라이더 범위는 sRGB 8비트 전체(0–255)다.</p>
-    <button class="preset" data-preset='{"fr":119,"fg":119,"fb":119,"br":255,"bg":255,"bb":255}'>#777 on 흰색</button>
-    <button class="preset" data-preset='{"fr":118,"fg":118,"fb":118,"br":255,"bg":255,"bb":255}'>#767676 on 흰색</button>
-    <button class="preset" data-preset='{"fr":89,"fg":89,"fb":89,"br":255,"bg":255,"bb":255}'>#595959 on 흰색</button>
-    <div class="calc" id="calc"></div>
-  </section>
-
-  <section class="ltt-card ltt-hidden" id="cases">
-    <h2>활용과 한계</h2>
-    <p>활용: 회색 보조 텍스트는 <b>#767676</b>(흰 배경에서 약 4.54:1)이 AA를 넘는 가장 옅은 회색이다. 디자인 토큰의 하한으로 쓴다.</p>
-    <p>주의: 숫자가 눈에 보이는 선명함과 다를 수 있다. 위 슬라이더에 바로 적용해 본다.</p>
-    <button class="preset" data-preset='{"fr":255,"fg":0,"fb":0,"br":255,"bg":255,"bb":255}'>순수 빨강 on 흰색</button>
-    <button class="preset" data-preset='{"fr":0,"fg":0,"fb":255,"br":255,"bg":255,"bb":255}'>순수 파랑 on 흰색</button>
-    <button class="preset" data-preset='{"fr":255,"fg":0,"fb":0,"br":0,"bg":255,"bb":0}'>빨강 on 초록</button>
-    <ul>
-      <li>순수 빨강 on 흰색은 약 4.0:1로 일반 글자 AA에 못 미친다. 선명해 보여도 휘도 기여가 낮다(R 계수 0.2126).</li>
-      <li>빨강 on 초록은 2.9:1이다. 색각 이상에서는 두 색이 더 가까워 "색만으로 구분"이 위험하다.</li>
-      <li>이 계산은 배경이 단색일 때만 맞다. 이미지·그라디언트·반투명 위의 글자는 가장 나쁜 지점에서 따로 재야 한다.</li>
-      <li>WCAG 2.x 식은 글자 굵기와 크기를 연속으로 반영하지 못한다. 대안(APCA 등)이 제안되어 있으나 표준은 아니다. <span class="ltt-tag warn">불확실</span></li>
-    </ul>
-    <p class="verdict"><b>정리:</b> 4.48:1과 4.5:1은 가까워 보여도 AA에서는 실패와 통과로 갈린다.</p>
-  </section>
-</main>
 <script>
   // 손계산: c=((s/255+0.055)/1.055)^2.4, 회색은 계수 합이 1이라 L=선형값
   // #777: 0.494471^2.4=0.18448 → 1.05/0.23448=4.478 / #767676: 0.18117 → 4.542 / #595959: 0.09990 → 7.005
@@ -123,48 +51,89 @@
 
   // Floor, not round: 4.499 must not display as 4.50 while failing AA.
   const fl2 = (v) => (Math.floor(v * 100 + 1e-9) / 100).toFixed(2);
-
-  LTT.predict({
-    question: "흰 배경 위 회색 글자 카드(#999, #888, #777, #666) 중 대비비 4.5:1을 넘는 것은",
-    choices: "choices",
-    button: "lock",
-    answer: "666",
-    show: ["explore", "cases"],
-    reveal: () => {
-      document.querySelectorAll("#choices .res").forEach((s, i) => {
-        const r = ratio(gr(parseInt(s.dataset.r, 16)), W);
-        s.innerHTML = '<span class="ltt-tag ' + (r >= 4.5 ? "good" : "bad") + '">' + fl2(r) + ":1 " + (r >= 4.5 ? "AA 통과" : "AA 실패") + "</span>";
-        s.classList.add("ltt-rise");
-        s.style.setProperty("--i", i);
-      });
-      const v = LTT.$("verdict");
-      v.classList.remove("ltt-hidden");
-      v.innerHTML = "#666만 통과한다. #777은 <b>4.48:1</b>로 0.02 모자라 실패한다. 눈으로는 구분되지 않는 차이다.";
-      explore.render();
-    },
-  });
-
   const hex = (c) => "#" + c.map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase();
-  const RULES = [["AA 일반", 4.5], ["AA 큰 글자", 3], ["AAA 일반", 7], ["AAA 큰 글자", 4.5], ["UI 요소", 3]];
-  const explore = LTT.sweep({
-    immediate: false,
-    presets: "#explore .preset, #cases .preset",
-    params: Object.fromEntries(["fr", "fg", "fb", "br", "bg", "bb"].map((k) => [k, {}])),
-    render: (v) => {
-      const f = [v.fr, v.fg, v.fb], b = [v.br, v.bg, v.bb], r = ratio(f, b);
-      LTT.tween("cr", r, (x) => fl2(x));
-      LTT.$("fhex").textContent = hex(f);
-      LTT.$("bhex").textContent = hex(b);
-      const p = LTT.$("preview");
-      p.style.background = hex(b);
-      p.style.color = hex(f);
-      p.querySelector(".ui").style.borderColor = hex(f);
-      LTT.$("badges").innerHTML = RULES.map(([name, min]) =>
-        '<span class="ltt-tag ' + (r >= min ? "good" : "bad") + '">' + (r >= min ? "✓ " : "✗ ") + name + " " + min + "</span>").join("");
-      const l1 = lum(...f), l2 = lum(...b);
-      LTT.$("calc").innerHTML = "L(글자) = " + l1.toFixed(4) + " &nbsp; L(배경) = " + l2.toFixed(4) +
-        "<br>CR = (" + Math.max(l1, l2).toFixed(4) + " + 0.05) / (" + Math.min(l1, l2).toFixed(4) + " + 0.05) = " + r.toFixed(4);
-    },
+  const RULES = [["AA 일반", 4.5], ["AA 큰 글자", 3], ["AAA 일반", 7], ["UI 요소", 3]];
+  const badges = (r) => RULES.map(([n, m]) => `<span class="ltt-tag ${r >= m ? "good" : "bad"}">${r >= m ? "✓" : "✗"} ${n} ${m}</span>`).join(" ");
+  const GRAYS = ["99", "88", "77", "66"];
+
+  LTT.deck({
+    title: "회색 글자는 얼마나 옅어야 읽기 힘들어질까?",
+    scenes: [
+      { type: "hook", art: "🔍",
+        text: "눈에는 멀쩡히 읽히는 회색 글자가<br>접근성 검사에서는 <u>실패</u>한다.",
+        sub: "보조 텍스트·placeholder 색을 고를 때, 눈 대신 '대비비'라는 숫자로 판정한다." },
+
+      { type: "explain", kicker: "원리", title: "대비비는 두 색의 '밝기 차이 비율'이다",
+        steps: [
+          { icon: "🎨", title: "색 → 밝기", text: "RGB를 사람 눈의 감도대로 섞어 상대 휘도 L로 바꾼다. 초록이 가장 크게, 파랑이 가장 작게 기여한다." },
+          { icon: "➗", title: "밝은 쪽 ÷ 어두운 쪽", text: "같은 색이면 1:1, 검정과 흰색이면 21:1." },
+          { icon: "🚦", title: "기준선과 비교", text: "AA 일반 글자 4.5, 큰 글자·UI 경계 3, AAA 일반 7." },
+        ],
+        tex: "CR = \\frac{L_1 + 0.05}{L_2 + 0.05},\\quad L = 0.2126R + 0.7152G + 0.0722B",
+        basis: "WCAG 2.x 성공 기준 1.4.3(AA), 1.4.6(AAA), 1.4.11(UI 요소, 2.1부터). 큰 글자는 24px 이상 또는 약 18.7px 굵게." },
+
+      { type: "predict", kicker: "예측", title: "흰 배경에서 AA(4.5:1)를 넘는 회색은?",
+        question: "흰 배경 위 회색 글자(#999, #888, #777, #666) 중 대비비 4.5:1을 넘는 것",
+        choices: GRAYS.map((g) => ({ id: g + g + g, text: `<span style="color:#${g}${g}${g}">저장하지 않은 변경 사항</span><span class="hex">#${g}${g}${g}</span><span class="res"></span>` })),
+        answer: "666666",
+        why: "#666만 통과한다. #777은 <b>4.48:1</b>로 0.02 모자라 실패한다. 눈으로는 구분되지 않는 차이다.",
+        reveal: () => document.querySelectorAll(".dk-pred .res").forEach((s, i) => {
+          const r = ratio(gr(parseInt(GRAYS[i], 16)), W);
+          s.innerHTML = `<span class="ltt-tag ${r >= 4.5 ? "good" : "bad"}">${fl2(r)}:1</span>`;
+        }) },
+
+      { type: "compare", kicker: "실제 UI", title: "자주 보는 UI 조각, 일반 글자 AA를 넘을까?",
+        revealLabel: "대비비 보기",
+        items: [
+          { label: "입력창 placeholder #999", tone: "bad", verdict: `${fl2(ratio(gr(0x99), W))}:1 실패`,
+            visual: `<div class="ui"><input placeholder="이메일 주소" disabled style="background:#fff;color:#999"></div>`,
+            noteAfter: true, note: "읽혀야 할 안내라면 기준 대상." },
+          { label: "캡션 #767676", tone: "good", verdict: `${fl2(ratio(gr(0x76), W))}:1 통과`,
+            visual: `<div class="ui" style="color:#767676">마지막 저장 3분 전</div>`,
+            noteAfter: true, note: "AA를 넘는 가장 옅은 회색." },
+          { label: "흰 글자 + 순빨강 버튼", tone: "warn", verdict: `${fl2(ratio([255, 0, 0], W))}:1 큰 글자만 통과`,
+            visual: `<div class="ui"><span class="btn" style="background:#f00;color:#fff">삭제</span></div>`,
+            noteAfter: true, note: "빨강은 휘도 기여가 낮다." },
+          { label: "빨강 글자 on 초록", tone: "bad", verdict: `${fl2(ratio([255, 0, 0], [0, 255, 0]))}:1 실패`,
+            visual: `<div class="ui" style="background:#0f0;color:#f00;font-weight:700">오류 3건</div>`,
+            noteAfter: true, note: "색각 이상에선 더 가깝다." },
+        ],
+        basis: "대비비는 WCAG 2.x 식으로 계산했다(모델로 계산한 예시). 배경이 단색일 때만 맞는 값이다." },
+
+      { type: "live", kicker: "직접 밀어 보기", title: "회색을 옅게 하면 어디서 갈릴까?",
+        sub: "슬라이더로 글자 회색을 바꾼다. 경계는 #767676 근처다.",
+        mount(body) {
+          body.innerHTML = `<div class="live"><div><div class="ltt-hero"><span id="cr">0</span><small>: 1</small></div>
+            <p id="bdg"></p><label class="ltt-param">글자 회색 <b id="gv" class="mono"></b><input type="range" id="g" min="64" max="204" value="119"></label></div>
+            <div class="ui" id="pv"><b style="font-size:24px">큰 글자 24px 굵게</b><p style="margin:8px 0 0">일반 글자 16px. 저장하지 않은 변경 사항이 있습니다.</p></div></div>
+            <span class="ltt-tag">모델로 계산한 예시</span>`;
+          const draw = () => {
+            const v = +LTT.$("g").value, r = ratio(gr(v), W);
+            LTT.tween("cr", r, fl2, 200);
+            LTT.$("gv").textContent = hex(gr(v));
+            LTT.$("pv").style.color = hex(gr(v));
+            LTT.$("bdg").innerHTML = badges(r);
+          };
+          LTT.$("g").addEventListener("input", draw);
+          return { enter: draw };
+        } },
+
+      { type: "explain", kicker: "한계", title: "숫자가 맞지 않는 곳",
+        steps: [
+          { icon: "🖼️", title: "이미지·그라디언트 위", text: "배경이 단색이 아니면 가장 나쁜 지점에서 따로 잰다." },
+          { icon: "🔠", title: "굵기·크기", text: "WCAG 2.x 식은 글자 굵기와 크기를 연속으로 반영하지 못한다." },
+          { icon: "🧪", title: "대안 APCA", text: "WCAG 3 초안의 대안 식이 제안되어 있으나 아직 표준이 아니다(불확실)." },
+        ] },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [{ ko: "색 대비비", en: "WCAG contrast ratio" }, { ko: "상대 휘도", en: "relative luminance" }],
+        signals: ["회색 보조 텍스트·placeholder·비활성 버튼 색을 정할 때", "브랜드 색 버튼 위 흰 글자가 괜찮은지 물을 때", "다크 모드 토큰을 새로 만들 때"],
+        queries: ["WCAG 1.4.3 contrast minimum", "WCAG 1.4.11 non-text contrast", "APCA contrast WCAG 3", "#767676 minimum gray AA"],
+        neighbors: [
+          { term: "색각 이상 대응", diff: "대비비가 높아도 색상만으로 구분하면 실패. 1.4.1 '색 사용' 기준." },
+          { term: "APCA", diff: "글자 크기·굵기·극성을 반영하는 대안 식. 숫자 척도가 다르다." },
+        ] },
+    ],
   });
 </script>
 </body>

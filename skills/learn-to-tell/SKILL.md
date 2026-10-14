@@ -51,27 +51,26 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 ## 3. 자료 (시뮬레이션 경로)
 
-1. `<skill>/gallery/`에서 가장 비슷한 예제를 골라 `<home>/lessons/<id>/lesson.html`로 복사한 뒤 고친다. 필요한 부품이 예제에 없으면 `visual-catalog.html`에서 ID로 찾아 옮긴다.
-   - `alert-precision.html`: 수치 모델, 슬라이더 예측과 단위 그림 공개 애니메이션, 건수 흐름 막대, 조건 프리셋 카드, 실사용 범위 슬라이더, Plot 차트, `expect`.
-   - `cache-ttl.html`: 수치 sweep. 단계형 로그 슬라이더, 세 범주 단위 그림 공개, 누적 영역 그래프와 따로 그린 두 번째 지표 그래프, 0으로 반올림되는 값의 "<1" 표시.
-   - `concurrent-calls.html`: 코드 변형 비교. 선택지 카드 예측, 기준 코드 대비 바뀐 줄 강조, 요청 타임라인(Gantt) 재생, 변형별 결과 비교 막대.
-   - `payment-retry.html`: 단계별 상태·흐름. 선택지 예측, 한 단계씩 진행하는 시퀀스 다이어그램과 상태 패널, 조건 조합 결과 행렬, 버그·수정 코드 비교.
-   - `realtime-transport.html`: 조건 토글 비교표. 선택지 예측, ✓/△/✗ 표에서 조건을 켜고 끄면 추천 열이 이동, 메시지 흐름 그림, 규칙의 한계를 보이는 사례.
-   - `visual-catalog.html`: 수업이 아니라 시각 요소 부품 모음(ID별: 핵심 수치, 비율·건수, 그래프, 흐름·상태, 비교·결정, 예측 입력, 주석).
-   - `template.html`: `ltt-parts.js` 공통 함수만으로 짠 최소 수업. 비슷한 예제가 없으면 여기서 시작한다.
-   - `<domain>/*.html`(uiux, pedagogy, finance, physics, cognition, linear-algebra, gpu): 코딩 밖 도메인의 예제. 모두 `ltt-parts.js`로 짰다. 각 페이지 head의 `ltt-meta`(audience, pattern, decision)를 보고 고른다. GPU 3편은 같은 주제를 전제 지식 수준별로 나눈 예다(`single-gpu-dataflow` = Transformer 모름, `single-gpu-transformer` = Transformer 앎).
+1. 수업은 장면 덱이다: `LTT.deck({title, scenes})` 하나에 장면 데이터를 적는다(`kit/ltt-deck.js`). 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면. 6–12장면, 학습 자료 20분 이내.
+   - `<skill>/gallery/`에서 가장 비슷한 예제를 골라 `<home>/lessons/<id>/lesson.html`로 복사한 뒤 장면 데이터만 고친다. 각 페이지 head의 `ltt-meta`(audience, pattern, mode, decision)로 고른다.
+   - 코딩 예제: `cache-ttl`, `concurrent-calls`, `payment-retry`, `realtime-transport`, `alert-precision`. 도메인 예제: `<domain>/*.html`(uiux, pedagogy, finance, physics, cognition, linear-algebra, gpu). GPU 3편은 같은 주제를 전제 지식 수준별로 나눈 예다(`single-gpu-dataflow` = Transformer 모름, `single-gpu-transformer` = Transformer 앎).
+   - `template.html`: 장면 타입마다 하나씩 둔 최소 덱. 비슷한 예제가 없으면 여기서 시작한다.
    - `index.html`: 시나리오 목록. 복사 대상이 아니다. gallery에 페이지를 추가하면 여기에도 카드를 추가한다.
-2. 시각화 기준: 인포그래픽 + 애니메이션
-   - 핵심 수치 하나를 `ltt-hero`로 크게 보인다. 비율은 `ltt-units`(100칸 단위 그림)나 `ltt-bar`(비율 막대)로 건수처럼 보인다.
-   - 예측 입력도 시각적으로 받는다(예: 슬라이더를 움직이면 단위 그림이 채워진다). 숫자 입력칸만 두지 않는다.
-   - 애니메이션은 변화의 의미를 보일 때만 쓴다: 예측 → 공개 전환, 조건 변경 시 값 이동(d3 transition tween, CSS transition), 공개 후 카드의 단계적 등장(`ltt-rise` + `--i`). 반복 재생되는 장식 애니메이션은 쓰지 않는다.
-   - 정지 화면만으로도 읽혀야 한다. JS로 만드는 애니메이션은 `prefers-reduced-motion`이면 길이를 0으로 둔다(CSS는 kit가 처리한다).
+2. 장면 타입 고르기
+   - `hook`: 이 개념이 내 작업의 어떤 결정을 바꾸는지 한 문장. 첫 장면.
+   - `explain`: 원인 → 과정 → 결과를 아이콘 칸 2–4개로. 수식 대신 이것을 먼저 쓴다.
+   - `compare`: 실제 사례가 여럿이면 2–4개를 같은 질문으로 나란히 둔다. 판정은 "판정 보기" 뒤에 공개하고, 판정을 미리 알려 주는 설명은 `noteAfter`로 숨긴다.
+   - 모션(`mount`가 `{enter, leave}`를 돌려주는 장면): `LTT.flow`, `units`, `bar`, `plane`, `sim`으로 변화·인과를 움직여 보인다. 장식용 반복 애니메이션은 쓰지 않는다. 정지 화면만으로도 읽혀야 한다.
+   - `predict`: 결과가 직관과 어긋날 때만, 그리고 사용자가 **세계·시스템**을 예측할 때만 쓴다. 사용자 자신의 편향(앵커링, 유창성 등)을 겨냥한 체험은 의도가 드러나 효과가 없으므로 연구 사례 `compare`와 설명으로 대신한다.
+   - 슬라이더(`mount` 안의 `LTT.sweep`): 조작 자체가 배움일 때만. 실사용 범위만 움직인다.
+   - 수식은 장면의 `tex`로 접어 둔다(KaTeX를 불러야 보인다). 그래프는 모양이 곧 메시지일 때만.
+   - `keywords`: **필수 마지막 장면**. 개념 이름(한/영), 떠올려야 할 신호, 검색어, 헷갈리는 이웃 개념. 학습 목표는 숙련이 아니라 다음에 비슷한 상황에서 무엇을 검색할지 떠올리는 것이다.
 3. 원칙
    - 실제 활용 예와 실패·주의 예를 함께 둔다.
-   - 예측을 먼저 받고 결과를 공개한다. 첫 예측은 잠그고 `LTT.record("predict", …)`로 남긴다.
-   - 슬라이더는 실사용 범위만 움직인다. 범위와 상수에는 근거를 적고, 근거가 약하면 "불확실" 태그를 단다. 근거 없는 수치를 지어내지 않는다.
+   - 예측을 받았다면 첫 예측은 잠기고 `LTT.record("predict", …)`로 남는다(`predict` 장면이 처리한다).
+   - 범위와 상수에는 근거(`basis`)를 적고, 근거가 약하면 "불확실" 태그를 단다. 근거 없는 수치를 지어내지 않는다.
    - 화면 수치에는 "모델로 계산한 예시" 태그를 단다.
-   - 설명은 최소로 두고, 추가 설명은 `data-tip` hover로 준다.
+   - 페이지에는 장면 데이터, 모델 함수, 작은 시각 CSS만 둔다. 레이아웃은 덱이 맡는다.
 4. 검증 (공개 전)
    - 수치 모델의 기대값은 독립 서브에이전트가 구하게 한다. 서브에이전트에는 공식과 계산 지점만 주고 모델 코드는 주지 않는다. 서브에이전트를 쓸 수 없으면 모델 코드보다 먼저 직접 적는다. 기대값은 `LTT.expect(label, actual, expected, { tol })`로 넣는다.
    - 불일치가 나면 어느 쪽이 틀렸는지 먼저 손으로 다시 계산한다. 모델에 맞춰 기대값을 고치지 않는다. 한 번 고친 뒤에도 불일치가 남으면 그 부분을 빼거나 "검증 실패"로 표시하고 사용자에게 알린다.
@@ -81,9 +80,9 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 ### kit (`/kit/ltt.js`)
 
-- 불러오는 순서: `/kit/vendor/d3.min.js`, `/kit/vendor/plot.umd.min.js`(Observable Plot 0.6.17, 전역 `Plot`), 수식이 있으면 `/kit/vendor/katex/katex.min.js`(+ `katex.min.css`), `/kit/ltt.js`, `/kit/ltt-parts.js`. `gallery/template.html`이 이 순서의 최소 예제다.
+- 불러오는 순서: `/kit/vendor/d3.min.js`, `/kit/vendor/plot.umd.min.js`(Observable Plot 0.6.17, 전역 `Plot`), 수식이 있으면 `/kit/vendor/katex/katex.min.js`(+ `katex.min.css`), `/kit/ltt.js`, `/kit/ltt-parts.js`, `/kit/ltt-deck.js`. Plot과 KaTeX는 쓸 때만 불러온다. `gallery/template.html`이 최소 예제다.
 - `LTT.record(type, data)`: lesson 페이지에서만 서버로 이벤트를 보낸다.
-- `LTT.expect(label, actual, expected, { tol })`: 결과를 화면 오른쪽 아래 패널에 표시하고, 불일치하면 서버에도 알린다. 모두 일치하면 패널은 요약 한 줄로 접혀 있고, 불일치가 하나라도 있으면 펼쳐진다.
+- `LTT.expect(label, actual, expected, { tol })`: 결과를 화면 오른쪽 아래 패널에 표시하고, 불일치하면 서버에도 알린다. 모두 일치하면 패널을 숨기고, 불일치가 하나라도 있으면 펼친 채로 보인다.
 - CSS 클래스: `ltt-card`, `ltt-grid`, `ltt-stat`, `ltt-tag`(`warn`/`bad`/`good`), `ltt-param`, `ltt-basis`, `ltt-lead`, `ltt-hidden`, `ltt-hero`, `ltt-units`·`ltt-unit`(열 수 `--ltt-cols`), `ltt-bar`(자식 `span`의 `flex-grow`로 비율), `ltt-key`(범례), `ltt-rise`(등장, 순서 `--i`). 단위 그림은 `--i`를 칸마다 주면 순서대로 칠해진다.
 - `ltt-parts.js` 공통 함수. 새 수업은 이것으로 짜고, 페이지에는 모델 함수와 설정만 둔다.
   - `LTT.predict({question, input | choices, button, preview, answer, hide, show, reveal})`: 첫 예측을 잠그고 기록한 뒤 공개한다. 선택지는 `data-choice` 버튼으로 둔다.
@@ -94,6 +93,7 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
   - `LTT.plane(svg, {range, vectors, shape}).to([[a,b],[c,d]])`: 2×2 행렬로 격자와 벡터를 변형한다.
   - `LTT.sim({init, step, draw, until, dt})`: 고정 시간 간격 시뮬레이션. `runToEnd()`로 화면 없이 결과를 계산한다.
   - `LTT.math()`: `data-tex`(블록 수식은 `data-display`도 붙임) 요소를 KaTeX로 그린다. 로드 시 자동 실행된다.
+  - `LTT.deck({title, scenes})`: 장면 타입 `hook`·`explain`·`compare`·`predict`·`keywords`, 모든 장면 공통 필드 `kicker`·`title`·`sub`·`basis`·`tex`·`mount(body, ctx) → {enter, leave}`. 장면은 처음 방문할 때 만들고 `enter`는 방문할 때마다 실행한다. ←/→ 키, URL `#n`, `scene` 이벤트 기록.
   - 이 함수들은 `prefers-reduced-motion`이면 애니메이션 길이를 0으로 둔다.
 - gallery 페이지의 `<script type="application/json" id="ltt-meta">`(domain, topic, audience, pattern, decision)로 복사할 예제를 고른다.
 - 수업마다 반복되는 패턴은 kit 어휘 후보다. `result.md`의 "kit 후보" 항목에 적는다.
@@ -119,6 +119,7 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 - agent에게 할 질문: <질문들>
 - 퀴즈: <문항별 pass/fail/skipped, 도움 여부>
 - 미룬 범위: <다음 회차 후보>
+- 검색어: <keywords 장면의 개념 이름과 검색어>
 - kit 후보: <반복된 패턴, 없으면 생략>
 ```
 

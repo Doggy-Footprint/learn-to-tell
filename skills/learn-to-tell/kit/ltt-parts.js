@@ -208,7 +208,7 @@
 
   // Box-and-arrow diagram whose arrows can carry animated packets; sizes are in viewBox units.
   function flow(svgEl, spec) {
-    var svg = d3.select(el(svgEl)).attr("class", "ltt-svg").attr("viewBox", spec.viewBox || "0 0 880 360");
+    var svg = d3.select(el(svgEl)).classed("ltt-svg", true).attr("viewBox", spec.viewBox || "0 0 880 360");
     var gLinks = svg.append("g"), gNodes = svg.append("g"), gPackets = svg.append("g");
     var nodes = spec.nodes;
     function center(id) { var n = nodes[id]; return [n.x + n.w / 2, n.y + n.h / 2]; }
