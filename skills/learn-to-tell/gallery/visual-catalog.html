@@ -122,6 +122,7 @@
   .stg { position: relative; border: 1px solid var(--ltt-line); border-radius: 12px; padding: 10px; transition: border-color .3s, box-shadow .3s; }
   .stg:not(:last-child)::after { content: "→"; position: absolute; right: -18px; top: 36%; color: var(--ltt-muted); font-size: 15px; }
   .stg.bn { border-color: var(--ltt-warn); box-shadow: 0 0 0 3px #fdf4e3; }
+  .stg.worst { border-width: 2px; box-shadow: 0 0 0 4px #fbe6c0; }
   .stg b { display: block; font-size: 14px; }
   .stg .num { font-size: 22px; font-weight: 700; }
   .stg .cap { font-size: 12px; color: var(--ltt-muted); }
@@ -488,7 +489,7 @@
         <p class="ent-impl">구현: HTML 블록 · CSS 대기열 막대 · 숫자 tween</p>
         <label class="ltt-param">유입량 <b id="d4-v">100건/초</b><input type="range" id="d4" min="20" max="200" step="5" value="100"></label>
         <div class="pipe" id="d4-pipe"></div>
-        <p class="ltt-basis">처리량 = min(들어온 양, 단계 용량). 넘치는 만큼 대기열이 초마다 쌓인다.</p>
+        <p class="ltt-basis">처리량 = min(들어온 양, 단계 용량). 넘치는 만큼 대기열이 초마다 쌓이고, 가장 빨리 쌓이는 단계가 가장 큰 병목이다. 앞 단계가 막히면 뒤 단계에는 그만큼만 들어간다.</p>
       </article>
       <article class="ltt-card ent" id="D5">
         <div class="ent-h"><span class="ent-id">D5</span><h3>결정 나무</h3></div>
@@ -1376,13 +1377,15 @@
       $("#d4-v").textContent = `${lam}건/초`;
       let input = lam;
       const flows = STG.map((s) => { const out = Math.min(input, s.cap), grow = input - out; input = out; return { out, grow }; });
-      const minCap = d3.least(STG, (s) => s.cap);
+      const maxGrow = d3.max(flows, (f) => f.grow);
       STG.forEach((s, i) => {
-        const b = boxes[i], f = flows[i], bn = s === minCap && lam > s.cap;
+        const b = boxes[i], f = flows[i], bn = f.grow > 0, worst = bn && f.grow === maxGrow;
         tweenNumber($(".num", b), f.out);
         $(".q i", b).style.width = Math.min(100, f.grow / 120 * 100) + "%";
         $(".qtxt", b).textContent = f.grow > 0 ? `대기열 +${f.grow}/초` : "대기열 없음";
         b.classList.toggle("bn", bn);
+        b.classList.toggle("worst", worst);
+        $(".ltt-tag", b).textContent = worst ? "⚠ 가장 큰 병목" : "⚠ 병목";
         $(".ltt-tag", b).classList.toggle("ltt-hidden", !bn);
       });
     }
@@ -1726,10 +1729,18 @@
       return b;
     });
     $("#f4-reset").addEventListener("click", () => {
-      if ($("#f4-lock").dataset.done) return;
       picks = [];
-      btns.forEach((b) => { b.classList.remove("set"); $(".badge", b).textContent = ""; });
+      delete $("#f4-lock").dataset.done;
+      $("#f4").append(...btns);
+      btns.forEach((b) => {
+        b.disabled = false;
+        b.classList.remove("set");
+        $(".badge", b).textContent = "";
+        $(".res", b).className = "res";
+        $(".res", b).textContent = "";
+      });
       $("#f4-lock").disabled = true;
+      $("#f4-res").textContent = "";
     });
     $("#f4-lock").addEventListener("click", () => {
       $("#f4-lock").dataset.done = "1";
