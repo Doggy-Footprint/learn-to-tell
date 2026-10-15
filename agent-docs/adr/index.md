@@ -27,3 +27,8 @@ File: 8a61c967e180bedb-desktop-only-min-720px.md
 Summary: 수업 화면을 폭 720px 이상 데스크톱 전용으로 하고 휴대폰 레이아웃·390×844 점검을 없앤 결정
 Related Files: skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-ui.js, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md
 Related Symbols: LTT.deck, LTT.auditScene, fit, measure
+---
+File: 0b47efebac2cbc9f-overview-after-recall.md
+Summary: 한 장 인포그래픽 정리를 summary(회상) 뒤, keywords 앞의 overview 장면으로 두고 수업마다 대표 그림 위에 직접 그리게 한 결정
+Related Files: skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md
+Related Symbols: LTT.deck, LTT.lintDeck, overview, summary
