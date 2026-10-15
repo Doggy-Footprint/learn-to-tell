@@ -387,12 +387,39 @@
       enter: (k) => cells.forEach((c, j) => c.style.background = j <= k ? (j === 2 ? "var(--ltt-warn)" : "var(--ltt-accent)") : "var(--ltt-line)"),
     })));
   });
-  demo("sweep", "LTT.sweep({params: {id: {map, fmt}}, render, goal: {el, text, target, check(values)}})", "<b>조작 자체가 배움일 때만.</b> range 입력이 하나의 <code>render(values)</code>를 움직인다. 실사용 범위만 움직인다. <code>goal</code>은 <code>el</code> 안에 목표 띠(견본 <code>target</code> + 문장)를 그리고, <code>check(values)</code>가 참이 되면 '맞췄다'를 켜고 <code>goal</code> 이벤트를 남긴다. 자유 조작 대신 맞출 목표를 준다.", (el) => {
-    el.innerHTML = `<div id="sw-g"></div><label class="ltt-param">TTL <b id="sw-v"></b><input type="range" id="sw" min="1" max="600" value="300"></label><div id="sw-b"></div>`;
+  demo("sweep", "LTT.sweep({params: {id: {kind, map, fmt, …}}, render, goal: {el, text, target, check(values)}})", "<b>조작 자체가 배움일 때만.</b> 손잡이가 하나의 <code>render(values)</code>를 움직인다. 실사용 범위만 움직인다. 손잡이는 변수의 모양으로 고른다: 1초~1시간처럼 자릿수가 바뀌면 <code>kind: \"log\"</code>. <code>goal</code>은 <code>el</code> 안에 목표 띠(견본 <code>target</code> + 문장)를 그리고, <code>check(values)</code>가 참이 되면 '맞췄다'를 켜고 <code>goal</code> 이벤트를 남긴다. 목표는 두 자리 이상에서 맞게, 시작 위치는 목표 밖에 둔다.", (el) => {
+    el.innerHTML = `<div id="sw-g"></div><label class="ltt-param">TTL <b id="sw-v"></b><input type="range" id="sw"></label><div id="sw-b"></div>`;
     const b = LTT.bar("sw-b", [{ color: "var(--ltt-warn)" }, { color: "var(--ltt-line-2)" }]);
     const pct = (sw) => Math.round(100 * sw / 1200);
-    LTT.sweep({ params: { sw: { fmt: (v) => v + "초" } }, render: ({ sw }) => { const s = pct(sw); b.set([s, 100 - s], [s + "%", ""]); },
+    LTT.sweep({ params: { sw: { kind: "log", min: 1, max: 3600, value: 300, map: (v) => +v.toPrecision(2), fmt: (v) => v + "초" } }, render: ({ sw }) => { const s = pct(sw); b.set([s, 100 - s], [s + "%", ""]); },
       goal: { el: "sw-g", target: "<b style='color:var(--ltt-warn)'>≤ 5%</b>", text: "옛 값을 보는 비율을 5% 이하로 낮추는 TTL을 찾아보자.", check: ({ sw }) => pct(sw) <= 5 } });
+  });
+  demo("sweep-kinds", "kind: \"steps\" · \"dial\" · \"pad\"", "<b>손잡이 모양 = 변수 모양.</b> 고정 단계는 <code>steps</code>, 순환하는 값(각도·색상·시각)은 <code>dial</code>, 서로 묶인 두 값은 <code>pad</code>. 여기서는 색상이 원을 돌기 때문에 다이얼, 채도·명도는 한 색 안에서 함께 움직이므로 평면이다. 간격 스케일처럼 정해진 값만 쓰는 변수는 단계 버튼이다.", (el) => {
+    el.innerHTML = `<div id="kn-g"></div><div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+      <div class="ltt-param">색상 <b id="h-v"></b><div id="h"></div></div><div class="ltt-param" style="flex:1;min-width:200px">채도·명도 <b id="sl-v"></b><div id="sl"></div></div></div>
+      <div class="ltt-param">테두리 두께<div id="bw"></div></div>`;
+    const ring = "conic-gradient(" + [0, 60, 120, 180, 240, 300, 360].map((h) => `hsl(${h} 80% 55%)`).join(",") + ")";
+    const target = `<i style="display:block;width:30px;height:30px;border-radius:8px;background:hsl(30 80% 55%)"></i>`;
+    LTT.sweep({
+      params: {
+        h: { kind: "dial", value: 220, step: 5, ring, fmt: (v) => v + "°", label: "색상" },
+        sl: { kind: "pad", x: { min: 0, max: 100, step: 5, value: 40 }, y: { min: 0, max: 100, step: 5, value: 40 }, labels: ["채도", "명도"], fmt: ([s, l]) => `${s}% · ${l}%` },
+        bw: { kind: "steps", stops: [0, 1, 2, 4, 8], value: 1, fmt: (v) => v + "px" },
+      },
+      render: ({ h, sl: [s, l], bw }) => {
+        el.querySelector("#h .mid").style.cssText = `background:hsl(${h} ${s}% ${l}%);box-shadow:0 0 0 ${bw}px var(--ltt-ink)`;
+      },
+      goal: { el: "kn-g", target, text: "가운데 색을 왼쪽 견본(주황)과 같게 만들어 보자.",
+        check: ({ h, sl: [s, l] }) => Math.abs(h - 30) <= 10 && Math.abs(s - 80) <= 10 && Math.abs(l - 55) <= 10 },
+    });
+  });
+  demo("drag", "LTT.drag(svg, {value, toSvg, fromSvg, bounds, step})", "<b>그림 속 대상을 직접 끈다.</b> 움직일 것이 그림에 있으면(벡터 끝, 막대 끝, 경계선) 옆 슬라이더 대신 그 대상을 잡게 한다. 돌려준 객체를 <code>sweep</code>의 <code>control</code>로 넘기면 <code>render</code>·<code>goal</code>을 그대로 쓴다.", (el) => {
+    el.innerHTML = `<div id="dr-g"></div><div id="dr" style="max-width:300px"></div><p class="ltt-basis">î = <b id="i-v"></b></p>`;
+    const svg = el.querySelector("#dr").appendChild(document.createElementNS("http://www.w3.org/2000/svg", "svg"));
+    const p = LTT.plane(svg, { range: 3, size: 300, vectors: [{ v: [1, 0], label: "î" }, { v: [0, 1], label: "ĵ", color: "var(--ltt-good)" }], shape: [[0, 0], [1, 0], [1, 1], [0, 1]] });
+    const i = LTT.drag(svg, { value: [1, 0], toSvg: p.toSvg, fromSvg: p.fromSvg, step: 0.5, bounds: [[-3, 3], [-3, 3]], label: "î 끝" });
+    LTT.sweep({ params: { i: { control: i } }, render: ({ i: [a, c] }) => p.to([[a, 0], [c, 1]], 0),
+      goal: { el: "dr-g", text: "î 끝을 끌어 색칠한 칸의 넓이를 2배로 만들어 보자.", check: ({ i: [a] }) => Math.abs(a) === 2 } });
   });
   demo("predict", "LTT.predict({question, choices, button, answer, show, reveal})", "<b>낮은 부담의 짐작.</b> 덱에서는 <code>type: \"predict\"</code>가 이것을 쓰고 '잘 모르겠다'를 자동으로 붙인다. 질문에 쓰는 용어는 앞 장면에서 풀어 둔다.", (el) => {
     el.innerHTML = `<div id="pc"><button data-choice="a">거의 0건</button><button data-choice="b">5건쯤</button><button data-choice="c">절반쯤</button></div><div class="dk-actions" style="margin-top:10px"><button id="pb" class="accent">정답 보기</button></div><p id="pa" class="ltt-hidden ltt-narr">약 5건. 평균 30초 묵은 값이 10분 안에 바뀔 확률은 5%.</p>`;

@@ -167,8 +167,8 @@
     "background:var(--ltt-accent-soft);color:var(--ltt-accent);margin-right:6px;vertical-align:middle;line-height:1.6;white-space:nowrap}",
     ".ltt-tag.warn{background:var(--ltt-warn-soft);color:var(--ltt-warn)}.ltt-tag.bad{background:var(--ltt-bad-soft);color:var(--ltt-bad)}",
     ".ltt-tag.good{background:var(--ltt-good-soft);color:var(--ltt-good)}.ltt-tag.muted{background:var(--ltt-card-2);color:var(--ltt-muted)}",
-    "label.ltt-param{display:block;margin:0 0 14px;font-weight:600;font-size:15px}",
-    "label.ltt-param b{float:right;font-variant-numeric:tabular-nums;font-family:var(--ltt-mono)}",
+    ".ltt-param{display:block;margin:0 0 14px;font-weight:600;font-size:15px}",
+    ".ltt-param>b{float:right;font-variant-numeric:tabular-nums;font-family:var(--ltt-mono)}",
     "input[type=range]{width:100%;accent-color:var(--ltt-accent);margin:8px 0 2px}",
     ".ltt-basis{font-size:13px;color:var(--ltt-muted);line-height:1.5}",
     "button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:10px 18px;background:var(--ltt-ink);",
@@ -551,6 +551,11 @@
     var out = [], hero = m.type === "figure" || m.layout === "full";
     function add(rule, msg) { out.push({ rule: rule, msg: msg }); }
     if (m.hscroll) add("hscroll", "가로로 넘친다 (폭 " + m.hscroll + "px 초과). 고정 폭을 max-width:100%로 바꿀 것");
+    (m.goals || []).forEach(function (g) {
+      if (!g.hits) add("goal-unreachable", "목표를 맞추는 손잡이 위치가 없다 (표본 " + g.samples + "개 중 0개). 기준이나 손잡이 범위를 고칠 것");
+      else if (g.hits < 2) add("goal-narrow", "목표가 손잡이 한 자리에서만 맞는다. 기준에 여유를 두어 두 자리 이상에서 맞게 할 것");
+      if (g.start) add("goal-at-start", "시작 위치에서 이미 목표가 맞는다. 시작값을 목표 밖으로 옮길 것");
+    });
     if (m.narrow) return out;
     if (m.overflow) add("overflow", "한 화면에 안 들어간다 (78%로 줄여도 넘친다). 해설·캡션을 줄이거나 장면을 나눌 것");
     else if (m.zoom < 0.88) add("shrunk", "화면에 맞추느라 " + Math.round(m.zoom * 100) + "%로 줄었다. 글을 줄이거나 장면을 나눌 것");
@@ -561,6 +566,39 @@
     if (hero && m.fill != null && m.fill < 0.6) add("empty-stage", "장면이 화면 높이의 " + Math.round(m.fill * 100) + "%만 쓴다. 그림을 키울 것");
     if (m.fontSizes > 7) add("many-sizes", "본문 글자 크기가 " + m.fontSizes + "단계다 (kit 부품 포함 7단계 이하). 페이지 CSS의 font-size를 kit 크기에 맞출 것");
     return out;
+  }
+
+  // Positions a control can take, for checking a goal offline; long ranges keep `cap` evenly spaced positions including both ends.
+  function stepValues(min, max, step, cap) {
+    cap = cap || 201;
+    var n = Math.floor((max - min) / step + 1e-9) + 1, digits = Math.max(0, -Math.floor(Math.log10(step)) + 2);
+    var at = function (i) { return +(min + i * step).toFixed(digits); };
+    if (n <= cap) return Array.from({ length: n }, function (_, i) { return at(i); });
+    return Array.from({ length: cap }, function (_, i) { return at(Math.round(i * (n - 1) / (cap - 1))); });
+  }
+
+  // Counts control positions where a sweep goal holds. Past `limit` combinations it samples with a fixed seed so audits repeat.
+  function goalReach(lists, check, start, limit) {
+    limit = limit || 20000;
+    var ids = Object.keys(lists), total = ids.reduce(function (n, id) { return n * lists[id].length; }, 1);
+    var ok = function (v) { try { return !!check(v); } catch (e) { return false; } };
+    var seed = 1, rand = function () {
+      seed = (seed + 0x6d2b79f5) | 0;
+      var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    var n = Math.min(total, limit), hits = 0;
+    for (var k = 0; k < n; k++) {
+      var v = {}, r = k;
+      ids.forEach(function (id) {
+        var list = lists[id], i;
+        if (total <= limit) { i = r % list.length; r = Math.floor(r / list.length); } else i = Math.floor(rand() * list.length);
+        v[id] = list[i];
+      });
+      if (ok(v)) hits++;
+    }
+    return { samples: n, hits: hits, start: start ? ok(start) : false };
   }
 
   function theme(name) {
@@ -643,6 +681,7 @@
     icon: icon, icons: Object.keys(ICONS), theme: theme, themeTokens: themeTokens, palette: palette, contrast: contrast, mark: mark, marks: Object.keys(MARKS),
     themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
     termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene,
+    stepValues: stepValues, goalReach: goalReach,
     setGlossary: setGlossary, linkTerms: linkTerms
   };
 })(typeof globalThis !== "undefined" ? globalThis : this);

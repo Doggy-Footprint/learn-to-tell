@@ -92,7 +92,8 @@ lint는 장면 데이터만 본다. 실제로 그려진 화면은 URL에 `?audit
 | `loose-figure` | figure 그림이 figure 무대의 35% 미만 |
 | `empty-stage` | figure·full 장면이 화면 높이의 60% 미만만 쓴다 |
 | `many-sizes` | 장면 본문(목업·SVG 제외)의 글자 크기가 7단계 초과 |
-| `hscroll` | 가로로 넘친다. 휴대폰 폭(720px 이하)에서는 이것만 본다 |
+| `hscroll` | 가로로 넘친다. 휴대폰 폭(720px 이하)에서는 이것과 아래 `goal-*`만 본다 |
+| `goal-unreachable`, `goal-narrow`, `goal-at-start` | `sweep` 목표가 손잡이의 어느 자리에서도 안 맞는다 / 한 자리에서만 맞는다 / 시작 위치에서 이미 맞는다. 자리는 손잡이마다 최대 201곳(pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다 |
 
 1440×900과 390×844 두 크기에서 0건이어야 한다.
 
@@ -148,9 +149,10 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `LTT.units(el, n, cols, {band}).paint(k, cls, alt)` | 단위 그림(100칸 = 100건). `band: true`면 가는 틱의 넓은 띠(예: 2×50, 시간순 요청). |
 | `LTT.bar(el, [{color}]).set(values, labels)` | 비율 막대. |
 | `LTT.tween(el, to, fmt, ms)` | 숫자 변화. |
-| `LTT.sweep({params: {id: {map, fmt}}, render, presets, goal})` | range 입력 → `render(values)`. 조작 자체가 배움일 때만, 실사용 범위만. `goal: {el, text, target, check(values)}`는 `el` 안에 목표 띠(목표 견본 `target` + 문장)를 그리고, `check`가 참이면 "맞췄다" 표시와 `goal` 이벤트를 남긴다. 자유 조작 대신 목표를 준다. |
+| `LTT.sweep({params: {id: {kind, map, fmt, label, …}}, render, presets, goal})` | 손잡이 → `render(values)`. 조작 자체가 배움일 때만, 실사용 범위만. 손잡이는 `#id` 요소에 붙고 `#id-v`에 `fmt(값)`이 들어간다. `kind`: `"range"`(기본, `#id`는 `<input type=range>`, 값 = `map(input.value)`), `"log"`(`#id`는 range 입력, `{min, max, value}`, 자릿수마다 같은 거리), `"steps"`(`#id`는 빈 `div`, `{stops, value, stopLabel}`, 단계 버튼), `"dial"`(빈 `div`, `{period=360, step=1, value, ring}`, 0이 위·시계 방향, `ring`은 고리 배경 CSS, 가운데 `.mid`는 페이지가 채워도 된다), `"pad"`(빈 `div`, `{x: {min, max, step, value}, y: {…}, labels, bg}`, 값 `[x, y]`, y는 위로 증가). `control`에 `LTT.drag(...)` 같은 손잡이 객체를 주면 `#id` 없이 그것을 쓴다. `"range"` 외 손잡이는 화살표 키로도 움직이고 덱 장면 넘김을 막는다. `presets` 버튼의 `data-preset`은 range는 입력값, 나머지는 손잡이 값이다. `goal: {el, text, target, check(values)}`는 `el` 안에 목표 띠(목표 견본 `target` + 문장)를 그리고, `check`가 참이면 "맞췄다" 표시와 `goal` 이벤트를 남긴다. `check`는 값만 보는 순수 함수여야 한다(`?audit`이 손잡이 자리마다 부른다). |
+| `LTT.drag(svg, {value, toSvg, fromSvg, bounds, step, color, label, r})` | 그림 속 대상을 직접 끄는 손잡이. `svg` 위에 점선 원을 그리고, 끌거나 화살표 키로 옮기면 값 `[x, y]`가 `step`으로 맞춰지고 `bounds: [[xmin, xmax], [ymin, ymax]]` 안에 머문다. `toSvg`/`fromSvg`는 데이터 ⇄ SVG 좌표 변환(`LTT.plane`이 같은 이름으로 준다). 돌려주는 객체를 `sweep` `params`의 `control`로 넘긴다. 원 위치만 옮기고, 화살표·도형은 `render`가 다시 그린다. |
 | `LTT.predict({...})` | 첫 짐작을 잠그고 기록. 덱의 predict 장면이 쓴다. |
-| `LTT.plane(svg, {range, vectors, shape}).to(m)` | 2×2 행렬 변환. |
+| `LTT.plane(svg, {range, vectors, shape}).to(m)` | 2×2 행렬 변환. `toSvg(p)`/`fromSvg(p)`는 평면 좌표 ⇄ SVG 좌표로, `LTT.drag`에 그대로 넘긴다. |
 | `LTT.sim({init, step, draw, until, dt, onEnd})` | 고정 간격 시뮬레이션. `runToEnd()`는 화면 없이 결과만. |
 | `LTT.sequence(svg, {actors, items, spans, col, row})` | 시퀀스 다이어그램. 배우 `{id, l, s, icon, k}`, `items`는 시간순으로 메시지 `{f, t, l, kind: "sync"\|"async"\|"reply", k, flaw, id}`와 메모 `{note, over: [ids]}`. sync는 받는 쪽 활성 막대를 열고, 그 배우의 다음 reply가 닫는다. f = t면 자기 호출 고리. `spans: [{from, to, l, k}]`는 두 메시지 id 사이 시간 구간(왼쪽 괄호). `.show(n)`, `.highlight(ids)`, `.send(id)`, `.player(el, [{caption, upto, hot}])`(upto 기본 = 단계 번호 + 1, 마지막 메시지에 패킷). 재시도·인증·타임아웃 순서 수업. |
 | `LTT.sequenceLayout(spec)` | 좌표만 계산(테스트용). |

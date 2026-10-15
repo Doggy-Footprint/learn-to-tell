@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>행렬은 공간을 어떻게 바꾸는가?</title>
-<script type="application/json" id="ltt-meta">{"domain":"선형대수","topic":"행렬 = 공간의 변환, det = 면적 배율, 곱 = 합성","audience":"벡터와 행렬 곱셈 계산 규칙은 안다","pattern":["hook","terms","figure","compare","sweep:split","predict","statement","explain","summary","keywords"],"theme":"paper","medium":"교과서 그림: 크게 그린 격자 변형과 그 옆의 행렬 읽기","mode":"체험형: 용어를 풀고 격자가 변형되는 모습을 보며 열·det·곱 순서를 읽은 뒤, 곱 순서를 짐작해 본다","decision":"행렬의 열(기저 벡터가 가는 곳)과 det로 변환의 모양·면적 배율·가역성을 읽고, 곱 순서를 정한다"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"선형대수","topic":"행렬 = 공간의 변환, det = 면적 배율, 곱 = 합성","audience":"벡터와 행렬 곱셈 계산 규칙은 안다","pattern":["hook","terms","figure","compare","drag:split","predict","statement","explain","summary","keywords"],"theme":"paper","medium":"교과서 그림: 크게 그린 격자 변형과 그 옆의 행렬 읽기","mode":"체험형: 용어를 풀고 격자가 변형되는 모습을 보며 열·det·곱 순서를 읽은 뒤, 곱 순서를 짐작해 본다","decision":"행렬의 열(기저 벡터가 가는 곳)과 det로 변환의 모양·면적 배율·가역성을 읽고, 곱 순서를 정한다"}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
@@ -29,8 +29,9 @@
   .ord b { font-weight: 700; } .ord .pa { color: var(--ltt-muted); font-weight: 400; }
   .mx { font-size: clamp(16px, 1.5vw, 19px); }
   .i-hat { color: var(--ltt-accent); font-weight: 750; } .j-hat { color: var(--ltt-good); font-weight: 750; }
-  .sl { display: grid; gap: 0 16px; grid-template-columns: 1fr 1fr; width: 100%; }
-  .sl .ltt-param { margin: 0 0 6px; }
+  .mxv { display: flex; align-items: center; gap: 12px; font: 700 clamp(18px, 1.8vw, 24px) var(--ltt-mono); }
+  .mxv > div { display: grid; grid-template-columns: auto auto; gap: 2px 20px; padding: 4px 12px; text-align: right;
+    border-left: 2px solid var(--ltt-ink); border-right: 2px solid var(--ltt-ink); border-radius: 6px; }
   .ab { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; text-align: center; }
   .ab svg { max-height: 26vh; margin: 0 auto; }
 </style>
@@ -148,32 +149,34 @@
         takeaway: "det가 넓이 배율, 부호가 뒤집힘, 0이 '되돌릴 수 없음'을 말한다.",
         recall: "det의 크기, 부호, 그리고 det = 0은 각각 변환에 대해 무엇을 말하는가?" },
 
-      { kicker: "직접 바꿔 보기", title: "네 숫자를 움직이며 det를 지켜본다", en: "Try it", layout: "split", bare: true,
+      { kicker: "직접 끌어 보기", title: "î와 ĵ 끝을 끌며 det를 지켜본다", en: "Try it", layout: "split", bare: true,
         narration: [
-          "행렬 [[a, b], [c, d]]의 네 숫자를 바꿔 보자. 큰 숫자가 지금 행렬의 {{행렬식}}이다.",
-          "det가 0에 가까워지면 격자가 납작해지고, 0을 지나 음수가 되면 뒤집혀 거울상이 된다. ad − bc는 두 열이 만드는 평행사변형의 넓이를 계산한 식이고, ad와 bc가 같아지면 0이 된다.",
+          "점선 원이 달린 î와 ĵ의 끝을 끌어 보자. 끝의 좌표가 곧 행렬의 두 열이고, 큰 숫자가 지금 행렬의 {{행렬식}}이다.",
+          "두 화살표가 한 직선 위에 놓이면 det가 0이 되어 격자가 납작해지고, 그 직선을 넘어가면 음수가 되어 뒤집힌다. ad − bc는 두 화살표가 만드는 평행사변형의 넓이다.",
         ],
         mount: (body) => {
-          body.innerHTML = `<div class="pl"><div></div><div><div class="ltt-hero"><span id="dv">1</span><small>= det</small></div><p id="dn"></p>
-            <div class="gl"></div><div class="sl">${["a", "b", "c", "d"].map((k, i) => `<label class="ltt-param">${k} <b id="${k}-v"></b><input type="range" id="${k}" min="-2" max="2" step="0.01" value="${[1, 0, 0, 1][i]}"></label>`).join("")}</div></div></div>`;
-          const p = mkPlane(body.querySelector(".pl > div"), 5, 460);
+          body.innerHTML = `<div class="pl"><div></div><div><div class="gl"></div><div class="ltt-hero"><span id="dv">1</span><small>= det</small></div><p id="dn"></p>
+            <div class="mxv"><span>A =</span><div id="mxv"></div></div><p class="ltt-basis">원을 끌거나, 원을 누른 뒤 화살표 키로 0.5칸씩 옮긴다.</p></div></div>`;
+          const p = mkPlane(body.querySelector(".pl > div"), 5, 460), svg = body.querySelector(".pl svg");
+          const tip = (value, color, label) => LTT.drag(svg, { value, color, label, toSvg: p.toSvg, fromSvg: p.fromSvg, step: 0.5, bounds: [[-2.5, 2.5], [-2.5, 2.5]] });
           LTT.sweep({
-            params: { a: { fmt }, b: { fmt }, c: { fmt }, d: { fmt } },
-            render: ({ a, b, c, d }) => {
-              const m = [[a, b], [c, d]], dt = det(m);
+            params: { i: { control: tip([1, 0], "var(--ltt-accent)", "î 끝 = 첫째 열") }, j: { control: tip([0, 1], "var(--ltt-good)", "ĵ 끝 = 둘째 열") } },
+            render: ({ i, j }) => {
+              const m = [[i[0], j[0]], [i[1], j[1]]], dt = det(m);
               p.to(m, 0);
               LTT.tween("dv", dt, d3.format(".2f"));
+              LTT.$("mxv").innerHTML = [i[0], j[0], i[1], j[1]].map((x, k) => `<b class="${k % 2 ? "j-hat" : "i-hat"}">${fmt(x)}</b>`).join("");
               LTT.$("dn").innerHTML = Math.abs(dt) < 0.01 ? '<span class="ltt-tag bad">넓이 0</span> 직선으로 찌부러짐: 되돌릴 수 없음'
                 : dt < 0 ? '<span class="ltt-tag warn">det&lt;0</span> 방향이 뒤집힘(거울상)' : '<span class="ltt-tag good">det&gt;0</span> 방향 유지';
             },
             goal: { el: body.querySelector(".gl"), target: '<span class="ltt-tag bad">det 0</span>',
-              text: "네 숫자를 하나도 0으로 두지 않고, 평면을 직선으로 찌부러뜨려 되돌릴 수 없게 만들어 본다.",
-              check: ({ a, b, c, d }) => Math.abs(det([[a, b], [c, d]])) < 0.01 && [a, b, c, d].every((x) => Math.abs(x) >= 0.1) },
+              text: "행렬의 네 숫자를 하나도 0으로 두지 않고, 평면을 직선으로 찌부러뜨려 되돌릴 수 없게 만들어 본다.",
+              check: ({ i, j }) => Math.abs(det([[i[0], j[0]], [i[1], j[1]]])) < 0.01 && [...i, ...j].every((x) => Math.abs(x) >= 0.1) },
           });
           return {};
         },
         tex: "\\det\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}=ad-bc",
-        basis: "슬라이더 −2~2는 격자가 화면을 벗어나지 않게 고른 표시용 범위다.",
+        basis: "끌기 범위 −2.5~2.5와 0.5칸 단위는 격자가 화면을 벗어나지 않고 숫자를 읽기 쉽게 고른 표시용 값이다.",
         takeaway: "det는 ad − bc, 두 열이 만드는 평행사변형의 넓이다.",
         recall: "[[a, b], [c, d]]의 det는 어떻게 계산하고, 격자 그림에서 무엇의 넓이인가?" },
 

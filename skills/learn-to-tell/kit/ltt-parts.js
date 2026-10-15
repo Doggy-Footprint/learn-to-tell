@@ -19,6 +19,25 @@
     ".ltt-goal .tgt{flex:none;display:flex}.ltt-goal .tx{flex:1;font-weight:650;line-height:1.4}",
     ".ltt-goal .ok{flex:none;font-size:13px;font-weight:800;color:var(--ltt-good);visibility:hidden}",
     ".ltt-goal.done{background:var(--ltt-good-soft);box-shadow:inset 0 0 0 2px var(--ltt-good)}.ltt-goal.done .ok{visibility:visible}",
+    ".ltt-steps{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}",
+    ".ltt-steps button{padding:7px 13px;font-size:14px;font-variant-numeric:tabular-nums;background:var(--ltt-card);color:var(--ltt-ink);box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
+    ".ltt-steps button[aria-pressed=true]{background:var(--ltt-accent);color:var(--ltt-on-accent);box-shadow:none}",
+    ".ltt-dial{--size:168px;position:relative;width:var(--size);height:var(--size);border-radius:50%;cursor:grab;margin:8px auto 2px}",
+    ".ltt-dial.grab{cursor:grabbing}",
+    ".ltt-dial .ring{position:absolute;inset:0;border-radius:50%;background:var(--ltt-line-2);",
+    "-webkit-mask:radial-gradient(closest-side,transparent 72%,#000 73%);mask:radial-gradient(closest-side,transparent 72%,#000 73%)}",
+    ".ltt-dial .mid{position:absolute;inset:24%;border-radius:50%;display:grid;place-items:center;font-weight:750;font-variant-numeric:tabular-nums}",
+    ".ltt-dial .knob{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:var(--ltt-card);",
+    "box-shadow:0 0 0 2.5px var(--ltt-ink),0 2px 6px rgba(0,0,0,.25);transform:rotate(var(--a,0deg)) translateY(calc(var(--size) * -.43))}",
+    ".ltt-pad{position:relative;padding:0 0 22px 22px;margin:8px 0 2px}",
+    ".ltt-pad .area{position:relative;aspect-ratio:1;max-width:240px;border-radius:var(--ltt-r-sm,10px);cursor:crosshair;background:var(--ltt-card-2);",
+    "box-shadow:inset 0 0 0 1.5px var(--ltt-line-2);background-image:linear-gradient(var(--ltt-line) 1px,transparent 1px),linear-gradient(90deg,var(--ltt-line) 1px,transparent 1px);background-size:25% 25%}",
+    ".ltt-pad .dot{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:var(--ltt-accent);box-shadow:0 0 0 3px var(--ltt-card),0 2px 6px rgba(0,0,0,.3)}",
+    ".ltt-pad .lx{position:absolute;left:22px;bottom:0;font-size:12px;color:var(--ltt-muted)}",
+    ".ltt-pad .ly{position:absolute;left:0;top:0;font-size:12px;color:var(--ltt-muted);writing-mode:vertical-rl;transform:rotate(180deg)}",
+    ".ltt-drag circle{fill:color-mix(in srgb,var(--c) 18%,transparent);stroke:var(--c);stroke-width:2;stroke-dasharray:4 3;cursor:grab}",
+    ".ltt-drag circle:hover,.ltt-drag circle.grab{fill:color-mix(in srgb,var(--c) 32%,transparent);stroke-dasharray:none}",
+    ".ltt-drag circle:focus-visible{outline:none;stroke-width:3.5;stroke-dasharray:none}",
     ".ltt-stepper{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 0}",
     ".ltt-stepper button{padding:7px 14px;font-size:14px}",
     ".ltt-dots{display:flex;gap:5px;flex:1}.ltt-dots i{flex:1;max-width:40px;height:5px;border-radius:3px;background:var(--ltt-line);",
@@ -209,17 +228,19 @@
     return { get value() { return value; }, get locked() { return locked; } };
   }
 
-  // Range inputs drive one render(values); `#<id>-v` gets the formatted value when present.
+  // Each parameter is a control {read, write, raws}; `map` turns its raw position into the value render() gets.
+  // `#<id>-v` gets the formatted value when present. Controls stop arrow keys from reaching the deck's scene navigation.
   function sweep(opts) {
-    var ids = Object.keys(opts.params);
+    var ids = Object.keys(opts.params), ctl = {};
+    ids.forEach(function (id) { ctl[id] = control(id, opts.params[id]); });
+    function valueOf(id, raw) { var p = opts.params[id]; return p.map ? p.map(raw) : raw; }
     function values() {
       var v = {};
       ids.forEach(function (id) {
         var p = opts.params[id];
-        var raw = Number($(id).value);
-        v[id] = p.map ? p.map(raw) : raw;
+        v[id] = valueOf(id, ctl[id].read());
         var label = $(id + "-v");
-        if (label) label.textContent = p.fmt ? p.fmt(v[id]) : String(v[id]);
+        if (label) label.textContent = p.fmt ? p.fmt(v[id]) : fmtValue(v[id]);
       });
       return v;
     }
@@ -233,18 +254,237 @@
       if (hit && !reached) LTT.record("goal", { goal: goal.querySelector(".tx").textContent, values: v });
       reached = reached || hit;
     }
-    ids.forEach(function (id) { $(id).addEventListener("input", render); });
+    ids.forEach(function (id) { ctl[id].on(render); });
     if (opts.presets) {
       document.querySelectorAll(opts.presets).forEach(function (btn) {
         btn.addEventListener("click", function () {
           var set = JSON.parse(btn.dataset.preset);
-          Object.keys(set).forEach(function (k) { $(k).value = set[k]; });
+          Object.keys(set).forEach(function (k) { ctl[k].write(set[k]); });
           render();
         });
       });
     }
+    if (goal) {
+      var lists = {}, start = {};
+      ids.forEach(function (id) {
+        lists[id] = ctl[id].raws().map(function (r) { return valueOf(id, r); });
+        start[id] = valueOf(id, ctl[id].read());
+      });
+      var reach = LTT.goalReach(lists, opts.goal.check, start);
+      goal.dataset.hits = reach.hits;
+      goal.dataset.samples = reach.samples;
+      goal.dataset.start = reach.start ? "1" : "0";
+    }
     if (opts.immediate !== false) render();
-    return { render: render, values: values };
+    return { render: render, values: values, controls: ctl };
+  }
+
+  function fmtValue(v) { return Array.isArray(v) ? v.join(", ") : String(v); }
+
+  function control(id, p) {
+    if (p.control) return p.control;
+    var node = $(id);
+    if (!node) throw new Error("sweep param '" + id + "' has no element #" + id);
+    var kind = p.kind || "range";
+    if (kind === "range") return rangeControl(node);
+    if (kind === "log") return logControl(node, p);
+    if (kind === "steps") return stepsControl(node, p);
+    if (kind === "dial") return dialControl(node, p);
+    if (kind === "pad") return padControl(node, p);
+    throw new Error("unknown sweep kind '" + kind + "' (range, log, steps, dial, pad)");
+  }
+
+  function emitter() {
+    var fns = [];
+    return { on: function (f) { fns.push(f); }, fire: function () { fns.forEach(function (f) { f(); }); } };
+  }
+
+  function rangeControl(input) {
+    var num = function (a, d) { var x = parseFloat(input.getAttribute(a)); return isFinite(x) ? x : d; };
+    var step = input.getAttribute("step") === "any" ? (num("max", 100) - num("min", 0)) / 200 : num("step", 1);
+    return {
+      read: function () { return Number(input.value); },
+      write: function (r) { input.value = r; },
+      raws: function () { return LTT.stepValues(num("min", 0), num("max", 100), step); },
+      on: function (f) { input.addEventListener("input", f); }
+    };
+  }
+
+  // Log position 0..1000 on the input; the value is min·(max/min)^(pos/1000), so each decade gets equal travel.
+  function logControl(input, p) {
+    if (!(p.min > 0 && p.max > p.min)) throw new Error("log kind needs 0 < min < max");
+    var span = Math.log(p.max / p.min);
+    input.min = 0; input.max = 1000; input.step = 1;
+    var toV = function (pos) { return p.min * Math.exp(span * pos / 1000); };
+    var toPos = function (v) { return Math.round(1000 * Math.log(Math.max(p.min, Math.min(p.max, v)) / p.min) / span); };
+    input.value = toPos(p.value == null ? p.min : p.value);
+    return {
+      read: function () { return toV(Number(input.value)); },
+      write: function (v) { input.value = toPos(v); },
+      raws: function () { return LTT.stepValues(0, 1000, 5).map(toV); },
+      on: function (f) { input.addEventListener("input", f); }
+    };
+  }
+
+  function stepsControl(box, p) {
+    if (!p.stops || !p.stops.length) throw new Error("steps kind needs stops");
+    var ev = emitter(), cur = p.value == null ? p.stops[0] : p.value;
+    box.classList.add("ltt-steps");
+    box.setAttribute("role", "group");
+    if (p.label) box.setAttribute("aria-label", p.label);
+    var btns = p.stops.map(function (v) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = p.stopLabel ? p.stopLabel(v) : p.fmt ? p.fmt(p.map ? p.map(v) : v) : fmtValue(v);
+      b.addEventListener("click", function () { write(v); ev.fire(); });
+      b.addEventListener("keydown", function (e) {
+        var d = e.key === "ArrowRight" || e.key === "ArrowUp" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowDown" ? -1 : 0;
+        if (!d) return;
+        e.preventDefault(); e.stopPropagation();
+        var i = Math.max(0, Math.min(p.stops.length - 1, p.stops.indexOf(cur) + d));
+        write(p.stops[i]); btns[i].focus(); ev.fire();
+      });
+      box.appendChild(b);
+      return b;
+    });
+    function write(v) {
+      cur = v;
+      btns.forEach(function (b, i) { b.setAttribute("aria-pressed", String(p.stops[i] === v)); });
+    }
+    write(cur);
+    return { read: function () { return cur; }, write: write, raws: function () { return p.stops.slice(); }, on: ev.on };
+  }
+
+  function keyStep(e) {
+    return { ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowLeft: [-1, 0], ArrowDown: [0, -1], PageUp: [10, 10], PageDown: [-10, -10] }[e.key];
+  }
+
+  // 0 points up and values grow clockwise, as on a clock face and most colour wheels; `period` wraps back to 0.
+  function dialControl(box, p) {
+    var ev = emitter(), period = p.period || 360, step = p.step || 1, cur = p.value || 0;
+    box.classList.add("ltt-dial");
+    box.innerHTML = "<div class='ring'></div><div class='mid'></div><div class='knob'></div>";
+    if (p.ring) box.querySelector(".ring").style.background = p.ring;
+    box.tabIndex = 0;
+    box.setAttribute("role", "slider");
+    box.setAttribute("aria-valuemin", 0);
+    box.setAttribute("aria-valuemax", period);
+    if (p.label) box.setAttribute("aria-label", p.label);
+    function snap(v) { v = Math.round(v / step) * step; return +(((v % period) + period) % period).toFixed(6); }
+    function write(v) {
+      cur = snap(v);
+      box.style.setProperty("--a", (cur / period * 360) + "deg");
+      box.setAttribute("aria-valuenow", cur);
+    }
+    function fromPointer(e) {
+      var r = box.getBoundingClientRect();
+      var deg = Math.atan2(e.clientX - r.left - r.width / 2, -(e.clientY - r.top - r.height / 2)) * 180 / Math.PI;
+      write((deg + 360) % 360 / 360 * period);
+      ev.fire();
+    }
+    dragOn(box, fromPointer);
+    box.addEventListener("keydown", function (e) {
+      var k = keyStep(e);
+      if (!k) return;
+      e.preventDefault(); e.stopPropagation();
+      write(cur + (k[0] || k[1]) * step);
+      ev.fire();
+    });
+    write(cur);
+    return {
+      read: function () { return cur; }, write: write, on: ev.on,
+      raws: function () { return LTT.stepValues(0, period - step, step, 360); }
+    };
+  }
+
+  // Two coupled values as one point; y grows upward like a chart. The value is [x, y].
+  function padControl(box, p) {
+    var ev = emitter(), ax = p.x || {}, ay = p.y || {};
+    [ax, ay].forEach(function (a) { a.min = a.min == null ? 0 : a.min; a.max = a.max == null ? 100 : a.max; a.step = a.step || 1; });
+    var cur = [ax.value == null ? ax.min : ax.value, ay.value == null ? ay.min : ay.value];
+    box.classList.add("ltt-pad");
+    box.innerHTML = "<div class='area'><i class='dot' tabindex='0' role='slider'></i></div>"
+      + (p.labels ? "<span class='lx'>" + p.labels[0] + " →</span><span class='ly'>" + p.labels[1] + " →</span>" : "");
+    var area = box.querySelector(".area"), dot = box.querySelector(".dot");
+    if (p.bg) area.style.background = p.bg;
+    if (p.label) dot.setAttribute("aria-label", p.label);
+    function fit(a, v) { return +Math.max(a.min, Math.min(a.max, a.min + Math.round((v - a.min) / a.step) * a.step)).toFixed(6); }
+    function write(v) {
+      cur = [fit(ax, v[0]), fit(ay, v[1])];
+      dot.style.left = ((cur[0] - ax.min) / (ax.max - ax.min) * 100) + "%";
+      dot.style.top = ((1 - (cur[1] - ay.min) / (ay.max - ay.min)) * 100) + "%";
+      dot.setAttribute("aria-valuetext", fmtValue(cur));
+    }
+    dragOn(area, function (e) {
+      var r = area.getBoundingClientRect();
+      write([ax.min + (e.clientX - r.left) / r.width * (ax.max - ax.min), ay.max - (e.clientY - r.top) / r.height * (ay.max - ay.min)]);
+      ev.fire();
+    });
+    dot.addEventListener("keydown", function (e) {
+      var k = keyStep(e);
+      if (!k) return;
+      e.preventDefault(); e.stopPropagation();
+      write([cur[0] + k[0] * ax.step, cur[1] + k[1] * ay.step]);
+      ev.fire();
+    });
+    write(cur);
+    return {
+      read: function () { return cur.slice(); }, write: write, on: ev.on,
+      raws: function () {
+        var xs = LTT.stepValues(ax.min, ax.max, ax.step, 41), ys = LTT.stepValues(ay.min, ay.max, ay.step, 41), out = [];
+        xs.forEach(function (x) { ys.forEach(function (y) { out.push([x, y]); }); });
+        return out;
+      }
+    };
+  }
+
+  function dragOn(node, move) {
+    node.style.touchAction = "none";
+    node.addEventListener("pointerdown", function (e) {
+      node.setPointerCapture(e.pointerId);
+      node.classList.add("grab");
+      move(e);
+    });
+    node.addEventListener("pointermove", function (e) { if (node.hasPointerCapture(e.pointerId)) move(e); });
+    ["pointerup", "pointercancel"].forEach(function (t) { node.addEventListener(t, function () { node.classList.remove("grab"); }); });
+  }
+
+  // A handle on the figure itself, for when the thing to move is drawn (a vector tip, a bar end): the hand moves the object,
+  // not a slider beside it. o.toSvg/o.fromSvg convert data ⇄ SVG user units; the value snaps to `step` inside `bounds`.
+  // The handle is appended last once and never re-inserted: moving the node in the DOM drops focus and pointer capture mid-drag.
+  function drag(svgNode, o) {
+    var svg = el(svgNode), ev = emitter(), step = o.step || 1, b = o.bounds;
+    if (!b) throw new Error("drag needs bounds [[xmin, xmax], [ymin, ymax]]");
+    var g = d3.select(svg).append("g").attr("class", "ltt-drag").style("--c", o.color || "var(--ltt-accent)");
+    var c = g.append("circle").attr("r", o.r || 13).attr("tabindex", 0).attr("role", "slider").attr("aria-label", o.label || "끌어서 옮기기");
+    var cur;
+    function fit(v, i) { return +Math.max(b[i][0], Math.min(b[i][1], Math.round(v / step) * step)).toFixed(6); }
+    function write(v) {
+      cur = [fit(v[0], 0), fit(v[1], 1)];
+      var s = o.toSvg(cur);
+      c.attr("cx", s[0]).attr("cy", s[1]).attr("aria-valuetext", fmtValue(cur));
+    }
+    dragOn(c.node(), function (e) {
+      var pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM().inverse());
+      write(o.fromSvg([pt.x, pt.y]));
+      ev.fire();
+    });
+    c.on("keydown", function (e) {
+      var k = keyStep(e);
+      if (!k) return;
+      e.preventDefault(); e.stopPropagation();
+      write([cur[0] + Math.sign(k[0]) * step, cur[1] + Math.sign(k[1]) * step]);
+      ev.fire();
+    });
+    write(o.value || [0, 0]);
+    return {
+      read: function () { return cur.slice(); }, write: write, on: ev.on,
+      raws: function () {
+        var xs = LTT.stepValues(b[0][0], b[0][1], step, 41), ys = LTT.stepValues(b[1][0], b[1][1], step, 41), out = [];
+        xs.forEach(function (x) { ys.forEach(function (y) { out.push([x, y]); }); });
+        return out;
+      }
+    };
   }
 
   // A target turns free play into a task; free exploration without one teaches less than guided exploration (Mayer 2004).
@@ -737,6 +977,8 @@
     draw(M);
     return {
       apply: apply,
+      toSvg: px,
+      fromSvg: function (p) { return [p[0] / k, -p[1] / k]; },
       get matrix() { return M; },
       setVectors: function (v) { vectors = v; draw(M); },
       setShape: function (s) { shape = s; draw(M); },
@@ -1406,6 +1648,7 @@
   LTT.bar = bar;
   LTT.predict = predict;
   LTT.sweep = sweep;
+  LTT.drag = drag;
   LTT.stepper = stepper;
   LTT.diagram = diagram;
   LTT.diagramLayout = diagramLayout;

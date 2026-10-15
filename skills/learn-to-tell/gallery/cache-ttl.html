@@ -225,23 +225,23 @@
 
       { kicker: "직접 바꿔 보기", title: "TTL을 움직이면 두 막대가 반대로 간다", en: "Trade-off",
         narration: [
-          "슬라이더로 TTL을 바꿔 보자. 위 막대는 응답 100건의 구성, 아래 막대는 원본 DB가 받는 조회 수다.",
+          "TTL 단계를 눌러 바꿔 보자. 실무에서 흔히 고르는 값(1초~1시간)만 두었다. 위 막대는 응답 100건의 구성, 아래 막대는 원본 DB가 받는 조회 수다.",
           "TTL을 늘리면 DB 조회는 줄지만 주황(옛 값)이 늘어난다. 변경 간격(여기서는 10분)에 가까워질수록 옛 값이 급격히 늘고, DB 조회는 이미 바닥이라 더 줄지 않는다.",
         ],
         mount(body) {
           const TTLS = [1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600];
-          body.innerHTML = `<div id="ttl-goal"></div><label class="ltt-param">TTL <b id="ttl-v"></b><input type="range" id="ttl" min="0" max="9" value="4" aria-label="TTL"></label>
+          body.innerHTML = `<div id="ttl-goal"></div><div class="ltt-param">TTL<div id="ttl"></div></div>
             <p class="ltt-basis">응답 100건 구성</p><div class="ltt-bar" id="b1"></div><p style="margin:0">${KEY}</p>
             <p class="ltt-basis">원본 DB 조회 (분당) · 캐시가 없으면 120회(초당 2번 × 60초)가 모두 DB로 간다</p><div class="ltt-bar" id="b2"></div>
             <p class="ltt-basis">요청 2회/초, 변경 간격 평균 10분 고정 · <span class="ltt-tag">모델로 계산한 예시</span></p>`;
           const b1 = LTT.bar("b1", [{ color: "var(--stale)" }, { color: "var(--fresh)" }, { color: "var(--miss)" }]);
           const b2 = LTT.bar("b2", [{ color: "var(--miss)" }, { color: "transparent" }]);
-          LTT.sweep({ params: { ttl: { map: (i) => TTLS[i], fmt: fmtDur } }, render({ ttl }) {
+          LTT.sweep({ params: { ttl: { kind: "steps", stops: TTLS, value: 10, fmt: fmtDur, label: "TTL" } }, render({ ttl }) {
             const m = model(2, 600, ttl);
             b1.set([m.staleN, m.freshN, m.missN], [m.staleN || "", m.freshN, m.missN || ""]);
             b2.set([m.perMin, 120 - m.perMin], [sig2(m.perMin) + "회", ""]);
-          }, goal: { el: "ttl-goal", text: "DB 조회를 분당 0.5회 이하로 줄이면서, 오래된 응답은 100건 중 10건 이하로 지키는 TTL을 찾아 본다",
-            check: ({ ttl }) => { const m = model(2, 600, ttl); return m.perMin <= 0.5 && m.staleN <= 10; } } });
+          }, goal: { el: "ttl-goal", text: "DB 조회를 분당 2.5회 이하로 줄이면서, 오래된 응답은 100건 중 10건 이하로 지키는 TTL을 찾아 본다",
+            check: ({ ttl }) => { const m = model(2, 600, ttl); return m.perMin <= 2.5 && m.staleN <= 10; } } });
           return {};
         },
         takeaway: "TTL 하나로 DB 부하와 옛 값 비율을 동시에 줄일 수는 없다.",

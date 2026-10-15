@@ -538,7 +538,10 @@
       overflow: innerWidth > 720 && ih * zoom > el.clientHeight + 2,
       visualRatio: body.querySelector(VISUALS) ? biggest / stage : null,
       figRatio: figRatio, fill: Math.min(1, (ih * zoom) / (el.clientHeight || 1)),
-      fontSizes: Object.keys(sizes).length
+      fontSizes: Object.keys(sizes).length,
+      goals: [].map.call(body.querySelectorAll(".ltt-goal[data-samples]"), function (g) {
+        return { hits: +g.dataset.hits, samples: +g.dataset.samples, start: g.dataset.start === "1" };
+      })
     };
   }
 

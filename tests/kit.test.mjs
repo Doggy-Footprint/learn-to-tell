@@ -179,6 +179,36 @@ test("auditScene judges rendered measurements", () => {
   assert.deepEqual(r({ narrow: true, visualRatio: 0.01, zoom: 0.5, hscroll: 30 }), ["hscroll"]);
 });
 
+test("auditScene flags sweep goals that fail at every position, hold at one only, or hold at the start", () => {
+  const { auditScene } = loadKit();
+  const r = (goals, narrow = false) => [...auditScene({ type: "", zoom: 1, fill: 0.9, fontSizes: 5, narrow, goals })].map((w) => w.rule);
+  assert.deepEqual(r([{ hits: 7, samples: 256, start: false }]), []);
+  assert.deepEqual(r([{ hits: 0, samples: 10, start: false }]), ["goal-unreachable"]);
+  assert.deepEqual(r([{ hits: 1, samples: 10, start: false }]), ["goal-narrow"]);
+  assert.deepEqual(r([{ hits: 3, samples: 10, start: true }], true), ["goal-at-start"]);
+});
+
+test("stepValues lists control positions and thins long ranges to evenly spaced ones with both ends", () => {
+  const { stepValues } = loadKit();
+  assert.deepEqual([...stepValues(-2, 2, 0.5)], [-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2]);
+  assert.deepEqual([...stepValues(0, 0.3, 0.1)], [0, 0.1, 0.2, 0.3]);
+  const long = stepValues(0, 1000, 1, 11);
+  assert.deepEqual([...long], [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]);
+});
+
+test("goalReach counts every combination when few, samples repeatably when many, and treats a throwing check as a miss", () => {
+  const { goalReach } = loadKit();
+  const all = goalReach({ a: [1, 2, 3], b: [10, 20] }, ({ a, b }) => a * b >= 40, { a: 1, b: 10 });
+  assert.deepEqual({ ...all }, { samples: 6, hits: 2, start: false });
+  assert.equal(goalReach({ a: [1, 2] }, ({ a }) => a === 1, { a: 1 }).start, true);
+  const big = { x: Array.from({ length: 300 }, (_, i) => i), y: Array.from({ length: 300 }, (_, i) => i) };
+  const s1 = goalReach(big, ({ x, y }) => x < 150 && y < 150, null, 4000), s2 = goalReach(big, ({ x, y }) => x < 150 && y < 150, null, 4000);
+  assert.equal(s1.samples, 4000);
+  assert.equal(s1.hits, s2.hits);
+  assert.ok(s1.hits > 800 && s1.hits < 1200, `quarter of 4000 expected, got ${s1.hits}`);
+  assert.equal(goalReach({ a: [1, 2] }, () => { throw new Error("x"); }).hits, 0);
+});
+
 test("every theme is listed with a medium", () => {
   const { themes } = loadKit();
   assert.deepEqual([...themes.map((t) => t.name)].sort(), ["atlas", "blueprint", "lab", "ledger", "paper", "sketch", "studio", "terminal"]);

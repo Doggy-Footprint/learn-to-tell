@@ -184,14 +184,14 @@
 
       { kicker: "직접 밀어 보기", title: "묶음 사이 간격을 벌리면 그룹이 생긴다", en: "Try it",
         narration: [
-          "라벨↔입력칸 8px, 섹션 앞 48px은 고정하고, 슬라이더로 항목 사이 간격만 바꿔 보자. 값은 {{간격 스케일}}의 단계로만 움직인다.",
+          "라벨↔입력칸 8px, 섹션 앞 48px은 고정하고, 단계 버튼으로 항목 사이 간격만 바꿔 보자. 버튼은 {{간격 스케일}}의 값이다.",
           "8px(같은 값)에서는 라벨이 위아래 어느 칸에 붙는지 모호하다. 단계를 올릴수록 라벨-입력칸 쌍이 하나의 덩어리로 떨어져 보인다.",
         ],
         mount(body) {
-          body.innerHTML = `<div class="live"><div><div id="bg-goal"></div><label class="ltt-param">항목 사이(=묶음 사이) 간격 <b id="bg-v"></b><input type="range" id="bg" min="1" max="5" value="1" step="1"></label>
+          body.innerHTML = `<div class="live"><div><div id="bg-goal"></div><div class="ltt-param">항목 사이(=묶음 사이) 간격<div id="bg"></div></div>
             <p class="gapnote" id="bg-r"></p><span class="ltt-tag">예시 화면</span></div><div id="bg-f"></div></div>`;
           const host = LTT.$("bg-f");
-          LTT.sweep({ params: { bg: { map: (i) => SCALE[i], fmt: (v) => v + "px" } },
+          LTT.sweep({ params: { bg: { kind: "steps", stops: SCALE.slice(1), value: 8, fmt: (v) => v + "px", label: "항목 사이 간격" } },
             render: ({ bg }) => {
               host.innerHTML = "";
               host.appendChild(formMock({ lab: 8, first: 16, gaps: [bg, bg], sec: 48, labSize: 13, labColor: "#444", hSize: 15, hWeight: 700 })());
