@@ -261,7 +261,7 @@
         figure(node) {
           const { svg } = sheet(node);
           LTT.diagram(svg, {
-            cols: 4, rows: 6, cell: [310, 64], node: [170, 54], maxWidth: false,
+            cols: 4, rows: 6, cell: [236, 64], node: [184, 56], maxWidth: false,
             zones: [
               { c0: 0, r0: 0, c1: 2, r1: 5, l: "GPU 한 장", k: "accent" },
               { c0: 3, r0: 0, c1: 3, r1: 5, l: "⑤ 묶어서 한꺼번에", k: "good" },
@@ -270,10 +270,10 @@
               { id: "hbm", c: 0, r: 2.5, l: "HBM", s: "① 토큰마다 표 16 GB", icon: "memory", h: 70 },
               { id: "l2", c: 1, r: 2.5, l: "L2 캐시", s: "표를 담지 못함", icon: "layers", k: "muted", h: 70 },
               { id: "sm", c: 2, r: 2.5, l: "SM 연산기", s: "③ 계산은 금방, 대기", icon: "cpu", h: 70 },
-              ...US.map((i) => ({ id: "u" + i, c: 3, r: i + 1, l: "사용자 " + (i + 1), s: i === 3 ? "④ 속도는 그대로" : "", icon: "user", w: 170, h: 52 })),
+              ...US.map((i) => ({ id: "u" + i, c: 3, r: i + 1, l: "사용자 " + (i + 1), s: i === 3 ? "④ 속도는 그대로" : "", icon: "user", w: 184, h: 52 })),
             ],
             edges: [
-              { f: "hbm", t: "l2", l: "② 3.35 TB/s 병목", lo: [0, -16], k: "bad" },
+              { f: "hbm", t: "l2", l: "② 3.35 TB/s 병목", lo: [0, 52], k: "bad" },
               { f: "l2", t: "sm", k: "accent" },
               ...US.map((i) => ({ f: "sm", t: "u" + i, k: "good" })),
             ],

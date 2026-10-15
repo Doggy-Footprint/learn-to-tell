@@ -160,16 +160,13 @@
         extra: { title: "더 깊이 보고 싶다면", text: "Refactoring UI의 Layout & Spacing 장, Material 3 Layout 문서." } },
 
       { type: "overview", kicker: "overview", title: "스케일에서 고르고, 바깥은 한 단계 넓게", en: "One page",
-        figure: (el) => {
-          const g = LTT.h("div");
-          g.style.cssText = "display:grid;grid-template-columns:auto auto;gap:clamp(24px,4vw,56px);align-items:center";
-          LTT.fill(g.appendChild(LTT.h("div")), menu({ row: 16, in: [12, 12, 12], pad: [8, 8, 8] }));
-          const ol = g.appendChild(LTT.h("ol"));
-          ol.style.cssText = "margin:0;padding-left:1.4em;display:grid;gap:18px;max-width:30ch;line-height:1.5;font-size:clamp(16px,1.5vw,21px)";
-          ["간격은 '한 묶음'을 말한다.", "값은 스케일(4·8·16·24)에서만 고른다.", "바깥 간격 = 안쪽보다 한 단계 위."].forEach((t) => ol.appendChild(LTT.h("li", null, t)));
-          return g;
-        },
-        caption: "왼쪽은 수업에서 고친 메뉴(카드 안쪽 12, 바깥 16)다. 오른쪽 세 줄이 각각 그림의 어느 간격에 해당하는지 짚어 본다." },
+        figure: menu({ row: 16, in: [12, 12, 12], pad: [8, 8, 8] }),
+        points: [
+          { at: [96, 36], title: "간격은 '한 묶음'을 말한다", text: "세 카드가 각각 한 덩어리로 읽힌다." },
+          { at: [16, 20], title: "값은 스케일에서만", text: "카드 안쪽은 12, 여백은 8. 모두 4의 배수다." },
+          { at: [50, 34.5], title: "바깥 = 안쪽보다 한 단계 위", text: "카드 사이 16은 안쪽 12보다 한 단계 넓다.", tone: "good" },
+        ],
+        caption: "수업에서 고친 메뉴다. 번호마다 앞 장면의 정리가 그림의 어느 간격에 해당하는지 짚는다." },
 
       { type: "keywords", title: "다음에 비슷한 걸 만나면",
         terms: [{ ko: "간격 시스템", en: "spacing system · 8pt grid" }, { ko: "근접성", en: "Gestalt proximity" }],

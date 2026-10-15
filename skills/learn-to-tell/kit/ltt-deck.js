@@ -603,7 +603,7 @@
       if (rail && s.narration) rail.appendChild(LTT.narration(s.narration));
       if (s.points) {
         var target = s.pointsOn ? body.querySelector(s.pointsOn) :
-          (s.type === "figure" && body.querySelector(".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code")) || body.querySelector("[data-annotate]") || body.firstElementChild;
+          ((s.type === "figure" || s.type === "overview") && body.querySelector(".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code")) || body.querySelector("[data-annotate]") || body.firstElementChild;
         anno = LTT.annotate(target, s.points, { tone: s.pointsTone });
         if (rail) { if (s.narration && !full) rail.appendChild(h("hr")); rail.appendChild(anno.list); }
         else inner.insertBefore(anno.list, main.nextSibling);
