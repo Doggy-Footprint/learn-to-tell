@@ -64,6 +64,17 @@
   .chat p:last-child { margin: 0; }
   .chat .who { font-size: 12px; font-weight: 700; color: var(--ltt-muted); display: block; }
   details summary { cursor: pointer; font-weight: 650; font-size: 14px; color: var(--ltt-accent); }
+  .sp-note { margin: 0 0 6px; color: var(--ltt-muted); }
+  .sp-h { font-size: 15px; margin: 22px 0 10px; }
+  .sp-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .sp-chip { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border-radius: 14px; background: var(--ltt-card-2); color: var(--ltt-ink); text-decoration: none; font-size: 13px; min-width: 0; }
+  .sp-chip b { font-size: 14px; }
+  .sp-chip span { color: var(--ltt-muted); overflow-wrap: anywhere; }
+  .sp-scroll { overflow-x: auto; }
+  .sp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .sp-table th, .sp-table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--ltt-line); vertical-align: top; }
+  .sp-table th { color: var(--ltt-muted); font-weight: 650; white-space: nowrap; }
+  .sp-features { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
@@ -104,6 +115,49 @@
       <div class="go"><a href="scenes.html">덱 열기 →</a><a class="ghost" href="scenes.html?theme=paper">paper</a><a class="ghost" href="scenes.html?theme=blueprint">blueprint</a><a class="ghost" href="scenes.html?theme=terminal">terminal</a><a class="ghost" href="scenes.html?theme=ledger">ledger</a><a class="ghost" href="scenes.html?theme=lab">lab</a></div>
     </section>
   </div>
+
+  <section class="ltt-card" id="support">
+    <h2>지원 범위</h2>
+    <p class="sp-note">kit가 내는 부품 묶음, 함께 들어 있는 라이브러리, 기능별로 필요한 파일이다. 부품 하나하나는 카탈로그에서 실제로 볼 수 있다.</p>
+    <h3 class="sp-h">부품 묶음</h3>
+    <div class="sp-groups">
+      <a class="sp-chip" data-group="ltt.js" href="catalog.html"><b>기초 · ltt.js</b><span><code>tokens</code> · <code>LTT.icon</code> · <code>LTT.palette</code></span></a>
+      <a class="sp-chip" data-group="ltt-ui.js" href="catalog.html"><b>설명 · ltt-ui.js</b><span><code>LTT.narration</code> · <code>LTT.annotate</code> · <code>LTT.beforeAfter</code></span></a>
+      <a class="sp-chip" data-group="ltt-mock.js" href="catalog.html"><b>목업 · ltt-mock.js</b><span><code>mock.phone</code> · <code>mock.browser</code> · <code>mock.terminal</code></span></a>
+      <a class="sp-chip" data-group="ltt-parts.js" href="catalog.html"><b>움직이는 그림 · ltt-parts.js</b><span><code>LTT.diagram</code> · <code>LTT.sweep</code> · <code>LTT.sankey</code></span></a>
+      <a class="sp-chip" data-group="ltt-deck.js" href="catalog.html"><b>장면 덱 · ltt-deck.js</b><span><code>LTT.deck</code> · <code>figure</code> 장면 · <code>statement</code> 장면</span></a>
+    </div>
+    <h3 class="sp-h">들어 있는 라이브러리</h3>
+    <div class="sp-scroll">
+      <table class="sp-table">
+        <thead><tr><th>이름</th><th>버전</th><th>용도</th><th>kit 부품</th></tr></thead>
+        <tbody>
+          <tr data-vendor="@observablehq/plot"><td><code>@observablehq/plot</code></td><td>0.6.17</td><td>막대·선·점·분포 차트</td><td><code>LTT.plot</code></td></tr>
+          <tr data-vendor="d3"><td><code>d3</code></td><td>7.9.0</td><td>스케일·계층·도형 계산</td><td><code>LTT.plot</code> · <code>LTT.sankey</code> · d3.tree</td></tr>
+          <tr data-vendor="katex"><td><code>katex</code></td><td>0.16.11</td><td>수식 렌더</td><td><code>LTT.math</code> · 덱 <code>tex</code></td></tr>
+          <tr data-vendor="pretendard"><td><code>pretendard</code></td><td>1.3.9</td><td>본문·제목 한글 폰트</td><td><code>--ltt-font</code> · <code>--ltt-font-display</code></td></tr>
+          <tr data-vendor="noto-serif-kr"><td><code>noto-serif-kr</code></td><td>2.003</td><td>세리프 한글 폰트 (KS X 1001 부분집합)</td><td><code>--ltt-font-display</code></td></tr>
+          <tr data-vendor="d2coding"><td><code>d2coding</code></td><td>1.3.2</td><td>고정폭 한글 폰트 (KS X 1001 부분집합)</td><td><code>--ltt-mono</code></td></tr>
+          <tr data-vendor="lucide-static"><td><code>lucide-static</code></td><td>1.48.0</td><td>선 아이콘 16개 (ltt.js에 내장)</td><td><code>LTT.icon</code></td></tr>
+          <tr data-vendor="topojson-client"><td><code>topojson-client</code></td><td>3.1.0</td><td>지도 데이터 변환</td><td><code>LTT.map</code></td></tr>
+          <tr data-vendor="world-atlas"><td><code>world-atlas</code></td><td>2.0.2</td><td>국가 경계 데이터 (110m)</td><td><code>LTT.map</code></td></tr>
+          <tr data-vendor="d3-sankey"><td><code>d3-sankey</code></td><td>0.12.3</td><td>흐름 배치 계산</td><td><code>LTT.sankey</code></td></tr>
+          <tr data-vendor="prismjs"><td><code>prismjs</code></td><td>1.30.0</td><td>코드 색 입히기</td><td><code>mock.code</code>의 <code>lang</code></td></tr>
+          <tr data-vendor="elkjs"><td><code>elkjs</code></td><td>0.12.0</td><td>노드·엣지 자동 배치</td><td><code>LTT.autoLayout</code> · <code>LTT.state</code></td></tr>
+          <tr data-vendor="roughjs"><td><code>roughjs</code></td><td>4.6.6</td><td>손으로 그린 듯한 선</td><td><code>LTT.diagram</code>의 <code>sketch</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3 class="sp-h">기능별 필요 파일</h3>
+    <ul class="sp-features">
+      <li data-feature="math"><b>수식</b> <code>LTT.math</code>와 덱 <code>tex</code> 필드는 KaTeX로 그린다. <code>/kit/vendor/katex/katex.min.js</code>와 <code>/kit/vendor/katex/katex.min.css</code>가 필요하다.</li>
+      <li data-feature="map"><b>지도</b> <code>LTT.map</code>은 Natural Earth 1:110m 국가 경계를 쓴다. <code>/kit/vendor/topojson-client.min.js</code>와 <code>/kit/vendor/world-atlas/countries-110m.json</code>이 필요하다.</li>
+      <li data-feature="code"><b>코드 강조</b> <code>mock.code</code>의 <code>lang</code>은 javascript, typescript, python, bash, json, sql을 지원한다. <code>/kit/vendor/prism/prism.min.js</code>가 필요하다.</li>
+      <li data-feature="layout"><b>자동 배치</b> <code>LTT.autoLayout</code>과 <code>LTT.state</code>는 좌표 없이 노드와 엣지만 받는다. <code>/kit/vendor/elk.bundled.js</code>가 필요하다.</li>
+      <li data-feature="flow"><b>흐름</b> <code>LTT.sankey</code>는 띠 굵기로 흐름량을 보인다. <code>/kit/vendor/d3-sankey.min.js</code>와 <code>/kit/vendor/d3.min.js</code>가 필요하다.</li>
+      <li data-feature="sketch"><b>손그림 느낌</b> <code>LTT.diagram</code>이 <code>sketch</code> 테마에서 쓴다. <code>/kit/vendor/rough.js</code>가 필요하다.</li>
+    </ul>
+  </section>
 
   <h3 class="group">예시 수업 · 시뮬레이션 경로</h3>
   <div class="lessons">

@@ -11,6 +11,8 @@
 <script src="/kit/vendor/prism/prism.min.js"></script>
 <script src="/kit/vendor/elk.bundled.js"></script>
 <script src="/kit/vendor/rough.js"></script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/katex/katex.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
 <script src="/kit/ltt-ui.js"></script>
@@ -424,6 +426,11 @@
   demo("predict", "LTT.predict({question, choices, button, answer, show, reveal})", "<b>낮은 부담의 짐작.</b> 덱에서는 <code>type: \"predict\"</code>가 이것을 쓰고 '잘 모르겠다'를 자동으로 붙인다. 질문에 쓰는 용어는 앞 장면에서 풀어 둔다.", (el) => {
     el.innerHTML = `<div id="pc"><button data-choice="a">거의 0건</button><button data-choice="b">5건쯤</button><button data-choice="c">절반쯤</button></div><div class="dk-actions" style="margin-top:10px"><button id="pb" class="accent">정답 보기</button></div><p id="pa" class="ltt-hidden ltt-narr">약 5건. 평균 30초 묵은 값이 10분 안에 바뀔 확률은 5%.</p>`;
     LTT.predict({ question: "카탈로그 예시", choices: "pc", button: "pb", answer: "b", show: ["pa"] });
+  });
+
+  demo("math", "LTT.math(scope)", "<b>수식은 KaTeX로 그린다.</b> <code>data-tex</code>가 붙은 요소를 찾아 TeX를 렌더하고, <code>data-display</code>를 같이 붙이면 블록 수식이 된다. 덱 장면에서는 <code>tex</code> 필드가 이것을 쓴다. <code>katex.min.css</code>와 <code>katex.min.js</code>가 필요하다.", (el) => {
+    el.innerHTML = `<p>벡터 <span data-tex="A\\mathbf{x}"></span>는 행렬 A가 벡터 x를 옮긴 결과다.</p><div data-tex="\\det A = ad - bc" data-display></div>`;
+    LTT.math(el);
   });
 
   group("장면 덱 · ltt-deck.js");
