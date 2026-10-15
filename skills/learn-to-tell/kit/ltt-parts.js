@@ -15,6 +15,10 @@
     ".ltt-choices button[aria-pressed=true]{box-shadow:inset 0 0 0 2px var(--ltt-accent);background:var(--ltt-accent-soft)}",
     ".ltt-choices button.right{box-shadow:inset 0 0 0 2px var(--ltt-good);background:var(--ltt-good-soft)}",
     ".ltt-choices button.wrong{box-shadow:inset 0 0 0 2px var(--ltt-bad);background:var(--ltt-bad-soft)}",
+    ".ltt-goal{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:var(--ltt-r-md,14px);background:var(--ltt-card-2);box-shadow:inset 0 0 0 1.5px var(--ltt-line-2);margin:0 0 12px;transition:box-shadow .2s,background-color .2s}",
+    ".ltt-goal .tgt{flex:none;display:flex}.ltt-goal .tx{flex:1;font-weight:650;line-height:1.4}",
+    ".ltt-goal .ok{flex:none;font-size:13px;font-weight:800;color:var(--ltt-good);visibility:hidden}",
+    ".ltt-goal.done{background:var(--ltt-good-soft);box-shadow:inset 0 0 0 2px var(--ltt-good)}.ltt-goal.done .ok{visibility:visible}",
     ".ltt-stepper{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 0}",
     ".ltt-stepper button{padding:7px 14px;font-size:14px}",
     ".ltt-dots{display:flex;gap:5px;flex:1}.ltt-dots i{flex:1;max-width:40px;height:5px;border-radius:3px;background:var(--ltt-line);",
@@ -219,7 +223,16 @@
       });
       return v;
     }
-    function render() { opts.render(values()); }
+    var goal = opts.goal && sweepGoal(opts.goal), reached = false;
+    function render() {
+      var v = values();
+      opts.render(v);
+      if (!goal) return;
+      var hit = !!opts.goal.check(v);
+      goal.classList.toggle("done", hit);
+      if (hit && !reached) LTT.record("goal", { goal: goal.querySelector(".tx").textContent, values: v });
+      reached = reached || hit;
+    }
     ids.forEach(function (id) { $(id).addEventListener("input", render); });
     if (opts.presets) {
       document.querySelectorAll(opts.presets).forEach(function (btn) {
@@ -232,6 +245,21 @@
     }
     if (opts.immediate !== false) render();
     return { render: render, values: values };
+  }
+
+  // A target turns free play into a task; free exploration without one teaches less than guided exploration (Mayer 2004).
+  function sweepGoal(g) {
+    var box = el(g.el);
+    if (!box) throw new Error("sweep goal needs el");
+    var b = document.createElement("div");
+    b.className = "ltt-goal";
+    b.innerHTML = "<span class='tgt'></span><span class='tx'></span><span class='ok'>맞췄다</span>";
+    if (typeof g.target === "string") b.firstChild.innerHTML = g.target;
+    else if (g.target) b.firstChild.appendChild(g.target);
+    else b.firstChild.remove();
+    b.querySelector(".tx").innerHTML = g.text;
+    box.appendChild(b);
+    return b;
   }
 
   // steps[i].enter(i, dir) must be idempotent: going back re-enters the earlier step from scratch.

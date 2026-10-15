@@ -92,6 +92,7 @@
     ".dk-tm .ic{flex:none;width:52px;height:52px;border-radius:16px;background:var(--ltt-dark);color:var(--ltt-on-dark);display:flex;align-items:center;justify-content:center;font-size:22px}",
     ".dk-tm .ic .ltt-ic{width:24px;height:24px}",
     ".dk-tm .w{font-family:var(--ltt-font-display);font-size:clamp(24px,2.5vw,34px);font-weight:var(--ltt-display-weight);letter-spacing:-.04em;line-height:1.15}.dk-tm .w small{display:block;font-size:13px;font-weight:600;color:var(--ltt-muted);letter-spacing:0}",
+    ".dk-tm .vis{display:flex;align-items:center;justify-content:center;min-height:clamp(56px,11vh,120px)}",
     ".dk-tm .p{margin:4px 0 0;font-size:clamp(16px,1.45vw,19.5px);line-height:1.6}",
     ".dk-tm .ex{margin-top:auto;font-size:clamp(14px,1.2vw,16px);color:var(--ltt-muted);background:var(--ltt-card-2);border-radius:12px;padding:10px 12px;line-height:1.5}",
     ".dk-tm .ex::before{content:'예) ';font-weight:800;color:var(--ltt-ink-2)}",
@@ -173,6 +174,15 @@
     ".dk-q.copied{background:var(--ltt-good-soft)}",
     ".dk-nb{display:grid;gap:12px;font-size:clamp(14px,1.2vw,16px);margin-top:6px}.dk-nb b{display:block;font-size:clamp(15px,1.3vw,17px)}.dk-nb span{color:var(--ltt-muted);line-height:1.5}",
     /* summary */
+    ".dk-rc{list-style:none;margin:0;padding:0;counter-reset:rc;display:grid;grid-template-columns:repeat(var(--c,1),minmax(0,1fr));gap:clamp(10px,2vh,22px) clamp(20px,3vw,44px);align-items:start}",
+    ".dk-rc .row{display:flex;gap:8px;align-items:stretch}.dk-rc .row textarea{flex:1;min-width:0}.dk-rc .row .dk-actions{flex:none}",
+    ".dk-rc li{counter-increment:rc;position:relative;padding-left:clamp(40px,4vw,56px);display:grid;gap:8px}",
+    ".dk-rc li::before{content:counter(rc,decimal-leading-zero);position:absolute;left:0;top:.1em;font:700 clamp(15px,1.4vw,18px) var(--ltt-mono);color:var(--ltt-accent)}",
+    ".dk-rc li.extra::before{content:'+'}",
+    ".dk-rc .q{margin:0;font-family:var(--ltt-font-display);font-size:clamp(17px,1.5vw,21px);font-weight:var(--ltt-display-weight);letter-spacing:-.02em;line-height:1.35}",
+    ".dk-rc textarea{font:inherit;font-size:15px;line-height:1.4;padding:7px 12px;border:1.5px solid var(--ltt-line-2);border-radius:12px;background:var(--ltt-card);color:var(--ltt-ink);resize:vertical}",
+    ".dk-rc .a{border-left:3px solid var(--ltt-accent);padding:2px 0 2px 14px}.dk-rc .a p{margin:0;font-size:clamp(15px,1.4vw,19px);line-height:1.55;color:var(--ltt-ink-2)}",
+    ".dk-rc .a .ask{margin-top:6px;font-size:clamp(13.5px,1.15vw,15.5px);color:var(--ltt-ink-2)}.dk-rc .a .ask b{color:var(--ltt-accent);font-size:12px;margin-right:6px}",
     ".dk-sum{display:grid;grid-template-columns:repeat(var(--c,4),minmax(0,1fr));gap:clamp(10px,1.4vw,20px)}",
     ".dk-sc{display:flex;flex-direction:column;gap:12px;min-height:min(22vh,200px);background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:var(--ltt-r-lg);padding:clamp(16px,2vw,28px);box-shadow:var(--ltt-shadow)}",
     ".dk-sc .t{display:flex;align-items:baseline;gap:10px;font-family:var(--ltt-font-display);font-size:clamp(18px,1.75vw,24px);font-weight:var(--ltt-display-weight);letter-spacing:-.03em;line-height:1.3}",
@@ -196,7 +206,7 @@
     "@media (max-width:720px){.dk-steps,.dk-terms{grid-template-columns:repeat(min(var(--n),2),minmax(0,1fr))}.dk-cmp{grid-template-columns:repeat(min(var(--n),2),minmax(0,1fr))}",
     ".dk-step>.ar{display:none}.dk-kw{grid-template-columns:1fr}.dk-hook{grid-template-columns:1fr}.dk-hook .art{width:96px}",
     ".dk-dots i{width:10px}.dk-hint{display:none}.dk-head{grid-template-columns:1fr}.dk-no{font-size:44px}.dk-top h1{max-width:52%}",
-    ".dk-item{padding:12px;gap:6px}.dk-item .note{font-size:12.5px}.dk-item .vis{min-height:60px}.dk-sum{--c:1!important}}",
+    ".dk-item{padding:12px;gap:6px}.dk-item .note{font-size:12.5px}.dk-item .vis{min-height:60px}.dk-sum{--c:1!important}.dk-rc{--c:1!important}}",
     "@media (max-width:440px){.dk-steps,.dk-terms{grid-template-columns:1fr}.dk-step{display:grid;grid-template-columns:auto 1fr;column-gap:12px;align-items:start;padding:14px}",
     ".dk-step .no{display:none}.dk-step .ic{grid-row:span 2;margin:0;width:40px;height:40px}.dk-dots{display:none}}"
   ].join("");
@@ -257,7 +267,7 @@
       return { enter: function () { rise(w.children); } };
     },
     // Introduces glossary terms in plain words before they are used; each card = one term.
-    terms: function (s, body) {
+    terms: function (s, body, ctx) {
       var w = h("div", "dk-terms");
       w.style.setProperty("--n", s.terms.length);
       s.terms.forEach(function (t) {
@@ -265,6 +275,8 @@
         c.innerHTML = "<div class='top'>" + (t.icon ? "<span class='ic'>" + iconOr(t.icon) + "</span>" : "") + "<span class='w'></span></div><p class='p'></p>";
         c.querySelector(".w").innerHTML = (t.word || t.key) + (t.en ? "<small>" + t.en + "</small>" : "");
         c.querySelector(".p").innerHTML = t.plain || "";
+        if (t.visual) c.insertBefore(h("div", "vis"), c.querySelector(".p"));
+        if (t.visual) fill(c.querySelector(".vis"), t.visual, ctx);
         if (t.example) c.appendChild(h("div", "ex", t.example));
         w.appendChild(c);
       });
@@ -381,10 +393,12 @@
         } });
       return {};
     },
+    // With `recall` questions the recap is retrieval practice in plain text: the question comes first and the takeaway
+    // opens only after the viewer has tried, since re-reading takeaway cards builds a feeling of knowing, not recall.
     summary: function (s, body, ctx) {
+      var cards = LTT.summaryCards(s, ctx.scenes);
+      if (cards.some(function (c) { return c.recall; })) return recallList(s, cards, body, ctx);
       var w = h("div", "dk-sum");
-      var cards = s.cards || ctx.scenes.map(function (x, i) { return { n: i + 1, title: x.title, text: x.takeaway, ask: x.ask }; })
-        .filter(function (c) { return c.text; });
       cards.forEach(function (c) {
         var d = h("div", "dk-sc");
         d.innerHTML = "<div class='t'>" + (c.n ? "<i>" + pad2(c.n) + "</i>" : "") + "<span></span></div><p></p>";
@@ -436,6 +450,39 @@
       return { enter: function () { rise(w.children); } };
     }
   };
+
+  function recallList(s, cards, body, ctx) {
+    var w = body.appendChild(h("ol", "dk-rc"));
+    cards.forEach(function (c) {
+      var li = w.appendChild(h("li", null, "<p class='q'></p>"));
+      li.firstChild.innerHTML = c.recall || c.title || "";
+      var a = h("div", "a" + (c.recall ? " ltt-hidden" : ""), "<p></p>");
+      a.firstChild.innerHTML = c.text;
+      if (c.ask) a.appendChild(h("p", "ask", "<b>agent에게</b>" + c.ask));
+      if (c.recall) {
+        var row = li.appendChild(h("div", "row"));
+        var box = row.appendChild(h("textarea"));
+        box.rows = 1;
+        box.placeholder = "떠올린 답 (적지 않아도 된다)";
+        var b = row.appendChild(h("div", "dk-actions")).appendChild(h("button", "ghost", "답 보기"));
+        b.onclick = function () {
+          a.classList.remove("ltt-hidden"); b.disabled = true;
+          LTT.linkTerms(a, ctx.index);
+          ctx.fit();
+          LTT.record("recall", { scene: c.title, question: stripTags(c.recall), answer: box.value.trim() });
+        };
+      }
+      li.appendChild(a);
+    });
+    if (s.extra) {
+      var x = w.appendChild(h("li", "extra", "<p class='q'></p><div class='a'><p></p></div>"));
+      x.querySelector(".q").innerHTML = s.extra.title;
+      x.querySelector(".a p").innerHTML = s.extra.text;
+    }
+    if (w.children.length > 3) w.style.setProperty("--c", 2);
+    return { enter: function () { rise(w.children); } };
+  }
+  function stripTags(html) { return String(html).replace(/<[^>]*>/g, ""); }
 
   var SPLIT_OFF = { hook: 1, keywords: 1, summary: 1, terms: 1, contrast: 1, predict: 1, figure: 1, statement: 1 };
   var NO_HEAD = { hook: 1, statement: 1 };

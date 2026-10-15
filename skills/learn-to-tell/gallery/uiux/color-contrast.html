@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko">
+<html lang="ko" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -115,6 +115,33 @@
     return `<div class="ruler"><div class="track"></div>${[[3, "3", "큰 글자"], [4.5, "4.5", "AA"], [7, "7", "AAA"]].map(([v, l, t]) => `<b style="left:${x(v)}">${l}</b><span style="left:${x(v)}">${t}</span>`).join("")}</div>`;
   };
 
+  const tv = (label, inner) => `<svg class="ltt-svg" viewBox="0 0 220 100" style="max-height:110px" role="img" aria-label="${label}">${inner}</svg>`;
+  const tl = (x, y, t, c = "var(--ltt-muted)", a = "middle", w = 400) => `<text x="${x}" y="${y}" text-anchor="${a}" style="font-size:11px;font-weight:${w};fill:${c}">${t}</text>`;
+  // Specimen colours are the concept itself, so they are literal; the ratios come from the same ratio() the lesson checks.
+  const TERM_VIS = {
+    ratio: tv("흰 배경 위 글자가 배경 밝기에 가까워질수록 대비비가 21에서 1.2로 떨어진다",
+      [["#fff", "#000"], ["#fff", "#767676"], ["#eee", "#ddd"]].map(([bg, fg], i) => {
+        const full = (h) => "#" + [...h.slice(1)].map((c) => c + c).join(""), x = 6 + i * 74;
+        const r = ratio(rgb(fg.length === 4 ? full(fg) : fg), rgb(bg.length === 4 ? full(bg) : bg));
+        return `<rect x="${x}" y="8" width="60" height="52" rx="6" style="fill:${bg};stroke:var(--ltt-line-2)"/><text x="${x + 30}" y="42" text-anchor="middle" style="font-size:22px;font-weight:800;fill:${fg}">Aa</text>`
+          + tl(x + 30, 80, `${r >= 10 ? Math.round(r) : r < 2 ? r.toFixed(1) : fl2(r)} : 1`, "var(--ltt-ink)", "middle", 700);
+      }).join("")),
+    lum: tv("가장 밝은 빨강·초록·파랑의 상대 휘도가 0.21, 0.72, 0.07로 다르다",
+      `<line x1="8" y1="14" x2="212" y2="14" style="stroke:var(--ltt-line-2);stroke-dasharray:3 3"/>` + tl(212, 10, "1 = 흰색", "var(--ltt-muted)", "end")
+      + [["#f00", 0.2126, "빨강"], ["#0f0", 0.7152, "초록"], ["#00f", 0.0722, "파랑"]].map(([c, L, n], i) => {
+        const x = 30 + i * 64, h = L * 54;
+        return `<rect x="${x}" y="${68 - h}" width="34" height="${h}" rx="2" style="fill:var(--ltt-ink)"/><circle cx="${x + 17}" cy="78" r="6" style="fill:${c}"/>`
+          + tl(x + 17, 64 - h, L.toFixed(2), "var(--ltt-ink)", "middle", 700) + tl(x + 17, 97, n);
+      }).join("")),
+    aa: tv("대비비 눈금에서 4.5 왼쪽은 실패, 오른쪽은 AA 통과",
+      (() => { const x = (v) => 10 + ((v - 1) / 7) * 200;
+        return `<rect x="10" y="40" width="${x(4.5) - 10}" height="16" style="fill:var(--ltt-bad-soft)"/><rect x="${x(4.5)}" y="40" width="${210 - x(4.5)}" height="16" style="fill:var(--ltt-good-soft)"/>`
+          + `<line x1="${x(4.5)}" y1="28" x2="${x(4.5)}" y2="62" style="stroke:var(--ltt-ink);stroke-width:2.5"/>` + tl(x(4.5), 22, "AA 4.5", "var(--ltt-ink)", "middle", 800)
+          + `<line x1="${x(7)}" y1="36" x2="${x(7)}" y2="60" style="stroke:var(--ltt-muted);stroke-width:1.5;stroke-dasharray:3 2"/>` + tl(x(7), 30, "AAA 7")
+          + tl(x(1), 74, "1", "var(--ltt-muted)", "start") + tl(212, 74, "8+", "var(--ltt-muted)", "end")
+          + tl((10 + x(4.5)) / 2, 90, "실패", "var(--ltt-bad)", "middle", 700) + tl((x(4.5) + 210) / 2, 90, "통과", "var(--ltt-good)", "middle", 700); })()),
+  };
+
   LTT.deck({
     title: "회색 글자는 얼마나 옅어야 읽기 힘들어질까?",
     theme: "studio",
@@ -126,9 +153,9 @@
 
       { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
         terms: [
-          { key: "대비비", en: "contrast ratio", icon: "sun", plain: "글자색과 배경색의 밝기가 몇 배 차이 나는지 나타낸 숫자. 1:1(같은 색)부터 21:1(검정과 흰색)까지.", example: "흰 배경에 #767676 회색 글자는 4.54:1." },
-          { key: "상대 휘도", en: "relative luminance", icon: "eye", plain: "색이 사람 눈에 얼마나 밝게 보이는지를 0(검정)~1(흰색)로 나타낸 값. 대비비는 이 값으로 계산한다.", example: "순수한 초록은 0.72, 순수한 파랑은 0.07. 같은 '최대 밝기'라도 눈에는 다르게 보인다." },
-          { key: "WCAG AA", en: "accessibility level", icon: "check", plain: "웹 접근성 국제 지침(WCAG)이 정한 기본 합격선. 일반 글자는 대비비 4.5 이상이어야 한다.", example: "더 엄격한 AAA는 7 이상. 공공기관 사이트는 보통 AA를 요구한다." },
+          { key: "대비비", en: "contrast ratio", icon: "sun", visual: TERM_VIS.ratio, plain: "글자색과 배경색의 밝기가 몇 배 차이 나는지 나타낸 숫자. 1:1(같은 색)부터 21:1(검정과 흰색)까지.", example: "흰 배경에 #767676 회색 글자는 4.54:1." },
+          { key: "상대 휘도", en: "relative luminance", icon: "eye", visual: TERM_VIS.lum, plain: "색이 사람 눈에 얼마나 밝게 보이는지를 0(검정)~1(흰색)로 나타낸 값. 대비비는 이 값으로 계산한다.", example: "순수한 초록은 0.72, 순수한 파랑은 0.07. 같은 '최대 밝기'라도 눈에는 다르게 보인다." },
+          { key: "WCAG AA", en: "accessibility level", icon: "check", visual: TERM_VIS.aa, plain: "웹 접근성 국제 지침(WCAG)이 정한 기본 합격선. 일반 글자는 대비비 4.5 이상이어야 한다.", example: "더 엄격한 AAA는 7 이상. 공공기관 사이트는 보통 AA를 요구한다." },
         ] },
 
       { type: "figure", kicker: "디자인 리뷰 · 대비 검사", title: "눈에는 읽히는 이 화면, 재 보면 세 곳이 실패한다", en: "Redline",
@@ -157,7 +184,8 @@
         ],
         tex: "CR = \\frac{L_{밝은} + 0.05}{L_{어두운} + 0.05},\\quad L = 0.2126R + 0.7152G + 0.0722B \\ (R,G,B\\text{는 화면 특성에 맞게 보정한 0–1 값})",
         basis: "WCAG 2.x 성공 기준 1.4.3(AA), 1.4.6(AAA), 1.4.11(UI 요소, 2.1부터). 큰 글자는 24px 이상 또는 약 18.7px 굵게.",
-        takeaway: "대비비는 '눈이 느끼는 밝기'의 비율이다. 색상이 아니라 밝기 차이가 읽힘을 정한다." },
+        takeaway: "대비비는 '눈이 느끼는 밝기'의 비율이다. 색상이 아니라 밝기 차이가 읽힘을 정한다.",
+        recall: "글자가 배경 위에서 읽히는지를 정하는 것은 두 색의 어떤 차이이고, 대비비는 그것을 어떻게 숫자로 만드나?" },
 
       { type: "contrast", kicker: "같은 화면, 색만 바꿨다", title: "옅은 회색 세 곳이 화면을 못 읽게 만든다", en: "Before → After",
         sub: "왼쪽과 오른쪽은 글자 색만 다르다. 번호를 따라 무엇이 바뀌었는지 보자.",
@@ -180,6 +208,7 @@
           foot: { label: "바꾼 글자색", visual: () => LTT.swatches([["#767676"], ["#595959"], ["#d70015"]].map(([c]) => ({ color: c, label: cr(c), w: 34, h: 34, r: 10 })), { caption: "모두 4.5 이상 · 모델로 계산한 예시" }) },
         },
         takeaway: "중요도를 낮추려면 색을 옅게 하지 말고, 크기와 굵기를 줄인다.",
+        recall: "도움말처럼 덜 중요한 글자를 덜 눈에 띄게 하고 싶을 때, 색을 옅게 하는 대신 무엇을 바꾸나?",
         sources: ["WebAIM Contrast Checker", "WCAG 1.4.3"],
         ask: "\"보조 텍스트 색이 4.5:1을 넘는지 확인해 줘\"" },
 
@@ -202,7 +231,7 @@
           "큰 글자는 3만 넘으면 되지만 일반 글자는 4.5가 필요하다. 그래서 같은 회색이라도 제목에는 괜찮고 본문에는 안 될 수 있다. 경계는 #767676 근처다.",
         ],
         mount(body) {
-          body.innerHTML = `<div class="live"><div><div class="ltt-hero"><span id="cr">0</span><small>: 1</small></div>
+          body.innerHTML = `<div class="live"><div><div id="g-goal"></div><div class="ltt-hero"><span id="cr">0</span><small>: 1</small></div>
             <p id="bdg" style="margin:10px 0 14px"></p><label class="ltt-param">글자 회색 <b id="gv"></b><input type="range" id="g" min="64" max="204" value="119"></label></div>
             <div class="ui" id="pv"><b style="font-size:24px">큰 글자 24px 굵게</b><p style="margin:8px 0 0">일반 글자 16px. 저장하지 않은 변경 사항이 있습니다.</p></div></div>
             <span class="ltt-tag">모델로 계산한 예시</span>`;
@@ -213,10 +242,13 @@
             LTT.$("pv").style.color = hex(gr(v));
             LTT.$("bdg").innerHTML = badges(r);
           };
-          LTT.$("g").addEventListener("input", draw);
-          return { enter: draw };
+          const sw = LTT.sweep({ params: { g: {} }, render: draw,
+            goal: { el: "g-goal", target: `<span class="ltt-tag">4.5 ≤ 대비비 &lt; 5</span>`, text: "본문(일반 글자)도 AA를 넘기는 회색 중, 가장 옅은 쪽을 찾아 본다",
+              check: ({ g }) => { const r = ratio(gr(g), W); return r >= 4.5 && r < 5; } } });
+          return { enter: sw.render };
         },
-        takeaway: "같은 회색이라도 큰 글자에는 통과, 본문에는 실패할 수 있다." },
+        takeaway: "같은 회색이라도 큰 글자에는 통과, 본문에는 실패할 수 있다.",
+        recall: "같은 회색이 24px 굵은 제목에는 괜찮고 16px 본문에는 실패할 수 있는 까닭은 무엇인가?" },
 
       { type: "compare", form: "table", kicker: "실제 UI 조각", title: "자주 보는 조각, 일반 글자 AA를 넘을까?", layout: "stack",
         narration: "실제로 자주 쓰는 조합 네 가지다. 각 조각을 보고 4.5를 넘을지 먼저 짐작한 뒤 '대비비 보기'를 누르자.",
@@ -248,7 +280,8 @@
           { icon: "pencil", title: "굵기·크기", text: "WCAG 2.x 식은 글자 굵기와 크기를 '큰 글자' 한 번의 구분으로만 반영한다. 아주 가는 글꼴은 숫자보다 더 안 보인다." },
           { icon: "question", title: "대안 APCA", text: "WCAG 3 초안에 굵기·크기를 반영하는 새 식이 제안되어 있으나 아직 표준이 아니다(불확실)." },
         ],
-        takeaway: "숫자는 단색 배경에서만 정확하다. 사진 위 글자는 직접 확인한다." },
+        takeaway: "숫자는 단색 배경에서만 정확하다. 사진 위 글자는 직접 확인한다.",
+        recall: "사진이나 그라디언트 위에 놓인 글자는 대비비 숫자 하나만 믿으면 안 된다. 왜이고, 대신 어떻게 확인하나?" },
 
       { type: "summary", title: "색을 고르기 전에 물어볼 것", en: "Recap" },
 

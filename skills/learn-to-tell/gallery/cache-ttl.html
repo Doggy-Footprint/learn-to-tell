@@ -129,6 +129,28 @@
     };
   }
 
+  const tv = (label, inner) => `<svg class="ltt-svg" viewBox="0 0 220 100" style="max-height:110px" role="img" aria-label="${label}">${inner}</svg>`;
+  const ha = (x1, x2, y, c) => { const d = x2 > x1 ? -7 : 7; return `<line x1="${x1}" y1="${y}" x2="${x2 + d}" y2="${y}" style="stroke:${c};stroke-width:2.5"/><polygon points="${x2},${y} ${x2 + d},${y - 5} ${x2 + d},${y + 5}" style="fill:${c}"/>`; };
+  const tbox = (x, w, label, o = {}) => `<g style="opacity:${o.op || 1}"><rect x="${x}" y="28" width="${w}" height="40" rx="4" style="fill:${o.fill || "none"};stroke:${o.stroke || "var(--ltt-ink)"};stroke-width:1.5${o.dash ? ";stroke-dasharray:4 3" : ""}"/><text x="${x + w / 2}" y="53" text-anchor="middle" style="font-size:12px;font-weight:700;fill:${o.tc || "var(--ltt-ink)"}">${label}</text></g>`;
+  const tl = (x, y, t, c = "var(--ltt-muted)", a = "start") => `<text x="${x}" y="${y}" text-anchor="${a}" style="font-size:11px;fill:${c}">${t}</text>`;
+  const TERM_VIS = {
+    hit: tv("요청이 캐시에서 바로 돌아오고 DB는 쓰이지 않는다",
+      tl(6, 38, "요청", "var(--ltt-ink)") + ha(6, 84, 46, "var(--ltt-ink)") + ha(84, 6, 60, "var(--ltt-accent)") + tl(6, 80, "바로 응답", "var(--ltt-accent)")
+      + tbox(86, 54, "캐시", { fill: "var(--fresh)" }) + `<line x1="140" y1="48" x2="164" y2="48" style="stroke:var(--ltt-line-2);stroke-dasharray:3 3"/>`
+      + tbox(164, 50, "DB", { op: 0.35 }) + tl(189, 86, "안 묻는다", "var(--ltt-muted)", "middle")),
+    miss: tv("빈 캐시를 지나 요청이 DB까지 간다",
+      tl(6, 38, "요청", "var(--ltt-ink)") + tl(98, 20, "캐시", "var(--ltt-muted)", "middle") + tbox(70, 56, "", { dash: true, stroke: "var(--ltt-line-2)" }) + tl(98, 84, "값 없음", "var(--ltt-muted)", "middle")
+      + ha(6, 162, 48, "var(--miss)") + tbox(164, 50, "DB", { stroke: "var(--miss)", tc: "var(--miss)" }) + tl(189, 86, "부하 +1", "var(--miss)", "middle")),
+    stale: tv("DB는 7,900원으로 바뀌었는데 캐시가 옛 9,900원을 응답한다",
+      tl(112, 20, "캐시", "var(--ltt-muted)", "middle") + tl(189, 20, "DB", "var(--ltt-muted)", "middle")
+      + tbox(84, 56, "9,900", { fill: "var(--stale)" }) + `<text x="152" y="53" text-anchor="middle" style="font-size:14px;font-weight:800;fill:var(--ltt-bad)">✕</text>`
+      + tbox(164, 50, "7,900", { stroke: "var(--ltt-bad)", tc: "var(--ltt-bad)" }) + ha(82, 6, 48, "var(--stale)") + tl(6, 84, "옛 가격이 나간다", "var(--stale)")),
+    interval: tv("시간축 위 원본 변경 사이의 간격",
+      `<line x1="8" y1="64" x2="212" y2="64" style="stroke:var(--ltt-line-2);stroke-width:2"/>`
+      + [40, 104, 168].map((x) => `<line x1="${x}" y1="52" x2="${x}" y2="76" style="stroke:var(--ltt-bad);stroke-width:3"/>` + tl(x, 92, "변경", "var(--ltt-bad)", "middle")).join("")
+      + `<path d="M40 44 V36 H104 V44" style="fill:none;stroke:var(--ltt-ink);stroke-width:1.5"/>` + tl(72, 28, "변경 간격", "var(--ltt-ink)", "middle") + tl(212, 56, "시간 →", "var(--ltt-muted)", "end")),
+  };
+
   LTT.deck({
     title: "캐시 TTL을 늘리면 무엇을 잃을까?",
     theme: "terminal",
@@ -143,10 +165,10 @@
 
       { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
         terms: [
-          { key: "캐시 적중", en: "cache hit", icon: "cache", plain: "요청한 값이 캐시에 이미 있어서 원본 DB에 묻지 않고 바로 돌려주는 것.", example: "상품 페이지를 열었는데 캐시에 가격이 있으면 DB 조회 없이 응답." },
-          { key: "원본 조회", en: "cache miss", icon: "db", plain: "캐시에 값이 없거나 만료돼서 원본 DB에 직접 묻는 것. DB에 부하가 간다.", example: "TTL이 막 끝난 직후의 첫 요청." },
-          { key: "오래된 응답", en: "stale read", icon: "hourglass", plain: "원본은 이미 바뀌었는데 캐시에 남은 옛 값을 돌려준 응답.", example: "가격이 내렸는데 사용자 화면에는 옛 가격이 보인다." },
-          { key: "변경 간격", en: "update interval", icon: "refresh", plain: "원본 값이 평균 몇 분에 한 번 바뀌는지. 데이터마다 크게 다르다.", example: "상품 설명은 하루 1번, 재고는 1분에 1번." },
+          { key: "캐시 적중", en: "cache hit", icon: "cache", visual: TERM_VIS.hit, plain: "요청한 값이 캐시에 이미 있어서 원본 DB에 묻지 않고 바로 돌려주는 것.", example: "상품 페이지를 열었는데 캐시에 가격이 있으면 DB 조회 없이 응답." },
+          { key: "원본 조회", en: "cache miss", icon: "db", visual: TERM_VIS.miss, plain: "캐시에 값이 없거나 만료돼서 원본 DB에 직접 묻는 것. DB에 부하가 간다.", example: "TTL이 막 끝난 직후의 첫 요청." },
+          { key: "오래된 응답", en: "stale read", icon: "hourglass", visual: TERM_VIS.stale, plain: "원본은 이미 바뀌었는데 캐시에 남은 옛 값을 돌려준 응답.", example: "가격이 내렸는데 사용자 화면에는 옛 가격이 보인다." },
+          { key: "변경 간격", en: "update interval", icon: "refresh", visual: TERM_VIS.interval, plain: "원본 값이 평균 몇 분에 한 번 바뀌는지. 데이터마다 크게 다르다.", example: "상품 설명은 하루 1번, 재고는 1분에 1번." },
         ] },
 
       { type: "figure", kicker: "단계별로 보기", title: "캐시에 담긴 값 하나의 일생", en: "Lifecycle",
@@ -163,6 +185,7 @@
           LTT.stepper(left, lifeTimeline(left, term).steps, { interval: 2600 });
         },
         takeaway: "TTL 안에서 원본이 바뀌면, 남은 시간의 적중은 모두 옛 값이다.",
+        recall: "TTL이 끝나기 전에 원본 가격이 바뀌면, 만료될 때까지 캐시에 적중한 응답은 어떤 값을 받게 되나?",
         ask: "\"이 데이터는 평균 몇 분에 한 번 바뀌나요?\"" },
 
       { type: "predict", kicker: "짐작해 보기", title: "응답 100건 중 옛 값은 몇 건일까?",
@@ -193,6 +216,7 @@
             noteAfter: true, note: "옛 값은 줄었지만 원본 조회가 TTL 5분일 때의 약 29배다." },
         ],
         takeaway: "TTL은 '데이터가 바뀌는 속도'에 맞춰 정한다.",
+        recall: "같은 TTL 5분이 상품 설명에는 괜찮고 재고에는 나빴다. 그렇다면 TTL은 무엇에 맞춰 정해야 하나?",
         ask: "\"옛 값이 나가면 사용자에게 무슨 일이 생기나요?\"",
         sources: ["Jung · Berger · Balakrishnan, INFOCOM 2003"] },
 
@@ -206,7 +230,7 @@
         ],
         mount(body) {
           const TTLS = [1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600];
-          body.innerHTML = `<label class="ltt-param">TTL <b id="ttl-v"></b><input type="range" id="ttl" min="0" max="9" value="4" aria-label="TTL"></label>
+          body.innerHTML = `<div id="ttl-goal"></div><label class="ltt-param">TTL <b id="ttl-v"></b><input type="range" id="ttl" min="0" max="9" value="4" aria-label="TTL"></label>
             <p class="ltt-basis">응답 100건 구성</p><div class="ltt-bar" id="b1"></div><p style="margin:0">${KEY}</p>
             <p class="ltt-basis">원본 DB 조회 (분당) · 캐시가 없으면 120회(초당 2번 × 60초)가 모두 DB로 간다</p><div class="ltt-bar" id="b2"></div>
             <p class="ltt-basis">요청 2회/초, 변경 간격 평균 10분 고정 · <span class="ltt-tag">모델로 계산한 예시</span></p>`;
@@ -216,10 +240,12 @@
             const m = model(2, 600, ttl);
             b1.set([m.staleN, m.freshN, m.missN], [m.staleN || "", m.freshN, m.missN || ""]);
             b2.set([m.perMin, 120 - m.perMin], [sig2(m.perMin) + "회", ""]);
-          } });
+          }, goal: { el: "ttl-goal", text: "DB 조회를 분당 0.5회 이하로 줄이면서, 오래된 응답은 100건 중 10건 이하로 지키는 TTL을 찾아 본다",
+            check: ({ ttl }) => { const m = model(2, 600, ttl); return m.perMin <= 0.5 && m.staleN <= 10; } } });
           return {};
         },
         takeaway: "TTL 하나로 DB 부하와 옛 값 비율을 동시에 줄일 수는 없다.",
+        recall: "TTL을 늘리면 DB 조회 수와 옛 값 비율은 각각 어느 쪽으로 움직이고, 그래서 TTL만으로는 무엇을 할 수 없나?",
         ask: "\"DB가 버틸 수 있는 분당 조회 수는요?\"" },
 
       { type: "explain", kicker: "어림 규칙", title: "숫자 감각 세 가지", arrows: false,
@@ -231,6 +257,7 @@
           { icon: "refresh", title: "TTL 말고 무효화", text: "원본이 바뀔 때 캐시를 직접 지우는 방법. 단, 읽기가 옛 값을 가져온 사이에 쓰기가 캐시를 지우면, 읽기가 그 옛 값을 다시 넣을 수 있다(Nishtala 외, NSDI 2013)." },
         ],
         takeaway: "옛 값 비율은 대략 TTL ÷ 변경 간격의 절반이다.",
+        recall: "TTL 60초, 변경 간격 10분인 데이터에서 옛 값 비율을 계산기 없이 어림하려면 어떻게 하나?",
         ask: "\"TTL 대신 변경 시 무효화를 쓸 수 있나요?\"" },
 
       { type: "summary", title: "TTL을 정하기 전에 물어볼 것", en: "Recap" },

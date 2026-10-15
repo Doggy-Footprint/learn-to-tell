@@ -19,6 +19,8 @@
   .ab { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: clamp(14px, 1.2vw, 16px); line-height: 1.45; color: var(--ltt-ink-2); }
   .ab .k { font: 600 12px var(--ltt-mono); color: var(--ltt-muted); letter-spacing: .06em; padding-top: 2px; }
   .ab .an { color: var(--ltt-bad); font-weight: 700; }
+  .tv { width: 100%; max-width: 240px; max-height: 110px; }
+  .tv text { font: 700 12px var(--ltt-font); fill: var(--ltt-ink-2); }
 </style>
 </head>
 <body>
@@ -129,6 +131,19 @@
     };
   }
 
+  // Term pictures reuse the figures' mark grammar (square = anchor, ring = own estimate, dot = answer) on a 0..12 week line, x = 20 + 15·week.
+  const tv = (inner) => `<svg class="tv" viewBox="0 0 220 100" role="img"><line x1="20" x2="200" y1="70" y2="70" style="stroke:var(--ltt-ink)"/>${inner}</svg>`;
+  const sq = (x) => `<rect x="${x - 6}" y="64" width="12" height="12" style="fill:var(--ltt-bad)"/>`;
+  const TERM_ANCHOR = tv(sq(50) + [[58, 61], [64, 76], [71, 66], [79, 73], [88, 62]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="4" style="fill:var(--ltt-ink)"/>`).join("")
+    + `<text x="50" y="50" text-anchor="middle" style="fill:var(--ltt-bad)">먼저 들은 2주</text><text x="140" y="92" text-anchor="middle">추정이 그 근처에 모인다</text>`);
+  const TERM_ADJUST = tv(`<rect x="88" y="60" width="52" height="20" style="fill:var(--ltt-bad-soft)"/>` + sq(50)
+    + `<path d="M50,58 C62,22 80,22 88,58" style="fill:none;stroke:var(--ltt-ink);stroke-width:1.5;stroke-dasharray:4 3"/><circle cx="88" cy="70" r="5" style="fill:var(--ltt-ink)"/>`
+    + `<circle cx="140" cy="70" r="6" style="fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:2"/><text x="140" y="50" text-anchor="middle">혼자면 6주</text>`
+    + `<text x="114" y="94" text-anchor="middle" style="fill:var(--ltt-bad)">못 간 만큼</text>`);
+  const TERM_INDEP = `<svg class="tv" viewBox="0 0 220 100" role="img">` + [[20, 5], [85, 6], [150, 8]].map(([x, v]) =>
+    `<rect x="${x}" y="8" width="50" height="58" rx="5" style="fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:1.5"/><text x="${x + 25}" y="46" text-anchor="middle" style="font-size:24px;fill:var(--ltt-ink)">${v}</text>`).join("")
+    + `<text x="110" y="90" text-anchor="middle">각자 적고, 동시에 뒤집는다</text></svg>`;
+
   const study = (anchor, judged) => `<div class="ab"><span class="k">앵커</span><span class="an">${anchor}</span><span class="k">판단</span><span>${judged}</span></div>`;
 
   LTT.deck({
@@ -142,9 +157,9 @@
 
       { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
         terms: [
-          { key: "앵커", en: "anchor", icon: "anchor", plain: "추정하기 전에 먼저 보거나 들은 숫자. 질문과 상관없는 숫자여도 출발점이 된다.", example: "\"작년엔 2주 걸렸대요\", 견적서에 미리 적힌 희망가." },
-          { key: "조정 부족", en: "insufficient adjustment", icon: "trend", plain: "앵커에서 출발해 답을 고쳐 가다가, 충분히 가기 전에 멈추는 것. 그래서 답이 앵커 쪽에 치우친다.", example: "6주짜리 일을 2주에서 출발해 4~5주로 답한다." },
-          { key: "독립 추정", en: "independent estimate", icon: "pencil", plain: "다른 사람의 숫자를 보기 전에 각자 따로 적은 추정값.", example: "플래닝 포커(각자 숫자 카드를 고른 뒤 동시에 뒤집는 추정 방식)가 카드를 동시에 뒤집는 이유." },
+          { key: "앵커", en: "anchor", icon: "anchor", visual: TERM_ANCHOR, plain: "추정하기 전에 먼저 보거나 들은 숫자. 질문과 상관없는 숫자여도 출발점이 된다.", example: "\"작년엔 2주 걸렸대요\", 견적서에 미리 적힌 희망가." },
+          { key: "조정 부족", en: "insufficient adjustment", icon: "trend", visual: TERM_ADJUST, plain: "앵커에서 출발해 답을 고쳐 가다가, 충분히 가기 전에 멈추는 것. 그래서 답이 앵커 쪽에 치우친다.", example: "6주짜리 일을 2주에서 출발해 4~5주로 답한다." },
+          { key: "독립 추정", en: "independent estimate", icon: "pencil", visual: TERM_INDEP, plain: "다른 사람의 숫자를 보기 전에 각자 따로 적은 추정값.", example: "플래닝 포커(각자 숫자 카드를 고른 뒤 동시에 뒤집는 추정 방식)가 카드를 동시에 뒤집는 이유." },
         ] },
 
       { type: "figure", kicker: "단계별로 보기", title: "출발점에서 덜 움직인다", en: "Anchoring",
@@ -152,6 +167,7 @@
         caption: "앵커링과 조정, 한 사람의 머릿속. 가로축은 작업 기간(주). 사각형 = 먼저 들은 숫자, 빈 원 = 혼자 한 추정, 검은 점 = 최종 답. 단계를 넘기며 최종 답이 어디서 멈추는지 보자.",
         basis: "개념 그림이다. 점의 위치는 설명용이고 실제 효과 크기가 아니다. 설명은 Tversky & Kahneman 1974의 '앵커링과 조정'. 앵커가 관련 정보를 먼저 떠올리게 한다는 설명(선택적 접근성)도 있다.",
         takeaway: "먼저 들은 숫자에서 출발하면, 충분히 가기 전에 멈춘다.",
+        recall: "혼자서는 6주로 볼 일인데, \"2주면 되지?\"를 먼저 들은 사람의 최종 답은 왜 6주에 못 미칠까?",
         ask: "\"이 견적, 누가 먼저 숫자를 말했나요?\"" },
 
       { type: "figure", kicker: "연구 결과", title: "상관없는 숫자에도 판단이 끌려갔다", en: "Results",
@@ -171,7 +187,8 @@
             note: "본인들은 희망가를 참고하지 않았다고 답했다(Northcraft & Neale 1987)." },
         ],
         basis: "수치는 바퀴 연구의 논문 보고값(집단 중앙값)만 실었다. 나머지 두 연구는 방향만 적었다.",
-        takeaway: "앵커는 무관한 숫자여도, 전문가에게도 작동한다." },
+        takeaway: "앵커는 무관한 숫자여도, 전문가에게도 작동한다.",
+        recall: "행운의 바퀴·판사·부동산 중개인 연구에서, 판단을 끌어당긴 숫자는 어떤 숫자였고 누구에게 작동했나?" },
 
       { type: "statement", kicker: "그래서", title: "끌린 사람은 <em>끌렸다는 걸</em> 알아채기 어렵다.",
         sub: "중개인들은 희망가를 참고하지 않았다고 답했다. 앵커를 들은 뒤에는 원래 몇 주로 생각했는지 본인도 되살릴 수 없다. 그래서 의지가 아니라 순서로 막는다." },
@@ -185,7 +202,8 @@
             note: "앵커와 내 추정이 같으면 끌렸는지조차 보이지 않는다." },
         ],
         basis: "끌림의 크기는 사람과 과제마다 달라 싣지 않고 방향과 구간만 보인다.",
-        takeaway: "끌렸는지 알려면, 숫자를 듣기 전에 내 추정을 적어 둬야 한다." },
+        takeaway: "끌렸는지 알려면, 숫자를 듣기 전에 내 추정을 적어 둬야 한다.",
+        recall: "다른 사람의 견적을 들은 뒤, 내가 그 숫자에 끌렸는지 확인하려면 무엇이 미리 있어야 할까?" },
 
       { type: "explain", form: "strip", kicker: "실전 절차", title: "의지 대신 순서로 막는다", en: "Procedure",
         steps: [
@@ -195,6 +213,7 @@
         ],
         basis: "앵커는 무작위 숫자여도 작동한다. 그럴듯한 근거가 붙은 숫자가 틀렸는지는 따로 확인해야 한다.",
         takeaway: "독립 추정을 먼저 모으고, 기존 숫자는 그 다음에 공개한다.",
+        recall: "다음 추정 회의에서 팀원들의 추정과 기존 견적·희망 마감은 어떤 순서로 꺼내야 할까?",
         ask: "\"다른 숫자를 보기 전에 각자 추정을 먼저 적어 주세요\"" },
 
       { type: "summary", title: "추정 회의 전에 물어볼 것", en: "Recap" },

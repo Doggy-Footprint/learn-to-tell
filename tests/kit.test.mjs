@@ -125,6 +125,24 @@ test("lint flags runs and majorities of equal card grids, but not non-card forms
   assert.ok(rules({ scenes: majority }).includes("card-monotony"));
 });
 
+test("lint wants a picture for every term unless it is opted out with visual: false", () => {
+  const terms = (t) => rules({ scenes: [{ type: "terms", title: "t", terms: [t] }, KW] });
+  assert.ok(terms({ key: "색상", plain: "p" }).includes("term-no-visual"));
+  assert.ok(!terms({ key: "색상", plain: "p", visual: "<svg></svg>" }).includes("term-no-visual"));
+  assert.ok(!terms({ key: "색상", plain: "p", visual: false }).includes("term-no-visual"));
+});
+
+test("lint wants a recall question for every takeaway a summary collects, and a recall summary is not a card grid", () => {
+  const ex = (o) => Object.assign({ type: "explain", form: "strip", title: "e", steps: [], takeaway: "핵심" }, o);
+  const sum = { type: "summary" };
+  assert.ok(rules({ scenes: [ex(), ex({ recall: "q" }), sum, KW] }).includes("summary-no-recall"));
+  assert.ok(!rules({ scenes: [ex({ recall: "q" }), ex({ recall: "q2" }), sum, KW] }).includes("summary-no-recall"));
+  assert.ok(rules({ scenes: [{ type: "summary", cards: [{ text: "t" }] }, KW] }).includes("summary-no-recall"));
+  const grid = (recall) => [{ type: "explain", title: "a", steps: [], takeaway: "x", recall }, { type: "terms", title: "t", terms: [] }, sum, KW];
+  assert.ok(rules({ scenes: grid() }).includes("card-monotony"));
+  assert.ok(!rules({ scenes: grid("q") }).includes("card-monotony"));
+});
+
 test("lint wants a signature visual and a known theme", () => {
   const ex = { type: "explain", title: "e", steps: [] };
   assert.ok(rules({ scenes: [ex, KW] }).includes("no-signature"));
@@ -214,6 +232,17 @@ test("every theme's palette has 6 colours readable on its surfaces and distinct 
       const a = hexRgb(pal[i]), b = hexRgb(pal[j]);
       assert.ok(okDist(a, b) >= 0.06, `${at} ${pal[i]} vs ${pal[j]}`);
       for (const k of Object.keys(CVD)) assert.ok(okDist(simulate(a, k), simulate(b, k)) >= 0.06, `${at} ${pal[i]} vs ${pal[j]} under ${k}`);
+    }
+  }
+});
+
+test("every theme's text tokens reach 4.5:1 on its surfaces and their own soft fill", () => {
+  const { themes, themeTokens } = loadKit();
+  for (const { name } of themes) for (const scheme of ["light", "dark"]) {
+    const tk = themeTokens(name, scheme), at = `${name}/${scheme}`;
+    for (const fg of ["ink", "ink-2", "muted", "accent", "good", "bad", "warn"]) {
+      const on = ["bg", "card", "card-2"].concat(tk[fg + "-soft"] ? [fg + "-soft"] : []);
+      for (const bg of on) assert.ok(contrast(hexRgb(tk[fg]), hexRgb(tk[bg])) >= 4.5, `${at} ${fg} ${tk[fg]} on ${bg} ${tk[bg]}`);
     }
   }
 });

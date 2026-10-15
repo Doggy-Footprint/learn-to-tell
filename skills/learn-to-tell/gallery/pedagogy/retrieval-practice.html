@@ -18,6 +18,8 @@
   .ex .ci { display: flex; flex: none; width: 36px; height: 36px; align-items: center; justify-content: center; color: var(--ltt-accent); box-shadow: inset 0 0 0 1.5px var(--ltt-line-2); border-radius: var(--ltt-r-sm); }
   .ex .ci .ltt-ic { width: 20px; height: 20px; }
   .ltt-svg.mf { max-width: 1100px; }
+  .tv { width: 100%; max-width: 240px; max-height: 110px; }
+  .tv text { font: 700 12px var(--ltt-font); fill: var(--ltt-ink-2); }
   .ltt-svg.mf text { font-family: var(--ltt-font-display); font-size: 15px; }
   .ltt-svg.mf .hd { font-weight: 700; fill: var(--ltt-ink); }
   .ltt-svg.mf .sm { font-family: var(--ltt-font); font-size: 13px; fill: var(--ltt-muted); }
@@ -95,6 +97,22 @@
   }
   const METHOD = design(false), RESULT = design(true);
 
+  const arrow = (x1, x2, y) => `<path d="M${x1},${y}H${x2}m-6,-5l6,5l-6,5" style="fill:none;stroke:var(--ltt-ink-2);stroke-width:1.5"/>`;
+  const TERM_RETRIEVE = `<svg class="tv" viewBox="0 0 220 100" role="img">`
+    + `<rect x="12" y="14" width="46" height="58" rx="3" style="fill:var(--read)"/><line x1="20" x2="20" y1="14" y2="72" style="stroke:var(--ltt-ink-2)"/>`
+    + arrow(66, 92, 43)
+    + `<rect x="100" y="14" width="46" height="58" rx="3" style="fill:var(--ltt-card);stroke:var(--ltt-line-2)"/>`
+    + [26, 38, 50].map((y, i) => `<line x1="108" x2="${138 - i * 8}" y1="${y}" y2="${y}" style="stroke:var(--test);stroke-width:3;stroke-linecap:round"/>`).join("")
+    + arrow(154, 176, 43)
+    + `<circle cx="196" cy="43" r="14" style="fill:var(--ltt-good-soft);stroke:var(--ltt-good);stroke-width:2"/><path d="M189,43l5,5l9,-10" style="fill:none;stroke:var(--ltt-good);stroke-width:2.5"/>`
+    + `<text x="35" y="92" text-anchor="middle">책 덮고</text><text x="123" y="92" text-anchor="middle">꺼내 쓰기</text><text x="196" y="92" text-anchor="middle">맞춰 보기</text></svg>`;
+  const TERM_DELAYED = `<svg class="tv" viewBox="0 0 220 100" role="img">`
+    + `<line x1="12" x2="208" y1="56" y2="56" style="stroke:var(--ltt-ink)"/>`
+    + `<rect x="12" y="40" width="34" height="32" rx="2" style="fill:var(--test)"/><text x="29" y="90" text-anchor="middle">공부</text>`
+    + `<rect x="54" y="42" width="26" height="28" rx="2" style="fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-dasharray:4 3"/><text x="67" y="30" text-anchor="middle" style="fill:var(--ltt-muted)">직후</text>`
+    + `<text x="122" y="50" text-anchor="middle" style="fill:var(--ltt-muted)">며칠…</text>`
+    + `<rect x="166" y="36" width="42" height="40" rx="2" style="fill:var(--ltt-card);stroke:var(--test);stroke-width:2.5"/><text x="187" y="61" text-anchor="middle" style="fill:var(--ltt-ink)">시험</text><text x="187" y="92" text-anchor="middle">1주 뒤</text></svg>`;
+
   LTT.deck({
     title: "다시 읽기와 인출 연습, 1주 뒤엔 어느 쪽이 더 남을까?",
     theme: "paper",
@@ -106,8 +124,8 @@
 
       { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
         terms: [
-          { key: "인출 연습", en: "retrieval practice", icon: "pencil", plain: "배운 내용을 보지 않고 머릿속에서 꺼내 보는 연습. 꺼낸 뒤 맞았는지 확인한다.", example: "책을 덮고 방금 읽은 내용을 백지에 써 보기." },
-          { key: "지연 시험", en: "delayed test", icon: "clock", plain: "공부하고 며칠 지난 뒤에 보는 시험. 오래 남았는지를 잰다. 공부 직후 시험과 결과가 다를 수 있다.", example: "공부 5분 뒤 시험 vs 1주 뒤 시험." },
+          { key: "인출 연습", en: "retrieval practice", icon: "pencil", visual: TERM_RETRIEVE, plain: "배운 내용을 보지 않고 머릿속에서 꺼내 보는 연습. 꺼낸 뒤 맞았는지 확인한다.", example: "책을 덮고 방금 읽은 내용을 백지에 써 보기." },
+          { key: "지연 시험", en: "delayed test", icon: "clock", visual: TERM_DELAYED, plain: "공부하고 며칠 지난 뒤에 보는 시험. 오래 남았는지를 잰다. 공부 직후 시험과 결과가 다를 수 있다.", example: "공부 5분 뒤 시험 vs 1주 뒤 시험." },
         ] },
 
       { type: "explain", kicker: "원리", title: "꺼내 본 기억이 다음에도 꺼내진다", en: "Why it works",
@@ -116,13 +134,15 @@
           { icon: "pencil", title: "떠올리기", text: "책을 덮고 꺼내려 애쓰는 과정이 그 기억으로 가는 길을 튼튼하게 만든다." },
           { icon: "clock", title: "며칠 뒤 차이", text: "시험도 결국 '꺼내기'다. 꺼내 본 연습이 많을수록 {{지연 시험}}에서 더 남는다." },
         ],
-        takeaway: "시험에서 하는 일(꺼내기)을 미리 연습한 쪽이 오래 남는다." },
+        takeaway: "시험에서 하는 일(꺼내기)을 미리 연습한 쪽이 오래 남는다.",
+        recall: "책을 덮고 떠올려 보는 연습이 며칠 뒤 시험에서 도움이 되는 까닭은 무엇일까?" },
 
       { type: "figure", kicker: "실험 설계", title: "같은 글, 다른 복습법, 두 번의 시험", en: "Method",
         figure: METHOD.draw,
         caption: "실험 설계. 대학생들이 같은 글을 공부했다. 한 조는 4번 읽었고, 다른 조는 1번 읽은 뒤 3번은 책을 덮고 기억나는 대로 썼다. 두 조 모두 일부는 5분 뒤, 일부는 1주 뒤에 같은 시험을 봤다(점선 칸 = 둘 중 한 시험만 봄). 복습에 쓴 시간은 같다.",
         basis: SRC,
-        takeaway: "비교한 것은 같은 시간을 '읽기'에 쓰느냐 '꺼내기'에 쓰느냐다." },
+        takeaway: "비교한 것은 같은 시간을 '읽기'에 쓰느냐 '꺼내기'에 쓰느냐다.",
+        recall: "이 실험에서 두 조가 똑같이 맞춘 조건은 무엇이고, 단 하나 다르게 한 것은 무엇이었나?" },
 
       { type: "predict", kicker: "짐작해 보기", title: "1주 뒤 시험, 어느 조가 더 많이 기억했을까?",
         sub: "그림 1의 두 조가 1주 뒤에 본 시험 결과다.",
@@ -147,6 +167,7 @@
         ],
         basis: SRC,
         takeaway: "공부 직후의 느낌으로 공부법을 고르면, 오래 남는 쪽을 놓친다.",
+        recall: "5분 뒤 시험과 1주 뒤 시험에서 두 조의 순위는 각각 어땠고, 그 결과로 보면 공부법은 언제의 성적으로 골라야 할까?",
         ask: "\"이 자료로 나를 테스트할 문제를 만들어 줘\"" },
 
       { type: "statement", kicker: "그래서", title: "공부 직후에 잘 나오는 방법이 <em>1주 뒤엔 진다</em>.",
@@ -162,7 +183,8 @@
           { label: "백지 복습", visual: ex("inbox", "덮고 기억나는 대로 쓰기"), tone: "good", verdict: "인출 연습", noteAfter: true, note: "맞았는지 확인하는 단계를 꼭 붙인다." },
           { label: "형광펜·요약 다시 보기", visual: ex("eye", "칠한 부분을 다시 읽기"), tone: "bad", verdict: "다시 읽기", noteAfter: true, note: "익숙함만 늘 수 있다." },
         ],
-        takeaway: "복습에 '책 덮고 꺼내는' 단계가 있는지 확인한다." },
+        takeaway: "복습에 '책 덮고 꺼내는' 단계가 있는지 확인한다.",
+        recall: "플래시카드는 인출 연습이고 형광펜 다시 보기는 아니라고 가른 기준은 무엇이었나?" },
 
       { type: "explain", kicker: "한계", title: "그대로 옮기면 안 되는 곳", arrows: false,
         steps: [
@@ -171,7 +193,8 @@
           { icon: "alert", title: "정답 확인 없음", text: "틀린 내용을 떠올리면 오답이 굳을 수 있다. 꺼낸 뒤 반드시 맞춰 본다." },
         ],
         basis: "한 편의 글, 대학생 조건의 결과라 다른 과목·연령에 수치를 그대로 옮길 수 없다.",
-        takeaway: "이해 먼저, 그다음 꺼내기, 그리고 정답 확인." },
+        takeaway: "이해 먼저, 그다음 꺼내기, 그리고 정답 확인.",
+        recall: "처음 배우는 어려운 내용을 인출 연습으로 복습한다면, 꺼내기 앞과 뒤에 각각 무엇을 붙여야 할까?" },
 
       { type: "summary", title: "복습 계획을 짜기 전에 물어볼 것", en: "Recap" },
 

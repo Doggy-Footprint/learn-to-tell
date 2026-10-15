@@ -30,7 +30,7 @@
 | `LTT.theme(name)`, `LTT.themes` | 도메인 테마를 고른다. 덱에서는 `LTT.deck({theme})`로 넘긴다. 테마는 토큰 값과 표면(모서리, 그림자, 제목 폰트, 배경 격자)만 바꾸므로 같은 부품이 다른 매체처럼 보인다. 아래 표. |
 | 토큰 | `--ltt-bg` `--ltt-card` `--ltt-card-2` `--ltt-line` `--ltt-line-2` `--ltt-ink` `--ltt-ink-2` `--ltt-muted` `--ltt-accent(-soft)` `--ltt-good(-soft)` `--ltt-bad(-soft)` `--ltt-warn(-soft)` `--ltt-dark` `--ltt-on-dark` `--ltt-on-accent` `--ltt-accent-on-dark` `--ltt-shadow` `--ltt-font` `--ltt-font-display` `--ltt-mono` `--ltt-r-lg` `--ltt-r-md` `--ltt-r-sm`, 범주형 `--ltt-c1`…`--ltt-c6`, 지도 `--ltt-sea` `--ltt-land` `--ltt-border`. 다크 모드는 `prefers-color-scheme`를 따르고, `<html data-theme="light|dark">`로 고정할 수 있다. |
 | 폰트 | 본문 Pretendard Variable, 세리프 `'LTT Serif'`(Noto Serif KR), 모노 `'LTT Mono'`(D2Coding). 세리프·모노는 KS X 1001 한글 2,350자 + 라틴 subset이라 빠진 음절은 시스템 폰트로 그린다. 숫자·코드는 `var(--ltt-mono)`, 세리프 제목은 테마의 `--ltt-font-display`. |
-| `LTT.palette()`, `LTT.palette(theme, "light"\|"dark")` | 범주형 색 6개 배열. 인자 없이 부르면 지금 페이지의 테마·다크 모드 값. 계열 구분에만 쓰고 판정(good·bad)에는 쓰지 않는다. 모든 테마에서 배경 대비 3:1 이상, 색각 이상(적록·청황) 시뮬레이션에서도 구분된다(`tests/kit.test.mjs`). |
+| `LTT.palette()`, `LTT.palette(theme, "light"\|"dark")` | 범주형 색 6개 배열. 인자 없이 부르면 지금 페이지의 테마·다크 모드 값. 계열 구분에만 쓰고 판정(good·bad)에는 쓰지 않는다. 모든 테마에서 배경 대비 3:1 이상(글자 토큰 `ink`·`ink-2`·`muted`·`accent`·`good`·`bad`·`warn`은 바탕·카드·자기 soft 위 4.5:1 이상), 색각 이상(적록·청황) 시뮬레이션에서도 구분된다(`tests/kit.test.mjs`). |
 | `LTT.mark(kind, {size, color, weight, fill, inline})` | 모양 표식 SVG 문자열(square, ring, dot, diamond, cross, 목록은 `LTT.marks`). (0,0) 중심이라 d3 `g.html(...)`에 넣는다. `inline: true`면 1em `<svg>`로 감싸 본문·범례에 쓴다. 색만으로 계열을 가르지 않게 모양을 함께 쓴다. |
 | `LTT.themeTokens(theme, scheme)` | 문서 없이 테마의 색 토큰 객체(`{bg, ink, c1, …}`). 테스트·서버 쪽 계산용. |
 | `LTT.icon(name, {weight, cls})` | 선 아이콘 SVG 문자열. 이름 목록은 `LTT.icons`. hook `art`, explain·terms·facts `icon`, diagram 노드 `icon`에는 이름만 넘긴다. 이모지도 받는다. 손으로 그린 44개 + Lucide에서 가져온 16개(globe, map-pin, route, git-branch, timer, database-zap, network, shield-check, key-round, mail, package, truck, wifi, cloud, gauge, workflow). 더 필요하면 Lucide에서 그 아이콘만 `ICONS`에 옮긴다(전체 세트는 넣지 않는다). |
@@ -41,6 +41,7 @@
 | `LTT.expect(label, actual, expected, {tol})` | 기대값 대조. 불일치는 패널과 서버에 남는다. |
 | `LTT.warn(msg)` | 패널에 경고 한 줄. |
 | `LTT.contrast(a, b)` | 두 hex 색의 WCAG 대비비. |
+| `LTT.summaryCards(scene, scenes)` | summary 장면이 보일 항목 목록(lint와 덱이 같이 쓴다). |
 
 ### 테마
 
@@ -73,7 +74,9 @@
 | `many-points` | 번호 주석 3개 초과 |
 | `keywords-last` | 마지막 장면이 keywords가 아니다 |
 | `unused-term` | glossary에 넣고 어디에도 표시하지 않았다 |
-| `card-monotony` | 카드 격자 장면(explain `cards`, compare, terms, summary)이 3장 연속이거나, hook·keywords를 뺀 장면의 60% 초과 |
+| `term-no-visual` | terms 항목에 `visual`이 없다. 그림으로 보일 수 없는 말이면 `visual: false`로 밝힌다 |
+| `summary-no-recall` | summary가 모으는 takeaway에 `recall` 질문이 없다 |
+| `card-monotony` | 카드 격자 장면(explain `cards`, compare, terms, `recall` 없는 summary)이 3장 연속이거나, hook·keywords를 뺀 장면의 60% 초과 |
 | `no-signature` | 그림이 주인공인 장면(`figure`, `contrast`, `layout: "full"`, 타입 없는 `mount`)이 없다 |
 | `no-theme`, `unknown-theme` | `theme`을 고르지 않았거나 없는 이름이다 |
 | `filler-content` | "항목 1", "샘플 텍스트", lorem, TODO 같은 채움 글 |
@@ -145,7 +148,7 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `LTT.units(el, n, cols, {band}).paint(k, cls, alt)` | 단위 그림(100칸 = 100건). `band: true`면 가는 틱의 넓은 띠(예: 2×50, 시간순 요청). |
 | `LTT.bar(el, [{color}]).set(values, labels)` | 비율 막대. |
 | `LTT.tween(el, to, fmt, ms)` | 숫자 변화. |
-| `LTT.sweep({params: {id: {map, fmt}}, render, presets})` | range 입력 → `render(values)`. 조작 자체가 배움일 때만, 실사용 범위만. |
+| `LTT.sweep({params: {id: {map, fmt}}, render, presets, goal})` | range 입력 → `render(values)`. 조작 자체가 배움일 때만, 실사용 범위만. `goal: {el, text, target, check(values)}`는 `el` 안에 목표 띠(목표 견본 `target` + 문장)를 그리고, `check`가 참이면 "맞췄다" 표시와 `goal` 이벤트를 남긴다. 자유 조작 대신 목표를 준다. |
 | `LTT.predict({...})` | 첫 짐작을 잠그고 기록. 덱의 predict 장면이 쓴다. |
 | `LTT.plane(svg, {range, vectors, shape}).to(m)` | 2×2 행렬 변환. |
 | `LTT.sim({init, step, draw, until, dt, onEnd})` | 고정 간격 시뮬레이션. `runToEnd()`는 화면 없이 결과만. |
@@ -176,6 +179,7 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `narration` | 해설 2–4문장. 있으면 그림 옆 설명 레일이 생긴다 |
 | `points`, `pointsOn`, `pointsTone` | 번호 주석. 대상은 `pointsOn` 셀렉터, 없으면 `[data-annotate]`, 없으면 본문의 첫 요소 |
 | `takeaway`, `sources` | 핵심 한 문장과 찾아볼 곳. summary 장면이 모은다 |
+| `recall` | takeaway를 떠올리게 하는 질문 한 줄. summary가 질문을 먼저 보이고 답(takeaway)은 "답 보기" 뒤에 연다 |
 | `ask` | agent에게 할 질문 한 줄. summary 카드에 붙는다 |
 | `aside` | 설명 레일에 넣을 추가 부품 |
 | `basis`, `tex` | 근거 한 줄, 접힌 수식 |
@@ -189,13 +193,13 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | type | 필드 |
 | --- | --- |
 | `hook` | `art`(아이콘 이름·이모지·HTML), `pre`, `text`, `sub`, `kicker`, `chips`. 첫 장면 |
-| `terms` | `terms: [{key, word, en, icon, plain, example}]`. 용어를 쉬운 말로 먼저 푼다. key는 glossary에 자동 등록 |
+| `terms` | `terms: [{key, word, en, icon, visual, plain, example}]`. 용어를 쉬운 말로 먼저 푼다. key는 glossary에 자동 등록. `visual`(HTML·노드·함수)은 그 말이 가리키는 것을 보이는 작은 그림으로, 풀이 위에 그린다(예: 색상 → 색상환 위의 각도) |
 | `explain` | `steps: [{icon, title, text, visual}]`, `form`, `arrows`. `form`: `"cards"`(기본, 독립된 요소 나열), `"strip"`(이어진 한 줄 흐름, 카드 없이 선과 마디), `"stack"`(세로 타임라인, 단계마다 오른쪽에 그림) |
 | `figure` | `figure`(그림: 노드·HTML·함수), `caption`, `label`, `steps`, `interval`. 그림 하나가 화면을 차지하고 아래에 "그림 n." 캡션이 붙는다. `points`의 `at`은 무대 안 첫 목업(phone·browser·terminal·code)이 있으면 그 틀 기준, 없으면 무대 전체 기준 %다(`pointsOn`으로 바꾼다). `steps: [{caption, enter(k, fig)}]`를 주면 그림 왼쪽, 단계 자막 오른쪽으로 놓인다. `figure` 함수가 `{el, ...}`를 돌려주면 `enter`의 `fig`로 그 객체가 온다(같은 그림의 여러 상태). 장면에 들어올 때마다 다시 그리려면 공통 필드 `enter(body, ctx)` |
 | `statement` | `title`(큰 주장 한 문장, `<em>`은 강조색), `sub`, `visual`(작은 근거 그림, 선택). 카드 없이 리듬을 바꾸는 장면 |
 | `contrast` | `before`, `after`(위 beforeAfter의 각 쪽) |
 | `compare` | `items: [{label, visual, tone, verdict, note, noteAfter, enter, onReveal}]`, `form`, `cols`, `reveal`, `revealLabel`. `form: "table"`이면 사례가 행이 되는 비교표(라벨 \| 그림 \| 판정), `head: ["라벨 열", "그림 열", "판정 열"]`은 열 머리글(휴대폰 폭에서는 숨김) |
 | `predict` | `choices`, `answer`, `question`, `hint`, `visual`, `answerVisual`, `why`, `button`, `unsure`, `reveal` |
-| `summary` | 앞 장면의 `takeaway`를 카드로 모은다. `cards`로 직접 줄 수도 있다. `extra: {title, text}`는 검은 카드 |
+| `summary` | 앞 장면의 `takeaway`를 모은다. `recall`이 있으면 글 목록의 인출 연습이 된다: 질문 → 입력칸(선택) → "답 보기" → takeaway·`ask`. 공개할 때 `recall` 이벤트(`{scene, question, answer}`)를 남긴다. `recall`이 없으면 카드 격자. `cards: [{n, title, text, ask, recall}]`로 직접 줄 수도 있다. `extra: {title, text}`는 마지막 항목 |
 | `keywords` | `terms: [{ko, en}]`, `signals`, `queries`, `neighbors: [{term, diff}]`. 마지막 장면 |
 | (없음) | `mount`로 그리는 커스텀 장면 |

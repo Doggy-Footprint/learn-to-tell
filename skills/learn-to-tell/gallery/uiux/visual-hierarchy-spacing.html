@@ -84,6 +84,21 @@
     return b.el;
   };
 
+  const tv = (label, inner) => `<svg class="ltt-svg" viewBox="0 0 220 100" style="max-height:110px" role="img" aria-label="${label}">${inner}</svg>`;
+  const tl = (x, y, t, c = "var(--ltt-muted)", a = "middle", w = 400) => `<text x="${x}" y="${y}" text-anchor="${a}" style="font-size:11px;font-weight:${w};fill:${c}">${t}</text>`;
+  const TERM_VIS = {
+    hierarchy: tv("굵고 큰 줄이 1번, 가늘고 옅은 줄이 3번으로 읽히는 순서",
+      [[12, 16, 150, "var(--ltt-ink)"], [44, 10, 118, "var(--ltt-ink)"], [72, 6, 86, "var(--ltt-muted)"]].map(([y, h, w, c], i) =>
+        `<circle cx="16" cy="${y + h / 2}" r="9" style="fill:none;stroke:var(--ltt-accent);stroke-width:1.5"/>` + tl(16, y + h / 2 + 4, i + 1, "var(--ltt-accent)", "middle", 800)
+        + `<rect x="36" y="${y}" width="${w}" height="${h}" rx="${h / 2}" style="fill:${c}"/>`).join("")),
+    proximity: tv("가까이 붙은 점 셋씩이 두 묶음으로 보인다",
+      [24, 48, 72, 148, 172, 196].map((x) => `<circle cx="${x}" cy="38" r="9" style="fill:var(--ltt-ink)"/>`).join("")
+      + tl(110, 42, "← 넓게 →") + [[14, 82], [138, 206]].map(([a, b], i) => `<path d="M${a} 58 V64 H${b} V58" style="fill:none;stroke:var(--ltt-accent);stroke-width:1.5"/>` + tl((a + b) / 2, 82, `묶음 ${i + 1}`, "var(--ltt-accent)", "middle", 700)).join("")),
+    scale: tv("정해 둔 4·8·16·24·32·48만 쓰고 13 같은 값은 쓰지 않는다",
+      SCALE.map((v, i) => `<rect x="${12 + i * 28}" y="${80 - v * 1.4}" width="16" height="${v * 1.4}" rx="2" style="fill:var(--ltt-accent-soft);stroke:var(--ltt-accent)"/>` + tl(20 + i * 28, 94, v)).join("")
+      + `<rect x="186" y="${80 - 13 * 1.4}" width="16" height="${13 * 1.4}" rx="2" style="fill:none;stroke:var(--ltt-bad);stroke-dasharray:3 2"/>` + tl(194, 94, "13 ✕", "var(--ltt-bad)", "middle", 700)),
+  };
+
   LTT.deck({
     title: "세련된 화면은 '차이'를 아껴 쓴다",
     theme: "studio",
@@ -98,9 +113,9 @@
 
       { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
         terms: [
-          { key: "시각적 위계", en: "visual hierarchy", icon: "layers", plain: "눈이 화면에서 무엇을 먼저, 무엇을 나중에 읽을지의 순서. 크기·굵기·색 진하기의 차이로 만든다.", example: "상품 카드에서 가격이 가장 먼저, 배송 정보가 마지막에 읽힌다." },
-          { key: "근접성", en: "proximity · 게슈탈트(사람이 형태를 묶어 보는 방식) 원리", icon: "link", plain: "가까이 붙은 것들을 사람이 자동으로 한 묶음으로 보는 성질. 선이나 박스 없이 간격만으로 그룹을 만든다.", example: "라벨과 입력칸은 붙이고, 다음 항목과는 띄운다. 이미 감으로 하고 있던 그것이다." },
-          { key: "간격 스케일", en: "spacing scale", icon: "ruler", plain: "여백 값을 미리 정한 몇 단계(예: 4·8·16·24·32·48)에서만 고르는 규칙.", example: "13px, 15px 대신 16px 하나만 쓴다." },
+          { key: "시각적 위계", en: "visual hierarchy", icon: "layers", visual: TERM_VIS.hierarchy, plain: "눈이 화면에서 무엇을 먼저, 무엇을 나중에 읽을지의 순서. 크기·굵기·색 진하기의 차이로 만든다.", example: "상품 카드에서 가격이 가장 먼저, 배송 정보가 마지막에 읽힌다." },
+          { key: "근접성", en: "proximity · 게슈탈트(사람이 형태를 묶어 보는 방식) 원리", icon: "link", visual: TERM_VIS.proximity, plain: "가까이 붙은 것들을 사람이 자동으로 한 묶음으로 보는 성질. 선이나 박스 없이 간격만으로 그룹을 만든다.", example: "라벨과 입력칸은 붙이고, 다음 항목과는 띄운다. 이미 감으로 하고 있던 그것이다." },
+          { key: "간격 스케일", en: "spacing scale", icon: "ruler", visual: TERM_VIS.scale, plain: "여백 값을 미리 정한 몇 단계(예: 4·8·16·24·32·48)에서만 고르는 규칙.", example: "13px, 15px 대신 16px 하나만 쓴다." },
         ] },
 
       { type: "explain", form: "strip", kicker: "원인 → 과정 → 결과", title: "'어지럽다'는 눈이 길을 못 찾는다는 뜻이다", en: "Why it feels messy",
@@ -110,7 +125,8 @@
           { icon: "alert", title: "간격이 제각각", text: "13, 15, 18px처럼 의미 없는 차이가 섞이면, 눈은 어느 차이가 '묶음 경계'인지 판단하지 못한다. {{근접성}}이 신호 대신 잡음이 된다." },
           { icon: "eye", title: "결과", text: "사용자는 화면 전체를 훑어야 한다. 이게 '어지럽다', '촌스럽다'로 느껴진다. 반대로 차이가 적고 각 차이에 뜻이 있으면 '각이 잡혀' 보인다." },
         ],
-        takeaway: "어지러움은 '뜻 없는 차이'와 '차이 없는 중요도'에서 온다." },
+        takeaway: "어지러움은 '뜻 없는 차이'와 '차이 없는 중요도'에서 온다.",
+        recall: "화면이 '어지럽다'고 느껴지게 만드는 두 가지 원인은 무엇인가?" },
 
       { type: "figure", kicker: "디자인 리뷰 · 단계별로 보기", title: "강조는 키우기보다 나머지를 낮춰서 만든다", en: "Building hierarchy",
         caption: "같은 상품 카드를 네 번 손본다. 오른쪽 파란 측정선은 각 줄 위의 간격(px)이다. '다음'을 누르며 눈이 가장 먼저 가는 곳이 어떻게 바뀌는지 보자. 핵심은 2단계다. 가격을 더 키우는 대신 설명·평점·배송을 작고 옅게 낮추자, 가격이 저절로 떠오른다.",
@@ -124,6 +140,7 @@
         ].map((caption) => ({ caption, enter: (k, card) => card.paint(k) })),
         basis: "'덜 중요한 것을 낮춰 강조를 만든다'는 Wathan & Schoger, Refactoring UI의 'Emphasize by de-emphasizing'. 회색 #6b6b6b는 옅어도 흰 배경에서 읽기 기준을 넘는 진하기다(다음 장면에서 설명).",
         takeaway: "가장 중요한 것 하나를 고르고, 나머지를 작게·옅게 낮춘다.",
+        recall: "상품 카드에서 가격이 먼저 읽히게 만든 핵심 단계에서는, 가격을 더 키우는 대신 무엇을 했나?",
         sources: ["Refactoring UI — Hierarchy is everything"],
         ask: "\"이 화면에서 사용자가 가장 먼저 읽어야 할 것 하나가 뭐야?\"" },
 
@@ -137,6 +154,7 @@
         ],
         basis: "#767676(4.54:1)과 #6b6b6b(약 5.3:1)는 WCAG 2.x 대비비 식으로 계산한 값(모델로 계산한 예시). 굵기 두 단계는 Refactoring UI의 권장. 크기 3–4단계는 경험칙. 색 체계 전체는 다음 회차.",
         takeaway: "크기·굵기·회색 각각 2–4단계만 쓴다. 단계가 적을수록 차이에 뜻이 생긴다.",
+        recall: "위계를 만드는 세 손잡이는 무엇이고, 각 손잡이의 단계 수를 적게 두는 까닭은?",
         ask: "\"이 화면에 글자 크기가 몇 종류 쓰였는지 세어 줘\"" },
 
       { type: "contrast", kicker: "같은 폼, 간격과 글자 위계를 바꿨다", title: "묶음 안은 좁게, 묶음 사이는 넓게", en: "Before → After",
@@ -160,6 +178,7 @@
           foot: { label: "쓴 간격", visual: () => LTT.swatches([8, 16, 24, 48].map((v) => ({ color: "#2f5bff", label: v + "px", w: 12, h: v, r: 2 })), { caption: "스케일 4·8·16·24·32·48 중 네 단계" }) },
         },
         takeaway: "묶음 안 간격 < 묶음 사이 간격 < 섹션 사이 간격. 같은 역할에는 같은 값을 쓴다.",
+        recall: "라벨↔입력칸, 항목↔항목, 섹션↔섹션 간격은 서로 어떤 크기 순서여야 하고, 같은 역할의 간격끼리는 어떻게 맞추나?",
         sources: ["NN/g — Proximity Principle in Visual Design"],
         ask: "\"이 폼의 간격을 역할별(묶음 안·묶음 사이·섹션 사이)로 나눠서 스케일 값으로 바꿔 줘\"" },
 
@@ -169,7 +188,7 @@
           "8px(같은 값)에서는 라벨이 위아래 어느 칸에 붙는지 모호하다. 단계를 올릴수록 라벨-입력칸 쌍이 하나의 덩어리로 떨어져 보인다.",
         ],
         mount(body) {
-          body.innerHTML = `<div class="live"><div><label class="ltt-param">항목 사이(=묶음 사이) 간격 <b id="bg-v"></b><input type="range" id="bg" min="1" max="5" value="1" step="1"></label>
+          body.innerHTML = `<div class="live"><div><div id="bg-goal"></div><label class="ltt-param">항목 사이(=묶음 사이) 간격 <b id="bg-v"></b><input type="range" id="bg" min="1" max="5" value="1" step="1"></label>
             <p class="gapnote" id="bg-r"></p><span class="ltt-tag">예시 화면</span></div><div id="bg-f"></div></div>`;
           const host = LTT.$("bg-f");
           LTT.sweep({ params: { bg: { map: (i) => SCALE[i], fmt: (v) => v + "px" } },
@@ -177,11 +196,14 @@
               host.innerHTML = "";
               host.appendChild(formMock({ lab: 8, first: 16, gaps: [bg, bg], sec: 48, labSize: 13, labColor: "#444", hSize: 15, hWeight: 700 })());
               LTT.$("bg-r").textContent = `묶음 사이 ${bg}px ÷ 묶음 안 8px = ${(bg / 8).toFixed(1)}배`;
-            } });
+            },
+            goal: { el: "bg-goal", text: "'이메일' 라벨이 아래 입력칸과 한 묶음으로 보이도록, 항목 사이를 묶음 안(8px)보다 스케일 한두 단계 위로 맞춰 본다",
+              check: ({ bg }) => bg >= 16 && bg <= 24 } });
           return {};
         },
         basis: "'몇 배 이상이면 묶음으로 보인다'는 표준 수치는 없다(불확실). 실무에서는 묶음 사이를 스케일에서 한두 단계 위로 고르는 경우가 많다.",
-        takeaway: "같은 간격은 '관계없음', 다른 간격은 '관계있음'을 말한다." },
+        takeaway: "같은 간격은 '관계없음', 다른 간격은 '관계있음'을 말한다.",
+        recall: "모든 요소 사이 간격이 같을 때와, 어떤 쌍만 더 붙어 있을 때 사용자는 그 관계를 각각 어떻게 읽나?" },
 
       { type: "compare", kicker: "실제 UI 조각", title: "어느 쪽이 먼저 읽을 곳을 정해 두었을까?", layout: "stack",
         narration: "자주 보는 조각 세 가지다. 각각 1초만 보고 눈이 처음 닿은 곳을 기억한 뒤 '판정 보기'를 누르자.",
@@ -200,7 +222,8 @@
 
       { type: "statement", kicker: "강조의 역설", title: "굵은 글씨·테두리·배경을 모든 줄에 주면 <em>아무 줄도</em> 앞서지 않는다.",
         sub: "강조는 주변과의 차이로만 생긴다. 하나를 앞세우려면 덧붙이지 말고 나머지를 낮춘다.",
-        takeaway: "모든 것을 강조하면 아무것도 강조되지 않는다." },
+        takeaway: "모든 것을 강조하면 아무것도 강조되지 않는다.",
+        recall: "설정 목록의 모든 줄에 굵은 글씨·테두리·배경을 똑같이 주면 무엇이 먼저 읽히나? 그 까닭은?" },
 
       { type: "explain", form: "stack", kicker: "진단 퀴즈의 답", title: "가장 가까운 값으로 맞추면 잘못된 관계까지 보존된다", en: "Recipe",
         sub: "진단 퀴즈: 여백이 13·15·16·18·22·24px로 섞인 화면을 스케일 4·8·16·24·32·48로 정리하려면? 같은 문제를 장면 6의 BEFORE 폼(10·12·13·14·22px)으로 풀어 본다.",
@@ -214,6 +237,7 @@
         ],
         basis: "역할별로 값을 하나씩 정해 쓰는 것은 공식 표준이 아니라 흔한 실무 관행이다. 역할별 값(8·16·24·48)은 이 수업의 예시 선택이다. 스케일 단계는 팀마다 다르다(4·8의 배수가 흔함).",
         takeaway: "간격 값은 '얼마나 떨어뜨리나'가 아니라 '무엇과 무엇의 관계인가'로 고른다.",
+        recall: "13·15·22px처럼 섞인 간격을 스케일로 정리할 때, 가장 가까운 값으로만 맞추면 무엇이 남고, 대신 무엇을 기준으로 값을 골라야 하나?",
         ask: "\"이 화면에서 쓰인 간격 값을 전부 뽑고, 역할별로 묶어 줘\"" },
 
       { type: "summary", title: "화면을 다듬기 전에 물어볼 것", en: "Recap" },

@@ -55,6 +55,24 @@
 
   const fmtN = d3.format(",.0f");
   const svgEl = () => document.createElementNS("http://www.w3.org/2000/svg", "svg");
+
+  const tv = (body) => `<svg class="ltt-svg" viewBox="0 0 220 100" style="max-height:110px">${body}</svg>`;
+  const tx = (x, y, s, st = "") => `<text x="${x}" y="${y}" text-anchor="middle" style="${st}">${s}</text>`;
+  const box = (x, y, w, h, st) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" style="${st}"/>`;
+  const PLAIN = "fill:var(--ltt-card-2);stroke:var(--ltt-line-2);stroke-width:1.5", HOT = "fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:2";
+  const MUTED = "font-size:11px;fill:var(--ltt-muted)";
+  const TERM_VIS = {
+    token: tv(["안녕", "하세", "요"].map((s, i) => tx(36 + i * 74, 22, i + 1 + "번째", MUTED) + box(8 + i * 74, 32, 56, 34, i === 2 ? HOT : PLAIN) + tx(36 + i * 74, 54, s, "font-weight:700")).join("")
+      + [64, 138].map((x) => `<path d="M${x + 4} 49h10" style="stroke:var(--ltt-muted);stroke-width:2"/>`).join("") + tx(110, 88, "한 번에 한 조각씩", MUTED)),
+    weights: tv(d3.range(40).map((i) => `<rect x="${12 + (i % 10) * 20}" y="${6 + Math.floor(i / 10) * 17}" width="18" height="15" rx="2" style="fill:var(--ltt-accent);opacity:${(0.15 + ((i * 37) % 11) / 14).toFixed(2)}"/>`).join("")
+      + tx(110, 92, "숫자 80억 개 × 2바이트 = 16 GB", "font-size:12px;font-weight:700")),
+    hbm: tv(box(4, 6, 212, 76, "fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:1.5") + box(72, 18, 76, 52, PLAIN) + tx(110, 49, "연산기", "font-weight:700")
+      + [[14, 18], [14, 46], [158, 18], [158, 46]].map(([x, y]) => box(x, y, 48, 24, HOT) + tx(x + 24, y + 16, "HBM", "font-size:11px;font-weight:700")).join("")
+      + tx(110, 96, "GPU 칩 옆 메모리에 가중치", MUTED)),
+    bandwidth: tv(box(4, 32, 48, 40, HOT) + tx(28, 56, "HBM", "font-size:12px;font-weight:700") + box(168, 32, 48, 40, PLAIN) + tx(192, 56, "SM", "font-size:12px;font-weight:700")
+      + `<rect x="52" y="40" width="116" height="24" style="fill:var(--ltt-accent-soft)"/>` + d3.range(5).map((i) => `<rect x="${58 + i * 18}" y="46" width="12" height="12" rx="2" style="fill:var(--ltt-accent)"/>`).join("")
+      + `<path d="M154 40v24M150 40h8M150 64h8" style="stroke:var(--ltt-ink-2);stroke-width:1.5"/>` + tx(110, 22, "길의 폭 = 1초에 옮기는 양", "font-size:12px;font-weight:700") + tx(110, 90, "H100: 초당 3.35 TB", MUTED)),
+  };
   const SRC = "H100 SXM 데이터시트 기준 HBM3 약 3.35 TB/s, BF16 dense 약 989 TFLOPS (작성 시 원문 재확인 안 함). BF16은 파라미터당 2바이트, 토큰당 파라미터당 곱셈·덧셈 2회로 단순화. 대화 기록(KV cache)·커널 오버헤드·실제 대역폭 효율은 무시한 이상적 상한이다.";
 
   const mini = (r, top) => (node) => {
@@ -117,10 +135,10 @@
 
       { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
         terms: [
-          { key: "토큰", en: "token", icon: "doc", plain: "모델이 한 번에 만들어 내는 글 조각. 한국어는 대략 글자 한두 개.", example: "챗봇 답이 '안녕하세요'면 토큰 몇 개를 하나씩 차례로 만든다." },
-          { key: "가중치", en: "weights", icon: "layers", plain: "모델이 학습으로 얻은 거대한 숫자 표. 8B 모델이면 숫자가 80억 개이고, 숫자 하나가 2바이트라 16 GB다.", example: "토큰 하나를 만들 때마다 이 표 전체를 한 번 쓴다." },
-          { key: "HBM", en: "GPU 메모리", icon: "memory", plain: "GPU 칩 옆에 붙은 메모리. 가중치 표가 여기에 들어 있다.", example: "H100은 80 GB HBM을 갖고 있다." },
-          { key: "메모리 대역폭", en: "bandwidth", icon: "bolt", plain: "HBM에서 연산기로 1초에 옮길 수 있는 데이터 양. 길의 폭이라고 생각하면 된다.", example: "H100은 초당 약 3.35 TB." },
+          { key: "토큰", en: "token", icon: "doc", visual: TERM_VIS.token, plain: "모델이 한 번에 만들어 내는 글 조각. 한국어는 대략 글자 한두 개.", example: "챗봇 답이 '안녕하세요'면 토큰 몇 개를 하나씩 차례로 만든다." },
+          { key: "가중치", en: "weights", icon: "layers", visual: TERM_VIS.weights, plain: "모델이 학습으로 얻은 거대한 숫자 표. 8B 모델이면 숫자가 80억 개이고, 숫자 하나가 2바이트라 16 GB다.", example: "토큰 하나를 만들 때마다 이 표 전체를 한 번 쓴다." },
+          { key: "HBM", en: "GPU 메모리", icon: "memory", visual: TERM_VIS.hbm, plain: "GPU 칩 옆에 붙은 메모리. 가중치 표가 여기에 들어 있다.", example: "H100은 80 GB HBM을 갖고 있다." },
+          { key: "메모리 대역폭", en: "bandwidth", icon: "bolt", visual: TERM_VIS.bandwidth, plain: "HBM에서 연산기로 1초에 옮길 수 있는 데이터 양. 길의 폭이라고 생각하면 된다.", example: "H100은 초당 약 3.35 TB." },
         ] },
 
       { type: "figure", kicker: "도면 1 · 단계별로 보기", title: "토큰 하나가 만들어지는 길", en: "Dataflow",
@@ -144,6 +162,7 @@
         ],
         basis: "패킷 수와 속도는 연출이다. L2 캐시는 가중치를 통과시킬 뿐 재사용하지 못한다고 단순화했다(불확실).",
         takeaway: "토큰 하나마다 가중치 표 전체가 메모리에서 연산기로 한 번 흘러간다.",
+        recall: "토큰 하나를 만들 때마다 HBM에서 연산기로 무엇이 얼마만큼 옮겨지는가?",
         ask: "\"이 모델 가중치는 몇 GB인가요?\"" },
 
       { kicker: "타이밍 도면", title: "옮기는 시간이 계산 시간보다 300배 길다", en: "Where time goes",
@@ -157,7 +176,8 @@
           return { enter: draw };
         },
         basis: SRC,
-        takeaway: "토큰 속도는 '표를 옮기는 속도', 즉 메모리 대역폭이 정한다." },
+        takeaway: "토큰 속도는 '표를 옮기는 속도', 즉 메모리 대역폭이 정한다.",
+        recall: "사용자 1명일 때 토큰 하나에 드는 시간을 정하는 GPU 숫자는 무엇이고, 계산 시간은 왜 거의 상관없는가?" },
 
       { type: "predict", kicker: "짐작해 보기", title: "연산기만 2배 빠른 GPU로 바꾸면?",
         sub: "메모리 대역폭은 그대로 두고 연산기만 2배 빨라진 GPU다. 사용자 한 명이 체감하는 생성 속도는 어떻게 될까?",
@@ -186,6 +206,7 @@
         ],
         basis: "모델로 계산한 예시. " + SRC,
         takeaway: "사용자가 적을 때는 대역폭을 늘리거나 표를 줄여야 빨라진다.",
+        recall: "사용자가 적을 때 생성 속도를 2배로 올리는 방법 두 가지는 무엇인가?",
         ask: "\"이 GPU의 메모리 대역폭은 몇 TB/s인가요?\"" },
 
       { type: "statement", title: "사용자가 적을 때 글 생성 속도를 정하는 숫자는 연산 속도가 아니라 <em>메모리 대역폭</em>이다.",
@@ -211,7 +232,8 @@
           "{{batch}}로 사용자를 묶으면 표를 한 번 옮기는 동안 여러 명의 토큰을 같이 계산한다. 옮기는 양은 같으니 시간은 거의 그대로다.",
           "그래서 한 사람의 속도는 그대로지만, GPU 한 장이 1초에 내놓는 전체 토큰 수는 묶은 인원만큼 늘어난다.",
         ],
-        takeaway: "batch는 전체 처리량을 올린다. 한 사람의 속도는 올리지 않는다." },
+        takeaway: "batch는 전체 처리량을 올린다. 한 사람의 속도는 올리지 않는다.",
+        recall: "사용자 4명을 묶어 처리하면 한 사람이 느끼는 속도와 GPU 전체 처리량은 각각 어떻게 되는가?" },
 
       { type: "compare", form: "table", kicker: "실제 서빙 규모", title: "묶는 인원이 늘면 병목이 바뀐다", layout: "stack",
         narration: "같은 GPU, 같은 8B 모델이다. 묶는 인원이 늘면 계산 막대(주황)가 길어진다. 1명분 계산 0.016 ms × N명이 옮기기 4.8 ms와 같아지는 N이 약 295명이다. 그보다 많이 묶으면 연산 속도가 병목이 된다.",
@@ -222,7 +244,8 @@
         ],
         tex: "t_{\\text{token}}=\\max\\!\\left(\\frac{\\text{가중치 바이트}}{\\text{대역폭}},\\ \\frac{2\\times\\text{파라미터}\\times\\text{batch}}{\\text{연산 속도}}\\right),\\quad \\text{꺾이는 batch}=\\frac{989}{3.35}\\approx 295",
         basis: "모델로 계산한 예시. 막대 길이는 행마다 가장 긴 막대 기준. " + SRC,
-        takeaway: "약 295명까지는 대역폭이, 그 이상은 연산 속도가 속도를 정한다." },
+        takeaway: "약 295명까지는 대역폭이, 그 이상은 연산 속도가 속도를 정한다.",
+        recall: "묶는 인원을 늘려 가면 속도를 정하는 숫자가 무엇에서 무엇으로 바뀌고, 그 경계는 대략 몇 명인가?" },
 
       { type: "explain", kicker: "주의", title: "batch가 만능은 아니다", arrows: false,
         steps: [
@@ -230,7 +253,8 @@
           { icon: "trend", title: "약 295명을 넘으면", text: "계산이 옮기기보다 길어져 오히려 한 단계가 느려진다." },
           { icon: "memory", title: "대화 기록 공간", text: "사용자마다 대화 기록(KV cache)이 HBM을 차지해서 무한히 묶을 수 없다. 이 공간 계산은 다음 회차 주제다." },
         ],
-        takeaway: "묶는 인원은 메모리 공간과 응답 속도 목표가 함께 정한다." },
+        takeaway: "묶는 인원은 메모리 공간과 응답 속도 목표가 함께 정한다.",
+        recall: "batch 인원을 끝없이 늘릴 수 없게 막는 두 가지는 무엇인가?" },
 
       { type: "summary", title: "GPU를 고르기 전에 물어볼 것", en: "Recap" },
 

@@ -5,8 +5,8 @@
   var TERM = /\{\{([^{}|]+?)(?:\|([^{}]+?))?\}\}/g;
 
   var TOKENS_LIGHT = "--ltt-bg:#f2f1ec;--ltt-card:#fff;--ltt-card-2:#f7f6f2;--ltt-line:#e6e3dc;--ltt-line-2:#d6d2c8;" +
-    "--ltt-ink:#16171b;--ltt-ink-2:#3b3c43;--ltt-muted:#77777e;--ltt-accent:#2f5bff;--ltt-accent-soft:#e9eeff;" +
-    "--ltt-good:#12a066;--ltt-good-soft:#e2f5ec;--ltt-bad:#e5484d;--ltt-bad-soft:#fdebeb;--ltt-warn:#d48700;--ltt-warn-soft:#fcf1dc;" +
+    "--ltt-ink:#16171b;--ltt-ink-2:#3b3c43;--ltt-muted:#6c6c72;--ltt-accent:#2e59fa;--ltt-accent-soft:#e9eeff;" +
+    "--ltt-good:#0b7c4e;--ltt-good-soft:#e2f5ec;--ltt-bad:#c03b3f;--ltt-bad-soft:#fdebeb;--ltt-warn:#996000;--ltt-warn-soft:#fcf1dc;" +
     "--ltt-dark:#18191d;--ltt-on-dark:#f4f3ef;--ltt-on-accent:#fff;--ltt-accent-on-dark:#9fb3ff;--ltt-shadow:0 1px 2px rgba(22,23,27,.05),0 10px 30px rgba(22,23,27,.06);" +
     "--ltt-c1:#2b5fb0;--ltt-c2:#d0492b;--ltt-c3:#008a8f;--ltt-c4:#7b2b54;--ltt-c5:#8a5ad8;--ltt-c6:#5f5200;";
   var TOKENS_DARK = "--ltt-bg:#121316;--ltt-card:#1c1d21;--ltt-card-2:#232429;--ltt-line:#2d2e35;--ltt-line-2:#3a3b43;" +
@@ -23,8 +23,8 @@
     paper: {
       label: "Paper", medium: "논문 figure·교과서",
       light: "--ltt-bg:#f4efe4;--ltt-card:#fbf8f1;--ltt-card-2:#f1ebdf;--ltt-line:#e0d6c3;--ltt-line-2:#cdbfa6;--ltt-ink:#1f1b16;--ltt-ink-2:#433c33;" +
-        "--ltt-muted:#7a7062;--ltt-accent:#23508e;--ltt-accent-soft:#e0e7f1;--ltt-good:#3b7449;--ltt-good-soft:#e3eddc;--ltt-bad:#b1322a;--ltt-bad-soft:#f5dfda;" +
-        "--ltt-warn:#a3660f;--ltt-warn-soft:#f4e7cf;--ltt-dark:#2b2620;--ltt-on-dark:#f4efe4;--ltt-accent-on-dark:#a9c2ee;--ltt-shadow:none;",
+        "--ltt-muted:#71685b;--ltt-accent:#23508e;--ltt-accent-soft:#e0e7f1;--ltt-good:#3b7449;--ltt-good-soft:#e3eddc;--ltt-bad:#b1322a;--ltt-bad-soft:#f5dfda;" +
+        "--ltt-warn:#925b0c;--ltt-warn-soft:#f4e7cf;--ltt-dark:#2b2620;--ltt-on-dark:#f4efe4;--ltt-accent-on-dark:#a9c2ee;--ltt-shadow:none;",
       dark: "--ltt-bg:#1a1814;--ltt-card:#221f1a;--ltt-card-2:#2a2620;--ltt-line:#38322a;--ltt-line-2:#4a4237;--ltt-ink:#ece4d4;--ltt-ink-2:#d2c8b6;" +
         "--ltt-muted:#a0968a;--ltt-accent:#8fb0e6;--ltt-accent-soft:#1f2a3c;--ltt-good:#8cc49a;--ltt-good-soft:#21301f;--ltt-bad:#f08a7e;--ltt-bad-soft:#3b2220;" +
         "--ltt-warn:#e5b45e;--ltt-warn-soft:#382c17;--ltt-dark:#0e0d0b;--ltt-on-dark:#ece4d4;--ltt-on-accent:#1a1814;--ltt-accent-on-dark:#a9c2ee;--ltt-shadow:none;",
@@ -37,8 +37,8 @@
     blueprint: {
       label: "Blueprint", medium: "회로·블록 도면",
       light: "--ltt-bg:#eef3f8;--ltt-card:#f7fafd;--ltt-card-2:#e6edf5;--ltt-line:#c9d7e6;--ltt-line-2:#a9bfd6;--ltt-ink:#0f2740;--ltt-ink-2:#2a4562;" +
-        "--ltt-muted:#5c7590;--ltt-accent:#1d64d8;--ltt-accent-soft:#dde9fb;--ltt-good:#0f8a67;--ltt-good-soft:#d9f0e8;--ltt-bad:#d4383f;--ltt-bad-soft:#fae1e1;" +
-        "--ltt-warn:#b86e00;--ltt-warn-soft:#f8ead2;--ltt-dark:#0b1d33;--ltt-on-dark:#dce8f5;--ltt-accent-on-dark:#7cc2ff;--ltt-shadow:none;" +
+        "--ltt-muted:#546b84;--ltt-accent:#1c61d2;--ltt-accent-soft:#dde9fb;--ltt-good:#0b7759;--ltt-good-soft:#d9f0e8;--ltt-bad:#bd3137;--ltt-bad-soft:#fae1e1;" +
+        "--ltt-warn:#985a00;--ltt-warn-soft:#f8ead2;--ltt-dark:#0b1d33;--ltt-on-dark:#dce8f5;--ltt-accent-on-dark:#7cc2ff;--ltt-shadow:none;" +
         "--ltt-pattern:linear-gradient(#d9e4ef 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#d9e4ef 1px,transparent 1px) 0 0/24px 24px;",
       dark: "--ltt-bg:#0b1d33;--ltt-card:#0f2440;--ltt-card-2:#132b4b;--ltt-line:#1f3d63;--ltt-line-2:#2c5180;--ltt-ink:#dce8f5;--ltt-ink-2:#b7cbe2;" +
         "--ltt-muted:#7f9bbd;--ltt-accent:#5fb3ff;--ltt-accent-soft:#16365c;--ltt-good:#4fd1a5;--ltt-good-soft:#123a3a;--ltt-bad:#ff7a80;--ltt-bad-soft:#3d1f2c;" +
@@ -54,8 +54,8 @@
     terminal: {
       label: "Terminal", medium: "터미널·로그·대시보드",
       light: "--ltt-bg:#f3f3ee;--ltt-card:#fbfbf8;--ltt-card-2:#ecece5;--ltt-line:#dcdcd2;--ltt-line-2:#c4c4b8;--ltt-ink:#121512;--ltt-ink-2:#30352f;" +
-        "--ltt-muted:#6c7269;--ltt-accent:#08803f;--ltt-accent-soft:#dcf1e3;--ltt-good:#08803f;--ltt-good-soft:#dcf1e3;--ltt-bad:#c9302c;--ltt-bad-soft:#f8dedd;" +
-        "--ltt-warn:#a86a00;--ltt-warn-soft:#f5e8cc;--ltt-dark:#0d0f0e;--ltt-on-dark:#d6e5dc;--ltt-accent-on-dark:#3ddc84;--ltt-shadow:none;",
+        "--ltt-muted:#656b62;--ltt-accent:#07793b;--ltt-accent-soft:#dcf1e3;--ltt-good:#07793b;--ltt-good-soft:#dcf1e3;--ltt-bad:#bd2d29;--ltt-bad-soft:#f8dedd;" +
+        "--ltt-warn:#925c00;--ltt-warn-soft:#f5e8cc;--ltt-dark:#0d0f0e;--ltt-on-dark:#d6e5dc;--ltt-accent-on-dark:#3ddc84;--ltt-shadow:none;",
       dark: "--ltt-bg:#0c0e0d;--ltt-card:#121614;--ltt-card-2:#18201c;--ltt-line:#222c27;--ltt-line-2:#304038;--ltt-ink:#d6e5dc;--ltt-ink-2:#b2c4b9;" +
         "--ltt-muted:#7d9086;--ltt-accent:#3ddc84;--ltt-accent-soft:#143223;--ltt-good:#3ddc84;--ltt-good-soft:#143223;--ltt-bad:#ff6b6b;--ltt-bad-soft:#3a1c1c;" +
         "--ltt-warn:#ffb000;--ltt-warn-soft:#382b10;--ltt-dark:#050605;--ltt-on-dark:#d6e5dc;--ltt-on-accent:#06120b;--ltt-accent-on-dark:#3ddc84;--ltt-shadow:none;",
@@ -69,8 +69,8 @@
     ledger: {
       label: "Ledger", medium: "경제 신문 차트",
       light: "--ltt-bg:#fff1e5;--ltt-card:#fff8f2;--ltt-card-2:#f8e6d6;--ltt-line:#ead5c2;--ltt-line-2:#d9bca3;--ltt-ink:#33302e;--ltt-ink-2:#4d4845;" +
-        "--ltt-muted:#7d736b;--ltt-accent:#0d7680;--ltt-accent-soft:#d9ecea;--ltt-good:#09753f;--ltt-good-soft:#dcefdf;--ltt-bad:#cc0000;--ltt-bad-soft:#f9dcd6;" +
-        "--ltt-warn:#b05f00;--ltt-warn-soft:#f8e3c8;--ltt-dark:#262a33;--ltt-on-dark:#fff1e5;--ltt-accent-on-dark:#7fd0d6;--ltt-shadow:none;",
+        "--ltt-muted:#6f665f;--ltt-accent:#0c727c;--ltt-accent-soft:#d9ecea;--ltt-good:#09753f;--ltt-good-soft:#dcefdf;--ltt-bad:#cc0000;--ltt-bad-soft:#f9dcd6;" +
+        "--ltt-warn:#9c5300;--ltt-warn-soft:#f8e3c8;--ltt-dark:#262a33;--ltt-on-dark:#fff1e5;--ltt-accent-on-dark:#7fd0d6;--ltt-shadow:none;",
       dark: "--ltt-bg:#1d1a18;--ltt-card:#262220;--ltt-card-2:#2e2926;--ltt-line:#3b3431;--ltt-line-2:#4d4440;--ltt-ink:#f2e6db;--ltt-ink-2:#d6cac0;" +
         "--ltt-muted:#a3968c;--ltt-accent:#4fb5bd;--ltt-accent-soft:#1c3536;--ltt-good:#56c08a;--ltt-good-soft:#1c3226;--ltt-bad:#ff6a5c;--ltt-bad-soft:#3d201d;" +
         "--ltt-warn:#f0a447;--ltt-warn-soft:#3a2b1a;--ltt-dark:#0f0d0c;--ltt-on-dark:#f2e6db;--ltt-on-accent:#0f1d1e;--ltt-accent-on-dark:#7fd0d6;--ltt-shadow:none;",
@@ -84,8 +84,8 @@
     lab: {
       label: "Lab", medium: "실험 노트·모눈 플롯",
       light: "--ltt-bg:#f8f9f4;--ltt-card:#fdfdfa;--ltt-card-2:#eff2ea;--ltt-line:#dbe2d6;--ltt-line-2:#bfcab9;--ltt-ink:#1b2620;--ltt-ink-2:#34423a;" +
-        "--ltt-muted:#68766d;--ltt-accent:#c2410c;--ltt-accent-soft:#fbe5d8;--ltt-good:#147a52;--ltt-good-soft:#dbefe4;--ltt-bad:#be2e3a;--ltt-bad-soft:#f7dfe0;" +
-        "--ltt-warn:#9a6a00;--ltt-warn-soft:#f2e8c9;--ltt-dark:#18231d;--ltt-on-dark:#eef3ec;--ltt-accent-on-dark:#ffa877;" +
+        "--ltt-muted:#627067;--ltt-accent:#b93e0b;--ltt-accent-soft:#fbe5d8;--ltt-good:#137750;--ltt-good-soft:#dbefe4;--ltt-bad:#be2e3a;--ltt-bad-soft:#f7dfe0;" +
+        "--ltt-warn:#8a5e00;--ltt-warn-soft:#f2e8c9;--ltt-dark:#18231d;--ltt-on-dark:#eef3ec;--ltt-accent-on-dark:#ffa877;" +
         "--ltt-shadow:0 1px 0 rgba(27,38,32,.06);" +
         "--ltt-pattern:linear-gradient(#e7ece3 1px,transparent 1px) 0 0/16px 16px,linear-gradient(90deg,#e7ece3 1px,transparent 1px) 0 0/16px 16px;",
       dark: "--ltt-bg:#111613;--ltt-card:#161c18;--ltt-card-2:#1c241f;--ltt-line:#26312a;--ltt-line-2:#344238;--ltt-ink:#e4ece5;--ltt-ink-2:#c3cfc6;" +
@@ -100,8 +100,8 @@
     sketch: {
       label: "Sketch", medium: "화이트보드·손그림 설명",
       light: "--ltt-bg:#fbfaf6;--ltt-card:#fff;--ltt-card-2:#f4f2ec;--ltt-line:#e4e0d6;--ltt-line-2:#b9b3a6;--ltt-ink:#1e1d1b;--ltt-ink-2:#3a3833;" +
-        "--ltt-muted:#736f66;--ltt-accent:#1f5fc4;--ltt-accent-soft:#e4ecfa;--ltt-good:#1f8a4c;--ltt-good-soft:#e0f1e6;--ltt-bad:#d2382f;--ltt-bad-soft:#fbe2df;" +
-        "--ltt-warn:#b86b00;--ltt-warn-soft:#fbedd6;--ltt-dark:#22211f;--ltt-on-dark:#f6f4ee;--ltt-accent-on-dark:#9dbbf2;--ltt-shadow:none;",
+        "--ltt-muted:#716d65;--ltt-accent:#1f5fc4;--ltt-accent-soft:#e4ecfa;--ltt-good:#1a7942;--ltt-good-soft:#e0f1e6;--ltt-bad:#bf322a;--ltt-bad-soft:#fbe2df;" +
+        "--ltt-warn:#9e5b00;--ltt-warn-soft:#fbedd6;--ltt-dark:#22211f;--ltt-on-dark:#f6f4ee;--ltt-accent-on-dark:#9dbbf2;--ltt-shadow:none;",
       dark: "--ltt-bg:#1f2a24;--ltt-card:#24312a;--ltt-card-2:#2a3830;--ltt-line:#35463c;--ltt-line-2:#5a7062;--ltt-ink:#eef2ea;--ltt-ink-2:#d2dacd;" +
         "--ltt-muted:#a3b1a3;--ltt-accent:#8fc0ff;--ltt-accent-soft:#24384a;--ltt-good:#8ee3a8;--ltt-good-soft:#213d2c;--ltt-bad:#ff8d84;--ltt-bad-soft:#45282a;" +
         "--ltt-warn:#ffd06a;--ltt-warn-soft:#433a22;--ltt-dark:#121a16;--ltt-on-dark:#eef2ea;--ltt-on-accent:#102030;--ltt-accent-on-dark:#8fc0ff;--ltt-shadow:none;",
@@ -113,8 +113,8 @@
     atlas: {
       label: "Atlas", medium: "지도·지리·물류",
       light: "--ltt-bg:#eef2f1;--ltt-card:#fbfcfa;--ltt-card-2:#e6ecea;--ltt-line:#d3dcd9;--ltt-line-2:#b3c1bd;--ltt-ink:#17262b;--ltt-ink-2:#2f4248;" +
-        "--ltt-muted:#5f7277;--ltt-accent:#0f6e8c;--ltt-accent-soft:#dcecf0;--ltt-good:#2c7a3f;--ltt-good-soft:#e0eedf;--ltt-bad:#c0392b;--ltt-bad-soft:#f6dfdb;" +
-        "--ltt-warn:#a86500;--ltt-warn-soft:#f6e8cf;--ltt-dark:#13232a;--ltt-on-dark:#e8f0ef;--ltt-accent-on-dark:#7fcbe0;--ltt-shadow:none;" +
+        "--ltt-muted:#5a6c70;--ltt-accent:#0f6e8c;--ltt-accent-soft:#dcecf0;--ltt-good:#2a763d;--ltt-good-soft:#e0eedf;--ltt-bad:#b73629;--ltt-bad-soft:#f6dfdb;" +
+        "--ltt-warn:#965900;--ltt-warn-soft:#f6e8cf;--ltt-dark:#13232a;--ltt-on-dark:#e8f0ef;--ltt-accent-on-dark:#7fcbe0;--ltt-shadow:none;" +
         "--ltt-sea:#d9e7ec;--ltt-land:#f7f5ee;--ltt-border:#b4ae9c;",
       dark: "--ltt-bg:#0f1a1f;--ltt-card:#14232a;--ltt-card-2:#1a2c34;--ltt-line:#24393f;--ltt-line-2:#3a5960;--ltt-ink:#e3eeee;--ltt-ink-2:#c2d3d4;" +
         "--ltt-muted:#8aa1a5;--ltt-accent:#5cc2df;--ltt-accent-soft:#163843;--ltt-good:#6fd08c;--ltt-good-soft:#173323;--ltt-bad:#ff7d70;--ltt-bad-soft:#3d201d;" +
@@ -173,7 +173,7 @@
     ".ltt-basis{font-size:13px;color:var(--ltt-muted);line-height:1.5}",
     "button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:10px 18px;background:var(--ltt-ink);",
     "color:var(--ltt-bg);cursor:pointer;transition:transform .12s,background-color .2s,opacity .2s}",
-    "button:active:not(:disabled){transform:scale(.97)}button:disabled{opacity:.35;cursor:default}",
+    "button:active:not(:disabled){transform:scale(.97)}button:disabled,button.ghost:disabled,button.accent:disabled{background:var(--ltt-card-2);color:var(--ltt-muted);box-shadow:inset 0 0 0 1.5px var(--ltt-line-2);cursor:default}",
     "button.ghost{background:transparent;color:var(--ltt-ink);box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
     "button.accent{background:var(--ltt-accent);color:var(--ltt-on-accent)}",
     ":focus-visible{outline:2.5px solid var(--ltt-accent);outline-offset:2px}",
@@ -462,10 +462,16 @@
   var VISUAL_TYPES = { compare: 1, contrast: 1, figure: 1 };
 
   // Equal-width card grids; a deck built mostly from these reads as the same slideshow whatever the topic.
-  function isCardGrid(s) {
+  function isCardGrid(s, scenes) {
     if (s.type === "explain") return !s.form || s.form === "cards";
     if (s.type === "compare") return s.form !== "table";
-    return s.type === "terms" || s.type === "summary";
+    if (s.type === "summary") return !summaryCards(s, scenes || []).some(function (c) { return c.recall; });
+    return s.type === "terms";
+  }
+  // What a summary scene shows: its own `cards`, or every earlier scene that has a takeaway.
+  function summaryCards(s, scenes) {
+    return (s.cards || scenes.map(function (x, i) { return { n: i + 1, title: x.title, text: x.takeaway, ask: x.ask, recall: x.recall }; }))
+      .filter(function (c) { return c.text; });
   }
   function isSignature(s) {
     return s.type === "figure" || s.type === "contrast" || s.layout === "full" || (!s.type && !!s.mount);
@@ -486,7 +492,13 @@
       marks.forEach(function (t) {
         if (!(t.key in glossary) && s.type !== "terms") add(i, "unknown-term", "풀이가 없는 용어 {{" + t.key + "}}");
       });
-      (s.type === "terms" ? s.terms || [] : []).forEach(function (t) { if (!t.plain) add(i, "unknown-term", "terms 장면의 '" + t.key + "'에 plain 풀이가 없다"); });
+      (s.type === "terms" ? s.terms || [] : []).forEach(function (t) {
+        if (!t.plain) add(i, "unknown-term", "terms 장면의 '" + t.key + "'에 plain 풀이가 없다");
+        if (t.visual === undefined) add(i, "term-no-visual", "'" + t.key + "'에 그 뜻을 보이는 visual이 없다 (그림으로 보일 수 없는 말이면 visual: false)");
+      });
+      if (s.type === "summary") summaryCards(s, scenes).forEach(function (c) {
+        if (!c.recall) add(i, "summary-no-recall", "정리할 takeaway '" + stripMarks(c.text).slice(0, 24) + "…'에 떠올릴 질문(recall)이 없다");
+      });
       var plain = stripMarks(text);
       Object.keys(glossary).forEach(function (key) {
         var at = first[key];
@@ -516,7 +528,7 @@
     scenes.forEach(function (s, i) {
       if (s.type === "hook" || s.type === "keywords") return;
       body++;
-      if (isCardGrid(s)) { cards++; run++; if (run === 3) add(i, "card-monotony", "카드 격자 장면이 3장 연속이다 (figure·statement·explain form strip/stack·compare form table로 바꿀 것)"); }
+      if (isCardGrid(s, scenes)) { cards++; run++; if (run === 3) add(i, "card-monotony", "카드 격자 장면이 3장 연속이다 (figure·statement·explain form strip/stack·compare form table로 바꿀 것)"); }
       else run = 0;
     });
     if (body >= 4 && cards / body > 0.6) out.push({ scene: 0, rule: "card-monotony", msg: "카드 격자 장면이 " + cards + "/" + body + "장이다 (60% 이하)" });
@@ -630,7 +642,7 @@
     lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
     icon: icon, icons: Object.keys(ICONS), theme: theme, themeTokens: themeTokens, palette: palette, contrast: contrast, mark: mark, marks: Object.keys(MARKS),
     themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
-    termsIn: termsIn, sceneText: sceneText, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene,
+    termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene,
     setGlossary: setGlossary, linkTerms: linkTerms
   };
 })(typeof globalThis !== "undefined" ? globalThis : this);

@@ -154,7 +154,7 @@
   demo("swatches", "LTT.swatches([{color, label, w, h, r}], {caption})", "<b>'무엇을 썼나'를 보이는 미니 인포그래픽.</b> 색, 크기, 모서리 같은 값의 목록을 실물로 보인다. beforeAfter의 <code>foot</code>에 잘 맞는다.", () => {
     return LTT.swatches([4, 8, 16, 24, 32].map((v) => ({ color: v === 16 || v === 24 ? "var(--ltt-bad)" : "var(--ltt-line-2)", label: v, w: v, h: v, r: 4 })), { caption: "간격 스케일 · 4의 배수" });
   });
-  demo("takeaway", "LTT.takeaway(text, sources)", "<b>장면의 핵심 한 문장.</b> 장면의 <code>takeaway</code> 필드로 쓰면 아래에 붙고, <code>summary</code> 장면이 이것들을 모은다. <code>sources</code>는 '찾아볼 곳'.", () => {
+  demo("takeaway", "LTT.takeaway(text, sources)", "<b>장면의 핵심 한 문장.</b> 장면의 <code>takeaway</code> 필드로 쓰면 아래에 붙고, <code>summary</code> 장면이 이것들을 모은다. 장면에 <code>recall</code>(떠올리게 하는 질문)을 함께 주면 summary가 질문을 먼저 보이고 takeaway는 '답 보기' 뒤에 연다. <code>sources</code>는 '찾아볼 곳'.", () => {
     return LTT.takeaway("간격은 감으로 정하지 않는다 — 정해진 스케일에서 고른다.", ["Material 3 · Layout", "Refactoring UI"]);
   });
 
@@ -387,10 +387,12 @@
       enter: (k) => cells.forEach((c, j) => c.style.background = j <= k ? (j === 2 ? "var(--ltt-warn)" : "var(--ltt-accent)") : "var(--ltt-line)"),
     })));
   });
-  demo("sweep", "LTT.sweep({params: {id: {map, fmt}}, render})", "<b>조작 자체가 배움일 때만.</b> range 입력이 하나의 <code>render(values)</code>를 움직인다. 실사용 범위만 움직인다.", (el) => {
-    el.innerHTML = `<label class="ltt-param">TTL <b id="sw-v"></b><input type="range" id="sw" min="1" max="600" value="60"></label><div id="sw-b"></div>`;
+  demo("sweep", "LTT.sweep({params: {id: {map, fmt}}, render, goal: {el, text, target, check(values)}})", "<b>조작 자체가 배움일 때만.</b> range 입력이 하나의 <code>render(values)</code>를 움직인다. 실사용 범위만 움직인다. <code>goal</code>은 <code>el</code> 안에 목표 띠(견본 <code>target</code> + 문장)를 그리고, <code>check(values)</code>가 참이 되면 '맞췄다'를 켜고 <code>goal</code> 이벤트를 남긴다. 자유 조작 대신 맞출 목표를 준다.", (el) => {
+    el.innerHTML = `<div id="sw-g"></div><label class="ltt-param">TTL <b id="sw-v"></b><input type="range" id="sw" min="1" max="600" value="300"></label><div id="sw-b"></div>`;
     const b = LTT.bar("sw-b", [{ color: "var(--ltt-warn)" }, { color: "var(--ltt-line-2)" }]);
-    LTT.sweep({ params: { sw: { fmt: (v) => v + "초" } }, render: ({ sw }) => { const s = Math.round(100 * sw / 1200); b.set([s, 100 - s], [s + "%", ""]); } });
+    const pct = (sw) => Math.round(100 * sw / 1200);
+    LTT.sweep({ params: { sw: { fmt: (v) => v + "초" } }, render: ({ sw }) => { const s = pct(sw); b.set([s, 100 - s], [s + "%", ""]); },
+      goal: { el: "sw-g", target: "<b style='color:var(--ltt-warn)'>≤ 5%</b>", text: "옛 값을 보는 비율을 5% 이하로 낮추는 TTL을 찾아보자.", check: ({ sw }) => pct(sw) <= 5 } });
   });
   demo("predict", "LTT.predict({question, choices, button, answer, show, reveal})", "<b>낮은 부담의 짐작.</b> 덱에서는 <code>type: \"predict\"</code>가 이것을 쓰고 '잘 모르겠다'를 자동으로 붙인다. 질문에 쓰는 용어는 앞 장면에서 풀어 둔다.", (el) => {
     el.innerHTML = `<div id="pc"><button data-choice="a">거의 0건</button><button data-choice="b">5건쯤</button><button data-choice="c">절반쯤</button></div><div class="dk-actions" style="margin-top:10px"><button id="pb" class="accent">정답 보기</button></div><p id="pa" class="ltt-hidden ltt-narr">약 5건. 평균 30초 묵은 값이 10분 안에 바뀔 확률은 5%.</p>`;
@@ -398,7 +400,7 @@
   });
 
   group("장면 덱 · ltt-deck.js");
-  demo("deck", "LTT.deck({title, theme, glossary, scenes})", "<b>모든 장면 타입과 형태를 한 번씩 담은 덱.</b> figure, statement, explain <code>form: strip·stack·cards</code>, compare <code>form: table</code>을 포함한다. 장면 공통 필드는 kicker, title, en, sub, chips, narration, points, takeaway, sources, ask, basis, tex, mount, layout(<code>split·stack·full</code>). 위쪽 테마 버튼을 누르면 덱도 그 테마로 바뀐다. 새 탭에서 열기: <a href=\"scenes.html\">scenes.html</a>", (el) => {
+  demo("deck", "LTT.deck({title, theme, glossary, scenes})", "<b>모든 장면 타입과 형태를 한 번씩 담은 덱.</b> figure, statement, explain <code>form: strip·stack·cards</code>, compare <code>form: table</code>을 포함한다. terms 항목마다 <code>visual</code>(뜻을 보이는 작은 그림)이 있고, summary는 <code>recall</code> 질문으로 인출 연습을 한다. 장면 공통 필드는 kicker, title, en, sub, chips, narration, points, takeaway, recall, sources, ask, basis, tex, mount, layout(<code>split·stack·full</code>). 위쪽 테마 버튼을 누르면 덱도 그 테마로 바뀐다. 새 탭에서 열기: <a href=\"scenes.html\">scenes.html</a>", (el) => {
     el.innerHTML = `<iframe class="deck" src="scenes.html" title="장면 타입 데모"></iframe>`;
   });
 </script>

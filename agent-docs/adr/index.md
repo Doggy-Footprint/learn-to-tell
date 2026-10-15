@@ -12,3 +12,13 @@ File: 90dd94ba2dec2365-auto-layout-with-elkjs.md
 Summary: 도식 자동 배치에 elkjs(EPL-2.0, layered)를 vendor하고 dagre·Mermaid를 기각한 결정
 Related Files: skills/learn-to-tell/kit/vendor/elk.bundled.js, skills/learn-to-tell/kit/vendor/LICENSE-elkjs, skills/learn-to-tell/kit/ltt-parts.js
 Related Symbols: LTT.autoLayout, LTT.state
+---
+File: 6f876d6c883ac0b6-fix-feedback-at-the-generator.md
+Summary: 수업 하나에 대한 피드백은 그 수업이 아니라 skill(kit·SKILL.md·gallery·검증)에서 원인을 찾아 고치는 작업 범위 규칙
+Related Files: skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/gallery/index.html
+Related Symbols: 없음
+---
+File: b130c928be880b9c-infographic-for-learning-recall-for-summary.md
+Summary: 학습 장면(terms 포함)은 인포그래픽 우선, summary는 recall 질문 → 답 공개의 글 인출 연습으로 둔 결정
+Related Files: skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/SKILL.md
+Related Symbols: LTT.deck, LTT.lintDeck, terms, summary

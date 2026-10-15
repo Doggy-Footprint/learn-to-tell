@@ -38,6 +38,11 @@
     return p.el;
   };
 
+  // Term visuals: spacing = the measured gap between two boxes; proximity = the same six dots read as one or two groups.
+  const SV = 'viewBox="0 0 220 100" style="width:100%;max-height:110px;font-family:var(--ltt-font)" font-size="12" text-anchor="middle"';
+  const spacingVis = `<svg ${SV}><rect x="20" y="28" width="70" height="44" rx="8" fill="var(--ltt-card-2)" stroke="var(--ltt-line-2)" stroke-width="1.5"/><rect x="130" y="28" width="70" height="44" rx="8" fill="var(--ltt-card-2)" stroke="var(--ltt-line-2)" stroke-width="1.5"/><rect x="90" y="28" width="40" height="44" fill="var(--ltt-accent-soft)"/><path d="M92 50h36M92 44v12M128 44v12" stroke="var(--ltt-accent)" stroke-width="2"/><text x="110" y="20" fill="var(--ltt-accent)" font-weight="700">간격 16</text><text x="55" y="90" fill="var(--ltt-muted)">요소</text><text x="165" y="90" fill="var(--ltt-muted)">요소</text></svg>`;
+  const proximityVis = `<svg ${SV}>${[20, 40, 60, 140, 160, 180].map((x) => `<circle cx="${x}" cy="44" r="8" fill="var(--ltt-accent)"/>`).join("")}<rect x="6" y="28" width="68" height="32" rx="16" fill="none" stroke="var(--ltt-ink-2)" stroke-width="1.5" stroke-dasharray="4 3"/><rect x="126" y="28" width="68" height="32" rx="16" fill="none" stroke="var(--ltt-ink-2)" stroke-width="1.5" stroke-dasharray="4 3"/><text x="40" y="84" fill="var(--ltt-muted)">한 묶음</text><text x="160" y="84" fill="var(--ltt-muted)">한 묶음</text><text x="100" y="48" fill="var(--ltt-muted)">멀다</text></svg>`;
+
   const theme = new URLSearchParams(location.search).get("theme") || "studio";
   // Spacing ruler drawn as one figure: the scale on top, each menu gap measured against it below.
   const ruler = () => {
@@ -64,8 +69,8 @@
 
       { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
         terms: [
-          { key: "간격", en: "spacing", icon: "ruler", plain: "화면 요소 사이의 빈 공간. 안쪽 여백(padding)과 바깥 거리(margin)를 함께 부른다.", example: "메뉴 사진과 이름 사이 12px." },
-          { key: "근접성", en: "proximity", icon: "layers", plain: "가까이 있는 것끼리 한 덩어리로 보이는 눈의 습관.", example: "가격이 다음 메뉴에 붙어 있으면 그 메뉴 가격처럼 보인다." },
+          { key: "간격", en: "spacing", icon: "ruler", visual: spacingVis, plain: "화면 요소 사이의 빈 공간. 안쪽 여백(padding)과 바깥 거리(margin)를 함께 부른다.", example: "메뉴 사진과 이름 사이 12px." },
+          { key: "근접성", en: "proximity", icon: "layers", visual: proximityVis, plain: "가까이 있는 것끼리 한 덩어리로 보이는 눈의 습관.", example: "가격이 다음 메뉴에 붙어 있으면 그 메뉴 가격처럼 보인다." },
         ] },
 
       { type: "explain", form: "strip", kicker: "explain · form: strip", title: "간격이 정보를 묶는 방법", en: "How it works",
@@ -74,13 +79,15 @@
           { icon: "ruler", title: "멀면 다른 덩어리", text: "메뉴와 메뉴 사이는 안쪽보다 넓어야 경계가 생긴다." },
           { icon: "check", title: "값은 몇 개만", text: "4·8·16·24처럼 몇 가지 값만 쓰면 규칙이 눈에 보인다." },
         ],
-        takeaway: "간격은 장식이 아니라 '무엇과 무엇이 한 묶음인가'를 말한다." },
+        takeaway: "간격은 장식이 아니라 '무엇과 무엇이 한 묶음인가'를 말한다.",
+        recall: "사용자는 화면의 간격을 보고 무엇을 판단하는가?" },
 
       { type: "figure", kicker: "figure", title: "메뉴 사이 간격을 스케일 위에 대 보면", en: "Figure",
         figure: ruler,
         caption: "위: {{간격 스케일}}(4의 배수). 아래: 메뉴 사이 간격 세 가지를 같은 자로 잰 길이. 카드 안쪽 간격은 12다.",
         points: [{ title: "안쪽보다 좁거나 같으면", text: "옆 카드와 거리가 같아 경계가 안 생긴다.", tone: "bad" }, { title: "한 단계 넓으면", text: "카드가 덩어리로 나뉜다.", tone: "good" }],
-        takeaway: "바깥 간격은 안쪽 간격보다 스케일 한 단계 위." },
+        takeaway: "바깥 간격은 안쪽 간격보다 스케일 한 단계 위.",
+        recall: "카드 안쪽 간격이 12라면, 카드 바깥 간격은 무엇을 기준으로 몇으로 잡는가?" },
 
       { type: "statement", kicker: "statement", title: "간격은 장식이 아니라 <em>문장 부호</em>다.",
         sub: "띄어쓰기가 단어를 나누듯, 간격은 어디서 한 묶음이 끝나는지 알린다.",
@@ -96,7 +103,8 @@
           { at: [86, 70], title: "메뉴 사이 2px", text: "카드끼리 붙어 경계가 흐리다.", tone: "bad" },
         ],
         mount(body) { body.appendChild(menu({ row: 2, in: [6, 12, 4], pad: [4, 10, 13] })()); body.style.alignItems = "center"; return {}; },
-        takeaway: "간격 값이 제각각이면, 사용자는 규칙 대신 혼란을 본다." },
+        takeaway: "간격 값이 제각각이면, 사용자는 규칙 대신 혼란을 본다.",
+        recall: "같은 역할의 간격이 4·10·13처럼 제각각일 때 화면은 사용자에게 어떻게 보이는가?" },
 
       { type: "contrast", kicker: "contrast", title: "스케일에서만 고르면 정돈된다", en: "Before → After",
         sub: "같은 메뉴 세 줄이다. 간격 값만 바꿨다.",
@@ -111,6 +119,7 @@
           foot: { label: "간격 스케일 · 4의 배수", visual: () => LTT.swatches([4, 8, 12, 16].map((v) => ({ color: "var(--ltt-good)", label: v, w: v * 2, h: v * 2, r: 3 }))) },
         },
         takeaway: "간격은 감으로 정하지 않는다 — 정해진 스케일에서 고른다.",
+        recall: "간격 값을 하나 새로 정해야 할 때, 그 값을 어디에서 고르는가?",
         ask: "\"간격은 4·8·12·16·24만 써 줘\"" },
 
       { type: "explain", form: "stack", kicker: "explain · form: stack", title: "간격을 정하는 순서", en: "Sequence",
@@ -144,7 +153,8 @@
           { label: "카드 사이 12px", visual: menu({ row: 12, in: [12, 12, 12], pad: [8, 8, 8] }), tone: "warn", verdict: "안쪽과 같아 애매" },
           { label: "카드 사이 16px", visual: menu({ row: 16, in: [12, 12, 12], pad: [8, 8, 8] }), tone: "good", verdict: "덩어리가 나뉨" },
         ],
-        takeaway: "바깥 간격은 안쪽 간격보다 한 단계 넓게." },
+        takeaway: "바깥 간격은 안쪽 간격보다 한 단계 넓게.",
+        recall: "카드 사이 2·12·16px 가운데 메뉴 경계가 생기는 값은 무엇이고, 무엇과 견줘서 그렇게 판단하는가?" },
 
       { type: "summary", title: "간격을 정하기 전에 물어볼 것", en: "Recap",
         extra: { title: "더 깊이 보고 싶다면", text: "Refactoring UI의 Layout & Spacing 장, Material 3 Layout 문서." } },

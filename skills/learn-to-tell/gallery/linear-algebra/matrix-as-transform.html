@@ -70,6 +70,29 @@
   const HATS = [{ v: [1, 0], color: "var(--ltt-accent)", label: "î" }, { v: [0, 1], color: "var(--ltt-good)", label: "ĵ" }];
   const svgEl = () => document.createElementNS("http://www.w3.org/2000/svg", "svg");
   const mkPlane = (node, range = 4, size = 360) => { const s = svgEl(); node.appendChild(s); return LTT.plane(s, { range, size, vectors: HATS, shape: SQUARE }); };
+  const tv = (body) => `<svg class="ltt-svg" viewBox="0 0 220 100" style="max-height:110px">${body}</svg>`;
+  const tx = (x, y, s, st = "") => `<text x="${x}" y="${y}" text-anchor="middle" style="${st}">${s}</text>`;
+  const arw = (x1, y1, x2, y2, c, w = 2.5) => {
+    const a = Math.atan2(y2 - y1, x2 - x1), tip = (t) => [x2 - 8 * Math.cos(a + t), y2 - 8 * Math.sin(a + t)].map((n) => n.toFixed(1));
+    return `<line x1="${x1}" y1="${y1}" x2="${(x2 - 6 * Math.cos(a)).toFixed(1)}" y2="${(y2 - 6 * Math.sin(a)).toFixed(1)}" style="stroke:${c};stroke-width:${w}"/><polygon points="${x2},${y2} ${tip(0.45)} ${tip(-0.45)}" style="fill:${c}"/>`;
+  };
+  const poly = (pts, st) => `<polygon points="${pts.map((p) => p.join(",")).join(" ")}" style="${st}"/>`;
+  const gridSvg = (m, ox, oy, u) => {
+    const P = (x, y) => { const [a, b] = apply(m, [x, y]); return `${(ox + a * u).toFixed(1)},${(oy - b * u).toFixed(1)}`; };
+    return d3.range(4).map((k) => `<path d="M${P(k, 0)}L${P(k, 3)}M${P(0, k)}L${P(3, k)}" style="stroke:var(--ltt-line-2);stroke-width:1.5"/>`).join("")
+      + `<circle cx="${ox}" cy="${oy}" r="4" style="fill:var(--ltt-accent)"/>`;
+  };
+  const TERM_VIS = {
+    linear: tv(gridSvg(I, 12, 84, 22) + arw(86, 50, 108, 50, "var(--ltt-muted)", 2) + gridSvg([[1, 0.5], [0, 1]], 116, 84, 22)),
+    basis: tv(d3.range(4).map((k) => `<path d="M${30 + k * 30} 14V80" style="stroke:var(--ltt-line);stroke-width:1"/>`).join("") + d3.range(3).map((k) => `<path d="M30 ${80 - k * 30}H132" style="stroke:var(--ltt-line);stroke-width:1"/>`).join("")
+      + [0, 1, 2].map((k) => arw(30 + k * 30, 80, 60 + k * 30, 80, "var(--ltt-accent)", k ? 1.5 : 3)).join("")
+      + [0, 1].map((k) => arw(120, 80 - k * 30, 120, 50 - k * 30, "var(--ltt-good)", 1.5)).join("") + arw(30, 80, 30, 50, "var(--ltt-good)", 3)
+      + `<circle cx="120" cy="20" r="4" style="fill:var(--ltt-ink)"/>` + tx(46, 96, "î", "font-weight:750;fill:var(--ltt-accent)") + tx(18, 70, "ĵ", "font-weight:750;fill:var(--ltt-good)")
+      + tx(176, 24, "(3,2)", "font-size:12px;font-weight:700") + tx(184, 64, "î 3개 + ĵ 2개", "font-size:11px;fill:var(--ltt-muted)")),
+    det: tv(poly([[14, 74], [46, 74], [46, 42], [14, 42]], "fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:2") + tx(30, 92, "넓이 1", "font-size:12px")
+      + arw(58, 58, 88, 58, "var(--ltt-muted)", 2)
+      + poly([[100, 74], [164, 74], [196, 42], [132, 42]], "fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:2") + tx(148, 92, "넓이 2 → det 2", "font-size:12px;font-weight:700")),
+  };
   const minis = [];
   const card = (m) => (node) => { const p = mkPlane(node, 3); node.classList.add("cmpp"); minis.push([p, m]); };
   let colPlane = null;
@@ -96,9 +119,9 @@
 
       { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
         terms: [
-          { key: "선형 변환", en: "linear transformation", icon: "layers", plain: "평면 위 모든 점을 한꺼번에 옮기되, 격자선은 곧은 평행선으로 남고 원점은 제자리인 이동. 2×2 행렬 하나가 이런 이동 하나다.", example: "회전, 늘이기, 비스듬히 밀기(전단), 거울 반사." },
-          { key: "기저 벡터", en: "î, ĵ", icon: "arrow", plain: "가로 1칸 화살표 î=(1,0)과 세로 1칸 화살표 ĵ=(0,1). 모든 점은 이 둘을 몇 개씩 더한 것이다.", example: "(3,2) = î 3개 + ĵ 2개." },
-          { key: "행렬식", en: "determinant · det", icon: "ruler", plain: "변환 뒤 넓이가 몇 배가 되는지 나타내는 숫자 하나. 음수면 거울처럼 뒤집히고, 0이면 평면이 선으로 찌부러진다.", example: "det 2 = 넓이 2배." },
+          { key: "선형 변환", en: "linear transformation", icon: "layers", visual: TERM_VIS.linear, plain: "평면 위 모든 점을 한꺼번에 옮기되, 격자선은 곧은 평행선으로 남고 원점은 제자리인 이동. 2×2 행렬 하나가 이런 이동 하나다.", example: "회전, 늘이기, 비스듬히 밀기(전단), 거울 반사." },
+          { key: "기저 벡터", en: "î, ĵ", icon: "arrow", visual: TERM_VIS.basis, plain: "가로 1칸 화살표 î=(1,0)과 세로 1칸 화살표 ĵ=(0,1). 모든 점은 이 둘을 몇 개씩 더한 것이다.", example: "(3,2) = î 3개 + ĵ 2개." },
+          { key: "행렬식", en: "determinant · det", icon: "ruler", visual: TERM_VIS.det, plain: "변환 뒤 넓이가 몇 배가 되는지 나타내는 숫자 하나. 음수면 거울처럼 뒤집히고, 0이면 평면이 선으로 찌부러진다.", example: "det 2 = 넓이 2배." },
         ] },
 
       { type: "figure", kicker: "열 = 도착점", title: "행렬의 두 열은 î와 ĵ가 가는 곳이다", en: "Columns",
@@ -109,6 +132,7 @@
           "모든 점은 î와 ĵ를 몇 개씩 더한 것이므로, 두 {{기저 벡터}}가 어디로 가는지만 알면 나머지 점이 어디로 갈지 다 정해진다. 행렬의 첫째 열이 î의 도착점, 둘째 열이 ĵ의 도착점이다. 곱셈 규칙대로 A·(1,0)을 계산하면 정확히 첫째 열이 나온다.",
         ],
         takeaway: "행렬을 읽을 때는 두 열을 'î와 ĵ의 도착점'으로 본다.",
+        recall: "2×2 행렬의 첫째 열과 둘째 열은 각각 무엇을 알려 주는가?",
         ask: "\"이 행렬의 열이 각각 어디를 가리키는지 그려 줘\"" },
 
       { type: "compare", kicker: "네 가지 행렬", title: "모양으로 det(넓이 배율)를 읽는다", layout: "stack",
@@ -121,7 +145,8 @@
         ],
         enter: () => minis.forEach(([p, m]) => { p.to(I, 0); setTimeout(() => p.to(m, 1400), 300); }),
         basis: "카드 제목은 행 단위로 적었다: [[a, b], [c, d]]의 첫째 열은 (a, c)다. 회전 30°는 cos 30° ≈ 0.87, sin 30° = 0.5로 표기했다.",
-        takeaway: "det가 넓이 배율, 부호가 뒤집힘, 0이 '되돌릴 수 없음'을 말한다." },
+        takeaway: "det가 넓이 배율, 부호가 뒤집힘, 0이 '되돌릴 수 없음'을 말한다.",
+        recall: "det의 크기, 부호, 그리고 det = 0은 각각 변환에 대해 무엇을 말하는가?" },
 
       { kicker: "직접 바꿔 보기", title: "네 숫자를 움직이며 det를 지켜본다", en: "Try it", layout: "split", bare: true,
         narration: [
@@ -130,7 +155,7 @@
         ],
         mount: (body) => {
           body.innerHTML = `<div class="pl"><div></div><div><div class="ltt-hero"><span id="dv">1</span><small>= det</small></div><p id="dn"></p>
-            <div class="sl">${["a", "b", "c", "d"].map((k, i) => `<label class="ltt-param">${k} <b id="${k}-v"></b><input type="range" id="${k}" min="-2" max="2" step="0.01" value="${[1, 0, 0, 1][i]}"></label>`).join("")}</div></div></div>`;
+            <div class="gl"></div><div class="sl">${["a", "b", "c", "d"].map((k, i) => `<label class="ltt-param">${k} <b id="${k}-v"></b><input type="range" id="${k}" min="-2" max="2" step="0.01" value="${[1, 0, 0, 1][i]}"></label>`).join("")}</div></div></div>`;
           const p = mkPlane(body.querySelector(".pl > div"), 5, 460);
           LTT.sweep({
             params: { a: { fmt }, b: { fmt }, c: { fmt }, d: { fmt } },
@@ -141,12 +166,16 @@
               LTT.$("dn").innerHTML = Math.abs(dt) < 0.01 ? '<span class="ltt-tag bad">넓이 0</span> 직선으로 찌부러짐: 되돌릴 수 없음'
                 : dt < 0 ? '<span class="ltt-tag warn">det&lt;0</span> 방향이 뒤집힘(거울상)' : '<span class="ltt-tag good">det&gt;0</span> 방향 유지';
             },
+            goal: { el: body.querySelector(".gl"), target: '<span class="ltt-tag bad">det 0</span>',
+              text: "네 숫자를 하나도 0으로 두지 않고, 평면을 직선으로 찌부러뜨려 되돌릴 수 없게 만들어 본다.",
+              check: ({ a, b, c, d }) => Math.abs(det([[a, b], [c, d]])) < 0.01 && [a, b, c, d].every((x) => Math.abs(x) >= 0.1) },
           });
           return {};
         },
         tex: "\\det\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}=ad-bc",
         basis: "슬라이더 −2~2는 격자가 화면을 벗어나지 않게 고른 표시용 범위다.",
-        takeaway: "det는 ad − bc, 두 열이 만드는 평행사변형의 넓이다." },
+        takeaway: "det는 ad − bc, 두 열이 만드는 평행사변형의 넓이다.",
+        recall: "[[a, b], [c, d]]의 det는 어떻게 계산하고, 격자 그림에서 무엇의 넓이인가?" },
 
       { type: "predict", kicker: "짐작해 보기", title: "늘이기와 회전, 순서를 바꾸면 결과도 같을까?",
         sub: "행렬 두 개를 곱하면 두 변환을 이어서 하는 것이다. ABx = A(Bx)이므로 오른쪽 B를 먼저, A를 나중에 적용한다.",
@@ -175,7 +204,8 @@
           { icon: "alert", title: "det = 0", text: "한 번 찌부러져 잃은 방향은 되돌릴 수 없어, 변환을 되돌리는 행렬(역행렬)이 없다. det가 0이 아니어도 계산이 불안정할 수 있는데, 그건 det가 아니라 조건수로 잰다." },
           { icon: "refresh", title: "곱은 오른쪽부터", text: "ABx는 B를 먼저 적용한다. 변환 순서를 바꾸면 다른 결과가 된다." },
         ],
-        takeaway: "곱 순서는 적용 순서다. 오른쪽이 먼저." },
+        takeaway: "곱 순서는 적용 순서다. 오른쪽이 먼저.",
+        recall: "ABx를 계산할 때 A와 B 중 어느 변환이 먼저 적용되고, 순서를 바꾸면 결과는 어떻게 되는가?" },
 
       { type: "summary", title: "행렬을 읽을 때 물어볼 것", en: "Recap" },
 
