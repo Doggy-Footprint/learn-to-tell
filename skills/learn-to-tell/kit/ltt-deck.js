@@ -325,7 +325,7 @@
         var api = ret && ret.el ? ret : pic;
         LTT.stepper(row.appendChild(h("div", "ctl")), s.steps.map(function (x) {
           return { caption: x.caption, enter: function (k, dir) { if (x.enter) x.enter(k, api, dir); } };
-        }), { interval: s.interval || 2600 });
+        }));
       } else fill(st, s.figure, ctx);
       if (s.caption) {
         var n = ctx.scenes.slice(0, ctx.index + 1).filter(function (x) { return x.type === "figure"; }).length;

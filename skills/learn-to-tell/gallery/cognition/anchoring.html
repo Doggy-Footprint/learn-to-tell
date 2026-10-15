@@ -212,7 +212,7 @@
         ] },
 
       { type: "figure", kicker: "단계별로 보기", title: "출발점에서 덜 움직인다", en: "Anchoring",
-        figure: (node) => { const w = node.appendChild(LTT.h("div", "fg")); LTT.stepper(w, pullLine(w), { interval: 2800 }); },
+        figure: (node) => { const w = node.appendChild(LTT.h("div", "fg")); LTT.stepper(w, pullLine(w)); },
         caption: "앵커링과 조정, 한 사람의 머릿속. 가로축은 작업 기간(주). 사각형 = 먼저 들은 숫자, 빈 원 = 혼자 한 추정, 검은 점 = 최종 답. 단계를 넘기며 최종 답이 어디서 멈추는지 보자.",
         basis: "개념 그림이다. 점의 위치는 설명용이고 실제 효과 크기가 아니다. 설명은 Tversky & Kahneman 1974의 '앵커링과 조정'. 앵커가 관련 정보를 먼저 떠올리게 한다는 설명(선택적 접근성)도 있다.",
         takeaway: "먼저 들은 숫자에서 출발하면, 충분히 가기 전에 멈춘다.",

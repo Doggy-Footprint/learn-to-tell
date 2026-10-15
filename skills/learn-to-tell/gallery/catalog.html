@@ -379,7 +379,7 @@
     const b = LTT.bar("cb", [{ color: "var(--ltt-warn)" }, { color: "var(--ltt-line-2)" }, { color: "var(--ltt-accent)" }]);
     setTimeout(() => { u.paint(5); b.set([5, 94, 1], ["5", "94", ""]); LTT.tween("cn", 5); }, 300);
   });
-  demo("stepper", "LTT.stepper(el, [{caption, enter(i, dir)}], {interval})", "<b>한 그림을 단계별로.</b> 단계마다 자막(caption)이 그림을 읽는 법을 말한다. <code>enter</code>는 다시 들어와도 같은 화면이 되게 짠다.", (el) => {
+  demo("stepper", "LTT.stepper(el, [{caption, enter(i, dir)}])", "<b>한 그림을 단계별로.</b> 단계마다 자막(caption)이 그림을 읽는 법을 말한다. <code>enter</code>는 다시 들어와도 같은 화면이 되게 짠다.", (el) => {
     const box = div("", ""); box.style.cssText = "display:flex;gap:10px";
     el.appendChild(box);
     const cells = [0, 1, 2, 3].map(() => box.appendChild(div("", "")));

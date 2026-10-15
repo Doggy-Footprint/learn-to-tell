@@ -143,12 +143,12 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `.highlight(ids)` | 노드·엣지(`"from>to"`) 외에는 흐리게. 빈 배열·null이면 해제. |
 | `.flow(edgeIds)` | 진행 방향을 보이는 점선 흐름. 방향을 알려야 할 때만. |
 | `.send(from, to, {count, color, ms, gap, r})` → Promise | 엣지를 따라 패킷이 이동. |
-| `.player(el, steps, {interval})` | 단계 재생. `steps: [{caption, hot, flow, send: [[from, to, opts]], enter(dg, i)}]`. 자막이 그림 읽는 법을 말한다. |
+| `.player(el, steps)` | 단계 재생. 자동 넘김은 없고 이전·다음으로만 넘긴다. `steps: [{caption, hot, flow, send: [[from, to, opts]], enter(dg, i)}]`. 단계의 `send`는 그 단계에 머무는 동안 반복된다. 구간마다 `ms`(이동 시간)·`gap`(간격)을 달리해 빠르기 차이를 보인다. 자막이 그림 읽는 법을 말한다. |
 | `LTT.diagramLayout(spec)` | 좌표만 계산(테스트·커스텀 그림용). 엣지마다 `pts`(꺾는 점 포함), SVG `d`, 라벨 기준점 `lx, ly`, 기존 `x1…y2`; 노드에 `lines`·`sub`; 영역에 `id, parent, depth`. |
 | `LTT.autoLayout(spec)` → Promise | 좌표 없이 연결만 적으면 elk(layered)가 배치한 diagram spec을 돌려준다: `LTT.diagram(svg, await LTT.autoLayout(spec))`. `spec: {nodes, edges, groups, direction: RIGHT|DOWN, node: [w, h], spacing: [층, 노드] = [72, 36], pad, radius, label, maxWidth}`. 노드·엣지 필드는 diagram과 같고 노드 `group`은 그룹 id, 그룹 `{id, l, k, parent}`는 중첩 영역이 된다. 엣지는 직각(`ortho`)으로 꺾이고 라벨은 diagram이 경로 절반에 둔다(elk는 라벨 자리를 비우지 않으니 라벨이 많으면 `spacing`을 늘린다). 같은 입력은 같은 그림. 노드가 20개를 넘거나 층이 많으면 가로로 길어지니 좁은 칸에서는 `DOWN`. `<script src="/kit/vendor/elk.bundled.js">`(1.6MB)를 ltt.js보다 먼저 불러야 하며, 없으면 reject한다. 오류(없는 노드·그룹, 중복 id, 자기 루프, 그룹 순환)도 reject. |
 | `LTT.state(svg, {states, transitions, initial, direction, groups, node, spacing})` → Promise<diagram> | 상태 기계. 상태 `{id, l, s, k, icon, final}`, 전이 `{f, t, l, k, dash}`. `initial` 앞에 시작 점, `final`은 이중 테두리(diagram 노드 `ring: true`), 자기 자신으로의 전이는 상태 아래 `↻ 이벤트` 줄. autoLayout으로 배치하므로 `elk.bundled.js`가 필요하다. 돌려받은 diagram으로 `player`·`highlight`·`send`를 쓴다(시작 점 id는 `__start`). |
 | `LTT.stateSpec(o)` | state가 autoLayout에 넘기는 입력만 만든다(테스트·조정용). |
-| `LTT.stepper(el, [{caption, enter(i, dir)}], {interval, onStep})` | 한 그림을 단계별로. `enter`는 다시 들어와도 같은 화면이 되게 짠다. |
+| `LTT.stepper(el, [{caption, enter(i, dir)}], {onStep})` | 한 그림을 단계별로. `enter`는 다시 들어와도 같은 화면이 되게 짠다. |
 | `LTT.units(el, n, cols, {band}).paint(k, cls, alt)` | 단위 그림(100칸 = 100건). `band: true`면 가는 틱의 넓은 띠(예: 2×50, 시간순 요청). |
 | `LTT.bar(el, [{color}]).set(values, labels)` | 비율 막대. |
 | `LTT.tween(el, to, fmt, ms)` | 숫자 변화. |
@@ -200,7 +200,7 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `hook` | `art`(아이콘 이름·이모지·HTML), `pre`, `text`, `sub`, `kicker`, `chips`. 첫 장면 |
 | `terms` | `terms: [{key, word, en, icon, visual, plain, example}]`. 용어를 쉬운 말로 먼저 푼다. key는 glossary에 자동 등록. `visual`(HTML·노드·함수)은 그 말이 가리키는 것을 보이는 작은 그림으로, 풀이 위에 그린다(예: 색상 → 색상환 위의 각도) |
 | `explain` | `steps: [{icon, title, text, visual}]`, `form`, `arrows`. `form`: `"cards"`(기본, 독립된 요소 나열), `"strip"`(이어진 한 줄 흐름, 카드 없이 선과 마디), `"stack"`(세로 타임라인, 단계마다 오른쪽에 그림) |
-| `figure` | `figure`(그림: 노드·HTML·함수), `caption`, `label`, `steps`, `interval`. 그림 하나가 화면을 차지하고 아래에 "그림 n." 캡션이 붙는다. `points`의 `at`은 무대 안 첫 목업(phone·browser·terminal·code)이 있으면 그 틀 기준, 없으면 무대 전체 기준 %다(`pointsOn`으로 바꾼다). `steps: [{caption, enter(k, fig)}]`를 주면 그림 왼쪽, 단계 자막 오른쪽으로 놓인다. `figure` 함수가 `{el, ...}`를 돌려주면 `enter`의 `fig`로 그 객체가 온다(같은 그림의 여러 상태). 장면에 들어올 때마다 다시 그리려면 공통 필드 `enter(body, ctx)` |
+| `figure` | `figure`(그림: 노드·HTML·함수), `caption`, `label`, `steps`. 그림 하나가 화면을 차지하고 아래에 "그림 n." 캡션이 붙는다. `points`의 `at`은 무대 안 첫 목업(phone·browser·terminal·code)이 있으면 그 틀 기준, 없으면 무대 전체 기준 %다(`pointsOn`으로 바꾼다). `steps: [{caption, enter(k, fig)}]`를 주면 그림 왼쪽, 단계 자막 오른쪽으로 놓인다. `figure` 함수가 `{el, ...}`를 돌려주면 `enter`의 `fig`로 그 객체가 온다(같은 그림의 여러 상태). 장면에 들어올 때마다 다시 그리려면 공통 필드 `enter(body, ctx)` |
 | `overview` | `figure`, `caption`, `label`(기본 "한 장 정리."). summary 뒤, keywords 바로 앞에 두는 한 장 인포그래픽. figure처럼 그림이 무대 전체를 쓴다. 새 내용 없이 앞 장면의 takeaway를 그림 안 자리에 배치한다 |
 | `statement` | `title`(큰 주장 한 문장, `<em>`은 강조색), `sub`, `visual`(작은 근거 그림, 선택). 카드 없이 리듬을 바꾸는 장면 |
 | `contrast` | `before`, `after`(위 beforeAfter의 각 쪽) |

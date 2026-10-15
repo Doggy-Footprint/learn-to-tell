@@ -128,7 +128,7 @@
       { caption: "<b>③ 얼마나 엇갈리나가 결정</b> — {{상관계수}}가 1이면 상쇄가 없고, 0이면 꽤 상쇄되고, −1이면 완전히 상쇄된다. 이 그림은 0인 경우다.",
         enter: () => { show(pa, 0); show(pb, 0); pm.interrupt().attr("stroke-dashoffset", 0); guides.transition().duration(ms).style("opacity", 1); } },
     ];
-    LTT.stepper(f.el, steps, { interval: 2600 });
+    LTT.stepper(f.el, steps);
     f.foot();
   }
 

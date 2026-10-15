@@ -229,7 +229,7 @@
           const left = wrap.appendChild(LTT.h("div"));
           const term = LTT.mock.terminal({ title: "cache-access.log" });
           wrap.appendChild(term.el);
-          LTT.stepper(left, lifeTimeline(left, term).steps, { interval: 2600 });
+          LTT.stepper(left, lifeTimeline(left, term).steps);
         },
         takeaway: "TTL 안에서 원본이 바뀌면, 남은 시간의 적중은 모두 옛 값이다.",
         recall: "TTL이 끝나기 전에 원본 가격이 바뀌면, 만료될 때까지 캐시에 적중한 응답은 어떤 값을 받게 되나?",

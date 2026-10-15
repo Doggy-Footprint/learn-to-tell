@@ -85,7 +85,7 @@
   // One block drawing reused across scenes: the same HBM → L2 → SM spine, with the output column either one token or four batched users.
   const US = [0, 1, 2, 3];
   const dataflow = (svg, batch) => LTT.diagram(svg, batch ? {
-    cols: 4, rows: 4, cell: [220, 70], node: [180, 54], maxWidth: false,
+    cols: 4, rows: 4, cell: [260, 70], node: [170, 54], maxWidth: false,
     zones: [{ c0: 0, r0: 0, c1: 2, r1: 3, l: "GPU 한 장", k: "accent" }],
     nodes: [
       { id: "hbm", c: 0, r: 1.5, l: "HBM", s: "가중치 16 GB", icon: "memory", h: 70 },
@@ -93,9 +93,9 @@
       { id: "sm", c: 2, r: 1.5, l: "SM 연산기", s: "한 번에 여러 명", icon: "cpu", h: 70 },
       ...US.map((i) => ({ id: "u" + i, c: 3, r: i, l: "사용자 " + (i + 1), icon: "user", w: 150, h: 48 })),
     ],
-    edges: [{ f: "hbm", t: "l2", l: "표 1번", lo: [0, -16], k: "accent" }, { f: "l2", t: "sm", k: "accent" }, ...US.map((i) => ({ f: "sm", t: "u" + i, k: "good" }))],
+    edges: [{ f: "hbm", t: "l2", l: "느림 · 표 1번", lo: [0, 50], k: "bad" }, { f: "l2", t: "sm", l: "빠름", lo: [0, 50], k: "accent" }, ...US.map((i) => ({ f: "sm", t: "u" + i, k: "good" }))],
   } : {
-    cols: 4, rows: 1, cell: [220, 130], node: [180, 70], maxWidth: false,
+    cols: 4, rows: 1, cell: [260, 150], node: [170, 70], maxWidth: false,
     zones: [{ c0: 0, r0: 0, c1: 2, r1: 0, l: "GPU 한 장", k: "accent" }],
     nodes: [
       { id: "hbm", c: 0, r: 0, l: "HBM", s: "가중치 16 GB", icon: "memory" },
@@ -103,7 +103,7 @@
       { id: "sm", c: 2, r: 0, l: "SM 연산기", s: "곱하고 더한다", icon: "cpu" },
       { id: "out", c: 3, r: 0, l: "토큰 1개", s: "다음 글자", icon: "doc", k: "good" },
     ],
-    edges: [{ f: "hbm", t: "l2", l: "3.35 TB/s", lo: [0, -16], k: "accent" }, { f: "l2", t: "sm", k: "accent" }, { f: "sm", t: "out", k: "good" }],
+    edges: [{ f: "hbm", t: "l2", l: "느림 · 3.35 TB/s", lo: [0, 54], k: "bad" }, { f: "l2", t: "sm", l: "빠름", lo: [0, 50], k: "accent" }, { f: "sm", t: "out", k: "good" }],
   });
   const sheet = (node) => {
     const w = node.appendChild(Object.assign(document.createElement("div"), { className: "dwg" }));
@@ -147,12 +147,12 @@
           dataflow(svg, false).player(w, [
             { caption: "<b>① 표는 HBM에 있다</b> — 8B 모델의 가중치 16 GB가 GPU 메모리에 들어 있다. 연산기에는 없다.", hot: ["hbm"] },
             { caption: "<b>② 표를 연산기로 옮긴다</b> — 토큰 하나를 만들려면 16 GB 전체가 HBM → L2 → SM으로 흘러가야 한다.", hot: ["hbm", "l2", "sm"], flow: ["hbm>l2", "l2>sm"],
-              send: [["hbm", "l2", { count: 8, ms: 800, gap: 90 }], ["l2", "sm", { count: 8, ms: 450, gap: 60 }]] },
+              send: [["hbm", "l2", { count: 6, ms: 1500, gap: 260 }], ["l2", "sm", { count: 6, ms: 220, gap: 40 }]] },
             { caption: "<b>③ 곱하고 더해 토큰 1개</b> — 연산기는 받은 숫자로 계산해 다음 글자 하나를 낸다. 계산 자체는 금방 끝난다.", hot: ["sm", "out"], flow: ["sm>out"],
               send: [["sm", "out", { count: 1, ms: 600, r: 9, color: "var(--user)" }]] },
             { caption: "<b>④ 다음 토큰도 처음부터</b> — 답이 100토큰이면 16 GB를 100번 읽는다. 시간이 어디서 드는지 다음 장면에서 잰다.", flow: ["hbm>l2", "l2>sm", "sm>out"],
-              send: [["hbm", "l2", { count: 6, ms: 700, gap: 80 }], ["l2", "sm", { count: 6, ms: 400, gap: 50 }], ["sm", "out", { count: 1, ms: 500, r: 9, color: "var(--user)" }]] },
-          ], { interval: 3000 });
+              send: [["hbm", "l2", { count: 6, ms: 1500, gap: 260 }], ["l2", "sm", { count: 6, ms: 220, gap: 40 }], ["sm", "out", { count: 1, ms: 500, r: 9, color: "var(--user)" }]] },
+          ]);
         },
         caption: "상자는 GPU 부품, 화살표는 가중치가 지나가는 길이다. 파란 테두리 안이 GPU 한 장. 아래 버튼으로 한 단계씩 넘긴다.",
         narration: [
@@ -221,10 +221,10 @@
           const { w, svg } = sheet(node);
           dataflow(svg, true).player(w, [
             { caption: "<b>사용자 1명</b> — 16 GB를 한 번 옮겨서 토큰 1개를 만든다.", hot: ["hbm", "l2", "sm", "u0"], flow: ["hbm>l2", "l2>sm"],
-              send: [["hbm", "l2", { count: 8, ms: 800, gap: 90 }], ["l2", "sm", { count: 8, ms: 450, gap: 60 }], ["sm", "u0", { count: 1, ms: 500, r: 8, color: "var(--user)" }]] },
+              send: [["hbm", "l2", { count: 6, ms: 1500, gap: 260 }], ["l2", "sm", { count: 6, ms: 220, gap: 40 }], ["sm", "u0", { count: 1, ms: 500, r: 8, color: "var(--user)" }]] },
             { caption: "<b>4명 묶기</b> — 같은 16 GB를 한 번 옮기고, 네 명의 토큰을 함께 만든다. 옮기는 시간은 그대로다.", hot: ["hbm", "l2", "sm", "u0", "u1", "u2", "u3"], flow: ["hbm>l2", "l2>sm"],
-              send: [["hbm", "l2", { count: 8, ms: 800, gap: 90 }], ["l2", "sm", { count: 8, ms: 450, gap: 60 }], ...US.map((i) => ["sm", "u" + i, { count: 1, ms: 380, r: 8, color: "var(--user)" }])] },
-          ], { interval: 3200 });
+              send: [["hbm", "l2", { count: 6, ms: 1500, gap: 260 }], ["l2", "sm", { count: 6, ms: 220, gap: 40 }], ...US.map((i) => ["sm", "u" + i, { count: 1, ms: 380, r: 8, color: "var(--user)" }])] },
+          ]);
         },
         caption: "도면 1과 같은 GPU 한 장이다. 오른쪽 칸만 토큰 1개에서 사용자 네 명으로 바뀌었다.",
         narration: [

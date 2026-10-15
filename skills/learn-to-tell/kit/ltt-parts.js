@@ -506,17 +506,16 @@
   function stepper(container, steps, opts) {
     container = el(container);
     opts = opts || {};
-    var i = -1, timer = null;
+    var i = -1;
     var caption = document.createElement("p");
     caption.className = "ltt-caption";
     var bar = document.createElement("div");
     bar.className = "ltt-stepper";
     var prev = document.createElement("button"); prev.className = "ghost"; prev.textContent = "← 이전";
     var next = document.createElement("button"); next.textContent = "다음 →";
-    var play = document.createElement("button"); play.className = "ghost"; play.textContent = "자동 재생";
     var dots = document.createElement("div"); dots.className = "ltt-dots";
     steps.forEach(function () { dots.appendChild(document.createElement("i")); });
-    bar.append(prev, next, play, dots);
+    bar.append(prev, next, dots);
     container.append(caption, bar);
     function go(k, dir) {
       k = Math.max(0, Math.min(steps.length - 1, k));
@@ -529,17 +528,19 @@
       steps[k].enter(k, dir || 1);
       if (opts.onStep) opts.onStep(k);
     }
-    function stop() { clearInterval(timer); timer = null; play.textContent = "자동 재생"; }
-    prev.onclick = function () { stop(); go(i - 1, -1); };
-    next.onclick = function () { stop(); go(i + 1, 1); };
-    play.onclick = function () {
-      if (timer) return stop();
-      if (i >= steps.length - 1) go(0, -1);
-      play.textContent = "정지";
-      timer = setInterval(function () { if (i >= steps.length - 1) stop(); else go(i + 1, 1); }, opts.interval || 2200);
-    };
+    prev.onclick = function () { go(i - 1, -1); };
+    next.onclick = function () { go(i + 1, 1); };
     go(0, 1);
     return { go: go, get index() { return i; } };
+  }
+
+  // A step's packet flow repeats while the step stays current, so a viewer who looks late still sees which leg is slow.
+  function loopSends(sends, live, send) {
+    if (!sends || !sends.length) return;
+    (function once() {
+      sends.reduce(function (p, s) { return p.then(function () { return live() ? send(s[0], s[1], s[2]) : null; }); }, Promise.resolve())
+        .then(function () { if (live() && MOTION_MS) setTimeout(function () { if (live()) once(); }, 700); });
+    })();
   }
 
   function nodeHeight(n, base) {
@@ -915,9 +916,7 @@
             enter: function (i) {
               var id = ++run;
               api.clear(); api.highlight(st.hot || null); api.flow(st.flow || []);
-              (st.send || []).reduce(function (p, s) {
-                return p.then(function () { return id === run ? api.send(s[0], s[1], s[2]) : null; });
-              }, Promise.resolve());
+              loopSends(st.send, function () { return id === run && el(container).getClientRects().length > 0; }, api.send);
               if (st.enter) st.enter(api, i);
             }
           };
@@ -1438,7 +1437,7 @@
               enter: function (i) {
                 var id = ++run;
                 api.clear(); api.highlight(st.hot || null); api.flow(st.flow || []);
-                (st.send || []).reduce(function (p, x) { return p.then(function () { return id === run ? api.send(x[0], x[1], x[2]) : null; }); }, Promise.resolve());
+                loopSends(st.send, function () { return id === run && el(container).getClientRects().length > 0; }, api.send);
                 if (st.enter) st.enter(api, i);
               }
             };
