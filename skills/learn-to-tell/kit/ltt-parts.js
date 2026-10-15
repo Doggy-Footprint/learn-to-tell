@@ -538,9 +538,21 @@
   function loopSends(sends, live, send) {
     if (!sends || !sends.length) return;
     (function once() {
-      sends.reduce(function (p, s) { return p.then(function () { return live() ? send(s[0], s[1], s[2]) : null; }); }, Promise.resolve())
+      sends.reduce(function (p, s) { return p.then(function () { return live() ? (s.relay ? relay(s, live, send) : send(s[0], s[1], s[2])) : null; }); }, Promise.resolve())
         .then(function () { if (live() && MOTION_MS) setTimeout(function () { if (live()) once(); }, 700); });
     })();
+  }
+
+  // {relay: [[from, to, ms], ...], count, gap}: each packet runs the legs back to back, so a fast leg after a slow one
+  // still carries packets only as often as the slow leg delivers them (nothing piles up in between).
+  function relay(o, live, send) {
+    return Promise.all(d3.range(o.count || 6).map(function (k) {
+      return new Promise(function (r) { setTimeout(r, k * (o.gap || 300)); }).then(function () {
+        return o.relay.reduce(function (p, leg) {
+          return p.then(function () { return live() ? send(leg[0], leg[1], { count: 1, ms: leg[2], r: o.r, color: o.color }) : null; });
+        }, Promise.resolve());
+      });
+    }));
   }
 
   function nodeHeight(n, base) {

@@ -147,11 +147,11 @@
           dataflow(svg, false).player(w, [
             { caption: "<b>① 표는 HBM에 있다</b> — 8B 모델의 가중치 16 GB가 GPU 메모리에 들어 있다. 연산기에는 없다.", hot: ["hbm"] },
             { caption: "<b>② 표를 연산기로 옮긴다</b> — 토큰 하나를 만들려면 16 GB 전체가 HBM → L2 → SM으로 흘러가야 한다.", hot: ["hbm", "l2", "sm"], flow: ["hbm>l2", "l2>sm"],
-              send: [["hbm", "l2", { count: 6, ms: 1500, gap: 260 }], ["l2", "sm", { count: 6, ms: 220, gap: 40 }]] },
+              send: [{ relay: [["hbm", "l2", 1500], ["l2", "sm", 220]], count: 6, gap: 420 }] },
             { caption: "<b>③ 곱하고 더해 토큰 1개</b> — 연산기는 받은 숫자로 계산해 다음 글자 하나를 낸다. 계산 자체는 금방 끝난다.", hot: ["sm", "out"], flow: ["sm>out"],
               send: [["sm", "out", { count: 1, ms: 600, r: 9, color: "var(--user)" }]] },
             { caption: "<b>④ 다음 토큰도 처음부터</b> — 답이 100토큰이면 16 GB를 100번 읽는다. 시간이 어디서 드는지 다음 장면에서 잰다.", flow: ["hbm>l2", "l2>sm", "sm>out"],
-              send: [["hbm", "l2", { count: 6, ms: 1500, gap: 260 }], ["l2", "sm", { count: 6, ms: 220, gap: 40 }], ["sm", "out", { count: 1, ms: 500, r: 9, color: "var(--user)" }]] },
+              send: [{ relay: [["hbm", "l2", 1500], ["l2", "sm", 220]], count: 6, gap: 420 }, ["sm", "out", { count: 1, ms: 500, r: 9, color: "var(--user)" }]] },
           ]);
         },
         caption: "상자는 GPU 부품, 화살표는 가중치가 지나가는 길이다. 파란 테두리 안이 GPU 한 장. 아래 버튼으로 한 단계씩 넘긴다.",
@@ -221,9 +221,9 @@
           const { w, svg } = sheet(node);
           dataflow(svg, true).player(w, [
             { caption: "<b>사용자 1명</b> — 16 GB를 한 번 옮겨서 토큰 1개를 만든다.", hot: ["hbm", "l2", "sm", "u0"], flow: ["hbm>l2", "l2>sm"],
-              send: [["hbm", "l2", { count: 6, ms: 1500, gap: 260 }], ["l2", "sm", { count: 6, ms: 220, gap: 40 }], ["sm", "u0", { count: 1, ms: 500, r: 8, color: "var(--user)" }]] },
+              send: [{ relay: [["hbm", "l2", 1500], ["l2", "sm", 220]], count: 6, gap: 420 }, ["sm", "u0", { count: 1, ms: 500, r: 8, color: "var(--user)" }]] },
             { caption: "<b>4명 묶기</b> — 같은 16 GB를 한 번 옮기고, 네 명의 토큰을 함께 만든다. 옮기는 시간은 그대로다.", hot: ["hbm", "l2", "sm", "u0", "u1", "u2", "u3"], flow: ["hbm>l2", "l2>sm"],
-              send: [["hbm", "l2", { count: 6, ms: 1500, gap: 260 }], ["l2", "sm", { count: 6, ms: 220, gap: 40 }], ...US.map((i) => ["sm", "u" + i, { count: 1, ms: 380, r: 8, color: "var(--user)" }])] },
+              send: [{ relay: [["hbm", "l2", 1500], ["l2", "sm", 220]], count: 6, gap: 420 }, ...US.map((i) => ["sm", "u" + i, { count: 1, ms: 380, r: 8, color: "var(--user)" }])] },
           ]);
         },
         caption: "도면 1과 같은 GPU 한 장이다. 오른쪽 칸만 토큰 1개에서 사용자 네 명으로 바뀌었다.",
