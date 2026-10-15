@@ -459,7 +459,7 @@
     return (plain.match(/[.?!…](?=\s|$)/g) || []).length || 1;
   }
 
-  var VISUAL_TYPES = { compare: 1, contrast: 1, figure: 1 };
+  var VISUAL_TYPES = { compare: 1, contrast: 1, figure: 1, overview: 1 };
 
   // Equal-width card grids; a deck built mostly from these reads as the same slideshow whatever the topic.
   function isCardGrid(s, scenes) {
@@ -499,6 +499,7 @@
       if (s.type === "summary") summaryCards(s, scenes).forEach(function (c) {
         if (!c.recall) add(i, "summary-no-recall", "정리할 takeaway '" + stripMarks(c.text).slice(0, 24) + "…'에 떠올릴 질문(recall)이 없다");
       });
+      if (s.type === "overview" && !s.figure) add(i, "overview-no-visual", "overview에 한 장으로 정리한 그림(figure)이 없다");
       var plain = stripMarks(text);
       Object.keys(glossary).forEach(function (key) {
         var at = first[key];
@@ -514,7 +515,7 @@
         termsIn(asked).forEach(function (t) {
           if (seen[t.key]) { add(i, "predict-new-term", "predict 질문에서 처음 나온 용어 '" + t.key + "' (앞 장면에서 풀이할 것)"); seen[t.key] = 0; }
         });
-      } else if (s.type !== "hook" && s.type !== "keywords" && s.type !== "summary") explained = true;
+      } else if (s.type !== "hook" && s.type !== "keywords" && s.type !== "summary" && s.type !== "overview") explained = true;
       var hasVisual = VISUAL_TYPES[s.type] || (!s.type && s.mount);
       if (hasVisual && !s.narration && !s.points && !s.sub && !s.caption && !(s.before && s.before.points))
         add(i, "no-reading-guide", "그림을 읽는 법(narration, points, sub)이 없다");
@@ -538,6 +539,10 @@
     if (predicts > 1) out.push({ scene: 0, rule: "many-predicts", msg: "predict가 " + predicts + "개 (수업당 1개)" });
     var last = scenes[scenes.length - 1];
     if (!last || last.type !== "keywords") out.push({ scene: 0, rule: "keywords-last", msg: "마지막 장면이 keywords가 아니다" });
+    var sum = scenes.map(function (s) { return s.type; }).lastIndexOf("summary");
+    var ov = scenes.map(function (s) { return s.type; }).indexOf("overview");
+    if (sum >= 0 && ov < 0) out.push({ scene: 0, rule: "overview-missing", msg: "summary 뒤에 한 장 정리(overview)가 없다" });
+    if (ov >= 0 && (ov < sum || ov !== scenes.length - 2)) add(ov, "overview-order", "overview는 summary 뒤, keywords 바로 앞에 둔다");
     Object.keys(glossary).forEach(function (k) { if (!(k in first)) out.push({ scene: 0, rule: "unused-term", msg: "glossary의 '" + k + "'가 어디에도 표시되지 않았다" }); });
     return out;
   }

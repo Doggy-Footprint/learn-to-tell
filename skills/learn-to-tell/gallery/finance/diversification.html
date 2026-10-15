@@ -132,6 +132,51 @@
     f.foot();
   }
 
+  function overviewFigure(stage) {
+    const host = document.createElement("div");
+    host.className = "ltt-cf";
+    stage.appendChild(host);
+    const GAP = 24, ZW = 320, ZH = 270, W = 4 * ZW + 3 * GAP, H = ZH, BX = 118, BW = 120, UNIT = BW / S;
+    const svg = d3.select(host).append("svg").attr("viewBox", `0 0 ${W} ${H}`).style("width", "100%").style("height", "auto");
+    const ink = (sel, c) => sel.style("fill", c).style("font-family", "var(--ltt-font)");
+    const zone = (n, x, head, foot) => {
+      const g = svg.append("g").attr("transform", `translate(${x},0)`);
+      g.append("rect").attr("width", ZW).attr("height", ZH).attr("rx", 8).style("fill", "var(--ltt-card-2)");
+      g.append("circle").attr("cx", 24).attr("cy", 26).attr("r", 13).style("fill", "var(--ltt-accent)");
+      ink(g.append("text").attr("x", 24).attr("y", 31).attr("text-anchor", "middle").text(n), "var(--ltt-on-accent)").style("font-weight", 700).style("font-size", "18px");
+      ink(g.append("text").attr("x", 46).attr("y", 31).text(head), "var(--ltt-ink)").style("font-weight", 700).style("font-size", "20px");
+      foot.forEach((line, i) => ink(g.append("text").attr("x", 16).attr("y", ZH - 38 + i * 22).text(line), "var(--ltt-ink-2)").style("font-weight", 700).style("font-size", "18px"));
+      return g;
+    };
+    const ref = (g) => g.append("line").attr("x1", BX + BW).attr("x2", BX + BW).attr("y1", 48).attr("y2", 48 + 4 * 34).style("stroke", "var(--ltt-muted)").style("stroke-dasharray", "4 4");
+    const bars = (g, rows) => (ref(g), rows).forEach(([label, v, c], i) => {
+      const y = 58 + i * 34;
+      ink(g.append("text").attr("x", BX - 10).attr("y", y + 18).attr("text-anchor", "end").text(label), "var(--ltt-ink-2)").style("font-size", "18px");
+      g.append("rect").attr("x", BX).attr("y", y).attr("width", Math.max(v * UNIT, 2)).attr("height", 24).style("fill", c);
+      ink(g.append("text").attr("x", BX + v * UNIT + 8).attr("y", y + 19).text(pc(v)), "var(--ltt-ink)").style("stroke", "var(--ltt-card-2)").style("stroke-width", 4).style("paint-order", "stroke").style("font-family", "var(--ltt-mono)").style("font-size", "18px");
+    });
+
+    const a = zone("1", 0, "엇갈린 만큼 상쇄된다", ["줄어드는 위험은", "엇갈린 만큼이다"]);
+    const wx = d3.scaleLinear([0, 4 * Math.PI], [24, ZW - 24]), wy = d3.scaleLinear([-1.2, 1.2], [176, 60]), xs = d3.range(0, 4 * Math.PI + 0.05, 0.05);
+    const wl = (fn, c, wd) => a.append("path").attr("d", d3.line().x(wx).y((t) => wy(fn(t)))(xs)).style("fill", "none").style("stroke", c).style("stroke-width", wd);
+    a.append("line").attr("x1", 24).attr("x2", ZW - 24).attr("y1", wy(0)).attr("y2", wy(0)).style("stroke", "var(--ltt-line-2)");
+    wl(Math.sin, "var(--ltt-muted)", 2).style("opacity", 0.7);
+    wl((t) => Math.cos(t), "var(--ltt-warn)", 2).style("opacity", 0.7);
+    wl((t) => (Math.sin(t) + Math.cos(t)) / 2, "var(--ltt-accent)", 4);
+    ink(a.append("text").attr("x", ZW - 16).attr("y", 56).attr("text-anchor", "end").text("A·B는 엇갈려 움직임"), "var(--ltt-muted)").style("font-size", "17px");
+    ink(a.append("text").attr("x", ZW - 16).attr("y", 208).attr("text-anchor", "end").text("섞으면 폭이 줄어듦"), "var(--ltt-accent)").style("font-size", "17px").style("font-weight", 700);
+
+    const b = zone("2", ZW + GAP, "짝에 따라 크기가 다르다", ["고를 때는 같이 움직이는", "정도를 먼저 본다"]);
+    bars(b, [["ρ = 1", vol(0.5, 1), "var(--ltt-bad)"], ["ρ = 0.3", vol(0.5, 0.3), "var(--ltt-warn)"], ["ρ = 0", vol(0.5, 0), "var(--ltt-good)"], ["ρ = −1", vol(0.5, -1), "var(--ltt-good)"]]);
+
+    const c = zone("3", 2 * (ZW + GAP), "계속 더해도 바닥이 있다", ["줄일 수 있는 위험에는", "바닥이 있다"]);
+    bars(c, [["N = 1", S, "var(--ltt-muted)"], ["N = 2", volN(2, 0.3), "var(--ltt-accent)"], ["N = 10", volN(10, 0.3), "var(--ltt-accent)"], ["N → ∞ 바닥", floorVol(0.3), "var(--ltt-ink-2)"]]);
+
+    const d = zone("4", 3 * (ZW + GAP), "위기 때는 같이 떨어진다", ["분산 효과는 위기 때", "가장 약해진다"]);
+    bars(d, [["평시 ρ=0.3", vol(0.5, 0.3), "var(--ltt-accent)"], ["위기 ρ=0.8", vol(0.5, 0.8), "var(--ltt-bad)"], ["위기 바닥", floorVol(0.8), "var(--ltt-ink-2)"]]);
+    ink(d.append("text").attr("x", BX + BW + 4).attr("y", 44).text("20%"), "var(--ltt-muted)").style("font-size", "16px");
+  }
+
   LTT.deck({
     title: "두 자산을 섞으면 위험은 얼마나 줄까?",
     theme: "ledger",
@@ -218,6 +263,9 @@
         sub: `평시 상관계수 0.3에서 ${pc(vol(0.5, 0.3))}였던 반반 포트폴리오가, 0.8에서는 ${pc(vol(0.5, 0.8))}로 섞기 전 20%에 거의 돌아간다.` },
 
       { type: "summary", title: "자산을 섞기 전에 물어볼 것", en: "Recap" },
+
+      { type: "overview", title: "섞는 효과는 엇갈림에서 나오고, 바닥이 있고, 위기엔 줄어든다", figure: overviewFigure,
+        caption: "네 구역이 수업 순서다. 점선은 섞기 전 20%이고, 모든 값은 변동성 20%짜리 자산으로 모델로 계산한 예시다." },
 
       { type: "keywords", title: "다음에 비슷한 걸 만나면",
         terms: [{ ko: "분산투자와 상관계수", en: "diversification, correlation" }, { ko: "체계적 위험", en: "systematic risk" }],

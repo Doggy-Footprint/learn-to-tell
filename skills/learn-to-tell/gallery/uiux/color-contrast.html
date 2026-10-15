@@ -142,6 +142,38 @@
           + tl((10 + x(4.5)) / 2, 90, "실패", "var(--ltt-bad)", "middle", 700) + tl((x(4.5) + 210) / 2, 90, "통과", "var(--ltt-good)", "middle", 700); })()),
   };
 
+  // Same 1..8 ratio axis as ratioRuler, drawn wide; rows move the three redline colours from fail to pass.
+  const overviewFigure = () => {
+    const X0 = 60, X1 = 840, x = (v) => X0 + ((v - 1) / 7) * (X1 - X0);
+    const t = (px, y, txt, o = {}) => `<text x="${px}" y="${y}" text-anchor="${o.a || "middle"}" style="font-size:${o.s || 14}px;font-weight:${o.w || 500};fill:${o.c || "var(--ltt-ink)"}">${txt}</text>`;
+    const mark = (px, y, n) => `<circle cx="${px}" cy="${y}" r="13" style="fill:var(--ltt-ink)"/>${t(px, y + 5, n, { c: "var(--ltt-bg)", w: 800 })}`;
+    const rows = [["placeholder", "#aaaaaa", "#767676", 108], ["도움말", "#999999", "#595959", 148], ["버튼 글자", "#ff0000", "#d70015", 188]];
+    const top = 74, bot = 212;
+    const zones = [[1, 3, "var(--ltt-bad-soft)", "실패", "var(--ltt-bad)"], [3, 4.5, "var(--ltt-warn-soft)", "큰 글자만 통과", "var(--ltt-warn)"], [4.5, 8, "var(--ltt-good-soft)", "일반 글자 AA 통과", "var(--ltt-good)"]];
+    const legend = [
+      ["1", "대비비 = 밝기의 비율", "색상이 아니라 밝기 차이가 읽힘을 정한다.", 40, 266],
+      ["2", "옅게 말고 작게·가늘게", "중요도는 크기와 굵기로 낮춘다.", 470, 266],
+      ["3", "큰 글자와 본문의 선이 다르다", "같은 회색도 3~4.5 구간에선 본문만 실패.", 40, 318],
+      ["4", "숫자는 단색 배경에서만 정확", "사진·그라디언트 위는 직접 확인한다.", 470, 318],
+    ];
+    return `<svg class="ltt-svg" viewBox="0 0 900 340" role="img" aria-label="대비비 눈금 위에서 옅은 회색 세 곳이 실패에서 통과로 옮겨 가고, 네 가지 정리가 번호로 붙은 한 장 정리">
+      ${mark(40, 22, "1")}${t(66, 27, "색 → 밝기 → (밝은 쪽 + 0.05) ÷ (어두운 쪽 + 0.05)", { a: "start", w: 800, s: 16 })}
+      ${zones.map(([a, b, f, l, c]) => `<rect x="${x(a)}" y="${top}" width="${x(b) - x(a)}" height="${bot - top}" style="fill:${f}"/>${t((x(a) + x(b)) / 2, top - 8, l, { c, w: 800 })}`).join("")}
+      ${mark(x(3) + 10, top - 15, "3")}
+      ${rows.map(([n, a, b, y], i) => {
+        const ra = ratio(rgb(a), W), rb = ratio(rgb(b), W), mid = (x(ra) + x(rb)) / 2;
+        return `<line x1="${x(ra)}" y1="${y}" x2="${x(rb) - 10}" y2="${y}" style="stroke:var(--ltt-ink);stroke-width:2"/><path d="M${x(rb) - 14} ${y - 6}L${x(rb) - 4} ${y}L${x(rb) - 14} ${y + 6}" style="fill:none;stroke:var(--ltt-ink);stroke-width:2"/>
+          <circle cx="${x(ra)}" cy="${y}" r="7" style="fill:var(--ltt-bad)"/><circle cx="${x(rb)}" cy="${y}" r="7" style="fill:var(--ltt-good)"/>
+          ${t(mid, y - 12, `${n} ${fl2(ra)} → ${fl2(rb)}`, { w: 700, s: 13 })}`;
+      }).join("")}
+      ${mark(x(7) + 40, 148, "2")}
+      <line x1="${X0}" y1="${bot}" x2="${X1}" y2="${bot}" style="stroke:var(--ltt-line-2);stroke-width:2"/>
+      ${[1, 3, 4.5, 7].map((v) => `<line x1="${x(v)}" y1="${bot}" x2="${x(v)}" y2="${bot + 6}" style="stroke:var(--ltt-ink);stroke-width:2"/>${t(x(v), bot + 20, v, { w: 800, s: 13 })}`).join("")}
+      ${mark(X1 - 40, bot + 18, "4")}${t(X1 - 22, bot + 23, "단색 기준", { a: "start", c: "var(--ltt-muted)", s: 13 })}
+      ${legend.map(([n, h, d, lx, ly]) => `${mark(lx, ly, n)}${t(lx + 24, ly - 2, h, { a: "start", w: 800 })}${t(lx + 24, ly + 18, d, { a: "start", c: "var(--ltt-muted)", s: 13 })}`).join("")}
+    </svg>`;
+  };
+
   LTT.deck({
     title: "회색 글자는 얼마나 옅어야 읽기 힘들어질까?",
     theme: "studio",
@@ -284,6 +316,10 @@
         recall: "사진이나 그라디언트 위에 놓인 글자는 대비비 숫자 하나만 믿으면 안 된다. 왜이고, 대신 어떻게 확인하나?" },
 
       { type: "summary", title: "색을 고르기 전에 물어볼 것", en: "Recap" },
+
+      { type: "overview", title: "색을 고를 때는 눈이 아니라 대비비 눈금 위에서 판정한다",
+        figure: overviewFigure,
+        caption: "옅은 회색 세 곳이 실패 구간에서 통과 구간으로 옮겨 간다. 모델로 계산한 예시." },
 
       { type: "keywords", title: "다음에 비슷한 걸 만나면",
         terms: [{ ko: "색 대비비", en: "WCAG contrast ratio" }, { ko: "상대 휘도", en: "relative luminance" }],

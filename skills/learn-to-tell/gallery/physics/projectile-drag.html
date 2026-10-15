@@ -102,6 +102,31 @@
   };
   const vacPath = (v, a, n = 80) => { const T = 2 * v * Math.sin(rad(a)) / G; return d3.range(n + 1).map((i) => { const t = T * i / n; return [v * Math.cos(rad(a)) * t, Math.max(0, v * Math.sin(rad(a)) * t - G * t * t / 2)]; }); };
 
+  function overviewFigure(node) {
+    const W = 880, H = 340, v = 40;
+    const plot = LTT.axisPlot(node, { width: W, height: H, cls: "traj", x: [0, v * v / G * 1.02], y: [0], equal: true, ticks: [6, 3],
+      labels: { x: "수평 거리 (m)", y: "높이 (m)" },
+      series: [{ id: "vac", color: "var(--vac)", dash: true }, { id: "drag", color: "var(--drag)" }] });
+    plot.set("vac", vacPath(v, 45)).set("drag", path(v, best40, K, DT));
+    const g = plot.svg.append("g").style("font-size", "14px"), P = plot.px;
+    const note = (n, x, y, lines, color = "var(--ltt-ink)") => {
+      const [px, py] = P([x, y]);
+      g.append("circle").attr("cx", px).attr("cy", py - 5).attr("r", 11).style("fill", color);
+      g.append("text").attr("x", px).attr("y", py).attr("text-anchor", "middle").style("fill", "var(--ltt-card)").style("font-weight", 800).text(n);
+      lines.forEach((l, i) => g.append("text").attr("x", px + 20).attr("y", py + i * 20).style("fill", i ? "var(--ltt-muted)" : "var(--ltt-ink)").style("font-weight", i ? 400 : 700).text(l));
+    };
+    const rd = range(v, best40, K, DT), rv = vacRange(v, 45), [x0, yb] = P([rd, 6]), [x1] = P([rv, 6]);
+    g.append("path").attr("d", `M${x0},${yb - 6}V${yb}H${x1}V${yb - 6}`).style("fill", "none").style("stroke", "var(--ltt-bad)").style("stroke-width", 2);
+    g.append("text").attr("x", (x0 + x1) / 2).attr("y", P([0, 1.2])[1]).attr("text-anchor", "middle").style("fill", "var(--ltt-bad)").style("font-weight", 800).text(`사거리 −${f0(loss(v, best40) * 100)}%`);
+    const [lx, ly] = P([0, 0]);
+    g.append("text").attr("x", P([81, 43.5])[0]).attr("y", P([81, 43.5])[1]).attr("text-anchor", "middle").style("fill", "var(--vac)").text("점선 · 진공 45°");
+    g.append("text").attr("x", P([rd * 0.5, 0])[0] - 30).attr("y", ly - 130).style("fill", "var(--drag)").style("font-weight", 700).text(`실선 · 항력 ${f1(best40)}°`);
+    note(1, 9, 54, ["최적 각도가 45°보다 낮아진다", "오래 떠 있을수록 항력이 속도를 깎는다"], "var(--drag)");
+    note(2, 9, 45, ["각도는 몇 도, 거리는 훨씬 크게 바뀐다", `40 m/s 야구공: ${f0(vacRange(v, 45))} m → ${f0(rd)} m`], "var(--ltt-bad)");
+    note(3, 112, 57, ["빠를수록 영향이 크다", ...[15, 30, 45].map((u) => `${u} m/s  −${f0(loss(u, bestAngle(u, K, DT)) * 100)}%`)]);
+    note(4, 112, 40, ["모델 밖: 회전·바람·높이", "실제 비거리는 더 넣어 계산"], "var(--ltt-muted)");
+  }
+
   LTT.deck({
     title: "공기저항이 있으면 가장 멀리 날아가는 각도는 얼마나 낮아질까?",
     theme: "lab",
@@ -207,6 +232,9 @@
         recall: "이 수업의 항력 모델에 빠져 있어서, 실제 비거리를 계산할 때 더 넣어야 하는 것은 무엇인가?" },
 
       { type: "summary", title: "궤적을 계산하기 전에 물어볼 것", en: "Recap" },
+
+      { type: "overview", title: "공기저항은 최적 각도를 낮추고 거리를 훨씬 크게 줄인다", figure: overviewFigure,
+        caption: "점선은 진공, 실선은 항력이 있을 때의 궤적이다. 번호는 앞 장면의 정리를 가리킨다." },
 
       { type: "keywords", title: "다음에 비슷한 걸 만나면",
         terms: [

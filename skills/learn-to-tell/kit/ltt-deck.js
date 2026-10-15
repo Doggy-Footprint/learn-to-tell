@@ -336,6 +336,10 @@
       body.appendChild(f);
       return {};
     },
+    // Shown after the recall list, never before it: a finished map seen first would replace the attempt to recall.
+    overview: function (s, body, ctx) {
+      return TYPES.figure({ figure: s.figure, caption: s.caption, label: s.label || "한 장 정리." }, body, ctx);
+    },
     statement: function (s, body, ctx) {
       var w = h("div", "dk-st" + (s.visual ? "" : " solo"));
       var tx = w.appendChild(h("div", "tx"));
@@ -475,7 +479,7 @@
   }
   function stripTags(html) { return String(html).replace(/<[^>]*>/g, ""); }
 
-  var SPLIT_OFF = { hook: 1, keywords: 1, summary: 1, terms: 1, contrast: 1, predict: 1, figure: 1, statement: 1 };
+  var SPLIT_OFF = { hook: 1, keywords: 1, summary: 1, terms: 1, contrast: 1, predict: 1, figure: 1, overview: 1, statement: 1 };
   var NO_HEAD = { hook: 1, statement: 1 };
 
   // A scene must read as one screen: if it would scroll, shrink it (not below 78%) instead.
@@ -586,7 +590,7 @@
         if (s.sub && s.type !== "statement") inner.appendChild(h("p", "dk-sub", s.sub));
       }
       // "full": the visual takes the whole width and its reading guide sits underneath like a figure caption.
-      var full = s.layout ? s.layout === "full" : s.type === "figure";
+      var full = s.layout ? s.layout === "full" : s.type === "figure" || s.type === "overview";
       var split = !full && (s.layout ? s.layout === "split" : !SPLIT_OFF[s.type] && !!(s.narration || s.points));
       var main = inner.appendChild(h("div", "dk-main" + (split ? " split" : full ? " full" : "")));
       var body = main.appendChild(h("div", "dk-body" + (s.bare || full ? " bare" : "")));

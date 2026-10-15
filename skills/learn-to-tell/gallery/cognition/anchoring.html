@@ -146,6 +146,55 @@
 
   const study = (anchor, judged) => `<div class="ab"><span class="k">앵커</span><span class="an">${anchor}</span><span class="k">판단</span><span>${judged}</span></div>`;
 
+  // Reuses pullLine's week-line geometry so the one-page map reads as the same picture; numbered badges tie each takeaway to its place on it.
+  function overviewMap(node) {
+    const W = 900, H = 350, x = d3.scaleLinear([0, 12], [60, W - 60]), y = 140;
+    const svg = d3.select(node).append("svg").attr("class", "ltt-svg pf fg").attr("viewBox", `0 0 ${W} ${H}`);
+    const badge = (px, py, n) => {
+      const g = svg.append("g").attr("transform", `translate(${px},${py})`);
+      g.append("circle").attr("r", 12).style("fill", "var(--ltt-ink)");
+      g.append("text").attr("text-anchor", "middle").attr("y", 5).text(n).style("fill", "var(--ltt-card)").style("font-weight", 800);
+    };
+    const note = (px, py, n, lines) => {
+      badge(px + 12, py, n);
+      const t = svg.append("text").attr("x", px + 32).attr("y", py - 4).style("fill", "var(--ltt-ink-2)");
+      lines.forEach((l, i) => t.append("tspan").attr("x", px + 32).attr("dy", i ? 20 : 0).text(l));
+    };
+    svg.append("rect").attr("x", x(4.5)).attr("width", x(8) - x(4.5)).attr("y", y - 18).attr("height", 36).attr("rx", 2).style("fill", "var(--ltt-good-soft)").style("stroke", "var(--ltt-good)").style("stroke-dasharray", "4 4");
+    svg.append("line").attr("x1", x(0)).attr("x2", x(12)).attr("y1", y).attr("y2", y).style("stroke", "var(--ltt-ink)").style("stroke-width", 1.5);
+    d3.range(0, 13, 2).forEach((t) => {
+      svg.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", y).attr("y2", y + 7).style("stroke", "var(--ltt-ink)");
+      svg.append("text").attr("class", "ax").attr("x", x(t)).attr("y", y + 26).attr("text-anchor", "middle").text(t + "주");
+    });
+    svg.append("text").attr("x", x(8)).attr("y", y - 30).attr("text-anchor", "end").text("그럴듯해 보이는 범위").style("fill", "var(--ltt-good)").style("font-weight", 700);
+    svg.append("path").attr("d", `M${x(2)},${y - 14} C${x(2.8)},${y - 70} ${x(4)},${y - 70} ${x(4.5)},${y - 14}`).style("fill", "none").style("stroke", "var(--ltt-ink)").style("stroke-width", 2).style("stroke-dasharray", "6 6");
+    const own = svg.append("g").attr("transform", `translate(${x(6)},${y})`);
+    ring(own);
+    own.append("text").attr("y", -50).attr("text-anchor", "middle").text("혼자 추정 6주").style("font-weight", 800).style("fill", "var(--ltt-ink-2)");
+    const anc = svg.append("g").attr("transform", `translate(${x(2)},${y})`);
+    anchorMark(anc);
+    anc.append("text").attr("y", 42).attr("text-anchor", "middle").text("먼저 들은 2주").style("font-weight", 800).style("fill", "var(--ltt-bad)");
+    const fin = svg.append("g").attr("transform", `translate(${x(4.5)},${y})`);
+    dot(fin, "var(--ltt-ink)");
+    svg.append("path").attr("d", `M${x(4.5)},${y + 44}V${y + 50}H${x(6)}V${y + 44}`).style("fill", "none").style("stroke", "var(--ltt-accent)").style("stroke-width", 1.5);
+    svg.append("text").attr("x", (x(4.5) + x(6)) / 2).attr("y", y + 70).attr("text-anchor", "middle").text("최종 답 4.5주 · 못 간 만큼").style("fill", "var(--ltt-accent)").style("font-weight", 800);
+    badge(x(2) - 28, y - 28, 2);
+    badge((x(2.8) + x(4)) / 2 + 8, y - 66, 1);
+    badge(x(6) - 70, y - 55, 3);
+
+    [["독립 추정 먼저 모으기", 330], ["기존 숫자는 그 다음 공개", 590]].forEach(([t, px], i) => {
+      svg.append("rect").attr("x", px).attr("y", 10).attr("width", 220).attr("height", 34).attr("rx", 17).style("fill", "var(--ltt-card)").style("stroke", "var(--ltt-ink)").style("stroke-width", 1.5);
+      svg.append("text").attr("x", px + 110).attr("y", 32).attr("text-anchor", "middle").text(t).style("font-weight", 700).style("fill", "var(--ltt-ink)");
+      if (!i) svg.append("path").attr("d", `M${px + 224},27H${px + 262}`).style("stroke", "var(--ltt-ink)").style("stroke-width", 2);
+    });
+    badge(310, 27, 4);
+
+    note(40, 270, 1, ["먼저 들은 숫자에서 출발하면,", "충분히 가기 전에 멈춘다."]);
+    note(470, 270, 2, ["앵커는 무관한 숫자여도,", "전문가에게도 작동한다."]);
+    note(40, 326, 3, ["끌렸는지 알려면, 숫자를 듣기 전에", "내 추정을 적어 둬야 한다."]);
+    note(470, 326, 4, ["독립 추정을 먼저 모으고,", "기존 숫자는 그 다음에 공개한다."]);
+  }
+
   LTT.deck({
     title: "처음 본 숫자가 내 추정을 끌어당길까?",
     theme: "paper",
@@ -217,6 +266,10 @@
         ask: "\"다른 숫자를 보기 전에 각자 추정을 먼저 적어 주세요\"" },
 
       { type: "summary", title: "추정 회의 전에 물어볼 것", en: "Recap" },
+
+      { type: "overview", title: "끌림은 막을 수 없어서, 숫자를 듣기 전에 내 추정부터 적는다.",
+        figure: overviewMap,
+        caption: "한 장으로 보는 앵커링. 사각형 = 먼저 들은 숫자, 빈 원 = 혼자 한 추정, 검은 점 = 최종 답. 번호는 앞 장면의 정리와 같다." },
 
       { type: "keywords", title: "다음에 비슷한 걸 만나면",
         terms: [{ ko: "앵커링 효과", en: "anchoring effect" }, { ko: "조정 부족", en: "insufficient adjustment" }],

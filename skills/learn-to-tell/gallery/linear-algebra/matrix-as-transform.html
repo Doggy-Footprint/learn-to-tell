@@ -33,6 +33,11 @@
     border-left: 2px solid var(--ltt-ink); border-right: 2px solid var(--ltt-ink); border-radius: 6px; }
   .ab { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; text-align: center; }
   .ab svg { max-height: 26vh; margin: 0 auto; }
+  .ov { display: grid; gap: 16px clamp(20px, 3vw, 44px); grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: center; width: 100%; }
+  .ov svg { max-height: 60vh; overflow: hidden; border-radius: var(--ltt-r-sm); margin: 0 auto; }
+  .ov ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .ov li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; font-size: clamp(14px, 1.3vw, 17px); line-height: 1.5; }
+  .ov li i { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--ltt-ink); color: var(--ltt-card); font: 700 15px var(--ltt-mono); font-style: normal; }
 </style>
 </head>
 <body>
@@ -106,6 +111,33 @@
     LTT.math(w);
     colPlane = mkPlane(w.firstElementChild, 4, 560);
     w.querySelector("button").onclick = playCols;
+  }
+
+  function overviewFigure(node) {
+    const w = node.appendChild(LTT.h("div", "ov"));
+    w.innerHTML = `<div></div><ol>
+      <li><i>1</i><span>행렬의 <span class="i-hat">첫째 열</span>·<span class="j-hat">둘째 열</span>은 î와 ĵ의 도착점이다.</span></li>
+      <li><i>2</i><span>det는 넓이 배율이다. 음수면 뒤집히고, 0이면 되돌릴 수 없다.</span></li>
+      <li><i>3</i><span>det = ad − bc, 두 열이 만드는 평행사변형의 넓이다.</span></li>
+      <li><i>4</i><span>곱 순서는 적용 순서다. 오른쪽이 먼저.</span></li></ol>`;
+    const p = mkPlane(w.firstElementChild, 4, 560);
+    p.to(A, 0);
+    const g = d3.select(w.querySelector("svg")).append("g").style("font-family", "var(--ltt-font-ui)");
+    const mark = (x, y, n) => {
+      g.append("circle").attr("cx", x).attr("cy", y).attr("r", 14).style("fill", "var(--ltt-ink)");
+      g.append("text").attr("x", x).attr("y", y + 5).attr("text-anchor", "middle").style("fill", "var(--ltt-card)").style("font-weight", 700).style("font-size", "15px").text(n);
+    };
+    const [ix, iy] = p.toSvg(apply(A, [1, 0])), [jx, jy] = p.toSvg(apply(A, [0, 1])), [cx, cy] = p.toSvg(apply(A, [0.5, 0.5]));
+    mark(ix + 4, iy + 30, 1);
+    mark(jx - 16, jy - 38, 1);
+    mark(cx, cy, 2);
+    g.append("path").attr("d", `M${cx - 14},${cy - 10}L-150,-110`).style("stroke", "var(--ltt-muted)").style("stroke-width", 1.5).style("fill", "none");
+    g.append("rect").attr("x", -250).attr("y", -150).attr("width", 190).attr("height", 44).attr("rx", 8).style("fill", "var(--ltt-card)").style("stroke", "var(--ltt-line-2)");
+    g.append("text").attr("x", -155).attr("y", -122).attr("text-anchor", "middle").style("fill", "var(--ltt-ink)").style("font-weight", 700).style("font-size", "16px").text("ad − bc = 넓이 2");
+    mark(-250, -150, 3);
+    g.append("rect").attr("x", -250).attr("y", 205).attr("width", 250).attr("height", 44).attr("rx", 8).style("fill", "var(--ltt-card)").style("stroke", "var(--ltt-line-2)");
+    g.append("text").attr("x", -115).attr("y", 233).attr("text-anchor", "middle").style("fill", "var(--ltt-ink)").style("font-weight", 700).style("font-size", "16px").text("A(Bx): B 먼저 → A 나중");
+    mark(-250, 205, 4);
   }
 
   LTT.deck({
@@ -210,6 +242,10 @@
         recall: "ABx를 계산할 때 A와 B 중 어느 변환이 먼저 적용되고, 순서를 바꾸면 결과는 어떻게 되는가?" },
 
       { type: "summary", title: "행렬을 읽을 때 물어볼 것", en: "Recap" },
+
+      { type: "overview", title: "행렬은 î·ĵ가 가는 곳이고, det가 넓이 변화를 말한다", en: "Overview",
+        figure: overviewFigure,
+        caption: "A=[[2,1],[0,1]]가 격자를 옮긴 모습 위에 네 가지 정리를 번호로 놓았다. 1은 두 열(화살표 끝), 2는 색칠한 평행사변형, 3은 그 넓이를 재는 식, 4는 곱 순서 표시다." },
 
       { type: "keywords", title: "다음에 비슷한 걸 만나면",
         terms: [

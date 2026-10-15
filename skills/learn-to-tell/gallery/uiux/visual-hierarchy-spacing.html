@@ -31,6 +31,13 @@
   .scale i { display: block; width: 16px; background: var(--ltt-accent-soft); box-shadow: inset 0 0 0 1px var(--ltt-accent); border-radius: 3px; }
   .map { font: 13px var(--ltt-mono); line-height: 1.8; }
   .map b { color: var(--ltt-accent); }
+  .ov { display: flex; gap: 28px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .ov .pc > *, .ov .fm > * { position: relative; }
+  .ov .mk { position: absolute; right: -12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 800 13px var(--ltt-font); background: var(--ltt-accent); color: var(--ltt-on-accent); z-index: 2; }
+  .ov .pc .mk { right: 6px; }
+  .ov ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-width: 360px; font-size: 15px; line-height: 1.45; color: var(--ltt-ink); }
+  .ov li { display: flex; gap: 10px; align-items: baseline; }
+  .ov li i { flex: none; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font: 800 13px var(--ltt-font); font-style: normal; background: var(--ltt-accent); color: var(--ltt-on-accent); }
 </style>
 </head>
 <body>
@@ -82,6 +89,28 @@
       <div style="margin-top:${o.sec}px;font-size:${o.hSize}px;font-weight:${o.hWeight};color:#111">배송지</div>
       ${field("주소", o.first)}</div>`;
     return b.el;
+  };
+
+  const overview = () => {
+    const mk = (n) => `<span class="mk">${n}</span>`;
+    const card = cardMock();
+    card.paint(4);
+    const at = (root, sel, n) => root.querySelector(sel).insertAdjacentHTML("beforeend", mk(n));
+    at(card.el, '[data-k="price"]', 1);
+    at(card.el, '[data-k="desc"]', 2);
+    at(card.el, '[data-k="btn"]', 3);
+    const form = formMock({ lab: 8, first: 16, gaps: [24, 24], sec: 48, labSize: 13, labColor: "#444", hSize: 17, hWeight: 800 })();
+    const kids = form.querySelectorAll(".fm > *");
+    kids[2].insertAdjacentHTML("beforeend", mk(4));
+    kids[5].insertAdjacentHTML("beforeend", mk(5));
+    kids[7].insertAdjacentHTML("beforeend", mk(6));
+    const notes = ["가장 중요한 것 하나만 앞세우고 나머지는 작게·옅게 낮춘다", "크기·굵기·회색은 각각 2–4단계만 쓴다", "모든 것을 강조하면 아무것도 강조되지 않는다. 색은 누를 곳 하나에만",
+      "라벨↔입력칸은 좁게(8px), 같은 간격은 '관계없음'을 말한다", "항목 사이는 모두 24px. 같은 역할에는 같은 값", "섹션 앞 48px. 안 < 사이 < 섹션 순서로, 값은 관계로 고른다"];
+    const el = document.createElement("div");
+    el.className = "ov";
+    el.append(card.el, form);
+    el.insertAdjacentHTML("beforeend", `<ol>${notes.map((t, i) => `<li><i>${i + 1}</i><span>${t}</span></li>`).join("")}</ol>`);
+    return el;
   };
 
   const tv = (label, inner) => `<svg class="ltt-svg" viewBox="0 0 220 100" style="max-height:110px" role="img" aria-label="${label}">${inner}</svg>`;
@@ -241,6 +270,10 @@
         ask: "\"이 화면에서 쓰인 간격 값을 전부 뽑고, 역할별로 묶어 줘\"" },
 
       { type: "summary", title: "화면을 다듬기 전에 물어볼 것", en: "Recap" },
+
+      { type: "overview", title: "화면은 하나만 앞세우고, 간격의 크기로 묶음을 말한다",
+        figure: overview,
+        caption: "1~3은 상품 카드, 4~6은 회원가입 폼 위에 놓인 앞 장면의 정리다. 번호가 붙은 자리가 그 정리가 적용되는 곳이다." },
 
       { type: "keywords", title: "다음에 비슷한 걸 만나면",
         terms: [{ ko: "시각적 위계", en: "visual hierarchy" }, { ko: "근접성", en: "Gestalt principle of proximity (게슈탈트: 형태를 묶어 보는 지각 원리)" }, { ko: "간격 스케일", en: "spacing scale (8의 배수만 쓰면 8pt grid)" }],

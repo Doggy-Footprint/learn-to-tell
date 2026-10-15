@@ -143,6 +143,15 @@ test("lint wants a recall question for every takeaway a summary collects, and a 
   assert.ok(!rules({ scenes: grid("q") }).includes("card-monotony"));
 });
 
+test("lint wants a one-page overview after the recall summary and right before keywords", () => {
+  const ex = { type: "explain", form: "strip", title: "e", steps: [], takeaway: "핵심", recall: "q" };
+  const sum = { type: "summary" }, ov = { type: "overview", title: "o", figure: "<svg></svg>", caption: "c" };
+  assert.ok(rules({ scenes: [ex, sum, KW] }).includes("overview-missing"));
+  assert.ok(!rules({ scenes: [ex, sum, ov, KW] }).some((r) => r.startsWith("overview")));
+  assert.ok(rules({ scenes: [ex, ov, sum, KW] }).includes("overview-order"));
+  assert.ok(rules({ scenes: [ex, sum, { ...ov, figure: undefined }, KW] }).includes("overview-no-visual"));
+});
+
 test("lint wants a signature visual and a known theme", () => {
   const ex = { type: "explain", title: "e", steps: [] };
   assert.ok(rules({ scenes: [ex, KW] }).includes("no-signature"));

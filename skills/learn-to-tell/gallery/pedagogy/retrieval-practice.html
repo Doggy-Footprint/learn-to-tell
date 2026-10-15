@@ -97,6 +97,73 @@
   }
   const METHOD = design(false), RESULT = design(true);
 
+  // The Results figure's timeline plus numbered marks, so each recap takeaway sits at the place in the picture where it was shown.
+  function overview(node) {
+    const W = 980, H = 456, bx = 200, bw = 86, bg = 8, ch = 52, cw = 132;
+    const bend = bx + 4 * bw + 3 * bg, tx = [690, 846];
+    const rows = [
+      { k: "read", y: 118, name: "다시 읽기 조", plan: "4번 읽기", blocks: ["읽기", "읽기", "읽기", "읽기"] },
+      { k: "test", y: 190, name: "떠올리기 조", plan: "1번 읽고 3번 쓰기", blocks: ["읽기", "쓰기", "쓰기", "쓰기"] },
+    ];
+    const svg = d3.select(node).append("svg").attr("class", "ltt-svg mf").attr("viewBox", `0 0 ${W} ${H}`);
+    const t = (x, y, txt, cls, anchor) => svg.append("text").attr("x", x).attr("y", y).attr("class", cls || null).attr("text-anchor", anchor || "start").text(txt);
+    const line = (d, stroke) => svg.append("path").attr("d", d).style("fill", "none").style("stroke", stroke || "var(--ltt-ink-2)").style("stroke-width", 1.5);
+    const mark = (x, y, n) => {
+      svg.append("circle").attr("cx", x).attr("cy", y).attr("r", 11).style("fill", "var(--ltt-accent)");
+      t(x, y + 5, n, null, "middle").style("fill", "var(--ltt-on-accent)").style("font-weight", 800).style("font-size", "14px");
+    };
+    const note = (x, y, n, lines) => { mark(x, y, n); lines.forEach((s, i) => t(x + 20, y + 5 + i * 18, s, "sm").style("fill", "var(--ltt-ink)")); };
+
+    t((bx + bend) / 2, 36, "복습 — 같은 글, 같은 시간", "hd", "middle");
+    t((tx[0] + tx[1] + cw) / 2, 36, "시험 — 참가자마다 둘 중 하나만", "hd", "middle");
+    svg.append("line").attr("x1", 0).attr("x2", W).attr("y1", 52).attr("y2", 52).style("stroke", "var(--ltt-ink)").style("stroke-width", 1.5);
+    tx.forEach((x, j) => t(x + cw / 2, 76, j ? "1주 뒤" : "5분 뒤", "sm", "middle"));
+    rows.forEach((r) => {
+      t(0, r.y - 4, r.name, "hd");
+      t(0, r.y + 16, r.plan, "sm");
+      r.blocks.forEach((b, i) => {
+        const x = bx + i * (bw + bg), on = b === "쓰기";
+        svg.append("rect").attr("x", x).attr("y", r.y - ch / 2).attr("width", bw).attr("height", ch).attr("rx", 2).style("fill", on ? "var(--test)" : "var(--read)");
+        t(x + bw / 2, r.y + 5, b, null, "middle").style("fill", on ? "var(--ltt-on-accent)" : "var(--ltt-ink)").style("font-weight", 700);
+      });
+      line(`M${bend + 10},${r.y}H${tx[0] - 14}m-7,-6l7,6l-7,6`);
+      tx.forEach((x, j) => {
+        const v = DATA[j][r.k];
+        svg.append("rect").attr("x", x).attr("y", r.y - ch / 2).attr("width", cw).attr("height", ch).attr("rx", 2)
+          .style("fill", "var(--ltt-card)").style("stroke", "var(--ltt-line-2)").style("stroke-dasharray", "5 4");
+        svg.append("rect").attr("x", x + 8).attr("y", r.y + 2).attr("height", 18).attr("width", (cw - 16) * v / 100).style("fill", r.k === "test" ? "var(--test)" : "var(--read)");
+        t(x + 8, r.y - 8, `${v}%`).style("font-weight", 800).style("fill", "var(--ltt-ink)");
+      });
+    });
+    tx.forEach((x, j) => {
+      const d = DATA[j], readLeads = d.read > d.test;
+      t(x + cw / 2, 242, `${readLeads ? "다시 읽기" : "떠올리기"} +${Math.abs(d.read - d.test)}%p`, "hd", "middle").style("fill", readLeads ? "var(--ltt-warn)" : "var(--ltt-good)");
+    });
+
+    note(bx + 11, 242, "1", ["시험에서 할 일(꺼내기)을", "미리 연습한 쪽이 오래 남는다"]);
+    line(`M${bx},268v6H${bend}v-6`, "var(--ltt-muted)");
+    note(bx + 11, 296, "2", ["비교한 것은 같은 시간을 읽기에 쓰느냐,", "꺼내기에 쓰느냐다"]);
+    note(tx[0] + 11, 276, "3", ["직후 느낌으로 고르면", "오래 남는 쪽을 놓친다"]);
+
+    svg.append("rect").attr("x", 0).attr("y", 332).attr("width", 480).attr("height", 112).attr("rx", 2).style("fill", "var(--ltt-card)").style("stroke", "var(--ltt-line-2)");
+    mark(24, 358, "4");
+    t(44, 363, "복습에 책 덮고 꺼내는 단계가 있나?", "hd");
+    [["var(--ltt-good)", "플래시카드·기출 문제·백지 복습 = 꺼내기 있음", 398], ["var(--ltt-warn)", "형광펜·요약 다시 보기 = 꺼내기 없음", 428]].forEach(([c, s, y]) => {
+      svg.append("circle").attr("cx", 28).attr("cy", y - 4).attr("r", 6).style("fill", c);
+      t(44, y, s, "sm").style("fill", "var(--ltt-ink)");
+    });
+
+    svg.append("rect").attr("x", 500).attr("y", 332).attr("width", 480).attr("height", 112).attr("rx", 2).style("fill", "var(--ltt-card)").style("stroke", "var(--ltt-line-2)");
+    mark(524, 358, "5");
+    t(544, 363, "순서를 지킨다", "hd");
+    ["이해 먼저", "꺼내기", "정답 확인"].forEach((s, i) => {
+      const x = 520 + i * 152;
+      svg.append("rect").attr("x", x).attr("y", 388).attr("width", 124).attr("height", 44).attr("rx", 2).style("fill", "var(--ltt-card)").style("stroke", "var(--test)").style("stroke-width", 2);
+      t(x + 62, 416, s, null, "middle").style("fill", "var(--ltt-ink)").style("font-weight", 700);
+      if (i < 2) line(`M${x + 130},410h14m-6,-5l6,5l-6,5`);
+    });
+  }
+
   const arrow = (x1, x2, y) => `<path d="M${x1},${y}H${x2}m-6,-5l6,5l-6,5" style="fill:none;stroke:var(--ltt-ink-2);stroke-width:1.5"/>`;
   const TERM_RETRIEVE = `<svg class="tv" viewBox="0 0 220 100" role="img">`
     + `<rect x="12" y="14" width="46" height="58" rx="3" style="fill:var(--read)"/><line x1="20" x2="20" y1="14" y2="72" style="stroke:var(--ltt-ink-2)"/>`
@@ -197,6 +264,10 @@
         recall: "처음 배우는 어려운 내용을 인출 연습으로 복습한다면, 꺼내기 앞과 뒤에 각각 무엇을 붙여야 할까?" },
 
       { type: "summary", title: "복습 계획을 짜기 전에 물어볼 것", en: "Recap" },
+
+      { type: "overview", title: "같은 복습 시간이면, 책을 덮고 꺼낸 쪽이 1주 뒤에 더 남는다",
+        figure: overview,
+        caption: "1~5는 앞 장면의 정리가 놓인 자리다. 칸 안 막대 = 그 시험에서 기억해 낸 비율(연한 막대 다시 읽기, 진한 막대 떠올리기)." },
 
       { type: "keywords", title: "다음에 비슷한 걸 만나면",
         terms: [{ ko: "인출 연습", en: "retrieval practice" }, { ko: "시험 효과 (인출 연습으로 기억이 느는 현상)", en: "testing effect" }],
