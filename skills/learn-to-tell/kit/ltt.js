@@ -544,9 +544,9 @@
 
   var AUDIT_SKIP = { hook: 1, terms: 1, summary: 1, keywords: 1, statement: 1, predict: 1 };
 
-  // Judges measurements of one rendered scene (see ltt-deck.js audit). Phones (narrow) only check sideways overflow, since scenes
-  // scroll there by design and a wide figure is always small against the screen area. Thresholds were calibrated on the gallery at 1440×900:
+  // Judges measurements of one rendered scene (see ltt-deck.js audit). Thresholds were calibrated on the gallery at 1440×900:
   // below them a figure read as a thumbnail or the scene needed the zoom floor; kit parts alone already use about 7 text sizes.
+  // Narrow desktop windows (compact, 720–1000px) shrink by design, so zoom and visual-size ratios are not judged there.
   function auditScene(m) {
     var out = [], hero = m.type === "figure" || m.layout === "full";
     function add(rule, msg) { out.push({ rule: rule, msg: msg }); }
@@ -556,12 +556,11 @@
       else if (g.hits < 2) add("goal-narrow", "목표가 손잡이 한 자리에서만 맞는다. 기준에 여유를 두어 두 자리 이상에서 맞게 할 것");
       if (g.start) add("goal-at-start", "시작 위치에서 이미 목표가 맞는다. 시작값을 목표 밖으로 옮길 것");
     });
-    if (m.narrow) return out;
     if (m.overflow) add("overflow", "한 화면에 안 들어간다 (78%로 줄여도 넘친다). 해설·캡션을 줄이거나 장면을 나눌 것");
-    else if (m.zoom < 0.88) add("shrunk", "화면에 맞추느라 " + Math.round(m.zoom * 100) + "%로 줄었다. 글을 줄이거나 장면을 나눌 것");
-    if (!AUDIT_SKIP[m.type] && m.visualRatio != null && m.visualRatio < (hero ? 0.22 : 0.1))
+    else if (!m.compact && m.zoom < 0.88) add("shrunk", "화면에 맞추느라 " + Math.round(m.zoom * 100) + "%로 줄었다. 글을 줄이거나 장면을 나눌 것");
+    if (!m.compact && !AUDIT_SKIP[m.type] && m.visualRatio != null && m.visualRatio < (hero ? 0.22 : 0.1))
       add("small-visual", "가장 큰 그림이 화면의 " + Math.round(m.visualRatio * 100) + "%뿐이다. 그림을 키우거나 layout: \"full\"");
-    if (m.type === "figure" && m.figRatio != null && m.figRatio < 0.35)
+    if (!m.compact && m.type === "figure" && m.figRatio != null && m.figRatio < 0.35)
       add("loose-figure", "그림이 figure 무대의 " + Math.round(m.figRatio * 100) + "%만 채운다. 그림 폭·높이를 키우거나 가로로 배치할 것");
     if (hero && m.fill != null && m.fill < 0.6) add("empty-stage", "장면이 화면 높이의 " + Math.round(m.fill * 100) + "%만 쓴다. 그림을 키울 것");
     if (m.fontSizes > 7) add("many-sizes", "본문 글자 크기가 " + m.fontSizes + "단계다 (kit 부품 포함 7단계 이하). 페이지 CSS의 font-size를 kit 크기에 맞출 것");

@@ -92,10 +92,10 @@ lint는 장면 데이터만 본다. 실제로 그려진 화면은 URL에 `?audit
 | `loose-figure` | figure 그림이 figure 무대의 35% 미만 |
 | `empty-stage` | figure·full 장면이 화면 높이의 60% 미만만 쓴다 |
 | `many-sizes` | 장면 본문(목업·SVG 제외)의 글자 크기가 7단계 초과 |
-| `hscroll` | 가로로 넘친다. 휴대폰 폭(720px 이하)에서는 이것과 아래 `goal-*`만 본다 |
+| `hscroll` | 가로로 넘친다 |
 | `goal-unreachable`, `goal-narrow`, `goal-at-start` | `sweep` 목표가 손잡이의 어느 자리에서도 안 맞는다 / 한 자리에서만 맞는다 / 시작 위치에서 이미 맞는다. 자리는 손잡이마다 최대 201곳(pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다 |
 
-1440×900과 390×844 두 크기에서 0건이어야 한다.
+지원 폭은 720px 이상(데스크톱 전용)이다. 1440×900과 720×900 두 크기에서 0건이어야 한다. 폭 1000px 이하에서는 장면이 줄어드는 것이 정상이라 `shrunk`, `small-visual`, `loose-figure`를 보지 않는다.
 
 공개 전 경고는 0건이어야 한다. lint는 표시된 용어만 안다. 표시하지 않은 전문 용어는 독자 검토(SKILL.md)로 잡는다.
 
@@ -200,7 +200,7 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `figure` | `figure`(그림: 노드·HTML·함수), `caption`, `label`, `steps`, `interval`. 그림 하나가 화면을 차지하고 아래에 "그림 n." 캡션이 붙는다. `points`의 `at`은 무대 안 첫 목업(phone·browser·terminal·code)이 있으면 그 틀 기준, 없으면 무대 전체 기준 %다(`pointsOn`으로 바꾼다). `steps: [{caption, enter(k, fig)}]`를 주면 그림 왼쪽, 단계 자막 오른쪽으로 놓인다. `figure` 함수가 `{el, ...}`를 돌려주면 `enter`의 `fig`로 그 객체가 온다(같은 그림의 여러 상태). 장면에 들어올 때마다 다시 그리려면 공통 필드 `enter(body, ctx)` |
 | `statement` | `title`(큰 주장 한 문장, `<em>`은 강조색), `sub`, `visual`(작은 근거 그림, 선택). 카드 없이 리듬을 바꾸는 장면 |
 | `contrast` | `before`, `after`(위 beforeAfter의 각 쪽) |
-| `compare` | `items: [{label, visual, tone, verdict, note, noteAfter, enter, onReveal}]`, `form`, `cols`, `reveal`, `revealLabel`. `form: "table"`이면 사례가 행이 되는 비교표(라벨 \| 그림 \| 판정), `head: ["라벨 열", "그림 열", "판정 열"]`은 열 머리글(휴대폰 폭에서는 숨김) |
+| `compare` | `items: [{label, visual, tone, verdict, note, noteAfter, enter, onReveal}]`, `form`, `cols`, `reveal`, `revealLabel`. `form: "table"`이면 사례가 행이 되는 비교표(라벨 \| 그림 \| 판정), `head: ["라벨 열", "그림 열", "판정 열"]`은 열 머리글 |
 | `predict` | `choices`, `answer`, `question`, `hint`, `visual`, `answerVisual`, `why`, `button`, `unsure`, `reveal` |
 | `summary` | 앞 장면의 `takeaway`를 모은다. `recall`이 있으면 글 목록의 인출 연습이 된다: 질문 → 입력칸(선택) → "답 보기" → takeaway·`ask`. 공개할 때 `recall` 이벤트(`{scene, question, answer}`)를 남긴다. `recall`이 없으면 카드 격자. `cards: [{n, title, text, ask, recall}]`로 직접 줄 수도 있다. `extra: {title, text}`는 마지막 항목 |
 | `keywords` | `terms: [{ko, en}]`, `signals`, `queries`, `neighbors: [{term, diff}]`. 마지막 장면 |

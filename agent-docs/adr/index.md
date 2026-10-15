@@ -22,3 +22,8 @@ File: b130c928be880b9c-infographic-for-learning-recall-for-summary.md
 Summary: 학습 장면(terms 포함)은 인포그래픽 우선, summary는 recall 질문 → 답 공개의 글 인출 연습으로 둔 결정
 Related Files: skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/SKILL.md
 Related Symbols: LTT.deck, LTT.lintDeck, terms, summary
+---
+File: 8a61c967e180bedb-desktop-only-min-720px.md
+Summary: 수업 화면을 폭 720px 이상 데스크톱 전용으로 하고 휴대폰 레이아웃·390×844 점검을 없앤 결정
+Related Files: skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-ui.js, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md
+Related Symbols: LTT.deck, LTT.auditScene, fit, measure

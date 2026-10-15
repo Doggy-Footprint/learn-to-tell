@@ -15,13 +15,12 @@
 <style>
   .cmpp svg { max-width: 170px; }
   .cmpp svg, .pl svg, .ab svg { overflow: hidden; border-radius: 14px; }
-  .pl { display: grid; gap: 12px 28px; grid-template-columns: minmax(0, 460px) minmax(0, 1fr); align-items: center; width: 100%; }
+  .pl { display: grid; gap: 12px 28px; grid-template-columns: minmax(0, 460px) minmax(220px, 1fr); align-items: center; width: 100%; }
   .pl svg { max-height: 62vh; }
   .tb { display: grid; gap: 16px clamp(24px, 4vw, 64px); grid-template-columns: minmax(0, 560px) minmax(0, 380px); align-items: center; justify-content: center; width: 100%; }
   .tb svg { max-height: 58vh; overflow: hidden; border-radius: var(--ltt-r-sm); margin: 0 auto; }
   .tb .mx p { margin: 0 0 14px; }
   .tb .mx .lg { font-family: var(--ltt-font-display); font-size: clamp(17px, 1.6vw, 21px); line-height: 1.6; }
-  @media (max-width: 720px) { .pl, .tb { grid-template-columns: 1fr; justify-items: center; } .pl svg, .tb svg { max-height: 30vh; } }
   .ord { display: flex; align-items: flex-start; gap: 6px; font-family: var(--ltt-font-display); font-size: clamp(54px, 7vw, 96px); line-height: 1; color: var(--ltt-ink); }
   .ord > span { display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .ord small { font: 600 14px var(--ltt-mono); color: var(--ltt-muted); white-space: nowrap; }

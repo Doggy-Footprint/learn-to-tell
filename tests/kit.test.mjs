@@ -176,16 +176,18 @@ test("auditScene judges rendered measurements", () => {
   assert.deepEqual(r({ fill: 0.4 }), ["empty-stage"]);
   assert.deepEqual(r({ fontSizes: 9 }), ["many-sizes"]);
   assert.deepEqual(r({ type: "statement", visualRatio: 0.01 }), []);
-  assert.deepEqual(r({ narrow: true, visualRatio: 0.01, zoom: 0.5, hscroll: 30 }), ["hscroll"]);
+  assert.deepEqual(r({ hscroll: 30 }), ["hscroll"]);
+  assert.deepEqual(r({ compact: true, zoom: 0.8, visualRatio: 0.01, figRatio: 0.1 }), []);
+  assert.deepEqual(r({ compact: true, overflow: true, zoom: 0.78, hscroll: 5 }), ["hscroll", "overflow"]);
 });
 
 test("auditScene flags sweep goals that fail at every position, hold at one only, or hold at the start", () => {
   const { auditScene } = loadKit();
-  const r = (goals, narrow = false) => [...auditScene({ type: "", zoom: 1, fill: 0.9, fontSizes: 5, narrow, goals })].map((w) => w.rule);
+  const r = (goals) => [...auditScene({ type: "", zoom: 1, fill: 0.9, fontSizes: 5, goals })].map((w) => w.rule);
   assert.deepEqual(r([{ hits: 7, samples: 256, start: false }]), []);
   assert.deepEqual(r([{ hits: 0, samples: 10, start: false }]), ["goal-unreachable"]);
   assert.deepEqual(r([{ hits: 1, samples: 10, start: false }]), ["goal-narrow"]);
-  assert.deepEqual(r([{ hits: 3, samples: 10, start: true }], true), ["goal-at-start"]);
+  assert.deepEqual(r([{ hits: 3, samples: 10, start: true }]), ["goal-at-start"]);
 });
 
 test("stepValues lists control positions and thins long ranges to evenly spaced ones with both ends", () => {

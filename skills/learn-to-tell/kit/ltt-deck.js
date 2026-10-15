@@ -117,7 +117,6 @@
     ".dk-fig-stage>*{max-width:100%}",
     ".dk-figsteps{display:grid;grid-template-columns:auto minmax(0,420px);gap:clamp(24px,4vw,60px);align-items:center}",
     ".dk-figsteps>*{min-width:0}.dk-figsteps .ltt-caption{font-size:clamp(15px,1.3vw,18px);line-height:1.6}",
-    "@media (max-width:720px){.dk-figsteps{grid-template-columns:1fr}}",
     ".dk-fig figcaption{font-size:clamp(14px,1.2vw,16px);color:var(--ltt-ink-2);line-height:1.55;max-width:90ch;border-top:1px solid var(--ltt-line-2);padding-top:10px}",
     ".dk-fig figcaption b{font-family:var(--ltt-font-display);margin-right:6px;color:var(--ltt-ink)}",
     ".dk-main.full{grid-template-columns:minmax(0,1fr)}",
@@ -142,8 +141,6 @@
     ".dk-cmp.table.shown .dk-item.good,.dk-cmp.table.shown .dk-item.bad,.dk-cmp.table.shown .dk-item.warn{box-shadow:inset 4px 0 0 var(--tc)}",
     ".dk-cmp.table .dk-head{display:grid;grid-template-columns:minmax(120px,.7fr) minmax(0,2fr) minmax(150px,.9fr);column-gap:clamp(12px,2vw,28px);padding:8px 4px;border-bottom:1px solid var(--ltt-line-2);font:700 12px var(--ltt-mono);color:var(--ltt-muted);letter-spacing:.02em}",
     ".dk-cmp.table .dk-item.good{--tc:var(--ltt-good)}.dk-cmp.table .dk-item.bad{--tc:var(--ltt-bad)}.dk-cmp.table .dk-item.warn{--tc:var(--ltt-warn)}",
-    "@media (max-width:720px){.dk-cmp.table .dk-head{display:none}.dk-cmp.table .dk-item{grid-template-columns:1fr;grid-template-areas:'lab' 'vis' 'vd' 'note'}.dk-st{grid-template-columns:1fr}",
-    ".dk-steps.strip{grid-template-columns:1fr!important}.dk-steps.strip::before{display:none}.dk-steps.stack .dk-step{grid-template-columns:54px minmax(0,1fr)}.dk-steps.stack .dk-step .vis{grid-column:2}}",
     /* predict */
     ".dk-pred{display:flex;flex-direction:column;gap:12px}",
     ".dk-pred .ltt-choices button{padding:clamp(16px,2.4vh,24px) 20px;font-size:clamp(16px,1.6vw,21px)}",
@@ -198,17 +195,11 @@
     ".dk-nav button{display:inline-flex;align-items:center;gap:8px;padding:11px 22px}",
     ".dk-nav .ltt-ic{width:18px;height:18px}",
     ".dk-hint{font-size:12.5px;color:var(--ltt-muted)}.dk-hint kbd{font:11px var(--ltt-mono);padding:2px 6px;border-radius:5px;background:var(--ltt-card);box-shadow:inset 0 -1px 0 var(--ltt-line-2),0 0 0 1px var(--ltt-line)}",
-    "@media (min-width:721px) and (max-height:920px){.dk-top{padding:12px 0 4px}.dk-nav{padding:6px 0 12px}.dk-in{gap:12px}",
+    "@media (max-height:920px){.dk-top{padding:12px 0 4px}.dk-nav{padding:6px 0 12px}.dk-in{gap:12px}",
     ".dk-no{font-size:clamp(48px,10vh,84px)}.dk-scene h2{font-size:clamp(24px,min(3.2vw,5.2vh),44px)}.dk-sub{font-size:16px}",
     ".ltt-take{padding:10px 18px;border-radius:18px}.ltt-take .t{font-size:clamp(15px,1.4vw,18px)}}",
     "@media (max-width:1000px){.dk-main.split{grid-template-columns:minmax(0,1fr)}.dk-kw{grid-template-columns:1fr 1fr}.dk-kw section:first-child{grid-column:1/-1}",
-    ".dk-sum{--c:2!important}.dk-ans{grid-template-columns:1fr}}",
-    "@media (max-width:720px){.dk-steps,.dk-terms{grid-template-columns:repeat(min(var(--n),2),minmax(0,1fr))}.dk-cmp{grid-template-columns:repeat(min(var(--n),2),minmax(0,1fr))}",
-    ".dk-step>.ar{display:none}.dk-kw{grid-template-columns:1fr}.dk-hook{grid-template-columns:1fr}.dk-hook .art{width:96px}",
-    ".dk-dots i{width:10px}.dk-hint{display:none}.dk-head{grid-template-columns:1fr}.dk-no{font-size:44px}.dk-top h1{max-width:52%}",
-    ".dk-item{padding:12px;gap:6px}.dk-item .note{font-size:12.5px}.dk-item .vis{min-height:60px}.dk-sum{--c:1!important}.dk-rc{--c:1!important}}",
-    "@media (max-width:440px){.dk-steps,.dk-terms{grid-template-columns:1fr}.dk-step{display:grid;grid-template-columns:auto 1fr;column-gap:12px;align-items:start;padding:14px}",
-    ".dk-step .no{display:none}.dk-step .ic{grid-row:span 2;margin:0;width:40px;height:40px}.dk-dots{display:none}}"
+    ".dk-sum{--c:2!important}.dk-ans{grid-template-columns:1fr}}"
   ].join("");
 
   function iconOr(v) {
@@ -487,11 +478,9 @@
   var SPLIT_OFF = { hook: 1, keywords: 1, summary: 1, terms: 1, contrast: 1, predict: 1, figure: 1, statement: 1 };
   var NO_HEAD = { hook: 1, statement: 1 };
 
-  // A scene must read as one screen on desktop: if it would scroll, shrink it (not below 78%) instead.
-  // Phones keep scrolling, since shrinking there makes text unreadable.
+  // A scene must read as one screen: if it would scroll, shrink it (not below 78%) instead.
   function fit(el, inner) {
     inner.style.zoom = inner.style.width = "";
-    if (innerWidth <= 720) return;
     // Measure the rendered box each pass: scrollHeight before zooming does not predict the zoomed layout.
     var avail = el.clientHeight - 8, z = 1;
     for (var k = 0; k < 4 && z > 0.78; k++) {
@@ -533,9 +522,9 @@
       if (own) sizes[Math.round(parseFloat(getComputedStyle(n).fontSize))] = 1;
     });
     return {
-      type: s.type || "", layout: s.layout || "", zoom: zoom, narrow: innerWidth <= 720,
+      type: s.type || "", layout: s.layout || "", zoom: zoom, compact: innerWidth <= 1000,
       hscroll: Math.max(0, Math.round(Math.max(inner.scrollWidth, body.scrollWidth) - inner.clientWidth - 1)),
-      overflow: innerWidth > 720 && ih * zoom > el.clientHeight + 2,
+      overflow: ih * zoom > el.clientHeight + 2,
       visualRatio: body.querySelector(VISUALS) ? biggest / stage : null,
       figRatio: figRatio, fill: Math.min(1, (ih * zoom) / (el.clientHeight || 1)),
       fontSizes: Object.keys(sizes).length,
