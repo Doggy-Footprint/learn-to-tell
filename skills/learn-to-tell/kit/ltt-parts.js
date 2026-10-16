@@ -19,6 +19,7 @@
     ".ltt-goal .tgt{flex:none;display:flex}.ltt-goal .tx{flex:1 1 12em;font-weight:650;line-height:1.4}",
     ".ltt-goal .ok{flex:none;font-size:13px;font-weight:800;color:var(--ltt-good);visibility:hidden}",
     ".ltt-goal.done{background:var(--ltt-good-soft);box-shadow:inset 0 0 0 2px var(--ltt-good)}.ltt-goal.done .ok{visibility:visible}",
+    "@keyframes ltt-goal-pop{40%{transform:scale(1.03)}}.ltt-goal.first{animation:ltt-goal-pop .35s ease-out}@media (prefers-reduced-motion:reduce){.ltt-goal.first{animation:none}}",
     ".ltt-steps{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}",
     ".ltt-steps button{padding:7px 13px;font-size:14px;font-variant-numeric:tabular-nums;background:var(--ltt-card);color:var(--ltt-ink);box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
     ".ltt-steps button[aria-pressed=true]{background:var(--ltt-accent);color:var(--ltt-on-accent);box-shadow:none}",
@@ -251,7 +252,10 @@
       if (!goal) return;
       var hit = !!opts.goal.check(v);
       goal.classList.toggle("done", hit);
-      if (hit && !reached) LTT.record("goal", { goal: goal.querySelector(".tx").textContent, values: v });
+      if (hit && !reached) {
+        LTT.record("goal", { goal: goal.querySelector(".tx").textContent, values: v });
+        goal.classList.add("first");
+      }
       reached = reached || hit;
     }
     ids.forEach(function (id) { ctl[id].on(render); });

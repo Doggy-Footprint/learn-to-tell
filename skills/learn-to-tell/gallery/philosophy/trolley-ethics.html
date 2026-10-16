@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>다섯을 위해 하나를 희생해도 될까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"철학(윤리학)","topic":"공리주의와 의무론","audience":"트롤리 문제를 들어 본 적은 있다","pattern":["hook","figure","compare:table","keywords"],"theme":"paper","medium":"윤리학 교과서 도해: 선로 도식 위에 두 이론의 판정을 단계별로 얹는다","mode":"설명형: 사고실험이라 조작할 수치가 없고, 같은 그림 위에서 판정 근거가 갈리는 지점을 보인다","decision":"결과의 합으로 판단할지, 행위가 지키는 규칙으로 판단할지"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .fg { width: 100%; max-width: 1100px; }
+  .fg .ltt-svg { max-height: 44vh; }
+  .ltt-svg.tr text { font-family: var(--ltt-font-display); font-size: 15px; }
+  .ltt-svg.tr .lb { font-weight: 800; }
+  .ltt-svg.tr.mini text { font-size: 13px; }
+  .jd { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: clamp(14px, 1.2vw, 16px); line-height: 1.45; color: var(--ltt-ink-2); }
+  .jd .k { font: 600 12px var(--ltt-mono); color: var(--ltt-muted); letter-spacing: .06em; padding-top: 2px; }
+  .jd .y { color: var(--ltt-good); font-weight: 700; }
+  .jd .n { color: var(--ltt-bad); font-weight: 700; }
+</style>
+</head>
+<body>
+<script>
+  const SURVEY = { switch: 89, footbridge: 11 };
+  const EXPECTED_BY_HAND = { net_saved: 4, survey_gap: 78 };
+  LTT.expect("net lives saved", 5 - 1, EXPECTED_BY_HAND.net_saved, { tol: 0 });
+  LTT.expect("survey gap", SURVEY.switch - SURVEY.footbridge, EXPECTED_BY_HAND.survey_gap, { tol: 0 });
+
+  const ms = () => LTT.MOTION_MS;
+  // People are drawn as marks, not icons, so "5 vs 1" is countable at a glance; colour only marks the theory's verdict.
+  const person = (g, color) => g.html(LTT.mark("dot", { color, size: 14 }));
+
+  function trackScene(panel) {
+    const W = 900, H = 330;
+    const svg = d3.select(panel).append("svg").attr("class", "ltt-svg tr fg").attr("viewBox", `0 0 ${W} ${H}`);
+    const rail = (d) => svg.append("path").attr("d", d).style("fill", "none").style("stroke", "var(--ltt-ink)").style("stroke-width", 3);
+    rail("M40,160 H360");
+    const main = rail("M360,160 H860");
+    const side = rail("M360,160 C440,160 470,260 560,260 H860");
+    svg.append("text").attr("x", 860).attr("y", 145).attr("text-anchor", "end").text("본선").style("fill", "var(--ltt-muted)");
+    svg.append("text").attr("x", 860).attr("y", 290).attr("text-anchor", "end").text("곁가지 선로").style("fill", "var(--ltt-muted)");
+
+    const tram = svg.append("g").attr("transform", "translate(110,160)");
+    tram.append("rect").attr("x", -40).attr("y", -26).attr("width", 80).attr("height", 40).attr("rx", 4).style("fill", "var(--ltt-card)").style("stroke", "var(--ltt-ink)").style("stroke-width", 2);
+    tram.append("text").attr("y", 0).attr("text-anchor", "middle").text("전차").attr("class", "lb");
+    svg.append("text").attr("x", 110).attr("y", 205).attr("text-anchor", "middle").text("브레이크 고장 →").style("fill", "var(--ltt-bad)");
+
+    const five = svg.append("g");
+    d3.range(5).forEach((i) => person(five.append("g").attr("transform", `translate(${690 + i * 30},160)`), "var(--ltt-ink)"));
+    five.append("text").attr("x", 750).attr("y", 128).attr("text-anchor", "middle").text("5명").attr("class", "lb");
+    const one = svg.append("g").attr("transform", "translate(750,260)");
+    person(one, "var(--ltt-ink)");
+    one.append("text").attr("y", -22).attr("text-anchor", "middle").text("1명").attr("class", "lb");
+
+    const lever = svg.append("g").attr("transform", "translate(360,200)");
+    lever.append("line").attr("y1", 0).attr("y2", -30).attr("x2", -14).style("stroke", "var(--ltt-ink)").style("stroke-width", 4).attr("class", "arm");
+    lever.append("circle").attr("r", 6).style("fill", "var(--ltt-ink)");
+    lever.append("text").attr("y", 28).attr("text-anchor", "middle").text("레버 (당신)").style("fill", "var(--ltt-ink-2)");
+
+    const verdict = svg.append("text").attr("x", 450).attr("y", 50).attr("text-anchor", "middle").attr("class", "lb").style("font-size", "20px");
+    const why = svg.append("text").attr("x", 450).attr("y", 80).attr("text-anchor", "middle").style("fill", "var(--ltt-ink-2)");
+
+    const set = ({ pulled, hl, v, vt, w }) => {
+      lever.select(".arm").transition().duration(ms() / 2).attr("x2", pulled ? 14 : -14);
+      main.transition().duration(ms() / 2).style("opacity", pulled ? 0.3 : 1);
+      side.transition().duration(ms() / 2).style("opacity", pulled ? 1 : 0.3).style("stroke", hl === "side" ? "var(--ltt-accent)" : "var(--ltt-ink)");
+      five.selectAll("circle").style("fill", hl === "count" ? "var(--ltt-good)" : "var(--ltt-ink)");
+      one.select("circle").style("fill", hl === "count" ? "var(--ltt-bad)" : hl === "side" ? "var(--ltt-warn)" : "var(--ltt-ink)");
+      verdict.text(v || "").style("fill", vt ? `var(--ltt-${vt})` : "var(--ltt-ink)");
+      why.text(w || "");
+    };
+    return [
+      { caption: "<b>① 상황</b> — 브레이크가 고장 난 전차가 본선의 5명에게 달려간다. 당신 옆에 레버가 있고, 당기면 곁가지 선로의 1명 쪽으로 간다.", enter: () => set({ pulled: false }) },
+      { caption: "<b>② {{공리주의}}의 판정</b> — 결과만 센다. 레버를 당기면 5명이 살고 1명이 죽는다. 순이익 4명, 그러니 당겨야 한다.", enter: () => set({ pulled: true, hl: "count", v: "당긴다: 5 − 1 = 4명 더 산다", vt: "good", w: "옳음 = 결과로 생긴 행복(복지)의 합이 가장 큰 행위" }) },
+      { caption: "<b>③ {{의무론}}의 판정</b> — 결과보다 행위가 어떤 규칙을 지키는지 본다. 여기서 1명의 죽음은 전차를 돌린 결과로 따라온 일이지, 그 사람을 도구로 쓴 것은 아니다. 그래서 많은 의무론자도 당기는 것을 허용한다.", enter: () => set({ pulled: true, hl: "side", v: "허용: 1명을 '수단'으로 쓰지는 않았다", vt: "warn", w: "옳음 = 결과와 무관하게 지켜야 할 규칙(사람을 수단으로만 대하지 말라)을 지키는 행위" }) },
+      { caption: "<b>④ 아직 갈리지 않는다</b> — 이 장면에서는 두 이론의 답이 같다. 갈리는 곳은 다음 장면, 1명을 직접 밀어 전차를 세우는 경우다.", enter: () => set({ pulled: true }) },
+    ];
+  }
+
+  const judge = (u, d) => `<div class="jd"><span class="k">공리주의</span><span class="${u[0]}">${u[1]}</span><span class="k">의무론</span><span class="${d[0]}">${d[1]}</span></div>`;
+
+  LTT.deck({
+    title: "다섯을 위해 하나를 희생해도 될까?",
+    theme: "paper",
+    glossary: {
+      "공리주의": "행위의 옳고 그름을 그 결과가 만드는 행복(복지)의 총합으로 판단하는 윤리 이론. 벤담·밀.",
+      "의무론": "결과와 무관하게 행위 자체가 지켜야 할 규칙이 있다고 보는 윤리 이론. 칸트가 대표적이다.",
+      "수단으로만 대하기": "다른 사람을 내 목적을 이루는 도구로만 쓰는 것. 칸트는 이를 금지했다.",
+    },
+    scenes: [
+      { type: "hook", art: "scale", kicker: "윤리적 판단의 기준 고르기",
+        pre: "레버를 당기면 1명이, 안 당기면 5명이 죽는다.",
+        text: "숫자는 같은데<br>왜 <u>어떤 때는 당기고, 어떤 때는 못 밀까?</u>",
+        sub: "같은 '5 대 1'이어도 사람들의 판단은 크게 갈린다. 그 차이가 두 윤리 이론이 옳음을 정하는 기준의 차이다. 이 수업을 마치면 어떤 판단이 결과를 근거로 했고 어떤 판단이 규칙을 근거로 했는지 가려 말할 수 있다." },
+
+      { type: "figure", kicker: "단계별로 보기", title: "같은 레버, 두 가지 이유", en: "Switch case",
+        figure: (node) => { const w = node.appendChild(LTT.h("div", "fg")); LTT.stepper(w, trackScene(w)); },
+        caption: "레버 사례(Foot 1967; Thomson 1985). 검은 점 = 사람. {{공리주의}}와 {{의무론}}이 무엇을 보고 판정하는지 비교하자.",
+        basis: "의무론 안에서도 판정은 갈린다. 여기서는 이중 효과 원리(의도한 결과와 예견만 한 결과를 구분)를 따르는 흔한 해석을 택했다.",
+        takeaway: "공리주의는 결과의 합을, 의무론은 행위가 지키는 규칙을 본다. 레버 사례에서는 둘의 답이 같다.",
+        recall: "레버 사례에서 공리주의와 의무론은 각각 무엇을 근거로 '당겨도 된다'고 할까?" },
+
+      { type: "compare", form: "table", kicker: "갈리는 지점", title: "숫자가 같아도, 사람을 도구로 쓰면 답이 갈린다", layout: "stack", reveal: false,
+        head: ["사례", "두 이론의 판정", "사람들의 응답"],
+        narration: "육교 사례에서는 레버 대신 육교 위의 덩치 큰 사람을 밀어 떨어뜨려 전차를 세운다. 결과는 레버와 똑같이 5명이 살고 1명이 죽는다. 하지만 이번에는 그 1명의 몸이 전차를 세우는 도구다. {{공리주의}}는 판정을 바꾸지 않고, {{의무론}}은 {{수단으로만 대하기}}라서 금지한다.",
+        items: [
+          { label: "레버 사례: 선로를 바꾼다", visual: judge(["y", "당긴다 (5 − 1)"], ["y", "허용 (1명은 부수 결과)"]), tone: "good", verdict: `${SURVEY.switch}% 허용` },
+          { label: "육교 사례: 사람을 민다", visual: judge(["y", "민다 (5 − 1)"], ["n", "금지 (1명을 도구로 씀)"]), tone: "bad", verdict: `${SURVEY.footbridge}% 허용`,
+            note: "결과가 같은데 응답이 뒤집혔다. 사람들의 직관이 결과만 보지 않는다는 근거다." },
+        ],
+        basis: "응답 비율은 Hauser 외 2007(웹 설문, 약 5천 명)의 보고값. 문항 문구와 표본에 따라 수치는 달라지지만, 육교 사례에서 허용이 크게 줄어드는 방향은 여러 연구에서 반복된다.",
+        takeaway: "같은 결과라도 사람을 도구로 쓰는 행위는 의무론이 금지하고, 많은 사람의 직관도 그쪽을 따른다.",
+        recall: "레버와 육교 사례는 결과가 같은데, 의무론은 왜 육교 사례만 금지할까?" },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [{ ko: "공리주의", en: "utilitarianism" }, { ko: "의무론", en: "deontology" }, { ko: "이중 효과 원리", en: "doctrine of double effect" }],
+        signals: ["\"전체 이익을 위해 소수의 손해는 감수하자\"는 주장을 들을 때", "자율주행차 사고 시 누구를 보호할지 정할 때", "결과는 좋지만 방법이 꺼림칙한 정책을 평가할 때"],
+        queries: ["trolley problem Foot Thomson", "Kant formula of humanity", "doctrine of double effect", "Greene dual-process moral judgment"],
+        neighbors: [
+          { term: "덕 윤리", diff: "행위나 결과가 아니라 '어떤 사람이 되는가'(성품)로 판단한다. 아리스토텔레스." },
+          { term: "규칙 공리주의", diff: "개별 행위가 아니라 '결과가 가장 좋은 규칙'을 따른다. 두 이론의 중간." },
+        ] },
+    ],
+  });
+</script>
+</body>
+</html>

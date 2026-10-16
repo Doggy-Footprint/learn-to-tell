@@ -13,6 +13,7 @@ const LESSON_ID = /^[a-z0-9][a-z0-9-]*$/;
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
@@ -83,12 +84,27 @@ export function createLttServer({ home = lttHome(), skillDir = SKILL_DIR, onRequ
       if (req.method === "GET" && pathname === "/api/health") {
         return send(res, 200, { app: "learn-to-tell" });
       }
+      if ((req.method === "GET" || req.method === "HEAD") && pathname === "/") {
+        res.writeHead(302, { Location: "/gallery/index.html" });
+        return res.end();
+      }
       if (req.method === "POST" && parts[0] === "api" && parts[1] === "lessons" && parts[3] === "events" && parts.length === 4) {
         if (!LESSON_ID.test(parts[2])) return send(res, 400, { error: "invalid lesson id" });
         return await recordEvent(req, res, home, parts[2]);
       }
       if (req.method === "GET" && (parts[0] === "kit" || parts[0] === "gallery") && parts.length > 1) {
         return await serveFile(res, join(skillDir, parts[0]), parts.slice(1).join("/"));
+      }
+      if (req.method === "GET" && parts[0] === "map" && parts.length > 1) {
+        if (parts.length === 2 && parts[1] === "data.json") {
+          const file = join(home, "map-data.json");
+          try {
+            return send(res, 200, await readFile(file), TYPES[".json"]);
+          } catch {
+            return send(res, 404, { error: "run ltt-map rebuild" });
+          }
+        }
+        return await serveFile(res, join(skillDir, "map"), parts.slice(1).join("/"));
       }
       if (req.method === "GET" && parts[0] === "lessons" && parts.length > 2) {
         if (!LESSON_ID.test(parts[1])) return send(res, 400, { error: "invalid lesson id" });
@@ -126,7 +142,7 @@ async function main() {
   const server = createLttServer({ onRequest: touch });
   server.on("error", async (err) => {
     if (err.code === "EADDRINUSE" && (await isLttServer(port))) {
-      console.log(`learn-to-tell server already running at http://${HOST}:${port}/`);
+      console.log(`learn-to-tell server already running at http://${HOST}:${port}/gallery/index.html`);
       process.exit(0);
     }
     console.error(`learn-to-tell server: ${err.message}`);
@@ -134,7 +150,7 @@ async function main() {
   });
   server.listen(port, HOST, () => {
     touch();
-    console.log(`learn-to-tell server running at http://${HOST}:${port}/ (home: ${lttHome()})`);
+    console.log(`learn-to-tell server running at http://${HOST}:${port}/gallery/index.html (home: ${lttHome()})`);
   });
 }
 

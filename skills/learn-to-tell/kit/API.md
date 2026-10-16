@@ -64,22 +64,17 @@
 | --- | --- |
 | `unknown-term` | `{{x}}`인데 `glossary`에도 `terms` 장면에도 풀이가 없다 |
 | `used-before-defined` | glossary 용어가 처음 `{{}}`로 표시되기 전 장면에 그냥 쓰였다 |
-| `too-many-terms` | 한 장면에서 새로 나온 용어가 2개 초과(terms 장면은 4개 초과) |
-| `predict-before-explain` | 설명 장면보다 predict가 먼저 |
 | `predict-new-term` | predict의 질문·선택지에서 처음 나온 용어 |
-| `many-predicts` | predict가 2개 이상 |
 | `no-reading-guide` | compare·contrast·커스텀 그림 장면에 `narration`·`points`·`sub`가 없다 |
 | `no-title` | 제목 없는 장면(hook·summary·keywords 제외) |
-| `long-narration` | 해설이 4문장 초과 |
 | `overview-missing` | summary가 있는데 한 장 정리(`overview`)가 없다 |
 | `overview-order` | overview가 summary 뒤, keywords 바로 앞이 아니다 |
 | `overview-no-visual` | overview에 `figure`가 없다 |
-| `many-points` | 번호 주석 3개 초과 |
 | `keywords-last` | 마지막 장면이 keywords가 아니다 |
 | `unused-term` | glossary에 넣고 어디에도 표시하지 않았다 |
 | `term-no-visual` | terms 항목에 `visual`이 없다. 그림으로 보일 수 없는 말이면 `visual: false`로 밝힌다 |
 | `summary-no-recall` | summary가 모으는 takeaway에 `recall` 질문이 없다 |
-| `card-monotony` | 카드 격자 장면(explain `cards`, compare, terms, `recall` 없는 summary)이 3장 연속이거나, hook·keywords를 뺀 장면의 60% 초과 |
+| `card-monotony` | 카드 격자 장면(explain `cards`, compare, terms, `recall` 없는 summary)이 3장 연속이거나, hook·keywords를 뺀 장면의 절반 초과 |
 | `no-signature` | 그림이 주인공인 장면(`figure`, `contrast`, `layout: "full"`, 타입 없는 `mount`)이 없다 |
 | `no-theme`, `unknown-theme` | `theme`을 고르지 않았거나 없는 이름이다 |
 | `filler-content` | "항목 1", "샘플 텍스트", lorem, TODO 같은 채움 글 |
@@ -98,7 +93,7 @@ lint는 장면 데이터만 본다. 실제로 그려진 화면은 URL에 `?audit
 | `hscroll` | 가로로 넘친다 |
 | `goal-unreachable`, `goal-narrow`, `goal-at-start` | `sweep` 목표가 손잡이의 어느 자리에서도 안 맞는다 / 한 자리에서만 맞는다 / 시작 위치에서 이미 맞는다. 자리는 손잡이마다 최대 201곳(pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다 |
 
-지원 폭은 720px 이상(데스크톱 전용)이다. 1440×900과 720×900 두 크기에서 0건이어야 한다. 폭 1000px 이하에서는 장면이 줄어드는 것이 정상이라 `shrunk`, `small-visual`, `loose-figure`를 보지 않는다.
+지원 폭은 1280px 이상(데스크톱 전용)이다. 1440×900과 1280×800 두 크기에서 0건이어야 한다.
 
 공개 전 경고는 0건이어야 한다. lint는 표시된 용어만 안다. 표시하지 않은 전문 용어는 독자 검토(SKILL.md)로 잡는다.
 
@@ -207,5 +202,5 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `compare` | `items: [{label, visual, tone, verdict, note, noteAfter, enter, onReveal}]`, `form`, `cols`, `reveal`, `revealLabel`. `form: "table"`이면 사례가 행이 되는 비교표(라벨 \| 그림 \| 판정), `head: ["라벨 열", "그림 열", "판정 열"]`은 열 머리글 |
 | `predict` | `choices`, `answer`, `question`, `hint`, `visual`, `answerVisual`, `why`, `button`, `unsure`, `reveal` |
 | `summary` | 앞 장면의 `takeaway`를 모은다. `recall`이 있으면 글 목록의 인출 연습이 된다: 질문 → 입력칸(선택) → "답 보기" → takeaway·`ask`. 공개할 때 `recall` 이벤트(`{scene, question, answer}`)를 남긴다. `recall`이 없으면 카드 격자. `cards: [{n, title, text, ask, recall}]`로 직접 줄 수도 있다. `extra: {title, text}`는 마지막 항목 |
-| `keywords` | `terms: [{ko, en}]`, `signals`, `queries`, `neighbors: [{term, diff}]`. 마지막 장면 |
+| `keywords` | `terms: [{ko, en}]`, `signals`, `queries`, `neighbors: [{term, diff}]`. 작성하는 마지막 장면. 그 뒤에 `map-related` 장면이 `/map/data.json`에서 자동으로 붙는다(이어진 개념이 없으면 없음). 직접 쓰지 않는다 |
 | (없음) | `mount`로 그리는 커스텀 장면 |

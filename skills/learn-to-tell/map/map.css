@@ -1,0 +1,49 @@
+.map-empty { color: var(--ltt-muted); padding: 24px 0; }
+.grid { display: grid; gap: 8px; }
+.grid-head, .grid-row { display: grid; grid-template-columns: 88px repeat(5, minmax(0, 1fr)); gap: 8px; align-items: start; }
+.grid-head span { font-size: 12px; font-weight: 750; color: var(--ltt-muted); text-align: center; }
+.row-label { margin: 0; font-size: 14px; overflow-wrap: anywhere; padding-top: 6px; }
+.cell { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 40px; background: var(--ltt-card-2); border-radius: var(--ltt-r-sm, 8px); padding: 4px; }
+.chip, .node { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 6px 8px; border-radius: var(--ltt-r-sm, 8px); color: var(--ltt-ink); text-decoration: none; font-size: 13px; line-height: 1.3; overflow-wrap: anywhere; background: var(--ltt-card); border: 1.5px solid var(--ltt-line-2); }
+.chip .fr { font-size: 11px; color: var(--ltt-muted); }
+.chip.fresh, .node.fresh, .center.fresh { background: var(--ltt-good-soft); border-color: var(--ltt-good); }
+.chip.fading, .node.fading, .center.fading { background: var(--ltt-warn-soft); border-color: var(--ltt-warn); }
+.chip.stale, .node.stale, .center.stale { background: var(--ltt-card); border-color: var(--ltt-bad); }
+.chip.weak, .node.weak, .center.weak { background: var(--ltt-bad-soft); border-color: var(--ltt-bad); border-width: 2.5px; }
+.chip.unquizzed, .node.unquizzed, .center.unquizzed { background: var(--ltt-card-2); color: var(--ltt-ink-2); }
+.chip:hover, .chip:focus-visible, .chip.active { outline: 2.5px solid var(--ltt-accent); outline-offset: 1px; }
+.chip.linked { outline: 2.5px dashed var(--ltt-accent); outline-offset: 1px; background: var(--ltt-accent-soft); }
+.focus { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: center; }
+.mid, .side, .above, .below { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.above, .below { align-items: stretch; }
+.center { padding: 16px; border-radius: var(--ltt-radius, 12px); border: 2.5px solid var(--ltt-line-2); background: var(--ltt-card); }
+.center.frontier { border-style: dashed; }
+.center h2 { margin: 0 0 6px; }
+.center .def { margin: 0 0 8px; }
+.center .meta { margin: 0; font-size: 13px; color: var(--ltt-muted); }
+.node.dashed { border-style: dashed; }
+.node .dom { font-size: 11px; color: var(--ltt-accent); }
+.node:hover, .node:focus-visible { outline: 2.5px solid var(--ltt-accent); outline-offset: 1px; }
+@view-transition { navigation: auto; }
+::view-transition-group(*) { animation-duration: .38s; animation-timing-function: cubic-bezier(.2, .7, .2, 1); }
+.focus .node, .focus .center { animation: map-rise .32s cubic-bezier(.2, .7, .2, 1) both; }
+.focus .above .node, .focus .below .node { animation-delay: .06s; }
+.focus .side .node { animation-delay: .1s; }
+.node, .chip { transition: transform .15s, background-color .15s; }
+.node:hover { transform: translateY(-1px); }
+@keyframes map-rise { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+  .focus .node, .focus .center { animation: none; }
+  .node, .chip { transition: none; }
+}
+#app a[href="grid.html"] { display: inline-flex; align-items: center; gap: 6px; margin-top: 20px; padding: 8px 14px 8px 12px; border-radius: 999px; border: 1.5px solid var(--ltt-line-2); background: var(--ltt-card); color: var(--ltt-ink-2); font-size: 14px; font-weight: 650; text-decoration: none; transition: background-color .15s, border-color .15s, color .15s; }
+#app a[href="grid.html"]::before { content: "←"; transition: transform .15s; }
+#app a[href="grid.html"]:hover, #app a[href="grid.html"]:focus-visible { background: var(--ltt-accent-soft); border-color: var(--ltt-accent); color: var(--ltt-accent); outline: none; }
+#app a[href="grid.html"]:hover::before { transform: translateX(-3px); }
+@media (prefers-reduced-motion: reduce) { #app a[href="grid.html"], #app a[href="grid.html"]::before { transition: none; } }
+.center h2 .lesson-link { color: inherit; text-decoration: none; background-image: linear-gradient(var(--ltt-accent), var(--ltt-accent)); background-size: 0 2px; background-position: 0 100%; background-repeat: no-repeat; transition: background-size .2s, color .15s; }
+.center h2 .lesson-link::after { content: " ↗"; font-size: .7em; color: var(--ltt-muted); }
+.center h2 .lesson-link:hover, .center h2 .lesson-link:focus-visible { color: var(--ltt-accent); background-size: 100% 2px; outline: none; }
+.center .lessons { margin-top: 6px; }
+.center .lessons a { color: var(--ltt-accent); }

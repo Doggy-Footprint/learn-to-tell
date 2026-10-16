@@ -17,7 +17,7 @@
   .ex { display: flex; align-items: center; gap: 12px; font-size: clamp(14px, 1.2vw, 16px); line-height: 1.45; color: var(--ltt-ink-2); }
   .ex .ci { display: flex; flex: none; width: 36px; height: 36px; align-items: center; justify-content: center; color: var(--ltt-accent); box-shadow: inset 0 0 0 1.5px var(--ltt-line-2); border-radius: var(--ltt-r-sm); }
   .ex .ci .ltt-ic { width: 20px; height: 20px; }
-  .ltt-svg.mf { max-width: 1100px; }
+  .ltt-svg.mf { max-width: 1100px; max-height: 38vh; }
   .tv { width: 100%; max-width: 240px; max-height: 110px; }
   .tv text { font: 700 12px var(--ltt-font); fill: var(--ltt-ink-2); }
   .ltt-svg.mf text { font-family: var(--ltt-font-display); font-size: 15px; }
@@ -227,7 +227,7 @@
       { type: "figure", kicker: "실험 결과", title: "5분 뒤와 1주 뒤, 순위가 뒤집혔다", en: "Results",
         figure: RESULT.draw,
         enter: () => RESULT.replay(),
-        caption: "그림 1의 시험 칸에 결과를 채웠다. 칸 안 막대 = 그 시험에서 기억해 낸 비율. 연한 막대가 다시 읽기 조, 진한 막대가 떠올리기 조다.",
+        caption: "그림 1의 시험 칸에 결과를 채웠다. 막대 = 기억해 낸 비율(연한 = 다시 읽기, 진한 = 떠올리기).",
         points: [
           { title: "5분 뒤: 다시 읽기가 12%포인트 앞섬", text: "막 읽은 내용은 아직 눈앞에 있다.", tone: "warn" },
           { title: "1주 뒤: 떠올리기가 21%포인트 앞섬", text: "읽기 조는 절반 넘게 잊었고 떠올리기 조는 덜 잊었다.", tone: "good" },

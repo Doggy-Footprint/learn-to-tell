@@ -16,7 +16,7 @@
   .ltt-cf text { font-family: var(--ltt-mono); font-size: 13px; fill: var(--ltt-muted); }
   .ltt-cf .grid line { stroke: var(--ltt-line-2); stroke-width: 1; }
   .ltt-cf .zero { stroke: var(--ltt-ink); stroke-width: 1.2; }
-  .spark svg { width: 220px; max-width: 100%; height: auto; }
+  .spark svg { width: 180px; max-width: 100%; height: auto; }
   .wl { display: flex; gap: 14px; font-size: 13px; color: var(--ltt-muted); margin-top: 6px; }
   .tv { width: 100%; max-width: 240px; max-height: 110px; }
   .tv text { font: 700 12px var(--ltt-font); fill: var(--ltt-ink-2); }
@@ -100,7 +100,7 @@
     const f = np("두 자산과 반반 섞은 포트폴리오, 상관계수 0", "평균에서 벗어난 정도, 도식", "실제 수익률 경로가 아니라 상관만 보이려고 그린 도식");
     stage.appendChild(f.el);
     f.el.insertAdjacentHTML("beforeend", LEG);
-    const W = 820, H = 280, L = 60, xs = d3.range(0, 4 * Math.PI + 0.05, 0.05), phi = Math.acos(0), amp = Math.sqrt(0.5);
+    const W = 820, H = 220, L = 60, xs = d3.range(0, 4 * Math.PI + 0.05, 0.05), phi = Math.acos(0), amp = Math.sqrt(0.5);
     const x = d3.scaleLinear([0, 4 * Math.PI], [L, W - 150]), y = d3.scaleLinear([-1.2, 1.2], [H - 10, 10]);
     const svg = d3.select(f.el).append("svg").attr("viewBox", `0 0 ${W} ${H}`);
     const grid = svg.append("g").attr("class", "grid");
@@ -203,7 +203,7 @@
 
       { type: "figure", kicker: "원리", title: "따로 흔들리면 서로 상쇄한다", en: "Why it works",
         figure: waveFigure,
-        caption: "가로는 시간, 세로는 수익률이 평균에서 벗어난 정도. 회색·주황 선이 두 자산, 굵은 선이 반반 섞은 결과다. 단계마다 아래 자막이 무엇을 볼지 말한다.",
+        caption: "가로는 시간, 세로는 평균에서 벗어난 정도. 회색·주황 선이 두 자산, 굵은 선이 반반 섞은 결과다.",
         tex: "\\sigma_p^2=w^2\\sigma_1^2+(1-w)^2\\sigma_2^2+2w(1-w)\\rho\\,\\sigma_1\\sigma_2\\quad(w\\text{: 비중, }\\sigma\\text{: 변동성, }\\rho\\text{: 상관계수})",
         takeaway: "섞어서 줄어드는 위험은 두 자산이 엇갈리는 만큼이다.",
         recall: "변동성 20%짜리 두 자산을 반반 섞었을 때, 섞은 결과가 덜 흔들리게 되는 까닭은 무엇일까?" },
@@ -230,7 +230,7 @@
         } },
 
       { type: "compare", form: "table", kicker: "상관에 따라", title: "같은 20%짜리 둘도 짝에 따라 다르다", layout: "stack",
-        narration: "네 행 모두 변동성 20%짜리 두 자산을 반반 섞었고, 다른 것은 상관계수뿐이다. 회색·주황 선이 두 자산, 굵은 청록 선이 섞은 결과이고, 두 선의 봉우리가 어긋날수록 상관계수가 낮다. 청록 물결이 얼마나 납작해지는지 보고 판정을 열어 보자.",
+        narration: "네 행 모두 20%짜리 두 자산을 반반 섞었고, 상관계수만 다르다. 봉우리가 어긋날수록 ρ가 낮다. 굵은 청록 물결이 얼마나 납작해지는지 보고 판정을 열어 보자.",
         revealLabel: "변동성 보기",
         items: [
           rhoItem("ρ = 1 · 같은 지수 ETF 둘", 1, "bad", "늘 같이 움직여 상쇄가 없다."),
@@ -238,15 +238,15 @@
           rhoItem("ρ = 0 · 서로 무관", 0, "good", "공식의 셋째 항이 사라져 분산이 절반, 변동성은 20% ÷ √2."),
           rhoItem("ρ = −1 · 이론상", -1, "good", "완전 상쇄. 현실엔 드물다."),
         ],
-        basis: "ρ 값은 계산용 가정이다. 물결은 상관만 보이려고 그린 도식이고 실제 수익률 경로가 아니다.",
+        basis: "ρ는 계산용 가정, 물결은 실제 경로가 아닌 도식이다.",
         takeaway: "섞을 자산을 고를 때는 수익률보다 '얼마나 같이 움직이나'를 먼저 본다.",
         recall: "같은 20%짜리 두 자산을 반반 섞었는데 결과가 20%부터 0%까지 갈렸다. 무엇이 그 차이를 만들었고, 그래서 섞을 자산을 고를 때 무엇을 먼저 확인해야 할까?",
         ask: "\"이 두 자산의 과거 상관계수는 얼마인가요?\"" },
 
       { kicker: "개수를 늘리면", title: "자산을 계속 더해도 바닥이 있다", en: "Diversification limit", layout: "full",
         narration: [
-          "모두 변동성 20%이고 서로 상관계수 0.3인 자산을 같은 비중으로 N개 섞었다. 처음 몇 개를 더할 때 가장 크게 줄고, 그 뒤로는 거의 줄지 않는다.",
-          "N이 커지면 각자 따로 흔들리는 부분(공식의 1/N 항)은 사라지고, 서로 같이 움직이는 부분(ρ 항)만 남는다. 이 바닥이 모든 자산이 시장 전체와 함께 흔들리는 {{체계적 위험}}이고, 개수를 늘려도 없어지지 않는다.",
+          "변동성 20%, 서로 ρ=0.3인 자산을 같은 비중으로 N개 섞었다. 처음 몇 개에서 크게 줄고 그 뒤로는 거의 줄지 않는다.",
+          "N이 커지면 따로 흔들리는 부분(1/N 항)은 사라지고 같이 움직이는 부분(ρ 항)만 남는다. 이 바닥이 {{체계적 위험}}이고, 개수를 늘려도 없어지지 않는다.",
         ],
         mount: volBars("같은 비중으로 N개를 섞은 포트폴리오의 변동성", "모든 자산 변동성 20%, 서로 상관계수 0.3", [["N = 1", S], ["N = 2", vol(0.5, 0.3)], ["N = 10", volN(10, 0.3)], ["N → ∞ (바닥)", floorVol(0.3), "floor"]]),
         tex: "\\sigma_N=\\sigma\\sqrt{\\tfrac{1}{N}+\\left(1-\\tfrac{1}{N}\\right)\\rho}\\;\\to\\;\\sqrt{\\rho}\\,\\sigma",

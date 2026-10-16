@@ -18,7 +18,7 @@
   .pl { display: grid; gap: 12px 28px; grid-template-columns: minmax(0, 460px) minmax(220px, 1fr); align-items: center; width: 100%; }
   .pl svg { max-height: 62vh; }
   .tb { display: grid; gap: 16px clamp(24px, 4vw, 64px); grid-template-columns: minmax(0, 560px) minmax(0, 380px); align-items: center; justify-content: center; width: 100%; }
-  .tb svg { max-height: 58vh; overflow: hidden; border-radius: var(--ltt-r-sm); margin: 0 auto; }
+  .tb svg { max-height: 50vh; overflow: hidden; border-radius: var(--ltt-r-sm); margin: 0 auto; }
   .tb .mx p { margin: 0 0 14px; }
   .tb .mx .lg { font-family: var(--ltt-font-display); font-size: clamp(17px, 1.6vw, 21px); line-height: 1.6; }
   .ord { display: flex; align-items: flex-start; gap: 6px; font-family: var(--ltt-font-display); font-size: clamp(54px, 7vw, 96px); line-height: 1; color: var(--ltt-ink); }
@@ -159,7 +159,7 @@
       { type: "figure", kicker: "열 = 도착점", title: "행렬의 두 열은 î와 ĵ가 가는 곳이다", en: "Columns",
         figure: columnsFigure,
         enter: () => playCols(),
-        caption: "A가 평면 전체를 옮기는 모습. 옅은 바탕 선이 원래 격자, 색이 든 선이 옮겨진 격자다. 화살표 î는 첫째 열로, 화살표 ĵ는 둘째 열로 간다.",
+        caption: "A가 평면 전체를 옮기는 모습. 옅은 선은 원래 격자, 색 선은 옮겨진 격자. î는 첫째 열로, ĵ는 둘째 열로 간다.",
         narration: [
           "모든 점은 î와 ĵ를 몇 개씩 더한 것이므로, 두 {{기저 벡터}}가 어디로 가는지만 알면 나머지 점이 어디로 갈지 다 정해진다. 행렬의 첫째 열이 î의 도착점, 둘째 열이 ĵ의 도착점이다. 곱셈 규칙대로 A·(1,0)을 계산하면 정확히 첫째 열이 나온다.",
         ],

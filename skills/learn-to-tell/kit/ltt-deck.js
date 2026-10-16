@@ -169,6 +169,13 @@
     ".dk-q{display:flex;width:fit-content;max-width:100%;box-sizing:border-box;align-items:flex-start;gap:8px;font:13.5px/1.45 var(--ltt-mono);background:var(--ltt-card-2);border-radius:10px;padding:6px 10px;",
     "margin:0 0 8px;cursor:copy;transition:background-color .2s}.dk-q:hover{background:var(--ltt-accent-soft)}",
     ".dk-q.copied{background:var(--ltt-good-soft)}",
+    /* map-related */
+    ".dk-mr{display:grid;grid-template-columns:repeat(var(--c,2),1fr);gap:clamp(12px,1.8vw,22px)}",
+    ".dk-mr section{background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:var(--ltt-r-lg);padding:clamp(16px,1.8vw,24px);box-shadow:var(--ltt-shadow)}",
+    ".dk-mr h3{font-size:13px;font-weight:800;color:var(--ltt-accent);margin:0 0 12px;letter-spacing:.02em}",
+    ".dk-mr a{display:block;text-decoration:none;color:inherit;border:1px solid var(--ltt-line);border-radius:10px;padding:8px 12px;margin:0 0 8px;transition:background-color .2s}",
+    ".dk-mr a:hover{background:var(--ltt-accent-soft)}.dk-mr a.frontier{border-style:dashed;color:var(--ltt-muted)}",
+    ".dk-mr a b{font-weight:700}.dk-mr a small{display:block;font-size:12.5px;color:var(--ltt-muted);margin-top:2px}",
     ".dk-nb{display:grid;gap:12px;font-size:clamp(14px,1.2vw,16px);margin-top:6px}.dk-nb b{display:block;font-size:clamp(15px,1.3vw,17px)}.dk-nb span{color:var(--ltt-muted);line-height:1.5}",
     /* summary */
     ".dk-rc{list-style:none;margin:0;padding:0;counter-reset:rc;display:grid;grid-template-columns:repeat(var(--c,1),minmax(0,1fr));gap:clamp(10px,2vh,22px) clamp(20px,3vw,44px);align-items:start}",
@@ -443,8 +450,51 @@
       w.append(a, b, c);
       body.appendChild(w);
       return { enter: function () { rise(w.children); } };
+    },
+    "map-related": function (s, body) {
+      var w = h("div", "dk-mr");
+      s.groups.forEach(function (g) {
+        var sec = w.appendChild(h("section"));
+        sec.appendChild(h("h3", null, g.label));
+        g.items.forEach(function (c) {
+          var a = sec.appendChild(h("a", c.frontier ? "frontier" : null, "<b></b><small></small>"));
+          a.href = "/map/focus.html?id=" + encodeURIComponent(c.id);
+          a.target = "_blank";
+          a.firstChild.textContent = c.title || c.id;
+          a.lastChild.textContent = c.frontier ? "아직 배우지 않음" : ["L" + c.level, c.status, c.freshness].filter(Boolean).join(" · ");
+        });
+      });
+      w.style.setProperty("--c", s.groups.length);
+      body.appendChild(w);
+      return { enter: function () { rise(w.children); } };
     }
   };
+
+  function lessonId() {
+    try {
+      var m = JSON.parse((document.getElementById("ltt-meta") || {}).textContent || "{}");
+      if (m.lesson) return m.lesson;
+    } catch (e) { /* malformed meta falls back to the path */ }
+    var p = /\/lessons\/([^/]+)\//.exec(location.pathname) || /\/gallery\/[^/]+\/([^/]+)\.html$/.exec(location.pathname);
+    return p ? decodeURIComponent(p[1]) : null;
+  }
+
+  // Related = concepts one edge away from this lesson's concepts in the knowledge map, read at view time so a lesson
+  // gains the scene once later lessons link to it. Same-domain-only concepts are excluded on purpose: they are noise.
+  function relatedGroups(data, lesson) {
+    var byId = {}, own = {};
+    (data.concepts || []).forEach(function (c) { byId[c.id] = c; if ((c.lessons || []).indexOf(lesson) >= 0) own[c.id] = 1; });
+    var before = {}, after = {};
+    (data.edges || []).forEach(function (e) {
+      if (own[e.to] && !own[e.from]) before[e.from] = 1;
+      if (own[e.from] && !own[e.to]) after[e.to] = 1;
+    });
+    function items(set) {
+      return Object.keys(set).sort().map(function (id) { return byId[id] || { id: id, frontier: true }; });
+    }
+    return [{ label: "먼저 알면 좋은 것", items: items(before) }, { label: "다음에 배울 것", items: items(after) }]
+      .filter(function (g) { return g.items.length; });
+  }
 
   function recallList(s, cards, body, ctx) {
     var w = body.appendChild(h("ol", "dk-rc"));
@@ -479,7 +529,7 @@
   }
   function stripTags(html) { return String(html).replace(/<[^>]*>/g, ""); }
 
-  var SPLIT_OFF = { hook: 1, keywords: 1, summary: 1, terms: 1, contrast: 1, predict: 1, figure: 1, overview: 1, statement: 1 };
+  var SPLIT_OFF = { "map-related": 1, hook: 1, keywords: 1, summary: 1, terms: 1, contrast: 1, predict: 1, figure: 1, overview: 1, statement: 1 };
   var NO_HEAD = { hook: 1, statement: 1 };
 
   // A scene must read as one screen: if it would scroll, shrink it (not below 78%) instead.
@@ -662,9 +712,23 @@
     next.onclick = function () { go(cur + 1); };
     document.addEventListener("keydown", function (e) {
       if (/INPUT|TEXTAREA|SELECT/.test((e.target || {}).tagName || "")) return;
-      if (e.key === "ArrowRight" || e.key === "PageDown") { e.preventDefault(); go(cur + 1); }
-      if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(cur - 1); }
+      var d = e.key === "ArrowRight" || e.key === "PageDown" ? 1 : e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 0;
+      if (!d) return;
+      e.preventDefault();
+      var btn = visibleStepButton(d);
+      if (btn) btn.click(); else go(cur + d);
     });
+    // An in-scene stepper on screen takes the arrow keys until it reaches its own end in that direction.
+    function visibleStepButton(d) {
+      var bars = stage.children[cur].querySelectorAll(".ltt-stepper");
+      for (var k = 0; k < bars.length; k++) {
+        var r = bars[k].getBoundingClientRect();
+        if (!r.width || r.bottom <= 0 || r.top >= innerHeight) continue;
+        var b = bars[k].querySelectorAll("button")[d > 0 ? 1 : 0];
+        if (b && !b.disabled) return b;
+      }
+      return null;
+    }
     // Mounts every scene and checks the rendered layout; `?audit` in the URL runs it on load.
     function audit() {
       var found = [];
@@ -679,8 +743,28 @@
       return found;
     }
 
+    function addScene(s) {
+      scenes.push(s);
+      var i = scenes.length - 1, d = h("i");
+      d.title = s.title;
+      d.onclick = function () { go(i); };
+      dots.appendChild(d);
+      stage.appendChild(h("section", "dk-scene"));
+      count.textContent = pad2(cur + 1) + " / " + pad2(scenes.length);
+      next.disabled = cur === scenes.length - 1;
+    }
+
     var start = parseInt((location.hash || "").slice(1), 10);
     go(isFinite(start) ? start - 1 : 0);
+    var lesson = lessonId();
+    if (lesson && window.fetch) {
+      fetch("/map/data.json").then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
+        var groups = data ? relatedGroups(data, lesson) : [];
+        if (!groups.length) return;
+        addScene({ type: "map-related", kicker: "지식 지도", title: "이 수업과 이어지는 개념", groups: groups });
+        if (start === scenes.length) go(start - 1);
+      }).catch(function () { /* no server or no map yet: the scene simply stays absent */ });
+    }
     if (/[?&]audit\b/.test(location.search)) {
       if (document.fonts) document.fonts.ready.then(function () { setTimeout(audit, 300); }); else setTimeout(audit, 300);
     }
