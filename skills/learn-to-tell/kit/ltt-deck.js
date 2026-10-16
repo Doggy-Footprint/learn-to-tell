@@ -475,7 +475,7 @@
       var m = JSON.parse((document.getElementById("ltt-meta") || {}).textContent || "{}");
       if (m.lesson) return m.lesson;
     } catch (e) { /* malformed meta falls back to the path */ }
-    var p = /\/lessons\/([^/]+)\//.exec(location.pathname);
+    var p = /\/lessons\/([^/]+)\//.exec(location.pathname) || /\/gallery\/[^/]+\/([^/]+)\.html$/.exec(location.pathname);
     return p ? decodeURIComponent(p[1]) : null;
   }
 
