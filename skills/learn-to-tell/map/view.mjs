@@ -40,6 +40,33 @@ function nameNodes(root) {
   });
 }
 
+const lessonHref = (lesson) => `/lessons/${encodeURIComponent(lesson)}/lesson.html`;
+
+function linkLessons(root, concept) {
+  const title = root.querySelector(".center h2");
+  const history = concept?.history ?? [];
+  if (!title || history.length === 0) return;
+  const latest = history[history.length - 1].lesson;
+  const a = document.createElement("a");
+  a.href = lessonHref(latest);
+  a.className = "lesson-link";
+  a.title = "이 개념을 배운 레슨 열기";
+  a.textContent = title.textContent;
+  title.replaceChildren(a);
+  const others = [...new Set(history.map((h) => h.lesson))].filter((l) => l !== latest).reverse();
+  if (others.length === 0) return;
+  const p = document.createElement("p");
+  p.className = "meta lessons";
+  p.append("다른 레슨: ");
+  others.forEach((l, i) => {
+    const o = document.createElement("a");
+    o.href = lessonHref(l);
+    o.textContent = l;
+    p.append(...(i ? [", ", o] : [o]));
+  });
+  root.querySelector(".center").append(p);
+}
+
 const app = document.getElementById("app");
 const data = await loadData();
 if (document.body.dataset.view === "grid") {
@@ -50,6 +77,7 @@ if (document.body.dataset.view === "grid") {
   const draw = (id) => {
     app.innerHTML = renderFocus(layoutFocus(data, id), { missing: data === null });
     app.querySelector(".center")?.setAttribute("data-id", id);
+    linkLessons(app, data?.concepts?.find((c) => c.id === id));
     nameNodes(app);
   };
   const go = (id, push) => {

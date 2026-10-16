@@ -42,3 +42,8 @@
 #app a[href="grid.html"]:hover, #app a[href="grid.html"]:focus-visible { background: var(--ltt-accent-soft); border-color: var(--ltt-accent); color: var(--ltt-accent); outline: none; }
 #app a[href="grid.html"]:hover::before { transform: translateX(-3px); }
 @media (prefers-reduced-motion: reduce) { #app a[href="grid.html"], #app a[href="grid.html"]::before { transition: none; } }
+.center h2 .lesson-link { color: inherit; text-decoration: none; background-image: linear-gradient(var(--ltt-accent), var(--ltt-accent)); background-size: 0 2px; background-position: 0 100%; background-repeat: no-repeat; transition: background-size .2s, color .15s; }
+.center h2 .lesson-link::after { content: " ↗"; font-size: .7em; color: var(--ltt-muted); }
+.center h2 .lesson-link:hover, .center h2 .lesson-link:focus-visible { color: var(--ltt-accent); background-size: 100% 2px; outline: none; }
+.center .lessons { margin-top: 6px; }
+.center .lessons a { color: var(--ltt-accent); }
