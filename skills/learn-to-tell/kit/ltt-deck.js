@@ -712,9 +712,23 @@
     next.onclick = function () { go(cur + 1); };
     document.addEventListener("keydown", function (e) {
       if (/INPUT|TEXTAREA|SELECT/.test((e.target || {}).tagName || "")) return;
-      if (e.key === "ArrowRight" || e.key === "PageDown") { e.preventDefault(); go(cur + 1); }
-      if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(cur - 1); }
+      var d = e.key === "ArrowRight" || e.key === "PageDown" ? 1 : e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 0;
+      if (!d) return;
+      e.preventDefault();
+      var btn = visibleStepButton(d);
+      if (btn) btn.click(); else go(cur + d);
     });
+    // An in-scene stepper on screen takes the arrow keys until it reaches its own end in that direction.
+    function visibleStepButton(d) {
+      var bars = stage.children[cur].querySelectorAll(".ltt-stepper");
+      for (var k = 0; k < bars.length; k++) {
+        var r = bars[k].getBoundingClientRect();
+        if (!r.width || r.bottom <= 0 || r.top >= innerHeight) continue;
+        var b = bars[k].querySelectorAll("button")[d > 0 ? 1 : 0];
+        if (b && !b.disabled) return b;
+      }
+      return null;
+    }
     // Mounts every scene and checks the rendered layout; `?audit` in the URL runs it on load.
     function audit() {
       var found = [];
