@@ -84,6 +84,10 @@ export function createLttServer({ home = lttHome(), skillDir = SKILL_DIR, onRequ
       if (req.method === "GET" && pathname === "/api/health") {
         return send(res, 200, { app: "learn-to-tell" });
       }
+      if ((req.method === "GET" || req.method === "HEAD") && pathname === "/") {
+        res.writeHead(302, { Location: "/gallery/index.html" });
+        return res.end();
+      }
       if (req.method === "POST" && parts[0] === "api" && parts[1] === "lessons" && parts[3] === "events" && parts.length === 4) {
         if (!LESSON_ID.test(parts[2])) return send(res, 400, { error: "invalid lesson id" });
         return await recordEvent(req, res, home, parts[2]);
@@ -138,7 +142,7 @@ async function main() {
   const server = createLttServer({ onRequest: touch });
   server.on("error", async (err) => {
     if (err.code === "EADDRINUSE" && (await isLttServer(port))) {
-      console.log(`learn-to-tell server already running at http://${HOST}:${port}/`);
+      console.log(`learn-to-tell server already running at http://${HOST}:${port}/gallery/index.html`);
       process.exit(0);
     }
     console.error(`learn-to-tell server: ${err.message}`);
@@ -146,7 +150,7 @@ async function main() {
   });
   server.listen(port, HOST, () => {
     touch();
-    console.log(`learn-to-tell server running at http://${HOST}:${port}/ (home: ${lttHome()})`);
+    console.log(`learn-to-tell server running at http://${HOST}:${port}/gallery/index.html (home: ${lttHome()})`);
   });
 }
 
