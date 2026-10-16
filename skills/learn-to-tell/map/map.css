@@ -24,3 +24,16 @@
 .node.dashed { border-style: dashed; }
 .node .dom { font-size: 11px; color: var(--ltt-accent); }
 .node:hover, .node:focus-visible { outline: 2.5px solid var(--ltt-accent); outline-offset: 1px; }
+@view-transition { navigation: auto; }
+::view-transition-group(*) { animation-duration: .38s; animation-timing-function: cubic-bezier(.2, .7, .2, 1); }
+.focus .node, .focus .center { animation: map-rise .32s cubic-bezier(.2, .7, .2, 1) both; }
+.focus .above .node, .focus .below .node { animation-delay: .06s; }
+.focus .side .node { animation-delay: .1s; }
+.node, .chip { transition: transform .15s, background-color .15s; }
+.node:hover { transform: translateY(-1px); }
+@keyframes map-rise { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+  .focus .node, .focus .center { animation: none; }
+  .node, .chip { transition: none; }
+}
