@@ -453,12 +453,6 @@
     return first;
   }
 
-  function sentences(html) {
-    var plain = String(html || "").replace(/<[^>]+>/g, "").replace(TERM, "$1").trim();
-    if (!plain) return 0;
-    return (plain.match(/[.?!…](?=\s|$)/g) || []).length || 1;
-  }
-
   var VISUAL_TYPES = { compare: 1, contrast: 1, figure: 1, overview: 1 };
 
   // Equal-width card grids; a deck built mostly from these reads as the same slideshow whatever the topic.
@@ -485,7 +479,7 @@
     var out = [], glossary = {}, scenes = spec.scenes || [];
     Object.keys(spec.glossary || {}).forEach(function (k) { glossary[k] = spec.glossary[k]; });
     scenes.forEach(function (s) { if (s.type === "terms") (s.terms || []).forEach(function (t) { glossary[t.key] = t.plain; }); });
-    var first = termIndex(spec), predicts = 0, explained = false;
+    var first = termIndex(spec);
     function add(i, rule, msg) { out.push({ scene: i + 1, rule: rule, msg: msg }); }
     scenes.forEach(function (s, i) {
       var text = sceneText(s), marks = termsIn(text), seen = {};
@@ -506,22 +500,16 @@
         if (plain.indexOf(key) >= 0 && (at == null || at > i)) add(i, "used-before-defined", "'" + key + "'가 풀이(첫 {{" + key + "}})보다 먼저 쓰였다");
       });
       Object.keys(first).forEach(function (k) { if (first[k] === i) seen[k] = 1; });
-      var fresh = Object.keys(seen).length;
-      if (fresh > (s.type === "terms" ? 4 : 2)) add(i, "too-many-terms", "새 용어 " + fresh + "개 (장면당 " + (s.type === "terms" ? 4 : 2) + "개 이하)");
       if (s.type === "predict") {
-        predicts++;
-        if (!explained) add(i, "predict-before-explain", "설명 장면보다 predict가 먼저 나온다");
         var asked = sceneText({ title: s.title, sub: s.sub, question: s.question, hint: s.hint, choices: s.choices });
         termsIn(asked).forEach(function (t) {
           if (seen[t.key]) { add(i, "predict-new-term", "predict 질문에서 처음 나온 용어 '" + t.key + "' (앞 장면에서 풀이할 것)"); seen[t.key] = 0; }
         });
-      } else if (s.type !== "hook" && s.type !== "keywords" && s.type !== "summary" && s.type !== "overview") explained = true;
+      }
       var hasVisual = VISUAL_TYPES[s.type] || (!s.type && s.mount);
       if (hasVisual && !s.narration && !s.points && !s.sub && !s.caption && !(s.before && s.before.points))
         add(i, "no-reading-guide", "그림을 읽는 법(narration, points, sub)이 없다");
       if (s.type !== "hook" && s.type !== "keywords" && s.type !== "summary" && !s.title) add(i, "no-title", "제목이 없다");
-      if (s.narration && sentences(s.narration) > 4) add(i, "long-narration", "해설이 4문장을 넘는다 (장면을 나눌 것)");
-      if (s.points && s.points.length > 3) add(i, "many-points", "번호 주석이 " + s.points.length + "개 (3개 이하)");
       var filler = FILLER.exec(stripMarks(text));
       if (filler) add(i, "filler-content", "채움 글 '" + filler[0] + "' (실제 사례·값으로 바꿀 것)");
     });
@@ -532,11 +520,10 @@
       if (isCardGrid(s, scenes)) { cards++; run++; if (run === 3) add(i, "card-monotony", "카드 격자 장면이 3장 연속이다 (figure·statement·explain form strip/stack·compare form table로 바꿀 것)"); }
       else run = 0;
     });
-    if (body >= 4 && cards / body > 0.6) out.push({ scene: 0, rule: "card-monotony", msg: "카드 격자 장면이 " + cards + "/" + body + "장이다 (60% 이하)" });
+    if (body >= 4 && cards / body > 0.5) out.push({ scene: 0, rule: "card-monotony", msg: "카드 격자 장면이 " + cards + "/" + body + "장이다 (절반 이하)" });
     if (scenes.length && !scenes.some(isSignature)) out.push({ scene: 0, rule: "no-signature", msg: "그림이 주인공인 장면(figure, contrast, layout:\"full\", mount)이 없다" });
     if (!spec.theme) out.push({ scene: 0, rule: "no-theme", msg: "theme을 고르지 않았다 (" + Object.keys(THEMES).join(", ") + ")" });
     else if (!THEMES[spec.theme]) out.push({ scene: 0, rule: "unknown-theme", msg: "없는 theme '" + spec.theme + "'" });
-    if (predicts > 1) out.push({ scene: 0, rule: "many-predicts", msg: "predict가 " + predicts + "개 (수업당 1개)" });
     var last = scenes[scenes.length - 1];
     if (!last || last.type !== "keywords") out.push({ scene: 0, rule: "keywords-last", msg: "마지막 장면이 keywords가 아니다" });
     var sum = scenes.map(function (s) { return s.type; }).lastIndexOf("summary");
