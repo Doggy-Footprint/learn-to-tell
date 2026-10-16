@@ -37,3 +37,8 @@
   .focus .node, .focus .center { animation: none; }
   .node, .chip { transition: none; }
 }
+#app a[href="grid.html"] { display: inline-flex; align-items: center; gap: 6px; margin-top: 20px; padding: 8px 14px 8px 12px; border-radius: 999px; border: 1.5px solid var(--ltt-line-2); background: var(--ltt-card); color: var(--ltt-ink-2); font-size: 14px; font-weight: 650; text-decoration: none; transition: background-color .15s, border-color .15s, color .15s; }
+#app a[href="grid.html"]::before { content: "←"; transition: transform .15s; }
+#app a[href="grid.html"]:hover, #app a[href="grid.html"]:focus-visible { background: var(--ltt-accent-soft); border-color: var(--ltt-accent); color: var(--ltt-accent); outline: none; }
+#app a[href="grid.html"]:hover::before { transform: translateX(-3px); }
+@media (prefers-reduced-motion: reduce) { #app a[href="grid.html"], #app a[href="grid.html"]::before { transition: none; } }
