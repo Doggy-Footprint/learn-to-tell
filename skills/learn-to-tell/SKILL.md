@@ -16,7 +16,7 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 - 학습은 작업 세션에서 `/fork`한 세션에서 진행한다. 지금 세션이 fork한 세션이 아니면 사용자에게 `/fork` 후 그 세션에서 `/learn-to-tell <주제>`를 실행하라고 안내하고 멈춘다. 진단만 받는 경우는 지금 세션에서 해도 된다.
 - 작업 세션의 context가 100k tokens 이상으로 보이면 새 세션에서 학습하길 권한다. 이때 작업 맥락(목표, 막힌 결정, 이미 정한 것)을 `<home>/lessons/<id>/context.md`로 남기고, 새 세션에서 그 파일을 읽게 한다.
 - lesson id는 `YYYYMMDD-<kebab-slug>`이고, 디렉터리는 `<home>/lessons/<id>/`다.
-- `<home>/map.md`가 있으면 먼저 읽고, 이미 학습한 개념과 다음 후보를 진단에 반영한다.
+- 지식 map은 통째로 읽지 않는다. 주제의 핵심 개념 이름으로 `node <skill>/map/ltt-map.mjs find "<이름>"`을 실행하고, 걸린 개념은 `ltt-map.mjs show <id>`로 그 개념과 이웃(선수 개념·다음 후보)만 읽어 진단에 반영한다. 결과가 없으면 아직 학습한 적 없는 주제다.
 - `<home>/background.md`가 있으면 함께 읽고, 개념 사다리의 시작 단, 예시, 풀어 줄 용어를 사용자 배경에 맞춘다.
 
 ### background 기록
@@ -150,9 +150,23 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 ## 5. 작업 복귀
 
-`<home>/lessons/<id>/result.md`를 쓴다. 세션 방식과 관계없이 항상 쓴다.
+`<home>/lessons/<id>/result.md`를 쓴다. 세션 방식과 관계없이 항상 쓴다. 파일 맨 앞의 YAML frontmatter가 지식 map의 원본이다(`ltt-map`이 여기서 `<home>/concepts/`, `map.md`, `map-data.json`을 만든다). 아래 본문은 사람이 읽는 기록이다.
 
 ```markdown
+---
+lesson: <id>                  # 디렉터리 이름과 같아야 한다
+date: <YYYY-MM-DD>
+concepts:                     # 이번 회차에서 다룬 개념. 없으면 `concepts: []`
+  - id: <[a-z0-9][a-z0-9-]*>
+    title: <표시 이름>
+    aliases: [<별칭>]          # 선택
+    definition: <한 줄 정의>
+    domains: [<domain id>]    # 1개 이상, [a-z0-9-]+
+    level: <1-5>
+    requires: [<개념 id>]      # 선택: 먼저 알아야 하는 개념
+    leads_to: [<개념 id>]      # 선택: 이걸 배운 다음 배울 수 있는 개념
+    quiz: <pass|fail|skipped|none>
+---
 # <주제> (<id>)
 - 작업: <원래 작업 한 줄>
 - 진단: <사다리 단별 응답과 학습 수준>
@@ -169,19 +183,36 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 ## 6. 지식 map
 
-`<home>/map.md` 하나를 갱신한다. 없으면 만든다.
+map은 lesson의 `result.md` frontmatter(원본)와 `<home>/decisions.jsonl`(merge·link·reject 기록)에서 `ltt-map`이 만든 파생물이다. `<home>/concepts/*.md`, `map.md`, `map-data.json`은 직접 고치지 않는다(다시 만들면 덮어쓴다). 명령은 `node <skill>/map/ltt-map.mjs <cmd>`다.
 
-```markdown
-# Learn to Tell map
+### 개념을 적기 전에: 찾고, 재사용한다
 
-## 개념
-| 개념 | 상태 | 최근 | 수업 |
-| --- | --- | --- | --- |
-| <개념> | 학습함 / 약함 / 진단만 | <YYYY-MM-DD> | lessons/<id> |
+1. `result.md`에 개념을 적기 전에 후보마다 `ltt-map.mjs find "<이름>"`을 실행한다.
+2. `exact` 줄이 있으면 그 `id`를 그대로 재사용한다(새 id를 만들지 않는다).
+3. exact가 없고 비슷한 후보가 있으면 `show <id>`로 정의를 비교한다. 같은 결정 변수를 가리키면 재사용하고, 다르면 새로 만든다. 판단이 애매하면 사용자에게 묻는다.
+4. 같은 개념이 이미 두 id로 갈라져 있으면 `ltt-map.mjs decide merge <없앨 id> <남길 id>`로 합친다.
+5. 쓰고 나면 `ltt-map.mjs rebuild`를 실행한다. 오류(`error <path>: ...`)가 나오면 그 lesson이 map에서 빠지므로 `result.md` frontmatter를 고치고 다시 실행한다. `ltt-map.mjs check`는 파일을 쓰지 않고 오류와 경고만 보여 준다.
 
-## 다음 후보
-- <약한 개념, fail·skipped 항목, 미룬 범위> (출처: lessons/<id>)
-```
+### 입자도와 level
 
-- 약한 개념, fail·skipped 항목, 미룬 범위는 "다음 후보"에 넣는다.
-- 마지막에 다음 학습 경로를 한두 줄로 제시한다.
+- 개념 하나 = 퀴즈 문항 하나로 확인할 수 있는 결정 변수 하나. 한 문항으로 확인할 수 없을 만큼 크면 나누고, 따로 확인할 수 없을 만큼 작으면 이웃 개념에 넣는다.
+- `level` 기준: 1 = 신입생·신입 사원이 알아야 할 기초 / 2 = 입문 과정을 마친 수준 / 3 = 실무에서 판단에 쓰는 수준 / 4 = 설계·트레이드오프를 이끄는 숙련 수준 / 5 = 연구·전문가 수준.
+- `requires`와 `leads_to`는 모르면 비워 둔다. 선수 개념의 level이 더 높으면 경고가 나오므로 level을 다시 본다.
+
+### 연결 점검 (sweep)
+
+map에 개념이 쌓이면 이어지지 않은 연결을 찾아 둔다. 결과 기록을 쓴 뒤 `ltt-map.mjs sweep`을 실행한다.
+
+1. 출력 JSON의 `due`가 `false`면 멈춘다. `true`(점검하지 않은 새 개념이 10개 이상)면 계속한다.
+2. `sweep` JSON을 Haiku 서브에이전트에게 주고 `new` 개념과 `existing` 개념 사이(와 `new`끼리)의 선수·다음 관계, 중복으로 보이는 쌍을 제안하게 한다. 프롬프트에 두 가지를 명시한다: 제안이 0건인 것은 정상이고 억지로 만들지 않는다, 제안마다 이유를 한 문장으로 쓴다. 이미 `edges`에 있는 연결과 `rejected` 쌍은 다시 제안하지 않는다.
+3. fork 세션의 agent가 제안을 `definition`을 보고 직접 판단한다. 받아들이면 `ltt-map.mjs decide link <선수 id> <후속 id>`(중복이면 `decide merge <없앨 id> <남길 id>`), 거절하면 `decide reject <id> <id>`로 기록한다. `decide`는 한 줄을 `decisions.jsonl`에 덧붙이고 `rebuild`를 실행한다.
+4. 다 처리하면 `ltt-map.mjs sweep-done <id>...`로 이번에 본 `new` 개념 전부를 표시한다.
+
+### 찾아 보기
+
+- `ltt-map.mjs find "<텍스트>" [--domain d] [-k n]`: 줄마다 `id | title | definition | score[ | exact]`.
+- `ltt-map.mjs show <id> [--depth 1|2]`: 개념과 이웃만. 합쳐진 id는 남은 개념으로 간다.
+- 격자(도메인 × level, 신선도 색): `http://127.0.0.1:47823/map/grid.html`
+- 개념 상세(선수 아래, 다음 개념 위): `http://127.0.0.1:47823/map/focus.html?id=<id>`
+- 학습을 마치면 방금 다룬 개념의 focus URL을 사용자에게 안내한다. 서버가 켜져 있어야 한다(§3 7번).
+- 마지막에 다음 학습 경로를 한두 줄로 제시한다. 후보는 `status`가 weak인 개념, `freshness`가 fading·stale·weak인 개념, `leads_to`의 아직 배우지 않은 개념(`show`에서 frontier로 표시)이다.

@@ -1,8 +1,9 @@
 ---
-version: 1
+version: 3
 run_id: b6a5a9acd7e7b268
-status: active
-base_commit: 601d23ba9aab1999ebd275e8769c015cfeb7a735
+status: complete
+base_commit: 60
+d23ba9aab1999ebd275e8769c015cfeb7a735
 max_verifier_invocations: 2
 handoff: agent-docs/handoff/b6a5a9acd7e7b268-knowledge-map-grid.md
 ---
@@ -29,7 +30,7 @@ Out of scope: forest/graph view, elkjs hulls, SQLite or any search index, embedd
 Implementation: skills/learn-to-tell/map/, skills/learn-to-tell/server/server.mjs, skills/learn-to-tell/SKILL.md
 Tests: tests/map/
 Test command: node --test --experimental-test-coverage --test-coverage-include='skills/learn-to-tell/map/lib/**' --test-coverage-lines=90 --test-coverage-branches=85 tests/
-Review evidence: RV-1 — main starts `LTT_HOME=tests/map/fixtures/home-review node skills/learn-to-tell/server/server.mjs`, opens `/map/grid.html` and `/map/focus.html?id=gpu-warp` in Chrome at 1440×900 and 720×900, light and dark; records `document.documentElement.scrollWidth <= innerWidth`, that the shared fixture concept appears in two rows, hover on a chip adds the highlight class to every connected chip, and screenshots. Artifact: notes in the Execution ledger.
+Review evidence: RV-1 — main starts `LTT_HOME=tests/map/fixtures/home-review node skills/learn-to-tell/server/server.mjs`, opens `/map/grid.html` and `/map/focus.html?id=gpu-warp` in Chrome at 1440×900 and 720×900, light and dark; records `document.documentElement.scrollWidth <= innerWidth`, that the shared fixture concept appears in two rows, hover on a chip adds the highlight class to every connected chip, chips are keyboard-focusable links whose href is `focus.html?id=<id>`, focus view of an unknown id shows the not-found message with a grid link, both views with `map-data.json` absent show an empty-state message, no console errors on any of these pages, and screenshots. Artifact: notes in the Execution ledger.
 Fuzzing: seeded property harness `tests/map/fuzz.test.mjs` — surface: `derive()` and `check()` over randomly generated lesson sets and decision logs (including malformed frontmatter, cycles, unknown ids, merge chains); oracles: never throws, `derive` deterministic (two runs byte-identical), `rebuild` idempotent, every reported error names a source file; seed 20261016; budget 2000 generated homes.
 Mutation tool: none — no JS mutation tool is installed and adding Stryker is a new dependency; replaced by 8–10 hand mutations selected at Triage.
 
@@ -104,7 +105,7 @@ Mutation tool: none — no JS mutation tool is installed and adding Stryker is a
 | C-2 | normal | same id in two lessons with different definitions and dates | latest-date definition; domains union; two history entries |
 | C-3 | normal | A.leads_to B, B.requires A, link A→B | exactly one edge A→B |
 | C-4 | normal | leads_to target with no concept | frontier node, no concept file |
-| C-5 | normal | merge X into Y, Z.requires X | Z→Y edge; Y.merged_from = [X]; `show X` shows Y |
+| C-5 | normal | merge X into Y, Z.requires X | edge Y→Z (prereq→dependent, FR-3); Y.merged_from = [X]; `show X` shows Y |
 | C-6 | normal | 12 concepts, 0 swept | `sweep.due` true, 12 new; after `sweep-done` of all, due false |
 | C-7 | normal | `find "Coalescing"` with alias `coalescing` | exact hit first |
 | C-8 | normal | concept in domains [gpu, linear-algebra] | grid shows it in both rows; hover highlights linked chips in both rows |
@@ -162,13 +163,13 @@ Mutation tool: none — no JS mutation tool is installed and adding Stryker is a
 | VO-7 | FR-11, C-18, QR-6 | `rebuild` CLI on temp LTT_HOME | integration | scenario | rebuild; rebuild again; delete derived and rebuild; remove a concept and rebuild | 100% | byte-identical / file removed | node test |
 | VO-8 | FR-12, FR-13, C-7, C-12, QR-2 | `find`, `show` CLI | integration | equivalence partitioning | exact by id/title/alias, normalized match (case, hyphen, NFKC), partial, no match, k=1, domain filter, show merged id, show depth 2 | 100% | ordering and line counts | node test |
 | VO-9 | Errors, C-16 | CLI unknown id / bad decisions line | integration | equivalence partitioning | show unknown, decide unknown, malformed jsonl line | 100% | exit 2 / error line; files unchanged | node test |
-| VO-10 | FR-15, FR-16, FR-17, C-8, C-23, QR-4 | grid/focus DOM from fixture data | integration (jsdom-free: run view module's pure layout function `layoutGrid(data)` / `layoutFocus(data,id)` + string-render check) | classification tree | classes: domains count 1/many, concept multi-domain, frontier present, cross-domain neighbor, unknown id, empty data | 100% leaves | rows/columns/positions/classes per FR | node test |
+| VO-10 | FR-15, FR-16, FR-17, C-8, C-23, QR-4 | grid/focus DOM from fixture data | integration (jsdom-free: pure layout functions `layoutGrid(data)` / `layoutFocus(data,id)`; rendered DOM behavior is VO-11) | classification tree | classes: domains count 1/many, concept multi-domain, frontier present, cross-domain neighbor, unknown id, empty data | 100% leaves | rows/columns/positions/classes per FR | node test |
 | VO-11 | QR-4 | rendered views | review | scenario | RV-1 steps | 100% | as RV-1 | RV-1 notes |
 | VO-12 | QR-7, QR-8 | server `/map/` + id filenames | integration | syntax testing | `..`, `%2e%2e`, `/map/../server/server.mjs`, absolute path, id with `/`, id uppercase, id empty | 100% | 403/404; rejected | node test |
 | VO-13 | QR-1 | perf | integration | scenario | 500-concept generated home | n/a | ≤2000 ms | node test |
 | VO-14 | QR-3 | existing suite | integration | scenario | existing test files | 100% | pass | Test command |
 | VO-15 | QR-5, QR-6 | fuzz harness | unit | random testing | 2000 generated homes, seed 20261016 | none — random | oracles per Fuzzing | fuzz test |
-| VO-16 | FR-18 | SKILL.md text | review + automated grep | error guessing | missing: frontmatter template, find-before-create, granularity rule, level rubric 1–5, sweep "0 is normal" + reason sentence, decide/sweep-done, view URLs, §0 no longer reads whole map.md | none — experience-based | each present | node test asserting phrases + review |
+| VO-16 | FR-18 | SKILL.md text | automated grep (section-scoped where the item names a section) + main reads the §0/§5/§6 diff against FR-18, recorded in Execution ledger | error guessing | missing: frontmatter template, find-before-create, granularity rule, level rubric 1–5, sweep "0 is normal" + reason sentence, decide/sweep-done, view URLs, §0 no longer reads whole map.md | none — experience-based | each present | node test asserting phrases + review |
 | VO-17 | QR-9 | lib coverage | Test command | branch testing | lib/** | lines 90%, branches 85% | coverage thresholds pass | Test command |
 
 # Assumptions and Defaults
@@ -210,20 +211,31 @@ Mutation tool: none — no JS mutation tool is installed and adding Stryker is a
 # Workflow Control
 | item | value |
 | --- | --- |
-| correction batches used | 0 |
-| verifier invocations | 0 |
+| correction batches used | 3 |
+| verifier invocations | 2 |
 | open finding ids | none |
 
 Audit state (one entry per obligation; retain prior decisions in the execution ledger):
 | obligation id | spec version | evidence references and revision | accepted / open / invalidated / pending | rationale and mutation outcome | dependencies and reopening evidence |
 | --- | --- | --- | --- | --- | --- |
-| VO-1..VO-17 | 1 | — | pending | not started | — |
+| VO-1..VO-17 | 1 | — | resolved: rerun 341/341 pass, coverage 90.83 L / 87.70 B | not started | — |
 
 Execution ledger (append attempts; preserve failed approaches):
 | attempt | finding / failure signature | cause hypothesis | changed approach / new evidence | result / disposition |
 | --- | --- | --- | --- | --- |
+| 1 | first Test command run: 333 pass / 8 fail (VO-8 partial, VO-10 focus dashed, VO-15 generator self-check 495/2000, VO-16 ×5); coverage 90.83 L / 87.30 B | test defects: isDashed regex matches key `dashed:false`; "warp divergence" is an FR-12 normalized exact match; generator fault rates skip most lessons per FR-10; SKILL patterns require `ltt-map <cmd>` but text uses `ltt-map.mjs <cmd>` and Korean word order | correction batch 1 sent to test-implementer (T-1..T-4) | resolved: rerun 341/341 pass, coverage 90.83 L / 87.70 B |
+| 2 | RV-1 (VO-11) on copy of tests/map/fixtures/home-review after rebuild, server on :47899 | — | grid 1200px dark: scrollWidth=innerWidth, shared-memory-tiling in 2 rows, hover/focus on gpu-warp marks active + linked on memory-hierarchy, shared-memory-tiling ×2, warp-divergence, warp-scheduling (matches edges); chips are <a> tabIndex 0; focus: frontier occupancy class dashed, border dashed, warp-scheduling (os) at side; 720px iframes light+dark for grid, focus, unknown id: scrollWidth 720 = innerWidth, not-found message + grid link. Window could not be set to 1440 (innerWidth stuck at 1200) | accepted with noted deviation (1200 instead of 1440) |
+| 3 | verifier 1: retry; F-1..F-4, F-6..F-11 evidence gaps; SC-1, SC-2 spec challenges; SC-3 advisory | weak oracles (union dedup, merge field move, sweep new fields, cycle order, map.md columns, domain filter on exact, fuzz malformed classes, cross-domain prereq, SKILL section scoping) | SC-1/SC-2/SC-3 resolved by v3; correction batch 2 sent to test-implementer | resolved: 352/353; remaining failure = ID-1 |
+| 4 | RV-1 v3 additions + VO-16 review | — | chip hrefs `focus.html?id=<id>`; empty home (no map-data.json): grid and focus show "map-data.json이 없습니다. ltt-map rebuild를 실행하세요." (+ grid link on focus); console errors none on grid, focus gpu-warp, focus nope, empty focus (tracked after reload). VO-16: main read SKILL.md §0 l.19, §5 template, §6 (find-before-create, granularity, level rubric 1 신입…5 연구·전문가, sweep due/Haiku/0건 정상/이유 한 문장/decide/sweep-done, both URLs) — all FR-18 items present | VO-11 accepted (1200px noted); VO-16 review part accepted |
+| 5 | ID-1: derive().errors order follows lesson input order (fuzz permutation oracle, home #8) | implementation: diagnostics not canonically sorted (violates UI-3 under fs listing order) | correction batch 3: implementer sorts errors/warnings by path, line, message in check.mjs | fixed: Test command 353/353, coverage 91.06 L / 89.77 B, fuzz 2000 homes seed 20261016 no violation |
+| 6 | hand mutations (selected from verifier-1 strongest classes: freshness boundary, sweep threshold, FR-2 tie, edge direction, union dedup, stale file removal, NFKC, server containment, exact ranking, merge field move) | — | one at a time with backup/restore via scratchpad mut.py, `node --test tests/` | killed: M1 freshness <14, M2 due >10, M3b tie smaller lesson, M4 requires reversed, M5 no dedup, M6 stale file kept, M7 no NFKC, M8 path check removed, M9b exact flag lost, M10 merge drops X domains. Equivalent: M3 (`>=`→`>` only differs for same date+same lesson, i.e. duplicate id within one lesson — no observable choice), M9 (exact score 1 always ≥ partial score <1, so dropping exact-first sort key cannot reorder); replaced by M3b/M9b. Restore verified by git status. Mutation tool: none (AD-10) |
+| 7 | verifier 2: pass, no blocking; advisories A-1 (M9 equivalence holds only if partial score < 1; contrived trigram-identical partial could tie at 1 and win by id), A-2 (wide light run/screenshots not recorded), A-3 (FR-17 static evidence in map-server.test.mjs outside VO-10 text), A-4 (FR-2 duplicate id within one lesson unspecified), SC-3 | — | none (advisory) | complete |
 
 # Version Log
+## v3
+- Contract-only (verifier 1 SC-1, SC-2): VO-10 drops the undeclared string-render check; rendered href, keyboard focus, not-found link, empty state and console errors move into RV-1 (VO-11). VO-16 evidence = section-scoped grep + main diff review recorded in ledger. VO-15 CLI idempotence sampled on every 100th home (20 homes); derive/check oracles run on all 2000.
+## v2
+- Contract-only: C-5 expected edge rewritten as Y→Z to match FR-3 direction (test-implementer challenge 1). Other test-implementer challenges resolved without amendment: FR-16 cross-domain dependents go to sides (implementer and tests agree); cycle errors are exempt from the "names a source file" fuzz oracle because Errors specify cycle ids, not files.
 ## v1
 - Approved brief v1; status active; handoff written.
 - Initial draft from design discussion: lesson records as source of truth, grid + focus views, optional requires/leads_to, incremental Haiku sweep every 10 concepts. Rejected in discussion: forest view, SQLite index, embeddings, strict DAG maintenance.

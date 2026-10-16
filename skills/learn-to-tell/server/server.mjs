@@ -13,6 +13,7 @@ const LESSON_ID = /^[a-z0-9][a-z0-9-]*$/;
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
@@ -89,6 +90,17 @@ export function createLttServer({ home = lttHome(), skillDir = SKILL_DIR, onRequ
       }
       if (req.method === "GET" && (parts[0] === "kit" || parts[0] === "gallery") && parts.length > 1) {
         return await serveFile(res, join(skillDir, parts[0]), parts.slice(1).join("/"));
+      }
+      if (req.method === "GET" && parts[0] === "map" && parts.length > 1) {
+        if (parts.length === 2 && parts[1] === "data.json") {
+          const file = join(home, "map-data.json");
+          try {
+            return send(res, 200, await readFile(file), TYPES[".json"]);
+          } catch {
+            return send(res, 404, { error: "run ltt-map rebuild" });
+          }
+        }
+        return await serveFile(res, join(skillDir, "map"), parts.slice(1).join("/"));
       }
       if (req.method === "GET" && parts[0] === "lessons" && parts.length > 2) {
         if (!LESSON_ID.test(parts[1])) return send(res, 400, { error: "invalid lesson id" });
