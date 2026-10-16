@@ -15,7 +15,7 @@
 <style>
   :root { --vac: var(--ltt-muted); --drag: var(--ltt-accent); }
   .scene { max-height: 38vh; }
-  .dk-cmp.table .vis svg { max-height: 15vh; width: auto; }
+  .dk-cmp.table .vis svg { max-height: 13vh; width: auto; }
   .facts { display: flex; gap: 24px; flex-wrap: wrap; align-items: baseline; font-size: 15px; color: var(--ltt-muted); }
   .facts b { font-size: 30px; font-weight: 850; color: var(--ltt-ink); font-variant-numeric: tabular-nums; }
   .pk { display: grid; grid-template-columns: 170px 1fr; gap: 10px; align-items: center; font-size: 15px; margin: 8px 0; }
@@ -74,7 +74,7 @@
 
   const DT = 1 / 200, f0 = d3.format(".0f"), f1 = d3.format(".1f");
   const best40 = bestAngle(40, K, DT), loss = (v, a) => 1 - range(v, a, K, DT) / vacRange(v, 45);
-  const SRC = "야구공 질량 145 g, 지름 7.3 cm(MLB 규격 142–149 g, 지름 7.3–7.5 cm), 공기밀도 1.2 kg/m³(해수면 약 20 °C), Cd 0.35(야구공 Cd는 대략 0.3–0.5로 알려져 있고 속도·실밥에 따라 변한다, 기억 기반 값이라 불확실). 던지는 높이 0 m, 바람 0. 항력 사거리는 계산 시간 간격(dt)을 절반으로 줄여도 결과가 거의 같은지만 확인했고 절대 정확도는 검증하지 않았다.";
+  const SRC = "야구공 145 g, 지름 7.3 cm(MLB 규격 142–149 g, 7.3–7.5 cm), 공기밀도 1.2 kg/m³(해수면 약 20 °C), Cd 0.35(야구공은 대략 0.3–0.5, 속도·실밥에 따라 변함, 기억 기반이라 불확실). 던지는 높이 0 m, 바람 0. 계산 간격 dt를 절반으로 줄여도 결과가 거의 같은지만 확인했고 절대 정확도는 검증하지 않았다.";
 
   // 진공(점선)과 항력(실선) 궤적. 축척은 진공 45° 사거리에 맞춰 각도를 바꿔도 축이 고정되고, x·y 축척이 같아 궤적 모양이 실제와 같다.
   function traj(node, v, VW = 560, VH = 180) {
@@ -175,8 +175,8 @@
 
       { kicker: "플롯 1 · 날려 보기", title: "같은 공, 공기가 있을 때와 없을 때", en: "Simulation", layout: "full",
         narration: [
-          "회색 점선은 진공에서의 궤적, 주황 실선은 항력이 있을 때의 궤적이다. 두 공은 같은 시계로 움직이고, 가로·세로 눈금은 같은 축척(m)이다.",
-          "주황 공은 앞으로 가는 속도를 계속 잃어서, 내려올 때 더 가파르게 떨어진다. 45°와 최적 각도로 번갈아 던져 거리 차이를 비교해 보자.",
+          "회색 점선은 진공, 주황 실선은 항력이 있을 때의 궤적이다. 두 공은 같은 시계로 움직이고 가로·세로 축척이 같다.",
+          "주황 공은 앞으로 가는 속도를 계속 잃어 더 가파르게 떨어진다. 45°와 최적 각도로 번갈아 던져 보자.",
         ],
         mount: (body) => {
           body.innerHTML = `<div class="dk-actions"><button data-a="45">45°로 던지기</button><button data-a="best" class="ghost">${f1(best40)}°로 던지기</button></div><div></div>
@@ -209,14 +209,14 @@
         visual: (n) => traj(n, 40, 560, 200).set(vacPath(40, 45), path(40, best40, K, DT)) },
 
       { type: "compare", form: "table", kicker: "속력별", title: "공이 빠를수록 공기의 영향이 커진다", layout: "stack",
-        narration: "점선은 진공에서 45°로, 주황 선은 항력이 있을 때 그 속력의 최적 각도로 던진 궤적이다. 항력은 속력의 제곱으로 커지므로 빠른 공일수록 차이가 크다. 행마다 축척은 그 속력의 진공 45° 사거리에 맞췄으니 눈금 숫자를 함께 본다.",
+        narration: "점선은 진공 45°, 주황 선은 항력을 넣은 최적 각도 궤적이다. 항력은 속력의 제곱으로 커진다. 행마다 축척이 다르다.",
         items: [15, 30, 45].map((v, i) => {
           const a = bestAngle(v, K, DT);
-          return { label: ["캐치볼 · 15 m/s", "외야 송구 · 30 m/s", "최고 구속급 · 45 m/s"][i],
+          return { label: ["캐치볼 · 15 m/s", "외야 송구 · 30 m/s", "최고 구속급 · 45 m/s(≈100 mph)"][i],
             visual: (n) => traj(n, v).set(vacPath(v, 45), path(v, a, K, DT)),
             tone: ["good", "warn", "bad"][i],
             verdict: `최적 ${f1(a)}° · 사거리 −${f0(loss(v, a) * 100)}%`,
-            note: i === 2 ? "45 m/s는 약 100 mph(44.7 m/s) 직구 수준." : "" };
+          };
         }),
         basis: "모델로 계산한 예시. 사거리 감소는 진공 45° 대비. " + SRC,
         takeaway: "느린 공은 교과서 공식으로 충분하고, 빠른 공은 항력을 꼭 넣어야 한다.",

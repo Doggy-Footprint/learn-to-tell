@@ -24,6 +24,7 @@
 | attempt | failure evidence | cause |
 |---|---|---|
 | gallery를 1280×800에서 audit | 위 표, 9개 중 7개 경고 | `shrunk`는 높이 800 때문(1280×900에서 대부분 사라짐) — verified. `many-sizes`는 폭에 따라 바뀌는 clamp 글자 크기가 단계 하나를 추가 — hypothesis. 720 시절에는 폭 ≤1000을 compact로 보고 이 검사를 건너뛰어 드러나지 않았음 — verified (`kit/ltt.js` auditScene `m.compact`) |
+| 레슨 CSS font-size를 kit 단계로 맞추기(계획) | 4개 many-sizes 장면 모두 kit predict 장면에서 `.ltt-fact .l` clamp가 1280에서 14px, 힌트 15px로 갈라짐 | 레슨 CSS가 아니라 kit `ltt-ui.js` `.ltt-fact .l` — verified, 15px 고정으로 해결 |
 
 ## Next Step
 1. 서버: `LTT_PORT=47899 LTT_HOME=<scratch> node skills/learn-to-tell/server/server.mjs` (47823은 다른 worktree 서버가 떠 있을 수 있음).

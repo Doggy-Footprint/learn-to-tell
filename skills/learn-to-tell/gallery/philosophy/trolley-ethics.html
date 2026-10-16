@@ -12,6 +12,7 @@
 <script src="/kit/ltt-deck.js"></script>
 <style>
   .fg { width: 100%; max-width: 1100px; }
+  .fg .ltt-svg { max-height: 44vh; }
   .ltt-svg.tr text { font-family: var(--ltt-font-display); font-size: 15px; }
   .ltt-svg.tr .lb { font-weight: 800; }
   .ltt-svg.tr.mini text { font-size: 13px; }
@@ -97,8 +98,8 @@
 
       { type: "figure", kicker: "단계별로 보기", title: "같은 레버, 두 가지 이유", en: "Switch case",
         figure: (node) => { const w = node.appendChild(LTT.h("div", "fg")); LTT.stepper(w, trackScene(w)); },
-        caption: "레버 사례(Foot 1967; Thomson 1985). 검은 점 = 사람. 단계를 넘기며 {{공리주의}}와 {{의무론}}이 무엇을 보고 판정하는지 비교하자.",
-        basis: "의무론 안에서도 레버 사례의 판정은 갈린다. 여기서는 이중 효과 원리(의도한 결과와 예견만 한 부수 결과를 구분)를 받아들이는 흔한 해석을 따랐다.",
+        caption: "레버 사례(Foot 1967; Thomson 1985). 검은 점 = 사람. {{공리주의}}와 {{의무론}}이 무엇을 보고 판정하는지 비교하자.",
+        basis: "의무론 안에서도 판정은 갈린다. 여기서는 이중 효과 원리(의도한 결과와 예견만 한 결과를 구분)를 따르는 흔한 해석을 택했다.",
         takeaway: "공리주의는 결과의 합을, 의무론은 행위가 지키는 규칙을 본다. 레버 사례에서는 둘의 답이 같다.",
         recall: "레버 사례에서 공리주의와 의무론은 각각 무엇을 근거로 '당겨도 된다'고 할까?" },
 

@@ -14,8 +14,8 @@
 <script src="/kit/ltt-deck.js"></script>
 <style>
   :root { --mem: var(--ltt-accent); --cmp: var(--ltt-warn); --user: var(--ltt-good); }
-  .mini { width: 100%; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px; font-size: 13px; } .mini .big { grid-column: 1 / -1; }
-  .mini .ltt-bar { height: 22px; }
+  .mini { width: 100%; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 8px; font-size: 13px; } .mini .big { grid-column: 1 / -1; }
+  .mini .ltt-bar { height: 16px; }
   .big { font-size: 30px; font-weight: 850; letter-spacing: -.03em; text-align: center; font-variant-numeric: tabular-nums; }
   .big small { display: block; font-size: 12px; font-weight: 600; color: var(--ltt-muted); letter-spacing: 0; }
   .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } .duo b { display: block; font-size: 14px; margin-bottom: 6px; }
@@ -197,11 +197,11 @@
         why: `거의 그대로다. 표 16 GB를 옮기는 ${d3.format(".1f")(m81.tMem * 1e3)} ms는 변하지 않고, 원래도 짧던 계산 막대만 더 짧아졌다. <b>${fmtN(m81.total)} → ${fmtN(model(8, 1, 2).total)} 토큰/초</b>. <span class="ltt-tag">모델로 계산한 예시</span>` },
 
       { type: "compare", form: "table", kicker: "세 가지 업그레이드", title: "사용자 1명일 때 무엇이 속도를 올리나", layout: "stack",
-        narration: "8B 모델에서 한 가지씩만 바꿨다. 각 행의 숫자는 초당 만드는 토큰 수, 두 막대는 표를 옮기는 시간(파랑)과 계산 시간(주황)이다. 어느 쪽이 빨라질지 고른 뒤 판정을 보자.",
+        narration: "8B 모델에서 하나씩만 바꿨다. 숫자는 초당 토큰 수, 막대는 옮기는 시간(파랑)과 계산 시간(주황)이다.",
         items: [
           { label: "연산기 2배", visual: mini(model(8, 1, 2), m81.tMem), tone: "bad", verdict: "×1.0 그대로", noteAfter: true, note: "줄어든 건 원래도 짧던 계산 막대뿐." },
           { label: "메모리 대역폭 2배", visual: mini(model(8, 1, 1, 2), m81.tMem), tone: "good", verdict: "×2.0", noteAfter: true, note: "긴 옮기기 막대가 절반이 된다." },
-          { label: "모델을 4B로", visual: mini(model(4, 1), m81.tMem), tone: "good", verdict: "×2.0", noteAfter: true, note: "옮길 표가 절반. 숫자를 작게 저장하는 양자화도 같은 효과." },
+          { label: "모델을 4B로", visual: mini(model(4, 1), m81.tMem), tone: "good", verdict: "×2.0", noteAfter: true, note: "옮길 표가 절반. 양자화도 같은 효과." },
         ],
         basis: "모델로 계산한 예시. " + SRC,
         takeaway: "사용자가 적을 때는 대역폭을 늘리거나 표를 줄여야 빨라진다.",
@@ -235,14 +235,14 @@
         recall: "사용자 4명을 묶어 처리하면 한 사람이 느끼는 속도와 GPU 전체 처리량은 각각 어떻게 되는가?" },
 
       { type: "compare", form: "table", kicker: "실제 서빙 규모", title: "묶는 인원이 늘면 병목이 바뀐다", layout: "stack",
-        narration: "같은 GPU, 같은 8B 모델이다. 묶는 인원이 늘면 계산 막대(주황)가 길어진다. 1명분 계산 0.016 ms × N명이 옮기기 4.8 ms와 같아지는 N이 약 295명이다. 그보다 많이 묶으면 연산 속도가 병목이 된다.",
+        narration: "같은 GPU·8B 모델. 계산 0.016 ms × N명이 옮기기 4.8 ms와 같아지는 N ≈ 295명부터 연산이 병목이다.",
         items: [
           { label: "개인 챗봇 · 1명", visual: mini(m81, m81.tMem), tone: "", verdict: "메모리에 묶임", noteAfter: true, note: "연산기는 거의 논다." },
-          { label: "서버 · 64명", visual: mini(model(8, 64), m81.tMem), tone: "good", verdict: "메모리에 묶임 · 처리량 64배", noteAfter: true, note: "같은 옮기기로 토큰 64개. 한 사람 속도는 그대로." },
-          { label: "서버 · 512명", visual: mini(model(8, 512), model(8, 512).tComp), tone: "warn", verdict: "연산에 묶임", noteAfter: true, note: "약 295명을 넘으면 계산이 옮기기보다 길어져 한 사람 속도가 떨어진다." },
+          { label: "서버 · 64명", visual: mini(model(8, 64), m81.tMem), tone: "good", verdict: "메모리에 묶임 · 처리량 64배", noteAfter: true, note: "같은 옮기기로 토큰 64개." },
+          { label: "서버 · 512명", visual: mini(model(8, 512), model(8, 512).tComp), tone: "warn", verdict: "연산에 묶임", noteAfter: true, note: "계산이 옮기기보다 길어져 느려진다." },
         ],
         tex: "t_{\\text{token}}=\\max\\!\\left(\\frac{\\text{가중치 바이트}}{\\text{대역폭}},\\ \\frac{2\\times\\text{파라미터}\\times\\text{batch}}{\\text{연산 속도}}\\right),\\quad \\text{꺾이는 batch}=\\frac{989}{3.35}\\approx 295",
-        basis: "모델로 계산한 예시. 막대 길이는 행마다 가장 긴 막대 기준. " + SRC,
+        basis: "모델로 계산한 예시(H100 3.35 TB/s · 989 TFLOPS, 재확인 안 함). 막대는 행마다 최댓값 기준.",
         takeaway: "약 295명까지는 대역폭이, 그 이상은 연산 속도가 속도를 정한다.",
         recall: "묶는 인원을 늘려 가면 속도를 정하는 숫자가 무엇에서 무엇으로 바뀌고, 그 경계는 대략 몇 명인가?" },
 
