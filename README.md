@@ -111,7 +111,12 @@ agent-docs/adr/   # 주요 설계 결정과 기각한 대안
 
 # 테스트
 npm test
+
+# 갤러리를 로컬에서 보기 → http://127.0.0.1:47823/gallery/index.html
+node skills/learn-to-tell/server/server.mjs
 ```
+
+서버는 127.0.0.1에만 열리고 2시간 동안 요청이 없으면 스스로 종료된다. 포트는 `LTT_PORT`, 종료 대기 시간은 `LTT_IDLE_MINUTES`로 바꾼다. 같은 포트에 이미 learn-to-tell 서버가 떠 있으면 새로 띄우지 않고 그대로 종료하므로, 다른 worktree의 파일을 보려면 포트를 바꿔 띄운다.
 
 개인 학습 기록은 `~/.learn-to-tell/`(또는 `$LTT_HOME`)에 저장된다.
 
