@@ -147,7 +147,7 @@
     ".dk-pred .ltt-choices button.unsure{color:var(--ltt-muted);font-weight:500;box-shadow:inset 0 0 0 1.5px var(--ltt-line-2);border:0;background:transparent}",
     ".dk-pred .ltt-choices button.unsure.wrong{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
     ".dk-hint2{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ltt-muted);margin:0}",
-    ".dk-pred.done .dk-hint2,.dk-pred.done .dk-actions{display:none}",
+    ".dk-pred.done .dk-hint2,.dk-pred.done>.dk-actions{display:none}",
     ".dk-pred.done .ltt-choices button:not(.right):not([aria-pressed=true]){display:none}",
     ".dk-ans{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:clamp(12px,2vw,24px);align-items:center}",
     ".dk-ans.solo{grid-template-columns:1fr}",
@@ -195,6 +195,47 @@
     ".dk-sc .ask{margin-top:auto;font-size:clamp(13.5px,1.15vw,15.5px);background:var(--ltt-card-2);border-radius:12px;padding:9px 12px}",
     ".dk-sc .ask b{color:var(--ltt-accent);font-size:12px;margin-right:6px}",
     ".dk-sc.dark{background:var(--ltt-dark);color:var(--ltt-on-dark);border-color:var(--ltt-dark)}.dk-sc.dark p{color:color-mix(in srgb,var(--ltt-on-dark) 78%,transparent)}",
+    /* skip-before-reveal nudge: the reveal button pulses three times in the theme's own medium, then rests */
+    "@keyframes ltt-nudge{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ltt-accent) 55%,transparent)}50%{box-shadow:0 0 0 9px color-mix(in srgb,var(--ltt-accent) 0%,transparent)}}",
+    ".ltt-nudge{position:relative;outline:2.5px solid var(--ltt-accent);outline-offset:3px;animation:ltt-nudge .9s ease-out 3}",
+    ".ltt-nudge:disabled,.done .ltt-nudge{outline:none;animation:none}",
+    "[data-ltt-theme=paper] .ltt-nudge,[data-ltt-theme=ledger] .ltt-nudge{outline:none;animation:none;box-shadow:inset 0 -3px 0 var(--ltt-accent),0 0 0 1.5px var(--ltt-ink)}",
+    "[data-ltt-theme=blueprint] .ltt-nudge{outline:1.5px dashed var(--ltt-accent);outline-offset:5px;animation:ltt-nudge-blink .5s steps(2) 6}",
+    "@keyframes ltt-nudge-blink{50%{outline-color:transparent}}",
+    "[data-ltt-theme=terminal] .ltt-nudge{outline:none;box-shadow:0 0 0 1.5px var(--ltt-accent),0 0 14px color-mix(in srgb,var(--ltt-accent) 60%,transparent);animation:ltt-nudge-blink .5s steps(2) 6}",
+    "[data-ltt-theme=terminal] .ltt-nudge::before{content:'▶';position:absolute;left:-1.3em;color:var(--ltt-accent);font-family:var(--ltt-mono)}",
+    "[data-ltt-theme=lab] .ltt-nudge{outline:2.5px solid var(--ltt-accent);outline-offset:6px;border-radius:var(--ltt-r-md)}",
+    "[data-ltt-theme=sketch] .ltt-nudge{outline:2.5px solid var(--ltt-accent);outline-offset:4px;box-shadow:0 0 0 9px transparent,0 0 0 10.5px var(--ltt-accent);animation:none;transform:rotate(-.6deg)}",
+    "@media (prefers-reduced-motion:reduce){.ltt-nudge{animation:none!important}}",
+    ".dk-bubble{position:fixed;z-index:60;max-width:280px;padding:10px 14px;border-radius:var(--ltt-r-md);background:var(--ltt-dark);color:var(--ltt-on-dark);",
+    "font-size:14px;line-height:1.45;box-shadow:var(--ltt-shadow);pointer-events:none;opacity:0;transform:translateY(calc(-100% + 6px));transition:opacity .2s,transform .2s}",
+    ".dk-bubble.on{opacity:1;transform:translateY(-100%)}",
+    ".dk-bubble:not(.center)::after{content:'';position:absolute;right:28px;bottom:-6px;border:6px solid transparent;border-bottom:0;border-top-color:var(--ltt-dark)}",
+    ".dk-bubble.center{left:50%!important;top:50%!important;max-width:340px;text-align:center;font-size:16px;padding:16px 22px;transform:translate(-50%,-44%)}",
+    ".dk-bubble.center.on{transform:translate(-50%,-50%)}",
+    ".dk-bubble kbd{font:12px var(--ltt-mono);padding:1px 6px;border-radius:5px;background:color-mix(in srgb,var(--ltt-on-dark) 18%,transparent)}",
+    /* mobile: the same scene units stacked in one column and scrolled (see mobileFit) */
+    "[data-ltt-mobile] .dk{padding:0 16px}",
+    "[data-ltt-mobile] .dk-top{padding:10px 0 4px;gap:10px}[data-ltt-mobile] .dk-top h1{max-width:58%;font-size:12.5px;padding:6px 12px}[data-ltt-mobile] .dk-dots{display:none}",
+    "[data-ltt-mobile] .dk-scene{padding:4px 0 24px;overscroll-behavior:contain}[data-ltt-mobile] .dk-in{margin:0 auto;gap:14px}",
+    "[data-ltt-mobile] .dk-head{column-gap:12px}[data-ltt-mobile] .dk-no{font-size:40px}[data-ltt-mobile] .dk-scene h2{font-size:24px}[data-ltt-mobile] .dk-scene h2 .en{display:block;font-size:.6em;margin-top:4px}[data-ltt-mobile] .dk-sub{font-size:15px}",
+    "[data-ltt-mobile] .dk-main.split,[data-ltt-mobile] .dk-main.full{grid-template-columns:minmax(0,1fr)}",
+    "[data-ltt-mobile] .dk-steps,[data-ltt-mobile] .dk-terms,[data-ltt-mobile] .dk-cmp,[data-ltt-mobile] .dk-figsteps,[data-ltt-mobile] .dk-st,[data-ltt-mobile] .dk-ans,[data-ltt-mobile] .dk-hook,[data-ltt-mobile] .dk-capbar,[data-ltt-mobile] .dk-kw,[data-ltt-mobile] .ltt-choices{grid-template-columns:minmax(0,1fr)!important}",
+    "[data-ltt-mobile] .dk-steps.stack .dk-step,[data-ltt-mobile] .dk-steps.stack .dk-step:not(:has(.vis)){grid-template-columns:40px minmax(0,1fr)}[data-ltt-mobile] .dk-steps.stack .dk-step .vis{grid-column:1/-1}",
+    "[data-ltt-mobile] .dk-cmp.table .dk-item{grid-template-columns:minmax(0,1fr);grid-template-areas:'lab' 'vis' 'vd' 'note'}[data-ltt-mobile] .dk-cmp.table .dk-head{display:none}",
+    "[data-ltt-mobile] .dk-sum{--c:1!important}[data-ltt-mobile] .dk-hook .art{width:96px;font-size:48px}[data-ltt-mobile] .dk-hook .big{font-size:32px}",
+    "[data-ltt-mobile] .dk-nav{padding:8px 0 calc(10px + env(safe-area-inset-bottom))}[data-ltt-mobile] .dk-nav button{padding:10px 18px}[data-ltt-mobile] .dk-hint{display:none}",
+    "[data-ltt-mobile] .dk-wide{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}[data-ltt-mobile] .dk-wide>svg{max-width:none!important}",
+    "[data-ltt-mobile] input[type=range]{min-height:44px}",
+    ".dk-zoom{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:6px 12px;font-size:13px}",
+    ".dk-zoomov{position:fixed;inset:0;z-index:80;background:var(--ltt-bg);display:flex;flex-direction:column}",
+    ".dk-zoomov>button{align-self:flex-end;margin:10px 12px}.dk-zoomov .pane{flex:1;overflow:auto;touch-action:pan-x pan-y pinch-zoom;padding:12px}.dk-zoomov svg{max-width:none!important;max-height:none!important}",
+    // Pages cap drawings with vh/vw sizes tuned for one desktop screen; a scrolling phone column needs them lifted.
+    "[data-ltt-mobile] .dk-body svg:not(.ltt-ic){max-height:none!important}[data-ltt-mobile] .dk-fig-stage>*,[data-ltt-mobile] .dk-figsteps>*{width:100%!important;max-width:100%}",
+    "[data-ltt-mobile] .dk-bubble.center{max-width:calc(100vw - 48px)}",
+    /* an icon alone in a visual slot is the picture, so it takes a size for the slot instead of its 1em text size */
+    ".vis>svg.ltt-ic:only-child,.dk-pvis>svg.ltt-ic:only-child,.dk-avis>svg.ltt-ic:only-child,.dk-fig-stage>svg.ltt-ic:only-child{width:clamp(44px,min(5.5vw,9vh),84px);height:auto;aspect-ratio:1;color:var(--ltt-accent)}",
+    ".vis>span.ltt-ic:only-child,.dk-pvis>span.ltt-ic:only-child,.dk-avis>span.ltt-ic:only-child,.dk-fig-stage>span.ltt-ic:only-child{width:auto;height:auto;font-size:clamp(40px,min(5vw,8vh),76px);line-height:1}",
     /* shared */
     ".dk-math summary{cursor:pointer;font-size:13px;font-weight:650;color:var(--ltt-muted)}.dk-math{font-size:15px}",
     ".dk-actions{display:flex;gap:8px;flex-wrap:wrap}",
@@ -304,15 +345,25 @@
       body.appendChild(w);
       if (s.reveal === false) w.classList.add("shown");
       else {
-        var b = h("button", null, s.revealLabel || "판정 보기");
+        var b = h("button", null, s.revealLabel || "판정 보기"), rs = h("button", "ghost ltt-hidden", "초기화");
+        var gate = { btn: b, word: "판정" };
+        ctx.gate = gate;
         b.onclick = function () {
-          w.classList.add("shown"); b.disabled = true;
+          ctx.gate = null;
+          w.classList.add("shown"); b.disabled = true; rs.classList.remove("ltt-hidden");
           s.items.forEach(function (it, k) { if (it.onReveal) it.onReveal(cells[k].querySelector(".vis")); });
           LTT.linkTerms(w, ctx.index);
           ctx.fit();
           LTT.record("compare-reveal", { scene: s.title });
         };
-        body.appendChild(h("div", "dk-actions")).appendChild(b);
+        rs.onclick = function () {
+          w.classList.remove("shown"); b.disabled = false; rs.classList.add("ltt-hidden");
+          ctx.gate = gate;
+          s.items.forEach(function (it, k) { if (it.onReset) it.onReset(cells[k].querySelector(".vis")); });
+          ctx.fit();
+          LTT.record("compare-reset", { scene: s.title });
+        };
+        body.appendChild(h("div", "dk-actions")).append(b, rs);
       }
       return { enter: function () { rise(cells); s.items.forEach(function (it, k) { if (it.enter) it.enter(cells[k].querySelector(".vis")); }); } };
     },
@@ -379,13 +430,25 @@
       var av = h("div", "dk-avis");
       var why = h("div", "dk-why", LTT.badge("accent", "정답과 이유") + "<p></p>");
       why.querySelector("p").innerHTML = s.why || "";
+      var rs = h("button", "ghost", "초기화");
+      why.appendChild(h("div", "dk-actions")).appendChild(rs);
       ans.append(av, why);
       if (s.visual) fill(w.appendChild(h("div", "dk-pvis")), s.visual, ctx);
       w.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, h("div", "dk-actions"), ans);
       w.querySelector(".dk-actions").appendChild(lock);
       body.appendChild(w);
-      LTT.predict({ question: s.question || s.title, choices: box, button: lock, answer: s.answer, show: [ans],
+      var gate = { btn: lock, alt: box, word: "정답" };
+      ctx.gate = gate;
+      var pr = LTT.predict({ question: s.question || s.title, choices: box, button: lock, answer: s.answer, show: [ans],
+        onReset: function () {
+          w.classList.remove("done");
+          ctx.gate = gate;
+          av.replaceChildren();
+          if (s.onReset) s.onReset();
+          ctx.fit();
+        },
         reveal: function (v) {
+          ctx.gate = null;
           w.classList.add("done");
           if (typeof s.answerVisual === "function") s.answerVisual(av, v);
           else if (s.answerVisual) av.innerHTML = s.answerVisual;
@@ -393,6 +456,7 @@
           if (s.reveal) s.reveal(v);
           ctx.fit();
         } });
+      rs.onclick = pr.reset;
       return {};
     },
     // With `recall` questions the recap is retrieval practice in plain text: the question comes first and the takeaway
@@ -547,6 +611,40 @@
     }
   }
 
+  // On phones a scene scrolls instead of shrinking. A drawing whose text would fall below ~10px at column width keeps
+  // that minimum scale and scrolls sideways inside its own box, so the page itself never scrolls horizontally.
+  function mobileFit(el, inner) {
+    inner.style.zoom = inner.style.width = "";
+    [].forEach.call(inner.querySelectorAll("svg[viewBox]"), function (svg) {
+      if (svg.closest(".dk-wide") || svg.closest(".ltt-ic")) return;
+      var vb = svg.viewBox.baseVal, box = svg.parentElement;
+      if (!vb || !vb.width || !box) return;
+      // Page CSS may pin a drawing's box to a viewport fraction (60vw) meant for desktop; let it take the column.
+      for (var up = box; up && up !== inner; up = up.parentElement) {
+        if (up.parentElement && up.clientWidth < up.parentElement.clientWidth - 2 && getComputedStyle(up.parentElement).display === "block") up.style.width = "100%";
+      }
+      var need = vb.width * 0.62;
+      if (box.clientWidth && need > box.clientWidth + 1) {
+        var wrap = h("div", "dk-wide"), zoom = h("button", "ghost dk-zoom", LTT.icon("search") + "크게 보기");
+        box.insertBefore(wrap, svg);
+        wrap.appendChild(svg);
+        box.insertBefore(zoom, wrap.nextSibling);
+        zoom.onclick = function () { openZoom(svg); };
+        svg.style.width = need + "px";
+      }
+    });
+  }
+
+  // Full-screen copy of a drawing at its own pixel size; the viewer pans it and pinch-zooms with the browser.
+  function openZoom(svg) {
+    var ov = h("div", "dk-zoomov"), close = h("button", null, "닫기"), pane = h("div", "pane"), copy = svg.cloneNode(true);
+    copy.style.width = svg.viewBox.baseVal.width + "px";
+    pane.appendChild(copy);
+    ov.append(close, pane);
+    close.onclick = function () { ov.remove(); };
+    document.body.appendChild(ov);
+  }
+
   var MOCKS = ".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code";
   var VISUALS = "svg.ltt-svg,svg.ltt-dg,.ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code,canvas,img,.ltt-ba,.dk-fig-stage>*,[data-visual]";
 
@@ -582,6 +680,7 @@
       visualRatio: body.querySelector(VISUALS) ? biggest / stage : null,
       figRatio: figRatio, fill: Math.min(1, (ih * zoom) / (el.clientHeight || 1)),
       fontSizes: Object.keys(sizes).length,
+      graphOverlaps: [].reduce.call(body.querySelectorAll("svg.ltt-dg"), function (n, g) { return n + (g.__lttDiagram ? LTT.graphOverlaps(g.__lttDiagram).length : 0); }, 0),
       goals: [].map.call(body.querySelectorAll(".ltt-goal[data-samples]"), function (g) {
         return { hits: +g.dataset.hits, samples: +g.dataset.samples, start: g.dataset.start === "1" };
       })
@@ -670,8 +769,8 @@
       if (s.basis) (rail || inner).appendChild(h("p", "ltt-basis", s.basis));
       if (s.takeaway) inner.appendChild(LTT.takeaway(s.takeaway, s.sources));
       LTT.linkTerms(el, i);
-      ctx.fit = function () { fit(el, inner); };
-      mounted[i] = { fit: ctx.fit, enter: function () {
+      ctx.fit = function () { if (LTT.mobile()) mobileFit(el, inner); else fit(el, inner); };
+      mounted[i] = { ctx: ctx, fit: ctx.fit, enter: function () {
         if (r && r.enter) r.enter();
         if (custom && custom.enter) custom.enter();
         if (anno) anno.replay();
@@ -682,6 +781,7 @@
     function go(i) {
       i = Math.max(0, Math.min(scenes.length - 1, i));
       if (i === cur) return;
+      clearNudge();
       if (cur >= 0) {
         if (mounted[cur] && mounted[cur].leave) mounted[cur].leave();
         stage.children[cur].classList.remove("cur");
@@ -709,15 +809,66 @@
     if (document.fonts) document.fonts.ready.then(refit);
 
     prev.onclick = function () { go(cur - 1); };
-    next.onclick = function () { go(cur + 1); };
+    next.onclick = function () { forward("button"); };
+    // Moving on before the compare verdict or predict answer is revealed skips the scene's point, so the first
+    // forward press only points at the reveal button and a second press in the same scene goes through.
+    var armed = -1, nudged = null, bubble = h("div", "dk-bubble"), bubbleTimer = 0;
+    root_.appendChild(bubble);
+    function clearNudge() {
+      armed = -1;
+      if (nudged) nudged.classList.remove("ltt-nudge");
+      nudged = null;
+      bubble.classList.remove("on");
+    }
+    function forward(via) {
+      var m = mounted[cur], gate = m && m.ctx.gate;
+      if (!gate || armed === cur || cur === scenes.length - 1) {
+        if (gate && armed === cur) LTT.record("skip-reveal", { scene: cur + 1, via: via });
+        return go(cur + 1);
+      }
+      armed = cur;
+      nudged = gate.btn.disabled && gate.alt ? gate.alt : gate.btn;
+      nudged.classList.remove("ltt-nudge");
+      void nudged.offsetWidth;
+      nudged.classList.add("ltt-nudge");
+      nudged.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      var key = via !== "button";
+      bubble.innerHTML = "아직 " + gate.word + "을 안 봤어요.<br>" +
+        (via === "key" ? "<kbd>→</kbd> 키를 한 번 더 누르면" : via === "swipe" ? "한 번 더 넘기면" : "한 번 더 누르면") + " 넘어갑니다.";
+      bubble.classList.toggle("center", key);
+      if (!key) {
+        var r = next.getBoundingClientRect();
+        bubble.style.left = Math.max(12, r.right - 280) + "px";
+        bubble.style.top = (r.top - 10) + "px";
+      } else bubble.style.left = bubble.style.top = "";
+      bubble.classList.remove("on");
+      void bubble.offsetWidth;
+      bubble.classList.add("on");
+      clearTimeout(bubbleTimer);
+      bubbleTimer = setTimeout(function () { bubble.classList.remove("on"); }, 2800);
+      LTT.record("skip-warn", { scene: cur + 1, via: via });
+    }
     document.addEventListener("keydown", function (e) {
       if (/INPUT|TEXTAREA|SELECT/.test((e.target || {}).tagName || "")) return;
       var d = e.key === "ArrowRight" || e.key === "PageDown" ? 1 : e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 0;
       if (!d) return;
       e.preventDefault();
       var btn = visibleStepButton(d);
-      if (btn) btn.click(); else go(cur + d);
+      if (btn) btn.click(); else if (d > 0) forward("key"); else go(cur + d);
     });
+    // Horizontal swipes page through scenes on touch screens, except over controls that are themselves dragged.
+    var touch = null;
+    stage.addEventListener("touchstart", function (e) {
+      var t = e.touches[0];
+      touch = e.touches.length === 1 && !e.target.closest("input,.ltt-dial,.ltt-pad,.ltt-drag,.dk-wide,button") ? [t.clientX, t.clientY] : null;
+    }, { passive: true });
+    stage.addEventListener("touchend", function (e) {
+      if (!touch) return;
+      var t = e.changedTouches[0], dx = t.clientX - touch[0], dy = t.clientY - touch[1];
+      touch = null;
+      if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+      if (dx < 0) forward("swipe"); else go(cur - 1);
+    }, { passive: true });
     // An in-scene stepper on screen takes the arrow keys until it reaches its own end in that direction.
     function visibleStepButton(d) {
       var bars = stage.children[cur].querySelectorAll(".ltt-stepper");

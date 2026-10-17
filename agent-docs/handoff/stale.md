@@ -20,3 +20,8 @@ File: f0ceee98d2eb9ada-audit-1280x800-gallery.md
 Summary: 1280×800 audit에서 경고가 나는 gallery 레슨 7개를 기준 변경 없이 고치는 남은 작업
 Related Files: skills/learn-to-tell/gallery, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md
 Related Symbols: auditScene, lintDeck
+---
+File: 4c26cb8f53d1c99b-replace-projectile-example-with-ontology.md
+Summary: gallery 예시 projectile-drag를 /tmp/standalone.html 기반 ontology 기본 수업으로 교체하는 남은 작업(참고 파일 경로 미확인)
+Related Files: skills/learn-to-tell/gallery/physics/projectile-drag.html, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/gallery/index.html
+Related Symbols: LTT.autoLayout

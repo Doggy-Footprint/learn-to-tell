@@ -2,6 +2,11 @@
   "use strict";
 
   var LESSON_PATH = /^\/lessons\/([a-z0-9][a-z0-9-]*)\//;
+  // Vendor URLs follow wherever ltt.js was loaded from, so the same kit works under the local server (/kit/) and from a CDN in standalone artifacts.
+  var KIT = (function () {
+    var src = typeof document !== "undefined" && document.currentScript && document.currentScript.src;
+    return src ? src.replace(/[^/]*$/, "") : "/kit/";
+  })();
   var TERM = /\{\{([^{}|]+?)(?:\|([^{}]+?))?\}\}/g;
 
   var TOKENS_LIGHT = "--ltt-bg:#f2f1ec;--ltt-card:#fff;--ltt-card-2:#f7f6f2;--ltt-line:#e6e3dc;--ltt-line-2:#d6d2c8;" +
@@ -137,12 +142,12 @@
 
   var STYLE = [
     "@font-face{font-family:'Pretendard Variable';font-weight:45 920;font-style:normal;font-display:swap;",
-    "src:url('/kit/vendor/pretendard/PretendardVariable.woff2') format('woff2-variations')}",
+    "src:url('" + KIT + "vendor/pretendard/PretendardVariable.woff2') format('woff2-variations')}",
     // Serif and mono faces are subsets (KS X 1001 Hangul + Latin); syllables outside fall through to the next family in the stack.
     "@font-face{font-family:'LTT Serif';font-weight:200 900;font-style:normal;font-display:swap;",
-    "src:url('/kit/vendor/noto-serif-kr/NotoSerifKR-ksx.woff2') format('woff2-variations')}",
-    "@font-face{font-family:'LTT Mono';font-weight:400;font-style:normal;font-display:swap;src:url('/kit/vendor/d2coding/D2Coding-ksx.woff2') format('woff2')}",
-    "@font-face{font-family:'LTT Mono';font-weight:700;font-style:normal;font-display:swap;src:url('/kit/vendor/d2coding/D2CodingBold-ksx.woff2') format('woff2')}",
+    "src:url('" + KIT + "vendor/noto-serif-kr/NotoSerifKR-ksx.woff2') format('woff2-variations')}",
+    "@font-face{font-family:'LTT Mono';font-weight:400;font-style:normal;font-display:swap;src:url('" + KIT + "vendor/d2coding/D2Coding-ksx.woff2') format('woff2')}",
+    "@font-face{font-family:'LTT Mono';font-weight:700;font-style:normal;font-display:swap;src:url('" + KIT + "vendor/d2coding/D2CodingBold-ksx.woff2') format('woff2')}",
     ":root{" + TOKENS_LIGHT + "--ltt-radius:20px;--ltt-r-lg:24px;--ltt-r-md:14px;--ltt-r-sm:8px;--ltt-border-w:1px;--ltt-pattern:none;",
     "--ltt-display-weight:850;--ltt-display-track:-.04em;--ltt-font-display:var(--ltt-font);",
     "--ltt-font:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Segoe UI',sans-serif;",
@@ -277,8 +282,10 @@
 
   function icon(name, opts) {
     var body = ICONS[name];
-    if (!body) return "";
     var o = opts || {};
+    // Unknown names render as text so an emoji shows instead of an empty slot; escaped because callers pass the result to innerHTML.
+    if (!body) return name ? "<span class='ltt-ic" + (o.cls ? " " + o.cls : "") + "' aria-hidden='true'>" +
+      String(name).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</span>" : "";
     return "<svg class='ltt-ic" + (o.cls ? " " + o.cls : "") + "' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='" +
       (o.weight || 1.8) + "' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>" + body + "</svg>";
   }
@@ -538,11 +545,12 @@
 
   // Judges measurements of one rendered scene (see ltt-deck.js audit). Thresholds were calibrated on the gallery at 1440×900:
   // below them a figure read as a thumbnail or the scene needed the zoom floor; kit parts alone already use about 7 text sizes.
-  // Narrow desktop windows (compact, 720–1000px) shrink by design, so zoom and visual-size ratios are not judged there.
+  // Narrow windows (compact, ≤1000px) shrink by design, so zoom and visual-size ratios are not judged there.
   function auditScene(m) {
     var out = [], hero = m.type === "figure" || m.layout === "full";
     function add(rule, msg) { out.push({ rule: rule, msg: msg }); }
     if (m.hscroll) add("hscroll", "가로로 넘친다 (폭 " + m.hscroll + "px 초과). 고정 폭을 max-width:100%로 바꿀 것");
+    if (m.graphOverlaps) add("graph-overlap", "그래프에서 라벨·노드·엣지가 " + m.graphOverlaps + "곳 겹친다. 좌표를 손으로 정했다면 LTT.autoLayout으로 배치할 것");
     (m.goals || []).forEach(function (g) {
       if (!g.hits) add("goal-unreachable", "목표를 맞추는 손잡이 위치가 없다 (표본 " + g.samples + "개 중 0개). 기준이나 손잡이 범위를 고칠 것");
       else if (g.hits < 2) add("goal-narrow", "목표가 손잡이 한 자리에서만 맞는다. 기준에 여유를 두어 두 자리 이상에서 맞게 할 것");
@@ -665,14 +673,24 @@
     style.textContent = STYLE;
     document.head.appendChild(style);
     if (document.body) initPopover(); else document.addEventListener("DOMContentLoaded", initPopover);
+    // Lessons are authored for desktop only; phones get the same scenes reflowed by the kit, never a separate version,
+    // so agents spend no tokens on mobile. Set before any part lays out, since autoLayout reads it.
+    if (root.matchMedia) {
+      var phone = root.matchMedia("(max-width: 759px), (max-height: 500px) and (pointer: coarse)");
+      var setPhone = function () { document.documentElement.toggleAttribute("data-ltt-mobile", phone.matches); };
+      setPhone();
+      // Graph layouts are computed once for the mode at load, so crossing the breakpoint (devtools device mode) reloads.
+      if (phone.addEventListener) phone.addEventListener("change", function () { root.location.reload(); });
+    }
   }
+  function mobile() { return typeof document !== "undefined" && document.documentElement.hasAttribute("data-ltt-mobile"); }
 
   var LTT = root.LTT = {
-    lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
+    kitBase: KIT, lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
     icon: icon, icons: Object.keys(ICONS), theme: theme, themeTokens: themeTokens, palette: palette, contrast: contrast, mark: mark, marks: Object.keys(MARKS),
     themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
     termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene,
     stepValues: stepValues, goalReach: goalReach,
-    setGlossary: setGlossary, linkTerms: linkTerms
+    setGlossary: setGlossary, linkTerms: linkTerms, mobile: mobile
   };
 })(typeof globalThis !== "undefined" ? globalThis : this);

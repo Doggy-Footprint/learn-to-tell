@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 const SKILL_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const HOST = "127.0.0.1";
 const DEFAULT_PORT = 47823;
+// Installed copies (plugin, claude.ai zip) ship without the gallery; it lives in the repo and on the public site.
+const GALLERY_SITE = "https://learn-to-tell.vercel.app";
 const MAX_BODY = 64 * 1024;
 const LESSON_ID = /^[a-z0-9][a-z0-9-]*$/;
 const TYPES = {
@@ -74,7 +76,8 @@ async function recordEvent(req, res, home, lessonId) {
   send(res, 204, "");
 }
 
-export function createLttServer({ home = lttHome(), skillDir = SKILL_DIR, onRequest = () => {} } = {}) {
+export function createLttServer({ home = lttHome(), skillDir = SKILL_DIR, galleryDir = join(skillDir, "..", "..", "site", "gallery"), onRequest = () => {} } = {}) {
+  const hasGallery = existsSync(galleryDir);
   return createServer(async (req, res) => {
     onRequest();
     try {
@@ -88,11 +91,16 @@ export function createLttServer({ home = lttHome(), skillDir = SKILL_DIR, onRequ
         res.writeHead(302, { Location: "/gallery/index.html" });
         return res.end();
       }
+      if (req.method === "GET" && parts[0] === "gallery" && parts.length > 1) {
+        if (hasGallery) return await serveFile(res, galleryDir, parts.slice(1).join("/"));
+        res.writeHead(302, { Location: GALLERY_SITE + pathname });
+        return res.end();
+      }
       if (req.method === "POST" && parts[0] === "api" && parts[1] === "lessons" && parts[3] === "events" && parts.length === 4) {
         if (!LESSON_ID.test(parts[2])) return send(res, 400, { error: "invalid lesson id" });
         return await recordEvent(req, res, home, parts[2]);
       }
-      if (req.method === "GET" && (parts[0] === "kit" || parts[0] === "gallery") && parts.length > 1) {
+      if (req.method === "GET" && parts[0] === "kit" && parts.length > 1) {
         return await serveFile(res, join(skillDir, parts[0]), parts.slice(1).join("/"));
       }
       if (req.method === "GET" && parts[0] === "map" && parts.length > 1) {

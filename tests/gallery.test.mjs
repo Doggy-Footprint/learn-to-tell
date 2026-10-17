@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 
-const GALLERY = new URL("../skills/learn-to-tell/gallery/", import.meta.url);
+const GALLERY = new URL("../site/gallery/", import.meta.url);
 const pages = readdirSync(GALLERY, { recursive: true })
   .filter((f) => f.endsWith(".html") && !f.startsWith("stale"))
   .map((f) => f.split("\\").join("/"));

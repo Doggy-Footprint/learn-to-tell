@@ -86,17 +86,8 @@ test("lint flags marks without a definition, and terms-scene keys count as defin
     { type: "explain", title: "{{적중}}", steps: [] }, KW] }).includes("unknown-term"));
 });
 
-test("lint caps new terms per scene at two, four in a terms scene", () => {
-  const g = { a: "1", b: "2", c: "3" };
-  assert.ok(rules({ glossary: g, scenes: [{ type: "explain", title: "{{a}} {{b}} {{c}}", steps: [] }, KW] }).includes("too-many-terms"));
-  assert.ok(!rules({ glossary: g, scenes: [{ type: "explain", title: "{{a}} {{b}}", steps: [] }, { type: "explain", title: "{{c}}", steps: [] }, KW] }).includes("too-many-terms"));
-});
-
-test("lint wants predict after an explanation, once per lesson, without new terms in the question", () => {
+test("lint flags new terms in a predict question", () => {
   const p = { type: "predict", title: "몇 건?", choices: [] };
-  assert.ok(rules({ scenes: [{ type: "hook", text: "h" }, p, KW] }).includes("predict-before-explain"));
-  assert.ok(!rules({ scenes: [{ type: "hook", text: "h" }, { type: "explain", title: "e", steps: [] }, p, KW] }).includes("predict-before-explain"));
-  assert.ok(rules({ scenes: [{ type: "explain", title: "e", steps: [] }, p, p, KW] }).includes("many-predicts"));
   const fresh = rules({ glossary: { 적중률: "x" }, scenes: [{ type: "explain", title: "e", steps: [] }, { ...p, question: "{{적중률}}은?" }, KW] });
   assert.ok(fresh.includes("predict-new-term"));
 });
@@ -106,13 +97,6 @@ test("lint requires keywords last and a reading guide on visual scenes", () => {
   const cmp = { type: "compare", title: "c", items: [] };
   assert.ok(rules({ scenes: [cmp, KW] }).includes("no-reading-guide"));
   assert.ok(!rules({ scenes: [{ ...cmp, narration: "칸 하나가 1건이다." }, KW] }).includes("no-reading-guide"));
-});
-
-test("lint keeps narration to four sentences and points to three", () => {
-  const long = "하나다. 둘이다. 셋이다. 넷이다. 다섯이다.";
-  assert.ok(rules({ scenes: [{ title: "t", narration: long, mount() {} }, KW] }).includes("long-narration"));
-  const pts = [1, 2, 3, 4].map((i) => ({ title: "p" + i }));
-  assert.ok(rules({ scenes: [{ title: "t", points: pts, mount() {} }, KW] }).includes("many-points"));
 });
 
 test("lint flags runs and majorities of equal card grids, but not non-card forms", () => {
@@ -366,4 +350,11 @@ test("inspector judges each row against the threshold", () => {
   const html = inspector({ rows: [{ name: "a", fg: "#999999", bg: "#FFFFFF" }, { name: "b", fg: "#595959", bg: "#FFFFFF" }] });
   assert.match(html, /class='r fail'.*2\.85.*미달/s);
   assert.match(html, /class='r pass'.*7\.00.*통과/s);
+});
+
+test("icon renders unknown names as escaped text so emoji are not dropped", () => {
+  const { icon } = loadKit();
+  assert.match(icon("🚀"), /^<span class='ltt-ic' aria-hidden='true'>🚀<\/span>$/);
+  assert.equal(icon("<b>").includes("<b>"), false);
+  assert.equal(icon(""), "");
 });

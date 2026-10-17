@@ -89,7 +89,7 @@ Learn to Tell은 함께 작업하는 AI agent가 skill로 제공하는 짧은 �
   - 수치 어휘(초안): `param`(실사용 범위 슬라이더), `model`, `predict`(예측 후 공개), `sweep`, `compare`(전후 비교), `expect`(기대값 대조).
   - 비수치 어휘(필수, 초안): 조건을 켜고 끄면 추천이 바뀌는 비교표, 단계별 상태·흐름 다이어그램, 코드 예시 변형 비교.
 - **kit은 라이브러리로 제공한다**(2026-10-14). 모듈은 `ltt.js`(토큰·폰트·아이콘·용어·lint·기록·검증), `ltt-parts.js`(움직이는 그림), `ltt-ui.js`(설명 부품), `ltt-mock.js`(목업), `ltt-deck.js`(장면 덱)다. API는 `kit/API.md`, 실물과 코드는 `gallery/catalog.html`에 있다. agent는 빈 파일에서 부품을 조합해 수업을 짠다. 처음에는 가장 비슷한 gallery 페이지를 복사해 데이터만 고치게 했으나, 사용자가 "하나의 html 템플릿을 복사해서 쓰는 건 원하는 방향이 아니다, 라이브러리를 제공하라"고 거부했다.
-- **예제 모음(gallery)**: 조합 예시 수업 8편(cache-ttl, uiux/color-contrast, gpu/single-gpu-dataflow, physics/projectile-drag, cognition/anchoring, finance/diversification, pedagogy/retrieval-practice, linear-algebra/matrix-as-transform), 장면 타입 데모(`scenes.html`), 부품 카탈로그(`catalog.html`), 시나리오 목록(`index.html`). 옛 kit으로 만든 나머지 14편은 `gallery/stale/`에 있고 새 kit에서는 동작하지 않는다.
+- **예제 모음(gallery)**: 조합 예시 수업 9편(cache-ttl, uiux/color-contrast, gpu/single-gpu-dataflow, physics/projectile-drag, cognition/anchoring, finance/diversification, pedagogy/retrieval-practice, linear-algebra/matrix-as-transform, knowledge-graph/ontology-triples), 장면 타입 데모(`scenes.html`), 부품 카탈로그(`catalog.html`), 시나리오 목록(`index.html`). 옛 kit으로 만든 나머지 14편은 `gallery/stale/`에 있고 새 kit에서는 동작하지 않는다.
 - **퀴즈·평가·map 갱신은 대화에서** 처리한다.
 - **경량 로컬 서버**: 수업 HTML과 kit를 제공하고, 브라우저에서 생긴 결과(예측 등)를 받아 agent가 읽을 수 있게 한다. Node.js 표준 라이브러리만 쓰고 127.0.0.1에만 bind한다(`server/server.mjs`). agent가 백그라운드로 시작하고, 같은 포트에서 이미 실행 중이면 재사용하며, 요청 없이 120분이 지나면 스스로 종료한다. 결과는 `lessons/<id>/events.jsonl`에 쌓이고 agent가 직접 읽는다.
 - **배포**: harness 확장으로 배포한다(`agent-docs/adr/190db09929e4196e-distribute-as-harness-extension.md`). 원본은 `skills/learn-to-tell/`이다.

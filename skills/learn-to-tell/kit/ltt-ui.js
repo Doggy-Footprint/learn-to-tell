@@ -186,7 +186,7 @@
     };
   }
 
-  // side: {visual, points, label, tone, foot: {label, visual}, pointsOn}; `pointsOn` picks the marker target inside the stage.
+  // side: {visual, points, label, tone, foot: {label, caption, visual}, pointsOn}; `pointsOn` picks the marker target inside the stage.
   function beforeAfter(spec, ctx) {
     var w = h("div", "ltt-ba"), sides = {}, annos = [];
     ["before", "after"].forEach(function (key, k) {
@@ -243,7 +243,7 @@
     return w;
   }
 
-  // items: [{color, label, w, h, r}] in px; a swatch row for "what was used" style mini-infographics.
+  // items: [{color, label, w, h, r, border}] in px; a swatch row for "what was used" style mini-infographics.
   function swatches(items, opts) {
     opts = opts || {};
     var w = h("div", "ltt-sw"), row = h("div", "row");
@@ -285,7 +285,7 @@
     return { el: w, foot: function () { if (o.source) w.appendChild(h("p", "src", o.source)); return w; } };
   }
 
-  // Design-tool style contrast check. rows: [{name, fg, bg, ratio, swatch}]; ratio defaults to LTT.contrast(fg, bg).
+  // Design-tool style contrast check. rows: [{name, fg, bg, ratio}]; ratio defaults to LTT.contrast(fg, bg).
   function inspector(o) {
     var min = o.min || 4.5, label = o.level || "AA " + min;
     return "<div class='ltt-insp'><header>" + (o.title || "CONTRAST CHECK") + "</header>" + o.rows.map(function (r, i) {

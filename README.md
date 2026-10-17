@@ -82,6 +82,7 @@ https://learn-to-tell.vercel.app 에서 실제 생성 형식의 수업을 볼 �
 | [행렬 = 변환](https://learn-to-tell.vercel.app/gallery/linear-algebra/matrix-as-transform.html) | 선형대수 | 행렬을 격자 변형으로 읽기 |
 | [앵커링](https://learn-to-tell.vercel.app/gallery/cognition/anchoring.html) | 인지심리 | 첫 숫자가 판단에 남기는 영향 |
 | [인출 연습](https://learn-to-tell.vercel.app/gallery/pedagogy/retrieval-practice.html) | 교육학 | 다시 읽기 vs 떠올리기 |
+| [온톨로지 기초](https://learn-to-tell.vercel.app/gallery/knowledge-graph/ontology-triples.html) | 지식 표현 | 테이블 스키마로 충분한가, 온톨로지·SHACL을 얹어야 하는가 |
 
 수업은 폭 1280px 이상의 데스크톱 브라우저를 기준으로 만든다.
 
@@ -91,19 +92,60 @@ https://learn-to-tell.vercel.app 에서 실제 생성 형식의 수업을 볼 �
 skills/learn-to-tell/
 ├── SKILL.md      # agent가 따르는 절차: 진단 → 범위 → 자료 → 검증 → 확인 → 복귀 → map
 ├── kit/          # 수업 생성용 부품 라이브러리 (장면 덱, 도식, 차트, lint, 기대값 대조)
-├── gallery/      # 예시 수업 (Vercel 배포 대상)
+├── map/          # 지식 map CLI(ltt-map)와 뷰어, standalone 수업 import
 ├── server/       # 로컬 수업 서버 + 학습 이벤트 기록 (127.0.0.1:47823)
-└── hooks/        # background.md 크기 관리
+├── standalone.md # claude.ai(웹·모바일)용 artifact 수업 절차
+└── hooks/        # background.md 크기 관리 (Claude Code 전용)
+site/gallery/     # 예시 수업 (Vercel 배포 대상, skill 패키지에는 포함되지 않음)
+packages/ltt-kit/ # kit npm 패키지 (artifact 수업이 jsDelivr로 불러옴)
+.claude-plugin/   # Claude Code plugin manifest
 tests/            # node --test 기반 kit·서버·gallery 테스트
 agent-docs/adr/   # 주요 설계 결정과 기각한 대안
 ```
 
 설계 결정은 `agent-docs/adr/`에 기각한 대안과 함께 남겨 두었다. 예를 들어 v0를 폐기하고 최소 설계로 다시 쓴 이유, 정리 장면을 "그림 요약"이 아니라 "회상 질문 → 답 공개"로 둔 이유, 수업 하나의 피드백을 그 수업이 아니라 생성기(skill·kit)에서 고친다는 규칙 등이다.
 
+## 설치
+
+### Claude Code (plugin)
+
+```bash
+claude plugin marketplace add Doggy-Footprint/claude-plugins
+claude plugin install learn-to-tell@doggy-footprint
+```
+
+**자동 업데이트**: 서드파티 marketplace는 auto-update가 기본으로 꺼져 있다. `/plugin` → Marketplaces → `doggy-footprint` → Enable auto-update를 켜면 Claude Code를 시작할 때 새 버전을 받는다.
+
+수동 업데이트:
+
+```bash
+claude plugin marketplace update doggy-footprint
+claude plugin update learn-to-tell@doggy-footprint
+```
+
+marketplace는 이 repo의 `master`를 가리키지만, 설치본은 `plugin.json`의 `version`이 바뀌어야 새 버전으로 인식한다. 그래서 배포할 때마다 `version`을 올린다(올리면 claude.ai용 릴리스도 같이 나간다).
+
+### claude.ai (웹·모바일 앱)
+
+모바일 앱에서는 skill을 업로드할 수 없으므로 PC 웹에서 한 번 올린다. 올린 skill은 같은 계정의 모바일 앱에서도 쓸 수 있다.
+
+1. [최신 릴리스의 `learn-to-tell.zip`](https://github.com/Doggy-Footprint/learn-to-tell/releases/latest/download/learn-to-tell.zip)을 받는다(압축은 풀지 않는다).
+2. claude.ai 설정에서 코드 실행(Code execution)을 켠다.
+3. Customize → Skills → `+` → Create skill → Upload a skill에서 zip을 올린다.
+
+**자동 업데이트되지 않는다.** 대신 skill이 시작할 때 GitHub 최신 릴리스와 자기 버전을 비교해, 새 버전이 있으면 대화 첫머리에 한 줄로 알려 준다(웹 fetch가 막혀 있으면 알림 없이 넘어감). 업데이트하려면 PC 웹에서 기존 skill을 지우고 위 링크의 새 zip을 다시 올린다. 이전에 만든 수업 artifact는 kit을 버전 고정 CDN 주소로 불러오므로 skill을 업데이트하지 않아도 계속 열린다.
+
+claude.ai에는 로컬 서버와 `~/.learn-to-tell`이 없으므로 수업은 **standalone artifact**(제목 `LTT · <주제>`)로 만들어지고, 이해 확인이 끝나면 결과(`result.md`)가 artifact 안에 담긴다. 나중에 Claude Code에서
+
+```
+/learn-to-tell import
+```
+
+를 실행하면 `LTT · ` artifact를 찾아 `~/.learn-to-tell/lessons/`로 가져오고 지식 map을 갱신한다. 목록에서 찾지 못하면 artifact 링크나 결과 텍스트를 붙여 넣으면 된다(`node <skill>/map/ltt-map.mjs import <html|md>`).
+
 ## 사용
 
 ```bash
-# 이 저장소를 Claude Code 프로젝트로 열면 .claude/skills/learn-to-tell 로 skill이 잡힌다
 # 작업 세션에서
 /fork
 # fork된 세션에서
@@ -112,11 +154,19 @@ agent-docs/adr/   # 주요 설계 결정과 기각한 대안
 # 테스트
 npm test
 
+# claude.ai용 zip (dist/learn-to-tell.zip) / kit npm 패키지 내용 채우기
+npm run build:zip
+npm run build:kit
+
 # 갤러리를 로컬에서 보기 → http://127.0.0.1:47823/gallery/index.html
 node skills/learn-to-tell/server/server.mjs
 ```
 
 서버는 127.0.0.1에만 열리고 2시간 동안 요청이 없으면 스스로 종료된다. 포트는 `LTT_PORT`, 종료 대기 시간은 `LTT_IDLE_MINUTES`로 바꾼다. 같은 포트에 이미 learn-to-tell 서버가 떠 있으면 새로 띄우지 않고 그대로 종료하므로, 다른 worktree의 파일을 보려면 포트를 바꿔 띄운다.
+
+### 릴리스
+
+`master`에 push하면 `.github/workflows/release.yml`이 테스트 후, `.claude-plugin/plugin.json`의 `version`에 해당하는 태그 `v<version>`이 아직 없을 때만 릴리스한다: kit을 npm(`@doggy-footprint/ltt-kit`)에 publish하고, `learn-to-tell.zip`을 첨부한 GitHub Release를 만든다. 릴리스하려면 `.claude-plugin/plugin.json`과 `packages/ltt-kit/package.json`의 `version`을 함께 올린다(다르면 커밋과 CI가 실패한다. 커밋 검사는 `npm run setup:hooks`로 한 번 설치). npm publish에는 저장소 secret `NPM_TOKEN`이 필요하다.
 
 개인 학습 기록은 `~/.learn-to-tell/`(또는 `$LTT_HOME`)에 저장된다.
 
