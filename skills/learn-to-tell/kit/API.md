@@ -208,7 +208,7 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `statement` | `title`(큰 주장 한 문장, `<em>`은 강조색), `sub`, `visual`(작은 근거 그림, 선택). 카드 없이 리듬을 바꾸는 장면 |
 | `contrast` | `before`, `after`(위 beforeAfter의 각 쪽) |
 | `compare` | `items: [{label, visual, tone, verdict, note, noteAfter, enter, onReveal, onReset}]`, `form`, `cols`, `reveal`, `revealLabel`. `form: "table"`이면 사례가 행이 되는 비교표(라벨 \| 그림 \| 판정), `head: ["라벨 열", "그림 열", "판정 열"]`은 열 머리글 |
-| `predict` | `choices`, `answer`, `question`, `hint`, `visual`, `answerVisual`, `why`, `button`, `unsure`, `reveal`, `onReset` |
+| `predict` | `choices`, `answer`, `question`, `hint`, `visual`, `answerVisual`, `why`, `button`, `unsure`, `reveal`, `onReset`, `rest`. `rest`는 정답 공개 뒤 고르지 않은 오답의 모습: `"hide"`(기본, 자리만 남기고 숨김) · `"dim"`(흐리게) · `"dot"`(점으로). 어느 쪽이든 자리를 유지해 화면이 흔들리지 않는다. 덱 전체 기본값은 `LTT.deck({predictRest})` |
 | `summary` | 앞 장면의 `takeaway`를 모은다. `recall`이 있으면 글 목록의 인출 연습이 된다: 질문 → 입력칸(선택) → "답 보기" → takeaway·`ask`. 공개할 때 `recall` 이벤트(`{scene, question, answer}`)를 남긴다. `recall`이 없으면 카드 격자. `cards: [{n, title, text, ask, recall}]`로 직접 줄 수도 있다. `extra: {title, text}`는 마지막 항목 |
 | `keywords` | `terms: [{ko, en}]`, `signals`, `queries`, `neighbors: [{term, diff}]`. 작성하는 마지막 장면. 그 뒤에 `map-related` 장면이 `/map/data.json`에서 자동으로 붙는다(이어진 개념이 없으면 없음). 직접 쓰지 않는다 |
 | (없음) | `mount`로 그리는 커스텀 장면 |

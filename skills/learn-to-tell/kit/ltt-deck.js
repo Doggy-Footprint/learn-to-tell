@@ -147,8 +147,12 @@
     ".dk-pred .ltt-choices button.unsure{color:var(--ltt-muted);font-weight:500;box-shadow:inset 0 0 0 1.5px var(--ltt-line-2);border:0;background:transparent}",
     ".dk-pred .ltt-choices button.unsure.wrong{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
     ".dk-hint2{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ltt-muted);margin:0}",
-    ".dk-pred.done .dk-hint2,.dk-pred.done>.dk-actions{display:none}",
-    ".dk-pred.done .ltt-choices button:not(.right):not([aria-pressed=true]){display:none}",
+    /* Revealing keeps every choice's box in place: removing them reflowed the scene mid-step and shook the frame. */
+    ".dk-pred.done .dk-hint2,.dk-pred.done>.dk-actions{visibility:hidden}",
+    ".dk-pred.done.rest-hide .ltt-choices button:not(.right):not([aria-pressed=true]){visibility:hidden}",
+    ".dk-pred.done.rest-dim .ltt-choices button:not(.right):not([aria-pressed=true]){opacity:.35}",
+    ".dk-pred.done.rest-dot .ltt-choices button:not(.right):not([aria-pressed=true]){color:transparent;position:relative}",
+    ".dk-pred.done.rest-dot .ltt-choices button:not(.right):not([aria-pressed=true])::after{content:'';position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:var(--ltt-muted)}",
     ".dk-ans{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:clamp(12px,2vw,24px);align-items:center}",
     ".dk-ans.solo{grid-template-columns:1fr}",
     ".dk-avis{background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:var(--ltt-r-lg);padding:clamp(14px,1.8vw,24px);box-shadow:var(--ltt-shadow)}",
@@ -417,7 +421,9 @@
     },
     // A low-stakes guess, not a quiz: "모르겠다" is always offered and the answer arrives as an infographic.
     predict: function (s, body, ctx) {
-      var w = h("div", "dk-pred");
+      var rest = s.rest || ctx.predictRest || "hide";
+      if (["hide", "dim", "dot"].indexOf(rest) < 0) { LTT.warn("predict rest \"" + rest + "\"는 hide·dim·dot 중 하나여야 한다. hide로 둔다."); rest = "hide"; }
+      var w = h("div", "dk-pred rest-" + rest);
       var box = h("div");
       var choices = s.choices.concat(s.unsure === false ? [] : [{ id: "unsure", text: "잘 모르겠다" }]);
       choices.forEach(function (c) {
@@ -726,7 +732,7 @@
     });
 
     function mount(i) {
-      var s = scenes[i], el = stage.children[i], ctx = { el: el, scene: s, index: i, scenes: scenes };
+      var s = scenes[i], el = stage.children[i], ctx = { el: el, scene: s, index: i, scenes: scenes, predictRest: spec.predictRest };
       var inner = el.appendChild(h("div", "dk-in"));
       if (!NO_HEAD[s.type]) {
         var head = inner.appendChild(h("div", "dk-head"));
