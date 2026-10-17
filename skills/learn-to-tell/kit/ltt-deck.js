@@ -390,10 +390,11 @@
         } else fill(pic, s.figure, ctx);
         var api = ret && ret.el ? ret : pic;
         var ctl = row.appendChild(h("div", "ctl"));
-        // Steps may grow the drawing, so the picture keeps the tallest height seen per layout and window width, and a step
-        // that grows it re-runs placement; once a step pushed the captions below they stay there for that width.
-        var tallest = { side: 0, stack: 0 }, seenW = innerWidth;
-        LTT.stepper(ctl, s.steps.map(function (x) {
+        // Steps may grow the drawing, so on entry and per window size every step is run once (their enter() is idempotent
+        // already, since looping jumps from the last step to the first) to fix the picture's height and the caption side
+        // up front. A step that still grows the picture later (async drawing) re-runs placement through the ratchet.
+        var tallest = { side: 0, stack: 0 }, probed = null, stuck = false;
+        var sp = LTT.stepper(ctl, s.steps.map(function (x) {
           return { caption: x.caption, enter: function (k, dir) { if (x.enter) x.enter(k, api, dir); } };
         }), { onStep: function () {
           requestAnimationFrame(function () {
@@ -413,18 +414,38 @@
         });
         ctl.__lttPlace = { scope: pic, keepFaded: true };
         function layout(mode) {
-          if (seenW !== innerWidth) { seenW = innerWidth; tallest = { side: 0, stack: 0 }; }
           row.classList.toggle("stack", mode === "stack");
           pic.style.minHeight = tallest[mode] ? tallest[mode] + "px" : "";
           ctx.refit();
         }
+        function under() {
+          var c = ctl.getBoundingClientRect(), box = { x0: c.left, y0: c.top, x1: c.right, y1: c.bottom };
+          return solidRects(pic, null, null, true).some(function (o) { return LTT.rectHit(box, o); });
+        }
+        function eachStep(fn) {
+          s.steps.forEach(function (x, k) { if (x.enter) x.enter(k, api, 1); fn(); });
+        }
+        function probe() {
+          tallest = { side: 0, stack: 0 };
+          stuck = innerWidth <= 760;
+          if (!stuck) {
+            layout("side");
+            eachStep(function () { tallest.side = Math.max(tallest.side, pic.offsetHeight); stuck = stuck || under(); });
+          }
+          if (stuck) {
+            layout("stack");
+            eachStep(function () { tallest.stack = Math.max(tallest.stack, pic.offsetHeight); });
+          }
+          var x = s.steps[sp.index];
+          if (x.enter) x.enter(sp.index, api, 1);
+        }
         // The captions sit beside the picture only while no text, control or diagram box of the picture runs under them.
         ctx.place = function () {
-          var wasStack = row.classList.contains("stack") && seenW === innerWidth;
-          if (wasStack || innerWidth <= 760) return layout("stack");
+          var key = innerWidth + "x" + innerHeight + document.fonts.status;
+          if (key !== probed) { probed = key; probe(); }
+          if (stuck) return layout("stack");
           layout("side");
-          var c = ctl.getBoundingClientRect(), box = { x0: c.left, y0: c.top, x1: c.right, y1: c.bottom };
-          if (solidRects(pic, null, null, true).some(function (o) { return LTT.rectHit(box, o); })) layout("stack");
+          if (under()) { stuck = true; layout("stack"); }
         };
         ctx.unplace = function () { row.classList.remove("stack"); pic.style.minHeight = ""; };
       } else fill(st, s.figure, ctx);
