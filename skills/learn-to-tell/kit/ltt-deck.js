@@ -115,7 +115,10 @@
     ".dk-fig{margin:0;display:flex;flex-direction:column;gap:12px;min-width:0}",
     ".dk-fig-stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:min(30vh,320px);min-width:0}",
     ".dk-fig-stage>*{max-width:100%}",
-    ".dk-figsteps{display:grid;grid-template-columns:auto minmax(0,420px);gap:clamp(24px,4vw,60px);align-items:center}",
+    /* An `auto` picture track let a fixed-width SVG spill past its cell under the captions near 1000px; the picture now takes
+       the leftover width and scales down inside it. */
+    ".dk-figsteps{display:grid;width:100%;grid-template-columns:minmax(0,1fr) minmax(240px,400px);gap:clamp(20px,3vw,60px);align-items:center}",
+    ".dk-figsteps>.pic{display:flex;justify-content:center}.dk-figsteps>.pic>svg,.dk-figsteps>.pic>*{max-width:100%;height:auto}",
     ".dk-figsteps>*{min-width:0}.dk-figsteps .ltt-caption{font-size:clamp(15px,1.3vw,18px);line-height:1.6}",
     ".dk-fig figcaption{font-size:clamp(14px,1.2vw,16px);color:var(--ltt-ink-2);line-height:1.55;max-width:90ch;border-top:1px solid var(--ltt-line-2);padding-top:10px}",
     ".dk-fig figcaption b{font-family:var(--ltt-font-display);margin-right:6px;color:var(--ltt-ink)}",
@@ -148,7 +151,11 @@
     ".dk-pred .ltt-choices button.unsure.wrong{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
     ".dk-hint2{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ltt-muted);margin:0}",
     /* Revealing keeps every choice's box in place: removing them reflowed the scene mid-step and shook the frame. */
-    ".dk-pred.done .dk-hint2,.dk-pred.done>.dk-actions{visibility:hidden}",
+    /* The answer lays over the question in one grid cell, so revealing it does not grow the scene and trigger a refit. */
+    ".dk-stack{display:grid}.dk-stack>*{grid-area:1/1;min-width:0}",
+    ".dk-ask{display:flex;flex-direction:column;gap:12px;transition:opacity .35s}.dk-pred.done .dk-ask{opacity:.12;pointer-events:none}",
+    ".dk-pred .dk-stack>.dk-ans{align-self:center;z-index:1}",
+    ".dk-pred.done .dk-hint2,.dk-pred.done .dk-ask>.dk-actions{visibility:hidden}",
     ".dk-pred.done.rest-hide .ltt-choices button:not(.right):not([aria-pressed=true]){visibility:hidden}",
     ".dk-pred.done.rest-dim .ltt-choices button:not(.right):not([aria-pressed=true]){opacity:.35}",
     ".dk-pred.done.rest-dot .ltt-choices button:not(.right):not([aria-pressed=true]){color:transparent;position:relative}",
@@ -440,14 +447,17 @@
       why.appendChild(h("div", "dk-actions")).appendChild(rs);
       ans.append(av, why);
       if (s.visual) fill(w.appendChild(h("div", "dk-pvis")), s.visual, ctx);
-      w.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, h("div", "dk-actions"), ans);
-      w.querySelector(".dk-actions").appendChild(lock);
+      var stack = w.appendChild(h("div", "dk-stack")), ask = stack.appendChild(h("div", "dk-ask"));
+      ask.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, h("div", "dk-actions"));
+      stack.appendChild(ans);
+      ask.querySelector(".dk-actions").appendChild(lock);
       body.appendChild(w);
       var gate = { btn: lock, alt: box, word: "정답" };
       ctx.gate = gate;
       var pr = LTT.predict({ question: s.question || s.title, choices: box, button: lock, answer: s.answer, show: [ans],
         onReset: function () {
           w.classList.remove("done");
+          ask.inert = false;
           ctx.gate = gate;
           av.replaceChildren();
           if (s.onReset) s.onReset();
@@ -456,6 +466,10 @@
         reveal: function (v) {
           ctx.gate = null;
           w.classList.add("done");
+          // The faded question stays under the answer, so it leaves the tab order and focus moves to the answer.
+          ask.inert = true;
+          why.tabIndex = -1;
+          why.focus({ preventScroll: true });
           if (typeof s.answerVisual === "function") s.answerVisual(av, v);
           else if (s.answerVisual) av.innerHTML = s.answerVisual;
           LTT.linkTerms(ans, ctx.index);
