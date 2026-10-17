@@ -147,7 +147,7 @@
     ".dk-pred .ltt-choices button.unsure{color:var(--ltt-muted);font-weight:500;box-shadow:inset 0 0 0 1.5px var(--ltt-line-2);border:0;background:transparent}",
     ".dk-pred .ltt-choices button.unsure.wrong{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
     ".dk-hint2{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ltt-muted);margin:0}",
-    ".dk-pred.done .dk-hint2,.dk-pred.done .dk-actions{display:none}",
+    ".dk-pred.done .dk-hint2,.dk-pred.done>.dk-actions{display:none}",
     ".dk-pred.done .ltt-choices button:not(.right):not([aria-pressed=true]){display:none}",
     ".dk-ans{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:clamp(12px,2vw,24px);align-items:center}",
     ".dk-ans.solo{grid-template-columns:1fr}",
@@ -304,15 +304,21 @@
       body.appendChild(w);
       if (s.reveal === false) w.classList.add("shown");
       else {
-        var b = h("button", null, s.revealLabel || "판정 보기");
+        var b = h("button", null, s.revealLabel || "판정 보기"), rs = h("button", "ghost ltt-hidden", "초기화");
         b.onclick = function () {
-          w.classList.add("shown"); b.disabled = true;
+          w.classList.add("shown"); b.disabled = true; rs.classList.remove("ltt-hidden");
           s.items.forEach(function (it, k) { if (it.onReveal) it.onReveal(cells[k].querySelector(".vis")); });
           LTT.linkTerms(w, ctx.index);
           ctx.fit();
           LTT.record("compare-reveal", { scene: s.title });
         };
-        body.appendChild(h("div", "dk-actions")).appendChild(b);
+        rs.onclick = function () {
+          w.classList.remove("shown"); b.disabled = false; rs.classList.add("ltt-hidden");
+          s.items.forEach(function (it, k) { if (it.onReset) it.onReset(cells[k].querySelector(".vis")); });
+          ctx.fit();
+          LTT.record("compare-reset", { scene: s.title });
+        };
+        body.appendChild(h("div", "dk-actions")).append(b, rs);
       }
       return { enter: function () { rise(cells); s.items.forEach(function (it, k) { if (it.enter) it.enter(cells[k].querySelector(".vis")); }); } };
     },
@@ -379,12 +385,20 @@
       var av = h("div", "dk-avis");
       var why = h("div", "dk-why", LTT.badge("accent", "정답과 이유") + "<p></p>");
       why.querySelector("p").innerHTML = s.why || "";
+      var rs = h("button", "ghost", "초기화");
+      why.appendChild(h("div", "dk-actions")).appendChild(rs);
       ans.append(av, why);
       if (s.visual) fill(w.appendChild(h("div", "dk-pvis")), s.visual, ctx);
       w.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, h("div", "dk-actions"), ans);
       w.querySelector(".dk-actions").appendChild(lock);
       body.appendChild(w);
-      LTT.predict({ question: s.question || s.title, choices: box, button: lock, answer: s.answer, show: [ans],
+      var pr = LTT.predict({ question: s.question || s.title, choices: box, button: lock, answer: s.answer, show: [ans],
+        onReset: function () {
+          w.classList.remove("done");
+          av.replaceChildren();
+          if (s.onReset) s.onReset();
+          ctx.fit();
+        },
         reveal: function (v) {
           w.classList.add("done");
           if (typeof s.answerVisual === "function") s.answerVisual(av, v);
@@ -393,6 +407,7 @@
           if (s.reveal) s.reveal(v);
           ctx.fit();
         } });
+      rs.onclick = pr.reset;
       return {};
     },
     // With `recall` questions the recap is retrieval practice in plain text: the question comes first and the takeaway

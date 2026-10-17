@@ -180,7 +180,7 @@
 
   // The first prediction is locked and recorded once; later slider moves are exploration, not prediction.
   function predict(opts) {
-    var locked = false;
+    var locked = false, tries = 0;
     var input = el(opts.input);
     var choices = opts.choices ? el(opts.choices) : null;
     var button = el(opts.button);
@@ -209,7 +209,8 @@
       locked = true;
       button.disabled = true;
       if (input) input.disabled = true;
-      LTT.record("predict", { question: opts.question, guess: value });
+      LTT.record("predict", tries ? { question: opts.question, guess: value, retry: true } : { question: opts.question, guess: value });
+      tries++;
       if (choices && opts.answer != null) {
         choices.querySelectorAll("button").forEach(function (b) {
           if (b.dataset.choice === String(opts.answer)) b.classList.add("right");
@@ -218,6 +219,7 @@
       }
       (opts.hide || []).forEach(function (x) { el(x).classList.add("ltt-hidden"); });
       setTimeout(function () {
+        if (!locked) return;
         (opts.show || []).forEach(function (x) {
           var n = el(x);
           n.classList.remove("ltt-hidden");
@@ -226,7 +228,22 @@
         if (opts.reveal) opts.reveal(value);
       }, MOTION_MS ? 350 : 0);
     });
-    return { get value() { return value; }, get locked() { return locked; } };
+    // The first guess stays in the record; a reset only opens the question again, logged as its own event.
+    function reset() {
+      if (!locked) return;
+      locked = false;
+      if (input) { input.disabled = false; onInput(); }
+      if (choices) {
+        value = null;
+        button.disabled = true;
+        choices.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", "false"); b.classList.remove("right", "wrong"); });
+      } else button.disabled = false;
+      (opts.show || []).forEach(function (x) { var n = el(x); n.classList.add("ltt-hidden"); n.classList.remove("ltt-rise"); });
+      (opts.hide || []).forEach(function (x) { el(x).classList.remove("ltt-hidden"); });
+      LTT.record("predict-reset", { question: opts.question });
+      if (opts.onReset) opts.onReset();
+    }
+    return { reset: reset, get value() { return value; }, get locked() { return locked; } };
   }
 
   // Each parameter is a control {read, write, raws}; `map` turns its raw position into the value render() gets.
@@ -519,8 +536,20 @@
     var next = document.createElement("button"); next.textContent = "다음 →";
     var dots = document.createElement("div"); dots.className = "ltt-dots";
     steps.forEach(function () { dots.appendChild(document.createElement("i")); });
-    bar.append(prev, next, dots);
+    var loop = document.createElement("button"); loop.className = "ghost"; loop.textContent = "▶ 반복 재생";
+    bar.append(prev, next, loop, dots);
     container.append(caption, bar);
+    var timer = null;
+    function stop() { clearInterval(timer); timer = null; loop.textContent = "▶ 반복 재생"; loop.setAttribute("aria-pressed", "false"); }
+    function play() {
+      stop();
+      loop.textContent = "■ 정지"; loop.setAttribute("aria-pressed", "true");
+      timer = setInterval(function () {
+        if (!container.isConnected) return stop();
+        go(i === steps.length - 1 ? 0 : i + 1, 1);
+      }, opts.interval || 1800);
+    }
+    loop.onclick = function () { if (timer) stop(); else play(); };
     function go(k, dir) {
       k = Math.max(0, Math.min(steps.length - 1, k));
       i = k;
@@ -532,10 +561,10 @@
       steps[k].enter(k, dir || 1);
       if (opts.onStep) opts.onStep(k);
     }
-    prev.onclick = function () { go(i - 1, -1); };
-    next.onclick = function () { go(i + 1, 1); };
+    prev.onclick = function () { stop(); go(i - 1, -1); };
+    next.onclick = function () { stop(); go(i + 1, 1); };
     go(0, 1);
-    return { go: go, get index() { return i; } };
+    return { go: go, play: play, stop: stop, get index() { return i; } };
   }
 
   // A step's packet flow repeats while the step stays current, so a viewer who looks late still sees which leg is slow.

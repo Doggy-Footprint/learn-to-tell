@@ -63,6 +63,9 @@
     const pad = Math.min(...lines.filter((l) => l.trim()).map((l) => l.match(/^ */)[0].length));
     return lines.map((l) => l.slice(pad)).join("\n");
   }
+  // Animations replay each time their demo scrolls into view; run at build time they would finish before anyone reaches them.
+  const seen = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) e.target._play(); }), { threshold: 0.35 });
+  function whenSeen(el, play) { const d = el.closest(".demo"); d._play = play; seen.observe(d); }
   function group(title) { root.appendChild(Object.assign(document.createElement("h2"), { className: "grp", textContent: title })); }
   function demo(name, sig, when, build) {
     const d = div("demo");
@@ -128,7 +131,7 @@
       { at: [93, 82], title: "강조는 하나", text: "가장 중요한 막대만 포인트 컬러.", tone: "good" },
     ]);
     el.appendChild(a.list);
-    a.replay();
+    whenSeen(el, () => a.replay());
   });
   demo("beforeAfter", "LTT.beforeAfter({before, after})", "<b>같은 대상의 실패 예와 고친 예.</b> 각 쪽은 <code>{visual, points, foot}</code>. 덱에서는 <code>type: \"contrast\"</code> 장면이 이것을 쓴다. 고친 이유는 번호 해설에 적는다.", (el) => {
     const card = (bg, fg) => () => { const p = LTT.mock.phone({ width: 150, ratio: "9/12" }); p.screen.innerHTML = `<b>안내</b><div style="color:${fg};font-size:12px">변경 사항은 저장 후 적용돼요.</div><div style="margin-top:auto;background:${bg};color:#fff;border-radius:10px;padding:8px;text-align:center;font-weight:800;font-size:12px">저장</div>`; return p.el; };
@@ -137,7 +140,7 @@
       after: { visual: card("#d70015", "#767676"), points: [{ at: [80, 42], title: "#767676 4.54:1", text: "AA 통과." }] },
     });
     el.appendChild(ba.el);
-    ba.replay();
+    whenSeen(el, () => ba.replay());
   });
   demo("facts", "LTT.facts([{icon, value, label, tone}])", "<b>상황의 조건을 숫자 카드로.</b> predict 장면의 <code>visual</code>에 넣으면 무엇을 근거로 짐작할지 보인다.", () => {
     return LTT.facts([
@@ -345,13 +348,14 @@
   demo("lanes", "LTT.lanes(svg | el, {axis: {max, step, fmt}, lanes: [{l, s, value, text, color}]}) → {play}", "<b>시간이 어디서 드는가.</b> 단계마다 한 줄, 모두 같은 시간 축이라 300배 차이가 길이로 읽힌다.", (el) => {
     const ln = LTT.lanes(el, { axis: { max: 120, step: 20, fmt: (d) => d + " ms" },
       lanes: [{ l: "DNS + TLS", s: "첫 연결만", value: 38 }, { l: "서버 처리", s: "DB 쿼리 2회", value: 22 }, { l: "응답 전송", s: "1.2 MB", value: 96, k: "bad" }] });
-    ln.play();
+    whenSeen(el, () => ln.play());
   });
   demo("chartFrame · hbars", "LTT.chartFrame({title, dek, source}) · LTT.hbars(el, {domain, ticks, rows}) → {play}", "<b>신문식 차트 틀과 고정 축 가로 막대.</b> 헤드라인이 주장, dek이 단위·조건, 아래 출처. hbars의 <code>tone: \"floor\"</code>는 넘을 수 없는 바닥을 점선으로 그린다. ledger 테마와 잘 맞는다.", (el) => {
     const f = LTT.chartFrame({ title: "섞을수록 줄지만 바닥이 있다", dek: "변동성(%), 서로 상관계수 0.3", source: "모델로 계산한 예시" });
     el.appendChild(f.el);
-    LTT.hbars(f.el, { domain: [0, 20], ticks: [0, 10, 20], fmt: (v) => v.toFixed(1) + "%",
-      rows: [{ label: "1개", value: 20 }, { label: "10개", value: 12.2 }, { label: "무한히 많이", value: 11, tone: "floor" }] }).play();
+    const hb = LTT.hbars(f.el, { domain: [0, 20], ticks: [0, 10, 20], fmt: (v) => v.toFixed(1) + "%",
+      rows: [{ label: "1개", value: 20 }, { label: "10개", value: 12.2 }, { label: "무한히 많이", value: 11, tone: "floor" }] });
+    whenSeen(el, () => hb.play());
     f.foot();
   });
   demo("plot", "LTT.plot(options) · LTT.plotTheme(options)", "<b>막대·선·점·분포는 Observable Plot.</b> <code>LTT.plot</code>은 테마 팔레트, 모노 눈금, 투명 배경을 기본으로 넣은 <code>Plot.plot</code>이다. 옵션은 Plot 그대로. <code>plot.umd.min.js</code>가 필요하다.", (el) => {
@@ -377,9 +381,12 @@
     el.innerHTML = `<div style="display:flex;gap:20px;align-items:center"><div id="cu" style="width:160px"></div><div style="flex:1"><div class="ltt-stat"><span id="cn">0</span><small>/ 100</small></div><div id="cb" style="margin-top:10px"></div></div></div>`;
     const u = LTT.units("cu", 100);
     const b = LTT.bar("cb", [{ color: "var(--ltt-warn)" }, { color: "var(--ltt-line-2)" }, { color: "var(--ltt-accent)" }]);
-    setTimeout(() => { u.paint(5); b.set([5, 94, 1], ["5", "94", ""]); LTT.tween("cn", 5); }, 300);
+    whenSeen(el, () => {
+      u.paint(0); b.set([0, 0, 0]); LTT.tween("cn", 0, null, 0);
+      setTimeout(() => { u.paint(5); b.set([5, 94, 1], ["5", "94", ""]); LTT.tween("cn", 5); }, 300);
+    });
   });
-  demo("stepper", "LTT.stepper(el, [{caption, enter(i, dir)}])", "<b>한 그림을 단계별로.</b> 단계마다 자막(caption)이 그림을 읽는 법을 말한다. <code>enter</code>는 다시 들어와도 같은 화면이 되게 짠다.", (el) => {
+  demo("stepper", "LTT.stepper(el, [{caption, enter(i, dir)}], {interval}) → {go, play, stop}", "<b>한 그림을 단계별로.</b> 단계마다 자막(caption)이 그림을 읽는 법을 말한다. <code>enter</code>는 다시 들어와도 같은 화면이 되게 짠다.", (el) => {
     const box = div("", ""); box.style.cssText = "display:flex;gap:10px";
     el.appendChild(box);
     const cells = [0, 1, 2, 3].map(() => box.appendChild(div("", "")));
@@ -423,9 +430,10 @@
     LTT.sweep({ params: { i: { control: i } }, render: ({ i: [a, c] }) => p.to([[a, 0], [c, 1]], 0),
       goal: { el: "dr-g", text: "î 끝을 끌어 색칠한 칸의 넓이를 2배로 만들어 보자.", check: ({ i: [a] }) => Math.abs(a) === 2 } });
   });
-  demo("predict", "LTT.predict({question, choices, button, answer, show, reveal})", "<b>낮은 부담의 짐작.</b> 덱에서는 <code>type: \"predict\"</code>가 이것을 쓰고 '잘 모르겠다'를 자동으로 붙인다. 질문에 쓰는 용어는 앞 장면에서 풀어 둔다.", (el) => {
-    el.innerHTML = `<div id="pc"><button data-choice="a">거의 0건</button><button data-choice="b">5건쯤</button><button data-choice="c">절반쯤</button></div><div class="dk-actions" style="margin-top:10px"><button id="pb" class="accent">정답 보기</button></div><p id="pa" class="ltt-hidden ltt-narr">약 5건. 평균 30초 묵은 값이 10분 안에 바뀔 확률은 5%.</p>`;
-    LTT.predict({ question: "카탈로그 예시", choices: "pc", button: "pb", answer: "b", show: ["pa"] });
+  demo("predict", "LTT.predict({question, choices, button, answer, show, reveal, onReset}) → {reset}", "<b>낮은 부담의 짐작.</b> 덱에서는 <code>type: \"predict\"</code>가 이것을 쓰고 '잘 모르겠다'를 자동으로 붙인다. 질문에 쓰는 용어는 앞 장면에서 풀어 둔다.", (el) => {
+    el.innerHTML = `<div id="pc"><button data-choice="a">거의 0건</button><button data-choice="b">5건쯤</button><button data-choice="c">절반쯤</button></div><div class="dk-actions" style="margin-top:10px"><button id="pb" class="accent">정답 보기</button></div><p id="pa" class="ltt-hidden ltt-narr">약 5건. 평균 30초 묵은 값이 10분 안에 바뀔 확률은 5%.</p><div id="pr" class="ltt-hidden dk-actions"><button class="ghost">초기화</button></div>`;
+    const pr = LTT.predict({ question: "카탈로그 예시", choices: "pc", button: "pb", answer: "b", show: ["pa", "pr"] });
+    el.querySelector("#pr button").onclick = pr.reset;
   });
 
   demo("math", "LTT.math(scope)", "<b>수식은 KaTeX로 그린다.</b> <code>data-tex</code>가 붙은 요소를 찾아 TeX를 렌더하고, <code>data-display</code>를 같이 붙이면 블록 수식이 된다. 덱 장면에서는 <code>tex</code> 필드가 이것을 쓴다. <code>katex.min.css</code>와 <code>katex.min.js</code>가 필요하다.", (el) => {
