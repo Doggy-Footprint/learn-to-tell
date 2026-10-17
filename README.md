@@ -82,6 +82,7 @@ https://learn-to-tell.vercel.app 에서 실제 생성 형식의 수업을 볼 �
 | [행렬 = 변환](https://learn-to-tell.vercel.app/gallery/linear-algebra/matrix-as-transform.html) | 선형대수 | 행렬을 격자 변형으로 읽기 |
 | [앵커링](https://learn-to-tell.vercel.app/gallery/cognition/anchoring.html) | 인지심리 | 첫 숫자가 판단에 남기는 영향 |
 | [인출 연습](https://learn-to-tell.vercel.app/gallery/pedagogy/retrieval-practice.html) | 교육학 | 다시 읽기 vs 떠올리기 |
+| [온톨로지 기초](https://learn-to-tell.vercel.app/gallery/knowledge-graph/ontology-triples.html) | 지식 표현 | 테이블 스키마로 충분한가, 온톨로지·SHACL을 얹어야 하는가 |
 
 수업은 폭 1280px 이상의 데스크톱 브라우저를 기준으로 만든다.
 
