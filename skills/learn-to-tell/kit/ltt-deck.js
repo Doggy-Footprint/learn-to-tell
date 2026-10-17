@@ -117,6 +117,7 @@
     ".dk-fig-stage>*{max-width:100%}",
     ".dk-figsteps{display:grid;width:100%;grid-template-columns:auto minmax(0,420px);gap:clamp(24px,4vw,60px);align-items:center}",
     ".dk-figsteps.stack{grid-template-columns:minmax(0,1fr);gap:16px}.dk-figsteps.stack>.pic{display:flex;justify-content:center}.dk-figsteps.stack>.pic>*{max-width:100%;height:auto}",
+    ".dk-capstack{display:grid}.dk-capstack>*{grid-area:1/1}.dk-capstack>.ghost{visibility:hidden}",
     ".dk-figsteps>*{min-width:0}.dk-figsteps .ltt-caption{font-size:clamp(15px,1.3vw,18px);line-height:1.6}",
     ".dk-fig figcaption{font-size:clamp(14px,1.2vw,16px);color:var(--ltt-ink-2);line-height:1.55;max-width:90ch;border-top:1px solid var(--ltt-line-2);padding-top:10px}",
     ".dk-fig figcaption b{font-family:var(--ltt-font-display);margin-right:6px;color:var(--ltt-ink)}",
@@ -388,29 +389,43 @@
         } else fill(pic, s.figure, ctx);
         var api = ret && ret.el ? ret : pic;
         var ctl = row.appendChild(h("div", "ctl"));
-        // Steps may grow the drawing; the picture keeps the tallest height seen so a shorter step does not pull the row up.
+        // Steps may grow the drawing, so the picture keeps the tallest height seen per layout and window width, and a step
+        // that grows it re-runs placement; once a step pushed the captions below they stay there for that width.
+        var tallest = { side: 0, stack: 0 }, seenW = innerWidth;
         LTT.stepper(ctl, s.steps.map(function (x) {
           return { caption: x.caption, enter: function (k, dir) { if (x.enter) x.enter(k, api, dir); } };
         }), { onStep: function () {
-          requestAnimationFrame(function () { if (pic.offsetHeight > (parseFloat(pic.style.minHeight) || 0) + 1) pic.style.minHeight = pic.offsetHeight + "px"; });
+          requestAnimationFrame(function () {
+            var mode = row.classList.contains("stack") ? "stack" : "side";
+            if (LTT.mobile() || pic.offsetHeight <= tallest[mode] + 1) return;
+            tallest[mode] = pic.offsetHeight;
+            ctx.fit();
+          });
         } });
+        // Every caption sits in one grid cell under the shown one, so the column is as tall as the longest caption.
+        var capEl = ctl.querySelector(".ltt-caption"), capStack = h("div", "dk-capstack");
+        ctl.insertBefore(capStack, capEl);
+        capStack.appendChild(capEl);
+        s.steps.forEach(function (x) {
+          var g = capStack.appendChild(h("p", "ltt-caption ghost", (x.caption || "").replace(/\{\{([^}|]+)(\|[^}]*)?\}\}/g, "$1")));
+          g.setAttribute("aria-hidden", "true");
+        });
         ctl.__lttPlace = { scope: pic, keepFaded: true };
-        // The caption column keeps the longest caption's height so stepping never moves the buttons, and it sits beside the
-        // picture only while no text, control or diagram box of the picture runs under it; otherwise it moves below.
+        function layout(mode) {
+          if (seenW !== innerWidth) { seenW = innerWidth; tallest = { side: 0, stack: 0 }; }
+          row.classList.toggle("stack", mode === "stack");
+          pic.style.minHeight = tallest[mode] ? tallest[mode] + "px" : "";
+          ctx.refit();
+        }
+        // The captions sit beside the picture only while no text, control or diagram box of the picture runs under them.
         ctx.place = function () {
-          row.classList.remove("stack");
-          pic.style.minHeight = "";
-          ctx.el.firstChild.style.zoom = "";
-          holdCaption(ctl.querySelector(".ltt-caption"), s.steps);
-          ctx.refit();
+          var wasStack = row.classList.contains("stack") && seenW === innerWidth;
+          if (wasStack || innerWidth <= 760) return layout("stack");
+          layout("side");
           var c = ctl.getBoundingClientRect(), box = { x0: c.left, y0: c.top, x1: c.right, y1: c.bottom };
-          if (!solidRects(pic, null, null, true).some(function (o) { return LTT.rectHit(box, o); })) return;
-          row.classList.add("stack");
-          pic.style.minHeight = "";
-          ctx.el.firstChild.style.zoom = "";
-          holdCaption(ctl.querySelector(".ltt-caption"), s.steps);
-          ctx.refit();
+          if (solidRects(pic, null, null, true).some(function (o) { return LTT.rectHit(box, o); })) layout("stack");
         };
+        ctx.unplace = function () { row.classList.remove("stack"); pic.style.minHeight = ""; };
       } else fill(st, s.figure, ctx);
       if (s.caption) {
         var n = ctx.scenes.slice(0, ctx.index + 1).filter(function (x) { return x.type === "figure"; }).length;
@@ -465,9 +480,11 @@
       if (s.visual) fill(w.appendChild(h("div", "dk-pvis")), s.visual, ctx);
       w.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, h("div", "dk-actions"), ans);
       w.querySelector(".dk-actions").appendChild(lock);
-      var faded = ".ltt-choices button:not(.right):not([aria-pressed=true])";
-      ans.__lttPlace = { scope: ctx.el.firstChild, skip: faded };
-      ctx.place = function () { if (w.classList.contains("done")) ctx.float(ans, w, faded); else ctx.refit(); };
+      // Only hidden choices free their space; dim and dot choices are meant to stay visible, so the answer avoids them.
+      var faded = rest === "hide" ? ".ltt-choices button:not(.right):not([aria-pressed=true])" : null;
+      ans.__lttPlace = { scope: ctx.el.firstChild, skip: faded, keepFaded: !faded };
+      ctx.place = function () { if (w.classList.contains("done")) ctx.float(ans, w, faded, !faded); else ctx.refit(); };
+      ctx.unplace = function () { ans.classList.remove("dk-float"); ans.style.left = ans.style.top = ans.style.width = ""; };
       body.appendChild(w);
       var gate = { btn: lock, alt: box, word: "정답" };
       ctx.gate = gate;
@@ -709,26 +726,16 @@
     return out;
   }
 
-  function holdCaption(cap, steps) {
-    cap.style.minHeight = "";
-    var probe = cap.cloneNode(false), most = 0;
-    probe.style.cssText = "position:absolute;visibility:hidden;width:" + cap.clientWidth + "px";
-    cap.parentNode.appendChild(probe);
-    steps.forEach(function (x) { probe.innerHTML = x.caption || ""; most = Math.max(most, probe.offsetHeight); });
-    probe.remove();
-    cap.style.minHeight = most + "px";
-  }
-
   // Lays `panel` over free space of the scene so revealing it does not grow the scene; with no free spot it joins the flow
   // below `host`'s other content and fit() shrinks the scene as before.
-  function floatPanel(el, inner, panel, host, skip) {
+  function floatPanel(el, inner, panel, host, skip, keepFaded) {
     panel.classList.add("dk-float");
     panel.style.left = panel.style.top = "";
     fit(el, inner);
     panel.style.width = host.clientWidth + "px";
     var z = parseFloat(inner.style.zoom) || 1, hr = host.getBoundingClientRect(), pr = panel.getBoundingClientRect();
     var region = { x0: hr.left, y0: hr.top, x1: hr.right, y1: el.getBoundingClientRect().bottom - 8 };
-    var at = LTT.freeSlot(region, [pr.width, pr.height], solidRects(inner, panel, skip), 10 * z);
+    var at = LTT.freeSlot(region, [pr.width, pr.height], solidRects(inner, panel, skip, keepFaded), 10 * z);
     if (at) {
       panel.style.left = (at[0] - hr.left) / z + "px";
       panel.style.top = (at[1] - hr.top) / z + "px";
@@ -835,7 +842,7 @@
       var s = scenes[i], el = stage.children[i], ctx = { el: el, scene: s, index: i, scenes: scenes, predictRest: spec.predictRest };
       var inner = el.appendChild(h("div", "dk-in"));
       ctx.refit = function () { fit(el, inner); };
-      ctx.float = function (panel, host, skip) { return floatPanel(el, inner, panel, host, skip); };
+      ctx.float = function (panel, host, skip, keepFaded) { return floatPanel(el, inner, panel, host, skip, keepFaded); };
       if (!NO_HEAD[s.type]) {
         var head = inner.appendChild(h("div", "dk-head"));
         if (s.number !== false) head.appendChild(h("div", "dk-no", pad2(i + 1)));
@@ -878,7 +885,7 @@
       if (s.takeaway) inner.appendChild(LTT.takeaway(s.takeaway, s.sources));
       LTT.linkTerms(el, i);
       ctx.fit = function () {
-        if (LTT.mobile()) mobileFit(el, inner);
+        if (LTT.mobile()) { if (ctx.unplace) ctx.unplace(); mobileFit(el, inner); }
         else if (ctx.place) ctx.place();
         else fit(el, inner);
       };
