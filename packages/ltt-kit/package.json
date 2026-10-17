@@ -1,0 +1,19 @@
+{
+  "name": "@doggy-footprint/ltt-kit",
+  "version": "0.1.0",
+  "description": "Learn to Tell lesson kit, served from a CDN for standalone lessons (claude.ai artifacts)",
+  "homepage": "https://learn-to-tell.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Doggy-Footprint/learn-to-tell.git"
+  },
+  "files": [
+    "*.js",
+    "API.md",
+    "vendor/"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT"
+}

@@ -133,8 +133,49 @@ async function readSwept(home) {
   }
 }
 
+// Standalone lessons (claude.ai, no local home) carry their result.md inside the artifact HTML so a later
+// Claude Code session can bring it into the map; a bare result.md is accepted for the paste fallback.
+const RESULT_BLOCK = /<script\b[^>]*\btype=["']application\/ltt-result["'][^>]*>([\s\S]*?)<\/script>/i;
+
+function extractResult(text) {
+  const block = RESULT_BLOCK.exec(text);
+  const body = (block ? block[1] : text).replace(/^\s*\n/, "").replace(/\s+$/, "") + "\n";
+  const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(body);
+  if (!fm) return { error: block ? "result block has no frontmatter" : "no ltt-result block or result.md frontmatter" };
+  let meta;
+  try {
+    meta = yaml.load(fm[1]);
+  } catch (e) {
+    return { error: `frontmatter: ${e.message}` };
+  }
+  const lesson = meta && typeof meta === "object" ? String(meta.lesson ?? "") : "";
+  if (!ID_RE.test(lesson)) return { error: `invalid lesson id ${JSON.stringify(lesson)}` };
+  return { lesson, body, html: block ? text : null };
+}
+
+async function importLesson(home, file, day, out, err) {
+  const found = extractResult(await readFile(file, "utf8"));
+  if (found.error) {
+    err(`error ${file}: ${found.error}`);
+    return 1;
+  }
+  const dir = join(home, "lessons", found.lesson);
+  const existing = await readOptional(join(dir, "result.md"));
+  if (existing !== null) {
+    out(existing === found.body ? `skip ${found.lesson}: already imported` : `skip ${found.lesson}: lessons/${found.lesson}/result.md exists and differs`);
+    return 0;
+  }
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, "result.md"), found.body);
+  if (found.html !== null) await writeFile(join(dir, "lesson.html"), found.html);
+  out(`imported ${found.lesson}`);
+  const result = await rebuild({ home, today: day });
+  report(result, out);
+  return result.errors.length ? 1 : 0;
+}
+
 function usage(err) {
-  err("usage: ltt-map rebuild | find <text> [--domain d] [-k n] | show <id> [--depth 1|2] | decide merge|link|reject <id> <id> | check | sweep | sweep-done <id>...");
+  err("usage: ltt-map rebuild | import <lesson.html|result.md> | find <text> [--domain d] [-k n] | show <id> [--depth 1|2] | decide merge|link|reject <id> <id> | check | sweep | sweep-done <id>...");
   return 2;
 }
 
@@ -155,6 +196,10 @@ export async function run(argv, { home = lttHome(), today: day = today(), out = 
       const result = await rebuild({ home, today: day });
       report(result, out);
       return result.errors.length ? 1 : 0;
+    }
+    case "import": {
+      if (args.length !== 1) return usage(err);
+      return await importLesson(home, args[0], day, out, err);
     }
     case "check": {
       const result = await load(home, day);

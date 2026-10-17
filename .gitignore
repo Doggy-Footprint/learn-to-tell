@@ -5,3 +5,6 @@ agent-docs/specs/.seed/
 .harness/sessions/.running/
 .harness/**/__pycache__
 tmp/
+dist/
+packages/ltt-kit/*
+!packages/ltt-kit/package.json

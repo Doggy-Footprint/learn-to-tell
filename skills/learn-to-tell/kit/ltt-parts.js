@@ -1397,7 +1397,7 @@
     };
   }
 
-  var WORLD_URL = "/kit/vendor/world-atlas/countries-110m.json", worldData = null;
+  var WORLD_URL = LTT.kitBase + "vendor/world-atlas/countries-110m.json", worldData = null;
   function world() {
     if (!worldData) worldData = fetch(WORLD_URL).then(function (r) {
       if (!r.ok) throw new Error("map data " + WORLD_URL + " " + r.status);

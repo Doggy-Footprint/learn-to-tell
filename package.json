@@ -2,6 +2,11 @@
   "name": "learn-to-tell",
   "private": true,
   "scripts": {
-    "test": "node --test tests/"
-  }
+    "test": "node --test tests/",
+    "build:zip": "node scripts/build.mjs zip",
+    "build:kit": "node scripts/build.mjs kit",
+    "check:version": "node scripts/build.mjs version",
+    "setup:hooks": "cp scripts/git/pre-commit \"$(git rev-parse --git-common-dir)/hooks/pre-commit\""
+  },
+  "license": "MIT"
 }

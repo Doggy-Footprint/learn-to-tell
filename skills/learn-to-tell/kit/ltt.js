@@ -2,6 +2,11 @@
   "use strict";
 
   var LESSON_PATH = /^\/lessons\/([a-z0-9][a-z0-9-]*)\//;
+  // Vendor URLs follow wherever ltt.js was loaded from, so the same kit works under the local server (/kit/) and from a CDN in standalone artifacts.
+  var KIT = (function () {
+    var src = typeof document !== "undefined" && document.currentScript && document.currentScript.src;
+    return src ? src.replace(/[^/]*$/, "") : "/kit/";
+  })();
   var TERM = /\{\{([^{}|]+?)(?:\|([^{}]+?))?\}\}/g;
 
   var TOKENS_LIGHT = "--ltt-bg:#f2f1ec;--ltt-card:#fff;--ltt-card-2:#f7f6f2;--ltt-line:#e6e3dc;--ltt-line-2:#d6d2c8;" +
@@ -137,12 +142,12 @@
 
   var STYLE = [
     "@font-face{font-family:'Pretendard Variable';font-weight:45 920;font-style:normal;font-display:swap;",
-    "src:url('/kit/vendor/pretendard/PretendardVariable.woff2') format('woff2-variations')}",
+    "src:url('" + KIT + "vendor/pretendard/PretendardVariable.woff2') format('woff2-variations')}",
     // Serif and mono faces are subsets (KS X 1001 Hangul + Latin); syllables outside fall through to the next family in the stack.
     "@font-face{font-family:'LTT Serif';font-weight:200 900;font-style:normal;font-display:swap;",
-    "src:url('/kit/vendor/noto-serif-kr/NotoSerifKR-ksx.woff2') format('woff2-variations')}",
-    "@font-face{font-family:'LTT Mono';font-weight:400;font-style:normal;font-display:swap;src:url('/kit/vendor/d2coding/D2Coding-ksx.woff2') format('woff2')}",
-    "@font-face{font-family:'LTT Mono';font-weight:700;font-style:normal;font-display:swap;src:url('/kit/vendor/d2coding/D2CodingBold-ksx.woff2') format('woff2')}",
+    "src:url('" + KIT + "vendor/noto-serif-kr/NotoSerifKR-ksx.woff2') format('woff2-variations')}",
+    "@font-face{font-family:'LTT Mono';font-weight:400;font-style:normal;font-display:swap;src:url('" + KIT + "vendor/d2coding/D2Coding-ksx.woff2') format('woff2')}",
+    "@font-face{font-family:'LTT Mono';font-weight:700;font-style:normal;font-display:swap;src:url('" + KIT + "vendor/d2coding/D2CodingBold-ksx.woff2') format('woff2')}",
     ":root{" + TOKENS_LIGHT + "--ltt-radius:20px;--ltt-r-lg:24px;--ltt-r-md:14px;--ltt-r-sm:8px;--ltt-border-w:1px;--ltt-pattern:none;",
     "--ltt-display-weight:850;--ltt-display-track:-.04em;--ltt-font-display:var(--ltt-font);",
     "--ltt-font:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Segoe UI',sans-serif;",
@@ -681,7 +686,7 @@
   function mobile() { return typeof document !== "undefined" && document.documentElement.hasAttribute("data-ltt-mobile"); }
 
   var LTT = root.LTT = {
-    lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
+    kitBase: KIT, lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
     icon: icon, icons: Object.keys(ICONS), theme: theme, themeTokens: themeTokens, palette: palette, contrast: contrast, mark: mark, marks: Object.keys(MARKS),
     themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
     termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene,

@@ -1,0 +1,11 @@
+{
+  "name": "learn-to-tell",
+  "version": "0.1.0",
+  "description": "작업의 결정 변수 중 모르는 것을 진단하고, 교과서 기본기를 시각 자료·시뮬레이션과 서술 퀴즈로 익힌 뒤 원래 작업으로 돌려주는 학습 skill",
+  "author": {
+    "name": "Doggy-Footprint"
+  },
+  "homepage": "https://learn-to-tell.vercel.app",
+  "repository": "https://github.com/Doggy-Footprint/learn-to-tell",
+  "license": "MIT"
+}

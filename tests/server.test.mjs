@@ -78,6 +78,18 @@ test("serves kit, vendor and gallery files from the skill directory", async () =
   assert.match(gallery.headers.get("content-type"), /text\/html/);
 });
 
+test("redirects gallery requests to the public site when the gallery is not installed", async () => {
+  const bare = createLttServer({ home, galleryDir: join(home, "no-gallery") });
+  await new Promise((r) => bare.listen(0, "127.0.0.1", r));
+  try {
+    const res = await fetch(`http://127.0.0.1:${bare.address().port}/gallery/catalog.html`, { redirect: "manual" });
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.get("location"), "https://learn-to-tell.vercel.app/gallery/catalog.html");
+  } finally {
+    await new Promise((r) => bare.close(r));
+  }
+});
+
 test("serves lesson files from LTT_HOME", async () => {
   const res = await fetch(base + "/lessons/20261013-demo/lesson.html");
   assert.equal(res.status, 200);

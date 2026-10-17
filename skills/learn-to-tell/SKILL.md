@@ -11,6 +11,8 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 ## 0. 시작
 
+- 환경: `<home>`과 로컬 서버를 쓸 수 없는 곳(claude.ai 웹·모바일)이면 `<skill>/standalone.md`를 먼저 읽고 그 표대로 바꿔 진행한다.
+- 인자가 `import`면 아래 "import" 절만 한다.
 - agent가 제안하는 경우: 지식 차이와 그것이 막는 결정을 한 문장으로 말하고, 학습을 원하는지 묻는다. 원하면 아래 세션 안내를 한다.
 - 사용자에게 진단만 받을지, 학습까지 할지 묻는다.
 - 학습은 작업 세션에서 `/fork`한 세션에서 진행한다. 지금 세션이 fork한 세션이 아니면 사용자에게 `/fork` 후 그 세션에서 `/learn-to-tell <주제>`를 실행하라고 안내하고 멈춘다. 진단만 받는 경우는 지금 세션에서 해도 된다.
@@ -57,10 +59,9 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 자료는 사용자가 **혼자 읽고 이해할 수 있어야 한다**. 선생님이 옆에서 말로 메우던 것을 페이지가 대신한다.
 
 1. 수업은 장면 덱이다: `LTT.deck({title, theme, glossary, scenes})` 하나에 장면 데이터를 적는다. 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면. 장면 수는 범위(§2)를 따른다.
-   - 먼저 `<skill>/kit/API.md`를 읽고, 필요하면 `http://127.0.0.1:47823/gallery/catalog.html`(부품별 실물과 코드), `gallery/scenes.html`(장면 타입별 예)을 본다.
+   - 먼저 `<skill>/kit/API.md`를 읽고, 필요하면 `https://learn-to-tell.vercel.app/gallery/catalog.html`(부품별 실물과 코드), `gallery/scenes.html`(장면 타입별 예)을 본다. gallery는 skill에 들어 있지 않다.
    - 빈 `<home>/lessons/<id>/lesson.html`에서 부품을 조합해 짠다. gallery 페이지를 복사해 데이터만 고치지 않는다.
-   - 예시 수업(테마·매체): `cache-ttl`(terminal·로그 타임라인), `uiux/color-contrast`·`uiux/visual-hierarchy-spacing`(studio·실제 화면 목업), `gpu/single-gpu-dataflow`(blueprint·블록 도면 단계 재생), `physics/projectile-drag`(lab·궤적 플롯 시뮬레이션), `cognition/anchoring`·`pedagogy/retrieval-practice`(paper·연구 figure), `finance/diversification`(ledger·신문 차트와 비교표), `linear-algebra/matrix-as-transform`(paper·격자 변형), `knowledge-graph/ontology-triples`(paper·`LTT.autoLayout` 지식 그래프와 추론 단계). head의 `ltt-meta`(audience, pattern, theme, medium, mode, decision)로 참고할 예를 고른다. 예시는 부품 조합을 보는 용도이고, 장면 구성은 내 주제에 맞게 새로 짠다. `gallery/stale/`은 옛 kit용이라 동작하지 않는다.
-   - `index.html`: 시나리오 목록. gallery에 페이지를 추가하면 여기에도 카드를 추가한다.
+   - 예시 수업(테마·매체, `https://learn-to-tell.vercel.app/gallery/<이름>.html`): `cache-ttl`(terminal·로그 타임라인), `uiux/color-contrast`·`uiux/visual-hierarchy-spacing`(studio·실제 화면 목업), `gpu/single-gpu-dataflow`(blueprint·블록 도면 단계 재생), `physics/projectile-drag`(lab·궤적 플롯 시뮬레이션), `cognition/anchoring`·`pedagogy/retrieval-practice`(paper·연구 figure), `finance/diversification`(ledger·신문 차트와 비교표), `linear-algebra/matrix-as-transform`(paper·격자 변형), `knowledge-graph/ontology-triples`(paper·`LTT.autoLayout` 지식 그래프와 추론 단계). head의 `ltt-meta`(audience, pattern, theme, medium, mode, decision)로 참고할 예를 고른다. 예시는 부품 조합을 보는 용도이고, 장면 구성은 내 주제에 맞게 새로 짠다.
 2. 도메인 느낌. 장면을 짜기 전에 정한다. 모든 수업이 같은 카드 슬라이드로 보이면 주제가 머리에 남지 않는다.
    - **매체**: 이 분야 실무자가 실제로 들여다보는 화면이나 종이를 하나 고른다. 논문 figure, 회로·블록 도면, 터미널·로그, 경제 신문 차트, 실험 플롯, 실제 제품 화면 등이다. 그림과 예시는 그 매체의 모양으로 그린다(백엔드라면 카드 대신 로그 줄과 타임라인, 금융이라면 표와 꺾은선).
    - **테마**: 매체에 맞는 `theme`을 고른다(`kit/API.md` 테마 표). 지리·물류·리전은 `atlas`(+`LTT.map`), 화이트보드식 첫 소개는 `sketch`(`rough.js`를 불러오면 도식이 손그림 선). 맞는 것이 없으면 가장 가까운 것을 쓰고 `result.md`의 "kit 후보"에 적는다. 색·대비·밝기처럼 지각 자체가 주제면 `<html data-theme="light">`로 명암을 고정한다. 주변색이 색 판단을 바꾸므로(동시 대비) OS 다크 모드를 따르게 두지 않는다.
@@ -211,6 +212,15 @@ map에 개념이 쌓이면 이어지지 않은 연결을 찾아 둔다. 결과 �
 2. `sweep` JSON을 Haiku 서브에이전트에게 주고 `new` 개념과 `existing` 개념 사이(와 `new`끼리)의 선수·다음 관계, 중복으로 보이는 쌍을 제안하게 한다. 프롬프트에 두 가지를 명시한다: 제안이 0건인 것은 정상이고 억지로 만들지 않는다, 제안마다 이유를 한 문장으로 쓴다. 이미 `edges`에 있는 연결과 `rejected` 쌍은 다시 제안하지 않는다.
 3. fork 세션의 agent가 제안을 `definition`을 보고 직접 판단한다. 받아들이면 `ltt-map.mjs decide link <선수 id> <후속 id>`(중복이면 `decide merge <없앨 id> <남길 id>`), 거절하면 `decide reject <id> <id>`로 기록한다. `decide`는 한 줄을 `decisions.jsonl`에 덧붙이고 `rebuild`를 실행한다.
 4. 다 처리하면 `ltt-map.mjs sweep-done <id>...`로 이번에 본 `new` 개념 전부를 표시한다.
+
+### import (standalone 수업 가져오기)
+
+claude.ai에서 만든 수업 artifact(`standalone.md`)의 결과를 map에 넣는다.
+
+1. Artifact 도구 `list`에서 제목이 `LTT · `로 시작하는 artifact를 찾는다. 없으면 사용자에게 artifact 링크나 `result.md` 텍스트를 받는다(텍스트는 임시 파일에 저장한다).
+2. 각각 `read`로 받아, 결과가 가리키는 저장 파일 경로로 `ltt-map.mjs import <파일>`을 실행한다. `<home>/lessons/<id>/`에 `result.md`와 `lesson.html`을 쓰고 rebuild한다. `skip ...: already imported`는 이미 들어간 것이다. `exists and differs`면 사용자에게 어느 쪽을 남길지 묻는다. result 블록이 없는 artifact는 아직 이해 확인을 마치지 않은 수업이므로 건너뛴다.
+3. 가져온 개념마다 "개념을 적기 전에" 1–3번으로 기존 개념과 맞춘다. 같은 개념이면 `result.md`의 id를 기존 id로 고치고 `rebuild`한다(standalone 수업은 map 없이 id를 지었다).
+4. 연결 점검(sweep)을 하고, 가져온 수업 목록과 방금 다룬 개념의 focus URL을 안내한다.
 
 ### 찾아 보기
 

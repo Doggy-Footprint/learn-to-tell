@@ -1,6 +1,6 @@
 # kit API
 
-수업은 빈 `lesson.html`에서 이 부품들을 조합해 짠다. 모든 부품이 실제로 동작하는 모습과 그 코드는 `/gallery/catalog.html`에 있다. 장면 타입별 예시는 `/gallery/scenes.html`에 있다.
+수업은 빈 `lesson.html`에서 이 부품들을 조합해 짠다. 모든 부품이 실제로 동작하는 모습과 그 코드는 `https://learn-to-tell.vercel.app/gallery/catalog.html`에 있다. 장면 타입별 예시는 `https://learn-to-tell.vercel.app/gallery/scenes.html`에 있다.
 
 ## 불러오기
 
