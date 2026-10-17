@@ -138,7 +138,7 @@ async function isLttServer(port) {
 
 async function main() {
   const port = Number(process.env.LTT_PORT || DEFAULT_PORT);
-  const idleMs = Number(process.env.LTT_IDLE_MINUTES || 120) * 60_000;
+  const idleMs = Number(process.env.LTT_IDLE_MINUTES || 40) * 60_000;
   let timer;
   const touch = () => {
     clearTimeout(timer);
