@@ -4,3 +4,4 @@ agent-docs/specs/.running/
 agent-docs/specs/.seed/
 .harness/sessions/.running/
 .harness/**/__pycache__
+tmp/
