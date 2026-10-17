@@ -545,6 +545,7 @@
     var out = [], hero = m.type === "figure" || m.layout === "full";
     function add(rule, msg) { out.push({ rule: rule, msg: msg }); }
     if (m.hscroll) add("hscroll", "가로로 넘친다 (폭 " + m.hscroll + "px 초과). 고정 폭을 max-width:100%로 바꿀 것");
+    if (m.graphOverlaps) add("graph-overlap", "그래프에서 라벨·노드·엣지가 " + m.graphOverlaps + "곳 겹친다. 좌표를 손으로 정했다면 LTT.autoLayout으로 배치할 것");
     (m.goals || []).forEach(function (g) {
       if (!g.hits) add("goal-unreachable", "목표를 맞추는 손잡이 위치가 없다 (표본 " + g.samples + "개 중 0개). 기준이나 손잡이 범위를 고칠 것");
       else if (g.hits < 2) add("goal-narrow", "목표가 손잡이 한 자리에서만 맞는다. 기준에 여유를 두어 두 자리 이상에서 맞게 할 것");
@@ -667,7 +668,17 @@
     style.textContent = STYLE;
     document.head.appendChild(style);
     if (document.body) initPopover(); else document.addEventListener("DOMContentLoaded", initPopover);
+    // Lessons are authored for desktop only; phones get the same scenes reflowed by the kit, never a separate version,
+    // so agents spend no tokens on mobile. Set before any part lays out, since autoLayout reads it.
+    if (root.matchMedia) {
+      var phone = root.matchMedia("(max-width: 759px), (max-height: 500px) and (pointer: coarse)");
+      var setPhone = function () { document.documentElement.toggleAttribute("data-ltt-mobile", phone.matches); };
+      setPhone();
+      // Graph layouts are computed once for the mode at load, so crossing the breakpoint (devtools device mode) reloads.
+      if (phone.addEventListener) phone.addEventListener("change", function () { root.location.reload(); });
+    }
   }
+  function mobile() { return typeof document !== "undefined" && document.documentElement.hasAttribute("data-ltt-mobile"); }
 
   var LTT = root.LTT = {
     lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
@@ -675,6 +686,6 @@
     themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
     termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene,
     stepValues: stepValues, goalReach: goalReach,
-    setGlossary: setGlossary, linkTerms: linkTerms
+    setGlossary: setGlossary, linkTerms: linkTerms, mobile: mobile
   };
 })(typeof globalThis !== "undefined" ? globalThis : this);

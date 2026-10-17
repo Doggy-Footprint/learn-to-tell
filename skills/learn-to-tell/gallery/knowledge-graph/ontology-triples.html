@@ -90,9 +90,9 @@
   const I = (id, s) => ({ id, l: "ex:" + id, s, group: "abox" });
   const L = (id, l) => ({ id, l, s: "리터럴", k: "muted", w: 92, group: "abox" });
   const E = (f, t, l, k) => ({ f, t, l, k: k || "", dash: false });
-  const X = (f, t, l) => ({ f, t, l, k: "warn", dash: true, inf: true });
+  const X = (f, t, l) => ({ f, t, l, k: "warn", dash: true, inf: true, main: false });
   const KG_SPEC = {
-    direction: "RIGHT", node: [128, 54], spacing: [56, 40], maxWidth: false,
+    direction: "RIGHT", node: [128, 54], spacing: [24, 32], maxWidth: false,
     groups: [{ id: "abox", l: "ABox · 실제 데이터" }, { id: "tbox", l: "TBox · 클래스 정의", k: "accent" }],
     nodes: [
       I("mackay", "맥케이"), I("shannon", "섀넌 · 타입 없음"), I("itila", "맥케이의 책"), I("mtc", "섀넌의 1948 논문"),

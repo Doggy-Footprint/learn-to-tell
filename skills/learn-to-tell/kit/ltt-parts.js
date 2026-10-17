@@ -770,7 +770,7 @@
           pts = cleanOrtho(lst); d = orthoD(pts, e.radius == null ? 10 : e.radius); poly = pts;
         }
       }
-      var mid = midpoint(poly), last = pts[pts.length - 1];
+      var mid = e.at ? [pad + e.at[0], pad + e.at[1] + 4] : midpoint(poly), last = pts[pts.length - 1];
       return { id: id, f: e.f, t: e.t, shape: shape, x1: pts[0][0], y1: pts[0][1], x2: last[0], y2: last[1], pts: pts, d: d, lx: mid[0], ly: mid[1] };
     });
     function sample(segs) {
@@ -824,6 +824,7 @@
     var svg = d3.select(el(svgEl)).classed("ltt-svg ltt-dg", true).attr("viewBox", "0 0 " + L.width + " " + L.height)
       .attr("role", "img").attr("aria-label", spec.label || null);
     if (spec.maxWidth !== false) svg.style("max-width", (spec.maxWidth || L.width) + "px");
+    svg.node().__lttDiagram = spec;
     var defs = svg.append("defs");
     ["", "accent", "good", "bad", "warn"].forEach(function (k) {
       defs.append("marker").attr("id", uid + "-m" + k).attr("viewBox", "0 0 10 10").attr("refX", 8).attr("refY", 5)
@@ -861,7 +862,7 @@
       var rk = gen ? scribble(gEdges, rough("path", [g.d]), "e" + (k ? " k-" + k : "") + (e.dash ? " dash" : "")) : null;
       var label = null;
       if (e.l) {
-        var lo = e.lo || [0, -8];
+        var lo = e.lo || (e.at ? [0, 0] : [0, -8]);
         label = gEdges.append("text").attr("class", "el").attr("text-anchor", "middle")
           .attr("x", g.lx + lo[0]).attr("y", g.ly + lo[1]).text(e.l);
       }
@@ -927,6 +928,17 @@
           if (e.rk) e.rk.classed("dim", !lit);
           if (e.label) e.label.classed("dim", !lit);
         });
+        // In a sideways-scrolling box (phones) the box scrolls to the highlighted part so each step shows what it names.
+        var box = svg.node().parentElement;
+        if (on && box && box.classList.contains("dk-wide")) {
+          var xs = [];
+          on.forEach(function (id) { var b = L.nodes[id]; if (b) xs.push(b.x, b.x + b.w); });
+          if (xs.length) {
+            var k = svg.node().getBoundingClientRect().width / L.width;
+            var mid = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2 * k;
+            box.scrollTo({ left: Math.max(0, mid - box.clientWidth / 2), behavior: MOTION_MS ? "smooth" : "auto" });
+          }
+        }
       },
       // Marching dashes show direction of travel only; pass [] to stop them.
       flow: function (ids) {
@@ -1518,11 +1530,26 @@
   // Coordinate-free diagram -> pixel diagram spec via elkjs layered layout. elk rejects arrays/objects built in another
   // realm (it silently returns no coordinates), so the elk graph is built only from fresh literals, never from user input.
   // Array#map on a user array also yields a foreign-realm array (species lookup), hence the push loop in `each`.
+  // Width of an edge label at the .ltt-dg .el font; without a canvas (tests) a per-character estimate stands in.
+  var measureCtx = null;
+  function labelWidth(text) {
+    if (measureCtx === null) {
+      try { measureCtx = root.document ? root.document.createElement("canvas").getContext("2d") : false; } catch (err) { measureCtx = false; }
+      if (measureCtx) measureCtx.font = "650 11.5px Pretendard Variable, Pretendard, system-ui, sans-serif";
+    }
+    if (measureCtx) return Math.ceil(measureCtx.measureText(text).width);
+    var w = 0;
+    for (var k = 0; k < text.length; k++) w += /[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/.test(text[k]) ? 11.5 : 6.8;
+    return Math.ceil(w);
+  }
+
   function autoLayout(spec) {
     return new Promise(function (resolve, reject) {
       spec = spec || {};
       var nodesIn = spec.nodes || [], edgesIn = spec.edges || [], groupsIn = spec.groups || [];
       var dir = spec.direction == null ? "RIGHT" : spec.direction;
+      // A layered graph runs along its direction, so on a phone it is laid out top-down to fit the narrow column.
+      if (LTT.mobile && LTT.mobile() && spec.mobile !== false) dir = "DOWN";
       var size = spec.node || [164, 60], gap = spec.spacing || [72, 36], pad = spec.pad == null ? 20 : spec.pad;
       var radius = spec.radius == null ? 10 : spec.radius;
       if (dir !== "RIGHT" && dir !== "DOWN") throw new Error("autoLayout direction must be RIGHT or DOWN: " + dir);
@@ -1576,13 +1603,28 @@
         (g.parent == null ? top : elkGroups[groupIdx[g.parent]].children).push(elkGroups[k]);
       });
       nodesIn.forEach(function (n, k) { (n.group == null ? top : elkGroups[groupIdx[n.group]].children).push(elkNodes[k]); });
-      var elkEdges = each(edgesIn, function (e, k) { return { id: "e" + k, sources: ["n" + nodeIdx[e.f]], targets: ["n" + nodeIdx[e.t]] }; });
+      // Labels go to elk as sized boxes so the layered layout reserves their space (it turns each into a dummy node);
+      // drawing them afterwards at the path midpoint is what made them land on nodes and other edges.
+      // Secondary edges (main: false) get no direction priority, so cycle breaking reverses them instead of main ones.
+      var elkEdges = each(edgesIn, function (e, k) {
+        var x = { id: "e" + k, sources: ["n" + nodeIdx[e.f]], targets: ["n" + nodeIdx[e.t]] };
+        if (e.l) x.labels = [{ id: "l" + k, text: String(e.l), width: labelWidth(String(e.l)) + 8, height: 16 }];
+        x.layoutOptions = e.main === false
+          ? { "elk.layered.priority.direction": "0", "elk.layered.priority.straightness": "0" }
+          : { "elk.layered.priority.direction": "10", "elk.layered.priority.straightness": "10" };
+        return x;
+      });
       var graph = {
         id: "root", children: top, edges: elkEdges,
         layoutOptions: {
           "elk.algorithm": "layered", "elk.direction": dir, "elk.edgeRouting": "ORTHOGONAL", "elk.hierarchyHandling": "INCLUDE_CHILDREN",
           "elk.padding": "[top=0,left=0,bottom=0,right=0]",
-          "elk.layered.spacing.nodeNodeBetweenLayers": String(gap[0]), "elk.spacing.nodeNode": String(gap[1])
+          "elk.layered.spacing.nodeNodeBetweenLayers": String(gap[0]), "elk.spacing.nodeNode": String(gap[1]),
+          "elk.edgeLabels.placement": "CENTER", "elk.layered.edgeLabels.sideSelection": "SMART_DOWN",
+          "elk.spacing.edgeLabel": "4", "elk.spacing.edgeNode": "14", "elk.spacing.edgeEdge": "12",
+          "elk.layered.spacing.edgeNodeBetweenLayers": "8", "elk.layered.spacing.edgeEdgeBetweenLayers": "6",
+          "elk.layered.mergeEdges": "false", "elk.layered.considerModelOrder.strategy": "PREFER_EDGES", "elk.layered.edgeLabels.centerLabelPlacementStrategy": "SPACE_EFFICIENT_LAYER",
+          "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX"
         }
       };
 
@@ -1644,6 +1686,11 @@
           pts[0] = first; pts[n - 1] = last;
           var o = copy(e);
           o.shape = "ortho"; o.radius = e.radius != null ? e.radius : radius; o.points = pts;
+          var lb = el.labels && el.labels[0];
+          if (lb && e.l) {
+            o.at = [lb.x + off[0] + lb.width / 2, lb.y + off[1] + lb.height / 2];
+            o.labelBox = [lb.x + off[0], lb.y + off[1], lb.width, lb.height];
+          }
           return o;
         });
         var out = { pad: pad, width: right + 2 * pad, height: bottom + 2 * pad, nodes: nodes, edges: edges, zones: zones };
@@ -1692,7 +1739,64 @@
       .then(function (spec) { return diagram(svgEl, spec); });
   }
 
+  // Collisions in a laid-out diagram: label↔label, label↔node, edge passing through a node it does not touch, and two
+  // edges running on the same line. Crossings are not counted: non-planar graphs cannot avoid them.
+  function graphOverlaps(spec) {
+    var L = diagramLayout(spec), found = [];
+    var boxes = spec.nodes.map(function (n) { var b = L.nodes[n.id]; return { id: n.id, x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h }; });
+    var labels = [];
+    (spec.edges || []).forEach(function (e, i) {
+      if (!e.l) return;
+      var g = L.edges[i], lo = e.lo || (e.at ? [0, 0] : [0, -8]), w = labelWidth(String(e.l)) + 4;
+      var cx = g.lx + lo[0], cy = g.ly + lo[1] - 4;
+      labels.push({ id: g.id, x0: cx - w / 2, y0: cy - 7, x1: cx + w / 2, y1: cy + 7 });
+    });
+    function hit(a, b) { return Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5; }
+    labels.forEach(function (a, i) {
+      labels.slice(i + 1).forEach(function (b) { if (hit(a, b)) found.push({ kind: "label-label", a: a.id, b: b.id }); });
+      boxes.forEach(function (b) { if (hit(a, b)) found.push({ kind: "label-node", a: a.id, b: b.id }); });
+    });
+    function segs(pts) { var out = []; for (var k = 1; k < pts.length; k++) out.push([pts[k - 1], pts[k]]); return out; }
+    function segBox(sg, b) {
+      var x0 = Math.min(sg[0][0], sg[1][0]), x1 = Math.max(sg[0][0], sg[1][0]), y0 = Math.min(sg[0][1], sg[1][1]), y1 = Math.max(sg[0][1], sg[1][1]);
+      if (x0 !== x1 && y0 !== y1) {
+        for (var t = 0; t <= 1; t += 1 / 32) {
+          var x = sg[0][0] + (sg[1][0] - sg[0][0]) * t, y = sg[0][1] + (sg[1][1] - sg[0][1]) * t;
+          if (x > b.x0 + 1 && x < b.x1 - 1 && y > b.y0 + 1 && y < b.y1 - 1) return true;
+        }
+        return false;
+      }
+      return Math.min(x1, b.x1 - 1) > Math.max(x0, b.x0 + 1) - (x0 === x1 ? 1 : 0) && Math.min(y1, b.y1 - 1) > Math.max(y0, b.y0 + 1) - (y0 === y1 ? 1 : 0) &&
+        (x0 === x1 ? x0 > b.x0 + 1 && x0 < b.x1 - 1 : y0 > b.y0 + 1 && y0 < b.y1 - 1);
+    }
+    var lines = L.edges.map(function (g) { return segs(g.pts); });
+    L.edges.forEach(function (g, i) {
+      boxes.forEach(function (b) {
+        if (b.id === g.f || b.id === g.t) return;
+        if (lines[i].some(function (sg) { return segBox(sg, b); })) found.push({ kind: "edge-node", a: g.id, b: b.id });
+      });
+      for (var j = i + 1; j < L.edges.length; j++) {
+        var other = L.edges[j];
+        if (g.f === other.f && g.t === other.t || g.f === other.t && g.t === other.f) continue;
+        var shared = lines[i].some(function (p) {
+          return lines[j].some(function (q) {
+            var hz = p[0][1] === p[1][1] && q[0][1] === q[1][1] && Math.abs(p[0][1] - q[0][1]) < 2;
+            var vt = p[0][0] === p[1][0] && q[0][0] === q[1][0] && Math.abs(p[0][0] - q[0][0]) < 2;
+            if (!hz && !vt) return false;
+            var ax = hz ? 0 : 1, a0 = Math.min(p[0][ax], p[1][ax]), a1 = Math.max(p[0][ax], p[1][ax]);
+            var b0 = Math.min(q[0][ax], q[1][ax]), b1 = Math.max(q[0][ax], q[1][ax]);
+            return Math.min(a1, b1) - Math.max(a0, b0) > 6;
+          });
+        });
+        // Edges leaving the same port share their first stub by design, so only edges with no common end count.
+        if (shared && g.f !== other.f && g.t !== other.t) found.push({ kind: "edge-edge", a: g.id, b: other.id });
+      }
+    });
+    return found;
+  }
+
   LTT.tween = tween;
+  LTT.graphOverlaps = graphOverlaps;
   LTT.units = units;
   LTT.bar = bar;
   LTT.predict = predict;
