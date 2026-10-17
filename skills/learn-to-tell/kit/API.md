@@ -96,6 +96,7 @@ lint는 장면 데이터만 본다. 실제로 그려진 화면은 URL에 `?audit
 | `many-sizes` | 장면 본문(목업·SVG·번호 표식 제외)에서 글자를 직접 가진 요소의 글자 크기가 7단계 초과 |
 | `hscroll` | 가로로 넘친다 |
 | `graph-overlap` | 장면 속 diagram에서 라벨·노드·엣지가 겹친다(`LTT.graphOverlaps`) |
+| `panel-overlap` | figure 단계 자막 칸이나 펼친 predict 정답이 글 줄·컨트롤·그림(diagram은 노드·라벨 상자)과 겹친다 |
 | `goal-unreachable`, `goal-narrow`, `goal-at-start` | `sweep` 목표가 손잡이의 어느 자리에서도 안 맞는다 / 한 자리에서만 맞는다 / 시작 위치에서 이미 맞는다. 자리는 손잡이마다 최대 201곳(dial은 최대 360곳, pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다 |
 
 작성·점검 기준은 1280px 이상 데스크톱이다. 1440×900과 1280×800 두 크기에서 0건이어야 한다.
@@ -174,7 +175,7 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 
 ## ltt-deck.js: 장면 덱
 
-`LTT.deck({title, glossary: {용어: 풀이}, scenes})`. 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면. ←/→·PageUp/PageDown 키(화면 속 stepper가 있으면 그 stepper가 끝에 닿을 때까지 ←/→를 먼저 받는다), `#n` 해시, `scene` 이벤트. compare의 판정이나 predict의 정답을 보지 않고 다음으로 가려 하면, 첫 시도는 넘어가지 않는다. 대신 그 버튼(predict에서 아직 고르지 않았으면 선택지)을 테마에 맞게 강조하고 말풍선을 띄운다. 다음 버튼이면 버튼 위에, 키·스와이프면 화면 가운데에 뜬다. 같은 장면에서 한 번 더 시도하면 넘어간다(`skip-warn`, `skip-reveal` 이벤트). predict에서 선택지를 이미 골랐다면 다음 버튼·키·스와이프는 넘어가지 않고 정답을 바로 펼친다(`auto-reveal` 이벤트).
+`LTT.deck({title, glossary: {용어: 풀이}, scenes})`. 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면. ←/→·PageUp/PageDown 키(화면 속 stepper가 있으면 그 stepper가 끝에 닿을 때까지 ←/→를 먼저 받는다), `#n` 해시, `scene` 이벤트. compare의 판정이나 predict의 정답을 보지 않고 다음으로 가려 하면, 첫 시도는 넘어가지 않는다. 대신 그 버튼(predict에서 아직 고르지 않았으면 선택지)을 테마에 맞게 강조하고 말풍선을 띄운다. 다음 버튼이면 버튼 위에, 키·스와이프면 화면 가운데에 뜬다. 같은 장면에서 한 번 더 시도하면 넘어간다(`skip-warn`, `skip-reveal` 이벤트). predict에서 선택지를 이미 골랐다면 다음 버튼·키·스와이프는 넘어가지 않고 정답을 바로 펼친다(`auto-reveal` 이벤트). 정답을 펼친 predict에서 ← 키는 이전 장면 대신 문제 상태로 돌아간다(`predict-back` 이벤트, 이전 버튼·스와이프는 그대로 이전 장면). 펼친 정답은 장면 안에서 글·컨트롤·그림이 없는 빈자리를 찾아 그 위에 놓이고, 빈자리가 없으면 아래로 붙는다(넘치면 평소처럼 78%까지 줄인다).
 
 ### 모든 장면의 공통 필드
 
@@ -203,7 +204,7 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `hook` | `art`(아이콘 이름·이모지·HTML), `pre`, `text`, `sub`, `kicker`, `chips`. 첫 장면 |
 | `terms` | `terms: [{key, word, en, icon, visual, plain, example}]`. 용어를 쉬운 말로 먼저 푼다. key는 glossary에 자동 등록. `visual`(HTML·노드·함수)은 그 말이 가리키는 것을 보이는 작은 그림으로, 풀이 위에 그린다(예: 색상 → 색상환 위의 각도) |
 | `explain` | `steps: [{icon, title, text, visual}]`, `form`, `arrows`. `form`: `"cards"`(기본, 독립된 요소 나열), `"strip"`(이어진 한 줄 흐름, 카드 없이 선과 마디), `"stack"`(세로 타임라인, 단계마다 오른쪽에 그림) |
-| `figure` | `figure`(그림: 노드·HTML·함수), `caption`, `label`, `steps`. 그림 하나가 화면을 차지하고 아래에 "그림 n." 캡션이 붙는다. `points`의 `at`은 무대 안 첫 목업(phone·browser·terminal·code)이 있으면 그 틀 기준, 없으면 무대 전체 기준 %다(`pointsOn`으로 바꾼다). `steps: [{caption, enter(k, fig, dir)}]`를 주면 그림 왼쪽, 단계 자막 오른쪽으로 놓인다. `figure` 함수가 `{el, ...}`를 돌려주면 `enter`의 `fig`로 그 객체가 온다(같은 그림의 여러 상태). 장면에 들어올 때마다 다시 그리려면 공통 필드 `enter(body, ctx)` |
+| `figure` | `figure`(그림: 노드·HTML·함수), `caption`, `label`, `steps`. 그림 하나가 화면을 차지하고 아래에 "그림 n." 캡션이 붙는다. `points`의 `at`은 무대 안 첫 목업(phone·browser·terminal·code)이 있으면 그 틀 기준, 없으면 무대 전체 기준 %다(`pointsOn`으로 바꾼다). `steps: [{caption, enter(k, fig, dir)}]`를 주면 그림 왼쪽, 단계 자막 오른쪽으로 놓인다. 그림의 글·그림(diagram은 노드·라벨 상자)이 자막 칸 밑으로 들어가거나 가로로 넘치면 자막 칸이 그림 아래로 내려간다. 자막 칸 높이는 가장 긴 단계 자막에 맞춰 고정되어 단계를 넘겨도 버튼이 움직이지 않는다. `figure` 함수가 `{el, ...}`를 돌려주면 `enter`의 `fig`로 그 객체가 온다(같은 그림의 여러 상태). 장면에 들어올 때마다 다시 그리려면 공통 필드 `enter(body, ctx)` |
 | `overview` | `figure`, `caption`, `label`(기본 "한 장 정리."). summary 뒤, keywords 바로 앞에 두는 한 장 인포그래픽. figure처럼 그림이 무대 전체를 쓴다. 새 내용 없이 앞 장면의 takeaway를 그림 안 자리에 배치한다 |
 | `statement` | `title`(큰 주장 한 문장, `<em>`은 강조색), `sub`, `visual`(작은 근거 그림, 선택). 카드 없이 리듬을 바꾸는 장면 |
 | `contrast` | `before`, `after`(위 beforeAfter의 각 쪽) |

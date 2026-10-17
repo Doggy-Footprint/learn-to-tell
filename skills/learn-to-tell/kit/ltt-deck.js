@@ -115,10 +115,8 @@
     ".dk-fig{margin:0;display:flex;flex-direction:column;gap:12px;min-width:0}",
     ".dk-fig-stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:min(30vh,320px);min-width:0}",
     ".dk-fig-stage>*{max-width:100%}",
-    /* An `auto` picture track let a fixed-width SVG spill past its cell under the captions near 1000px; the picture now takes
-       the leftover width and scales down inside it. */
-    ".dk-figsteps{display:grid;width:100%;grid-template-columns:minmax(0,1fr) minmax(240px,400px);gap:clamp(20px,3vw,60px);align-items:center}",
-    ".dk-figsteps>.pic{display:flex;justify-content:center}.dk-figsteps>.pic>svg,.dk-figsteps>.pic>*{max-width:100%;height:auto}",
+    ".dk-figsteps{display:grid;width:100%;grid-template-columns:auto minmax(0,420px);gap:clamp(24px,4vw,60px);align-items:center}",
+    ".dk-figsteps.stack{grid-template-columns:minmax(0,1fr);gap:16px}.dk-figsteps.stack>.pic{display:flex;justify-content:center}.dk-figsteps.stack>.pic>*{max-width:100%;height:auto}",
     ".dk-figsteps>*{min-width:0}.dk-figsteps .ltt-caption{font-size:clamp(15px,1.3vw,18px);line-height:1.6}",
     ".dk-fig figcaption{font-size:clamp(14px,1.2vw,16px);color:var(--ltt-ink-2);line-height:1.55;max-width:90ch;border-top:1px solid var(--ltt-line-2);padding-top:10px}",
     ".dk-fig figcaption b{font-family:var(--ltt-font-display);margin-right:6px;color:var(--ltt-ink)}",
@@ -145,17 +143,14 @@
     ".dk-cmp.table .dk-head{display:grid;grid-template-columns:minmax(120px,.7fr) minmax(0,2fr) minmax(150px,.9fr);column-gap:clamp(12px,2vw,28px);padding:8px 4px;border-bottom:1px solid var(--ltt-line-2);font:700 12px var(--ltt-mono);color:var(--ltt-muted);letter-spacing:.02em}",
     ".dk-cmp.table .dk-item.good{--tc:var(--ltt-good)}.dk-cmp.table .dk-item.bad{--tc:var(--ltt-bad)}.dk-cmp.table .dk-item.warn{--tc:var(--ltt-warn)}",
     /* predict */
-    ".dk-pred{display:flex;flex-direction:column;gap:12px}",
+    ".dk-pred{display:flex;flex-direction:column;gap:12px}.dk-off{visibility:hidden}",
     ".dk-pred .ltt-choices button{padding:clamp(16px,2.4vh,24px) 20px;font-size:clamp(16px,1.6vw,21px)}",
     ".dk-pred .ltt-choices button.unsure{color:var(--ltt-muted);font-weight:500;box-shadow:inset 0 0 0 1.5px var(--ltt-line-2);border:0;background:transparent}",
     ".dk-pred .ltt-choices button.unsure.wrong{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
     ".dk-hint2{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ltt-muted);margin:0}",
     /* Revealing keeps every choice's box in place: removing them reflowed the scene mid-step and shook the frame. */
-    /* The answer lays over the question in one grid cell, so revealing it does not grow the scene and trigger a refit. */
-    ".dk-stack{display:grid}.dk-stack>*{grid-area:1/1;min-width:0}",
-    ".dk-ask{display:flex;flex-direction:column;gap:12px;transition:opacity .35s}.dk-pred.done .dk-ask{opacity:.12;pointer-events:none}",
-    ".dk-pred .dk-stack>.dk-ans{align-self:center;z-index:1}",
-    ".dk-pred.done .dk-hint2,.dk-pred.done .dk-ask>.dk-actions{visibility:hidden}",
+    ".dk-pred{position:relative}.dk-pred.done .dk-hint2,.dk-pred.done>.dk-actions{visibility:hidden}",
+    ".dk-float{position:absolute;z-index:1;background:var(--ltt-bg)}",
     ".dk-pred.done.rest-hide .ltt-choices button:not(.right):not([aria-pressed=true]){visibility:hidden}",
     ".dk-pred.done.rest-dim .ltt-choices button:not(.right):not([aria-pressed=true]){opacity:.35}",
     ".dk-pred.done.rest-dot .ltt-choices button:not(.right):not([aria-pressed=true]){color:transparent;position:relative}",
@@ -356,19 +351,19 @@
       body.appendChild(w);
       if (s.reveal === false) w.classList.add("shown");
       else {
-        var b = h("button", null, s.revealLabel || "판정 보기"), rs = h("button", "ghost ltt-hidden", "초기화");
+        var b = h("button", null, s.revealLabel || "판정 보기"), rs = h("button", "ghost dk-off", "초기화");
         var gate = { btn: b, word: "판정" };
         ctx.gate = gate;
         b.onclick = function () {
           ctx.gate = null;
-          w.classList.add("shown"); b.disabled = true; rs.classList.remove("ltt-hidden");
+          w.classList.add("shown"); b.disabled = true; rs.classList.remove("dk-off");
           s.items.forEach(function (it, k) { if (it.onReveal) it.onReveal(cells[k].querySelector(".vis")); });
           LTT.linkTerms(w, ctx.index);
           ctx.fit();
           LTT.record("compare-reveal", { scene: s.title });
         };
         rs.onclick = function () {
-          w.classList.remove("shown"); b.disabled = false; rs.classList.add("ltt-hidden");
+          w.classList.remove("shown"); b.disabled = false; rs.classList.add("dk-off");
           ctx.gate = gate;
           s.items.forEach(function (it, k) { if (it.onReset) it.onReset(cells[k].querySelector(".vis")); });
           ctx.fit();
@@ -392,9 +387,30 @@
           else if (ret != null && !(ret && ret.el)) fill(pic, ret, ctx);
         } else fill(pic, s.figure, ctx);
         var api = ret && ret.el ? ret : pic;
-        LTT.stepper(row.appendChild(h("div", "ctl")), s.steps.map(function (x) {
+        var ctl = row.appendChild(h("div", "ctl"));
+        // Steps may grow the drawing; the picture keeps the tallest height seen so a shorter step does not pull the row up.
+        LTT.stepper(ctl, s.steps.map(function (x) {
           return { caption: x.caption, enter: function (k, dir) { if (x.enter) x.enter(k, api, dir); } };
-        }));
+        }), { onStep: function () {
+          requestAnimationFrame(function () { if (pic.offsetHeight > (parseFloat(pic.style.minHeight) || 0) + 1) pic.style.minHeight = pic.offsetHeight + "px"; });
+        } });
+        ctl.__lttPlace = { scope: pic };
+        // The caption column keeps the longest caption's height so stepping never moves the buttons, and it sits beside the
+        // picture only while no text, control or diagram box of the picture runs under it; otherwise it moves below.
+        ctx.place = function () {
+          row.classList.remove("stack");
+          pic.style.minHeight = "";
+          ctx.el.firstChild.style.zoom = "";
+          holdCaption(ctl.querySelector(".ltt-caption"), s.steps);
+          ctx.refit();
+          var c = ctl.getBoundingClientRect(), box = { x0: c.left, y0: c.top, x1: c.right, y1: c.bottom };
+          if (!solidRects(pic).some(function (o) { return LTT.rectHit(box, o); })) return;
+          row.classList.add("stack");
+          pic.style.minHeight = "";
+          ctx.el.firstChild.style.zoom = "";
+          holdCaption(ctl.querySelector(".ltt-caption"), s.steps);
+          ctx.refit();
+        };
       } else fill(st, s.figure, ctx);
       if (s.caption) {
         var n = ctx.scenes.slice(0, ctx.index + 1).filter(function (x) { return x.type === "figure"; }).length;
@@ -447,27 +463,27 @@
       why.appendChild(h("div", "dk-actions")).appendChild(rs);
       ans.append(av, why);
       if (s.visual) fill(w.appendChild(h("div", "dk-pvis")), s.visual, ctx);
-      var stack = w.appendChild(h("div", "dk-stack")), ask = stack.appendChild(h("div", "dk-ask"));
-      ask.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, h("div", "dk-actions"));
-      stack.appendChild(ans);
-      ask.querySelector(".dk-actions").appendChild(lock);
+      w.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, h("div", "dk-actions"), ans);
+      w.querySelector(".dk-actions").appendChild(lock);
+      var faded = ".ltt-choices button:not(.right):not([aria-pressed=true])";
+      ans.__lttPlace = { scope: ctx.el.firstChild, skip: faded };
+      ctx.place = function () { if (w.classList.contains("done")) ctx.float(ans, w, faded); else ctx.refit(); };
       body.appendChild(w);
       var gate = { btn: lock, alt: box, word: "정답" };
       ctx.gate = gate;
       var pr = LTT.predict({ question: s.question || s.title, choices: box, button: lock, answer: s.answer, show: [ans],
         onReset: function () {
           w.classList.remove("done");
-          ask.inert = false;
           ctx.gate = gate;
+          ctx.back = null;
           av.replaceChildren();
           if (s.onReset) s.onReset();
           ctx.fit();
         },
         reveal: function (v) {
           ctx.gate = null;
+          ctx.back = pr.reset;
           w.classList.add("done");
-          // The faded question stays under the answer, so it leaves the tab order and focus moves to the answer.
-          ask.inert = true;
           why.tabIndex = -1;
           why.focus({ preventScroll: true });
           if (typeof s.answerVisual === "function") s.answerVisual(av, v);
@@ -665,6 +681,74 @@
     document.body.appendChild(ov);
   }
 
+  // Rectangles a placed panel must not cover: every rendered text line, control and drawing; a box diagram counts only its
+  // boxes and labels so the space between them stays usable. Hidden, inert, faded (opacity < .5) and `skip` parts do not count.
+  function solidRects(root, panel, skip) {
+    var out = [];
+    function gone(e) {
+      if (getComputedStyle(e).visibility === "hidden") return true;
+      for (var o = 1; e && e !== root.parentNode; e = e.parentElement) {
+        if (e === panel || e.inert || (skip && e.matches(skip))) return true;
+        o *= +getComputedStyle(e).opacity;
+      }
+      return o < 0.5;
+    }
+    function add(r) { if (r.width > 0 && r.height > 0) out.push({ x0: r.left, y0: r.top, x1: r.right, y1: r.bottom }); }
+    [].forEach.call(root.querySelectorAll(VISUALS + ",button,input,select,textarea"), function (v) {
+      if ((panel && v.contains(panel)) || v.parentElement.closest("svg") || gone(v)) return;
+      if (v.matches("svg.ltt-dg")) [].forEach.call(v.querySelectorAll("rect,text,circle,ellipse,polygon"), function (p) { if (!gone(p)) add(p.getBoundingClientRect()); });
+      else add(v.getBoundingClientRect());
+    });
+    var walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), t, range = document.createRange();
+    while ((t = walk.nextNode())) {
+      if (!t.nodeValue.trim() || t.parentElement.closest("svg") || gone(t.parentElement)) continue;
+      range.selectNodeContents(t);
+      [].forEach.call(range.getClientRects(), add);
+    }
+    return out;
+  }
+
+  function holdCaption(cap, steps) {
+    cap.style.minHeight = "";
+    var probe = cap.cloneNode(false), most = 0;
+    probe.style.cssText = "position:absolute;visibility:hidden;width:" + cap.clientWidth + "px";
+    cap.parentNode.appendChild(probe);
+    steps.forEach(function (x) { probe.innerHTML = x.caption || ""; most = Math.max(most, probe.offsetHeight); });
+    probe.remove();
+    cap.style.minHeight = most + "px";
+  }
+
+  // Lays `panel` over free space of the scene so revealing it does not grow the scene; with no free spot it joins the flow
+  // below `host`'s other content and fit() shrinks the scene as before.
+  function floatPanel(el, inner, panel, host, skip) {
+    panel.classList.add("dk-float");
+    panel.style.left = panel.style.top = "";
+    fit(el, inner);
+    panel.style.width = host.clientWidth + "px";
+    var z = parseFloat(inner.style.zoom) || 1, hr = host.getBoundingClientRect(), pr = panel.getBoundingClientRect();
+    var region = { x0: hr.left, y0: hr.top, x1: hr.right, y1: el.getBoundingClientRect().bottom - 8 };
+    var at = LTT.freeSlot(region, [pr.width, pr.height], solidRects(inner, panel, skip), 10 * z);
+    if (at) {
+      panel.style.left = (at[0] - hr.left) / z + "px";
+      panel.style.top = (at[1] - hr.top) / z + "px";
+      return true;
+    }
+    panel.classList.remove("dk-float");
+    panel.style.width = "";
+    fit(el, inner);
+    return false;
+  }
+
+  function panelOverlap(body) {
+    var n = 0;
+    [].forEach.call(body.querySelectorAll(".dk-float,.dk-figsteps:not(.stack)>.ctl"), function (p) {
+      if (!p.__lttPlace) return;
+      var r = p.getBoundingClientRect(), box = { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom };
+      n += solidRects(p.__lttPlace.scope, p, p.__lttPlace.skip).filter(function (o) { return LTT.rectHit(box, o); }).length;
+    });
+    return n;
+  }
+
   var MOCKS = ".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code";
   var VISUALS = "svg.ltt-svg,svg.ltt-dg,.ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code,canvas,img,.ltt-ba,.dk-fig-stage>*,[data-visual]";
 
@@ -700,6 +784,7 @@
       visualRatio: body.querySelector(VISUALS) ? biggest / stage : null,
       figRatio: figRatio, fill: Math.min(1, (ih * zoom) / (el.clientHeight || 1)),
       fontSizes: Object.keys(sizes).length,
+      panelOverlap: panelOverlap(body),
       graphOverlaps: [].reduce.call(body.querySelectorAll("svg.ltt-dg"), function (n, g) { return n + (g.__lttDiagram ? LTT.graphOverlaps(g.__lttDiagram).length : 0); }, 0),
       goals: [].map.call(body.querySelectorAll(".ltt-goal[data-samples]"), function (g) {
         return { hits: +g.dataset.hits, samples: +g.dataset.samples, start: g.dataset.start === "1" };
@@ -748,6 +833,8 @@
     function mount(i) {
       var s = scenes[i], el = stage.children[i], ctx = { el: el, scene: s, index: i, scenes: scenes, predictRest: spec.predictRest };
       var inner = el.appendChild(h("div", "dk-in"));
+      ctx.refit = function () { fit(el, inner); };
+      ctx.float = function (panel, host, skip) { return floatPanel(el, inner, panel, host, skip); };
       if (!NO_HEAD[s.type]) {
         var head = inner.appendChild(h("div", "dk-head"));
         if (s.number !== false) head.appendChild(h("div", "dk-no", pad2(i + 1)));
@@ -789,7 +876,11 @@
       if (s.basis) (rail || inner).appendChild(h("p", "ltt-basis", s.basis));
       if (s.takeaway) inner.appendChild(LTT.takeaway(s.takeaway, s.sources));
       LTT.linkTerms(el, i);
-      ctx.fit = function () { if (LTT.mobile()) mobileFit(el, inner); else fit(el, inner); };
+      ctx.fit = function () {
+        if (LTT.mobile()) mobileFit(el, inner);
+        else if (ctx.place) ctx.place();
+        else fit(el, inner);
+      };
       mounted[i] = { ctx: ctx, fit: ctx.fit, enter: function () {
         if (r && r.enter) r.enter();
         if (custom && custom.enter) custom.enter();
@@ -880,6 +971,8 @@
       var d = e.key === "ArrowRight" || e.key === "PageDown" ? 1 : e.key === "ArrowLeft" || e.key === "PageUp" ? -1 : 0;
       if (!d) return;
       e.preventDefault();
+      var back = d < 0 && mounted[cur] && mounted[cur].ctx.back;
+      if (back) { LTT.record("predict-back", { scene: cur + 1 }); return back(); }
       var btn = visibleStepButton(d);
       if (btn) btn.click(); else if (d > 0) forward("key"); else go(cur + d);
     });

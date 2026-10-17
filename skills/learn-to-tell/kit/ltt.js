@@ -550,6 +550,7 @@
     var out = [], hero = m.type === "figure" || m.layout === "full";
     function add(rule, msg) { out.push({ rule: rule, msg: msg }); }
     if (m.hscroll) add("hscroll", "가로로 넘친다 (폭 " + m.hscroll + "px 초과). 고정 폭을 max-width:100%로 바꿀 것");
+    if (m.panelOverlap) add("panel-overlap", "자막·정답 패널이 글·그림 " + m.panelOverlap + "곳과 겹친다. 그림을 줄이거나 장면을 나눌 것");
     if (m.graphOverlaps) add("graph-overlap", "그래프에서 라벨·노드·엣지가 " + m.graphOverlaps + "곳 겹친다. 좌표를 손으로 정했다면 LTT.autoLayout으로 배치할 것");
     (m.goals || []).forEach(function (g) {
       if (!g.hits) add("goal-unreachable", "목표를 맞추는 손잡이 위치가 없다 (표본 " + g.samples + "개 중 0개). 기준이나 손잡이 범위를 고칠 것");
@@ -565,6 +566,21 @@
     if (hero && m.fill != null && m.fill < 0.6) add("empty-stage", "장면이 화면 높이의 " + Math.round(m.fill * 100) + "%만 쓴다. 그림을 키울 것");
     if (m.fontSizes > 7) add("many-sizes", "본문 글자 크기가 " + m.fontSizes + "단계다 (kit 부품 포함 7단계 이하). 페이지 CSS의 font-size를 kit 크기에 맞출 것");
     return out;
+  }
+
+  function rectHit(a, b) { return Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5; }
+
+  // Top-left corner of the first spot, scanning rows downward, where a w×h box inside `region` stays `gap` clear of every
+  // solid rectangle ({x0, y0, x1, y1}); null when there is none.
+  function freeSlot(region, size, solids, gap, step) {
+    gap = gap || 0; step = step || 4;
+    for (var y = region.y0; y + size[1] <= region.y1 + 0.5; y += step) {
+      for (var x = region.x0; x + size[0] <= region.x1 + 0.5; x += step) {
+        var r = { x0: x - gap, y0: y - gap, x1: x + size[0] + gap, y1: y + size[1] + gap };
+        if (!solids.some(function (o) { return rectHit(r, o); })) return [x, y];
+      }
+    }
+    return null;
   }
 
   // Positions a control can take, for checking a goal offline; long ranges keep `cap` evenly spaced positions including both ends.
@@ -689,7 +705,7 @@
     kitBase: KIT, lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
     icon: icon, icons: Object.keys(ICONS), theme: theme, themeTokens: themeTokens, palette: palette, contrast: contrast, mark: mark, marks: Object.keys(MARKS),
     themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
-    termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene,
+    termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene, rectHit: rectHit, freeSlot: freeSlot,
     stepValues: stepValues, goalReach: goalReach,
     setGlossary: setGlossary, linkTerms: linkTerms, mobile: mobile
   };
