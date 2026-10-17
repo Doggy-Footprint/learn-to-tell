@@ -394,7 +394,7 @@
         }), { onStep: function () {
           requestAnimationFrame(function () { if (pic.offsetHeight > (parseFloat(pic.style.minHeight) || 0) + 1) pic.style.minHeight = pic.offsetHeight + "px"; });
         } });
-        ctl.__lttPlace = { scope: pic };
+        ctl.__lttPlace = { scope: pic, keepFaded: true };
         // The caption column keeps the longest caption's height so stepping never moves the buttons, and it sits beside the
         // picture only while no text, control or diagram box of the picture runs under it; otherwise it moves below.
         ctx.place = function () {
@@ -404,7 +404,7 @@
           holdCaption(ctl.querySelector(".ltt-caption"), s.steps);
           ctx.refit();
           var c = ctl.getBoundingClientRect(), box = { x0: c.left, y0: c.top, x1: c.right, y1: c.bottom };
-          if (!solidRects(pic).some(function (o) { return LTT.rectHit(box, o); })) return;
+          if (!solidRects(pic, null, null, true).some(function (o) { return LTT.rectHit(box, o); })) return;
           row.classList.add("stack");
           pic.style.minHeight = "";
           ctx.el.firstChild.style.zoom = "";
@@ -682,8 +682,9 @@
   }
 
   // Rectangles a placed panel must not cover: every rendered text line, control and drawing; a box diagram counts only its
-  // boxes and labels so the space between them stays usable. Hidden, inert, faded (opacity < .5) and `skip` parts do not count.
-  function solidRects(root, panel, skip) {
+  // boxes and labels so the space between them stays usable. Hidden, inert, faded (opacity < .5) and `skip` parts do not count,
+  // except with `keepFaded`: a stepper dims parts only for the current step and brings them back on the next.
+  function solidRects(root, panel, skip, keepFaded) {
     var out = [];
     function gone(e) {
       if (getComputedStyle(e).visibility === "hidden") return true;
@@ -691,7 +692,7 @@
         if (e === panel || e.inert || (skip && e.matches(skip))) return true;
         o *= +getComputedStyle(e).opacity;
       }
-      return o < 0.5;
+      return !keepFaded && o < 0.5;
     }
     function add(r) { if (r.width > 0 && r.height > 0) out.push({ x0: r.left, y0: r.top, x1: r.right, y1: r.bottom }); }
     [].forEach.call(root.querySelectorAll(VISUALS + ",button,input,select,textarea"), function (v) {
@@ -744,7 +745,7 @@
     [].forEach.call(body.querySelectorAll(".dk-float,.dk-figsteps:not(.stack)>.ctl"), function (p) {
       if (!p.__lttPlace) return;
       var r = p.getBoundingClientRect(), box = { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom };
-      n += solidRects(p.__lttPlace.scope, p, p.__lttPlace.skip).filter(function (o) { return LTT.rectHit(box, o); }).length;
+      n += solidRects(p.__lttPlace.scope, p, p.__lttPlace.skip, p.__lttPlace.keepFaded).filter(function (o) { return LTT.rectHit(box, o); }).length;
     });
     return n;
   }
