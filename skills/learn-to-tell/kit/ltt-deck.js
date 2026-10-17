@@ -826,6 +826,11 @@
         if (gate && armed === cur) LTT.record("skip-reveal", { scene: cur + 1, via: via });
         return go(cur + 1);
       }
+      // A predict choice already picked means the viewer has guessed, so forward reveals the answer instead of nudging.
+      if (gate.alt && !gate.btn.disabled) {
+        LTT.record("auto-reveal", { scene: cur + 1, via: via });
+        return gate.btn.click();
+      }
       armed = cur;
       nudged = gate.btn.disabled && gate.alt ? gate.alt : gate.btn;
       nudged.classList.remove("ltt-nudge");
