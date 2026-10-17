@@ -152,6 +152,7 @@
     /* Revealing keeps every choice's box in place: removing them reflowed the scene mid-step and shook the frame. */
     ".dk-pred{position:relative}.dk-pred.done .dk-hint2,.dk-pred.done>.dk-actions{visibility:hidden}",
     ".dk-float{position:absolute;z-index:1;background:var(--ltt-bg)}",
+    ".dk-probe{visibility:hidden}",
     ".dk-pred.done.rest-hide .ltt-choices button:not(.right):not([aria-pressed=true]){visibility:hidden}",
     ".dk-pred.done.rest-dim .ltt-choices button:not(.right):not([aria-pressed=true]){opacity:.35}",
     ".dk-pred.done.rest-dot .ltt-choices button:not(.right):not([aria-pressed=true]){color:transparent;position:relative}",
@@ -483,7 +484,33 @@
       // Only hidden choices free their space; dim and dot choices are meant to stay visible, so the answer avoids them.
       var faded = rest === "hide" ? ".ltt-choices button:not(.right):not([aria-pressed=true])" : null;
       ans.__lttPlace = { scope: ctx.el.firstChild, skip: faded, keepFaded: !faded };
-      ctx.place = function () { if (w.classList.contains("done")) ctx.float(ans, w, faded, !faded); else ctx.refit(); };
+      // The zoom is fixed on entry to the smallest any state needs (the question, or the answer for each choice), so
+      // revealing never rescales the scene. Probing renders each answer off-screen without recording or s.reveal.
+      var probed = null;
+      function lockZoom() {
+        var key = innerWidth + "x" + innerHeight + document.fonts.status;
+        if (key === probed) return;
+        probed = key;
+        ctx.zmax = 1;
+        var z = ctx.refit();
+        ans.classList.remove("ltt-hidden");
+        ans.classList.add("dk-probe");
+        w.classList.add("done");
+        choices.forEach(function (c, i) {
+          if (typeof s.answerVisual === "function") { av.replaceChildren(); s.answerVisual(av, c.id); }
+          else if (i === 0 && s.answerVisual) av.innerHTML = s.answerVisual;
+          z = Math.min(z, ctx.refit());
+        });
+        w.classList.remove("done");
+        ans.classList.remove("dk-probe");
+        ans.classList.add("ltt-hidden");
+        av.replaceChildren();
+        ctx.zmax = z;
+      }
+      ctx.place = function () {
+        if (w.classList.contains("done")) ctx.float(ans, w, faded, !faded);
+        else { lockZoom(); ctx.refit(); }
+      };
       ctx.unplace = function () { ans.classList.remove("dk-float"); ans.style.left = ans.style.top = ans.style.width = ""; };
       body.appendChild(w);
       var gate = { btn: lock, alt: box, word: "정답" };
@@ -650,18 +677,25 @@
   var NO_HEAD = { hook: 1, statement: 1 };
 
   // A scene must read as one screen: if it would scroll, shrink it (not below 78%) instead.
-  function fit(el, inner) {
-    inner.style.zoom = inner.style.width = "";
+  // `zmax` caps the zoom so a scene can keep the scale of a larger state it will switch to.
+  function fit(el, inner, zmax) {
+    var z = Math.min(1, zmax || 1);
+    zoomTo(inner, z);
     // Measure the rendered box each pass: scrollHeight before zooming does not predict the zoomed layout.
-    var avail = el.clientHeight - 8, z = 1;
+    var avail = el.clientHeight - 8;
     for (var k = 0; k < 4 && z > 0.78; k++) {
       var got = inner.getBoundingClientRect().height;
-      if (got <= avail + 1) return;
+      if (got <= avail + 1) break;
       z = Math.max(0.78, z * avail / got);
-      // A zoomed 100%-wide box keeps its visual width, so width-driven content (SVG) would not shrink; scale the width too.
-      inner.style.zoom = z;
-      inner.style.width = z * 100 + "%";
+      zoomTo(inner, z);
     }
+    return z;
+  }
+
+  // A zoomed 100%-wide box keeps its visual width, so width-driven content (SVG) would not shrink; scale the width too.
+  function zoomTo(inner, z) {
+    inner.style.zoom = z < 1 ? z : "";
+    inner.style.width = z < 1 ? z * 100 + "%" : "";
   }
 
   // On phones a scene scrolls instead of shrinking. A drawing whose text would fall below ~10px at column width keeps
@@ -728,10 +762,10 @@
 
   // Lays `panel` over free space of the scene so revealing it does not grow the scene; with no free spot it joins the flow
   // below `host`'s other content and fit() shrinks the scene as before.
-  function floatPanel(el, inner, panel, host, skip, keepFaded) {
+  function floatPanel(el, inner, panel, host, skip, keepFaded, zmax) {
     panel.classList.add("dk-float");
     panel.style.left = panel.style.top = "";
-    fit(el, inner);
+    fit(el, inner, zmax);
     panel.style.width = host.clientWidth + "px";
     var z = parseFloat(inner.style.zoom) || 1, hr = host.getBoundingClientRect(), pr = panel.getBoundingClientRect();
     var region = { x0: hr.left, y0: hr.top, x1: hr.right, y1: el.getBoundingClientRect().bottom - 8 };
@@ -743,7 +777,7 @@
     }
     panel.classList.remove("dk-float");
     panel.style.width = "";
-    fit(el, inner);
+    fit(el, inner, zmax);
     return false;
   }
 
@@ -841,8 +875,8 @@
     function mount(i) {
       var s = scenes[i], el = stage.children[i], ctx = { el: el, scene: s, index: i, scenes: scenes, predictRest: spec.predictRest };
       var inner = el.appendChild(h("div", "dk-in"));
-      ctx.refit = function () { fit(el, inner); };
-      ctx.float = function (panel, host, skip, keepFaded) { return floatPanel(el, inner, panel, host, skip, keepFaded); };
+      ctx.refit = function () { return fit(el, inner, ctx.zmax); };
+      ctx.float = function (panel, host, skip, keepFaded) { return floatPanel(el, inner, panel, host, skip, keepFaded, ctx.zmax); };
       if (!NO_HEAD[s.type]) {
         var head = inner.appendChild(h("div", "dk-head"));
         if (s.number !== false) head.appendChild(h("div", "dk-no", pad2(i + 1)));
@@ -887,7 +921,7 @@
       ctx.fit = function () {
         if (LTT.mobile()) { if (ctx.unplace) ctx.unplace(); mobileFit(el, inner); }
         else if (ctx.place) ctx.place();
-        else fit(el, inner);
+        else fit(el, inner, ctx.zmax);
       };
       mounted[i] = { ctx: ctx, fit: ctx.fit, enter: function () {
         if (r && r.enter) r.enter();
