@@ -540,14 +540,19 @@
     bar.append(prev, next, loop, dots);
     container.append(caption, bar);
     var timer = null;
-    function stop() { clearInterval(timer); timer = null; loop.textContent = "▶ 반복 재생"; loop.setAttribute("aria-pressed", "false"); }
+    function stop() { clearTimeout(timer); timer = null; loop.textContent = "▶ 반복 재생"; loop.setAttribute("aria-pressed", "false"); }
+    function hold(k) { return steps[k].hold || opts.interval || 1800; }
+    function tick() {
+      timer = setTimeout(function () {
+        if (!container.isConnected) return stop();
+        go(i === steps.length - 1 ? 0 : i + 1, 1);
+        tick();
+      }, hold(i));
+    }
     function play() {
       stop();
       loop.textContent = "■ 정지"; loop.setAttribute("aria-pressed", "true");
-      timer = setInterval(function () {
-        if (!container.isConnected) return stop();
-        go(i === steps.length - 1 ? 0 : i + 1, 1);
-      }, opts.interval || 1800);
+      tick();
     }
     loop.onclick = function () { if (timer) stop(); else play(); };
     function go(k, dir) {
@@ -957,7 +962,7 @@
         var run = 0;
         return stepper(container, steps.map(function (st) {
           return {
-            caption: st.caption,
+            caption: st.caption, hold: st.hold,
             enter: function (i) {
               var id = ++run;
               api.clear(); api.highlight(st.hot || null); api.flow(st.flow || []);
@@ -1212,7 +1217,7 @@
       },
       player: function (container, steps, opts) {
         return stepper(container, steps.map(function (st, i) {
-          return { caption: st.caption, enter: function (k) {
+          return { caption: st.caption, hold: st.hold, enter: function (k) {
             gPk.selectAll("*").interrupt().remove();
             var upto = st.upto == null ? i + 1 : st.upto;
             api.show(upto); api.highlight(st.hot || null);
@@ -1478,7 +1483,7 @@
           var run = 0;
           return stepper(container, steps.map(function (st) {
             return {
-              caption: st.caption,
+              caption: st.caption, hold: st.hold,
               enter: function (i) {
                 var id = ++run;
                 api.clear(); api.highlight(st.hot || null); api.flow(st.flow || []);

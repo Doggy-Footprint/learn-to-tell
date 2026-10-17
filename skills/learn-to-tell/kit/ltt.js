@@ -277,8 +277,10 @@
 
   function icon(name, opts) {
     var body = ICONS[name];
-    if (!body) return "";
     var o = opts || {};
+    // Unknown names render as text so an emoji shows instead of an empty slot; escaped because callers pass the result to innerHTML.
+    if (!body) return name ? "<span class='ltt-ic" + (o.cls ? " " + o.cls : "") + "' aria-hidden='true'>" +
+      String(name).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</span>" : "";
     return "<svg class='ltt-ic" + (o.cls ? " " + o.cls : "") + "' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='" +
       (o.weight || 1.8) + "' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>" + body + "</svg>";
   }
@@ -538,7 +540,7 @@
 
   // Judges measurements of one rendered scene (see ltt-deck.js audit). Thresholds were calibrated on the gallery at 1440×900:
   // below them a figure read as a thumbnail or the scene needed the zoom floor; kit parts alone already use about 7 text sizes.
-  // Narrow desktop windows (compact, 720–1000px) shrink by design, so zoom and visual-size ratios are not judged there.
+  // Narrow windows (compact, ≤1000px) shrink by design, so zoom and visual-size ratios are not judged there.
   function auditScene(m) {
     var out = [], hero = m.type === "figure" || m.layout === "full";
     function add(rule, msg) { out.push({ rule: rule, msg: msg }); }

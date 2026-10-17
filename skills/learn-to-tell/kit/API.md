@@ -14,6 +14,8 @@
 <script src="/kit/vendor/d3-sankey.min.js"></script>             <!-- LTT.sankey를 쓸 때만 -->
 <script src="/kit/vendor/topojson-client.min.js"></script>       <!-- LTT.map을 쓸 때만 -->
 <script src="/kit/vendor/prism/prism.min.js"></script>           <!-- mock.code의 lang을 쓸 때만 -->
+<script src="/kit/vendor/elk.bundled.js"></script>                <!-- LTT.autoLayout·LTT.state를 쓸 때만 -->
+<script src="/kit/vendor/rough.js"></script>                      <!-- sketch 테마의 손그림 선을 쓸 때만 -->
 <script src="/kit/ltt.js"></script>       <!-- 토큰·폰트·아이콘·용어·기록·검증 -->
 <script src="/kit/ltt-parts.js"></script> <!-- 움직이는 그림 -->
 <script src="/kit/ltt-ui.js"></script>    <!-- 설명 부품 -->
@@ -33,9 +35,9 @@
 | `LTT.palette()`, `LTT.palette(theme, "light"\|"dark")` | 범주형 색 6개 배열. 인자 없이 부르면 지금 페이지의 테마·다크 모드 값. 계열 구분에만 쓰고 판정(good·bad)에는 쓰지 않는다. 모든 테마에서 배경 대비 3:1 이상(글자 토큰 `ink`·`ink-2`·`muted`·`accent`·`good`·`bad`·`warn`은 바탕·카드·자기 soft 위 4.5:1 이상), 색각 이상(적록·청황) 시뮬레이션에서도 구분된다(`tests/kit.test.mjs`). |
 | `LTT.mark(kind, {size, color, weight, fill, inline})` | 모양 표식 SVG 문자열(square, ring, dot, diamond, cross, 목록은 `LTT.marks`). (0,0) 중심이라 d3 `g.html(...)`에 넣는다. `inline: true`면 1em `<svg>`로 감싸 본문·범례에 쓴다. 색만으로 계열을 가르지 않게 모양을 함께 쓴다. |
 | `LTT.themeTokens(theme, scheme)` | 문서 없이 테마의 색 토큰 객체(`{bg, ink, c1, …}`). 테스트·서버 쪽 계산용. |
-| `LTT.icon(name, {weight, cls})` | 선 아이콘 SVG 문자열. 이름 목록은 `LTT.icons`. hook `art`, explain·terms·facts `icon`, diagram 노드 `icon`에는 이름만 넘긴다. 이모지도 받는다. 손으로 그린 44개 + Lucide에서 가져온 16개(globe, map-pin, route, git-branch, timer, database-zap, network, shield-check, key-round, mail, package, truck, wifi, cloud, gauge, workflow). 더 필요하면 Lucide에서 그 아이콘만 `ICONS`에 옮긴다(전체 세트는 넣지 않는다). |
+| `LTT.icon(name, {weight, cls})` | 선 아이콘 SVG 문자열. 이름 목록은 `LTT.icons`. hook `art`, explain·terms·facts `icon`, diagram 노드 `icon`에는 이름만 넘긴다. 목록에 없는 값(이모지 등)은 글자로 그린다. SVG 안(diagram·sequence 노드)에서는 글자가 보이지 않으니 이름만 쓴다. 손으로 그린 44개 + Lucide에서 가져온 16개(globe, map-pin, route, git-branch, timer, database-zap, network, shield-check, key-round, mail, package, truck, wifi, cloud, gauge, workflow). 더 필요하면 Lucide에서 그 아이콘만 `ICONS`에 옮긴다(전체 세트는 넣지 않는다). |
 | `{{용어}}`, `{{보이는 말\|용어}}` | 본문 속 용어 표시. 덱이 풀이 팝오버로 바꾼다(마우스 올리기·탭). 처음 나온 장면은 진하게 표시된다. |
-| `LTT.linkTerms(el, sceneIndex)` | 덱 밖이나 나중에 그린 DOM의 `{{}}`를 바꾼다. 덱은 장면 마운트, predict 공개, compare 공개, stepper 자막에서 알아서 부른다. |
+| `LTT.linkTerms(el, sceneIndex)` | 덱 밖이나 나중에 그린 DOM의 `{{}}`를 바꾼다. 덱은 장면 마운트, predict 공개, compare 공개, summary recall의 답 보기, stepper 자막에서 알아서 부른다. |
 | `LTT.lintDeck(spec)` | 독학 기준 점검. `[{scene, rule, msg}]`. 덱이 시작할 때 실행해 경고를 화면 오른쪽 아래 패널에 띄우고 `lint` 이벤트로 남긴다. 규칙은 아래. |
 | `LTT.record(type, data)` | lesson 페이지에서만 서버로 이벤트를 보낸다. |
 | `LTT.expect(label, actual, expected, {tol})` | 기대값 대조. 불일치는 패널과 서버에 남는다. |
@@ -65,7 +67,7 @@
 | `unknown-term` | `{{x}}`인데 `glossary`에도 `terms` 장면에도 풀이가 없다 |
 | `used-before-defined` | glossary 용어가 처음 `{{}}`로 표시되기 전 장면에 그냥 쓰였다 |
 | `predict-new-term` | predict의 질문·선택지에서 처음 나온 용어 |
-| `no-reading-guide` | compare·contrast·커스텀 그림 장면에 `narration`·`points`·`sub`가 없다 |
+| `no-reading-guide` | compare·contrast·figure·overview·타입 없는 `mount` 장면에 `narration`·`points`·`sub`·`caption`(contrast는 `before.points`도)이 없다 |
 | `no-title` | 제목 없는 장면(hook·summary·keywords 제외) |
 | `overview-missing` | summary가 있는데 한 장 정리(`overview`)가 없다 |
 | `overview-order` | overview가 summary 뒤, keywords 바로 앞이 아니다 |
@@ -83,15 +85,17 @@
 
 lint는 장면 데이터만 본다. 실제로 그려진 화면은 URL에 `?audit`을 붙여 연다. 덱이 모든 장면을 그려 재고, 결과를 패널 경고, `layout-audit` 이벤트, `<html data-ltt-audit="건수">`로 남긴다. `LTT.deck(...)`가 돌려주는 객체의 `audit()`으로 직접 부를 수도 있다. 판정은 `LTT.auditScene(측정값)`이 한다.
 
+폭 1000px 이하 창에서는 `shrunk`·`small-visual`·`loose-figure`를 판정하지 않는다. `small-visual`은 hook·terms·summary·keywords·statement·predict 장면에서도 판정하지 않는다.
+
 | rule | 뜻 |
 | --- | --- |
 | `overflow`, `shrunk` | 78%로 줄여도 넘친다 / 화면에 맞추느라 88% 미만으로 줄었다 |
 | `small-visual` | 가장 큰 그림(compare는 칸 그림의 합)이 화면 넓이의 10% 미만, figure·full 장면은 22% 미만 |
 | `loose-figure` | figure 그림이 figure 무대의 35% 미만 |
 | `empty-stage` | figure·full 장면이 화면 높이의 60% 미만만 쓴다 |
-| `many-sizes` | 장면 본문(목업·SVG 제외)의 글자 크기가 7단계 초과 |
+| `many-sizes` | 장면 본문(목업·SVG·번호 표식 제외)에서 글자를 직접 가진 요소의 글자 크기가 7단계 초과 |
 | `hscroll` | 가로로 넘친다 |
-| `goal-unreachable`, `goal-narrow`, `goal-at-start` | `sweep` 목표가 손잡이의 어느 자리에서도 안 맞는다 / 한 자리에서만 맞는다 / 시작 위치에서 이미 맞는다. 자리는 손잡이마다 최대 201곳(pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다 |
+| `goal-unreachable`, `goal-narrow`, `goal-at-start` | `sweep` 목표가 손잡이의 어느 자리에서도 안 맞는다 / 한 자리에서만 맞는다 / 시작 위치에서 이미 맞는다. 자리는 손잡이마다 최대 201곳(dial은 최대 360곳, pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다 |
 
 지원 폭은 1280px 이상(데스크톱 전용)이다. 1440×900과 1280×800 두 크기에서 0건이어야 한다.
 
@@ -138,12 +142,12 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `.highlight(ids)` | 노드·엣지(`"from>to"`) 외에는 흐리게. 빈 배열·null이면 해제. |
 | `.flow(edgeIds)` | 진행 방향을 보이는 점선 흐름. 방향을 알려야 할 때만. |
 | `.send(from, to, {count, color, ms, gap, r})` → Promise | 엣지를 따라 패킷이 이동. |
-| `.player(el, steps)` | 단계 재생. 자동 넘김은 없고 이전·다음으로만 넘긴다. `steps: [{caption, hot, flow, send: [[from, to, opts]], enter(dg, i)}]`. 단계의 `send`는 그 단계에 머무는 동안 반복된다. 구간마다 `ms`(이동 시간)·`gap`(간격)을 달리해 빠르기 차이를 보인다. 이어진 길은 `send`에 `{relay: [[from, to, ms], ...], count, gap, r, color}`를 넣는다. 패킷마다 구간을 차례로 지나므로, 느린 구간 뒤의 빠른 구간도 느린 구간이 내주는 만큼만 흐른다. 자막이 그림 읽는 법을 말한다. |
+| `.player(el, steps)` | 단계 재생(stepper). 이전·다음으로 넘기고 '반복 재생'으로 순환한다. 단계별 머무는 시간 `hold`는 표현하려는 바에 맞게 정한다. `steps: [{caption, hold, hot, flow, send: [[from, to, opts]], enter(dg, i)}]`. 단계의 `send`는 그 단계에 머무는 동안 반복된다. 구간마다 `ms`(이동 시간)·`gap`(간격)을 달리해 빠르기 차이를 보인다. 이어진 길은 `send`에 `{relay: [[from, to, ms], ...], count, gap, r, color}`를 넣는다. 패킷마다 구간을 차례로 지나므로, 느린 구간 뒤의 빠른 구간도 느린 구간이 내주는 만큼만 흐른다. 자막이 그림 읽는 법을 말한다. |
 | `LTT.diagramLayout(spec)` | 좌표만 계산(테스트·커스텀 그림용). 엣지마다 `pts`(꺾는 점 포함), SVG `d`, 라벨 기준점 `lx, ly`, 기존 `x1…y2`; 노드에 `lines`·`sub`; 영역에 `id, parent, depth`. |
-| `LTT.autoLayout(spec)` → Promise | 좌표 없이 연결만 적으면 elk(layered)가 배치한 diagram spec을 돌려준다: `LTT.diagram(svg, await LTT.autoLayout(spec))`. `spec: {nodes, edges, groups, direction: RIGHT|DOWN, node: [w, h], spacing: [층, 노드] = [72, 36], pad, radius, label, maxWidth}`. 노드·엣지 필드는 diagram과 같고 노드 `group`은 그룹 id, 그룹 `{id, l, k, parent}`는 중첩 영역이 된다. 엣지는 직각(`ortho`)으로 꺾이고 라벨은 diagram이 경로 절반에 둔다(elk는 라벨 자리를 비우지 않으니 라벨이 많으면 `spacing`을 늘린다). 같은 입력은 같은 그림. 노드가 20개를 넘거나 층이 많으면 가로로 길어지니 좁은 칸에서는 `DOWN`. `<script src="/kit/vendor/elk.bundled.js">`(1.6MB)를 ltt.js보다 먼저 불러야 하며, 없으면 reject한다. 오류(없는 노드·그룹, 중복 id, 자기 루프, 그룹 순환)도 reject. |
+| `LTT.autoLayout(spec)` → Promise | 좌표 없이 연결만 적으면 elk(layered)가 배치한 diagram spec을 돌려준다: `LTT.diagram(svg, await LTT.autoLayout(spec))`. `spec: {nodes, edges, groups, direction: RIGHT|DOWN, node: [w, h], spacing: [층, 노드] = [72, 36], pad, radius, label, maxWidth}`. 노드·엣지 필드는 diagram과 같고 노드 `group`은 그룹 id, 그룹 `{id, l, k, parent}`는 중첩 영역이 된다. 엣지는 직각(`ortho`)으로 꺾이고 라벨은 diagram이 경로 절반에 둔다(elk는 라벨 자리를 비우지 않으니 라벨이 많으면 `spacing`을 늘린다). 같은 입력은 같은 그림. 노드가 20개를 넘거나 층이 많으면 가로로 길어지니 좁은 칸에서는 `DOWN`. `<script src="/kit/vendor/elk.bundled.js">`(1.6MB)는 이 부품을 쓰는 페이지에서만 불러온다. 호출할 때 없으면 reject한다. 오류(없는 노드·그룹, 중복 id, 자기 루프, 그룹 순환)도 reject. |
 | `LTT.state(svg, {states, transitions, initial, direction, groups, node, spacing})` → Promise<diagram> | 상태 기계. 상태 `{id, l, s, k, icon, final}`, 전이 `{f, t, l, k, dash}`. `initial` 앞에 시작 점, `final`은 이중 테두리(diagram 노드 `ring: true`), 자기 자신으로의 전이는 상태 아래 `↻ 이벤트` 줄. autoLayout으로 배치하므로 `elk.bundled.js`가 필요하다. 돌려받은 diagram으로 `player`·`highlight`·`send`를 쓴다(시작 점 id는 `__start`). |
 | `LTT.stateSpec(o)` | state가 autoLayout에 넘기는 입력만 만든다(테스트·조정용). |
-| `LTT.stepper(el, [{caption, enter(i, dir)}], {onStep, interval})` → `{go, play, stop, index}` | 한 그림을 단계별로. `enter`는 다시 들어와도 같은 화면이 되게 짠다. '반복 재생' 버튼(또는 `play()`)은 `interval`(기본 1800ms)마다 다음 단계로, 끝에서 처음으로 돌아간다. 이전/다음을 누르면 멈춘다. |
+| `LTT.stepper(el, [{caption, hold, enter(i, dir)}], {onStep, interval})` → `{go, play, stop, index}` | 한 그림을 단계별로. `enter`는 다시 들어와도 같은 화면이 되게 짠다. '반복 재생' 버튼(또는 `play()`)은 단계마다 `hold`ms(없으면 `interval`, 기본 1800ms) 머문 뒤 다음 단계로, 끝에서 처음으로 돌아간다. `hold`는 표현하려는 바에 맞게 정한다(오래 봐야 할 단계는 길게). 이전/다음을 누르면 멈춘다. |
 | `LTT.units(el, n, cols, {band}).paint(k, cls, alt)` | 단위 그림(100칸 = 100건). `band: true`면 가는 틱의 넓은 띠(예: 2×50, 시간순 요청). |
 | `LTT.bar(el, [{color}]).set(values, labels)` | 비율 막대. |
 | `LTT.tween(el, to, fmt, ms)` | 숫자 변화. |
@@ -166,7 +170,7 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 
 ## ltt-deck.js: 장면 덱
 
-`LTT.deck({title, glossary: {용어: 풀이}, scenes})`. 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면. ←/→ 키, `#n` 해시, `scene` 이벤트.
+`LTT.deck({title, glossary: {용어: 풀이}, scenes})`. 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면. ←/→·PageUp/PageDown 키(화면 속 stepper가 있으면 그 stepper가 끝에 닿을 때까지 ←/→를 먼저 받는다), `#n` 해시, `scene` 이벤트.
 
 ### 모든 장면의 공통 필드
 
@@ -184,7 +188,7 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `aside` | 설명 레일에 넣을 추가 부품 |
 | `basis`, `tex` | 근거 한 줄, 접힌 수식 |
 | `mount(body, ctx)` → `{enter, leave}`, `enter` | 커스텀 그림. ctx: `{el, scene, index, scenes}` |
-| `layout` | `"split"`(그림 \| 설명 레일), `"stack"`(설명 위, 그림 전체 폭), `"full"`(그림이 무대 전체, 해설·번호 주석은 그림 아래 캡션 줄). 기본은 figure면 full, narration·points가 있으면 split |
+| `layout` | `"split"`(그림 \| 설명 레일), `"stack"`(설명 위, 그림 전체 폭), `"full"`(그림이 무대 전체, 해설·번호 주석은 그림 아래 캡션 줄). 기본은 figure·overview면 full, 그 밖에는 narration·points가 있으면 split. 단 hook·keywords·summary·terms·contrast·predict·statement는 자동 split이 되지 않는다 |
 | `bare` | split에서 본문 카드 테두리를 없앤다(그림이 이미 패널일 때) |
 | `number: false` | 큰 장면 번호를 숨긴다 |
 
@@ -195,7 +199,7 @@ UI 예시는 맨 HTML 조각보다 목업에 넣는다. 목업 안의 색은 '�
 | `hook` | `art`(아이콘 이름·이모지·HTML), `pre`, `text`, `sub`, `kicker`, `chips`. 첫 장면 |
 | `terms` | `terms: [{key, word, en, icon, visual, plain, example}]`. 용어를 쉬운 말로 먼저 푼다. key는 glossary에 자동 등록. `visual`(HTML·노드·함수)은 그 말이 가리키는 것을 보이는 작은 그림으로, 풀이 위에 그린다(예: 색상 → 색상환 위의 각도) |
 | `explain` | `steps: [{icon, title, text, visual}]`, `form`, `arrows`. `form`: `"cards"`(기본, 독립된 요소 나열), `"strip"`(이어진 한 줄 흐름, 카드 없이 선과 마디), `"stack"`(세로 타임라인, 단계마다 오른쪽에 그림) |
-| `figure` | `figure`(그림: 노드·HTML·함수), `caption`, `label`, `steps`. 그림 하나가 화면을 차지하고 아래에 "그림 n." 캡션이 붙는다. `points`의 `at`은 무대 안 첫 목업(phone·browser·terminal·code)이 있으면 그 틀 기준, 없으면 무대 전체 기준 %다(`pointsOn`으로 바꾼다). `steps: [{caption, enter(k, fig)}]`를 주면 그림 왼쪽, 단계 자막 오른쪽으로 놓인다. `figure` 함수가 `{el, ...}`를 돌려주면 `enter`의 `fig`로 그 객체가 온다(같은 그림의 여러 상태). 장면에 들어올 때마다 다시 그리려면 공통 필드 `enter(body, ctx)` |
+| `figure` | `figure`(그림: 노드·HTML·함수), `caption`, `label`, `steps`. 그림 하나가 화면을 차지하고 아래에 "그림 n." 캡션이 붙는다. `points`의 `at`은 무대 안 첫 목업(phone·browser·terminal·code)이 있으면 그 틀 기준, 없으면 무대 전체 기준 %다(`pointsOn`으로 바꾼다). `steps: [{caption, enter(k, fig, dir)}]`를 주면 그림 왼쪽, 단계 자막 오른쪽으로 놓인다. `figure` 함수가 `{el, ...}`를 돌려주면 `enter`의 `fig`로 그 객체가 온다(같은 그림의 여러 상태). 장면에 들어올 때마다 다시 그리려면 공통 필드 `enter(body, ctx)` |
 | `overview` | `figure`, `caption`, `label`(기본 "한 장 정리."). summary 뒤, keywords 바로 앞에 두는 한 장 인포그래픽. figure처럼 그림이 무대 전체를 쓴다. 새 내용 없이 앞 장면의 takeaway를 그림 안 자리에 배치한다 |
 | `statement` | `title`(큰 주장 한 문장, `<em>`은 강조색), `sub`, `visual`(작은 근거 그림, 선택). 카드 없이 리듬을 바꾸는 장면 |
 | `contrast` | `before`, `after`(위 beforeAfter의 각 쪽) |

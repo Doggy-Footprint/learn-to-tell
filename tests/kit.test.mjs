@@ -351,3 +351,10 @@ test("inspector judges each row against the threshold", () => {
   assert.match(html, /class='r fail'.*2\.85.*미달/s);
   assert.match(html, /class='r pass'.*7\.00.*통과/s);
 });
+
+test("icon renders unknown names as escaped text so emoji are not dropped", () => {
+  const { icon } = loadKit();
+  assert.match(icon("🚀"), /^<span class='ltt-ic' aria-hidden='true'>🚀<\/span>$/);
+  assert.equal(icon("<b>").includes("<b>"), false);
+  assert.equal(icon(""), "");
+});
