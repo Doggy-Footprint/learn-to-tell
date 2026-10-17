@@ -822,14 +822,16 @@
     }
     function forward(via) {
       var m = mounted[cur], gate = m && m.ctx.gate;
+      // The reveal lands 350ms after the click; a press in that gap would otherwise nudge at a locked question.
+      if (gate && gate.alt && gate.btn.disabled && gate.alt.querySelector("[aria-pressed=true]")) return;
+      // A picked choice means the viewer has guessed, so forward reveals the answer even after a nudge armed the skip.
+      if (gate && gate.alt && !gate.btn.disabled && cur < scenes.length - 1) {
+        LTT.record("auto-reveal", { scene: cur + 1, via: via });
+        return gate.btn.click();
+      }
       if (!gate || armed === cur || cur === scenes.length - 1) {
         if (gate && armed === cur) LTT.record("skip-reveal", { scene: cur + 1, via: via });
         return go(cur + 1);
-      }
-      // A predict choice already picked means the viewer has guessed, so forward reveals the answer instead of nudging.
-      if (gate.alt && !gate.btn.disabled) {
-        LTT.record("auto-reveal", { scene: cur + 1, via: via });
-        return gate.btn.click();
       }
       armed = cur;
       nudged = gate.btn.disabled && gate.alt ? gate.alt : gate.btn;
