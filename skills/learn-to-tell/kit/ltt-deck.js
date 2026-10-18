@@ -232,7 +232,7 @@
     "[data-ltt-mobile] .dk-head{column-gap:12px}[data-ltt-mobile] .dk-no{font-size:40px}[data-ltt-mobile] .dk-scene h2{font-size:24px}[data-ltt-mobile] .dk-scene h2 .en{display:block;font-size:.6em;margin-top:4px}[data-ltt-mobile] .dk-sub{font-size:15px}",
     "[data-ltt-mobile] .dk-main.split,[data-ltt-mobile] .dk-main.full{grid-template-columns:minmax(0,1fr)}",
     "[data-ltt-mobile] .dk-steps,[data-ltt-mobile] .dk-terms,[data-ltt-mobile] .dk-cmp,[data-ltt-mobile] .dk-figsteps,[data-ltt-mobile] .dk-st,[data-ltt-mobile] .dk-ans,[data-ltt-mobile] .dk-hook,[data-ltt-mobile] .dk-capbar,[data-ltt-mobile] .dk-kw,[data-ltt-mobile] .ltt-choices{grid-template-columns:minmax(0,1fr)!important}",
-    "[data-ltt-mobile] .dk-steps.stack .dk-step,[data-ltt-mobile] .dk-steps.stack .dk-step:not(:has(.vis)){grid-template-columns:40px minmax(0,1fr)}[data-ltt-mobile] .dk-steps.stack .dk-step .vis{grid-column:1/-1}",
+    "[data-ltt-mobile] .dk-steps.stack .dk-step,[data-ltt-mobile] .dk-steps.stack .dk-step:not(:has(.vis)){grid-template-columns:40px minmax(0,1fr)}[data-ltt-mobile] .dk-steps.stack .dk-step .vis{grid-column:2}",
     "[data-ltt-mobile] .dk-cmp.table .dk-item{grid-template-columns:minmax(0,1fr);grid-template-areas:'lab' 'vis' 'vd' 'note'}[data-ltt-mobile] .dk-cmp.table .dk-head{display:none}",
     "[data-ltt-mobile] .dk-sum{--c:1!important}[data-ltt-mobile] .dk-hook .art{width:96px;font-size:48px}[data-ltt-mobile] .dk-hook .big{font-size:32px}",
     "[data-ltt-mobile] .dk-nav{padding:8px 0 calc(10px + env(safe-area-inset-bottom))}[data-ltt-mobile] .dk-nav button{padding:10px 18px}[data-ltt-mobile] .dk-hint{display:none}",
@@ -799,7 +799,8 @@
         if (up.parentElement && up.clientWidth < up.parentElement.clientWidth - 2 && getComputedStyle(up.parentElement).display === "block") up.style.width = "100%";
       }
       var need = vb.width * 0.62;
-      if (box.clientWidth && need > box.clientWidth + 1) {
+      // A stepper may redraw its svg on every step, which drops the wrapper, so its drawing keeps the column width throughout.
+      if (box.clientWidth && need > box.clientWidth + 1 && !svg.closest(".dk-figsteps")) {
         var wrap = h("div", "dk-wide"), zoom = h("button", "ghost dk-zoom", LTT.icon("search") + "크게 보기");
         box.insertBefore(wrap, svg);
         wrap.appendChild(svg);
