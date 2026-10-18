@@ -104,8 +104,11 @@ async function runOne(chrome, profile, run, budget, attempt = 1) {
   if (error) return { ...base, error };
   const m = out.match(/<script[^>]*id="ltt-audit"[^>]*>([\s\S]*?)<\/script>/);
   if (!m) {
-    // Under CPU load the virtual-time budget can run out before the deck's deferred audit fires, so one retry gets triple the budget.
-    if (attempt === 1) return runOne(chrome, profile, run, budget * 3, 2);
+    // Under CPU load the deck's deferred audit can miss the virtual-time budget; each retry waits, then starts a fresh Chrome with triple the budget.
+    if (attempt < 3) {
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+      return runOne(chrome, profile, run, budget * 3, attempt + 1);
+    }
     return { ...base, error: out.trim() ? "audit이 돌지 않았다(#ltt-audit 없음). LTT.deck 페이지인지, 서버 경로가 맞는지 본다" : "Chrome이 아무것도 출력하지 않았다" };
   }
   try {

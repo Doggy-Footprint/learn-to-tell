@@ -16,7 +16,7 @@ const skip = process.env.LTT_AUDIT === "0" ? "LTT_AUDIT=0"
 test("gallery decks stay at or under the audit baseline in both sizes", { skip }, async () => {
   const home = await mkdtemp(join(tmpdir(), "ltt-audit-test-"));
   try {
-    const results = await audit({ targets: galleryTargets(), sizes: Object.keys(baseline), chrome, home });
+    const results = await audit({ targets: galleryTargets(), sizes: Object.keys(baseline), chrome, home, jobs: 2 });
     const problems = [];
     for (const r of results) {
       const at = `${r.size} ${r.target}`;
