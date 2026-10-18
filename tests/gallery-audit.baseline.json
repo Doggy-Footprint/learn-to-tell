@@ -1,0 +1,32 @@
+{
+  "1440x900": {
+    "cache-ttl.html": 0,
+    "cognition/anchoring.html": 0,
+    "finance/diversification.html": 0,
+    "gpu/single-gpu-dataflow.html": 2,
+    "knowledge-graph/ontology-triples.html": 2,
+    "linear-algebra/matrix-as-transform.html": 1,
+    "network/tls13-quic.html": 1,
+    "pedagogy/retrieval-practice.html": 0,
+    "philosophy/trolley-ethics.html": 0,
+    "physics/projectile-drag.html": 0,
+    "scenes.html": 1,
+    "uiux/color-contrast.html": 0,
+    "uiux/visual-hierarchy-spacing.html": 1
+  },
+  "1280x800": {
+    "cache-ttl.html": 2,
+    "cognition/anchoring.html": 1,
+    "finance/diversification.html": 3,
+    "gpu/single-gpu-dataflow.html": 3,
+    "knowledge-graph/ontology-triples.html": 4,
+    "linear-algebra/matrix-as-transform.html": 2,
+    "network/tls13-quic.html": 5,
+    "pedagogy/retrieval-practice.html": 2,
+    "philosophy/trolley-ethics.html": 1,
+    "physics/projectile-drag.html": 2,
+    "scenes.html": 2,
+    "uiux/color-contrast.html": 3,
+    "uiux/visual-hierarchy-spacing.html": 4
+  }
+}

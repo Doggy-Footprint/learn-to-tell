@@ -1143,6 +1143,11 @@
       });
       found.forEach(function (w) { LTT.warn("화면 점검 · 장면 " + w.scene + ": " + w.msg); });
       document.documentElement.setAttribute("data-ltt-audit", found.length);
+      // server/audit.mjs reads this from `--dump-dom` output; the attribute alone cannot carry per-scene results.
+      var out = document.getElementById("ltt-audit");
+      if (!out) { out = h("script"); out.id = "ltt-audit"; out.type = "application/json"; document.documentElement.appendChild(out); }
+      var fails = [].map.call(document.querySelectorAll("#ltt-expect div.fail"), function (d) { return d.textContent; });
+      out.textContent = JSON.stringify({ viewport: [innerWidth, innerHeight], scenes: scenes.length, audit: found, lint: lint, expectFails: fails }).replace(/</g, "\\u003c");
       LTT.record("layout-audit", { viewport: [innerWidth, innerHeight], found: found });
       return found;
     }

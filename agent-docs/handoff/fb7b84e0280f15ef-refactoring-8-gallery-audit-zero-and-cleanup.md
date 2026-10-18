@@ -40,7 +40,7 @@
 ## Open Questions
 
 - 1280×800 크기를 유지할지, 1440×900 하나로 줄일지.
-- 헤드리스 측정을 기준으로 삼아도 되는지(실제 Chrome과의 차이 크기).
+- 헤드리스 측정을 기준으로 삼아도 되는지(실제 Chrome과의 차이 크기). → 2026-10-18 tls13-quic 대조에서 같은 viewport면 결과가 같았다(Execution Ledger).
 - `shrunk`가 공개 상태 포함 최소 배율을 보는 것이 의도인지.
 
 ## Spec
@@ -50,3 +50,7 @@
 ## Execution Ledger
 
 - 2026-10-18 헤드리스 측정 결과는 State의 표와 같다. 측정 스크립트는 세션 scratchpad(`audit-all.sh`, `audit-root.sh`)에 있고 저장소에는 아직 없다(자동 audit 작업에서 들여온다).
+- 2026-10-18 자동 audit이 저장소에 들어왔다: `skills/learn-to-tell/server/audit.mjs`(`npm run audit`, 수업 하나는 파일 경로나 id로), 기준선 `tests/gallery-audit.baseline.json`(페이지·크기별 허용 상한, `npm run audit:baseline`으로 갱신), `tests/gallery-audit.test.mjs`(로컬 전용, CI 건너뜀). 이 작업은 기준선을 모든 페이지·크기에서 0으로 내리는 것으로 끝난다.
+- 2026-10-18 `npm run audit` 기준선(1440×900 / 1280×800): cache-ttl 0/2, anchoring 0/1, diversification 0/3, single-gpu-dataflow 2/3, ontology-triples 2/4, matrix-as-transform 1/2, tls13-quic 1/5, retrieval-practice 0/2, trolley-ethics 0/1, projectile-drag 0/2, scenes 1/2, color-contrast 0/3, visual-hierarchy-spacing 1/4(합 8/34). 손 측정과의 차이는 anchoring 1280×800의 `shrunk` 1건(88%, 임계값 경계; 3회 반복 모두 같음)뿐이다. 헤드리스 `--window-size`는 창 크기라 실제 화면은 1440×813·1280×713이고, 요약 줄에 그 값이 찍힌다.
+- 2026-10-18 실제 Chrome 대조(tls13-quic, 같은 origin 페이지의 1440×813·1280×713 iframe): 건수·장면·규칙이 헤드리스와 완전히 같고 장면 6 `small-visual` 비율만 8%(실제)↔9%(헤드리스)로 달랐다. 헤드리스 측정을 기준선으로 써도 된다.
+- 2026-10-18 `npm test`를 다른 Chrome 작업 3~4개와 동시에 돌리면 `#ltt-audit`이 없는 결과가 났다(가상 시간 예산 12초가 audit 실행 전에 소진). `audit.mjs`가 예산 3배로 1회 재시도하도록 해 같은 부하에서 통과를 확인했다. 같은 부하에서 `tests/diagram.test.mjs`의 `VO-13 PF1 QR-1 … median <= 20 ms`도 1회 실패했다(이 작업과 무관한 성능 임계값).
