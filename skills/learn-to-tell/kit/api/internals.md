@@ -19,4 +19,62 @@ kit 개발자용 · 수업에서 부르지 않는 kit 내부 이름이다. kit �
 | `LTT.mobile()` | `<html data-ltt-mobile>`가 붙어 있는가(폰 재배치 중인가). |
 | `LTT.measure(fn)` | `fn`을 측정 모드로 실행한다. 그동안 diagram·sequence·map의 `send` 패킷(단계 반복 포함)은 아무것도 하지 않는다. 덱이 figure 단계·predict 정답을 미리 잴 때 쓴다. |
 | `LTT.$` | `ltt-parts.js`의 `document.getElementById(id)` 줄임. |
-| `LTT.deckTypes` | 장면 타입 이름 → 그리기 함수 표(덱 내부). |
+| `LTT.sceneTypes` | 장면 타입 이름 → 메타 entry 표. 덱·lint·audit이 타입 성질을 이 표에서 읽는다(아래 "장면 타입 메타 표"). |
+| `LTT.deckTypes` | `LTT.sceneTypes`와 같은 객체(덱 쪽 옛 이름). |
+
+## 장면 타입 메타 표
+
+`LTT.sceneTypes`는 프로토타입 없는 객체라 `"constructor"`·`"toString"` 같은 이름도 표에 없는 타입이다. `ltt.js`가 불러올 때 12개 entry의 빠진 메타 필드를 기본으로 채우고, 읽는 쪽도 entry가 없거나(표에 없는 타입, 타입 없는 장면) 필드가 `undefined`면 그 필드의 기본을 쓴다. 그래서 실행 중에 일부 필드만 가진 entry를 더해도 lint·audit에 반영된다.
+
+| 필드 | 형 | 뜻 | 기본 | 기본이 아닌 타입 |
+| --- | --- | --- | --- | --- |
+| `head` | boolean | 장면 머리(번호·kicker·title·chips·sub)를 그린다 | true | false: hook, statement |
+| `autoSplit` | boolean | `layout`이 없을 때 narration·points가 있으면 split | true | false: map-related, hook, keywords, summary, terms, contrast, predict, figure, overview, statement |
+| `fullByDefault` | boolean | `layout`이 없으면 full | false | true: figure, overview |
+| `pointsOnMock` | boolean | `pointsOn`이 없을 때 points 대상으로 본문의 첫 목업(`.ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code`)을 먼저 찾는다 | false | true: figure, overview |
+| `sumVisualAreas` | boolean | audit 측정에서 가장 큰 그림 넓이를 `.dk-item .vis` 넓이 합과 비교해 큰 쪽을 쓴다 | false | true: compare |
+| `needsReadingGuide` | boolean | lint `no-reading-guide` 대상 | false | true: compare, contrast, figure, overview |
+| `titleOptional` | boolean | lint `no-title` 면제 | false | true: hook, keywords, summary |
+| `bookend` | boolean | lint `card-monotony` 셈(연속·비율 분모)에서 빠진다 | false | true: hook, keywords |
+| `cardGrid` | `false` 또는 `function(s, scenes) → boolean` | lint `card-monotony`의 카드 격자 장면 | false | explain: `!s.form \|\| s.form === "cards"`; compare: `s.form !== "table"`; summary: 카드(`LTT.summaryCards`) 중 `recall`이 있는 것이 없다; terms: 항상 true |
+| `signature` | boolean | lint `no-signature`의 그림 주인공 장면 | false | true: figure, contrast |
+| `auditHero` | boolean | audit `small-visual` 22% 기준과 `empty-stage` 판정 | false | true: figure |
+| `auditSmallVisual` | boolean | audit `small-visual`을 판정한다 | true | false: hook, terms, summary, keywords, statement, predict |
+| `auditLooseFigure` | boolean | audit `loose-figure`를 판정한다 | false | true: figure |
+| `render` | `function(s, body, ctx) → {enter?}` | 장면 본문을 그린다. `ltt-deck.js`가 불러올 때 붙인다 | (없음, 덱이 `{}`로 본다) | 12개 전부 |
+
+타입 이름과 무관한 판정은 코드에 남는다: 타입 없는 장면의 `mount`는 `needsReadingGuide`·`signature`와 같은 효과, `layout: "full"`은 `signature`·`auditHero`와 같은 효과, 작가가 적은 `layout`은 `fullByDefault`·`autoSplit`보다 우선한다. terms·summary·overview·predict·keywords의 고유 내용 규칙(`unknown-term`·`term-no-visual`·`summary-no-recall`·`overview-no-visual`·`predict-new-term`·`keywords-last`·`overview-missing`·`overview-order`)과 figure 캡션 번호는 메타가 아니라 타입 이름을 쓴다.
+
+새 장면 타입은 `ltt.js`의 표에 entry 하나(기본과 다른 필드만)와 `ltt-deck.js`의 `RENDERS`에 render 하나로 더한다. render는 있는데 entry가 없으면 `ltt-deck.js`를 불러오는 중 그 타입 이름을 담은 `Error`가 나고 `LTT.deck`이 정의되지 않는다. entry만 있고 render가 없으면 본문이 빈 장면이 된다.
+
+## ctx 계약
+
+타입 render와 장면의 `mount(body, ctx)`(그리고 `enter(body, ctx)`)는 같은 ctx를 받는다.
+
+| 이름 | 때 | 계약 |
+| --- | --- | --- |
+| `ctx.el` | 받음 | 장면 `section`. `el.firstChild`가 배율을 받는 안쪽 상자다. |
+| `ctx.scene`, `ctx.index` | 받음 | 장면 spec과 0부터 센 장면 번호. |
+| `ctx.scenes` | 받음 | 덱의 장면 배열. 지식 지도 장면이 나중에 뒤에 붙을 수 있다. |
+| `ctx.predictRest` | 받음 | 덱 spec의 `predictRest` 값. |
+| `ctx.refit()` | 그리는 동안 | 현재 `ctx.zmax` 아래에서 배율을 맞추고 그 배율을 돌려준다. |
+| `ctx.float(panel, host, skip, keepFaded)` | 그리는 동안 | `panel`을 장면의 빈자리에 띄우면 `true`, 빈자리가 없으면 흐름에 붙이고 배율을 다시 맞춘 뒤 `false`. |
+| `ctx.fit()` | 그린 뒤 | render·`mount`가 돌아온 뒤에 붙으므로 render 안에서 바로 부르지 않고 이벤트·비동기 콜백에서 부른다. 데스크톱에서는 `ctx.place`가 있으면 그것을, 없으면 기본 배율 맞춤을 하고, 폰에서는 `ctx.unplace`(있으면) 후 폰 재배치를 한다. |
+| `ctx.gate` | 건다 | `{btn, alt?, word}`. 공개 전 첫 다음 이동(다음 버튼·스와이프, 그리고 화면 속 stepper가 받지 않은 →·PageDown 키)은 넘어가지 않고 `btn`(꺼져 있고 `alt`가 있으면 `alt`)을 가리키며 `word`로 안내한다. 같은 장면에서 한 번 더 이동하면 넘어간다. `alt`가 있고 `btn`이 켜져 있으면 다음 이동이 대신 `btn`을 누른다. `btn`이 꺼져 있고 `alt` 안에 눌린 선택지(`aria-pressed=true`)가 있으면 그 이동은 무시된다. 마지막 장면에서는 막기와 누르기가 없다. 공개하면 `null`로 둔다. |
+| `ctx.place()` | 건다 | 데스크톱 배치·배율을 스스로 맡는다. 데스크톱에서 진입·창 크기·글꼴 로드·`?audit`, 그리고 장면이 `ctx.fit()`을 부를 때마다 반복해 불린다. |
+| `ctx.unplace()` | 건다 | 폰으로 갈 때 `place`가 남긴 인라인 상태를 되돌린다. |
+| `ctx.back` | 건다 | 함수. ←·PageUp 키가 이전 장면으로 가는 대신 이것을 부른다. |
+| `ctx.zmax` | 건다 | 배율 상한(없으면 1). `refit`·`float`·기본 배율 맞춤이 따른다. |
+
+render는 `{enter}`(또는 `{}`)를 돌려준다. `enter`는 방문할 때마다 `fit()` 전에 불린다(이어서 `mount`가 돌려준 `enter`, points 다시 그리기, 장면 `enter` 순). `leave`는 장면 `mount`가 돌려준 것만 다른 장면으로 갈 때 쓰이고, render가 돌려준 `leave`는 쓰이지 않는다. `?audit`은 모든 장면을 mount하고 `fit()`을 부른 뒤 잰다. 방문하지 않은 장면은 `enter` 없이 `fit()`만 불리므로 `place`는 `enter` 전에도 동작해야 한다.
+
+## 측정 모드
+
+- `LTT.measure(fn)` 안에서는 diagram·sequence·map의 `send`와 단계 반복 send가 아무것도 하지 않는다. `LTT.record`는 꺼지지 않는다.
+- `.dk-still`이 붙은 상자 안은 CSS transition이 꺼진다.
+- figure `steps`: `place`할 때 창 크기나 글꼴 상태가 지난번 측정과 다르면 모든 단계의 `enter`를 측정 모드에서 차례로(배치에 따라 여러 번) 미리 부르고, 측정 모드 밖에서 현재 단계의 `enter`를 다시 부른다. 그래서 `enter`는 멱등이어야 한다.
+- predict 함수형 `answerVisual`: 공개 전 `place`할 때 창 크기나 글꼴 상태가 지난번 측정과 다르면 측정 모드로 미리 불린다. 인자를 둘 이상 받으면 선택지마다(`unsure: false`가 아니면 `잘 모르겠다` 포함), 아니면 한 번(HTML 문자열 `answerVisual`도 한 번). 같은 입력이면 같은 크기를 내고 동기로 그려야 하며 전역 상태·기록을 건드리지 않는다.
+
+## lint 규칙 추가
+
+`LTT.lintDeck`은 `ltt.js`의 지역 배열 `RULES`로 돈다. 항목은 `{id, scene(s, i, c)}` 또는 `{id, deck(c)}` 중 하나이고, `c`는 덱마다 한 번 만드는 `{spec, scenes, glossary, first}`다(`glossary` = `spec.glossary` 키 뒤에 terms 장면 key, `first` = `LTT.termIndex(spec)`). 규칙은 `[index, rule, msg]` 배열을 돌려준다. `index`는 0부터 센 장면 번호이고 덱 전체 경고는 -1이다(출력 `scene`은 `index + 1`). `scene` 규칙은 장면마다(장면 순서) 등록 순서로, 이어서 `deck` 규칙이 등록 순서로 돈다. 등록 순서가 곧 출력 순서이므로 새 규칙을 넣는 자리가 경고 순서를 정한다.

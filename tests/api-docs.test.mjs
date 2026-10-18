@@ -250,13 +250,13 @@ const BASE_DEFINITIONS = {
   "kit/api/map.md": "map",
   "kit/api/controls.md": "sweep, drag, predict, stepper, sim, tween",
   "kit/api/charts.md": "axisPlot, hbars, lanes, sankey, plot, plotTheme, plane, units, bar",
-  "kit/api/internals.md": "kitBase, lessonId, compare, termsIn, sceneText, termIndex, rectHit, freeSlot, stepValues, goalReach, setGlossary, auditScene, mobile, measure, $, deckTypes",
+  "kit/api/internals.md": "kitBase, lessonId, compare, termsIn, sceneText, termIndex, rectHit, freeSlot, stepValues, goalReach, setGlossary, auditScene, mobile, measure, $, deckTypes, sceneTypes",
 };
 
-test("VO-2 oracle table lists 73 distinct base names", () => {
+test("VO-2 oracle table lists 74 distinct base names", () => {
   const all = Object.values(BASE_DEFINITIONS).flatMap((s) => s.split(", "));
-  assert.equal(new Set(all).size, 73);
-  assert.equal(all.length, 73);
+  assert.equal(new Set(all).size, 74);
+  assert.equal(all.length, 74);
 });
 
 for (const [file, list] of Object.entries(BASE_DEFINITIONS)) {

@@ -1,7 +1,7 @@
 (function (root) {
   "use strict";
   var LTT = root.LTT;
-  if (!LTT || !LTT.predict || !LTT.annotate) throw new Error("ltt-deck.js needs ltt.js, ltt-parts.js and ltt-ui.js loaded first");
+  if (!LTT || !LTT.predict || !LTT.annotate || !LTT.sceneTypes) throw new Error("ltt-deck.js needs ltt.js, ltt-parts.js and ltt-ui.js loaded first");
   var h = LTT.h, fill = LTT.fill;
 
   var STYLE = [
@@ -277,7 +277,7 @@
 
   function pad2(n) { return n < 10 ? "0" + n : String(n); }
 
-  var TYPES = {
+  var RENDERS = {
     hook: function (s, body) {
       var w = h("div", "dk-hook");
       var art = h("div", "art", iconOr(s.art));
@@ -514,7 +514,7 @@
     },
     // Shown after the recall list, never before it: a finished map seen first would replace the attempt to recall.
     overview: function (s, body, ctx) {
-      return TYPES.figure({ figure: s.figure, caption: s.caption, label: s.label || "한 장 정리." }, body, ctx);
+      return RENDERS.figure({ figure: s.figure, caption: s.caption, label: s.label || "한 장 정리." }, body, ctx);
     },
     statement: function (s, body, ctx) {
       var w = h("div", "dk-st" + (s.visual ? "" : " solo"));
@@ -761,8 +761,17 @@
   }
   function stripTags(html) { return String(html).replace(/<[^>]*>/g, ""); }
 
-  var SPLIT_OFF = { "map-related": 1, hook: 1, keywords: 1, summary: 1, terms: 1, contrast: 1, predict: 1, figure: 1, overview: 1, statement: 1 };
-  var NO_HEAD = { hook: 1, statement: 1 };
+  var SCENE_TYPES = LTT.sceneTypes;
+  // Same defaults as ltt.js uses for these fields; entries added at runtime may omit any of them.
+  var META_DEFAULTS = { head: true, autoSplit: true, fullByDefault: false, pointsOnMock: false, sumVisualAreas: false };
+  function sceneMeta(type, field) {
+    var e = typeof type === "string" ? SCENE_TYPES[type] : undefined, v = e == null ? undefined : e[field];
+    return v === undefined ? META_DEFAULTS[field] : v;
+  }
+  Object.keys(RENDERS).forEach(function (type) {
+    if (!SCENE_TYPES[type]) throw new Error("ltt-deck.js: LTT.sceneTypes has no entry for scene type '" + type + "'");
+  });
+  Object.keys(RENDERS).forEach(function (type) { SCENE_TYPES[type].render = RENDERS[type]; });
 
   // A scene must read as one screen: if it would scroll, shrink it (not below 78%) instead.
   // `zmax` caps the zoom so a scene can keep the scale of a larger state it will switch to.
@@ -892,7 +901,7 @@
     var biggest = 0;
     [].forEach.call(body.querySelectorAll(VISUALS), function (v) { biggest = Math.max(biggest, area(v.getBoundingClientRect()) * zoom * zoom); });
     // Compare rows read as one figure together, so their visuals count as a sum rather than the largest one.
-    if (s.type === "compare") {
+    if (sceneMeta(s.type, "sumVisualAreas")) {
       var sum = 0;
       [].forEach.call(body.querySelectorAll(".dk-item .vis"), function (v) { sum += area(v.getBoundingClientRect()) * zoom * zoom; });
       biggest = Math.max(biggest, sum);
@@ -966,7 +975,7 @@
       var inner = el.appendChild(h("div", "dk-in"));
       ctx.refit = function () { return fit(el, inner, ctx.zmax); };
       ctx.float = function (panel, host, skip, keepFaded) { return floatPanel(el, inner, panel, host, skip, keepFaded, ctx.zmax); };
-      if (!NO_HEAD[s.type]) {
+      if (sceneMeta(s.type, "head")) {
         var head = inner.appendChild(h("div", "dk-head"));
         if (s.number !== false) head.appendChild(h("div", "dk-no", pad2(i + 1)));
         else head.style.gridTemplateColumns = "1fr";
@@ -977,20 +986,21 @@
         if (s.sub && s.type !== "statement") inner.appendChild(h("p", "dk-sub", s.sub));
       }
       // "full": the visual takes the whole width and its reading guide sits underneath like a figure caption.
-      var full = s.layout ? s.layout === "full" : s.type === "figure" || s.type === "overview";
-      var split = !full && (s.layout ? s.layout === "split" : !SPLIT_OFF[s.type] && !!(s.narration || s.points));
+      var full = s.layout ? s.layout === "full" : !!sceneMeta(s.type, "fullByDefault");
+      var split = !full && (s.layout ? s.layout === "split" : !!sceneMeta(s.type, "autoSplit") && !!(s.narration || s.points));
       var main = inner.appendChild(h("div", "dk-main" + (split ? " split" : full ? " full" : "")));
       var body = main.appendChild(h("div", "dk-body" + (s.bare || full ? " bare" : "")));
       var rail = split ? main.appendChild(h("aside", "dk-rail")) : full ? inner.appendChild(h("div", "dk-capbar")) : null;
       if (!split && !full && s.narration) inner.insertBefore(h("div", "dk-lead"), main).appendChild(LTT.narration(s.narration));
 
-      var r = TYPES[s.type] ? TYPES[s.type](s, body, ctx) : {};
+      var entry = typeof s.type === "string" ? SCENE_TYPES[s.type] : undefined;
+      var r = entry && entry.render ? entry.render(s, body, ctx) : {};
       var custom = s.mount ? s.mount(body, ctx) : null;
       var anno = null;
       if (rail && s.narration) rail.appendChild(LTT.narration(s.narration));
       if (s.points) {
         var target = s.pointsOn ? body.querySelector(s.pointsOn) :
-          ((s.type === "figure" || s.type === "overview") && body.querySelector(".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code")) || body.querySelector("[data-annotate]") || body.firstElementChild;
+          (sceneMeta(s.type, "pointsOnMock") && body.querySelector(".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code")) || body.querySelector("[data-annotate]") || body.firstElementChild;
         anno = LTT.annotate(target, s.points, { tone: s.pointsTone });
         if (rail) { if (s.narration && !full) rail.appendChild(h("hr")); rail.appendChild(anno.list); }
         else inner.insertBefore(anno.list, main.nextSibling);
@@ -1181,5 +1191,5 @@
   }
 
   LTT.deck = deck;
-  LTT.deckTypes = TYPES;
+  LTT.deckTypes = LTT.sceneTypes;
 })(typeof globalThis !== "undefined" ? globalThis : this);

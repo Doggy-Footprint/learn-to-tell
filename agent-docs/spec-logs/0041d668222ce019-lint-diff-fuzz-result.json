@@ -1,0 +1,52 @@
+{
+ "seed": 20261019,
+ "n": 20000,
+ "base": "00bba01",
+ "malformed": 2049,
+ "lint": {
+  "execs": 20000,
+  "violations": 0,
+  "throwsBoth": 1011,
+  "oneSided": 0,
+  "nonEmpty": 18989,
+  "rules": {
+   "unknown-term": 218378,
+   "used-before-defined": 4628,
+   "no-title": 44514,
+   "filler-content": 61663,
+   "unknown-theme": 6270,
+   "keywords-last": 17880,
+   "no-signature": 3849,
+   "overview-no-visual": 3733,
+   "overview-order": 4120,
+   "no-reading-guide": 2975,
+   "no-theme": 6377,
+   "summary-no-recall": 6317,
+   "overview-missing": 3282,
+   "unused-term": 3059,
+   "card-monotony": 943,
+   "term-no-visual": 4173,
+   "predict-new-term": 2381
+  }
+ },
+ "audit": {
+  "execs": 20000,
+  "violations": 0,
+  "nonEmpty": 19808,
+  "rules": {
+   "graph-overlap": 9952,
+   "goal-narrow": 5133,
+   "goal-at-start": 10170,
+   "hscroll": 9989,
+   "panel-overlap": 9971,
+   "goal-unreachable": 5045,
+   "overflow": 9982,
+   "empty-stage": 2992,
+   "many-sizes": 8044,
+   "small-visual": 2485,
+   "shrunk": 2581,
+   "loose-figure": 276
+  }
+ },
+ "examples": []
+}

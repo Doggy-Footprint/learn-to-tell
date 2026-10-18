@@ -4,9 +4,9 @@ Related Files: skills/learn-to-tell/SKILL.md, skills/learn-to-tell/standalone.md
 Related Symbols: 없음
 ---
 File: 47c0f728cfa2d600-refactoring-4-deck-type-meta-and-ctx-protocol.md
-Summary: refactoring-4: 장면 타입 메타(SPLIT_OFF·NO_HEAD·VISUAL_TYPES·AUDIT_SKIP·isCardGrid·isSignature)를 TYPES로 모으고, ctx 프로토콜·측정 모드를 문서화하고, probe·lockZoom·widen 측정 로직을 핸들러에서 분리하고, CHANGELOG·버전을 두는 작업
-Related Files: skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/API.md, tests/kit.test.mjs
-Related Symbols: TYPES, LTT.deckTypes, LTT.lintDeck, LTT.auditScene, probe, lockZoom, widen, measure
+Summary: refactoring-4: 장면 타입 메타 표(LTT.sceneTypes)·ctx 프로토콜 문서·lint 규칙 레지스트리·CHANGELOG 0.2.0은 끝났고(run 0041d668222ce019), probe·lockZoom·widen 측정 로직 분리, 그림 폭 vw 규칙, 회귀 기준이 남은 작업
+Related Files: skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/api/internals.md, skills/learn-to-tell/kit/API.md, tests/scene-types.test.mjs, tests/lint-rules.test.mjs
+Related Symbols: LTT.sceneTypes, RENDERS, RULES, LTT.deckTypes, LTT.lintDeck, LTT.auditScene, probe, lockZoom, widen, measure
 ---
 File: e72bbfb2418e2e6d-refactoring-5-scene-scale-deferred.md
 Summary: refactoring-5: 장면 배율 고정 작업의 보류 항목(단계 그림 겹쳐 쌓기, 지연 그리기 측정, 띄우기를 고려한 배율, 공개 상태 resize)
