@@ -12,7 +12,7 @@
 <script src="/kit/ltt-deck.js"></script>
 <style>
   .fg { width: 100%; max-width: 1100px; }
-  .fg .ltt-svg { max-height: 44vh; }
+  .fg .ltt-svg { max-height: 35vh; }
   .ltt-svg.tr text { font-family: var(--ltt-font-display); font-size: 15px; }
   .ltt-svg.tr .lb { font-weight: 800; }
   .ltt-svg.tr.mini text { font-size: 13px; }
@@ -34,8 +34,8 @@
   const person = (g, color) => g.html(LTT.mark("dot", { color, size: 14 }));
 
   function trackScene(panel) {
-    const W = 900, H = 330;
-    const svg = d3.select(panel).append("svg").attr("class", "ltt-svg tr fg").attr("viewBox", `0 0 ${W} ${H}`);
+    const W = 900, H = 284;
+    const svg = d3.select(panel).append("svg").attr("class", "ltt-svg tr fg").attr("viewBox", `0 22 ${W} ${H}`);
     const rail = (d) => svg.append("path").attr("d", d).style("fill", "none").style("stroke", "var(--ltt-ink)").style("stroke-width", 3);
     rail("M40,160 H360");
     const main = rail("M360,160 H860");
@@ -75,7 +75,7 @@
     return [
       { caption: "<b>① 상황</b> — 브레이크가 고장 난 전차가 본선의 5명에게 달려간다. 당신 옆에 레버가 있고, 당기면 곁가지 선로의 1명 쪽으로 간다.", enter: () => set({ pulled: false }) },
       { caption: "<b>② {{공리주의}}의 판정</b> — 결과만 센다. 레버를 당기면 5명이 살고 1명이 죽는다. 순이익 4명, 그러니 당겨야 한다.", enter: () => set({ pulled: true, hl: "count", v: "당긴다: 5 − 1 = 4명 더 산다", vt: "good", w: "옳음 = 결과로 생긴 행복(복지)의 합이 가장 큰 행위" }) },
-      { caption: "<b>③ {{의무론}}의 판정</b> — 결과보다 행위가 어떤 규칙을 지키는지 본다. 여기서 1명의 죽음은 전차를 돌린 결과로 따라온 일이지, 그 사람을 도구로 쓴 것은 아니다. 그래서 많은 의무론자도 당기는 것을 허용한다.", enter: () => set({ pulled: true, hl: "side", v: "허용: 1명을 '수단'으로 쓰지는 않았다", vt: "warn", w: "옳음 = 결과와 무관하게 지켜야 할 규칙(사람을 수단으로만 대하지 말라)을 지키는 행위" }) },
+      { caption: "<b>③ {{의무론}}의 판정</b> — 결과보다 행위가 지키는 규칙을 본다. 1명의 죽음은 전차를 돌린 결과로 따라온 일일 뿐, 그를 도구로 쓰지 않았다. 그래서 많은 의무론자도 당기는 것을 허용한다.", enter: () => set({ pulled: true, hl: "side", v: "허용: 1명을 '수단'으로 쓰지는 않았다", vt: "warn", w: "옳음 = 결과와 무관하게 지켜야 할 규칙(사람을 수단으로만 대하지 말라)을 지키는 행위" }) },
       { caption: "<b>④ 아직 갈리지 않는다</b> — 이 장면에서는 두 이론의 답이 같다. 갈리는 곳은 다음 장면, 1명을 직접 밀어 전차를 세우는 경우다.", enter: () => set({ pulled: true }) },
     ];
   }

@@ -42,6 +42,7 @@ Learn to Tell은 함께 작업하는 AI agent가 skill로 제공하는 짧은 �
 - 학습 자료의 분량 기준은 시간(최대 20분)뿐이다. 결정 변수 1–2개, 새 개념 5개 이하는 참고값일 뿐 상한이 아니다.
   - v0에는 15분 하한과 범위 상한이 있었지만 제거했다. 간단한 개념을 억지로 늘리게 만들었기 때문이다.
 - 범위는 agent가 정하고, 사용자에게 묻지 않고 알리기만 한다.
+- 장면 수 기본값(결정 변수당 4장면 이하, 전체 8~10장면)은 생성 비용을 줄이기 위한 기본값이며 상한이 아니다(2026-10-18). 사용자가 한 챕터 전체나 긴 수업을 요청했거나 결정 변수가 3개 이상이면 늘리고, 넘기면 범위 알림에 장면 수와 이유를 적는다.
 - 조작으로 관찰할 필요가 없으면 짧은 자료와 서술 퀴즈만으로 진행한다(simple 경로). 필요할 때만 시뮬레이션을 만든다.
 
 ### 자료
@@ -88,10 +89,10 @@ Learn to Tell은 함께 작업하는 AI agent가 skill로 제공하는 짧은 �
   - 발상: manim(3B1B)이 고수준 어휘와 풍부한 예제 덕분에 agent가 시청각 자료를 쉽게 만들 수 있는 것처럼, "결정 변수 학습"에 맞는 어휘를 제공한다.
   - 수치 어휘(초안): `param`(실사용 범위 슬라이더), `model`, `predict`(예측 후 공개), `sweep`, `compare`(전후 비교), `expect`(기대값 대조).
   - 비수치 어휘(필수, 초안): 조건을 켜고 끄면 추천이 바뀌는 비교표, 단계별 상태·흐름 다이어그램, 코드 예시 변형 비교.
-- **kit은 라이브러리로 제공한다**(2026-10-14). 모듈은 `ltt.js`(토큰·폰트·아이콘·용어·lint·기록·검증), `ltt-parts.js`(움직이는 그림), `ltt-ui.js`(설명 부품), `ltt-mock.js`(목업), `ltt-deck.js`(장면 덱)다. API는 `kit/API.md`, 실물과 코드는 `gallery/catalog.html`에 있다. agent는 빈 파일에서 부품을 조합해 수업을 짠다. 처음에는 가장 비슷한 gallery 페이지를 복사해 데이터만 고치게 했으나, 사용자가 "하나의 html 템플릿을 복사해서 쓰는 건 원하는 방향이 아니다, 라이브러리를 제공하라"고 거부했다.
+- **kit은 라이브러리로 제공한다**(2026-10-14). 모듈은 `ltt.js`(토큰·폰트·아이콘·용어·lint·기록·검증), `ltt-parts.js`(움직이는 그림), `ltt-ui.js`(설명 부품), `ltt-mock.js`(목업), `ltt-deck.js`(장면 덱)다. API는 `kit/API.md`(핵심)와 `kit/api/`(부품별), 실물과 코드는 `gallery/catalog.html`에 있다. agent는 빈 파일에서 부품을 조합해 수업을 짠다. 처음에는 가장 비슷한 gallery 페이지를 복사해 데이터만 고치게 했으나, 사용자가 "하나의 html 템플릿을 복사해서 쓰는 건 원하는 방향이 아니다, 라이브러리를 제공하라"고 거부했다.
 - **예제 모음(gallery)**: 조합 예시 수업 9편(cache-ttl, uiux/color-contrast, gpu/single-gpu-dataflow, physics/projectile-drag, cognition/anchoring, finance/diversification, pedagogy/retrieval-practice, linear-algebra/matrix-as-transform, knowledge-graph/ontology-triples), 장면 타입 데모(`scenes.html`), 부품 카탈로그(`catalog.html`), 시나리오 목록(`index.html`). 옛 kit으로 만든 나머지 14편은 `gallery/stale/`에 있고 새 kit에서는 동작하지 않는다.
 - **퀴즈·평가·map 갱신은 대화에서** 처리한다.
-- **경량 로컬 서버**: 수업 HTML과 kit를 제공하고, 브라우저에서 생긴 결과(예측 등)를 받아 agent가 읽을 수 있게 한다. Node.js 표준 라이브러리만 쓰고 127.0.0.1에만 bind한다(`server/server.mjs`). agent가 백그라운드로 시작하고, 같은 포트에서 이미 실행 중이면 재사용하며, 요청 없이 120분이 지나면 스스로 종료한다. 결과는 `lessons/<id>/events.jsonl`에 쌓이고 agent가 직접 읽는다.
+- **경량 로컬 서버**: 수업 HTML과 kit를 제공하고, 브라우저에서 생긴 결과(예측 등)를 받아 agent가 읽을 수 있게 한다. Node.js 표준 라이브러리만 쓰고 127.0.0.1에만 bind한다(`server/server.mjs`). agent가 백그라운드로 시작하고, 같은 포트에서 이미 실행 중이면 재사용하며, 요청 없이 40분이 지나면 스스로 종료한다. 결과는 `lessons/<id>/events.jsonl`에 쌓이고 agent가 직접 읽는다.
 - **배포**: harness 확장으로 배포한다(`agent-docs/adr/190db09929e4196e-distribute-as-harness-extension.md`). 원본은 `skills/learn-to-tell/`이다.
 - **데이터 위치(기본값, 실사용 후 재검토)**: `~/.learn-to-tell/map.md`, `~/.learn-to-tell/lessons/<YYYYMMDD-slug>/{lesson.html, events.jsonl, result.md}`. `LTT_HOME`으로 바꿀 수 있다.
 - **학습 세션**: 작업 세션을 fork해 학습하고, 끝나면 원래 세션으로 돌아온다. 원래 세션의 prefix가 바뀌지 않아 prompt cache를 그대로 쓴다. 사용자가 `/fork`로 실행하고, 학습이 끝나면 학습 세션이 cross-session messaging으로 결과를 원래 세션에 보낸다. `/fork`의 세션 복사는 v2.1.212, cross-session messaging은 v2.1.224부터 지원되며, agent view가 꺼져 있으면 `/fork`는 forked subagent로 동작한다. 작업 세션의 context가 100k tokens 이상이면 fork한 세션이 큰 context를 그대로 안고 가지 않도록 새 세션에서 학습하길 권하고, 작업 맥락은 문서로 넘긴다.
@@ -99,7 +100,7 @@ Learn to Tell은 함께 작업하는 AI agent가 skill로 제공하는 짧은 �
 
 ## 5. 미정
 
-- kit 어휘의 확장. 지금 목록은 `kit/API.md`이고, 실제 수업에서 반복된 패턴(`result.md`의 kit 후보)을 보고 늘린다.
+- kit 어휘의 확장. 지금 목록은 `kit/API.md`와 `kit/api/`이고, 실제 수업에서 반복된 패턴(`result.md`의 kit 후보)을 보고 늘린다.
 - map과 학습 결과의 파일 형식. 지금은 `SKILL.md`의 markdown 기본값을 쓰고, 실사용 후 재검토한다.
 - 복습을 돕기 위해 map이 제공할 것.
 - context 크기 확인 방법. 후보: skill의 `!` 명령이 `${CLAUDE_SESSION_ID}`로 세션 transcript(`~/.claude/projects/<cwd>/<session-id>.jsonl`)를 찾아 마지막 응답의 usage 합계를 읽는다. transcript 형식은 공개된 API가 아니다.

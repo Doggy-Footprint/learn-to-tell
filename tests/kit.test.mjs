@@ -358,3 +358,14 @@ test("icon renders unknown names as escaped text so emoji are not dropped", () =
   assert.equal(icon("<b>").includes("<b>"), false);
   assert.equal(icon(""), "");
 });
+
+test("freeSlot returns the first spot below or beside solids and null when the box fits nowhere", () => {
+  const { freeSlot } = loadKit();
+  const region = { x0: 0, y0: 0, x1: 100, y1: 100 };
+  const top = { x0: 0, y0: 0, x1: 100, y1: 30 };
+  assert.deepEqual([...freeSlot(region, [100, 40], [top], 0, 1)], [0, 30]);
+  assert.deepEqual([...freeSlot(region, [100, 40], [top], 5, 1)], [0, 35]);
+  assert.deepEqual([...freeSlot(region, [40, 40], [{ x0: 0, y0: 0, x1: 50, y1: 100 }], 0, 1)], [50, 0]);
+  assert.equal(freeSlot(region, [100, 80], [top], 0, 1), null);
+  assert.equal(freeSlot(region, [120, 10], [], 0, 1), null);
+});

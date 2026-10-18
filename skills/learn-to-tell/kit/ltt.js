@@ -154,9 +154,9 @@
     "--ltt-mono:'LTT Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;",
     "--ltt-sea:color-mix(in srgb,var(--ltt-accent) 9%,var(--ltt-card-2));--ltt-land:var(--ltt-card);--ltt-border:var(--ltt-line-2);color-scheme:light}",
     "@media (prefers-color-scheme:dark){:root:not([data-theme=light]){" + TOKENS_DARK + "color-scheme:dark}}",
-    ":root[data-theme=dark]{" + TOKENS_DARK + "color-scheme:dark}",
-    "body{margin:0;background:var(--ltt-pattern),var(--ltt-bg);background-color:var(--ltt-bg);color:var(--ltt-ink);font:16px/1.6 var(--ltt-font);",
-    "-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}",
+    ":root[data-theme=dark]{" + TOKENS_DARK + "color-scheme:dark}"
+  ].join("") + /* css:start ltt.css */[
+    "body{margin:0;background:var(--ltt-pattern),var(--ltt-bg);background-color:var(--ltt-bg);color:var(--ltt-ink);font:16px/1.6 var(--ltt-font);-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}",
     "main{max-width:1080px;margin:0 auto;padding:40px 20px 96px}",
     "h1{font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-.035em;line-height:1.15;margin:0 0 8px}",
     "h2{font-size:20px;font-weight:800;letter-spacing:-.02em;margin:0 0 12px}",
@@ -164,21 +164,21 @@
     "a{color:var(--ltt-accent)}",
     ".ltt-lead{color:var(--ltt-muted);font-size:17px;margin:0 0 28px}",
     ".ltt-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}",
-    ".ltt-card{background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:var(--ltt-radius);",
-    "padding:22px;margin:0 0 16px;box-shadow:var(--ltt-shadow)}",
+    ".ltt-card{background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:var(--ltt-radius);padding:22px;margin:0 0 16px;box-shadow:var(--ltt-shadow)}",
     ".ltt-stat{font-size:44px;font-weight:800;letter-spacing:-.03em;line-height:1.05;font-variant-numeric:tabular-nums}",
     ".ltt-stat small{font-size:15px;font-weight:600;color:var(--ltt-muted);margin-left:6px;letter-spacing:0}",
-    ".ltt-tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;",
-    "background:var(--ltt-accent-soft);color:var(--ltt-accent);margin-right:6px;vertical-align:middle;line-height:1.6;white-space:nowrap}",
-    ".ltt-tag.warn{background:var(--ltt-warn-soft);color:var(--ltt-warn)}.ltt-tag.bad{background:var(--ltt-bad-soft);color:var(--ltt-bad)}",
-    ".ltt-tag.good{background:var(--ltt-good-soft);color:var(--ltt-good)}.ltt-tag.muted{background:var(--ltt-card-2);color:var(--ltt-muted)}",
+    ".ltt-tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--ltt-accent-soft);color:var(--ltt-accent);margin-right:6px;vertical-align:middle;line-height:1.6;white-space:nowrap}",
+    ".ltt-tag.warn{background:var(--ltt-warn-soft);color:var(--ltt-warn)}",
+    ".ltt-tag.bad{background:var(--ltt-bad-soft);color:var(--ltt-bad)}",
+    ".ltt-tag.good{background:var(--ltt-good-soft);color:var(--ltt-good)}",
+    ".ltt-tag.muted{background:var(--ltt-card-2);color:var(--ltt-muted)}",
     ".ltt-param{display:block;margin:0 0 14px;font-weight:600;font-size:15px}",
     ".ltt-param>b{float:right;font-variant-numeric:tabular-nums;font-family:var(--ltt-mono)}",
     "input[type=range]{width:100%;accent-color:var(--ltt-accent);margin:8px 0 2px}",
     ".ltt-basis{font-size:13px;color:var(--ltt-muted);line-height:1.5}",
-    "button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:10px 18px;background:var(--ltt-ink);",
-    "color:var(--ltt-bg);cursor:pointer;transition:transform .12s,background-color .2s,opacity .2s}",
-    "button:active:not(:disabled){transform:scale(.97)}button:disabled,button.ghost:disabled,button.accent:disabled{background:var(--ltt-card-2);color:var(--ltt-muted);box-shadow:inset 0 0 0 1.5px var(--ltt-line-2);cursor:default}",
+    "button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:10px 18px;background:var(--ltt-ink);color:var(--ltt-bg);cursor:pointer;transition:transform .12s,background-color .2s,opacity .2s}",
+    "button:active:not(:disabled){transform:scale(.97)}",
+    "button:disabled,button.ghost:disabled,button.accent:disabled{background:var(--ltt-card-2);color:var(--ltt-muted);box-shadow:inset 0 0 0 1.5px var(--ltt-line-2);cursor:default}",
     "button.ghost{background:transparent;color:var(--ltt-ink);box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
     "button.accent{background:var(--ltt-accent);color:var(--ltt-on-accent)}",
     ":focus-visible{outline:2.5px solid var(--ltt-accent);outline-offset:2px}",
@@ -188,32 +188,30 @@
     ".ltt-hero{font-size:76px;font-weight:850;letter-spacing:-.05em;line-height:1;font-variant-numeric:tabular-nums}",
     ".ltt-hero small{font-size:20px;font-weight:700;color:var(--ltt-muted);margin-left:8px;letter-spacing:0}",
     ".ltt-units{display:grid;grid-template-columns:repeat(var(--ltt-cols,10),1fr);gap:4px;max-width:360px}",
-    ".ltt-unit{aspect-ratio:1;border-radius:4px;background:var(--ltt-line);",
-    "transition:background-color .35s ease;transition-delay:calc(var(--i,0)*8ms)}",
+    ".ltt-unit{aspect-ratio:1;border-radius:4px;background:var(--ltt-line);transition:background-color .35s ease;transition-delay:calc(var(--i,0)*8ms)}",
     ".ltt-bar{display:flex;height:34px;border-radius:10px;overflow:hidden;background:var(--ltt-line)}",
-    ".ltt-bar>span{display:flex;align-items:center;padding:0 8px;min-width:4px;color:#fff;font-size:13px;",
-    "font-weight:700;white-space:nowrap;overflow:hidden;transition:flex-grow .6s cubic-bezier(.2,.7,.2,1)}",
+    ".ltt-bar>span{display:flex;align-items:center;padding:0 8px;min-width:4px;color:#fff;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;transition:flex-grow .6s cubic-bezier(.2,.7,.2,1)}",
     ".ltt-key{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ltt-muted);margin-right:14px}",
     ".ltt-key i{width:12px;height:12px;border-radius:4px;display:inline-block}",
     ".ltt-ic{width:1em;height:1em;display:inline-block;vertical-align:-.14em;flex:none}",
     "@keyframes ltt-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}",
     ".ltt-rise{animation:ltt-rise .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0)*90ms)}",
-    "@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:1ms!important;",
-    "animation-delay:0s!important;transition-duration:1ms!important;transition-delay:0s!important}}",
+    "@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:1ms!important;animation-delay:0s!important;transition-duration:1ms!important;transition-delay:0s!important}}",
     ".ltt-term{border-bottom:1.5px dotted var(--ltt-muted);cursor:help;font-weight:inherit}",
     ".ltt-term.first{border-bottom:2px solid color-mix(in srgb,var(--ltt-accent) 55%,transparent);background:color-mix(in srgb,var(--ltt-accent) 7%,transparent);border-radius:3px 3px 0 0;padding:0 2px}",
-    "#ltt-pop{position:fixed;z-index:50;max-width:min(320px,calc(100vw - 24px));padding:12px 14px;border-radius:14px;",
-    "background:var(--ltt-dark);color:var(--ltt-on-dark);font-size:14px;line-height:1.5;box-shadow:0 12px 32px rgba(0,0,0,.25);",
-    "opacity:0;transform:translateY(4px);transition:opacity .15s,transform .15s;pointer-events:none}",
-    "#ltt-pop.on{opacity:1;transform:none}#ltt-pop b{display:block;font-size:13px;color:var(--ltt-accent-on-dark);margin-bottom:2px}",
-    "#ltt-expect{position:fixed;right:16px;bottom:88px;z-index:40;max-width:380px;max-height:40vh;overflow:auto;font-size:13px;",
-    "background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:14px;padding:8px 12px;",
-    "box-shadow:var(--ltt-shadow)}#ltt-expect summary{cursor:pointer;font-weight:700;color:var(--ltt-good)}",
-    "#ltt-expect[data-fails] summary{color:var(--ltt-bad)}#ltt-expect[data-warns]:not([data-fails]) summary{color:var(--ltt-warn)}",
+    "#ltt-pop{position:fixed;z-index:50;max-width:min(320px,calc(100vw - 24px));padding:12px 14px;border-radius:14px;background:var(--ltt-dark);color:var(--ltt-on-dark);font-size:14px;line-height:1.5;box-shadow:0 12px 32px rgba(0,0,0,.25);opacity:0;transform:translateY(4px);transition:opacity .15s,transform .15s;pointer-events:none}",
+    "#ltt-pop.on{opacity:1;transform:none}",
+    "#ltt-pop b{display:block;font-size:13px;color:var(--ltt-accent-on-dark);margin-bottom:2px}",
+    "#ltt-expect{position:fixed;right:16px;bottom:88px;z-index:40;max-width:380px;max-height:40vh;overflow:auto;font-size:13px;background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:14px;padding:8px 12px;box-shadow:var(--ltt-shadow)}",
+    "#ltt-expect summary{cursor:pointer;font-weight:700;color:var(--ltt-good)}",
+    "#ltt-expect[data-fails] summary{color:var(--ltt-bad)}",
+    "#ltt-expect[data-warns]:not([data-fails]) summary{color:var(--ltt-warn)}",
     "#ltt-expect:not([data-fails]):not([data-warns]){display:none}",
-    "#ltt-expect div{margin:2px 0}#ltt-expect .ok{color:var(--ltt-good)}#ltt-expect .fail{color:var(--ltt-bad);font-weight:600}",
+    "#ltt-expect div{margin:2px 0}",
+    "#ltt-expect .ok{color:var(--ltt-good)}",
+    "#ltt-expect .fail{color:var(--ltt-bad);font-weight:600}",
     "#ltt-expect .warn{color:var(--ltt-warn)}"
-  ].join("") + themeCss();
+  ].join("")/* css:end */ + themeCss();
 
   // 24×24 stroke icons; each value is SVG inner markup drawn with currentColor.
   var ICONS = {
@@ -460,14 +458,43 @@
     return first;
   }
 
-  var VISUAL_TYPES = { compare: 1, contrast: 1, figure: 1, overview: 1 };
+  var META_DEFAULTS = {
+    head: true, autoSplit: true, fullByDefault: false, pointsOnMock: false, sumVisualAreas: false, needsReadingGuide: false,
+    titleOptional: false, bookend: false, cardGrid: false, signature: false, auditHero: false, auditSmallVisual: true, auditLooseFigure: false
+  };
+  var TYPE_META = {
+    hook: { head: false, autoSplit: false, titleOptional: true, bookend: true, auditSmallVisual: false },
+    explain: { cardGrid: function (s) { return !s.form || s.form === "cards"; } },
+    terms: { autoSplit: false, cardGrid: function () { return true; }, auditSmallVisual: false },
+    compare: { sumVisualAreas: true, needsReadingGuide: true, cardGrid: function (s) { return s.form !== "table"; } },
+    figure: { autoSplit: false, fullByDefault: true, pointsOnMock: true, needsReadingGuide: true, signature: true, auditHero: true, auditLooseFigure: true },
+    overview: { autoSplit: false, fullByDefault: true, pointsOnMock: true, needsReadingGuide: true },
+    statement: { head: false, autoSplit: false, auditSmallVisual: false },
+    contrast: { autoSplit: false, needsReadingGuide: true, signature: true },
+    predict: { autoSplit: false, auditSmallVisual: false },
+    summary: {
+      autoSplit: false, titleOptional: true, auditSmallVisual: false,
+      cardGrid: function (s, scenes) { return !summaryCards(s, scenes || []).some(function (c) { return c.recall; }); }
+    },
+    keywords: { autoSplit: false, titleOptional: true, bookend: true, auditSmallVisual: false },
+    "map-related": { autoSplit: false }
+  };
+  // Prototype-free so names like "constructor" or "toString" read as unknown types, not as entries.
+  var SCENE_TYPES = Object.create(null);
+  Object.keys(TYPE_META).forEach(function (type) {
+    var e = SCENE_TYPES[type] = {};
+    Object.keys(META_DEFAULTS).forEach(function (f) { e[f] = f in TYPE_META[type] ? TYPE_META[type][f] : META_DEFAULTS[f]; });
+  });
+  // Entries added at runtime may carry only some fields, so every reader falls back per field.
+  function sceneMeta(type, field) {
+    var e = typeof type === "string" ? SCENE_TYPES[type] : undefined, v = e == null ? undefined : e[field];
+    return v === undefined ? META_DEFAULTS[field] : v;
+  }
 
   // Equal-width card grids; a deck built mostly from these reads as the same slideshow whatever the topic.
   function isCardGrid(s, scenes) {
-    if (s.type === "explain") return !s.form || s.form === "cards";
-    if (s.type === "compare") return s.form !== "table";
-    if (s.type === "summary") return !summaryCards(s, scenes || []).some(function (c) { return c.recall; });
-    return s.type === "terms";
+    var grid = sceneMeta(s.type, "cardGrid");
+    return typeof grid === "function" && !!grid(s, scenes);
   }
   // What a summary scene shows: its own `cards`, or every earlier scene that has a takeaway.
   function summaryCards(s, scenes) {
@@ -475,81 +502,125 @@
       .filter(function (c) { return c.text; });
   }
   function isSignature(s) {
-    return s.type === "figure" || s.type === "contrast" || s.layout === "full" || (!s.type && !!s.mount);
+    return !!sceneMeta(s.type, "signature") || s.layout === "full" || (!s.type && !!s.mount);
   }
 
   // Filler that signals unreal content; "placeholder" itself is a legitimate UI term, so it is not listed.
   var FILLER = /lorem|ipsum|\bTODO\b|\bTBD\b|xxx|더미 ?(텍스트|데이터)|샘플 ?텍스트|임시 ?텍스트|\bItem [A-D]\b|항목 ?[0-9]\b/i;
+
+  // lintDeck runs every `scene` rule per scene (scene order), then every `deck` rule; registration order is output order.
+  // Rules return [index, rule, msg]: a scene index (0-based) or -1 for the whole deck.
+  var RULES = [
+    { id: "unknown-term", scene: function (s, i, c) {
+      if (s.type === "terms") return [];
+      return termsIn(sceneText(s)).filter(function (t) { return !(t.key in c.glossary); })
+        .map(function (t) { return [i, "unknown-term", "풀이가 없는 용어 {{" + t.key + "}}"]; });
+    } },
+    { id: "terms-entries", scene: function (s, i) {
+      var out = [];
+      (s.type === "terms" ? s.terms || [] : []).forEach(function (t) {
+        if (!t.plain) out.push([i, "unknown-term", "terms 장면의 '" + t.key + "'에 plain 풀이가 없다"]);
+        if (t.visual === undefined) out.push([i, "term-no-visual", "'" + t.key + "'에 그 뜻을 보이는 visual이 없다 (그림으로 보일 수 없는 말이면 visual: false)"]);
+      });
+      return out;
+    } },
+    { id: "summary-no-recall", scene: function (s, i, c) {
+      if (s.type !== "summary") return [];
+      return summaryCards(s, c.scenes).filter(function (card) { return !card.recall; }).map(function (card) {
+        return [i, "summary-no-recall", "정리할 takeaway '" + stripMarks(card.text).slice(0, 24) + "…'에 떠올릴 질문(recall)이 없다"];
+      });
+    } },
+    { id: "overview-no-visual", scene: function (s, i) {
+      return s.type === "overview" && !s.figure ? [[i, "overview-no-visual", "overview에 한 장으로 정리한 그림(figure)이 없다"]] : [];
+    } },
+    { id: "used-before-defined", scene: function (s, i, c) {
+      var plain = stripMarks(sceneText(s));
+      return Object.keys(c.glossary).filter(function (key) {
+        var at = c.first[key];
+        return plain.indexOf(key) >= 0 && (at == null || at > i);
+      }).map(function (key) { return [i, "used-before-defined", "'" + key + "'가 풀이(첫 {{" + key + "}})보다 먼저 쓰였다"]; });
+    } },
+    { id: "predict-new-term", scene: function (s, i, c) {
+      if (s.type !== "predict") return [];
+      var out = [], seen = {};
+      Object.keys(c.first).forEach(function (k) { if (c.first[k] === i) seen[k] = 1; });
+      var asked = sceneText({ title: s.title, sub: s.sub, question: s.question, hint: s.hint, choices: s.choices });
+      termsIn(asked).forEach(function (t) {
+        if (seen[t.key]) { out.push([i, "predict-new-term", "predict 질문에서 처음 나온 용어 '" + t.key + "' (앞 장면에서 풀이할 것)"]); seen[t.key] = 0; }
+      });
+      return out;
+    } },
+    { id: "no-reading-guide", scene: function (s, i) {
+      var hasVisual = sceneMeta(s.type, "needsReadingGuide") || (!s.type && s.mount);
+      return hasVisual && !s.narration && !s.points && !s.sub && !s.caption && !(s.before && s.before.points) ?
+        [[i, "no-reading-guide", "그림을 읽는 법(narration, points, sub)이 없다"]] : [];
+    } },
+    { id: "no-title", scene: function (s, i) {
+      return !sceneMeta(s.type, "titleOptional") && !s.title ? [[i, "no-title", "제목이 없다"]] : [];
+    } },
+    { id: "filler-content", scene: function (s, i) {
+      var filler = FILLER.exec(stripMarks(sceneText(s)));
+      return filler ? [[i, "filler-content", "채움 글 '" + filler[0] + "' (실제 사례·값으로 바꿀 것)"]] : [];
+    } },
+    { id: "card-monotony", deck: function (c) {
+      var out = [], run = 0, cards = 0, body = 0;
+      c.scenes.forEach(function (s, i) {
+        if (sceneMeta(s.type, "bookend")) return;
+        body++;
+        if (isCardGrid(s, c.scenes)) { cards++; run++; if (run === 3) out.push([i, "card-monotony", "카드 격자 장면이 3장 연속이다 (figure·statement·explain form strip/stack·compare form table로 바꿀 것)"]); }
+        else run = 0;
+      });
+      if (body >= 4 && cards / body > 0.5) out.push([-1, "card-monotony", "카드 격자 장면이 " + cards + "/" + body + "장이다 (절반 이하)"]);
+      return out;
+    } },
+    { id: "no-signature", deck: function (c) {
+      return c.scenes.length && !c.scenes.some(isSignature) ? [[-1, "no-signature", "그림이 주인공인 장면(figure, contrast, layout:\"full\", mount)이 없다"]] : [];
+    } },
+    { id: "theme", deck: function (c) {
+      if (!c.spec.theme) return [[-1, "no-theme", "theme을 고르지 않았다 (" + Object.keys(THEMES).join(", ") + ")"]];
+      return !THEMES[c.spec.theme] ? [[-1, "unknown-theme", "없는 theme '" + c.spec.theme + "'"]] : [];
+    } },
+    { id: "keywords-last", deck: function (c) {
+      var last = c.scenes[c.scenes.length - 1];
+      return !last || last.type !== "keywords" ? [[-1, "keywords-last", "마지막 장면이 keywords가 아니다"]] : [];
+    } },
+    { id: "overview-missing", deck: function (c) {
+      var types = c.scenes.map(function (s) { return s.type; });
+      return types.lastIndexOf("summary") >= 0 && types.indexOf("overview") < 0 ? [[-1, "overview-missing", "summary 뒤에 한 장 정리(overview)가 없다"]] : [];
+    } },
+    { id: "overview-order", deck: function (c) {
+      var types = c.scenes.map(function (s) { return s.type; }), sum = types.lastIndexOf("summary"), ov = types.indexOf("overview");
+      return ov >= 0 && (ov < sum || ov !== c.scenes.length - 2) ? [[ov, "overview-order", "overview는 summary 뒤, keywords 바로 앞에 둔다"]] : [];
+    } },
+    { id: "unused-term", deck: function (c) {
+      return Object.keys(c.glossary).filter(function (k) { return !(k in c.first); })
+        .map(function (k) { return [-1, "unused-term", "glossary의 '" + k + "'가 어디에도 표시되지 않았다"]; });
+    } }
+  ];
 
   // Static checks for self-study readiness; returns [{scene, rule, msg}] (scene is 1-based, 0 for the deck).
   function lintDeck(spec) {
     var out = [], glossary = {}, scenes = spec.scenes || [];
     Object.keys(spec.glossary || {}).forEach(function (k) { glossary[k] = spec.glossary[k]; });
     scenes.forEach(function (s) { if (s.type === "terms") (s.terms || []).forEach(function (t) { glossary[t.key] = t.plain; }); });
-    var first = termIndex(spec);
-    function add(i, rule, msg) { out.push({ scene: i + 1, rule: rule, msg: msg }); }
+    var c = { spec: spec, scenes: scenes, glossary: glossary, first: termIndex(spec) };
+    function add(list) { list.forEach(function (w) { out.push({ scene: w[0] + 1, rule: w[1], msg: w[2] }); }); }
     scenes.forEach(function (s, i) {
-      var text = sceneText(s), marks = termsIn(text), seen = {};
-      marks.forEach(function (t) {
-        if (!(t.key in glossary) && s.type !== "terms") add(i, "unknown-term", "풀이가 없는 용어 {{" + t.key + "}}");
-      });
-      (s.type === "terms" ? s.terms || [] : []).forEach(function (t) {
-        if (!t.plain) add(i, "unknown-term", "terms 장면의 '" + t.key + "'에 plain 풀이가 없다");
-        if (t.visual === undefined) add(i, "term-no-visual", "'" + t.key + "'에 그 뜻을 보이는 visual이 없다 (그림으로 보일 수 없는 말이면 visual: false)");
-      });
-      if (s.type === "summary") summaryCards(s, scenes).forEach(function (c) {
-        if (!c.recall) add(i, "summary-no-recall", "정리할 takeaway '" + stripMarks(c.text).slice(0, 24) + "…'에 떠올릴 질문(recall)이 없다");
-      });
-      if (s.type === "overview" && !s.figure) add(i, "overview-no-visual", "overview에 한 장으로 정리한 그림(figure)이 없다");
-      var plain = stripMarks(text);
-      Object.keys(glossary).forEach(function (key) {
-        var at = first[key];
-        if (plain.indexOf(key) >= 0 && (at == null || at > i)) add(i, "used-before-defined", "'" + key + "'가 풀이(첫 {{" + key + "}})보다 먼저 쓰였다");
-      });
-      Object.keys(first).forEach(function (k) { if (first[k] === i) seen[k] = 1; });
-      if (s.type === "predict") {
-        var asked = sceneText({ title: s.title, sub: s.sub, question: s.question, hint: s.hint, choices: s.choices });
-        termsIn(asked).forEach(function (t) {
-          if (seen[t.key]) { add(i, "predict-new-term", "predict 질문에서 처음 나온 용어 '" + t.key + "' (앞 장면에서 풀이할 것)"); seen[t.key] = 0; }
-        });
-      }
-      var hasVisual = VISUAL_TYPES[s.type] || (!s.type && s.mount);
-      if (hasVisual && !s.narration && !s.points && !s.sub && !s.caption && !(s.before && s.before.points))
-        add(i, "no-reading-guide", "그림을 읽는 법(narration, points, sub)이 없다");
-      if (s.type !== "hook" && s.type !== "keywords" && s.type !== "summary" && !s.title) add(i, "no-title", "제목이 없다");
-      var filler = FILLER.exec(stripMarks(text));
-      if (filler) add(i, "filler-content", "채움 글 '" + filler[0] + "' (실제 사례·값으로 바꿀 것)");
+      RULES.forEach(function (r) { if (r.scene) add(r.scene(s, i, c)); });
     });
-    var run = 0, cards = 0, body = 0;
-    scenes.forEach(function (s, i) {
-      if (s.type === "hook" || s.type === "keywords") return;
-      body++;
-      if (isCardGrid(s, scenes)) { cards++; run++; if (run === 3) add(i, "card-monotony", "카드 격자 장면이 3장 연속이다 (figure·statement·explain form strip/stack·compare form table로 바꿀 것)"); }
-      else run = 0;
-    });
-    if (body >= 4 && cards / body > 0.5) out.push({ scene: 0, rule: "card-monotony", msg: "카드 격자 장면이 " + cards + "/" + body + "장이다 (절반 이하)" });
-    if (scenes.length && !scenes.some(isSignature)) out.push({ scene: 0, rule: "no-signature", msg: "그림이 주인공인 장면(figure, contrast, layout:\"full\", mount)이 없다" });
-    if (!spec.theme) out.push({ scene: 0, rule: "no-theme", msg: "theme을 고르지 않았다 (" + Object.keys(THEMES).join(", ") + ")" });
-    else if (!THEMES[spec.theme]) out.push({ scene: 0, rule: "unknown-theme", msg: "없는 theme '" + spec.theme + "'" });
-    var last = scenes[scenes.length - 1];
-    if (!last || last.type !== "keywords") out.push({ scene: 0, rule: "keywords-last", msg: "마지막 장면이 keywords가 아니다" });
-    var sum = scenes.map(function (s) { return s.type; }).lastIndexOf("summary");
-    var ov = scenes.map(function (s) { return s.type; }).indexOf("overview");
-    if (sum >= 0 && ov < 0) out.push({ scene: 0, rule: "overview-missing", msg: "summary 뒤에 한 장 정리(overview)가 없다" });
-    if (ov >= 0 && (ov < sum || ov !== scenes.length - 2)) add(ov, "overview-order", "overview는 summary 뒤, keywords 바로 앞에 둔다");
-    Object.keys(glossary).forEach(function (k) { if (!(k in first)) out.push({ scene: 0, rule: "unused-term", msg: "glossary의 '" + k + "'가 어디에도 표시되지 않았다" }); });
+    RULES.forEach(function (r) { if (r.deck) add(r.deck(c)); });
     return out;
   }
-
-  var AUDIT_SKIP = { hook: 1, terms: 1, summary: 1, keywords: 1, statement: 1, predict: 1 };
 
   // Judges measurements of one rendered scene (see ltt-deck.js audit). Thresholds were calibrated on the gallery at 1440×900:
   // below them a figure read as a thumbnail or the scene needed the zoom floor; kit parts alone already use about 7 text sizes.
   // Narrow windows (compact, ≤1000px) shrink by design, so zoom and visual-size ratios are not judged there.
+  // hero repeats the deck mount's full-layout rule (ltt-deck.js) so a scene is judged by the layout it is actually drawn in.
   function auditScene(m) {
-    var out = [], hero = m.type === "figure" || m.layout === "full";
+    var out = [], hero = sceneMeta(m.type, "auditHero") || (m.layout ? m.layout === "full" : !!sceneMeta(m.type, "fullByDefault"));
     function add(rule, msg) { out.push({ rule: rule, msg: msg }); }
     if (m.hscroll) add("hscroll", "가로로 넘친다 (폭 " + m.hscroll + "px 초과). 고정 폭을 max-width:100%로 바꿀 것");
+    if (m.panelOverlap) add("panel-overlap", "자막·정답 패널이 글·그림 " + m.panelOverlap + "곳과 겹친다. 그림을 줄이거나 장면을 나눌 것");
     if (m.graphOverlaps) add("graph-overlap", "그래프에서 라벨·노드·엣지가 " + m.graphOverlaps + "곳 겹친다. 좌표를 손으로 정했다면 LTT.autoLayout으로 배치할 것");
     (m.goals || []).forEach(function (g) {
       if (!g.hits) add("goal-unreachable", "목표를 맞추는 손잡이 위치가 없다 (표본 " + g.samples + "개 중 0개). 기준이나 손잡이 범위를 고칠 것");
@@ -558,13 +629,28 @@
     });
     if (m.overflow) add("overflow", "한 화면에 안 들어간다 (78%로 줄여도 넘친다). 해설·캡션을 줄이거나 장면을 나눌 것");
     else if (!m.compact && m.zoom < 0.88) add("shrunk", "화면에 맞추느라 " + Math.round(m.zoom * 100) + "%로 줄었다. 글을 줄이거나 장면을 나눌 것");
-    if (!m.compact && !AUDIT_SKIP[m.type] && m.visualRatio != null && m.visualRatio < (hero ? 0.22 : 0.1))
+    if (!m.compact && sceneMeta(m.type, "auditSmallVisual") && m.visualRatio != null && m.visualRatio < (hero ? 0.22 : 0.1))
       add("small-visual", "가장 큰 그림이 화면의 " + Math.round(m.visualRatio * 100) + "%뿐이다. 그림을 키우거나 layout: \"full\"");
-    if (!m.compact && m.type === "figure" && m.figRatio != null && m.figRatio < 0.35)
+    if (!m.compact && sceneMeta(m.type, "auditLooseFigure") && m.figRatio != null && m.figRatio < 0.35)
       add("loose-figure", "그림이 figure 무대의 " + Math.round(m.figRatio * 100) + "%만 채운다. 그림 폭·높이를 키우거나 가로로 배치할 것");
     if (hero && m.fill != null && m.fill < 0.6) add("empty-stage", "장면이 화면 높이의 " + Math.round(m.fill * 100) + "%만 쓴다. 그림을 키울 것");
     if (m.fontSizes > 7) add("many-sizes", "본문 글자 크기가 " + m.fontSizes + "단계다 (kit 부품 포함 7단계 이하). 페이지 CSS의 font-size를 kit 크기에 맞출 것");
     return out;
+  }
+
+  function rectHit(a, b) { return Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5; }
+
+  // Top-left corner of the first spot, scanning rows downward, where a w×h box inside `region` stays `gap` clear of every
+  // solid rectangle ({x0, y0, x1, y1}); null when there is none.
+  function freeSlot(region, size, solids, gap, step) {
+    gap = gap || 0; step = step || 4;
+    for (var y = region.y0; y + size[1] <= region.y1 + 0.5; y += step) {
+      for (var x = region.x0; x + size[0] <= region.x1 + 0.5; x += step) {
+        var r = { x0: x - gap, y0: y - gap, x1: x + size[0] + gap, y1: y + size[1] + gap };
+        if (!solids.some(function (o) { return rectHit(r, o); })) return [x, y];
+      }
+    }
+    return null;
   }
 
   // Positions a control can take, for checking a goal offline; long ranges keep `cap` evenly spaced positions including both ends.
@@ -689,7 +775,7 @@
     kitBase: KIT, lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
     icon: icon, icons: Object.keys(ICONS), theme: theme, themeTokens: themeTokens, palette: palette, contrast: contrast, mark: mark, marks: Object.keys(MARKS),
     themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
-    termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene,
+    termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene, sceneTypes: SCENE_TYPES, rectHit: rectHit, freeSlot: freeSlot,
     stepValues: stepValues, goalReach: goalReach,
     setGlossary: setGlossary, linkTerms: linkTerms, mobile: mobile
   };

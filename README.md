@@ -84,7 +84,7 @@ https://learn-to-tell.vercel.app 에서 실제 생성 형식의 수업을 볼 �
 | [인출 연습](https://learn-to-tell.vercel.app/gallery/pedagogy/retrieval-practice.html) | 교육학 | 다시 읽기 vs 떠올리기 |
 | [온톨로지 기초](https://learn-to-tell.vercel.app/gallery/knowledge-graph/ontology-triples.html) | 지식 표현 | 테이블 스키마로 충분한가, 온톨로지·SHACL을 얹어야 하는가 |
 
-수업은 폭 1280px 이상의 데스크톱 브라우저를 기준으로 만든다.
+수업은 폭 1280px 이상의 데스크톱 브라우저를 기준으로 만들고 점검한다. 폰(폭 760px 미만)에서는 kit가 같은 장면을 한 열로 다시 배치해 세로 스크롤로 읽을 수 있게 하는 열람만 보장하며, 폰 화면은 점검하지 않는다.
 
 ## 구성
 
@@ -93,7 +93,7 @@ skills/learn-to-tell/
 ├── SKILL.md      # agent가 따르는 절차: 진단 → 범위 → 자료 → 검증 → 확인 → 복귀 → map
 ├── kit/          # 수업 생성용 부품 라이브러리 (장면 덱, 도식, 차트, lint, 기대값 대조)
 ├── map/          # 지식 map CLI(ltt-map)와 뷰어, standalone 수업 import
-├── server/       # 로컬 수업 서버 + 학습 이벤트 기록 (127.0.0.1:47823)
+├── server/       # 로컬 수업 서버 + 학습 이벤트 기록 (127.0.0.1:47823), 헤드리스 화면 점검 (audit.mjs)
 ├── standalone.md # claude.ai(웹·모바일)용 artifact 수업 절차
 └── hooks/        # background.md 크기 관리 (Claude Code 전용)
 site/gallery/     # 예시 수업 (Vercel 배포 대상, skill 패키지에는 포함되지 않음)
@@ -154,19 +154,28 @@ claude.ai에는 로컬 서버와 `~/.learn-to-tell`이 없으므로 수업은 **
 # 테스트
 npm test
 
+# 갤러리 수업을 헤드리스 Chrome으로 화면 점검 (1440×900 · 1280×800) / 기준선 갱신
+npm run audit
+npm run audit:baseline
+
 # claude.ai용 zip (dist/learn-to-tell.zip) / kit npm 패키지 내용 채우기
 npm run build:zip
 npm run build:kit
+
+# kit/*.css를 고친 뒤 kit JS 안 CSS 문자열 다시 만들기
+npm run build:css
 
 # 갤러리를 로컬에서 보기 → http://127.0.0.1:47823/gallery/index.html
 node skills/learn-to-tell/server/server.mjs
 ```
 
-서버는 127.0.0.1에만 열리고 2시간 동안 요청이 없으면 스스로 종료된다. 포트는 `LTT_PORT`, 종료 대기 시간은 `LTT_IDLE_MINUTES`로 바꾼다. 같은 포트에 이미 learn-to-tell 서버가 떠 있으면 새로 띄우지 않고 그대로 종료하므로, 다른 worktree의 파일을 보려면 포트를 바꿔 띄운다.
+서버는 127.0.0.1에만 열리고 40분 동안 요청이 없으면 스스로 종료된다. 포트는 `LTT_PORT`, 종료 대기 시간은 `LTT_IDLE_MINUTES`로 바꾼다. 같은 포트에 이미 learn-to-tell 서버가 떠 있으면 새로 띄우지 않고 그대로 종료하므로, 다른 worktree의 파일을 보려면 포트를 바꿔 띄운다.
+
+`npm run audit`은 `skills/learn-to-tell/server/audit.mjs`로 갤러리 수업마다 `?audit`을 헤드리스 Chrome에서 열어 장면별 경고를 표로 보여 준다(수업 하나는 `node skills/learn-to-tell/server/audit.mjs <lesson.html 경로>`). `tests/gallery-audit.baseline.json`은 페이지·크기별로 허용하는 경고 수의 상한이고, 테스트는 실제 건수가 그 이하인지만 본다. 갤러리 경고를 줄이면 `npm run audit:baseline`으로 상한을 내린다. 크기는 창 크기라 실제 화면은 Chrome 툴바만큼 낮고(1440×900 → 1440×813), 요약 줄에 실제 화면 크기가 찍힌다. 이 테스트는 Chrome이 없거나 `CI`가 설정된 환경에서는 건너뛴다(`LTT_AUDIT=1`로 강제, `LTT_AUDIT=0`으로 끔).
 
 ### 릴리스
 
-`master`에 push하면 `.github/workflows/release.yml`이 테스트 후, `.claude-plugin/plugin.json`의 `version`에 해당하는 태그 `v<version>`이 아직 없을 때만 릴리스한다: kit을 npm(`@doggy-footprint/ltt-kit`)에 publish하고, `learn-to-tell.zip`을 첨부한 GitHub Release를 만든다. 릴리스하려면 `.claude-plugin/plugin.json`과 `packages/ltt-kit/package.json`의 `version`을 함께 올린다(다르면 커밋과 CI가 실패한다. 커밋 검사는 `npm run setup:hooks`로 한 번 설치). npm publish에는 저장소 secret `NPM_TOKEN`이 필요하다.
+`master`에 push하면 `.github/workflows/release.yml`이 테스트 후, `.claude-plugin/plugin.json`의 `version`에 해당하는 태그 `v<version>`이 아직 없을 때만 릴리스한다: kit을 npm(`@doggy-footprint/ltt-kit`)에 publish하고, `learn-to-tell.zip`을 첨부한 GitHub Release를 만든다. 릴리스하려면 `.claude-plugin/plugin.json`과 `packages/ltt-kit/package.json`의 `version`을 함께 올린다(다르면 커밋과 CI가 실패한다. 커밋 검사는 `npm run setup:hooks`로 한 번 설치). npm publish에는 저장소 secret `NPM_TOKEN`이 필요하다. 버전을 올릴 때 작가 계약 변경은 `skills/learn-to-tell/kit/CHANGELOG.md`에 한 줄씩 적는다(npm 패키지에도 들어간다).
 
 개인 학습 기록은 `~/.learn-to-tell/`(또는 `$LTT_HOME`)에 저장된다.
 

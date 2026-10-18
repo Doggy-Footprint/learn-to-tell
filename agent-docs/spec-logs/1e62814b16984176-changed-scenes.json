@@ -1,0 +1,2003 @@
+{
+ "cache-ttl.html": {
+  "4": {
+   "final": 4,
+   "base": 4,
+   "type": "predict",
+   "title": "응답 100건 중 옛 값은 몇 건일까?",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.993,
+      1
+     ],
+     "minFont": [
+      14.9,
+      15
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.78,
+      0.934
+     ],
+     "minFont": [
+      11.7,
+      14
+     ]
+    }
+   }
+  },
+  "7": {
+   "final": 7,
+   "base": 7,
+   "type": "",
+   "title": "TTL을 움직이면 두 막대가 반대로 간다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.991,
+      1
+     ],
+     "minFont": [
+      11.9,
+      13
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.837,
+      0.952
+     ],
+     "minFont": [
+      10,
+      12.4
+     ]
+    }
+   }
+  }
+ },
+ "cognition/anchoring.html": {
+  "3": {
+   "final": 3,
+   "base": 3,
+   "type": "figure",
+   "title": "출발점에서 덜 움직인다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.965,
+      1
+     ],
+     "minFont": [
+      13.5,
+      14
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.88,
+      0.988
+     ],
+     "minFont": [
+      12.3,
+      13.8
+     ]
+    }
+   }
+  }
+ },
+ "finance/diversification.html": {
+  "3": {
+   "final": 3,
+   "base": 3,
+   "type": "figure",
+   "title": "따로 흔들리면 서로 상쇄한다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.925,
+      1
+     ],
+     "minFont": [
+      11.1,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.804,
+      0.93
+     ],
+     "minFont": [
+      9.7,
+      11.2
+     ]
+    }
+   }
+  },
+  "4": {
+   "final": 4,
+   "base": 4,
+   "type": "predict",
+   "title": "반반 섞으면 변동성은 얼마가 될까?",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      15,
+      15
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.883,
+      0.927
+     ],
+     "minFont": [
+      13.2,
+      13.9
+     ]
+    }
+   }
+  },
+  "5": {
+   "final": 5,
+   "base": 5,
+   "type": "compare",
+   "title": "같은 20%짜리 둘도 짝에 따라 다르다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.933,
+      1
+     ],
+     "minFont": [
+      14.5,
+      15.5
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.826,
+      0.936
+     ],
+     "minFont": [
+      12.2,
+      13.8
+     ]
+    }
+   }
+  },
+  "6": {
+   "final": 6,
+   "base": 6,
+   "type": "",
+   "title": "자산을 계속 더해도 바닥이 있다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.948,
+      1
+     ],
+     "minFont": [
+      11.4,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.834,
+      0.953
+     ],
+     "minFont": [
+      10,
+      11.4
+     ]
+    }
+   }
+  },
+  "7": {
+   "final": 7,
+   "base": 7,
+   "type": "",
+   "title": "위기 때는 같이 떨어져 효과가 줄어든다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      12,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      12,
+      12
+     ]
+    }
+   }
+  }
+ },
+ "gpu/single-gpu-dataflow.html": {
+  "5": {
+   "final": 5,
+   "base": 5,
+   "type": "predict",
+   "title": "연산기만 2배 빠른 GPU로 바꾸면?",
+   "sizes": {
+    "1280x713": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.983,
+      0.991
+     ],
+     "minFont": [
+      14.8,
+      14.9
+     ]
+    }
+   }
+  },
+  "6": {
+   "final": 6,
+   "base": 6,
+   "type": "compare",
+   "title": "사용자 1명일 때 무엇이 속도를 올리나",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.892,
+      1
+     ],
+     "minFont": [
+      10.7,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.818,
+      1
+     ],
+     "minFont": [
+      9.8,
+      12
+     ]
+    }
+   }
+  },
+  "8": {
+   "final": 8,
+   "base": 8,
+   "type": "figure",
+   "title": "한 번 읽고 여러 명에게 나눠 준다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.855,
+      1
+     ],
+     "minFont": [
+      12,
+      14
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.79,
+      0.937
+     ],
+     "minFont": [
+      11.1,
+      13.1
+     ]
+    }
+   }
+  },
+  "9": {
+   "final": 9,
+   "base": 9,
+   "type": "compare",
+   "title": "묶는 인원이 늘면 병목이 바뀐다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.877,
+      1
+     ],
+     "minFont": [
+      10.5,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.803,
+      1
+     ],
+     "minFont": [
+      9.6,
+      12
+     ]
+    }
+   }
+  },
+  "12": {
+   "final": 12,
+   "base": 12,
+   "type": "overview",
+   "title": "속도는 표를 옮기는 길이 정하고, 묶으면 처리량만 는다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.931,
+      0.997
+     ],
+     "minFont": [
+      14.9,
+      15.9
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.886,
+      0.948
+     ],
+     "minFont": [
+      13.6,
+      14.6
+     ]
+    }
+   }
+  }
+ },
+ "knowledge-graph/ontology-triples.html": {
+  "4": {
+   "final": 4,
+   "base": 4,
+   "type": "figure",
+   "title": "모든 사실을 세 칸짜리 문장 하나로 적는다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.946,
+      1
+     ],
+     "minFont": [
+      13.2,
+      14
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.873,
+      0.932
+     ],
+     "minFont": [
+      12.2,
+      13.1
+     ]
+    }
+   }
+  },
+  "8": {
+   "final": 8,
+   "base": 8,
+   "type": "figure",
+   "title": "SPARQL은 찾고 싶은 모양을 그래프에 대 본다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.957,
+      1
+     ],
+     "minFont": [
+      13.4,
+      14
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.883,
+      0.944
+     ],
+     "minFont": [
+      12.4,
+      13.2
+     ]
+    }
+   }
+  },
+  "14": {
+   "final": 14,
+   "base": null,
+   "type": "statement",
+   "title": "OWL에서 안 적힌 것은 거짓이 아니라 <em>모르는 것</em>이다.",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    }
+   },
+   "unmatchedBase": [
+    14,
+    22
+   ]
+  },
+  "15": {
+   "final": 15,
+   "base": 15,
+   "type": "compare",
+   "title": "같은 질문에 OWA와 CWA는 다르게 답한다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.951,
+      0.981
+     ],
+     "minFont": [
+      11.4,
+      11.8
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.85,
+      0.913
+     ],
+     "minFont": [
+      10.2,
+      11
+     ]
+    }
+   }
+  },
+  "18": {
+   "final": 18,
+   "base": 18,
+   "type": "compare",
+   "title": "트랜잭션은 RDB, 통합과 의미는 RDF/OWL",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.917,
+      1
+     ],
+     "minFont": [
+      11,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.806,
+      0.909
+     ],
+     "minFont": [
+      9.7,
+      10.9
+     ]
+    }
+   }
+  },
+  "22": {
+   "final": 22,
+   "base": null,
+   "type": "summary",
+   "title": "온톨로지를 고르기 전에, 먼저 적고 묻는 법을 떠올린다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      16
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      0.987
+     ],
+     "minFont": [
+      null,
+      15.8
+     ]
+    }
+   },
+   "unmatchedBase": [
+    14,
+    22
+   ]
+  },
+  "23": {
+   "final": 23,
+   "base": null,
+   "type": "summary",
+   "title": "이어서 추론·검증과 고르는 기준을 떠올린다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      0.979
+     ],
+     "minFont": [
+      null,
+      11.7
+     ]
+    }
+   },
+   "unmatchedBase": [
+    14,
+    22
+   ]
+  },
+  "24": {
+   "final": 24,
+   "base": 23,
+   "type": "overview",
+   "title": "트리플로 적고, 규칙으로 늘리고, 모양으로 검사한다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      16,
+      16
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      15.4,
+      15.4
+     ]
+    }
+   }
+  },
+  "25": {
+   "final": 25,
+   "base": 24,
+   "type": "keywords",
+   "title": "다음에 비슷한 걸 만나면",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      13,
+      13
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.885,
+      1
+     ],
+     "minFont": [
+      11.5,
+      13
+     ]
+    }
+   }
+  }
+ },
+ "linear-algebra/matrix-as-transform.html": {
+  "4": {
+   "final": 4,
+   "base": 4,
+   "type": "compare",
+   "title": "모양으로 det(넓이 배율)를 읽는다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.868,
+      1
+     ],
+     "minFont": [
+      13.4,
+      15.5
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.78,
+      0.91
+     ],
+     "minFont": [
+      11.5,
+      13.4
+     ]
+    }
+   }
+  },
+  "6": {
+   "final": 6,
+   "base": 6,
+   "type": "predict",
+   "title": "늘이기와 회전, 순서를 바꾸면 결과도 같을까?",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.931,
+      1
+     ],
+     "minFont": [
+      14,
+      15
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.842,
+      0.923
+     ],
+     "minFont": [
+      12.6,
+      13.8
+     ]
+    }
+   }
+  }
+ },
+ "network/tls13-quic.html": {
+  "4": {
+   "final": 4,
+   "base": 4,
+   "type": "figure",
+   "title": "왕복이 한 줄씩 사라진다: 3 → 2 → 1 → 0",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.968,
+      1
+     ],
+     "minFont": [
+      13.5,
+      14
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.89,
+      0.93
+     ],
+     "minFont": [
+      12.5,
+      13
+     ]
+    }
+   }
+  },
+  "6": {
+   "final": 6,
+   "base": 6,
+   "type": "",
+   "title": "왕복 수는 RTT에 곱해진다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      11,
+      11
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.901,
+      0.94
+     ],
+     "minFont": [
+      9.9,
+      10.3
+     ]
+    }
+   }
+  },
+  "10": {
+   "final": 10,
+   "base": 10,
+   "type": "predict",
+   "title": "패킷 하나가 빠지면 누가 멈추나",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      15,
+      15
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.9,
+      0.946
+     ],
+     "minFont": [
+      13.5,
+      14.2
+     ]
+    }
+   }
+  },
+  "11": {
+   "final": 11,
+   "base": 11,
+   "type": "",
+   "title": "TCP는 한 줄, QUIC은 스트림마다 한 줄",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.963,
+      1
+     ],
+     "minFont": [
+      10.6,
+      11
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.862,
+      0.954
+     ],
+     "minFont": [
+      9.5,
+      10.5
+     ]
+    }
+   }
+  },
+  "13": {
+   "final": 13,
+   "base": null,
+   "type": "compare",
+   "title": "RTT가 큰 모바일 사용자에겐 HTTP/3를 켜고, 결제는 0-RTT로 받지 않는다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    }
+   },
+   "unmatchedBase": [
+    13,
+    14
+   ]
+  },
+  "14": {
+   "final": 14,
+   "base": null,
+   "type": "compare",
+   "title": "UDP가 막힌 망과 4-tuple 로드밸런서 앞에서는 HTTP/3의 이득이 사라진다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    }
+   },
+   "unmatchedBase": [
+    13,
+    14
+   ]
+  },
+  "15": {
+   "final": 15,
+   "base": null,
+   "type": "summary",
+   "title": "떠올려 보기 1: 인사의 왕복 수는 이렇게 줄었다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    }
+   },
+   "unmatchedBase": [
+    13,
+    14
+   ]
+  },
+  "16": {
+   "final": 16,
+   "base": null,
+   "type": "summary",
+   "title": "떠올려 보기 2: 줄인 만큼의 대가와 켜기 전 조건이 있다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    }
+   },
+   "unmatchedBase": [
+    13,
+    14
+   ]
+  },
+  "17": {
+   "final": 17,
+   "base": 15,
+   "type": "overview",
+   "title": "한 장으로: 인사를 줄이고, 멈춤을 쪼개고, 연결을 IP에서 떼어 냈다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      16,
+      16
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      0.928,
+      0.928
+     ],
+     "minFont": [
+      14.3,
+      14.3
+     ]
+    }
+   }
+  },
+  "18": {
+   "final": 18,
+   "base": 16,
+   "type": "keywords",
+   "title": "",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.982,
+      1
+     ],
+     "minFont": [
+      12.8,
+      13
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.838,
+      0.935
+     ],
+     "minFont": [
+      10.9,
+      12.2
+     ]
+    }
+   }
+  }
+ },
+ "pedagogy/retrieval-practice.html": {
+  "6": {
+   "final": 6,
+   "base": 6,
+   "type": "figure",
+   "title": "5분 뒤와 1주 뒤, 순위가 뒤집혔다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.952,
+      1
+     ],
+     "minFont": [
+      15.2,
+      16
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.851,
+      0.93
+     ],
+     "minFont": [
+      13.1,
+      14.3
+     ]
+    }
+   }
+  }
+ },
+ "philosophy/trolley-ethics.html": {
+  "2": {
+   "final": 2,
+   "base": 2,
+   "type": "figure",
+   "title": "같은 레버, 두 가지 이유",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.921,
+      1
+     ],
+     "minFont": [
+      12.9,
+      14
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.848,
+      0.935
+     ],
+     "minFont": [
+      11.9,
+      13.1
+     ]
+    }
+   }
+  }
+ },
+ "physics/projectile-drag.html": {
+  "5": {
+   "final": 5,
+   "base": 5,
+   "type": "",
+   "title": "같은 공, 공기가 있을 때와 없을 때",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.92,
+      1
+     ],
+     "minFont": [
+      11,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.837,
+      0.914
+     ],
+     "minFont": [
+      10,
+      11
+     ]
+    }
+   }
+  },
+  "7": {
+   "final": 7,
+   "base": 7,
+   "type": "compare",
+   "title": "공이 빠를수록 공기의 영향이 커진다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.928,
+      1
+     ],
+     "minFont": [
+      14.8,
+      16
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.863,
+      0.934
+     ],
+     "minFont": [
+      13.8,
+      14.9
+     ]
+    }
+   }
+  }
+ },
+ "scenes.html": {
+  "6": {
+   "final": 6,
+   "base": 6,
+   "type": "",
+   "title": "숫자가 제각각이면 규칙이 안 보인다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.997,
+      1
+     ],
+     "minFont": [
+      11,
+      11
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "zoom"
+     ],
+     "zoom": [
+      0.869,
+      0.964
+     ],
+     "minFont": [
+      9.6,
+      10.6
+     ]
+    }
+   }
+  },
+  "11": {
+   "final": 11,
+   "base": 11,
+   "type": "compare",
+   "title": "실제 앱에서 카드 사이 간격",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.812,
+      1
+     ],
+     "minFont": [
+      8.9,
+      11
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.78,
+      0.904
+     ],
+     "minFont": [
+      8.6,
+      9.9
+     ]
+    }
+   }
+  },
+  "13": {
+   "final": 13,
+   "base": 13,
+   "type": "overview",
+   "title": "스케일에서 고르고, 바깥은 한 단계 넓게",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      11,
+      11
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.884,
+      0.982
+     ],
+     "minFont": [
+      9.7,
+      10.8
+     ]
+    }
+   }
+  }
+ },
+ "uiux/color-contrast.html": {
+  "3": {
+   "final": 3,
+   "base": 3,
+   "type": "figure",
+   "title": "눈에는 읽히는 이 화면, 재 보면 세 곳이 실패한다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.968,
+      1
+     ],
+     "minFont": [
+      10.6,
+      11
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.842,
+      0.953
+     ],
+     "minFont": [
+      9.3,
+      10.5
+     ]
+    }
+   }
+  },
+  "5": {
+   "final": 5,
+   "base": 5,
+   "type": "contrast",
+   "title": "옅은 회색 세 곳이 화면을 못 읽게 만든다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.924,
+      1
+     ],
+     "minFont": [
+      11.1,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.788,
+      0.938
+     ],
+     "minFont": [
+      9.5,
+      11.3
+     ]
+    }
+   }
+  }
+ },
+ "uiux/visual-hierarchy-spacing.html": {
+  "4": {
+   "final": 4,
+   "base": 4,
+   "type": "figure",
+   "title": "강조는 키우기보다 나머지를 낮춰서 만든다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.976,
+      1
+     ],
+     "minFont": [
+      11.2,
+      11.5
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.845,
+      0.913
+     ],
+     "minFont": [
+      9.7,
+      10.5
+     ]
+    }
+   }
+  },
+  "6": {
+   "final": 6,
+   "base": null,
+   "type": "",
+   "title": "간격이 제각각이면 라벨이 어느 칸 것인지 모호하다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      11.5
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      11.5
+     ]
+    }
+   },
+   "unmatchedBase": [
+    6,
+    11
+   ]
+  },
+  "7": {
+   "final": 7,
+   "base": null,
+   "type": "",
+   "title": "묶음 안은 좁게, 묶음 사이는 넓게",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      11.5
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      0.937
+     ],
+     "minFont": [
+      null,
+      10.8
+     ]
+    }
+   },
+   "unmatchedBase": [
+    6,
+    11
+   ]
+  },
+  "8": {
+   "final": 8,
+   "base": 7,
+   "type": "",
+   "title": "묶음 사이 간격을 벌리면 그룹이 생긴다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      11.5,
+      11.5
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.882,
+      0.915
+     ],
+     "minFont": [
+      10.1,
+      10.5
+     ]
+    }
+   }
+  },
+  "9": {
+   "final": 9,
+   "base": 8,
+   "type": "compare",
+   "title": "어느 쪽이 먼저 읽을 곳을 정해 두었을까?",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      12,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      12,
+      12
+     ]
+    }
+   }
+  },
+  "10": {
+   "final": 10,
+   "base": 9,
+   "type": "statement",
+   "title": "굵은 글씨·테두리·배경을 모든 줄에 주면 <em>아무 줄도</em> 앞서지 않는다.",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      13,
+      13
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      0.993,
+      0.993
+     ],
+     "minFont": [
+      12.9,
+      12.9
+     ]
+    }
+   }
+  },
+  "11": {
+   "final": 11,
+   "base": 10,
+   "type": "explain",
+   "title": "가장 가까운 값으로 맞추면 잘못된 관계까지 보존된다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      11,
+      11
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      11,
+      11
+     ]
+    }
+   }
+  },
+  "12": {
+   "final": 12,
+   "base": null,
+   "type": "summary",
+   "title": "화면을 다듬기 전에, 먼저 무엇을 앞세울지 떠올린다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    }
+   },
+   "unmatchedBase": [
+    6,
+    11
+   ]
+  },
+  "13": {
+   "final": 13,
+   "base": null,
+   "type": "summary",
+   "title": "이어서 간격이 무엇을 묶고 떼는지 떠올린다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "짝 없음(나뉜/새 장면)"
+     ],
+     "zoom": [
+      null,
+      1
+     ],
+     "minFont": [
+      null,
+      12
+     ]
+    }
+   },
+   "unmatchedBase": [
+    6,
+    11
+   ]
+  },
+  "14": {
+   "final": 14,
+   "base": 12,
+   "type": "overview",
+   "title": "화면은 하나만 앞세우고, 간격의 크기로 묶음을 말한다",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "boxes",
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      11.5,
+      11.5
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "boxes",
+      "textHash",
+      "zoom"
+     ],
+     "zoom": [
+      0.942,
+      0.98
+     ],
+     "minFont": [
+      10.8,
+      11.3
+     ]
+    }
+   }
+  },
+  "15": {
+   "final": 15,
+   "base": 13,
+   "type": "keywords",
+   "title": "다음에 비슷한 걸 만나면",
+   "sizes": {
+    "1440x813": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      1,
+      1
+     ],
+     "minFont": [
+      13,
+      13
+     ]
+    },
+    "1280x713": {
+     "why": [
+      "textHash"
+     ],
+     "zoom": [
+      0.983,
+      0.983
+     ],
+     "minFont": [
+      12.8,
+      12.8
+     ]
+    }
+   }
+  }
+ }
+}

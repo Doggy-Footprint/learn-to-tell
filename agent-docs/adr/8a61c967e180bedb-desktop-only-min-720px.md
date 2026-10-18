@@ -1,6 +1,6 @@
 # 수업 화면은 폭 720px 이상 데스크톱 전용으로 한다
 
-- Status: Accepted (2026-10-15)
+- Status: Superseded by `dbd5ddb9b247aa15-phone-viewing-guarantee.md` (2026-10-18). Accepted (2026-10-15)
 
 ## Context
 

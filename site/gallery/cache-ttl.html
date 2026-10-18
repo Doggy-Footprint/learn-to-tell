@@ -19,6 +19,7 @@
   .num { font-size: 13px; color: var(--ltt-muted); text-align: center; margin: 10px 0 0; } .num b { font-size: 24px; color: var(--ltt-ink); font-weight: 800; }
   .ans-row { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
   .ans-row .ltt-units { width: min(220px, 50vw, 24vh); }
+  .ans-row > div:last-child { flex: 1 1 200px; min-width: 0; }
   .tl text { font-size: 15px; }
   .tl .lane { font-weight: 700; fill: var(--ltt-muted); font-size: 12px; font-family: var(--ltt-mono); }
   .life { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); gap: clamp(16px, 2.4vw, 32px); align-items: center; width: 100%; }
@@ -236,7 +237,7 @@
         ask: "\"이 데이터는 평균 몇 분에 한 번 바뀌나요?\"" },
 
       { type: "predict", kicker: "짐작해 보기", title: "응답 100건 중 옛 값은 몇 건일까?",
-        sub: "아래 조건에서 사용자가 받는 응답 100건을 생각해 보자. 그중 원본은 이미 바뀌었는데 옛 가격이 나간 응답은 몇 건일까?",
+        sub: "아래 조건에서 응답 100건 중, 원본은 이미 바뀌었는데 옛 가격이 나간 응답은 몇 건일까?",
         visual: () => LTT.facts([
           { icon: "users", value: "초당 2번", label: "한 상품에 오는 요청" },
           { icon: "refresh", value: "평균 10분", label: "가격이 바뀌는 {{변경 간격}}" },
@@ -279,18 +280,18 @@
           const TTLS = [1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600];
           body.innerHTML = `<div id="ttl-goal"></div><div class="ltt-param">TTL<div id="ttl"></div></div>
             <p class="ltt-basis">응답 100건 구성</p><div class="ltt-bar" id="b1"></div><p style="margin:0">${KEY}</p>
-            <p class="ltt-basis">원본 DB 조회 (분당) · 캐시가 없으면 120회(초당 2번 × 60초)가 모두 DB로 간다</p><div class="ltt-bar" id="b2"></div>
-            <p class="ltt-basis">요청 2회/초, 변경 간격 평균 10분 고정 · <span class="ltt-tag">모델로 계산한 예시</span></p>`;
+            <p class="ltt-basis">원본 DB 조회 (분당) · 캐시가 없으면 120회(초당 2번 × 60초)가 모두 DB로 간다</p><div class="ltt-bar" id="b2"></div>`;
           const b1 = LTT.bar("b1", [{ color: "var(--stale)" }, { color: "var(--fresh)" }, { color: "var(--miss)" }]);
           const b2 = LTT.bar("b2", [{ color: "var(--miss)" }, { color: "transparent" }]);
           LTT.sweep({ params: { ttl: { kind: "steps", stops: TTLS, value: 10, fmt: fmtDur, label: "TTL" } }, render({ ttl }) {
             const m = model(2, 600, ttl);
             b1.set([m.staleN, m.freshN, m.missN], [m.staleN || "", m.freshN, m.missN || ""]);
             b2.set([m.perMin, 120 - m.perMin], [sig2(m.perMin) + "회", ""]);
-          }, goal: { el: "ttl-goal", text: "DB 조회를 분당 2.5회 이하로 줄이면서, 오래된 응답은 100건 중 10건 이하로 지키는 TTL을 찾아 본다",
+          }, goal: { el: "ttl-goal", text: "DB 조회 분당 2.5회 이하, 오래된 응답 100건 중 10건 이하인 TTL을 찾는다",
             check: ({ ttl }) => { const m = model(2, 600, ttl); return m.perMin <= 2.5 && m.staleN <= 10; } } });
           return {};
         },
+        basis: "요청 2회/초, 변경 간격 평균 10분 고정 · <span class=\"ltt-tag\">모델로 계산한 예시</span>",
         takeaway: "TTL 하나로 DB 부하와 옛 값 비율을 동시에 줄일 수는 없다.",
         recall: "TTL을 늘리면 DB 조회 수와 옛 값 비율은 각각 어느 쪽으로 움직이고, 그래서 TTL만으로는 무엇을 할 수 없나?",
         ask: "\"DB가 버틸 수 있는 분당 조회 수는요?\"" },

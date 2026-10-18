@@ -14,7 +14,7 @@
 <script src="/kit/ltt-deck.js"></script>
 <style>
   :root { --mem: var(--ltt-accent); --cmp: var(--ltt-warn); --user: var(--ltt-good); }
-  .mini { width: 100%; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 8px; font-size: 13px; } .mini .big { grid-column: 1 / -1; }
+  .mini { width: 100%; display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 4px 8px; font-size: 13px; } .mini .big { grid-column: 1; grid-row: 1 / span 2; padding-right: 8px; }
   .mini .ltt-bar { height: 16px; }
   .big { font-size: 30px; font-weight: 850; letter-spacing: -.03em; text-align: center; font-variant-numeric: tabular-nums; }
   .big small { display: block; font-size: 12px; font-weight: 600; color: var(--ltt-muted); letter-spacing: 0; }
@@ -85,13 +85,13 @@
   // One block drawing reused across scenes: the same HBM → L2 → SM spine, with the output column either one token or four batched users.
   const US = [0, 1, 2, 3];
   const dataflow = (svg, batch) => LTT.diagram(svg, batch ? {
-    cols: 4, rows: 4, cell: [260, 70], node: [170, 54], maxWidth: false,
+    cols: 4, rows: 4, cell: [260, 52], node: [170, 54], maxWidth: false,
     zones: [{ c0: 0, r0: 0, c1: 2, r1: 3, l: "GPU 한 장", k: "accent" }],
     nodes: [
       { id: "hbm", c: 0, r: 1.5, l: "HBM", s: "가중치 16 GB", icon: "memory", h: 70 },
       { id: "l2", c: 1, r: 1.5, l: "L2 캐시", s: "작은 임시 보관소", icon: "layers", k: "muted", h: 70 },
       { id: "sm", c: 2, r: 1.5, l: "SM 연산기", s: "한 번에 여러 명", icon: "cpu", h: 70 },
-      ...US.map((i) => ({ id: "u" + i, c: 3, r: i, l: "사용자 " + (i + 1), icon: "user", w: 150, h: 48 })),
+      ...US.map((i) => ({ id: "u" + i, c: 3, r: i, l: "사용자 " + (i + 1), icon: "user", w: 150, h: 44 })),
     ],
     edges: [{ f: "hbm", t: "l2", l: "느림 · 표 1번", lo: [0, 50], k: "bad" }, { f: "l2", t: "sm", l: "빠름", lo: [0, 50], k: "accent" }, ...US.map((i) => ({ f: "sm", t: "u" + i, k: "good" }))],
   } : {
@@ -227,10 +227,7 @@
           ]);
         },
         caption: "도면 1과 같은 GPU 한 장이다. 오른쪽 칸만 토큰 1개에서 사용자 네 명으로 바뀌었다.",
-        narration: [
-          "{{batch}}로 사용자를 묶으면 표를 한 번 옮기는 동안 여러 명의 토큰을 같이 계산한다. 옮기는 양은 같으니 시간은 거의 그대로다.",
-          "그래서 한 사람의 속도는 그대로지만, GPU 한 장이 1초에 내놓는 전체 토큰 수는 묶은 인원만큼 늘어난다.",
-        ],
+        narration: "{{batch}}로 묶으면 표를 한 번 옮겨 여러 명의 토큰을 같이 만든다. 한 사람 속도는 같고, 초당 전체 토큰 수는 묶은 인원만큼 는다.",
         takeaway: "batch는 전체 처리량을 올린다. 한 사람의 속도는 올리지 않는다.",
         recall: "사용자 4명을 묶어 처리하면 한 사람이 느끼는 속도와 GPU 전체 처리량은 각각 어떻게 되는가?" },
 
@@ -261,7 +258,7 @@
         figure(node) {
           const { svg } = sheet(node);
           LTT.diagram(svg, {
-            cols: 4, rows: 6, cell: [236, 64], node: [184, 56], maxWidth: false,
+            cols: 4, rows: 6, cell: [236, 58], node: [184, 56], maxWidth: false,
             zones: [
               { c0: 0, r0: 0, c1: 2, r1: 5, l: "GPU 한 장", k: "accent" },
               { c0: 3, r0: 0, c1: 3, r1: 5, l: "⑤ 묶어서 한꺼번에", k: "good" },
@@ -270,7 +267,7 @@
               { id: "hbm", c: 0, r: 2.5, l: "HBM", s: "① 토큰마다 표 16 GB", icon: "memory", h: 70 },
               { id: "l2", c: 1, r: 2.5, l: "L2 캐시", s: "표를 담지 못함", icon: "layers", k: "muted", h: 70 },
               { id: "sm", c: 2, r: 2.5, l: "SM 연산기", s: "③ 계산은 금방, 대기", icon: "cpu", h: 70 },
-              ...US.map((i) => ({ id: "u" + i, c: 3, r: i + 1, l: "사용자 " + (i + 1), s: i === 3 ? "④ 속도는 그대로" : "", icon: "user", w: 184, h: 52 })),
+              ...US.map((i) => ({ id: "u" + i, c: 3, r: i + 1, l: "사용자 " + (i + 1), s: i === 3 ? "④ 속도는 그대로" : "", icon: "user", w: 184, h: 50 })),
             ],
             edges: [
               { f: "hbm", t: "l2", l: "② 3.35 TB/s 병목", lo: [0, 52], k: "bad" },

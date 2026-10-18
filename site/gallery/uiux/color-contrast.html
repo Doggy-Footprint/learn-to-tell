@@ -45,6 +45,7 @@
   .set .meas { outline: 1.5px dashed var(--ltt-bad); outline-offset: 3px; }
   .review { display: flex; align-items: center; justify-content: center; gap: clamp(24px, 5vw, 72px); }
   .review > * { flex: none; }
+  .review .ltt-insp { width: 460px; max-width: 100%; }
   @media (max-width: 720px) { .review { flex-wrap: wrap; } .review > * { flex: 0 1 auto; } }
   .stv { display: grid; gap: 12px; width: min(100%, 340px); }
   .stv div { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px; font: 15px var(--ltt-mono); color: var(--ltt-ink-2); }
@@ -94,7 +95,7 @@
   // The same settings screen twice; only the text colours differ between BEFORE and AFTER.
   // o.meas outlines the measured text like a redline; point positions are % of the phone frame, so they hold at any width.
   const settings = (c, o = {}) => () => {
-    const p = LTT.mock.phone({ width: o.width || 220, ratio: "9/16.5" });
+    const p = LTT.mock.phone({ width: o.width || 220, ratio: o.ratio || "9/16.5" });
     const m = o.meas ? " meas" : "";
     p.screen.innerHTML = `<div class="set" style="display:flex;flex-direction:column;gap:10px;height:100%">
       <h4>알림 설정</h4>
@@ -193,7 +194,7 @@
       { type: "figure", kicker: "디자인 리뷰 · 대비 검사", title: "눈에는 읽히는 이 화면, 재 보면 세 곳이 실패한다", en: "Redline",
         figure: () => {
           const w = LTT.h("div", "review");
-          w.appendChild(settings(BEFORE, { width: 260, meas: true })());
+          w.appendChild(settings(BEFORE, { width: 228, meas: true })());
           w.insertAdjacentHTML("beforeend", inspector());
           return w;
         },
@@ -203,7 +204,7 @@
           { at: [64, 37], title: "도움말", text: "입력칸 아래 보조 설명." },
           { at: [88, 91], title: "버튼 글자", text: "순빨강 위 흰 글자." },
         ],
-        caption: "빨간 점선 = 검사한 글자. 오른쪽 패널은 디자인 툴의 대비 검사처럼 글자색·배경색과 {{대비비}}를 보인다. 셋 다 일반 글자 기준 4.5에 못 미친다. 숫자가 어디서 나오는지는 다음 장면에서 본다. 모델로 계산한 예시." },
+        caption: "빨간 점선 = 검사한 글자. 오른쪽은 디자인 툴의 대비 검사 패널(글자색·배경색·{{대비비}}). 셋 다 4.5 미달. 모델로 계산한 예시." },
 
       { type: "explain", form: "stack", kicker: "계산 과정", title: "대비비는 이렇게 나온다", en: "How it works",
         steps: [
@@ -219,23 +220,22 @@
         takeaway: "대비비는 '눈이 느끼는 밝기'의 비율이다. 색상이 아니라 밝기 차이가 읽힘을 정한다.",
         recall: "글자가 배경 위에서 읽히는지를 정하는 것은 두 색의 어떤 차이이고, 대비비는 그것을 어떻게 숫자로 만드나?" },
 
-      { type: "contrast", kicker: "같은 화면, 색만 바꿨다", title: "옅은 회색 세 곳이 화면을 못 읽게 만든다", en: "Before → After",
-        sub: "왼쪽과 오른쪽은 글자 색만 다르다. 번호를 따라 무엇이 바뀌었는지 보자.",
+      { type: "contrast", kicker: "같은 화면, 글자 색만 바꿨다 · 번호끼리 비교", title: "옅은 회색 세 곳이 화면을 못 읽게 만든다", en: "Before → After",
         before: {
-          visual: settings(BEFORE),
+          visual: settings(BEFORE, { ratio: "9/14.5" }),
           points: [
-            { at: [90, 24], title: `placeholder #AAA · ${cr("#aaaaaa")}:1`, text: "무엇을 입력할지 알려 주는 안내가 거의 안 보인다." },
-            { at: [64, 37], title: `도움말 #999 · ${cr("#999999")}:1`, text: "'옅을수록 덜 중요해 보인다'는 의도가 읽기 자체를 막는다." },
-            { at: [88, 91], title: `흰 글자 + 순빨강 · ${cr("#ff0000")}:1`, text: "빨강은 눈이 덜 밝게 느껴 흰 글자와의 차이가 작다." },
+            { at: [90, 29], title: "placeholder #AAA", text: "입력 안내가 거의 안 보인다." },
+            { at: [64, 46], title: "도움말 #999", text: "'옅으면 덜 중요해 보인다'는 의도가 읽기를 막는다." },
+            { at: [88, 89], title: "흰 글자 + 순빨강", text: "빨강은 덜 밝게 느껴져 흰 글자와 차이가 작다." },
           ],
           foot: { label: "쓰인 글자색", visual: () => LTT.swatches([["#aaaaaa"], ["#999999"], ["#ff0000"]].map(([c]) => ({ color: c, label: cr(c), w: 34, h: 34, r: 10 })), { caption: "모두 일반 글자 기준 4.5 미달" }) },
         },
         after: {
-          visual: settings({ ph: "#767676", help: "#595959", btn: "#d70015" }),
+          visual: settings({ ph: "#767676", help: "#595959", btn: "#d70015" }, { ratio: "9/14.5" }),
           points: [
-            { at: [90, 24], title: `placeholder #767676 · ${cr("#767676")}:1`, text: "흰 배경에서 AA(4.5)를 넘는다." },
-            { at: [64, 37], title: `도움말 #595959 · ${cr("#595959")}:1`, text: "AAA(7)까지 넘는다. 중요도는 크기·굵기로 낮춘다." },
-            { at: [88, 91], title: `흰 글자 + #D70015 · ${cr("#d70015")}:1`, text: "빨강을 조금 어둡게 하면 '위험' 느낌은 그대로 두고 통과한다." },
+            { at: [90, 29], title: "placeholder #767676", text: "흰 배경에서 AA(4.5)를 넘는다." },
+            { at: [64, 46], title: "도움말 #595959", text: "AAA(7)도 넘는다." },
+            { at: [88, 89], title: "흰 글자 + #D70015", text: "조금 어둡게 하면 '위험' 느낌은 두고 통과한다." },
           ],
           foot: { label: "바꾼 글자색", visual: () => LTT.swatches([["#767676"], ["#595959"], ["#d70015"]].map(([c]) => ({ color: c, label: cr(c), w: 34, h: 34, r: 10 })), { caption: "모두 4.5 이상 · 모델로 계산한 예시" }) },
         },

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>테이블이면 충분할까, 온톨로지가 필요할까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"지식 표현","topic":"온톨로지 기초: 트리플·RDF·Turtle·SPARQL·RDFS/OWL 추론·열린 세계 가정·SHACL·활용","audience":"SQL 테이블과 JSON은 다뤄 봤다. RDF·OWL은 처음이다","pattern":["hook","terms","compare:table","figure","mount","figure","compare:table","figure","mount","explain:stack","predict","figure","compare","statement","compare:table","contrast","explain:strip","compare:table","explain","explain:strip","predict","summary","overview","keywords"],"theme":"paper","medium":"교과서 그림: 예제 지식 그래프 한 장(elk 자동 배치)을 TBox·ABox 영역으로 나눠 그리고, 같은 그래프 위에 질의 패턴·추론으로 생긴 점선 엣지를 단계적으로 얹는다. 표기는 Turtle·SPARQL 코드 조각","mode":"체험형: 다섯 단어를 그림으로 풀고 트리플로 그래프를 쌓은 뒤, 적히지 않은 사실을 짐작하고 추론 규칙을 하나씩 켜서 새 엣지가 생기는 것을 본다. OWA와 SHACL은 같은 질문을 두 세계관으로 비교한다","decision":"데이터를 테이블 스키마로 충분히 다룰 수 있는지, 온톨로지(RDFS·OWL 추론)와 SHACL 검증을 얹어야 하는지"}</script>
+<script type="application/json" id="ltt-meta">{"domain":"지식 표현","topic":"온톨로지 기초: 트리플·RDF·Turtle·SPARQL·RDFS/OWL 추론·열린 세계 가정·SHACL·활용","audience":"SQL 테이블과 JSON은 다뤄 봤다. RDF·OWL은 처음이다","pattern":["hook","terms","compare:table","figure","mount","figure","compare:table","figure","mount","explain:stack","predict","figure","compare","statement","compare:table","contrast","explain:strip","compare:table","explain","explain:strip","predict","summary","summary","overview","keywords"],"theme":"paper","medium":"교과서 그림: 예제 지식 그래프 한 장(elk 자동 배치)을 TBox·ABox 영역으로 나눠 그리고, 같은 그래프 위에 질의 패턴·추론으로 생긴 점선 엣지를 단계적으로 얹는다. 표기는 Turtle·SPARQL 코드 조각","mode":"체험형: 다섯 단어를 그림으로 풀고 트리플로 그래프를 쌓은 뒤, 적히지 않은 사실을 짐작하고 추론 규칙을 하나씩 켜서 새 엣지가 생기는 것을 본다. OWA와 SHACL은 같은 질문을 두 세계관으로 비교한다","decision":"데이터를 테이블 스키마로 충분히 다룰 수 있는지, 온톨로지(RDFS·OWL 추론)와 SHACL 검증을 얹어야 하는지"}</script>
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/elk.bundled.js"></script>
 <script src="/kit/ltt.js"></script>
@@ -14,9 +14,10 @@
 <script src="/kit/ltt-deck.js"></script>
 <style>
   .kg { width: 100%; }
-  .kg.wide, .ladder { width: min(880px, 60vw); }
+  .kg.wide, .ladder { width: 880px; max-width: 100%; }
   .ladder .ltt-code { width: 100%; font-size: 17px; }
   .kg svg { width: 100%; max-height: 38vh; }
+  .kg.tight svg { max-height: 32vh; }
   .rules { width: 100%; border-collapse: collapse; font-family: var(--ltt-mono); }
   .rules th, .rules td { border-bottom: 1px solid var(--ltt-line); padding: 10px 16px; text-align: center; }
   .rules th:first-child, .rules td:first-child { text-align: left; }
@@ -26,8 +27,10 @@
   .wa { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; }
   .wa b { font-family: var(--ltt-mono); color: var(--ltt-muted); font-weight: 600; }
   .wa .t { color: var(--ltt-good); font-weight: 700; } .wa .f { color: var(--ltt-bad); font-weight: 700; } .wa .u { color: var(--ltt-warn); font-weight: 700; }
-  .feat { display: grid; grid-template-columns: auto 1fr; gap: 2px 14px; }
+  .feat { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 2px 14px; }
   .feat dt { color: var(--ltt-muted); } .feat dd { margin: 0; }
+  /* 이 수업의 keywords는 신호와 이웃 개념이 가운데 칸에 몰려 있어, 가운데 칸을 넓혀 줄바꿈을 줄인다. */
+  @media (min-width: 1001px) { .dk-body .dk-kw { grid-template-columns: .85fr 1.45fr .8fr; } }
 </style>
 </head>
 <body>
@@ -151,8 +154,16 @@
       + tx(110, 66, "규칙도 데이터와 같은 자리에", "font-size:12px;fill:var(--ltt-ink-2)") + tx(110, 90, "추론용 · 검증용", MUTED)),
   };
 
+  // Ten recall questions plus their reserved answer space overflow one screen, so the recap is two summary scenes;
+  // each takes its `recap` range of the cards the kit would gather, keeping every takeaway exactly once.
+  const splitRecap = (spec) => {
+    const cards = LTT.summaryCards({}, spec.scenes);
+    spec.scenes.forEach((s) => { if (s.recap) s.cards = cards.slice(...s.recap); });
+    return spec;
+  };
+
   // The deck is built after elk finishes so figures (and ?audit) measure the drawn graph, not an empty svg.
-  KG.then((sp) => { kgLayout = sp; LTT.deck({
+  KG.then((sp) => { kgLayout = sp; LTT.deck(splitRecap({
     title: "테이블이면 충분할까, 온톨로지가 필요할까?",
     theme: "paper",
     glossary: {
@@ -205,6 +216,7 @@
         label: "그림 1.",
         figure(node) {
           const { w, svg } = sheet(node);
+          w.classList.add("tight");
           drawKG(svg).player(w, [
             { caption: "<b>① 트리플 하나</b> — <code>ex:mackay ex:wrote ex:itila .</code> 주어 → 술어 → 목적어가 화살표 하나가 된다.", hot: ["mackay", "itila", "mackay>itila"] },
             { caption: "<b>② 목적어가 다음 문장의 주어</b> — itila가 entropy를 다루고, entropy가 condEntropy의 선행 개념이다. 문장이 이어지면 그래프가 된다.", hot: ["mackay", "itila", "entropy", "condEntropy", "mutualInfo", "mackay>itila", "itila>entropy", "entropy>condEntropy", "condEntropy>mutualInfo"] },
@@ -274,6 +286,7 @@ ex:itila  a ex:Book ;
         label: "그림 3.",
         figure(node) {
           const { w, svg } = sheet(node);
+          w.classList.add("tight");
           drawKG(svg, (k) => k === "shannon>Person").player(w, [
             { caption: "<b>조인 = 같은 변수 두 번</b> — <code>?who ex:wrote ?w . ?w ex:covers ex:entropy .</code> ?w가 두 패턴을 잇는다.", hot: ["mackay", "itila", "shannon", "mtc", "entropy", "mackay>itila", "shannon>mtc", "itila>entropy", "mtc>entropy"] },
             { caption: "<b>재귀 = 속성 경로</b> — <code>ex:entropy ex:prereqOf+ ?c .</code> +는 한 번 이상 따라가기. 재귀 CTE가 한 줄이 된다.", hot: ["entropy", "condEntropy", "mutualInfo", "entropy>condEntropy", "condEntropy>mutualInfo"] },
@@ -352,15 +365,15 @@ ex:itila  a ex:Book ;
         ],
         narration: "추론기는 모순도 잡는다. disjointWith나 개수 제약을 어긴 데이터가 들어오면 '모순'이라고 알린다. 하지만 모순이 없다고 데이터가 완전하다는 뜻은 아니다.", },
 
-      { type: "statement", kicker: "07 · 제약", title: "OWL에서 적혀 있지 않은 것은 거짓이 아니라 <em>모르는 것</em>이다.",
-        sub: "SQL은 행이 없으면 거짓으로 읽는다({{닫힌 세계 가정}}). OWL은 정반대로 읽는다({{열린 세계 가정}}). 웹의 데이터는 언제나 일부만 안다는 전제로 설계됐기 때문이다." },
+      { type: "statement", kicker: "07 · 제약", title: "OWL에서 안 적힌 것은 거짓이 아니라 <em>모르는 것</em>이다.",
+        sub: "SQL은 행이 없으면 거짓으로 읽고({{닫힌 세계 가정}}), OWL은 모른다고 읽는다({{열린 세계 가정}}). 웹 데이터는 늘 일부만 안다는 전제로 설계됐다." },
 
       { type: "compare", form: "table", kicker: "07 · 두 세계관", title: "같은 질문에 OWA와 CWA는 다르게 답한다", layout: "stack", reveal: true, revealLabel: "답 보기",
-        narration: "예제 그래프에 네 가지를 물었다. 먼저 OWA로 어떻게 답할지 짐작하고 답을 연다. 개수나 필수값을 확정하는 검사는 다음 장면의 {{SHACL}}이 맡는다.",
+        narration: "네 질문에 OWA가 어떻게 답할지 짐작한 뒤 답을 연다. 개수·필수값 확정 검사는 다음 장면의 {{SHACL}} 몫이다.",
         head: ["질문", "OWA (OWL) · CWA (SQL)", "갈리는 이유"],
         items: [
           { label: "shannon은 Person인가?", visual: `<div class="wa"><b>OWA</b><span class="t">참 · 추론으로</span><b>CWA</b><span class="t">참</span></div>`, tone: "good", verdict: "같다", note: "domain 공리가 사실을 만든다." },
-          { label: "mtc는 shannon이 썼는가?", visual: `<div class="wa"><b>OWA</b><span class="t">참 · 역관계로</span><b>CWA</b><span class="t">참</span></div>`, tone: "good", verdict: "같다", note: "inverseOf 한 줄이면 반대 방향을 저장할 필요가 없다." },
+          { label: "mtc는 shannon이 썼는가?", visual: `<div class="wa"><b>OWA</b><span class="t">참 · 역관계로</span><b>CWA</b><span class="t">참</span></div>`, tone: "good", verdict: "같다", note: "반대 방향은 inverseOf가 만든다." },
           { label: "itila는 KL 발산을 다루는가?", visual: `<div class="wa"><b>OWA</b><span class="u">알 수 없음</span><b>CWA</b><span class="f">거짓</span></div>`, tone: "warn", verdict: "갈린다", note: "적히지도 유도되지도 않았다. 나중에 누가 추가하면 참이 될 수 있다." },
           { label: "mackay의 저작은 정확히 1개인가?", visual: `<div class="wa"><b>OWA</b><span class="u">알 수 없음</span><b>CWA</b><span class="t">참 (1개)</span></div>`, tone: "warn", verdict: "갈린다", note: "OWA는 세기를 거부한다. 확정하려면 maxCardinality를 적어야 한다." },
         ],
@@ -426,7 +439,9 @@ ex:itila  a ex:Book ;
         answer: "same",
         why: "RDF는 고유 이름 가정을 하지 않는다. IRI가 다르다고 다른 개체라는 보장도, 같다는 추론도 없다. sameAs로 직접 선언하거나, 사번처럼 값이 개체를 식별하는 속성을 InverseFunctionalProperty로 선언하면 추론기가 합친다." },
 
-      { type: "summary", title: "온톨로지를 고르기 전에 확인할 것", en: "Recap" },
+      { type: "summary", title: "온톨로지를 고르기 전에, 먼저 적고 묻는 법을 떠올린다", en: "Recap 1 · 00–05", recap: [0, 5] },
+
+      { type: "summary", title: "이어서 추론·검증과 고르는 기준을 떠올린다", en: "Recap 2 · 06–08", recap: [5] },
 
       { type: "overview", title: "트리플로 적고, 규칙으로 늘리고, 모양으로 검사한다",
         figure(node) {
@@ -467,7 +482,7 @@ ex:itila  a ex:Book ;
           { term: "JSON Schema", diff: "SHACL의 가까운 사촌. 닫힌 세계로 문서 모양을 검사한다." },
         ] },
     ],
-  }); });
+  })); });
 </script>
 </body>
 </html>

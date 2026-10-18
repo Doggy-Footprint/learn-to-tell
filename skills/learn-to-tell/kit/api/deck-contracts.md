@@ -1,0 +1,55 @@
+언제: figure `steps`, predict `answerVisual`·`rest`를 쓸 때, 또는 덱 이동·layout 기본값·`?audit`·폰 재배치의 세부 동작이 필요할 때 읽는다. 수업 작가가 지킬 계약만 담는다.
+
+# ltt-deck.js: 장면 덱 계약
+
+필드 목록과 장면 타입 표는 `kit/API.md`에 있다.
+
+## figure
+
+`points`의 `at`은 무대 안 첫 목업(phone·browser·terminal·code)이 있으면 그 틀 기준, 없으면 무대 전체 기준 %다(`pointsOn`으로 바꾼다).
+
+### `steps` (측정 모드)
+
+- `steps: [{caption, enter(k, fig, dir)}]`를 주면 그림 왼쪽, 단계 자막 오른쪽으로 놓인다.
+- 그림의 글·그림(diagram은 노드·라벨 상자)이 자막 칸 밑으로 들어가거나 한 단계에서라도 그 상자들이 자막 칸 밑으로 들어가면, 같은 창 폭에서는 자막 칸이 계속 그림 아래에 있다. 폭 760px 이하에서는 판정 없이 아래에 둔다.
+- 그림 폭은 페이지 CSS에서 `vw`로 고정하지 않는다(kit이 칸 폭을 준다). 크기 상한이 필요하면 `px`와 `max-width:100%`를 쓴다. 자막이 아래로 내려가도 kit은 그림을 넓히지 않는다.
+- 장면에 들어올 때와 창 크기가 바뀔 때 모든 단계의 `enter`를 한 번씩 미리 돌려 그림 높이와 자막 칸 위치를 정하므로, 단계를 넘겨도 배율과 배치가 바뀌지 않는다. 그래서 `enter`는 멱등이어야 하고(반복 재생도 마지막에서 첫 단계로 바로 간다) 기록·전역 상태를 건드리지 않아야 한다.
+- 미리 돌리는 동안 kit의 `send`(패킷 연출)는 아무것도 하지 않고, 그림 안의 CSS transition은 꺼져 끝 크기로 잰다. 직접 만든 d3 transition·`setTimeout`으로 크기를 바꾸는 그리기는 끝 크기를 알 수 없으니 `enter`에 넣지 않는다.
+- 자막 칸 높이는 가장 긴 단계 자막에 맞춰 고정되어 단계를 넘겨도 버튼이 움직이지 않는다.
+- `figure` 함수가 `{el, ...}`를 돌려주면 `enter`의 `fig`로 그 객체가 온다(같은 그림의 여러 상태). 장면에 들어올 때마다 다시 그리려면 공통 필드 `enter(body, ctx)`.
+
+## predict `rest`·배율·`answerVisual`
+
+- `rest`는 정답 공개 뒤 고르지 않은 오답의 모습: `"hide"`(기본, 자리만 남기고 숨김) · `"dim"`(흐리게) · `"dot"`(점으로). 어느 쪽이든 자리를 유지해 화면이 흔들리지 않는다. 펼친 정답은 hide로 숨긴 자리에는 놓일 수 있지만 dim·dot 선택지는 가리지 않는다. 덱 전체 기본값은 `LTT.deck({predictRest})`.
+- 배율은 장면에 들어올 때 문제 상태와 선택지별 정답 상태 중 가장 큰 쪽에 맞춰 정하고, 공개할 때 바꾸지 않는다. 그래서 해설(`why`)·`answerVisual`이 길면 공개 전에도 장면이 작아지니 짧게 쓴다.
+- 공개 뒤 창 크기가 바뀌면 배율을 다시 잰다. 그 크기에서 새로 열어 같은 답을 공개한 배율과 같다.
+- 측정을 위해 함수형 `answerVisual(node, id)`는 선택지마다 화면 밖에서 미리 한 번씩 불릴 수 있다(인자를 하나만 받으면 한 번만). 공개 뒤에도 창 크기가 바뀌면 다시 불리고, 이어서 고른 값으로 한 번 더 불려 공개 모습을 다시 그린다. 같은 입력이면 같은 크기를 내고, 전역 상태·기록을 건드리지 않아야 한다. 미리 그리는 동안 kit의 `send`는 아무것도 하지 않는다. `node` 안의 지연 애니메이션은 크기를 바꾸지 않을 때만 괜찮다.
+
+## summary·keywords
+
+- `recall`이 있으면 summary는 글 목록의 인출 연습이 된다. summary가 질문을 먼저 보이고 답(takeaway)은 "답 보기" 뒤에 연다. 답 칸은 열기 전에도 빈자리로 잡혀 있어 열어도 배율이 바뀌지 않는다. 공개할 때 `recall` 이벤트(`{scene, question, answer}`)를 남긴다.
+- keywords 뒤에 `map-related` 장면이 `/map/data.json`에서 자동으로 붙는다(이어진 개념이 없으면 없음). 직접 쓰지 않는다.
+
+## layout 기본값
+
+기본은 figure·overview면 full(overview도 figure처럼 그림이 무대 전체를 쓴다), 그 밖에는 narration·points가 있으면 split. 단 hook·keywords·summary·terms·contrast·predict·statement는 자동 split이 되지 않는다.
+
+## 덱 이동
+
+←/→·PageUp/PageDown 키(화면 속 stepper가 있으면 그 stepper가 끝에 닿을 때까지 ←/→를 먼저 받는다), `#n` 해시, `scene` 이벤트.
+
+- compare의 판정이나 predict의 정답을 보지 않고 다음으로 가려 하면, 첫 시도는 넘어가지 않는다. 대신 그 버튼(predict에서 아직 고르지 않았으면 선택지)을 테마에 맞게 강조하고 말풍선을 띄운다. 다음 버튼이면 버튼 위에, 키·스와이프면 화면 가운데에 뜬다. 같은 장면에서 한 번 더 시도하면 넘어간다(`skip-warn`, `skip-reveal` 이벤트).
+- predict에서 선택지를 이미 골랐다면 다음 버튼·키·스와이프는 넘어가지 않고 정답을 바로 펼친다(`auto-reveal` 이벤트).
+- 정답을 펼친 predict에서 ← 키는 이전 장면 대신 문제 상태로 돌아간다(`predict-back` 이벤트, 이전 버튼·스와이프는 그대로 이전 장면).
+- 펼친 정답은 장면 안에서 글·컨트롤·그림이 없는 빈자리를 찾아 그 위에 놓이고, 빈자리가 없으면 아래로 붙는다(넘치면 평소처럼 78%까지 줄인다).
+
+## 화면 점검 (`?audit`) 세부
+
+- 덱이 모든 장면을 그려 잰다. `LTT.deck(...)`가 돌려주는 객체의 `audit()`으로 직접 부를 수도 있다. 판정은 `LTT.auditScene(측정값)`이 한다.
+- 결과는 `<script type="application/json" id="ltt-audit">`에 `{viewport, scenes, audit, lint, expectFails}`로도 남고, `server/audit.mjs`가 헤드리스 Chrome의 `--dump-dom` 출력에서 그것을 읽어 두 크기의 표를 만든다.
+- 폭 1000px 이하 창에서는 `shrunk`·`small-visual`·`loose-figure`를 판정하지 않는다. `small-visual`은 hook·terms·summary·keywords·statement·predict 장면에서도 판정하지 않는다.
+- `goal-unreachable`·`goal-narrow`·`goal-at-start`의 자리는 손잡이마다 최대 201곳(dial은 최대 360곳, pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다.
+
+## 폰 재배치
+
+폰(폭 760px 미만, 또는 높이 500px 이하의 터치 화면)에서는 `<html data-ltt-mobile>`가 붙고, kit가 같은 장면을 다시 배치한다(`LTT.mobile()`). 장면은 줄이지 않고 세로로 스크롤한다. 모든 격자는 한 열이 되고, 그림 옆 설명은 그림 아래로 간다. 글자가 10px 아래로 작아질 넓은 SVG는 그 크기를 지키고 자기 칸 안에서 가로로 스크롤한다. 단 `steps`가 있는 figure의 그림은 단계마다 다시 그려질 수 있어 칸 폭에 맞춘다. explain 단계 목록의 그림은 번호 칸을 비워 두고 글과 같은 열에 놓인다. autoLayout 그래프는 `DOWN`으로 다시 배치된다. 좌우로 밀면 장면이 넘어간다. 참고용 화면이라 점검 대상이 아니다.

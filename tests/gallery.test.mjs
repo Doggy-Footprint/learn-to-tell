@@ -185,3 +185,123 @@ test("VO-8 support card content: chips, vendor rows, feature items", () => {
   assert.ok(items.math?.includes("LTT.math"), "feature math lacks LTT.math");
   assert.ok(items.map?.includes("LTT.map"), "feature map lacks LTT.map");
 });
+
+// ---------- spec 74cb05d7da21907e VO-4 (FR-7, C-15): figure picture widths are not pinned with vw ----------
+
+const LESSON_PAGES = pages.filter((p) => !["index.html", "catalog.html"].includes(p) && p.split("/").length <= 2);
+const WIDTH_PROPS = new Set(["width", "min-width", "max-width"]);
+const VW_ALLOWED = [{ page: "cache-ttl.html", selector: ".ans-row .ltt-units" }];
+const normSelector = (s) => s.trim().replace(/\s+/g, " ");
+
+// Innermost `selector { declarations }` blocks, so rules nested in @media/@supports keep their own selector.
+function cssRules(css) {
+  const out = [];
+  for (const m of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
+    const selectors = m[1].split(";").pop().split(",").map(normSelector).filter(Boolean);
+    const decls = m[2].split(";").map((d) => d.split(":")).filter((kv) => kv.length >= 2)
+      .map(([k, ...v]) => ({ prop: k.trim().toLowerCase(), value: v.join(":").trim() }));
+    out.push({ selectors, decls });
+  }
+  return out;
+}
+const styleRules = (page) => [...read(page).matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].flatMap((m) => cssRules(m[1]));
+const vwWidths = (rule) => rule.decls.filter((d) => WIDTH_PROPS.has(d.prop) && /vw/i.test(d.value));
+
+test("VO-4 css parser: nested @media rules, comments, non-width properties and grouped selectors", () => {
+  const rules = cssRules("/* .x { width: 9vw } */ .a, .b  .c { gap: 2vw; font-size: clamp(1px, 1vw, 2px); border-width: 1vw; width: 50% }\n@media (max-width: 900px) { .d { max-width: 40vw; } }");
+  assert.deepEqual(rules.map((r) => r.selectors), [[".a", ".b .c"], [".d"]]);
+  assert.deepEqual(rules.map((r) => vwWidths(r).map((d) => `${d.prop}: ${d.value}`)), [[], ["max-width: 40vw"]]);
+});
+
+test("VO-4 FR-7: the scan covers the 13 gallery lesson pages (site/gallery/*.html and */*.html, minus index, catalog, stale/)", () => {
+  assert.equal(LESSON_PAGES.length, 13, LESSON_PAGES.join(", "));
+  for (const p of ["cache-ttl.html", "scenes.html", "network/tls13-quic.html", "knowledge-graph/ontology-triples.html"]) assert.ok(LESSON_PAGES.includes(p), `scan misses ${p}`);
+  for (const p of LESSON_PAGES) assert.ok(styleRules(p).length > 0, `${p} has no <style> rule`);
+});
+
+test("VO-4 FR-7: no <style> width, min-width or max-width declaration uses vw outside the allow-list (cache-ttl .ans-row .ltt-units)", () => {
+  const offenders = [];
+  for (const page of LESSON_PAGES) {
+    for (const rule of styleRules(page)) {
+      const vw = vwWidths(rule);
+      if (vw.length === 0) continue;
+      const allowed = rule.selectors.every((s) => VW_ALLOWED.some((a) => a.page === page && a.selector === s));
+      if (!allowed) offenders.push(`${page} ${rule.selectors.join(", ")} { ${vw.map((d) => `${d.prop}: ${d.value}`).join("; ")} }`);
+    }
+  }
+  assert.deepEqual(offenders, [], `vw widths outside the allow-list:\n${offenders.join("\n")}`);
+});
+
+for (const [page, need] of [["network/tls13-quic.html", [".seqwrap"]], ["knowledge-graph/ontology-triples.html", [".kg.wide", ".ladder"]]]) {
+  test(`VO-4 FR-7 C-15: ${page} has a rule for ${need.join(", ")} and no rule naming them pins a width with vw`, () => {
+    const rules = styleRules(page);
+    assert.ok(rules.some((r) => need.every((s) => r.selectors.includes(s))), `${page} has no <style> rule whose selector list includes ${need.join(" and ")}`);
+    const pinned = rules.filter((r) => need.some((s) => r.selectors.includes(s)) && vwWidths(r).length > 0)
+      .map((r) => `${r.selectors.join(", ")} { ${vwWidths(r).map((d) => `${d.prop}: ${d.value}`).join("; ")} }`);
+    assert.deepEqual(pinned, [], `${page} still pins a width with vw:\n${pinned.join("\n")}`);
+  });
+}
+
+// ---------- spec 1e62814b16984176 VO-4 (FR-5, C-13, C-14, E-6): ltt-meta.mode format and tls13 dead code ----------
+
+// Signatures: "<형>: <서술>", 형 ∈ 체험형·설명형·카탈로그용, 서술 at least 20 characters (JS string length).
+const MODE_FORM = /^(체험형|설명형|카탈로그용): ([\s\S]*)$/;
+const MODE_MIN = 20;
+function modeError(mode) {
+  if (typeof mode !== "string") return `mode is not a string: ${JSON.stringify(mode)}`;
+  const m = MODE_FORM.exec(mode);
+  if (!m) return `mode does not start with 체험형: , 설명형: or 카탈로그용: — ${JSON.stringify(mode)}`;
+  if (m[2].length < MODE_MIN) return `mode description has ${m[2].length} characters < ${MODE_MIN} — ${JSON.stringify(mode)}`;
+  return null;
+}
+const DESC = "핸드셰이크와 0-RTT를 그림으로 보고 스트림이 막히는지 짐작한다";
+const desc = (n) => DESC.slice(0, n);
+
+const MODE_CASES = [
+  { id: 'C-14 "체험형: " + 19 characters', mode: `체험형: ${desc(19)}`, ok: false },
+  { id: 'C-14 "체험형: " + 20 characters', mode: `체험형: ${desc(20)}`, ok: true },
+  { id: 'C-14 "simulation"', mode: "simulation", ok: false },
+  { id: 'C-14 "체험형:" + 20 characters, no space', mode: `체험형:${desc(20)}`, ok: false },
+  { id: 'C-14 "실습형: " + 30 characters', mode: `실습형: ${desc(30)}`, ok: false },
+];
+
+test("VO-4 SY-1 C-14 fixtures: the description parts have the intended lengths", () => {
+  assert.ok(DESC.length >= 30, `fixture text has only ${DESC.length} characters`);
+  assert.deepEqual([desc(19).length, desc(20).length, desc(30).length], [19, 20, 30]);
+});
+
+for (const { id, mode, ok } of MODE_CASES) {
+  test(`VO-4 SY-1 ${id}: the mode checker ${ok ? "passes" : "fails"}`, () => {
+    const err = modeError(mode);
+    if (ok) assert.equal(err, null);
+    else assert.ok(err !== null, `checker accepted ${JSON.stringify(mode)}`);
+  });
+}
+
+const DECK_PAGES = pages.filter((p) => scripts(p).includes("/kit/ltt-deck.js"));
+const lttMeta = (page) => {
+  const m = /<script type="application\/json" id="ltt-meta">(.*?)<\/script>/s.exec(read(page));
+  assert.ok(m, `${page} has no ltt-meta`);
+  return JSON.parse(m[1]);
+};
+
+test("VO-4 SY-2 FR-5: the deck pages (those loading /kit/ltt-deck.js) are the 13 gallery lessons", () => {
+  assert.equal(DECK_PAGES.length, 13, DECK_PAGES.join(", "));
+  assert.ok(DECK_PAGES.includes("network/tls13-quic.html"), "network/tls13-quic.html is not a deck page");
+});
+
+test("VO-4 SY-2 FR-5 E-6: every deck page's ltt-meta.mode is \"<체험형|설명형|카탈로그용>: <20+ characters>\"", () => {
+  const bad = DECK_PAGES.map((page) => [page, modeError(lttMeta(page).mode)]).filter(([, err]) => err).map(([page, err]) => `${page}: ${err}`);
+  assert.deepEqual(bad, [], `ltt-meta.mode format violations:\n${bad.join("\n")}`);
+});
+
+test("VO-4 SY-2 FR-5 C-13: network/tls13-quic.html ltt-meta.mode starts with 체험형: ", () => {
+  const mode = lttMeta("network/tls13-quic.html").mode;
+  assert.ok(typeof mode === "string" && mode.startsWith("체험형: "), `network/tls13-quic.html mode is ${JSON.stringify(mode)}`);
+});
+
+test("VO-4 SY-3 FR-5 C-13 E-6: network/tls13-quic.html contains no streamsMiniOld (definition, call or comment)", () => {
+  const html = read("network/tls13-quic.html");
+  const at = html.indexOf("streamsMiniOld");
+  assert.equal(at, -1, `network/tls13-quic.html still contains streamsMiniOld at line ${html.slice(0, at).split("\n").length}`);
+});

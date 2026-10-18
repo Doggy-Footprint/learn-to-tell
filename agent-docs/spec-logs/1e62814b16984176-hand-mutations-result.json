@@ -1,0 +1,297 @@
+{
+  "HM-1": {
+    "files": [
+      "site/gallery/linear-algebra/matrix-as-transform.html"
+    ],
+    "diff": "site/gallery/linear-algebra/matrix-as-transform.html | 7 +++----\n 1 file changed, 3 insertions(+), 4 deletions(-)",
+    "exit": 1,
+    "summary": {
+      "tests": "884",
+      "pass": "883",
+      "fail": "1"
+    },
+    "failing": [
+      "gallery decks stay at or under the audit baseline in both sizes"
+    ],
+    "detail": [
+      "  +     '    장면 6 [shrunk]: 화면에 맞추느라 84%로 줄었다. 글을 줄이거나 장면을 나눌 것'",
+      "    actual: [ '1280x800 linear-algebra/matrix-as-transform.html: audit 1 > 0\\n    장면 6 [shrunk]: 화면에 맞추느라 84%로 줄었다. 글을 줄이거나 장면을 나눌 것' ],"
+    ]
+  },
+  "HM-2": {
+    "files": [
+      "site/gallery/network/tls13-quic.html"
+    ],
+    "diff": "site/gallery/network/tls13-quic.html | 56 +++++++++++++++++++++---------------\n 1 file changed, 33 insertions(+), 23 deletions(-)",
+    "exit": 1,
+    "summary": {
+      "tests": "884",
+      "pass": "882",
+      "fail": "2"
+    },
+    "failing": [
+      "VO-4 FR-7 C-15: network/tls13-quic.html has a rule for .seqwrap and no rule naming them pins a width with vw",
+      "VO-4 FR-7: no <style> width, min-width or max-width declaration uses vw outside the allow-list (cache-ttl .ans-row .ltt-units)"
+    ],
+    "detail": []
+  },
+  "HM-4": {
+    "files": [
+      "skills/learn-to-tell/kit/ltt.js"
+    ],
+    "diff": "skills/learn-to-tell/kit/ltt.js | 1 +\n 1 file changed, 1 insertion(+)",
+    "exit": 1,
+    "summary": {
+      "tests": "884",
+      "pass": "870",
+      "fail": "14"
+    },
+    "failing": [
+      "VO-1 BV-1 C-2 overview layout \"\" visualRatio 0.2199: small-visual",
+      "VO-1 BV-4 C-3 overview layout \"\" fill 0.599: empty-stage",
+      "VO-1 C-11 order (spec 1e62814b16984176 FR-1): overview layout \"\" with visualRatio 0.15 and fill 0.3 gives the same rules, messages and order as overview layout \"full\"",
+      "VO-1 DT-3 C-1 auditHero F, layout \"\", fullByDefault T: overview visualRatio 0.15, fill 0.9: small-visual",
+      "VO-1 DT-7 C-8 runtime foo = {fullByDefault: true}, layout \"\": fill 0.3: empty-stage",
+      "VO-1 DT-7 C-8 runtime foo = {fullByDefault: true}, layout \"\": visualRatio 0.15: small-visual",
+      "VO-1 DT-7 C-8: an entry added after load is read at call time — foo warns only once foo = {fullByDefault: true} is set",
+      "VO-1 EC-1 C-9: the table edit is read at call time — the same kit warns before and stops after overview.fullByDefault = false",
+      "VO-1 EC-2 C-10 overview layout null visualRatio 0.15: small-visual",
+      "VO-1 EC-2 C-10 overview layout undefined (explicit) visualRatio 0.15: small-visual",
+      "VO-1 EC-2 C-10: overview with no layout key at all, visualRatio 0.15, warns small-visual",
+      "VO-6 C-10 overview: fill 0.3 (effective hero) gives empty-stage"
+    ],
+    "detail": [
+      "  - '[{\"rule\":\"small-visual\",\"msg\":\"가장 큰 그림이 화면의 15%뿐이다. 그림을 키우거나 layout: \\\\\"full\\\\\"\"},{\"rule\":\"empty-stage\",\"msg\":\"장면이 화면 높이의 30%만 쓴다. 그림을 키울 것\"}]'",
+      "    expected: '[{\"rule\":\"small-visual\",\"msg\":\"가장 큰 그림이 화면의 15%뿐이다. 그림을 키우거나 layout: \\\\\"full\\\\\"\"},{\"rule\":\"empty-stage\",\"msg\":\"장면이 화면 높이의 30%만 쓴다. 그림을 키울 것\"}]',"
+    ]
+  },
+  "HM-5": {
+    "files": [
+      "skills/learn-to-tell/kit/ltt.js"
+    ],
+    "diff": "skills/learn-to-tell/kit/ltt.js | 3 ++-\n 1 file changed, 2 insertions(+), 1 deletion(-)",
+    "exit": 1,
+    "summary": {
+      "tests": "884",
+      "pass": "883",
+      "fail": "1"
+    },
+    "failing": [
+      "VO-1 DT-6 C-4 auditHero F, layout \"split\", fullByDefault T: overview visualRatio 0.15, fill 0.3: no warning"
+    ],
+    "detail": []
+  },
+  "HM-6": {
+    "files": [
+      "skills/learn-to-tell/kit/ltt.js"
+    ],
+    "diff": "skills/learn-to-tell/kit/ltt.js | 3 ++-\n 1 file changed, 2 insertions(+), 1 deletion(-)",
+    "exit": 1,
+    "summary": {
+      "tests": "884",
+      "pass": "882",
+      "fail": "2"
+    },
+    "failing": [
+      "VO-1 DT-2 C-6 auditHero T, layout \"split\": figure visualRatio 0.15: small-visual",
+      "VO-1 DT-2 auditHero T, layout \"split\": figure fill 0.3: empty-stage"
+    ],
+    "detail": []
+  },
+  "HM-7": {
+    "files": [
+      "site/gallery/network/tls13-quic.html"
+    ],
+    "diff": "site/gallery/network/tls13-quic.html | 55 +++++++++++++++++++++---------------\n 1 file changed, 33 insertions(+), 22 deletions(-)",
+    "exit": 1,
+    "summary": {
+      "tests": "884",
+      "pass": "883",
+      "fail": "1"
+    },
+    "failing": [
+      "VO-4 SY-3 FR-5 C-13 E-6: network/tls13-quic.html contains no streamsMiniOld (definition, call or comment)"
+    ],
+    "detail": []
+  },
+  "HM-8": {
+    "files": [
+      "site/gallery/network/tls13-quic.html"
+    ],
+    "diff": "site/gallery/network/tls13-quic.html | 54 +++++++++++++++++++++---------------\n 1 file changed, 32 insertions(+), 22 deletions(-)",
+    "exit": 1,
+    "summary": {
+      "tests": "884",
+      "pass": "882",
+      "fail": "2"
+    },
+    "failing": [
+      "VO-4 SY-2 FR-5 C-13: network/tls13-quic.html ltt-meta.mode starts with 체험형: ",
+      "VO-4 SY-2 FR-5 E-6: every deck page's ltt-meta.mode is \"<체험형|설명형|카탈로그용>: <20+ characters>\""
+    ],
+    "detail": []
+  },
+  "HM-9": {
+    "files": [
+      "site/gallery/scenes.html"
+    ],
+    "diff": "site/gallery/scenes.html | 20 +++++++++++---------\n 1 file changed, 11 insertions(+), 9 deletions(-)",
+    "exit": 1,
+    "summary": {
+      "tests": "884",
+      "pass": "883",
+      "fail": "1"
+    },
+    "failing": [
+      "gallery decks stay at or under the audit baseline in both sizes"
+    ],
+    "detail": [
+      "  +     '    장면 13 [small-visual]: 가장 큰 그림이 화면의 15%뿐이다. 그림을 키우거나 layout: \"full\"',",
+      "  +     '    장면 13 [small-visual]: 가장 큰 그림이 화면의 12%뿐이다. 그림을 키우거나 layout: \"full\"'",
+      "    actual: [ '1440x900 scenes.html: audit 1 > 0\\n    장면 13 [small-visual]: 가장 큰 그림이 화면의 15%뿐이다. 그림을 키우거나 layout: \"full\"', '1280x800 scenes.html: audit 1 > 0\\n    장면 13 [small-visual]: 가장 큰 그림이 화면의 12%뿐이다. 그림을 키우거나 layout: \"full\"' ],"
+    ]
+  },
+  "HM-10": {
+    "files": [
+      "skills/learn-to-tell/kit/API.md"
+    ],
+    "diff": "skills/learn-to-tell/kit/API.md | 36 ++++++++++++++++++------------------\n 1 file changed, 18 insertions(+), 18 deletions(-)",
+    "exit": 1,
+    "summary": {
+      "tests": "884",
+      "pass": "883",
+      "fail": "1"
+    },
+    "failing": [
+      "VO-5 DOC-1 FR-2 C-15: kit/API.md has a row with `shrunk` in the first cell containing 모든 상태 and 최소 배율"
+    ],
+    "detail": []
+  },
+  "HM-3": {
+    "files": [
+      "tests/gallery-audit.baseline.json"
+    ],
+    "diff": "tests/gallery-audit.baseline.json | 40 +++++++++++++++++++--------------------\n 1 file changed, 20 insertions(+), 20 deletions(-)",
+    "exit": 0,
+    "summary": {
+      "tests": "892",
+      "pass": "892",
+      "fail": "0"
+    },
+    "failing": [],
+    "detail": []
+  },
+  "HM-11": {
+    "files": [
+      "site/gallery/philosophy/trolley-ethics.html"
+    ],
+    "diff": "site/gallery/philosophy/trolley-ethics.html | 10 +++++-----\n 1 file changed, 5 insertions(+), 5 deletions(-)",
+    "exit": 1,
+    "summary": {
+      "tests": "892",
+      "pass": "891",
+      "fail": "1"
+    },
+    "failing": [
+      "gallery decks stay at or under the audit baseline in both sizes"
+    ],
+    "detail": [
+      "  +   '1440x900 philosophy/trolley-ethics.html: ✗ 검증 실패: net lives saved (모델 3, 기대 4)',",
+      "  +   '1280x800 philosophy/trolley-ethics.html: ✗ 검증 실패: net lives saved (모델 3, 기대 4)'",
+      "    actual: [ '1440x900 philosophy/trolley-ethics.html: ✗ 검증 실패: net lives saved (모델 3, 기대 4)', '1280x800 philosophy/trolley-ethics.html: ✗ 검증 실패: net lives saved (모델 3, 기대 4)' ],",
+      "    expected: [],"
+    ]
+  },
+  "HM-12": {
+    "files": [
+      "site/gallery/philosophy/trolley-ethics.html"
+    ],
+    "diff": "site/gallery/philosophy/trolley-ethics.html | 9 +++++----\n 1 file changed, 5 insertions(+), 4 deletions(-)",
+    "exit": 1,
+    "summary": {
+      "tests": "892",
+      "pass": "891",
+      "fail": "1"
+    },
+    "failing": [
+      "gallery decks stay at or under the audit baseline in both sizes"
+    ],
+    "detail": [
+      "  +   '1440x900 philosophy/trolley-ethics.html: audit이 돌지 않았다(#ltt-audit 없음). LTT.deck 페이지인지, 서버 경로가 맞는지 본다',",
+      "  +   '1280x800 philosophy/trolley-ethics.html: audit이 돌지 않았다(#ltt-audit 없음). LTT.deck 페이지인지, 서버 경로가 맞는지 본다'",
+      "    actual: [ '1440x900 philosophy/trolley-ethics.html: audit이 돌지 않았다(#ltt-audit 없음). LTT.deck 페이지인지, 서버 경로가 맞는지 본다', '1280x800 philosophy/trolley-ethics.html: audit이 돌지 않았다(#ltt-audit 없음). LTT.deck 페이지인지, 서버 경로가 맞는지 본다' ],",
+      "    expected: [],"
+    ]
+  },
+  "HM-13": {
+    "files": [
+      "tests/gallery-audit.baseline.json"
+    ],
+    "diff": "tests/gallery-audit.baseline.json | 39 +++++++++++++++++++--------------------\n 1 file changed, 19 insertions(+), 20 deletions(-)",
+    "exit": 1,
+    "summary": {
+      "tests": "892",
+      "pass": "891",
+      "fail": "1"
+    },
+    "failing": [
+      "gallery decks stay at or under the audit baseline in both sizes"
+    ],
+    "detail": [
+      "      '1280x800 cache-ttl.html',",
+      "  +   '1440x900 cache-ttl.html',",
+      "    actual: [ '1280x800 cache-ttl.html', '1280x800 cognition/anchoring.html', '1280x800 finance/diversification.html', '1280x800 gpu/single-gpu-dataflow.html', '1280x800 knowledge-graph/ontology-triples.html', '1280x800 linear-algebra/matrix-as-transform.html', '1280x800 network/tls13-quic.html', '1280x800 pedagogy/retrieval-practice.html', '1280x800 philosophy/trolley-ethics.html', '1280x800 physics/projectile-drag.html', '1280x800 scenes.html', '1280x800 uiux/color-contrast.html', '1280x800 uiux/visual-hierarchy-spacing.html', '1440x900 cache-ttl.html', '1440x900 cognition/anchoring.html', '1440x900 finance/diversification.html', '1440x900 gpu/single-gpu-dataflow.html', '1440x900 knowledge-graph/ontology-triples.html', '1440x900 linear-algebra/matrix-as-transform.html', '1440x900 network/tls13-quic.html', '1440x900 pedagogy/retrieval-practice.html', '1440x900 philosophy/trolley-ethics.html', '1440x900 physics/projectile-drag.html', '1440x900 scenes.html', '1440x900 uiux/color-contrast.html', '1440x900 uiux/visual-hierarchy-spacing.html' ],",
+      "    expected: [ '1280x800 cache-ttl.html', '1280x800 cognition/anchoring.html', '1280x800 finance/diversification.html', '1280x800 gpu/single-gpu-dataflow.html', '1280x800 knowledge-graph/ontology-triples.html', '1280x800 linear-algebra/matrix-as-transform.html', '1280x800 network/tls13-quic.html', '1280x800 pedagogy/retrieval-practice.html', '1280x800 philosophy/trolley-ethics.html', '1280x800 physics/projectile-drag.html', '1280x800 scenes.html', '1280x800 uiux/color-contrast.html', '1280x800 uiux/visual-hierarchy-spacing.html', '1440x900 cognition/anchoring.html', '1440x900 finance/diversification.html', '1440x900 gpu/single-gpu-dataflow.html', '1440x900 knowledge-graph/ontology-triples.html', '1440x900 linear-algebra/matrix-as-transform.html', '1440x900 network/tls13-quic.html', '1440x900 pedagogy/retrieval-practice.html', '1440x900 philosophy/trolley-ethics.html', '1440x900 physics/projectile-drag.html', '1440x900 scenes.html', '1440x900 uiux/color-contrast.html', '1440x900 uiux/visual-hierarchy-spacing.html' ],"
+    ]
+  },
+  "HM-14": {
+    "files": [
+      "skills/learn-to-tell/kit/CHANGELOG.md"
+    ],
+    "diff": "skills/learn-to-tell/kit/CHANGELOG.md | 1 +\n 1 file changed, 1 insertion(+)",
+    "exit": 1,
+    "summary": {
+      "tests": "892",
+      "pass": "891",
+      "fail": "1"
+    },
+    "failing": [
+      "VO-5 DOC-4 FR-3 C-16: kit/CHANGELOG.md ## 0.2.0 has one line between 작가 계약 and kit 개발자용 holding overview, layout, small-visual and empty-stage"
+    ],
+    "detail": []
+  },
+  "HM-15": {
+    "files": [
+      "site/gallery/scenes.html"
+    ],
+    "diff": "site/gallery/scenes.html | 36 +++++++++++++++++++++---------------\n 1 file changed, 21 insertions(+), 15 deletions(-)",
+    "exit": 1,
+    "summary": {
+      "tests": "892",
+      "pass": "891",
+      "fail": "1"
+    },
+    "failing": [
+      "VO-4 SY-2 FR-5 E-6: every deck page's ltt-meta.mode is \"<체험형|설명형|카탈로그용>: <20+ characters>\""
+    ],
+    "detail": [
+      "    actual: [ 'scenes.html: mode does not start with 체험형: , 설명형: or 카탈로그용: — \"카탈로그: 장면 타입·형태마다 하나씩, 독학 기준(용어 풀이·읽는 법·이유·핵심)을 지킨 최소 예. ?theme=paper 처럼 붙이면 같은 덱을 다른 테마로 본다\"' ],"
+    ]
+  },
+  "HM-16": {
+    "files": [
+      "skills/learn-to-tell/kit/API.md"
+    ],
+    "diff": "skills/learn-to-tell/kit/API.md | 38 +++++++++++++++++++-------------------\n 1 file changed, 19 insertions(+), 19 deletions(-)",
+    "exit": 1,
+    "summary": {
+      "tests": "892",
+      "pass": "891",
+      "fail": "1"
+    },
+    "failing": [
+      "VO-5 DOC-5 FR-2(c): kit/API.md the overflow · shrunk · hscroll row (first cell holds `shrunk`) keeps 78% and 88%"
+    ],
+    "detail": []
+  }
+}

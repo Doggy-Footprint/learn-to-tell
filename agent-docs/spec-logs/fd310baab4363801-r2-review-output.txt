@@ -1,0 +1,14 @@
+base demo() calls: 39
+source demo() calls: 39
+rendered .demo: 39
+anchor -> next demo id:
+  api-base -> tokens
+  api-ui -> narration
+  api-mock -> mock.phone · mock.browser
+  api-diagram -> diagram
+  api-map -> map
+  api-sequence -> sequence
+  api-charts -> axisPlot
+  api-controls -> stepper
+console errors / uncaught (chrome stderr):
+[5416:2133444:1019/001150.702844:INFO:CONSOLE:362] "[ltt] not a lesson page, event not sent: scene [object Object]", source: http://127.0.0.1:47913/kit/ltt.js (362)

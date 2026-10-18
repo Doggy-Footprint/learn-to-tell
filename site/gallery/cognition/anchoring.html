@@ -42,8 +42,8 @@
 
   // Concept sketch on a 0..12 week line; positions are illustrative, not measured effect sizes.
   function pullLine(panel) {
-    const W = 900, H = 200, x = d3.scaleLinear([0, 12], [40, W - 40]), y = 116;
-    const svg = d3.select(panel).append("svg").attr("class", "ltt-svg pf").attr("viewBox", `0 0 ${W} ${H}`);
+    const W = 900, H = 145, x = d3.scaleLinear([0, 12], [40, W - 40]), y = 116;
+    const svg = d3.select(panel).append("svg").attr("class", "ltt-svg pf").attr("viewBox", `0 40 ${W} ${H}`);
     svg.append("line").attr("x1", x(0)).attr("x2", x(12)).attr("y1", y).attr("y2", y).style("stroke", "var(--ltt-ink)").style("stroke-width", 1.5);
     d3.range(0, 13, 2).forEach((t) => {
       svg.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", y).attr("y2", y + 7).style("stroke", "var(--ltt-ink)");

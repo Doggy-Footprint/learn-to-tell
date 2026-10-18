@@ -1,6 +1,6 @@
 # Standalone 모드 (claude.ai 웹·모바일)
 
-claude.ai에는 로컬 서버, hook, `<home>`(`~/.learn-to-tell`)이 없다. 수업은 artifact 하나로 만들고, 결과는 그 artifact 안에 넣어 두었다가 나중에 Claude Code에서 `import`로 지식 map에 넣는다. SKILL.md의 흐름을 그대로 따르되 아래만 바꾼다.
+claude.ai에는 로컬 서버, hook, `<home>`(`~/.learn-to-tell`)이 없다. 수업은 artifact 하나로 만들고, 결과는 그 artifact 안에 넣어 두었다가 나중에 Claude Code에서 `import`로 지식 map에 넣는다. SKILL.md의 흐름을 그대로 따르되 아래만 바꾼다. 모바일 앱에서 연 수업은 kit가 한 열·세로 스크롤로 다시 배치해 읽을 수 있게 하는 열람만 보장하며, 수업마다 폰 화면을 점검하지는 않는다.
 
 ## 버전 확인
 
@@ -18,6 +18,7 @@ claude.ai에 올린 skill은 자동 업데이트되지 않는다. 시작할 때 
 | 3-6. 검증 | 서브에이전트·브라우저 점검 | 쓸 수 없는 항목은 SKILL.md 규칙대로 "미검증"·"미검토"·"미점검"을 표시하고 사용자에게 알린다. |
 | 3-8. events | `events.jsonl` | 없음. 예측·recall은 이해 확인 대화에서 직접 묻는다. |
 | 5. 작업 복귀 | `result.md` 파일 + SendMessage | 같은 artifact에 result 블록을 넣는다(아래). |
+| 5. 생성 비용 | `result.md`의 "생성 비용" 항목 | result 블록에 같은 생성 비용 항목을 넣고, 서브에이전트·브라우저 항목은 "해당 없음"으로 적는다. |
 | 6. 지식 map | `ltt-map` | 하지 않는다. `concepts`의 id는 map을 볼 수 없으니 `kebab-case` 일반 명칭으로 짓는다. import 때 Claude Code가 기존 개념과 맞춘다. |
 
 ## kit 불러오기
