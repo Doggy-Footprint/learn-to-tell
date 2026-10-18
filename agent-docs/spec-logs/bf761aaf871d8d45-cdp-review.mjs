@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // R-2 (spec bf761aaf871d8d45, from 74cb05d7da21907e-cdp-review.mjs; errors mode rewritten for TV-6): drives headless Chrome over the DevTools protocol against <repo>'s server.
 // Usage: node 74cb05d7da21907e-cdp-review.mjs <reveal|resize|errors|timing> <repo> <out.json> [jobs=2]
 //   reveal  every gallery predict scene × 1440×813·1280×713 × every choice: entry zoom, zoom after pick + reveal (VO-6)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 # Usage: dom-diff.sh <dirA> <dirB>; prints differing files after removing known nondeterminism
 # (server port, random svg marker id prefixes, in-flight send packets, mid-transition opacity values).
 norm() { perl -pe 's/127\.0\.0\.1:[0-9]+/HOST/g; s/\b(dg|sq|mp)[a-z0-9]{6}(?=[-"\)])/ID/g; s/<circle class="pk"[^>]*>(<\/circle>)?//g; s/opacity: ?[0-9.]+/opacity:N/g; s/></>\n</g' "$1"; }

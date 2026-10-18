@@ -1,4 +1,5 @@
 #!/bin/bash
+# This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 # R-2 review for run fd310baab4363801: rendered catalog anchors, the demo each anchor precedes, demo count, page errors.
 # Usage (repo root): bash agent-docs/spec-logs/fd310baab4363801-r2-review.sh [port]
 set -u

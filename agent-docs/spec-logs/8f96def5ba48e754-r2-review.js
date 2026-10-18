@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // R-2 review for spec 8f96def5ba48e754 (diagram edge paths). Run in the page context of
 // /gallery/catalog.html (kit loaded, motion enabled). Returns a JSON report; every check
 // lists its measured numbers so the ledger can record them.

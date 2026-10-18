@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 # Usage: dom-match.sh "<base dump dirs>" "<after dump dirs>"
 # R-1 rule (spec v2): a file matches when at least one after dump equals at least one base dump after the
 # dom-diff.sh normalisation; base dumps of the same tree already differ in 0-2 files from mid-transition values.

@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // R-1 (spec bf761aaf871d8d45 VO-8): byte comparison of the kit <style> texts in two ?audit DOM dump directories.
 // Usage: node bf761aaf871d8d45-style-diff.mjs <base dump dir> <final dump dir> [out.json] [kit dir with the .css files]
 // With a kit dir (spec v3, BV-2) each final dump is also checked by composition: parts/ui/mock/deck <style> === N(pair css),

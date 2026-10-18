@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // Usage: node 74cb05d7da21907e-dom-dump.mjs <repo> <outDir> [sizes=1440x900,1280x800]
 // 0041d668222ce019-dom-dump.mjs와 같고 크기 목록만 인자로 받는다.
 // Dumps the ?audit DOM of every gallery page at 1440x900 and 1280x800 (all scenes mounted by audit()).

@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // Ledger 4 (spec 74cb05d7da21907e): E re-measurement with the predict scene current (visible) instead of hidden audit mounts.
 // Usage: node 74cb05d7da21907e-e-remeasure.mjs <patched repo copy (measure-patch.py --visible-only)> <out.json>
 // Scene list = predict scenes found by R-2 (74cb05d7da21907e-r2-base-reveal.json). Loads <page>?audit#<scene> at 1440x900 and 1280x800.

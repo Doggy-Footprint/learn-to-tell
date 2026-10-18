@@ -1,3 +1,4 @@
+# This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 # VO-12 hand mutations (spec 1e62814b16984176): one at a time, seed.py backup -> inject -> npm test -> seed.py restore.
 # Usage: python3 1e62814b16984176-hand-mutations.py <HM-id>... ; appends results to 1e62814b16984176-hand-mutations-result.json
 import json, re, subprocess, sys

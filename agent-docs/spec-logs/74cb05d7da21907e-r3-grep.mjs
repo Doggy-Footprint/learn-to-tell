@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // R-3 (spec 74cb05d7da21907e FR-1/QR-7, v5 FR-5/FR-8): counts measuring identifiers inside the figure, predict and recallList handler
 // bodies; whole-file widen/unwiden/grown; button-mark and scene-style writes inside placement.predict.
 // Usage: node 74cb05d7da21907e-r3-grep.mjs <ltt-deck.js>

@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // Usage: node 74cb05d7da21907e-measure-report.mjs <dump dir> [threshold=0.02]
 // 74cb05d7da21907e-measure-patch.py를 적용한 사본으로 뜬 덤프(0041d668222ce019-dom-dump.mjs)에서 #ltt-measure·#ltt-audit을 읽어
 // predict 장면별 흐름 안 zmax와 띄우기 고려 zmax의 차이, figure steps 장면의 아래 배치·widen 동작을 JSON으로 낸다.

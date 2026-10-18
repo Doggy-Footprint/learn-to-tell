@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // R-1 review for spec 145518ce2564d0c0 (diagram auto layout). Run in the page context of
 // /gallery/catalog.html; loads catalog in iframes at both declared sizes and measures the
 // autoLayout demo ("주문 처리 시스템 구성도"), then exercises its player and one send().

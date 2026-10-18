@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // Run record for spec 0041d668222ce019 (VO-9): differential random testing of LTT.lintDeck and LTT.auditScene,
 // base commit ltt.js vs working-tree ltt.js, each in its own vm context. Not part of npm test.
 // Usage: node agent-docs/spec-logs/0041d668222ce019-lint-diff-fuzz.mjs [seed=20261019] [n=20000] [base=00bba01]

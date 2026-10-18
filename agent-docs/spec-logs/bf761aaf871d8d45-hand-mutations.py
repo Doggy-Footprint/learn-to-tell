@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 # Hand mutations HM-1..HM-10 (spec bf761aaf871d8d45 v1), HM-11..HM-14 (v3, verifier 1 BV-1/BV-2). One at a time: seed.py backup -> inject (-> regenerate) -> detector -> seed.py restore.
 # Usage: python3 bf761aaf871d8d45-hand-mutations.py <repo> <scratch dir> <out.json> [HM-id ...]
 import json, os, re, subprocess, sys

@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // Fuzz (spec bf761aaf871d8d45 VO-11): differential random testing of `node scripts/build.mjs css` against an independent N.
 // Usage: node bf761aaf871d8d45-css-fuzz.mjs <repo> <out.json> [n=500] [seed=20261019]
 // Each input becomes ltt-mock.css in a temp tree (same relative layout as the repo); oracle: region value === N(input),

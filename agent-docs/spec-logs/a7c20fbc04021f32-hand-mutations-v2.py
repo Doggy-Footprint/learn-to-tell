@@ -1,3 +1,4 @@
+# This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 import subprocess, sys, re, pathlib
 G = pathlib.Path("skills/learn-to-tell/gallery")
 I, C = G/"index.html", G/"catalog.html"

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 # Usage: 74cb05d7da21907e-measure-patch.py <copy of skills/learn-to-tell/kit/ltt-deck.js> [--visible-only]
 # run 74cb05d7da21907e 측정 전용(E 사례 조사, widen 동작 조사). 기준 커밋 사본의 ltt-deck.js에 계측을 넣는다.
 # 원래 경로(lockZoom이 정한 zmax, widen 판정)는 바꾸지 않고, 그 뒤에 선택지마다 공개 상태를 흉내 내 floatPanel로 잰 값을

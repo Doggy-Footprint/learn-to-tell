@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // R-5 (spec 0041d668222ce019 v3): dumps the ?audit DOM of the R-5 fixture lesson served by <repo>'s server.
 // Usage: node r5-dump.mjs <repo> <fixture.html> <out.html> [query]
 import { spawn } from "node:child_process";

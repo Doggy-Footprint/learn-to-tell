@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // VO-14 (spec 74cb05d7da21907e): property-based random testing of LTT.placement.zoomLock(question, zs) (spec v4) against an independent reference model.
 // Usage: node 74cb05d7da21907e-zoomlock-fuzz.mjs <repo> [seed=20261019] [n=100000] [out.json]
 import { readFileSync, writeFileSync } from "node:fs";

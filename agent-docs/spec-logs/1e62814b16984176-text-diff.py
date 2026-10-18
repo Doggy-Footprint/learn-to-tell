@@ -1,3 +1,4 @@
+# This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 # R-3 (spec 1e62814b16984176 v2): sentence-level before/after list for every changed scene in changed-scenes.json, from the
 # scene textContent (1440×813 signatures; hidden answers included) plus the spec's string fields of that scene (review.mjs dump).
 # Split halves are compared against their unmatched base scene. Usage: python3 <this> > 1e62814b16984176-text-diff.md

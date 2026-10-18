@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // Usage: node dom-dump.mjs <repo> <outDir>
 // Dumps the ?audit DOM of every gallery page at 1440x900 and 1280x800 (all scenes mounted by audit()).
 import { spawn } from "node:child_process";

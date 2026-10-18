@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // R-3 (spec bf761aaf871d8d45 VO-12): source review of the kit JS outside the css:start/css:end regions, the .css comments,
 // untouched author-facing docs and the zip contents. Usage: node bf761aaf871d8d45-r3-source.mjs <repo> <base commit>
 import { execFileSync } from "node:child_process";

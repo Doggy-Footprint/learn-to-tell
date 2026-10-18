@@ -1,3 +1,4 @@
+// This script is here only for record purpose. Do not read this unless you are looking for spec-logs.
 // Archived run evidence for spec fd310baab4363801 FR-4 (moved from tests/ at run close; not part of npm test). Paths resolve from agent-docs/spec-logs/.
 import { test } from "node:test";
 import assert from "node:assert/strict";
