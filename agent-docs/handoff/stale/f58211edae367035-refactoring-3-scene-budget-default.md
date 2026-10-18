@@ -37,3 +37,4 @@
 ## Execution Ledger
 
 - 2026-10-18 측정(갤러리 `ltt-meta.pattern` 길이): trolley-ethics 4, cache-ttl 10, anchoring 10, diversification 10, matrix-as-transform 10, projectile-drag 10, retrieval-practice 11, color-contrast 12, single-gpu-dataflow 12, visual-hierarchy-spacing 12, tls13-quic 16, ontology-triples 24. 중앙값 11.5. 파일 크기는 장면 수에 대체로 비례(4장면 11.6KB, 16장면 46.0KB, 24장면 49.6KB).
+- 2026-10-19 run fd310baab4363801(spec `agent-docs/spec-logs/fd310baab4363801-api-split-cost-budget.md` v4)에서 완료. SKILL.md §2에 기본 예산(결정 변수마다 장면 4개 이하 + 고정 장면, 기본 8~10장면), 늘리는 조건(한 챕터 전체·길게·결정 변수 3개 이상), "상한이 아니라 기본값", 초과 시 범위 알림에 장면 수와 이유를 한 줄 덧붙인다(묻지 않음)는 규칙을 넣었다. `learn-to-tell-PROJECT.md` §3 범위에도 같은 뜻의 한 줄을 넣었다. `scene-budget` lint는 넣지 않았고 짧은 덱 tier는 보류했다(결정 변수 수는 `result.md`의 생성 비용 항목에 적는다). 증거는 `tests/api-docs.test.mjs` VO-6(B1~B4, no-scene-budget, PROJECT 범위 줄)이고 verifier 1·2 모두 accepted했다. HM-5(B1 문장 삭제)는 killed. 짧은 덱 tier는 refactoring-1의 기록이 쌓인 뒤 다시 정한다.

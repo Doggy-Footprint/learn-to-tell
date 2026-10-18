@@ -41,7 +41,7 @@ function zip() {
 
 function kit() {
   checkVersion();
-  for (const f of ["vendor", "API.md"]) rmSync(join(KIT_PKG, f), { recursive: true, force: true });
+  for (const f of ["vendor", "API.md", "api"]) rmSync(join(KIT_PKG, f), { recursive: true, force: true });
   cpSync(join(SKILL, "kit"), KIT_PKG, { recursive: true, filter: (src) => basename(src) !== ".DS_Store" });
   cpSync(join(ROOT, "LICENSE"), join(KIT_PKG, "LICENSE"));
   return KIT_PKG;

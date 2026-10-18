@@ -50,6 +50,10 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 - 이번 수업의 결정 변수와 개념, 다루지 않을 부분을 agent가 정하고 사용자에게 **알리기만** 한다(묻지 않는다).
 - 범위는 결정 변수에서 출발해, 그것을 설명하는 데 필요한 교과서 기본기(선행 개념)를 교과서 순서로 거슬러 올라가 빠짐없이 포함한다. 분량은 대략 교과서 한 챕터, 대학 수업 0.6회 정도이며 엄밀한 상한은 아니다. 결정 변수와 무관한 심화·역사·변형은 `keywords`와 "더 알고 싶으면"으로 넘긴다.
+- **기본 예산**: 결정 변수마다 장면 4개 이하(terms, 원리, predict, 조작·확인 중 필요한 것만)에 고정 장면(hook, summary, overview, keywords)을 더해, 수업 전체는 기본 8~10장면이다.
+  - 사용자가 "한 챕터 전체"나 "길게"를 요청했거나 결정 변수가 3개 이상이면 예산을 늘린다.
+  - 예산은 상한이 아니라 기본값이고, v0에서 없앤 15분 하한을 되살리는 것도 아니다.
+  - 예산을 넘기면 위 범위 알림에 장면 수와 이유를 한 줄로 덧붙인다(묻지 않는다).
 - 회차는 나누지 않는다. 대신 수업을 결정 변수마다 **파트**로 나누고, 파트마다 "예측 → 조작 → 확인" 루프와 짧은 `recall`로 끝낸다.
 - 결정 변수는 개념 이름이 아니라 선택지·영향·필요 정보·실패 조건으로 다룬다.
 - 조작해서 관찰할 필요가 없으면 **simple 경로**로 간다. 대화 안의 짧은 자료와 서술 퀴즈로 진행하고 3단계를 건너뛴다.
@@ -59,7 +63,7 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 자료는 사용자가 **혼자 읽고 이해할 수 있어야 한다**. 선생님이 옆에서 말로 메우던 것을 페이지가 대신한다.
 
 1. 수업은 장면 덱이다: `LTT.deck({title, theme, glossary, scenes})` 하나에 장면 데이터를 적는다. 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면. 장면 수는 범위(§2)를 따른다.
-   - 먼저 `<skill>/kit/API.md`를 읽고, 필요하면 `https://learn-to-tell.vercel.app/gallery/catalog.html`(부품별 실물과 코드), `gallery/scenes.html`(장면 타입별 예)을 본다. gallery는 skill에 들어 있지 않다.
+   - 먼저 `<skill>/kit/API.md`를 읽고, 아래 3번 부품 표의 참조 열에서 고른 부품의 `<skill>/kit/api/<part>.md`만 읽는다. figure `steps`·predict `answerVisual`을 쓰면 `<skill>/kit/api/deck-contracts.md`도 읽는다. 필요하면 `https://learn-to-tell.vercel.app/gallery/catalog.html`(부품별 실물과 코드), `gallery/scenes.html`(장면 타입별 예)을 본다. gallery는 skill에 들어 있지 않다.
    - 빈 `<home>/lessons/<id>/lesson.html`에서 부품을 조합해 짠다. gallery 페이지를 복사해 데이터만 고치지 않는다.
    - 예시 수업(테마·매체, `https://learn-to-tell.vercel.app/gallery/<이름>.html`): `cache-ttl`(terminal·로그 타임라인), `uiux/color-contrast`·`uiux/visual-hierarchy-spacing`(studio·실제 화면 목업), `gpu/single-gpu-dataflow`(blueprint·블록 도면 단계 재생), `physics/projectile-drag`(lab·궤적 플롯 시뮬레이션), `cognition/anchoring`·`pedagogy/retrieval-practice`(paper·연구 figure), `finance/diversification`(ledger·신문 차트와 비교표), `linear-algebra/matrix-as-transform`(paper·격자 변형), `knowledge-graph/ontology-triples`(paper·`LTT.autoLayout` 지식 그래프와 추론 단계). head의 `ltt-meta`(audience, pattern, theme, medium, mode, decision)로 참고할 예를 고른다. 예시는 부품 조합을 보는 용도이고, 장면 구성은 내 주제에 맞게 새로 짠다.
 2. 도메인 느낌. 장면을 짜기 전에 정한다. 모든 수업이 같은 카드 슬라이드로 보이면 주제가 머리에 남지 않는다.
@@ -88,18 +92,18 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
    - 그림 부품은 질문의 모양으로 고른다. 페이지에서 직접 그리기 전에 이 목록을 먼저 본다.
 
-     | 보여 줄 것 | 부품 |
-     | --- | --- |
-     | 박스와 화살표, 몇 개 | `LTT.diagram` 격자 좌표. 꺾이는 길은 엣지 `shape: "ortho"`·`via`·`from`/`to`, 묶음은 영역 `parent`로 중첩 |
-     | 박스가 20개 넘거나 묶음이 여러 겹 | `LTT.autoLayout` → `LTT.diagram`(좌표 없이 연결만) |
-     | 누가 누구에게 언제 보내나 | `LTT.sequence` |
-     | 상태가 무엇으로 바뀌나 | `LTT.state` |
-     | 어디에서 어디로(지리) | `LTT.map` |
-     | 시간이 어디에 쓰이나 | `LTT.lanes` |
-     | 양을 고정 축에서 비교 | `LTT.hbars`, 좌표 플롯은 `LTT.axisPlot`, 그 밖의 통계 차트는 `LTT.plot`(+`chartFrame`) |
-     | 흐름의 양이 어디로 갈라지나 | `LTT.sankey` |
-     | 화면 간격·색 대비 | `LTT.redline`, `LTT.inspector` |
-     | 범주 여러 개 | 색 `--ltt-c1`…`c6`(`LTT.palette()`)과 모양 `LTT.mark`를 함께. 색만으로 구분하지 않는다 |
+     | 보여 줄 것 | 부품 | 참조 |
+     | --- | --- | --- |
+     | 박스와 화살표, 몇 개 | `LTT.diagram` 격자 좌표. 꺾이는 길은 엣지 `shape: "ortho"`·`via`·`from`/`to`, 묶음은 영역 `parent`로 중첩 | `kit/api/diagram.md` |
+     | 박스가 20개 넘거나 묶음이 여러 겹 | `LTT.autoLayout` → `LTT.diagram`(좌표 없이 연결만) | `kit/api/diagram.md` |
+     | 누가 누구에게 언제 보내나 | `LTT.sequence` | `kit/api/sequence.md` |
+     | 상태가 무엇으로 바뀌나 | `LTT.state` | `kit/api/diagram.md` |
+     | 어디에서 어디로(지리) | `LTT.map` | `kit/api/map.md` |
+     | 시간이 어디에 쓰이나 | `LTT.lanes` | `kit/api/charts.md` |
+     | 양을 고정 축에서 비교 | `LTT.hbars`, 좌표 플롯은 `LTT.axisPlot`, 그 밖의 통계 차트는 `LTT.plot`(+`chartFrame`) | `kit/api/charts.md`, `chartFrame`은 `kit/api/ui.md` |
+     | 흐름의 양이 어디로 갈라지나 | `LTT.sankey` | `kit/api/charts.md` |
+     | 화면 간격·색 대비 | `LTT.redline`, `LTT.inspector` | `kit/api/ui.md` |
+     | 범주 여러 개 | 색 `--ltt-c1`…`c6`(`LTT.palette()`)과 모양 `LTT.mark`를 함께. 색만으로 구분하지 않는다 | `kit/API.md` |
 
 4. 장면 순서와 타입
    - 고정된 것은 세 가지뿐이다: hook이 처음, keywords가 마지막, overview는 summary 뒤. 나머지 순서와 타입은 내용에 맞춘다. 흔한 흐름은 hook → 파트마다 [(terms) → 원리 → predict → 조작 → 확인] → (샌드박스) → summary → overview → keywords지만, 사례로 시작하거나 주 그림 하나를 여러 장면에 걸쳐 키워 가도 된다.
@@ -143,7 +147,7 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 ### kit
 
-부품 목록, 시그니처, 불러오는 순서, lint 규칙은 `<skill>/kit/API.md`에 있다. 수업마다 반복되는 패턴은 kit 어휘 후보다. `result.md`의 "kit 후보" 항목에 적는다.
+불러오는 순서, 기본 이름, 장면 필드, lint·audit 규칙은 `<skill>/kit/API.md`(핵심)에, 부품별 시그니처는 `<skill>/kit/api/`(부품별)에 있다. 수업마다 반복되는 패턴은 kit 어휘 후보다. `result.md`의 "kit 후보" 항목에 적는다.
 
 ## 4. 이해 확인 (대화)
 
@@ -182,7 +186,17 @@ concepts:                     # 이번 수업에서 다룬 개념. 없으면 `co
 - 미룬 범위: <다음 수업 후보>
 - 검색어: <keywords 장면의 개념 이름과 검색어>
 - kit 후보: <반복된 패턴, 없으면 생략>
+- 생성 비용:
+  - 읽은 문서: <문서 이름 (바이트)>, ...
+  - lesson.html: <바이트>, 장면 수 <n>, 결정 변수 수 <n>
+  - 서브에이전트: 기대값 <n>회, 주장 검토 <n>회, 독자 검토 <n>회, 눈 검토 <n>회
+  - 브라우저: audit <n>회, 스크린샷 <n>장
+  - 시각: 시작 <YYYY-MM-DD HH:MM>, 공개 <YYYY-MM-DD HH:MM>
+  - 토큰: <합계, 읽을 수 없으면 "없음">
 ```
+
+생성 비용은 단계마다 재지 않고 `result.md`를 쓸 때 여기서 한 번 정리한다.
+토큰은 세션 transcript의 usage를 읽을 수 있을 때만 적고, 읽을 수 없으면 "없음"으로 두고 바이트 값으로 대신한다. transcript 형식은 공개된 API가 아니다.
 
 그다음 원래 작업 세션에 결과를 보낸다. ListAgents로 원래 세션을 찾고 SendMessage로 요약과 `result.md` 경로를 보낸다. 찾을 수 없으면 사용자에게 경로를 알려 원래 세션에 전달하게 한다.
 

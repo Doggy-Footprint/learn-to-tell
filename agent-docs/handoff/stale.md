@@ -30,3 +30,13 @@ File: a095db8efa4b543c-refactoring-7-mobile-support-decision.md
 Summary: refactoring-7: 데스크톱 전용 ADR 8a61c967과 재도입된 모바일 reflow 코드의 충돌을 사용자 결정(ADR supersede 또는 분기 제거)으로 정리하는 작업
 Related Files: agent-docs/adr/8a61c967e180bedb-desktop-only-min-720px.md, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt-parts.js, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/standalone.md
 Related Symbols: LTT.mobile, mobileFit, LTT.autoLayout
+---
+File: f58211edae367035-refactoring-3-scene-budget-default.md
+Summary: refactoring-3: SKILL.md §2에 장면 수 기본 예산(결정 변수당 4장면 이하, 전체 8~10)을 두고 한 챕터 전체는 명시적으로만 해제하는 작업
+Related Files: skills/learn-to-tell/SKILL.md, learn-to-tell-PROJECT.md, skills/learn-to-tell/kit/ltt.js
+Related Symbols: LTT.lintDeck
+---
+File: a3a320e98302b058-refactoring-2-api-core-and-part-docs.md
+Summary: refactoring-2: kit/API.md를 항상 읽는 핵심과 쓸 때만 읽는 부품별 참조(kit/api/<part>.md)로 나누고 SKILL.md가 고른 부품만 읽게 하는 작업
+Related Files: skills/learn-to-tell/kit/API.md, skills/learn-to-tell/kit/api/, skills/learn-to-tell/SKILL.md, site/gallery/catalog.html, packages/ltt-kit/package.json, scripts/build.mjs, tests/api-docs.test.mjs, tests/api-docs-preservation.test.mjs, agent-docs/spec-logs/fd310baab4363801-api-split-cost-budget.md
+Related Symbols: 없음
