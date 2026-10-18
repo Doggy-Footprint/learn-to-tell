@@ -84,12 +84,23 @@ function runChrome(chrome, args, timeout = RUN_TIMEOUT) {
   return new Promise((done) => {
     const child = spawn(chrome, args, { stdio: ["ignore", "pipe", "ignore"] });
     let out = "";
-    let timedOut = false;
-    const timer = setTimeout(() => { timedOut = true; child.kill("SIGKILL"); }, timeout);
+    let settled = false;
+    const finish = (r) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      done(r);
+    };
+    // A hung Chrome helper can hold the stdout pipe open after the browser process is killed, so "close" may never
+    // fire; the timeout resolves on its own instead of waiting for it.
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      finish({ out, error: `Chrome이 ${timeout / 1000}초 안에 끝나지 않았다` });
+    }, timeout);
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (d) => { out += d; });
-    child.on("error", (err) => { clearTimeout(timer); done({ out, error: err.message }); });
-    child.on("close", () => { clearTimeout(timer); done({ out, error: timedOut ? `Chrome이 ${timeout / 1000}초 안에 끝나지 않았다` : null }); });
+    child.on("error", (err) => finish({ out, error: err.message }));
+    child.on("close", () => finish({ out, error: null }));
   });
 }
 
