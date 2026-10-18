@@ -42,3 +42,4 @@
 ## Execution Ledger
 
 - 2026-10-18 측정: `[data-ltt-mobile]` 선택자를 가진 deck CSS 줄 18, `mobileFit` 23줄, 이 브랜치의 모바일 관련 커밋 2건.
+- 2026-10-18 사용자 결정: 선택지 (a). claude.ai 모바일 열람을 지원 범위에 넣고, 작성·점검은 데스크톱 1280px 이상, 폰(폭 760px 미만)은 열람 보장(한 열·세로 스크롤·가로 넘침 없음)만 한다. 수업마다 폰 화면을 점검하지 않고(SKILL.md §3.6 유지), 390×844 자동 audit는 넣지 않으며(폰에서 깨진 사례가 보고되면 다시 정함), 기존 모바일 코드는 유지한다. 변경 파일: `agent-docs/adr/dbd5ddb9b247aa15-phone-viewing-guarantee.md`(새 ADR, 8a61c967 supersede), `agent-docs/adr/8a61c967e180bedb-desktop-only-min-720px.md`(Status), `agent-docs/adr/index.md`, `README.md`(지원 범위 문구), `skills/learn-to-tell/standalone.md`(폰 열람 보장 한 문장). `kit/API.md`·`SKILL.md`의 폰 문단은 (a)와 어긋나지 않아 그대로 둔다. 코드 변경 없음. refactoring-4·8은 모바일 분기를 유지하는 전제로 진행한다.

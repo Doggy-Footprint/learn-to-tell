@@ -1,6 +1,6 @@
 # Standalone 모드 (claude.ai 웹·모바일)
 
-claude.ai에는 로컬 서버, hook, `<home>`(`~/.learn-to-tell`)이 없다. 수업은 artifact 하나로 만들고, 결과는 그 artifact 안에 넣어 두었다가 나중에 Claude Code에서 `import`로 지식 map에 넣는다. SKILL.md의 흐름을 그대로 따르되 아래만 바꾼다.
+claude.ai에는 로컬 서버, hook, `<home>`(`~/.learn-to-tell`)이 없다. 수업은 artifact 하나로 만들고, 결과는 그 artifact 안에 넣어 두었다가 나중에 Claude Code에서 `import`로 지식 map에 넣는다. SKILL.md의 흐름을 그대로 따르되 아래만 바꾼다. 모바일 앱에서 연 수업은 kit가 한 열·세로 스크롤로 다시 배치해 읽을 수 있게 하는 열람만 보장하며, 수업마다 폰 화면을 점검하지는 않는다.
 
 ## 버전 확인
 

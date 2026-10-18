@@ -28,11 +28,6 @@ Summary: refactoring-6: 다섯 kit 모듈의 CSS 문자열 588줄을 .css 파일
 Related Files: skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-parts.js, skills/learn-to-tell/kit/ltt-ui.js, skills/learn-to-tell/kit/ltt-mock.js, skills/learn-to-tell/kit/ltt-deck.js, packages/ltt-kit/package.json
 Related Symbols: STYLE, themeCss, KIT
 ---
-File: a095db8efa4b543c-refactoring-7-mobile-support-decision.md
-Summary: refactoring-7: 데스크톱 전용 ADR 8a61c967과 재도입된 모바일 reflow 코드의 충돌을 사용자 결정(ADR supersede 또는 분기 제거)으로 정리하는 작업
-Related Files: agent-docs/adr/8a61c967e180bedb-desktop-only-min-720px.md, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt-parts.js, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/standalone.md
-Related Symbols: LTT.mobile, mobileFit, LTT.autoLayout
----
 File: fb7b84e0280f15ef-refactoring-8-gallery-audit-zero-and-cleanup.md
 Summary: refactoring-8: 갤러리 12편을 1440×900·1280×800 audit 0건으로 맞추고(2026-10-18 헤드리스 측정 6·26+1·5건) tls13-quic의 죽은 코드와 ltt-meta를 정리하는 작업
 Related Files: site/gallery, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-deck.js, tests/gallery.test.mjs

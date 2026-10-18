@@ -84,7 +84,7 @@ https://learn-to-tell.vercel.app 에서 실제 생성 형식의 수업을 볼 �
 | [인출 연습](https://learn-to-tell.vercel.app/gallery/pedagogy/retrieval-practice.html) | 교육학 | 다시 읽기 vs 떠올리기 |
 | [온톨로지 기초](https://learn-to-tell.vercel.app/gallery/knowledge-graph/ontology-triples.html) | 지식 표현 | 테이블 스키마로 충분한가, 온톨로지·SHACL을 얹어야 하는가 |
 
-수업은 폭 1280px 이상의 데스크톱 브라우저를 기준으로 만든다.
+수업은 폭 1280px 이상의 데스크톱 브라우저를 기준으로 만들고 점검한다. 폰(폭 760px 미만)에서는 kit가 같은 장면을 한 열로 다시 배치해 세로 스크롤로 읽을 수 있게 하는 열람만 보장하며, 폰 화면은 점검하지 않는다.
 
 ## 구성
 

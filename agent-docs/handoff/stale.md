@@ -25,3 +25,8 @@ File: 4c26cb8f53d1c99b-replace-projectile-example-with-ontology.md
 Summary: gallery 예시 projectile-drag를 /tmp/standalone.html 기반 ontology 기본 수업으로 교체하는 남은 작업(참고 파일 경로 미확인)
 Related Files: skills/learn-to-tell/gallery/physics/projectile-drag.html, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/gallery/index.html
 Related Symbols: LTT.autoLayout
+---
+File: a095db8efa4b543c-refactoring-7-mobile-support-decision.md
+Summary: refactoring-7: 데스크톱 전용 ADR 8a61c967과 재도입된 모바일 reflow 코드의 충돌을 사용자 결정(ADR supersede 또는 분기 제거)으로 정리하는 작업
+Related Files: agent-docs/adr/8a61c967e180bedb-desktop-only-min-720px.md, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt-parts.js, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/standalone.md
+Related Symbols: LTT.mobile, mobileFit, LTT.autoLayout
