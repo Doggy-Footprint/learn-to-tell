@@ -210,13 +210,17 @@ const M = { type: "explain", layout: "", compact: false, zoom: 1, visualRatio: 0
 const audit = (LTT, m) => Array.from(LTT.auditScene({ ...M, ...m }), (w) => w.rule);
 const AUDIT_TYPES = [...TYPES, "", "foo", "constructor"];
 
+// Spec 1e62814b16984176 Signatures: hero = auditHero || (layout ? layout === "full" : fullByDefault).
+const hero = (type, layout) => meta(type, "auditHero") || (layout ? layout === "full" : meta(type, "fullByDefault"));
+
 // Per-type decision-table columns; also the measurement variants reused by VO-7 MR-1 and MR-2.
+// Spec 1e62814b16984176 VO-1: the 22% bar and fill 0.3 columns follow the effective hero for M.layout "", so overview now warns.
 const TYPE_VARIANTS = [
   { id: "isolation", what: "the non-triggering measurement", m: {}, out: () => [] },
   { id: "C-9", what: "visualRatio 0.05 (auditSmallVisual)", m: { visualRatio: 0.05 }, out: (t) => (meta(t, "auditSmallVisual") ? ["small-visual"] : []) },
-  { id: "C-9", what: "visualRatio 0.15 (22% hero bar)", m: { visualRatio: 0.15 }, out: (t) => (meta(t, "auditSmallVisual") && meta(t, "auditHero") ? ["small-visual"] : []) },
+  { id: "C-9", what: "visualRatio 0.15 (22% hero bar)", m: { visualRatio: 0.15 }, out: (t) => (meta(t, "auditSmallVisual") && hero(t, M.layout) ? ["small-visual"] : []) },
   { id: "C-10", what: "figRatio 0.2 (auditLooseFigure)", m: { figRatio: 0.2 }, out: (t) => (meta(t, "auditLooseFigure") ? ["loose-figure"] : []) },
-  { id: "C-10", what: "fill 0.3 (auditHero)", m: { fill: 0.3 }, out: (t) => (meta(t, "auditHero") ? ["empty-stage"] : []) },
+  { id: "C-10", what: "fill 0.3 (effective hero)", m: { fill: 0.3 }, out: (t) => (hero(t, M.layout) ? ["empty-stage"] : []) },
 ];
 
 for (const type of AUDIT_TYPES) {
@@ -251,14 +255,23 @@ const AUDIT_BOUNDARIES = [
   { id: "C-10 empty-stage explain layout full fill 0.6", m: { type: "explain", layout: "full", fill: 0.6 }, out: [] },
   { id: "C-10 empty-stage explain layout full fill 0.601", m: { type: "explain", layout: "full", fill: 0.601 }, out: [] },
   { id: "C-10 empty-stage general explain fill 0.1", m: { type: "explain", fill: 0.1 }, out: [] },
-  { id: "C-11 overview without layout, visualRatio 0.15 and fill 0.3", m: { type: "overview", layout: "", visualRatio: 0.15, fill: 0.3 }, out: [] },
+  // Spec 1e62814b16984176 C-1/C-3: layout-less overview is a full scene, so both hero warnings fire (was []).
+  // The spec fixes the rule set, not the order; the order is checked against overview layout "full" below.
+  { id: "C-11 overview without layout, visualRatio 0.15 and fill 0.3", m: { type: "overview", layout: "", visualRatio: 0.15, fill: 0.3 }, out: ["empty-stage", "small-visual"], anyOrder: true },
 ];
 
-for (const { id, m, out } of AUDIT_BOUNDARIES) {
-  test(`VO-6 ${id}: ${out.length ? out.join(", ") : "no warning"}`, () => {
-    assert.deepEqual(audit(loadKit(), m), out);
+for (const { id, m, out, anyOrder } of AUDIT_BOUNDARIES) {
+  test(`VO-6 ${id}: ${out.length ? out.join(", ") : "no warning"}${anyOrder ? " (in any order)" : ""}`, () => {
+    const got = audit(loadKit(), m);
+    assert.deepEqual(anyOrder ? [...got].sort() : got, out);
   });
 }
+
+test("VO-1 C-11 order (spec 1e62814b16984176 FR-1): overview layout \"\" with visualRatio 0.15 and fill 0.3 gives the same rules, messages and order as overview layout \"full\"", () => {
+  const LTT = loadKit();
+  const json = (layout) => JSON.stringify(LTT.auditScene({ ...M, type: "overview", visualRatio: 0.15, fill: 0.3, layout }));
+  assert.equal(json(""), json("full"));
+});
 
 // ---------- VO-7 runtime-added partial entry (C-15) ----------
 
@@ -394,3 +407,74 @@ for (const type of MR2_LINT_TYPES) {
     });
   }
 }
+
+// ---------- spec 1e62814b16984176 VO-1: auditScene hero follows the effective layout (decision table + 3-value BVA) ----------
+
+// Expected rule arrays come from the spec Cases C-1..C-10 and the Signatures formula, not from running ltt.js.
+// `table` is the [auditHero, fullByDefault] the row's kit holds for m.type; `setup` edits a fresh kit after load.
+const HERO_TABLE = [
+  { id: 'DT-1 auditHero T, layout "": figure visualRatio 0.15', table: [true, true], m: { type: "figure", layout: "", visualRatio: 0.15 }, out: ["small-visual"] },
+  { id: 'DT-1 auditHero T, layout "": figure fill 0.3', table: [true, true], m: { type: "figure", layout: "", fill: 0.3 }, out: ["empty-stage"] },
+  { id: 'DT-2 C-6 auditHero T, layout "split": figure visualRatio 0.15', table: [true, true], m: { type: "figure", layout: "split", visualRatio: 0.15 }, out: ["small-visual"] },
+  { id: 'DT-2 auditHero T, layout "split": figure fill 0.3', table: [true, true], m: { type: "figure", layout: "split", fill: 0.3 }, out: ["empty-stage"] },
+  { id: 'DT-3 C-1 auditHero F, layout "", fullByDefault T: overview visualRatio 0.15, fill 0.9', table: [false, true], m: { type: "overview", layout: "", visualRatio: 0.15, fill: 0.9 }, out: ["small-visual"] },
+  { id: 'DT-4 C-7 auditHero F, layout "", fullByDefault F: explain visualRatio 0.15, fill 0.3', table: [false, false], m: { type: "explain", layout: "", visualRatio: 0.15, fill: 0.3 }, out: [] },
+  { id: 'DT-5 C-7 auditHero F, layout "full": explain visualRatio 0.15', table: [false, false], m: { type: "explain", layout: "full", visualRatio: 0.15 }, out: ["small-visual"] },
+  { id: 'DT-5 C-5 auditHero F, layout "full": overview visualRatio 0.15', table: [false, true], m: { type: "overview", layout: "full", visualRatio: 0.15 }, out: ["small-visual"] },
+  { id: 'DT-6 C-4 auditHero F, layout "split", fullByDefault T: overview visualRatio 0.15, fill 0.3', table: [false, true], m: { type: "overview", layout: "split", visualRatio: 0.15, fill: 0.3 }, out: [] },
+  { id: 'DT-7 C-8 runtime foo = {fullByDefault: true}, layout "": visualRatio 0.15', setup: (t) => { t.foo = { fullByDefault: true }; }, table: [false, true], m: { type: "foo", layout: "", visualRatio: 0.15 }, out: ["small-visual"] },
+  { id: 'DT-7 C-8 runtime foo = {fullByDefault: true}, layout "": fill 0.3', setup: (t) => { t.foo = { fullByDefault: true }; }, table: [false, true], m: { type: "foo", layout: "", fill: 0.3 }, out: ["empty-stage"] },
+  { id: 'DT-8 C-8 runtime foo = {}, layout "": visualRatio 0.15', setup: (t) => { t.foo = {}; }, table: [false, false], m: { type: "foo", layout: "", visualRatio: 0.15 }, out: [] },
+  { id: 'DT-8 C-8 runtime foo = {}, layout "": fill 0.3', setup: (t) => { t.foo = {}; }, table: [false, false], m: { type: "foo", layout: "", fill: 0.3 }, out: [] },
+  { id: 'BV-1 C-2 overview layout "" visualRatio 0.2199', table: [false, true], m: { type: "overview", layout: "", visualRatio: 0.2199 }, out: ["small-visual"] },
+  { id: 'BV-2 C-2 overview layout "" visualRatio 0.22', table: [false, true], m: { type: "overview", layout: "", visualRatio: 0.22 }, out: [] },
+  { id: 'BV-3 C-2 overview layout "" visualRatio 0.2201', table: [false, true], m: { type: "overview", layout: "", visualRatio: 0.2201 }, out: [] },
+  { id: 'BV-4 C-3 overview layout "" fill 0.599', table: [false, true], m: { type: "overview", layout: "", fill: 0.599 }, out: ["empty-stage"] },
+  { id: 'BV-5 C-3 overview layout "" fill 0.6', table: [false, true], m: { type: "overview", layout: "", fill: 0.6 }, out: [] },
+  { id: 'BV-6 C-3 overview layout "" fill 0.601', table: [false, true], m: { type: "overview", layout: "", fill: 0.601 }, out: [] },
+  { id: 'EC-1 C-9 after sceneTypes.overview.fullByDefault = false: overview layout "" visualRatio 0.15', setup: (t) => { t.overview.fullByDefault = false; }, table: [false, false], m: { type: "overview", layout: "", visualRatio: 0.15 }, out: [] },
+  { id: "EC-2 C-10 overview layout null visualRatio 0.15", table: [false, true], m: { type: "overview", layout: null, visualRatio: 0.15 }, out: ["small-visual"] },
+  { id: "EC-2 C-10 overview layout undefined (explicit) visualRatio 0.15", table: [false, true], m: { type: "overview", layout: undefined, visualRatio: 0.15 }, out: ["small-visual"] },
+];
+
+test("VO-1 oracle: every HERO_TABLE row matches the Signatures formula (hero bar 22%, else 10%; empty-stage only for hero below 0.6) and the built-in table", () => {
+  const wrong = [];
+  for (const { id, setup, table: [auditHero, fullByDefault], m, out } of HERO_TABLE) {
+    if (!setup && (meta(m.type, "auditHero") !== auditHero || meta(m.type, "fullByDefault") !== fullByDefault)) wrong.push(`${id}: table column disagrees with the meta oracle`);
+    const { layout, visualRatio = M.visualRatio, fill = M.fill } = m;
+    const isHero = auditHero || (layout ? layout === "full" : fullByDefault);
+    const want = [...(visualRatio < (isHero ? 0.22 : 0.1) ? ["small-visual"] : []), ...(isHero && fill < 0.6 ? ["empty-stage"] : [])];
+    if (JSON.stringify(want) !== JSON.stringify(out)) wrong.push(`${id}: formula gives ${JSON.stringify(want)}`);
+  }
+  assert.deepEqual(wrong, []);
+});
+
+for (const { id, setup, m, out } of HERO_TABLE) {
+  test(`VO-1 ${id}: ${out.length ? out.join(", ") : "no warning"}`, () => {
+    const LTT = loadKit();
+    if (setup) setup(LTT.sceneTypes);
+    assert.deepEqual(audit(LTT, m), out);
+  });
+}
+
+test("VO-1 EC-2 C-10: overview with no layout key at all, visualRatio 0.15, warns small-visual", () => {
+  const { layout, ...rest } = M;
+  assert.equal("layout" in rest, false);
+  assert.deepEqual(Array.from(loadKit().auditScene({ ...rest, type: "overview", visualRatio: 0.15 }), (w) => w.rule), ["small-visual"]);
+});
+
+test("VO-1 EC-1 C-9: the table edit is read at call time — the same kit warns before and stops after overview.fullByDefault = false", () => {
+  const LTT = loadKit();
+  const m = { type: "overview", layout: "", visualRatio: 0.15 };
+  assert.deepEqual(audit(LTT, m), ["small-visual"]);
+  LTT.sceneTypes.overview.fullByDefault = false;
+  assert.deepEqual(audit(LTT, m), []);
+});
+
+test("VO-1 DT-7 C-8: an entry added after load is read at call time — foo warns only once foo = {fullByDefault: true} is set", () => {
+  const LTT = loadKit();
+  const m = { type: "foo", layout: "", visualRatio: 0.15 };
+  assert.deepEqual(audit(LTT, m), []);
+  LTT.sceneTypes.foo = { fullByDefault: true };
+  assert.deepEqual(audit(LTT, m), ["small-visual"]);
+});

@@ -625,3 +625,101 @@ test("VO-8 S3: npm pack --dry-run lists api/controls.md and API.md", { timeout: 
   const paths = JSON.parse(out.slice(at))[0].files.map((f) => f.path);
   for (const p of ["api/controls.md", "API.md"]) assert.ok(paths.includes(p), `npm pack list lacks ${p}: ${paths.join(", ")}`);
 });
+
+// ---------- spec 1e62814b16984176 VO-5 (FR-2, C-15): audit table rows carry the measured-zoom and full-scene wording ----------
+
+// A row counts for an audit id only when that id is a code span of its first cell; text in other rows never satisfies it.
+// One such row holding every token suffices, so an unrelated second table naming the id cannot cause a false failure.
+function auditRowError(text, id, tokens, has = (row, t) => row.includes(t)) {
+  const hits = lines(text).filter(isRow).filter((r) => codeSpans(firstCell(r)).includes(id));
+  if (hits.length === 0) return `${id}: no table row has \`${id}\` in its first cell`;
+  if (hits.some((r) => tokens.every((t) => has(r, t)))) return null;
+  return hits.map((r) => `${id}: row lacks ${tokens.filter((t) => !has(r, t)).map((t) => JSON.stringify(t)).join(", ")}: ${r}`).join("\n");
+}
+
+const DOC_ROWS = [
+  { id: "DOC-1", rule: "shrunk", tokens: ["모든 상태", "최소 배율"] },
+  { id: "DOC-2", rule: "small-visual", tokens: ["layout을 적지 않은 overview"] },
+  { id: "DOC-3", rule: "empty-stage", tokens: ["layout을 적지 않은 overview"] },
+];
+
+const fakeAuditTable = (rowsByRule) => ["| 규칙 | 뜻 |", "| --- | --- |", ...Object.entries(rowsByRule).map(([rule, text]) => `| \`${rule}\` | ${text} |`)].join("\n");
+
+test("VO-5 checker: tokens in the shrunk row pass", () => {
+  assert.equal(auditRowError(fakeAuditTable({ overflow: "넘침", shrunk: "모든 상태를 그려 잠근 최소 배율로 판정" }), "shrunk", ["모든 상태", "최소 배율"]), null);
+});
+
+test("VO-5 checker: tokens only in a neighbouring row fail and name the shrunk row", () => {
+  const err = auditRowError(fakeAuditTable({ overflow: "모든 상태의 최소 배율", shrunk: "축소" }), "shrunk", ["모든 상태", "최소 배율"]);
+  assert.ok(err && err.includes('row lacks "모든 상태", "최소 배율"') && err.includes("축소"), String(err));
+});
+
+test("VO-5 checker: the two tokens split over two rows that both have shrunk in the first cell fail", () => {
+  const err = auditRowError(fakeAuditTable({ shrunk: "모든 상태를 그린다" }) + "\n\n" + fakeAuditTable({ shrunk: "최소 배율로 판정" }), "shrunk", ["모든 상태", "최소 배율"]);
+  assert.ok(err && err.split("\n").length === 2, String(err));
+});
+
+test("VO-5 checker: one of two tokens missing fails naming the missing one", () => {
+  const err = auditRowError(fakeAuditTable({ shrunk: "모든 상태를 그려 판정" }), "shrunk", ["모든 상태", "최소 배율"]);
+  assert.ok(err && err.includes('"최소 배율"') && !err.includes('"모든 상태"'), String(err));
+});
+
+test("VO-5 checker: the id in a non-first cell or outside a table does not count as the row", () => {
+  const text = `\`small-visual\`은 layout을 적지 않은 overview도 본다.\n\n${fakeAuditTable({ "empty-stage": "`small-visual`과 같이 layout을 적지 않은 overview" })}`;
+  assert.equal(auditRowError(text, "small-visual", ["layout을 적지 않은 overview"]), "small-visual: no table row has `small-visual` in its first cell");
+});
+
+test("VO-5 checker: a first cell holding several ids counts for each of them", () => {
+  const text = ["| 규칙 | 뜻 |", "| --- | --- |", "| `overflow` · `shrunk` · `hscroll` | 모든 상태를 그린 최소 배율 |"].join("\n");
+  assert.equal(auditRowError(text, "shrunk", ["모든 상태", "최소 배율"]), null);
+});
+
+for (const { id, rule, tokens } of DOC_ROWS) {
+  test(`VO-5 ${id} FR-2 C-15: kit/API.md has a row with \`${rule}\` in the first cell containing ${tokens.join(" and ")}`, () => {
+    const err = auditRowError(apiText(), rule, tokens);
+    assert.equal(err, null, err ?? "");
+  });
+}
+
+// ---------- spec 1e62814b16984176 v2 VO-5 DOC-5 (FR-2(c)): threshold text stays in its base-commit audit row ----------
+
+// A threshold must not be a digit-extended number ("188%", "17단계") or a decimal tail ("0.88%").
+const hasThreshold = (row, t) => new RegExp(`(?<![\\d.])${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(row);
+
+const THRESHOLD_ROWS = [
+  { rule: "shrunk", tokens: ["78%", "88%"], what: "the overflow · shrunk · hscroll row" },
+  { rule: "small-visual", tokens: ["10%", "22%"], what: "the small-visual row" },
+  { rule: "empty-stage", tokens: ["35%", "60%"], what: "the loose-figure · empty-stage row" },
+  { rule: "many-sizes", tokens: ["7단계"], what: "the many-sizes row" },
+];
+
+const fakeThresholdTable = (rows) => ["| 규칙 | 뜻 |", "| --- | --- |", ...rows].join("\n");
+
+test("VO-5 DOC-5 checker: thresholds in their own rows pass", () => {
+  const text = fakeThresholdTable(["| `overflow`, `shrunk`, `hscroll` | 배율 78% 미만 넘침, 88% 미만 축소 |", "| `small-visual` | 그림 10% 미만, full 장면은 22% 미만 |"]);
+  assert.equal(auditRowError(text, "shrunk", ["78%", "88%"], hasThreshold), null);
+  assert.equal(auditRowError(text, "small-visual", ["10%", "22%"], hasThreshold), null);
+});
+
+test("VO-5 DOC-5 checker: a changed number (88% → 85%) fails naming 88%", () => {
+  const err = auditRowError(fakeThresholdTable(["| `overflow`, `shrunk`, `hscroll` | 배율 78% 미만 넘침, 85% 미만 축소 |"]), "shrunk", ["78%", "88%"], hasThreshold);
+  assert.ok(err && err.includes('row lacks "88%"') && !err.includes('"78%"'), String(err));
+});
+
+test("VO-5 DOC-5 checker: a threshold moved to a neighbouring row fails", () => {
+  const err = auditRowError(fakeThresholdTable(["| `small-visual` | 그림 10% 미만 |", "| `loose-figure`, `empty-stage` | 22% 미만, 35%, 60% |"]), "small-visual", ["10%", "22%"], hasThreshold);
+  assert.ok(err && err.includes('row lacks "22%"'), String(err));
+});
+
+test("VO-5 DOC-5 checker: digit-extended numbers (188%, 17단계, 0.88%) do not count as the threshold", () => {
+  assert.notEqual(auditRowError(fakeThresholdTable(["| `shrunk` | 178%, 188% |"]), "shrunk", ["78%", "88%"], hasThreshold), null);
+  assert.notEqual(auditRowError(fakeThresholdTable(["| `shrunk` | 0.78%, 0.88% |"]), "shrunk", ["78%", "88%"], hasThreshold), null);
+  assert.notEqual(auditRowError(fakeThresholdTable(["| `many-sizes` | 글자 크기 17단계 초과 |"]), "many-sizes", ["7단계"], hasThreshold), null);
+});
+
+for (const { rule, tokens, what } of THRESHOLD_ROWS) {
+  test(`VO-5 DOC-5 FR-2(c): kit/API.md ${what} (first cell holds \`${rule}\`) keeps ${tokens.join(" and ")}`, () => {
+    const err = auditRowError(apiText(), rule, tokens, hasThreshold);
+    assert.equal(err, null, err ?? "");
+  });
+}

@@ -13,7 +13,6 @@
 <script src="/kit/ltt-ui.js"></script>
 <script src="/kit/ltt-deck.js"></script>
 <style>
-  .cmpp svg { max-width: 170px; }
   .cmpp svg, .pl svg, .ab svg { overflow: hidden; border-radius: 14px; }
   .pl { display: grid; gap: 12px 28px; grid-template-columns: minmax(0, 460px) minmax(220px, 1fr); align-items: center; width: 100%; }
   .pl svg { max-height: 62vh; }
@@ -32,7 +31,7 @@
   .mxv > div { display: grid; grid-template-columns: auto auto; gap: 2px 20px; padding: 4px 12px; text-align: right;
     border-left: 2px solid var(--ltt-ink); border-right: 2px solid var(--ltt-ink); border-radius: 6px; }
   .ab { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; text-align: center; }
-  .ab svg { max-height: 26vh; margin: 0 auto; }
+  .ab svg { max-height: 21vh; margin: 0 auto; }
   .ov { display: grid; gap: 16px clamp(20px, 3vw, 44px); grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: center; width: 100%; }
   .ov svg { max-height: 60vh; overflow: hidden; border-radius: var(--ltt-r-sm); margin: 0 auto; }
   .ov ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
@@ -99,7 +98,7 @@
       + poly([[100, 74], [164, 74], [196, 42], [132, 42]], "fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:2") + tx(148, 92, "넓이 2 → det 2", "font-size:12px;font-weight:700")),
   };
   const minis = [];
-  const card = (m) => (node) => { const p = mkPlane(node, 3); node.classList.add("cmpp"); minis.push([p, m]); };
+  const card = (m) => (node) => { const p = mkPlane(node, 3, 180); node.classList.add("cmpp"); minis.push([p, m]); };
   let colPlane = null;
   const playCols = async () => { if (!colPlane) return; await colPlane.to(I, 0); await new Promise((r) => setTimeout(r, 400)); colPlane.to(A, 1600); };
   function columnsFigure(node) {
@@ -168,12 +167,12 @@
         ask: "\"이 행렬의 열이 각각 어디를 가리키는지 그려 줘\"" },
 
       { type: "compare", kicker: "네 가지 행렬", title: "모양으로 det(넓이 배율)를 읽는다", layout: "stack",
-        narration: "같은 격자에 행렬 네 개를 각각 적용했다. 색칠한 칸은 넓이 1인 정사각형이 간 곳, 두 화살표는 î와 ĵ의 도착점이다. 칸이 넓어졌는지, 뒤집혔는지(î에서 ĵ로 도는 방향이 시계 방향으로 바뀜), 납작해졌는지 보고 det를 짐작한 뒤 판정을 열자.",
+        narration: "같은 격자에 행렬 넷을 적용했다. 색칠한 칸은 넓이 1인 정사각형이, 두 화살표는 î·ĵ가 간 곳이다. 넓어졌나, 뒤집혔나(î→ĵ가 시계 방향), 납작해졌나를 보고 det를 짐작한 뒤 판정을 연다.",
         items: [
           { label: "[[0.87, −0.5], [0.5, 0.87]]", visual: card(rot30), tone: "good", verdict: "회전 · det 1", noteAfter: true, note: "모양·넓이 그대로, 방향만 돈다." },
           { label: "[[2, 0], [0, 1.5]]", visual: card([[2, 0], [0, 1.5]]), tone: "good", verdict: "늘이기 · det 3", noteAfter: true, note: "넓이 2 × 1.5배." },
           { label: "[[0, 1], [1, 0]]", visual: card([[0, 1], [1, 0]]), tone: "warn", verdict: "y=x 반사 · det −1", noteAfter: true, note: "넓이는 같고 거울상으로 뒤집힌다." },
-          { label: "[[0.5, 0.5], [0.5, 0.5]]", visual: card([[.5, .5], [.5, .5]]), tone: "bad", verdict: "찌부러뜨리기 · det 0", noteAfter: true, note: "평면이 직선이 된다. 원래대로 되돌릴 수 없다." },
+          { label: "[[0.5, 0.5], [0.5, 0.5]]", visual: card([[.5, .5], [.5, .5]]), tone: "bad", verdict: "찌부러뜨리기 · det 0", noteAfter: true, note: "평면이 직선이 돼 되돌릴 수 없다." },
         ],
         enter: () => minis.forEach(([p, m]) => { p.to(I, 0); setTimeout(() => p.to(m, 1400), 300); }),
         basis: "카드 제목은 행 단위로 적었다: [[a, b], [c, d]]의 첫째 열은 (a, c)다. 회전 30°는 cos 30° ≈ 0.87, sin 30° = 0.5로 표기했다.",
@@ -212,7 +211,7 @@
         recall: "[[a, b], [c, d]]의 det는 어떻게 계산하고, 격자 그림에서 무엇의 넓이인가?" },
 
       { type: "predict", kicker: "짐작해 보기", title: "늘이기와 회전, 순서를 바꾸면 결과도 같을까?",
-        sub: "행렬 두 개를 곱하면 두 변환을 이어서 하는 것이다. ABx = A(Bx)이므로 오른쪽 B를 먼저, A를 나중에 적용한다.",
+        sub: "행렬 곱은 두 변환을 잇는 것이다. ABx = A(Bx)라서 오른쪽 B를 먼저, A를 나중에 적용한다.",
         visual: () => LTT.facts([
           { icon: "ruler", value: "A", label: "가로 2배로 늘이기" },
           { icon: "refresh", value: "B", label: "90° 회전" },
@@ -221,7 +220,7 @@
         question: "A=가로 2배, B=90° 회전일 때 AB와 BA는 같은 변환인가",
         choices: [{ id: "same", text: "같다. 둘 다 늘리고 돌린 것이다" }, { id: "diff", text: "다르다. 도착 모양이 다르다" }, { id: "det", text: "모양은 같고 det만 다르다" }],
         answer: "diff",
-        why: "다르다. AB는 먼저 돌린 뒤 가로로 늘려 <b>가로로 긴</b> 직사각형이 되고, BA는 먼저 가로로 늘린 뒤 돌려 <b>세로로 긴</b> 직사각형이 된다. det는 둘 다 2라서 det만으로는 구별되지 않는다.",
+        why: "다르다. AB는 돌린 뒤 늘려 <b>가로로 긴</b> 직사각형이, BA는 늘린 뒤 돌려 <b>세로로 긴</b> 직사각형이 된다. det는 둘 다 2라 det만으로는 구별되지 않는다.",
         answerVisual: async (node) => {
           node.innerHTML = `<div class="ab"><div><b>AB (B 먼저 → A)</b></div><div><b>BA (A 먼저 → B)</b></div></div>`;
           const [ab, ba] = [...node.firstChild.children].map((c) => mkPlane(c, 3));

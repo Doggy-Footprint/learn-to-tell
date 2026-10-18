@@ -50,3 +50,13 @@ File: e72bbfb2418e2e6d-refactoring-5-scene-scale-deferred.md
 Summary: refactoring-5: 장면 배율 보류 항목. 1·2번 기각 기록, 3번 측정 근거로 구현 안 함, 4번 공개 상태 resize 구현(run 74cb05d7da21907e). 오류 경로 증거(handoff d7cbe1b9150ab344)가 끝나면 닫는다
 Related Files: skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt-parts.js, skills/learn-to-tell/kit/API.md
 Related Symbols: placement, LTT.placement.zoomLock, floatPanel, fit, LTT.stepper, diagram.send
+---
+File: fb7b84e0280f15ef-refactoring-8-gallery-audit-zero-and-cleanup.md
+Summary: refactoring-8: 갤러리 12편을 1440×900·1280×800 audit 0건으로 맞추고(2026-10-18 헤드리스 측정 6·26+1·5건) tls13-quic의 죽은 코드와 ltt-meta를 정리하는 작업
+Related Files: site/gallery, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-deck.js, tests/gallery.test.mjs
+Related Symbols: LTT.auditScene, placement, streamsMiniOld
+---
+File: 2f6fe9bc88fb2faa-gallery-audit-zero-limit-evidence.md
+Summary: 갤러리 audit 0건 run 1e62814b16984176이 verifier 예산 소진(limit)으로 멈춤: 갤러리 13편 두 크기 0건·기준선 0·hero 실제 layout은 끝났고, R-3 단계 자막(TF-4)·R-6 JS 표기(TF-5) 증거의 감사만 남음
+Related Files: site/gallery, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/API.md, tests/gallery-audit.baseline.json, agent-docs/spec-logs/1e62814b16984176-gallery-audit-zero.md, agent-docs/spec-logs/1e62814b16984176-review.mjs
+Related Symbols: LTT.auditScene

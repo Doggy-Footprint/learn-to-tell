@@ -354,3 +354,53 @@ for (const [what, text] of floatPromiseTargets) {
     assert.deepEqual(found, [], `${what} still contains ${found.join(", ")}`);
   });
 }
+
+// ---------- spec 1e62814b16984176 VO-5 DOC-4 (FR-3, C-16): CHANGELOG 0.2.0 작가 계약 part names the overview hero change ----------
+
+const HERO_TOKENS = ["overview", "layout", "small-visual", "empty-stage"];
+// A part label is a non-list line (heading, bold or plain) whose text, stripped of #, * and _, starts with the label.
+const isPartLabel = (line, label) => !/^\s*(?:[-+]|\d+[.)])\s/.test(line) && line.replace(/^[\s#*_]+/, "").startsWith(label);
+
+function authorContractError(section) {
+  const ls = lines(section);
+  const start = ls.findIndex((l) => isPartLabel(l, "작가 계약"));
+  if (start < 0) return "## 0.2.0 has no 작가 계약 line";
+  const rel = ls.slice(start + 1).findIndex((l) => isPartLabel(l, "kit 개발자용"));
+  if (rel < 0) return "## 0.2.0 has no kit 개발자용 line after 작가 계약";
+  const part = ls.slice(start + 1, start + 1 + rel);
+  if (part.some((l) => HERO_TOKENS.every((t) => hasToken(l, t)))) return null;
+  const inSection = HERO_TOKENS.filter((t) => hasToken(section, t));
+  return `no single line between 작가 계약 and kit 개발자용 holds all of ${HERO_TOKENS.join(", ")}` +
+    (inSection.length === HERO_TOKENS.length ? " (they appear elsewhere in ## 0.2.0 or split across lines)" : `; ## 0.2.0 lacks ${HERO_TOKENS.filter((t) => !inSection.includes(t)).join(", ")}`);
+}
+
+const HERO_LINE = "- layout을 적지 않은 `overview`도 full 장면으로 판정되어 `small-visual` 22% 기준과 `empty-stage`를 받는다.";
+const fakeSection = (author, dev) => ["## 0.2.0", "", "### 작가 계약", "", ...author, "", "### kit 개발자용", "", ...dev].join("\n");
+
+test("VO-5 DOC-4 checker: the four tokens on one 작가 계약 line pass", () => {
+  assert.equal(authorContractError(fakeSection(["- 다른 줄", HERO_LINE], ["- 내부 변경"])), null);
+});
+
+test("VO-5 DOC-4 checker: the same line under kit 개발자용 fails", () => {
+  assert.match(String(authorContractError(fakeSection(["- 다른 줄"], [HERO_LINE]))), /elsewhere in ## 0\.2\.0/);
+});
+
+test("VO-5 DOC-4 checker: the tokens split over two 작가 계약 lines fail", () => {
+  assert.notEqual(authorContractError(fakeSection(["- layout을 적지 않은 `overview`는 full이다.", "- `small-visual`과 `empty-stage`를 받는다."], [])), null);
+});
+
+test("VO-5 DOC-4 checker: a bold part label works and a list item mentioning kit 개발자용 does not end the part", () => {
+  const text = ["## 0.2.0", "**작가 계약**", "- kit 개발자용 문서는 따로 있다.", HERO_LINE, "**kit 개발자용**", "- 내부"].join("\n");
+  assert.equal(authorContractError(text), null);
+});
+
+test("VO-5 DOC-4 checker: a missing kit 개발자용 label fails with that reason", () => {
+  assert.equal(authorContractError(["## 0.2.0", "### 작가 계약", HERO_LINE].join("\n")), "## 0.2.0 has no kit 개발자용 line after 작가 계약");
+});
+
+test("VO-5 DOC-4 FR-3 C-16: kit/CHANGELOG.md ## 0.2.0 has one line between 작가 계약 and kit 개발자용 holding overview, layout, small-visual and empty-stage", () => {
+  const section = sectionAt2(readReal(CHANGELOG, "kit/CHANGELOG.md"));
+  assert.ok(section !== null, "kit/CHANGELOG.md has no ## 0.2.0 heading");
+  const err = authorContractError(section);
+  assert.equal(err, null, err ?? "");
+});

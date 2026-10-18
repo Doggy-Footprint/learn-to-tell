@@ -16,6 +16,8 @@
   .menu .it { display: flex; align-items: center; background: #f6f5f1; border-radius: 12px; }
   .menu .ph { flex: none; width: 46px; height: 46px; border-radius: 12px; background: #e9dccb; }
   .menu b { display: block; font-size: 13px; } .menu small { color: #767676; font-size: 11px; }
+  .ovfig { display: flex; align-items: center; justify-content: center; gap: 48px; width: 100%; }
+  .ovfig .rul { width: 560px; max-width: 100%; }
   .rul { display: grid; gap: 36px; font: 15px var(--ltt-mono); color: var(--ltt-muted); width: min(100%, 1000px); }
   .rul .sc { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; padding-bottom: 14px; border-bottom: 1.5px solid var(--ltt-line-2); }
   .rul .sc span, .rul .ms span { display: flex; flex-direction: column; gap: 6px; }
@@ -29,9 +31,9 @@
 <body>
 <script>
   // Same three menu rows; only the spacing values differ, so the reader compares spacing alone.
-  const menu = (g) => () => {
-    const p = LTT.mock.phone({ width: 300, ratio: "9/14" });
-    p.screen.innerHTML = `<b style="font-size:18px">메뉴</b><div class="menu" style="gap:${g.row}px">${["아메리카노|4,500원", "카페 라떼|5,000원", "바닐라 라떼|5,800원"].map((t, i) => {
+  const menu = (g, o = {}) => () => {
+    const p = LTT.mock.phone({ width: o.w || 300, ratio: o.ratio || "9/14" });
+    p.screen.innerHTML = `${o.bare ? "" : `<b style="font-size:18px">메뉴</b>`}<div class="menu" style="gap:${g.row}px">${["아메리카노|4,500원", "카페 라떼|5,000원", "바닐라 라떼|5,800원"].map((t, i) => {
       const [n, w] = t.split("|");
       return `<div class="it" style="gap:${g.in[i]}px;padding:${g.pad[i]}px"><i class="ph"></i><div><b>${n}</b><small>${w}</small></div></div>`;
     }).join("")}</div>`;
@@ -99,10 +101,10 @@
           "이렇게 근거 없는 숫자가 섞이면 눈은 규칙을 찾지 못하고 '어수선하다'고 느낀다. 그래서 {{간격 스케일}}을 먼저 정하고 그 안에서만 고른다.",
         ],
         points: [
-          { at: [86, 38], title: "안쪽 여백 4 · 10 · 13", text: "같은 카드인데 여백이 다 다르다.", tone: "bad" },
-          { at: [86, 70], title: "메뉴 사이 2px", text: "카드끼리 붙어 경계가 흐리다.", tone: "bad" },
+          { at: [88, 42], title: "안쪽 여백 4 · 10 · 13", text: "같은 카드인데 여백이 다 다르다.", tone: "bad" },
+          { at: [88, 54], title: "메뉴 사이 2px", text: "카드끼리 붙어 경계가 흐리다.", tone: "bad" },
         ],
-        mount(body) { body.appendChild(menu({ row: 2, in: [6, 12, 4], pad: [4, 10, 13] })()); body.style.alignItems = "center"; return {}; },
+        mount(body) { body.appendChild(menu({ row: 2, in: [6, 12, 4], pad: [4, 10, 13] }, { w: 360, ratio: "9/10" })()); body.style.alignItems = "center"; return {}; },
         takeaway: "간격 값이 제각각이면, 사용자는 규칙 대신 혼란을 본다.",
         recall: "같은 역할의 간격이 4·10·13처럼 제각각일 때 화면은 사용자에게 어떻게 보이는가?" },
 
@@ -149,9 +151,9 @@
       { type: "compare", kicker: "compare", title: "실제 앱에서 카드 사이 간격", layout: "stack",
         narration: "카드 사이 간격만 다른 세 화면이다. 어느 쪽이 메뉴 경계가 잘 보이는지 고른 뒤 판정을 본다.",
         items: [
-          { label: "카드 사이 2px", visual: menu({ row: 2, in: [12, 12, 12], pad: [8, 8, 8] }), tone: "bad", verdict: "경계가 흐림" },
-          { label: "카드 사이 12px", visual: menu({ row: 12, in: [12, 12, 12], pad: [8, 8, 8] }), tone: "warn", verdict: "안쪽과 같아 애매" },
-          { label: "카드 사이 16px", visual: menu({ row: 16, in: [12, 12, 12], pad: [8, 8, 8] }), tone: "good", verdict: "덩어리가 나뉨" },
+          { label: "카드 사이 2px", visual: menu({ row: 2, in: [12, 12, 12], pad: [8, 8, 8] }, { w: 250, ratio: "9/10.2", bare: true }), tone: "bad", verdict: "경계가 흐림" },
+          { label: "카드 사이 12px", visual: menu({ row: 12, in: [12, 12, 12], pad: [8, 8, 8] }, { w: 250, ratio: "9/10.2", bare: true }), tone: "warn", verdict: "안쪽과 같아 애매" },
+          { label: "카드 사이 16px", visual: menu({ row: 16, in: [12, 12, 12], pad: [8, 8, 8] }, { w: 250, ratio: "9/10.2", bare: true }), tone: "good", verdict: "덩어리가 나뉨" },
         ],
         takeaway: "바깥 간격은 안쪽 간격보다 한 단계 넓게.",
         recall: "카드 사이 2·12·16px 가운데 메뉴 경계가 생기는 값은 무엇이고, 무엇과 견줘서 그렇게 판단하는가?" },
@@ -160,13 +162,17 @@
         extra: { title: "더 깊이 보고 싶다면", text: "Refactoring UI의 Layout & Spacing 장, Material 3 Layout 문서." } },
 
       { type: "overview", kicker: "overview", title: "스케일에서 고르고, 바깥은 한 단계 넓게", en: "One page",
-        figure: menu({ row: 16, in: [12, 12, 12], pad: [8, 8, 8] }),
+        figure: () => {
+          const w = LTT.h("div", "ovfig");
+          w.append(menu({ row: 16, in: [12, 12, 12], pad: [8, 8, 8] }, { ratio: "9/12" })(), ruler());
+          return w;
+        },
         points: [
-          { at: [96, 36], title: "간격은 '한 묶음'을 말한다", text: "세 카드가 각각 한 덩어리로 읽힌다." },
-          { at: [16, 20], title: "값은 스케일에서만", text: "카드 안쪽은 12, 여백은 8. 모두 4의 배수다." },
-          { at: [50, 34.5], title: "바깥 = 안쪽보다 한 단계 위", text: "카드 사이 16은 안쪽 12보다 한 단계 넓다.", tone: "good" },
+          { at: [96, 42], title: "간격은 '한 묶음'을 말한다", text: "세 카드가 각각 한 덩어리로 읽힌다." },
+          { at: [16, 23], title: "값은 스케일에서만", text: "카드 안쪽은 12, 여백은 8. 모두 4의 배수다." },
+          { at: [50, 40], title: "바깥 = 안쪽보다 한 단계 위", text: "카드 사이 16은 안쪽 12보다 한 단계 넓다.", tone: "good" },
         ],
-        caption: "수업에서 고친 메뉴다. 번호마다 앞 장면의 정리가 그림의 어느 간격에 해당하는지 짚는다." },
+        caption: "수업에서 고친 메뉴와 그림 1의 자다. 번호마다 앞 장면의 정리가 메뉴의 어느 간격에 해당하는지 짚는다." },
 
       { type: "keywords", title: "다음에 비슷한 걸 만나면",
         terms: [{ ko: "간격 시스템", en: "spacing system · 8pt grid" }, { ko: "근접성", en: "Gestalt proximity" }],

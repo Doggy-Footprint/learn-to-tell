@@ -617,8 +617,9 @@
   // Judges measurements of one rendered scene (see ltt-deck.js audit). Thresholds were calibrated on the gallery at 1440×900:
   // below them a figure read as a thumbnail or the scene needed the zoom floor; kit parts alone already use about 7 text sizes.
   // Narrow windows (compact, ≤1000px) shrink by design, so zoom and visual-size ratios are not judged there.
+  // hero repeats the deck mount's full-layout rule (ltt-deck.js) so a scene is judged by the layout it is actually drawn in.
   function auditScene(m) {
-    var out = [], hero = sceneMeta(m.type, "auditHero") || m.layout === "full";
+    var out = [], hero = sceneMeta(m.type, "auditHero") || (m.layout ? m.layout === "full" : !!sceneMeta(m.type, "fullByDefault"));
     function add(rule, msg) { out.push({ rule: rule, msg: msg }); }
     if (m.hscroll) add("hscroll", "가로로 넘친다 (폭 " + m.hscroll + "px 초과). 고정 폭을 max-width:100%로 바꿀 것");
     if (m.panelOverlap) add("panel-overlap", "자막·정답 패널이 글·그림 " + m.panelOverlap + "곳과 겹친다. 그림을 줄이거나 장면을 나눌 것");

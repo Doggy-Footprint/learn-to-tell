@@ -15,9 +15,11 @@
 <style>
   :root { --vac: var(--ltt-muted); --drag: var(--ltt-accent); }
   .scene { max-height: 38vh; }
-  .dk-cmp.table .vis svg { max-height: 13vh; width: auto; }
+  .dk-cmp.table .vis svg { max-height: 12vh; width: auto; }
   .facts { display: flex; gap: 24px; flex-wrap: wrap; align-items: baseline; font-size: 15px; color: var(--ltt-muted); }
   .facts b { font-size: 30px; font-weight: 850; color: var(--ltt-ink); font-variant-numeric: tabular-nums; }
+  .throw { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 40px; }
+  .throw .dk-actions { margin: 0; }
   .pk { display: grid; grid-template-columns: 170px 1fr; gap: 10px; align-items: center; font-size: 15px; margin: 8px 0; }
 </style>
 </head>
@@ -179,8 +181,8 @@
           "주황 공은 앞으로 가는 속도를 계속 잃어 더 가파르게 떨어진다. 45°와 최적 각도로 번갈아 던져 보자.",
         ],
         mount: (body) => {
-          body.innerHTML = `<div class="dk-actions"><button data-a="45">45°로 던지기</button><button data-a="best" class="ghost">${f1(best40)}°로 던지기</button></div><div></div>
-            <div class="facts"><span>진공 <b id="rv">-</b> m</span><span style="color:var(--drag)">항력 <b id="rd">-</b> m</span><span class="ltt-tag">모델로 계산한 예시</span></div>`;
+          body.innerHTML = `<div class="throw"><div class="dk-actions"><button data-a="45">45°로 던지기</button><button data-a="best" class="ghost">${f1(best40)}°로 던지기</button></div>
+            <div class="facts"><span>진공 <b id="rv">-</b> m</span><span style="color:var(--drag)">항력 <b id="rd">-</b> m</span><span class="ltt-tag">모델로 계산한 예시</span></div></div><div></div>`;
           const tr = traj(body.children[1], 40, 880, 330);
           tr.svg.classed("scene", true);
           let sim;
@@ -209,7 +211,7 @@
         visual: (n) => traj(n, 40, 560, 200).set(vacPath(40, 45), path(40, best40, K, DT)) },
 
       { type: "compare", form: "table", kicker: "속력별", title: "공이 빠를수록 공기의 영향이 커진다", layout: "stack",
-        narration: "점선은 진공 45°, 주황 선은 항력을 넣은 최적 각도 궤적이다. 항력은 속력의 제곱으로 커진다. 행마다 축척이 다르다.",
+        narration: "점선은 진공 45°, 주황 선은 항력 최적 각도의 궤적. 항력은 속력²에 비례하고, 행마다 축척이 다르다.",
         items: [15, 30, 45].map((v, i) => {
           const a = bestAngle(v, K, DT);
           return { label: ["캐치볼 · 15 m/s", "외야 송구 · 30 m/s", "최고 구속급 · 45 m/s(≈100 mph)"][i],

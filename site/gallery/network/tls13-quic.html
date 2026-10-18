@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TLS 1.3과 QUIC</title>
-<script type="application/json" id="ltt-meta">{"domain": "네트워크", "topic": "TLS 1.3 핸드셰이크·0-RTT와 재전송 공격·QUIC 스트림과 HOL 차단·연결 이전", "audience": "TLS 핸드셰이크 실무 경험이 있는 엔지니어", "pattern": ["hook", "terms", "predict", "figure", "explain:stack", "mount", "statement", "figure", "terms", "predict", "mount", "figure", "compare:table", "summary", "overview", "keywords"], "theme": "blueprint", "medium": "RFC식 패킷 시퀀스 도면", "mode": "simulation", "decision": "HTTP/3(QUIC)과 0-RTT를 켤지, 켠다면 어디에 켤지", "lesson": "20261017-tls13-quic"}</script>
+<script type="application/json" id="ltt-meta">{"domain": "네트워크", "topic": "TLS 1.3 핸드셰이크·0-RTT와 재전송 공격·QUIC 스트림과 HOL 차단·연결 이전", "audience": "TLS 핸드셰이크 실무 경험이 있는 엔지니어", "pattern": ["hook", "terms", "predict", "figure", "explain:stack", "mount", "statement", "figure", "terms", "predict", "mount", "figure", "compare:table", "compare:table", "summary", "summary", "overview", "keywords"], "theme": "blueprint", "medium": "RFC식 패킷 시퀀스 도면", "mode": "체험형: 용어를 풀고 QUIC의 왕복 수를 짐작한 뒤, 핸드셰이크 시퀀스가 3 → 0 RTT로 한 줄씩 줄어드는 것을 단계별로 본다. 프로토콜·RTT를 골라 첫 응답 시각을 재고, 0-RTT 재전송 공격을 따라간 뒤, 손실이 무엇을 멈추는지 짐작하고 손실 위치를 바꿔 TCP와 QUIC의 HOL 차단을 비교하며, Wi-Fi→LTE 연결 이전을 경로 그림으로 본다", "decision": "HTTP/3(QUIC)과 0-RTT를 켤지, 켠다면 어디에 켤지", "lesson": "20261017-tls13-quic"}</script>
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
@@ -23,13 +23,19 @@
   .ttfb { display: grid; gap: 14px; }
   .ttfb .big { font-family: var(--ltt-mono); font-size: 40px; color: var(--ltt-ink); line-height: 1; }
   .ttfb .big small { font-size: 15px; color: var(--ltt-muted); margin-left: 6px; }
+  .ttfb .row2 { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 28px; }
+  .ttfb .row2 .big { flex: 1 1 200px; min-width: 0; }
   .hol { display: grid; gap: 14px; }
   .hol .big { font-family: var(--ltt-mono); font-size: 18px; color: var(--ltt-ink); }
+  .hol .knobs > div { display: flex; align-items: center; gap: 12px; }
+  .hol .knobs label { margin: 0; flex: 0 0 12em; }
   .tag { display: inline-block; font-size: 11px; font-family: var(--ltt-mono); color: var(--ltt-muted); border: 1px dashed var(--ltt-line-2); border-radius: 3px; padding: 0 5px; margin-left: 6px; vertical-align: middle; }
   .seqwrap { width: 800px; max-width: 100%; }
   .seqwrap > svg { width: 100%; height: auto; display: block; max-height: 62vh; }
   .ovw { width: min(1100px, 100%); }
   .ovw > svg { width: 100%; height: auto; display: block; }
+  /* 이 수업의 keywords는 신호 5개와 이웃 개념 4개가 가운데 칸에 몰려 있어, 가운데 칸을 넓혀 줄바꿈을 줄인다. */
+  @media (min-width: 1001px) { .dk-body .dk-kw { grid-template-columns: .85fr 1.45fr .8fr; } }
 </style>
 </head>
 <body>
@@ -97,7 +103,7 @@
     holder.replaceChildren();
     var sv = svgIn(holder);
     var sp = SEQ[key];
-    return LTT.sequence(sv, { actors: ACT, items: sp.items, spans: sp.spans, col: 380, row: 42, actorW: 160, label: PROTO[key].l + " 시퀀스" });
+    return LTT.sequence(sv, { actors: ACT, items: sp.items, spans: sp.spans, col: 380, row: 38, actorW: 160, label: PROTO[key].l + " 시퀀스" });
   }
 
   // 작은 RTT 그림 (terms)
@@ -119,16 +125,6 @@
     s += "<path d='M10 40 H230' stroke='var(--ltt-line-2)' stroke-width='26' stroke-opacity='.35'/><text x='120' y='14' font-size='11' fill='var(--ltt-muted)' text-anchor='middle'>연결 하나 (한 줄의 선)</text>";
     for (var j = 0; j < 9; j++) s += "<g transform='translate(" + (24 + j * 24) + ",40)'>" + LTT.mark(mk[j % 3], { size: 11, color: c[j % 3] }) + "</g>";
     ["HTML", "CSS", "이미지"].forEach(function (n, k) { s += "<g transform='translate(" + (40 + k * 76) + ",78)'>" + LTT.mark(mk[k], { size: 10, color: c[k] }) + "</g><text x='" + (50 + k * 76) + "' y='82' font-size='11' fill='var(--ltt-ink-2)'>" + n + "</text>"; });
-    el.innerHTML = s + "</svg>";
-  }
-  function streamsMiniOld(el) {
-    var c = ["var(--ltt-c1)", "var(--ltt-c2)", "var(--ltt-c3)"], s = "<svg viewBox='0 0 240 96' class='ltt-svg'>";
-    ["HTML", "CSS", "이미지"].forEach(function (n, k) {
-      var y = 18 + k * 28;
-      s += "<text x='4' y='" + (y + 4) + "' font-size='11' fill='var(--ltt-muted)'>" + n + "</text>";
-      for (var j = 0; j < 4; j++) s += "<g transform='translate(" + (70 + j * 40) + "," + y + ")' style='color:" + c[k] + "'>" + LTT.mark(["square", "ring", "diamond"][k], { size: 12, color: c[k] }) + "</g>";
-      s += "<path d='M60 " + y + " H232' stroke='" + c[k] + "' stroke-opacity='.35'/>";
-    });
     el.innerHTML = s + "</svg>";
   }
   function holMini(el) {
@@ -225,9 +221,9 @@
     mount: function (body) {
       body.innerHTML = "<div class='ttfb'><div id='g1'></div><div class='knobs'>" +
         "<div><label>프로토콜 <span class='v' id='proto-v'></span></label><div id='proto'></div></div>" +
-        "<div><label>사용자 망 RTT <span class='v' id='rtt-v'></span></label><div id='rtt'></div></div></div>" +
-        "<div class='big' id='ttfbv'></div><div id='tl' data-annotate></div></div>";
-      var W = 760, H = 150, x = d3.scaleLinear([0, 1200], [130, W - 20]);
+        "<div class='row2'><div><label>사용자 망 RTT <span class='v' id='rtt-v'></span></label><div id='rtt'></div></div>" +
+        "<div class='big' id='ttfbv'></div></div></div><div id='tl' data-annotate></div></div>";
+      var W = 540, H = 150, x = d3.scaleLinear([0, 1200], [110, W - 24]);
       var svg = d3.select(body.querySelector("#tl")).append("svg").attr("viewBox", "0 0 " + W + " " + H).attr("class", "ltt-svg");
       var ax = svg.append("g");
       [0, 300, 600, 900, 1200].forEach(function (t) {
@@ -239,7 +235,7 @@
       var rows = svg.append("g");
       function bar(y, p, rtt, ghost) {
         var g = rows.append("g").style("opacity", ghost ? 0.6 : 1);
-        g.append("text").attr("x", 120).attr("y", y + 18).attr("text-anchor", "end").style("fill", "var(--ltt-ink-2)").style("font-size", "13px").text(ghost ? "기준" : PROTO[p].l.replace(" (1-RTT)", ""));
+        g.append("text").attr("x", 102).attr("y", y + 18).attr("text-anchor", "end").style("fill", "var(--ltt-ink-2)").style("font-size", "13px").text(ghost ? "기준" : PROTO[p].l.replace(" (1-RTT)", ""));
         var segs = PROTO[p].segs.concat(["요청"]);
         segs.forEach(function (sg, i) {
           var x0 = x(i * rtt), x1 = x((i + 1) * rtt), req = sg === "요청";
@@ -259,7 +255,7 @@
           bar(28, "t12", v.rtt, true);
           bar(72, v.proto, v.rtt, false);
           var ms = respMs(v.proto, v.rtt), base = respMs("t12", v.rtt);
-          body.querySelector("#ttfbv").innerHTML = ms + "<small>ms 첫 응답 · 기준보다 " + (base - ms) + "ms 빠름</small><div><span class='tag'>모델로 계산한 예시</span></div>";
+          body.querySelector("#ttfbv").innerHTML = ms + "<small>ms 첫 응답 · 기준보다 " + (base - ms) + "ms 빠름</small><span class='tag'>모델로 계산한 예시</span>";
         },
         goal: { el: body.querySelector("#g1"), target: "≤ 300ms", text: "RTT 100ms 이상인 망에서 첫 응답을 300ms 안에 받게 한다",
           check: function (v) { return v.rtt >= 100 && respMs(v.proto, v.rtt) <= 300; } }
@@ -323,13 +319,13 @@
       { id: "none", text: "아무것도 안 멈춘다. HTTP/2가 다른 스트림을 먼저 넘긴다" }
     ],
     answer: "all",
-    why: "TCP는 스트림을 모른다. TCP에게는 바이트 한 줄뿐이라, 중간 바이트가 비면 그 뒤 바이트를 순서대로 넘겨줄 수 없다. HTTP/2의 스트림 구분은 그 위 층에서만 일어나므로 {{HOL 차단}}을 피하지 못한다.",
+    why: "TCP는 스트림을 모르고 바이트 한 줄만 안다. 중간 바이트가 비면 그 뒤를 순서대로 넘겨줄 수 없다. HTTP/2의 스트림 구분은 그 위 층의 일이라 {{HOL 차단}}을 피하지 못한다.",
     answerVisual: pk("TCP가 앱에 넘기는 순서", [["#4 HTML  넘김"], ["#5 CSS   빠짐 → 재전송 대기", "bad"], ["#6 이미지 도착, 앞이 비어 대기", "hot"], ["#7 HTML  도착, 앞이 비어 대기", "hot"]])
   });
 
   scenes.push({
     kicker: "조작 2", title: "TCP는 한 줄, QUIC은 스트림마다 한 줄",
-    sub: "전송과 빠진 패킷의 위치를 바꿔 본다. 위 줄은 도착 순서, 아래 세 줄은 스트림별로 다시 모은 것이다. ✕는 빠진 패킷, 점선 상자는 재전송을 기다리는 패킷.",
+    sub: "위 줄은 도착 순서, 아래 세 줄은 스트림별로 다시 모은 것. ✕는 빠진 패킷, 점선 상자는 재전송 대기.",
     layout: "split", bare: true,
     narration: ["TCP에서는 빠진 패킷 뒤의 모든 패킷이 1 RTT를 기다린다. 다른 스트림 것이어도 마찬가지다.", "QUIC은 스트림마다 순서를 따로 맞춘다. 그래서 기다리는 것은 빠진 패킷과 같은 스트림 뒤쪽뿐이다."],
     basis: "모델로 계산한 예시: 12개 패킷을 세 스트림이 번갈아 쓴다고 둔 단순 모델. 실제 QUIC에서도 연결 전체의 흐름 제어나 QPACK 헤더 압축 때문에 스트림끼리 기다림이 생길 수 있다(RFC 9000 §2.2, RFC 9204 §2.1.2).",
@@ -418,14 +414,22 @@
   });
 
   scenes.push({
-    type: "compare", form: "table", kicker: "판단", title: "켤 곳과 조심할 곳은 상황마다 갈린다",
+    type: "compare", form: "table", kicker: "판단 1", title: "RTT가 큰 모바일 사용자에겐 HTTP/3를 켜고, 결제는 0-RTT로 받지 않는다",
     sub: "먼저 스스로 판정한 뒤 '판정 보기'.",
     head: ["상황", "조건", "판정"],
     items: [
       { label: "해외 사용자가 많은 모바일 앱 API", tone: "good", visual: pk("조건", [["RTT p95 200ms+"], ["Wi-Fi↔LTE 전환 잦음"]]),
         verdict: "HTTP/3 켜기. 큰 RTT에 왕복 1번 절약, 망 전환에도 연결 유지" },
       { label: "결제 POST를 0-RTT로 보내기", tone: "bad", visual: pk("조건", [["0-RTT[POST /pay]", "bad"]]),
-        verdict: "0-RTT로 받지 않는다. early data 거부 또는 425 Too Early" },
+        verdict: "0-RTT로 받지 않는다. early data 거부 또는 425 Too Early" }
+    ]
+  });
+
+  scenes.push({
+    type: "compare", form: "table", kicker: "판단 2", title: "UDP가 막힌 망과 4-tuple 로드밸런서 앞에서는 HTTP/3의 이득이 사라진다",
+    sub: "먼저 스스로 판정한 뒤 '판정 보기'.",
+    head: ["상황", "조건", "판정"],
+    items: [
       { label: "UDP 443을 막는 사내망 사용자", tone: "warn", visual: pk("조건", [["방화벽: UDP 443 차단", "bad"]]),
         verdict: "켜도 TCP로 계속 쓴다. 이득 없음. 폴백 지연을 잰다",
         note: "브라우저는 첫 TCP 응답의 {{Alt-Svc}} 헤더나 DNS HTTPS 레코드로 HTTP/3를 알고, QUIC이 안 되면 TCP로 계속한다.", noteAfter: true },
@@ -438,7 +442,8 @@
     basis: "근거: RFC 7838, RFC 9114 §3.1, RFC 9460(HTTPS 레코드), RFC 9312. TCP 폴백은 RFC가 정한 것이 아니라 브라우저 동작이다."
   });
 
-  scenes.push({ type: "summary", title: "떠올려 보기" });
+  scenes.push({ type: "summary", title: "떠올려 보기 1: 인사의 왕복 수는 이렇게 줄었다", recap: [0, 3] });
+  scenes.push({ type: "summary", title: "떠올려 보기 2: 줄인 만큼의 대가와 켜기 전 조건이 있다", recap: [3] });
 
   scenes.push({
     type: "overview", title: "한 장으로: 인사를 줄이고, 멈춤을 쪼개고, 연결을 IP에서 떼어 냈다",
@@ -492,6 +497,11 @@
       { term: "MPTCP", diff: "TCP에서 여러 경로와 IP 변경을 다루는 확장" },
       { term: "QPACK", diff: "HTTP/3 헤더 압축. 스트림끼리 기다림이 다시 생길 수 있는 곳" }]
   });
+
+  // Seven long recall answers overflow one 1280x800 screen, so two summary scenes share the kit's cards by `recap` range
+  // (each takeaway shows exactly once).
+  var recap = LTT.summaryCards({}, scenes);
+  scenes.forEach(function (s) { if (s.recap) s.cards = recap.slice(s.recap[0], s.recap[1]); });
 
   LTT.deck({
     title: "TLS 1.3과 QUIC",

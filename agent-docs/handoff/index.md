@@ -8,11 +8,6 @@ Summary: refactoring-6: 다섯 kit 모듈의 CSS 문자열 588줄을 .css 파일
 Related Files: skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-parts.js, skills/learn-to-tell/kit/ltt-ui.js, skills/learn-to-tell/kit/ltt-mock.js, skills/learn-to-tell/kit/ltt-deck.js, packages/ltt-kit/package.json
 Related Symbols: STYLE, themeCss, KIT
 ---
-File: fb7b84e0280f15ef-refactoring-8-gallery-audit-zero-and-cleanup.md
-Summary: refactoring-8: 갤러리 12편을 1440×900·1280×800 audit 0건으로 맞추고(2026-10-18 헤드리스 측정 6·26+1·5건) tls13-quic의 죽은 코드와 ltt-meta를 정리하는 작업
-Related Files: site/gallery, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-deck.js, tests/gallery.test.mjs
-Related Symbols: LTT.auditScene, placement, streamsMiniOld
----
 File: 3d2bdfc94cd5e417-refactoring-9-kit-3d-lessons.md
 Summary: refactoring-9: 3D가 핵심인 수업이 생기면 three.js를 kit에 넣는 남은 작업(kit 확장 handoff에서 보류된 항목)
 Related Files: skills/learn-to-tell/kit/vendor/VERSIONS, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/gallery/catalog.html

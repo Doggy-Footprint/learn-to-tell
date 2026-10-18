@@ -17,6 +17,9 @@ test("gallery decks stay at or under the audit baseline in both sizes", { skip }
   const home = await mkdtemp(join(tmpdir(), "ltt-audit-test-"));
   try {
     const results = await audit({ targets: galleryTargets(), sizes: Object.keys(baseline), chrome, home, jobs: 2 });
+    // Spec 1e62814b16984176 VO-3 GA-1..GA-26: a page or size missing from the run would otherwise pass unaudited.
+    const want = Object.entries(baseline).flatMap(([size, pages]) => Object.keys(pages).map((p) => `${size} ${p}`)).sort();
+    assert.deepEqual(results.map((r) => `${r.size} ${r.target}`).sort(), want, "audited size × page pairs differ from the baseline keys");
     const problems = [];
     for (const r of results) {
       const at = `${r.size} ${r.target}`;

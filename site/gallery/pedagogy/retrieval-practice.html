@@ -24,6 +24,8 @@
   .ltt-svg.mf .hd { font-weight: 700; fill: var(--ltt-ink); }
   .ltt-svg.mf .sm { font-family: var(--ltt-font); font-size: 13px; fill: var(--ltt-muted); }
   .ltt-svg.mf .ax { font-family: var(--ltt-mono); font-size: 13px; fill: var(--ltt-muted); }
+  /* 번호 주석이 캡션 줄의 모든 칸을 차지해 긴 근거가 한 칸 폭에 갇히므로, 근거도 줄 전체를 쓰게 한다. */
+  .dk-capbar > .ltt-basis { grid-column: 1 / -1; }
 </style>
 </head>
 <body>

@@ -241,3 +241,67 @@ for (const [page, need] of [["network/tls13-quic.html", [".seqwrap"]], ["knowled
     assert.deepEqual(pinned, [], `${page} still pins a width with vw:\n${pinned.join("\n")}`);
   });
 }
+
+// ---------- spec 1e62814b16984176 VO-4 (FR-5, C-13, C-14, E-6): ltt-meta.mode format and tls13 dead code ----------
+
+// Signatures: "<형>: <서술>", 형 ∈ 체험형·설명형·카탈로그용, 서술 at least 20 characters (JS string length).
+const MODE_FORM = /^(체험형|설명형|카탈로그용): ([\s\S]*)$/;
+const MODE_MIN = 20;
+function modeError(mode) {
+  if (typeof mode !== "string") return `mode is not a string: ${JSON.stringify(mode)}`;
+  const m = MODE_FORM.exec(mode);
+  if (!m) return `mode does not start with 체험형: , 설명형: or 카탈로그용: — ${JSON.stringify(mode)}`;
+  if (m[2].length < MODE_MIN) return `mode description has ${m[2].length} characters < ${MODE_MIN} — ${JSON.stringify(mode)}`;
+  return null;
+}
+const DESC = "핸드셰이크와 0-RTT를 그림으로 보고 스트림이 막히는지 짐작한다";
+const desc = (n) => DESC.slice(0, n);
+
+const MODE_CASES = [
+  { id: 'C-14 "체험형: " + 19 characters', mode: `체험형: ${desc(19)}`, ok: false },
+  { id: 'C-14 "체험형: " + 20 characters', mode: `체험형: ${desc(20)}`, ok: true },
+  { id: 'C-14 "simulation"', mode: "simulation", ok: false },
+  { id: 'C-14 "체험형:" + 20 characters, no space', mode: `체험형:${desc(20)}`, ok: false },
+  { id: 'C-14 "실습형: " + 30 characters', mode: `실습형: ${desc(30)}`, ok: false },
+];
+
+test("VO-4 SY-1 C-14 fixtures: the description parts have the intended lengths", () => {
+  assert.ok(DESC.length >= 30, `fixture text has only ${DESC.length} characters`);
+  assert.deepEqual([desc(19).length, desc(20).length, desc(30).length], [19, 20, 30]);
+});
+
+for (const { id, mode, ok } of MODE_CASES) {
+  test(`VO-4 SY-1 ${id}: the mode checker ${ok ? "passes" : "fails"}`, () => {
+    const err = modeError(mode);
+    if (ok) assert.equal(err, null);
+    else assert.ok(err !== null, `checker accepted ${JSON.stringify(mode)}`);
+  });
+}
+
+const DECK_PAGES = pages.filter((p) => scripts(p).includes("/kit/ltt-deck.js"));
+const lttMeta = (page) => {
+  const m = /<script type="application\/json" id="ltt-meta">(.*?)<\/script>/s.exec(read(page));
+  assert.ok(m, `${page} has no ltt-meta`);
+  return JSON.parse(m[1]);
+};
+
+test("VO-4 SY-2 FR-5: the deck pages (those loading /kit/ltt-deck.js) are the 13 gallery lessons", () => {
+  assert.equal(DECK_PAGES.length, 13, DECK_PAGES.join(", "));
+  assert.ok(DECK_PAGES.includes("network/tls13-quic.html"), "network/tls13-quic.html is not a deck page");
+});
+
+test("VO-4 SY-2 FR-5 E-6: every deck page's ltt-meta.mode is \"<체험형|설명형|카탈로그용>: <20+ characters>\"", () => {
+  const bad = DECK_PAGES.map((page) => [page, modeError(lttMeta(page).mode)]).filter(([, err]) => err).map(([page, err]) => `${page}: ${err}`);
+  assert.deepEqual(bad, [], `ltt-meta.mode format violations:\n${bad.join("\n")}`);
+});
+
+test("VO-4 SY-2 FR-5 C-13: network/tls13-quic.html ltt-meta.mode starts with 체험형: ", () => {
+  const mode = lttMeta("network/tls13-quic.html").mode;
+  assert.ok(typeof mode === "string" && mode.startsWith("체험형: "), `network/tls13-quic.html mode is ${JSON.stringify(mode)}`);
+});
+
+test("VO-4 SY-3 FR-5 C-13 E-6: network/tls13-quic.html contains no streamsMiniOld (definition, call or comment)", () => {
+  const html = read("network/tls13-quic.html");
+  const at = html.indexOf("streamsMiniOld");
+  assert.equal(at, -1, `network/tls13-quic.html still contains streamsMiniOld at line ${html.slice(0, at).split("\n").length}`);
+});

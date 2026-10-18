@@ -39,18 +39,18 @@
 
 | 이름 | 설명 |
 | --- | --- |
-| `LTT.theme(name)`, `LTT.themes` | 도메인 테마를 고른다. 덱에서는 `LTT.deck({theme})`로 넘긴다. 아래 표. |
+| `LTT.theme(name)`, `LTT.themes` | 도메인 테마를 고른다. 덱에서는 `LTT.deck({theme})`로 넘긴다 |
 | 토큰 | `--ltt-bg` `--ltt-card` `--ltt-card-2` `--ltt-line` `--ltt-line-2` `--ltt-ink` `--ltt-ink-2` `--ltt-muted` `--ltt-accent(-soft)` `--ltt-good(-soft)` `--ltt-bad(-soft)` `--ltt-warn(-soft)` `--ltt-dark` `--ltt-on-dark` `--ltt-on-accent` `--ltt-accent-on-dark`, 범주형 `--ltt-c1`…`--ltt-c6`, 지도 `--ltt-sea` `--ltt-land` `--ltt-border`. 글꼴·모서리 토큰은 `kit/api/base.md` |
-| `LTT.palette()`, `LTT.palette(theme, "light"\|"dark")` | 범주형 색 6개 배열. 인자 없이 부르면 지금 페이지의 테마·다크 모드 값. 계열 구분에만 쓰고 판정(good·bad)에는 쓰지 않는다. |
-| `LTT.mark(kind, {size, color, weight, fill, inline})`, `LTT.marks` | 모양 표식 SVG 문자열(square, ring, dot, diamond, cross). 색만으로 계열을 가르지 않게 모양을 함께 쓴다. |
-| `LTT.icon(name, {weight, cls})`, `LTT.icons` | 선 아이콘 SVG 문자열. hook `art`, explain·terms·facts `icon`, diagram 노드 `icon`에는 이름만 넘긴다. 목록에 없는 값(이모지 등)은 글자로 그린다. |
-| `{{용어}}`, `{{보이는 말\|용어}}` | 본문 속 용어 표시. 덱이 풀이 팝오버로 바꾼다(마우스 올리기·탭). 처음 나온 장면은 진하게 표시된다. |
-| `LTT.lintDeck(spec)` | 독학 기준 점검 `[{scene, rule, msg}]`. 덱이 시작할 때 실행해 오른쪽 아래 패널 경고와 `lint` 이벤트로 남긴다. |
-| `LTT.expect(label, actual, expected, {tol})` | 기대값 대조. 불일치는 패널과 서버에 남는다. |
-| `LTT.record(type, data)` | lesson 페이지에서만 서버로 이벤트를 보낸다. |
-| `LTT.math(scope)` | `data-tex` 요소를 KaTeX로. |
-| `LTT.MOTION_MS` | 기본 모션 길이. reduced-motion이면 0. |
-| `LTT.deck({title, glossary: {용어: 풀이}, scenes})` | 장면 덱. 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면. 아래 "덱". |
+| `LTT.palette()`, `LTT.palette(theme, "light"\|"dark")` | 범주형 색 6개 배열. 인자 없이 부르면 지금 페이지의 테마·다크 모드 값. 계열 구분에만 쓰고 판정(good·bad)에는 쓰지 않는다 |
+| `LTT.mark(kind, {size, color, weight, fill, inline})`, `LTT.marks` | 모양 표식 SVG 문자열(square, ring, dot, diamond, cross). 색만으로 계열을 가르지 않게 모양을 함께 쓴다 |
+| `LTT.icon(name, {weight, cls})`, `LTT.icons` | 선 아이콘 SVG 문자열. hook `art`, explain·terms·facts `icon`, diagram 노드 `icon`에는 이름만 넘긴다. 목록에 없는 값(이모지 등)은 글자로 그린다 |
+| `{{용어}}`, `{{보이는 말\|용어}}` | 본문 속 용어 표시. 덱이 풀이 팝오버로 바꾼다(마우스 올리기·탭). 처음 나온 장면은 진하게 표시된다 |
+| `LTT.lintDeck(spec)` | 독학 기준 점검 `[{scene, rule, msg}]`. 덱이 시작할 때 실행해 오른쪽 아래 패널 경고와 `lint` 이벤트로 남긴다 |
+| `LTT.expect(label, actual, expected, {tol})` | 기대값 대조. 불일치는 패널과 서버에 남는다 |
+| `LTT.record(type, data)` | lesson 페이지에서만 서버로 이벤트를 보낸다 |
+| `LTT.math(scope)` | `data-tex` 요소를 KaTeX로 |
+| `LTT.MOTION_MS` | 기본 모션 길이. reduced-motion이면 0 |
+| `LTT.deck({title, glossary: {용어: 풀이}, scenes})` | 장면 덱. 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면 |
 
 ### 테마
 
@@ -89,9 +89,9 @@ lint는 장면 데이터만 본다. 그려진 화면은 URL에 `?audit`을 붙�
 
 | rule | 뜻 |
 | --- | --- |
-| `overflow`, `shrunk`, `hscroll` | 78%로 줄여도 넘친다 / 88% 미만으로 줄었다 / 가로로 넘친다 |
-| `small-visual` | 가장 큰 그림(compare는 칸 그림의 합)이 화면 넓이의 10% 미만, figure·full 장면은 22% 미만 |
-| `loose-figure`, `empty-stage` | figure 그림이 figure 무대의 35% 미만 / figure·full 장면이 화면 높이의 60% 미만만 쓴다 |
+| `overflow`, `shrunk`, `hscroll` | 78%로 줄여도 넘친다 / 진입 때 모든 상태(predict 선택지별 정답, figure 단계, summary recall 답)를 그려 잠근 최소 배율이 88% 미만 / 가로로 넘친다 |
+| `small-visual` | 가장 큰 그림(compare는 칸 그림의 합)이 화면 넓이의 10% 미만, figure·실제 full 장면(layout을 적지 않은 overview 포함)은 22% 미만 |
+| `loose-figure`, `empty-stage` | figure 그림이 figure 무대의 35% 미만 / figure·실제 full 장면(layout을 적지 않은 overview 포함)이 화면 높이의 60% 미만만 쓴다 |
 | `many-sizes` | 장면 본문(목업·SVG·번호 표식 제외)에서 글자를 직접 가진 요소의 글자 크기가 7단계 초과 |
 | `graph-overlap` | diagram의 라벨·노드·엣지가 겹친다(`LTT.graphOverlaps`) |
 | `panel-overlap` | figure 단계 자막 칸이나 펼친 predict 정답이 글 줄·컨트롤·그림(diagram은 노드·라벨 상자)과 겹친다 |
@@ -99,7 +99,7 @@ lint는 장면 데이터만 본다. 그려진 화면은 URL에 `?audit`을 붙�
 
 ## 덱
 
-`LTT.deck(...)`에 아래 필드로 장면을 적는다. figure `steps`·predict `answerVisual`을 쓰면 `kit/api/deck-contracts.md`를 읽는다.
+`LTT.deck(...)`에 아래 필드로 장면을 적는다.
 
 ### 모든 장면의 공통 필드
 
@@ -127,10 +127,10 @@ lint는 장면 데이터만 본다. 그려진 화면은 URL에 `?audit`을 붙�
 | `terms` | `terms: [{key, word, en, icon, visual, plain, example}]`. 용어를 쉬운 말로 먼저 푼다. key는 glossary에 자동 등록. `visual`(HTML·노드·함수)은 그 말이 가리키는 것을 보이는 작은 그림으로, 풀이 위에 그린다(예: 색상 → 색상환 위의 각도) |
 | `explain` | `steps: [{icon, title, text, visual}]`, `form`, `arrows`. `form`: `"cards"`(기본, 독립된 요소 나열), `"strip"`(이어진 한 줄 흐름, 카드 없이 선과 마디), `"stack"`(세로 타임라인, 단계마다 오른쪽에 그림) |
 | `figure` | `figure`(그림: 노드·HTML·함수), `caption`, `label`, `steps`. 그림 하나가 화면을 차지하고 아래에 "그림 n." 캡션이 붙는다 |
-| `overview` | `figure`, `caption`, `label`(기본 "한 장 정리."). summary 뒤, keywords 바로 앞에 두는 한 장 인포그래픽. 새 내용 없이 앞 장면의 takeaway를 그림 안 자리에 배치한다 |
+| `overview` | `figure`, `caption`, `label`(기본 "한 장 정리."). summary 뒤, keywords 바로 앞의 한 장 인포그래픽. 새 내용 없이 앞 장면의 takeaway를 그림 안 자리에 배치한다 |
 | `statement` | `title`(큰 주장 한 문장, `<em>`은 강조색), `sub`, `visual`(작은 근거 그림, 선택). 카드 없이 리듬을 바꾸는 장면 |
 | `contrast` | `before`, `after`(`LTT.beforeAfter`의 각 쪽) |
-| `compare` | `items: [{label, visual, tone, verdict, note, noteAfter, enter, onReveal, onReset}]`, `form`, `cols`, `reveal`, `revealLabel`. `form: "table"`이면 사례가 행이 되는 비교표(라벨 \| 그림 \| 판정), `head: ["라벨 열", "그림 열", "판정 열"]`은 열 머리글 |
+| `compare` | `items: [{label, visual, tone, verdict, note, noteAfter, enter, onReveal, onReset}]`, `form`, `cols`, `reveal`, `revealLabel`. `form: "table"`이면 사례가 행이 되는 비교표, `head: ["라벨 열", "그림 열", "판정 열"]`은 열 머리글 |
 | `predict` | `choices`, `answer`, `question`, `hint`, `visual`, `answerVisual`, `why`, `button`, `unsure`, `reveal`, `onReset`, `rest` |
 | `summary` | 앞 장면의 `takeaway`를 모은다. `recall`이 있으면 질문 → 입력칸(선택) → "답 보기" → takeaway·`ask`의 인출 연습, 없으면 카드 격자. `cards: [{n, title, text, ask, recall}]`로 직접 줄 수도 있다. `extra: {title, text}`는 마지막 항목 |
 | `keywords` | `terms: [{ko, en}]`, `signals`, `queries`, `neighbors: [{term, diff}]`. 작성하는 마지막 장면 |
@@ -141,6 +141,6 @@ lint는 장면 데이터만 본다. 그려진 화면은 URL에 `?audit`을 붙�
 - 페이지에는 모델 함수, 기대값, 장면 데이터, 그 수업에만 필요한 작은 CSS를 둔다.
 - 색은 위 토큰만 쓴다. hex를 새로 적으면 다크 모드가 깨진다(목업 속 '실제 화면' 색은 예외).
 - 테마는 매체를 고르는 것이지 장식이 아니다. 페이지 CSS에서 토큰을 다시 정의하지 않는다.
-- 공개 전 경고는 0건이어야 한다. lint는 표시된 용어만 안다. 표시하지 않은 전문 용어는 독자 검토(SKILL.md)로 잡는다.
-- 작성·점검 기준은 1280px 이상 데스크톱이다. 1440×900과 1280×800 두 크기에서 0건이어야 한다.
+- lint는 표시된 용어만 안다. 표시하지 않은 전문 용어는 독자 검토(SKILL.md)로 잡는다.
+- 작성·점검 기준은 1280px 이상 데스크톱이다. 공개 전 경고는 1440×900과 1280×800 두 크기에서 0건이어야 한다.
 - figure 그림 폭을 `vw`로 고정하지 않는다(kit이 칸 폭을 준다).

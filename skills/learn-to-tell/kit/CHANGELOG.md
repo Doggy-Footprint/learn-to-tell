@@ -13,6 +13,7 @@
 - audit 규칙 `panel-overlap`: 자막·정답 패널이 글·그림과 겹치면 경고한다.
 - figure 그림 폭을 페이지 CSS에서 `vw`로 고정하지 않는다(kit이 칸 폭을 준다). 자막이 아래로 내려갈 때 `vw`로 묶인 그림을 칸 폭까지 넓히던 덱 동작(`widen`)은 없어졌다.
 - predict: 공개 상태에서 창 크기가 바뀌면 배율을 다시 재고, `answerVisual`이 다시 불린다.
+- audit은 장면을 실제로 그린 layout으로 판정한다: layout을 적지 않은 overview도 full 장면이라 `small-visual` 22% 기준과 `empty-stage`를 받는다.
 
 kit 개발자용
 - `?audit` 결과가 `<script id="ltt-audit">` JSON으로 남고 `server/audit.mjs`가 headless Chrome으로 갤러리·수업을 점검한다.

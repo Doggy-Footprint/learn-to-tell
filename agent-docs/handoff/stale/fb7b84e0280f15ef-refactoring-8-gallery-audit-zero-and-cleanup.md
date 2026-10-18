@@ -55,3 +55,23 @@
 - 2026-10-18 `npm run audit` 기준선(1440×900 / 1280×800): cache-ttl 0/2, anchoring 0/1, diversification 0/3, single-gpu-dataflow 2/3, ontology-triples 2/4, matrix-as-transform 1/2, tls13-quic 1/5, retrieval-practice 0/2, trolley-ethics 0/1, projectile-drag 0/2, scenes 1/2, color-contrast 0/3, visual-hierarchy-spacing 1/4(합 8/34). 손 측정과의 차이는 anchoring 1280×800의 `shrunk` 1건(88%, 임계값 경계; 3회 반복 모두 같음)뿐이다. 헤드리스 `--window-size`는 창 크기라 실제 화면은 1440×813·1280×713이고, 요약 줄에 그 값이 찍힌다.
 - 2026-10-18 실제 Chrome 대조(tls13-quic, 같은 origin 페이지의 1440×813·1280×713 iframe): 건수·장면·규칙이 헤드리스와 완전히 같고 장면 6 `small-visual` 비율만 8%(실제)↔9%(헤드리스)로 달랐다. 헤드리스 측정을 기준선으로 써도 된다.
 - 2026-10-18 `npm test`를 다른 Chrome 작업 3~4개와 동시에 돌리면 `#ltt-audit`이 없는 결과가 났다(가상 시간 예산 12초가 audit 실행 전에 소진). `audit.mjs`가 예산 3배로 1회 재시도하도록 해 같은 부하에서 통과를 확인했다. 같은 부하에서 `tests/diagram.test.mjs`의 `VO-13 PF1 QR-1 … median <= 20 ms`도 1회 실패했다(이 작업과 무관한 성능 임계값).
+- 2026-10-19 run 1e62814b16984176(spec `agent-docs/spec-logs/1e62814b16984176-gallery-audit-zero.md` v2, status limit)
+  - 끝난 일
+    - 갤러리 deck 13편이 두 크기에서 audit·lint·expect 0건이다(연속 3회).
+    - 기준선 26개를 모두 0으로 내렸다.
+    - `auditScene` hero를 실제 layout으로 판정한다(CHANGELOG 0.2.0 작가 계약).
+    - API.md에 `shrunk` 최소 배율 문장을 넣었다.
+    - tls13 `streamsMiniOld`를 지우고 mode를 서술문으로 바꿨다.
+    - `npm test` 892/892.
+  - Open Questions 답(사용자 결정)
+    - 두 크기를 모두 유지한다.
+    - 헤드리스 측정을 기준으로 인정한다.
+    - `shrunk`가 최소 배율을 보는 것은 의도다.
+    - overview hero는 실제 layout으로 판정하는 것으로 해결했다(scratch 측정 1쪽 2건).
+  - 닫지 않은 이유: verifier 2회차가 증거 공백 TF-4·TF-5를 남겼다. 이어지는 일은 handoff `2f6fe9bc88fb2faa-gallery-audit-zero-limit-evidence.md`.
+- 2026-10-19 닫음(사용자 역할 결정). run 1e62814b16984176의 남은 증거 공백 TF-4·TF-5는 사용자 역할이 main 진단(stepper 장면 14곳 단계별 글 대조: 차이 4곳 모두 판정한 글 변경, 넓힌 정규식: 금지 수단 0건)을 감사 없이 받아들여 닫았다(handoff 2f6fe9bc88fb2faa와 함께 stale). AV-7(API.md 고쳐 쓰기·두 줄 합침)은 허용.
+- 남은 kit 후보(이 handoff를 닫아도 열린 항목, 다음 kit 작업에서 판단):
+  - AF-1: 갤러리 페이지 CSS가 kit 내부 클래스를 덮는다. ontology·tls13 keywords `.dk-body .dk-kw` 칸 비율, retrieval `.dk-capbar > .ltt-basis` 줄 전체, visual-hierarchy `ltt-ba-foot` 재사용.
+  - AF-2: summary 나누기를 페이지가 `LTT.summaryCards` + 자체 `recap` 필드로 3쪽(ontology, tls13, visual-hierarchy)에서 반복한다.
+  - AF-3: tls13 판단 1·2 compare 제목이 판정을 미리 말하는 정도가 기준보다 크다.
+  - AV-9: `tests/gallery.test.mjs`의 mode 검사기가 공백도 20자에 센다.
