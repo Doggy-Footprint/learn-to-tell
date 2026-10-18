@@ -118,6 +118,8 @@
   ].join("");
 
   var MOTION_MS = root.matchMedia && root.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700;
+  // The deck runs every step/answer off-screen to measure it; sends there would leave packets flying on the live scene.
+  var MEASURING = 0;
   var $ = function (id) { return document.getElementById(id); };
   var el = function (x) { return typeof x === "string" ? (x[0] === "#" ? document.querySelector(x) : $(x)) : x; };
 
@@ -574,7 +576,7 @@
 
   // A step's packet flow repeats while the step stays current, so a viewer who looks late still sees which leg is slow.
   function loopSends(sends, live, send) {
-    if (!sends || !sends.length) return;
+    if (!sends || !sends.length || MEASURING) return;
     (function once() {
       sends.reduce(function (p, s) { return p.then(function () { return live() ? (s.relay ? relay(s, live, send) : send(s[0], s[1], s[2])) : null; }); }, Promise.resolve())
         .then(function () { if (live() && MOTION_MS) setTimeout(function () { if (live()) once(); }, 700); });
@@ -952,7 +954,7 @@
       send: function (from, to, o) {
         o = o || {};
         var n = o.count || 5, ms = o.ms || 900, gap = o.gap || 120;
-        if (!MOTION_MS) return Promise.resolve();
+        if (!MOTION_MS || MEASURING) return Promise.resolve();
         var at = track(from, to), a = at(0);
         return new Promise(function (done) {
           d3.range(n).forEach(function (k) {
@@ -1218,7 +1220,7 @@
       send: function (id, o) {
         o = o || {};
         var s = itemSel.filter(function (x) { return x.it.id === id; })[0];
-        if (!s || !MOTION_MS) return Promise.resolve();
+        if (!s || !MOTION_MS || MEASURING) return Promise.resolve();
         var node = s.node.select("path").node(), len = node.getTotalLength();
         return new Promise(function (done) {
           gPk.append("circle").attr("r", o.r || 5).style("fill", o.color || "var(--ltt-accent)")
@@ -1479,7 +1481,7 @@
           so = so || {};
           var r = routeSel[from + ">" + to], rev = false;
           if (!r) { r = routeSel[to + ">" + from]; rev = true; }
-          if (!r || !MOTION_MS) return Promise.resolve();
+          if (!r || !MOTION_MS || MEASURING) return Promise.resolve();
           var node = r.path.node(), len = node.getTotalLength(), n = so.count || 3, ms = so.ms || 1400, gap = so.gap || 180;
           return new Promise(function (done) {
             d3.range(n).forEach(function (k) {
@@ -1526,6 +1528,7 @@
   }
 
   LTT.MOTION_MS = MOTION_MS;
+  LTT.measure = function (fn) { MEASURING++; try { return fn(); } finally { MEASURING--; } };
   LTT.$ = $;
   // Coordinate-free diagram -> pixel diagram spec via elkjs layered layout. elk rejects arrays/objects built in another
   // realm (it silently returns no coordinates), so the elk graph is built only from fresh literals, never from user input.

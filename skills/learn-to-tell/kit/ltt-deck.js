@@ -153,6 +153,9 @@
     ".dk-pred{position:relative}.dk-pred.done .dk-hint2,.dk-pred.done>.dk-actions{visibility:hidden}",
     ".dk-float{position:absolute;z-index:1;background:var(--ltt-bg)}",
     ".dk-probe{visibility:hidden}",
+    // A probe reads sizes right after each state is drawn; page CSS transitions would hand it the previous state's size.
+    ".dk-still,.dk-still *{transition:none!important}",
+    ".dk-rc .a.pending{visibility:hidden}",
     ".dk-pred.done.rest-hide .ltt-choices button:not(.right):not([aria-pressed=true]){visibility:hidden}",
     ".dk-pred.done.rest-dim .ltt-choices button:not(.right):not([aria-pressed=true]){opacity:.35}",
     ".dk-pred.done.rest-dot .ltt-choices button:not(.right):not([aria-pressed=true]){color:transparent;position:relative}",
@@ -423,7 +426,7 @@
           return solidRects(pic, null, null, true).some(function (o) { return LTT.rectHit(box, o); });
         }
         function eachStep(fn) {
-          s.steps.forEach(function (x, k) { if (x.enter) x.enter(k, api, 1); fn(); });
+          LTT.measure(function () { s.steps.forEach(function (x, k) { if (x.enter) x.enter(k, api, 1); fn(); }); });
         }
         // Page CSS often pins a drawing to a viewport fraction (56vw) sized for the side-by-side layout. Once the captions
         // go below, the one drawing takes the column width, but only as far as the scene's free height allows, so
@@ -453,6 +456,23 @@
           return true;
         }
         function probe() {
+          pic.classList.add("dk-still");
+          try { measureAll(); } catch (e) {
+            unwiden();
+            tallest = { side: 0, stack: 0 };
+            LTT.warn("장면 " + (ctx.index + 1) + ": 단계를 미리 그려 보다 실패해 단계마다 배율이 바뀔 수 있다 (" + e.message + ")");
+          } finally {
+            // Outside measuring, so the current step's own sends start again after the probe interrupted them; packets
+            // already in flight from the entry would otherwise run twice.
+            [].forEach.call(pic.querySelectorAll(".pk"), function (c) { c.remove(); });
+            var x = s.steps[sp.index];
+            if (x.enter) x.enter(sp.index, api, 1);
+            // Transitions come back only after the current step has been laid out, so entry does not animate from the last probed step.
+            void pic.offsetHeight;
+            pic.classList.remove("dk-still");
+          }
+        }
+        function measureAll() {
           unwiden();
           tallest = { side: 0, stack: 0 };
           stuck = innerWidth <= 760;
@@ -472,8 +492,6 @@
               if (ctx.el.firstChild.style.zoom) { unwiden(); tallest.stack = before; }
             }
           }
-          var x = s.steps[sp.index];
-          if (x.enter) x.enter(sp.index, api, 1);
         }
         // The captions sit beside the picture only while no text, control or diagram box of the picture runs under them.
         ctx.place = function () {
@@ -552,16 +570,28 @@
         var z = ctx.refit();
         ans.classList.remove("ltt-hidden");
         ans.classList.add("dk-probe");
-        w.classList.add("done");
-        choices.forEach(function (c, i) {
-          if (typeof s.answerVisual === "function") { av.replaceChildren(); s.answerVisual(av, c.id); }
-          else if (i === 0 && s.answerVisual) av.innerHTML = s.answerVisual;
-          z = Math.min(z, ctx.refit());
-        });
-        w.classList.remove("done");
-        ans.classList.remove("dk-probe");
-        ans.classList.add("ltt-hidden");
-        av.replaceChildren();
+        w.classList.add("done", "dk-still");
+        // A one-parameter answerVisual ignores the choice, so one drawing stands for all of them.
+        var drawn = typeof s.answerVisual === "function" && s.answerVisual.length > 1 ? choices : choices.slice(0, 1);
+        try {
+          LTT.measure(function () {
+            drawn.forEach(function (c) {
+              if (typeof s.answerVisual === "function") { av.replaceChildren(); s.answerVisual(av, c.id); }
+              else if (s.answerVisual) av.innerHTML = s.answerVisual;
+              z = Math.min(z, ctx.refit());
+            });
+          });
+        } catch (e) {
+          z = 1;
+          LTT.warn("장면 " + (ctx.index + 1) + ": answerVisual을 미리 그려 보다 실패해 정답을 열 때 배율이 바뀔 수 있다 (" + e.message + ")");
+        } finally {
+          w.classList.remove("done");
+          ans.classList.remove("dk-probe");
+          ans.classList.add("ltt-hidden");
+          av.replaceChildren();
+          void w.offsetHeight;
+          w.classList.remove("dk-still");
+        }
         ctx.zmax = z;
       }
       ctx.place = function () {
@@ -702,7 +732,8 @@
     cards.forEach(function (c) {
       var li = w.appendChild(h("li", null, "<p class='q'></p>"));
       li.firstChild.innerHTML = c.recall || c.title || "";
-      var a = h("div", "a" + (c.recall ? " ltt-hidden" : ""), "<p></p>");
+      // The answer keeps its space while hidden, so the scene's zoom already counts it and revealing never rescales.
+      var a = h("div", "a" + (c.recall ? " pending" : ""), "<p></p>");
       a.firstChild.innerHTML = c.text;
       if (c.ask) a.appendChild(h("p", "ask", "<b>agent에게</b>" + c.ask));
       if (c.recall) {
@@ -712,7 +743,7 @@
         box.placeholder = "떠올린 답 (적지 않아도 된다)";
         var b = row.appendChild(h("div", "dk-actions")).appendChild(h("button", "ghost", "답 보기"));
         b.onclick = function () {
-          a.classList.remove("ltt-hidden"); b.disabled = true;
+          a.classList.remove("pending"); b.disabled = true;
           LTT.linkTerms(a, ctx.index);
           ctx.fit();
           LTT.record("recall", { scene: c.title, question: stripTags(c.recall), answer: box.value.trim() });
@@ -1014,7 +1045,9 @@
     }
 
     function refit() { if (mounted[cur]) mounted[cur].fit(); }
-    addEventListener("resize", refit);
+    // Each fit re-probes every step/answer of the scene, so a window drag measures once after it settles.
+    var resizing = 0;
+    addEventListener("resize", function () { clearTimeout(resizing); resizing = setTimeout(refit, 120); });
     // Pretendard swaps in after first paint and changes line heights.
     if (document.fonts) document.fonts.ready.then(refit);
 
