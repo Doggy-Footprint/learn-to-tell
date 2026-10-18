@@ -425,7 +425,35 @@
         function eachStep(fn) {
           s.steps.forEach(function (x, k) { if (x.enter) x.enter(k, api, 1); fn(); });
         }
+        // Page CSS often pins a drawing to a viewport fraction (56vw) sized for the side-by-side layout. Once the captions
+        // go below, the one drawing takes the column width, but only as far as the scene's free height allows, so
+        // widening never shrinks the whole scene.
+        var grown = [];
+        function unwiden() {
+          grown.forEach(function (g) { g[0].style.width = g[1]; g[0].style.height = g[2]; });
+          grown = [];
+        }
+        function widen() {
+          var svgs = [].filter.call(pic.querySelectorAll("svg[viewBox]"), function (v) { return !v.matches(".ltt-ic") && !v.parentElement.closest("svg"); });
+          if (svgs.length !== 1 || ctx.el.firstChild.style.zoom) return false;
+          var svg = svgs[0], r = svg.getBoundingClientRect();
+          var free = ctx.el.clientHeight - 8 - ctx.el.firstChild.getBoundingClientRect().height;
+          // Steps may draw taller pictures at the same width, so the growth uses the tallest step's height.
+          var w = Math.min(pic.clientWidth, r.width + free * r.width / Math.max(r.height, tallest.stack));
+          if (!r.height || w <= r.width + 1) return false;
+          // Steps may redraw the svg itself, so the width goes on the picture's own box and the boxes between follow it.
+          var top = svg;
+          while (top.parentElement !== pic) top = top.parentElement;
+          for (var up = svg.parentElement; up !== top && up; up = up.parentElement) {
+            if (up.getBoundingClientRect().width < w - 1) { grown.push([up, up.style.width, up.style.height]); up.style.width = "100%"; }
+          }
+          grown.push([top, top.style.width, top.style.height]);
+          top.style.width = top.getBoundingClientRect().width + w - r.width + "px";
+          if (top === svg) svg.style.height = "auto";
+          return true;
+        }
         function probe() {
+          unwiden();
           tallest = { side: 0, stack: 0 };
           stuck = innerWidth <= 760;
           if (!stuck) {
@@ -435,6 +463,14 @@
           if (stuck) {
             layout("stack");
             eachStep(function () { tallest.stack = Math.max(tallest.stack, pic.offsetHeight); });
+            layout("stack");
+            if (widen()) {
+              var before = tallest.stack;
+              tallest.stack = 0;
+              eachStep(function () { tallest.stack = Math.max(tallest.stack, pic.offsetHeight); });
+              layout("stack");
+              if (ctx.el.firstChild.style.zoom) { unwiden(); tallest.stack = before; }
+            }
           }
           var x = s.steps[sp.index];
           if (x.enter) x.enter(sp.index, api, 1);
@@ -447,7 +483,7 @@
           layout("side");
           if (under()) { stuck = true; layout("stack"); }
         };
-        ctx.unplace = function () { row.classList.remove("stack"); pic.style.minHeight = ""; };
+        ctx.unplace = function () { row.classList.remove("stack"); pic.style.minHeight = ""; unwiden(); probed = null; };
       } else fill(st, s.figure, ctx);
       if (s.caption) {
         var n = ctx.scenes.slice(0, ctx.index + 1).filter(function (x) { return x.type === "figure"; }).length;
