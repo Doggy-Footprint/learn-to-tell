@@ -32,3 +32,8 @@ File: 0b47efebac2cbc9f-overview-after-recall.md
 Summary: 한 장 인포그래픽 정리를 summary(회상) 뒤, keywords 앞의 overview 장면으로 두고 수업마다 대표 그림 위에 직접 그리게 한 결정
 Related Files: skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md
 Related Symbols: LTT.deck, LTT.lintDeck, overview, summary
+---
+File: 40552fcb2a7c3985-lock-scene-scale-on-entry.md
+Summary: predict·stepper·recall의 배율을 장면 진입 시 모든 상태를 화면 밖에서 미리 그려 고정하고, 측정 중 send 연출과 CSS transition을 끄는 결정
+Related Files: skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt-parts.js, skills/learn-to-tell/kit/API.md
+Related Symbols: lockZoom, probe, measureAll, widen, recallList, LTT.measure, LTT.stepper
