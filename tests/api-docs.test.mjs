@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
@@ -624,6 +624,47 @@ test("VO-8 S3: npm pack --dry-run lists api/controls.md and API.md", { timeout: 
   assert.ok(at >= 0, `npm pack printed no JSON array: ${out}`);
   const paths = JSON.parse(out.slice(at))[0].files.map((f) => f.path);
   for (const p of ["api/controls.md", "API.md"]) assert.ok(paths.includes(p), `npm pack list lacks ${p}: ${paths.join(", ")}`);
+});
+
+// spec bf761aaf871d8d45 VO-5 (FR-5, C-9): kit .css files are packaged; kept in this file so build kit never runs concurrently with S2.
+
+const KIT_CSS = ["ltt.css", "ltt-parts.css", "ltt-ui.css", "ltt-mock.css", "ltt-deck.css"];
+
+test("VO-8 bf761 VO-5 FR-5: packages/ltt-kit/package.json files includes *.css", () => {
+  const pkg = JSON.parse(readReal(join(PKG, "package.json"), "packages/ltt-kit/package.json"));
+  assert.ok(Array.isArray(pkg.files) && pkg.files.includes("*.css"), `files = ${JSON.stringify(pkg.files)}`);
+});
+
+test("VO-8 bf761 VO-5 C-9: build kit removes planted zz-stale.css and zz-stale.js and copies the five kit .css byte for byte", { timeout: 60_000 }, () => {
+  const planted = ["zz-stale.css", "zz-stale.js"].map((f) => join(PKG, f));
+  for (const p of planted) writeFileSync(p, "/* stale */\n");
+  let survived;
+  try {
+    buildKit();
+    survived = planted.filter((p) => existsSync(p));
+  } finally {
+    for (const p of planted) rmSync(p, { force: true });
+  }
+  assert.deepEqual(survived, [], "stale files survived build kit");
+  const noSource = KIT_CSS.filter((f) => !existsSync(join(KIT, f)));
+  assert.deepEqual(noSource, [], "kit/ lacks these .css sources");
+  const differ = KIT_CSS.filter((f) => !existsSync(join(PKG, f)) || !readFileSync(join(PKG, f)).equals(readFileSync(join(KIT, f))));
+  assert.deepEqual(differ, [], "packages/ltt-kit .css missing or not byte-equal to kit/");
+});
+
+test("VO-8 bf761 VO-5 C-9: npm pack --dry-run lists the five kit .css files", { timeout: 60_000 }, () => {
+  if (!built) buildKit();
+  let out;
+  try {
+    out = execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: PKG, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  } catch (e) {
+    assert.fail(e.code === "ENOENT" ? "npm is not available; npm pack --dry-run could not run" : `npm pack --dry-run exited ${e.status}: ${e.stderr}`);
+  }
+  const at = out.search(/^\[/m);
+  assert.ok(at >= 0, `npm pack printed no JSON array: ${out}`);
+  const paths = JSON.parse(out.slice(at))[0].files.map((f) => f.path);
+  const missing = KIT_CSS.filter((p) => !paths.includes(p));
+  assert.deepEqual(missing, [], `npm pack list lacks ${missing.join(", ")}: ${paths.join(", ")}`);
 });
 
 // ---------- spec 1e62814b16984176 VO-5 (FR-2, C-15): audit table rows carry the measured-zoom and full-scene wording ----------

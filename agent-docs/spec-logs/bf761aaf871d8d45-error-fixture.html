@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>cdp fixture</title>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head><body>
+<script>
+// R-2 errors fixture (spec bf761aaf871d8d45 VO-9; 74cb05d7da21907e-error-fixture.html plus the TV-6 fixes).
+// Scene 1: answerVisual throws for "b" at every size (EG-1). Scene 2: step 3 enter throws and step 0 sends a slow packet
+// outside measuring, so the error path's .pk cleanup is observable (EG-3, EG-4). Scene 3: one-parameter answerVisual (C-16).
+// Scene 4: the last step is the tallest (C-17). Scene 5 (EG-2, EG-5): "b" throws only below 1300px wide, so the 1440 entry
+// lock succeeds and leaves an old zmax below 1; "c" comes before "b" and is taller than the chosen "a", so a lock over the
+// states that succeeded differs from zmax 1. ?eg2safe makes "b" draw nothing instead of throwing (the succeeded-states lock).
+var Q = new URLSearchParams(location.search), SAFE = Q.has("eg2safe"), HA = +(Q.get("ha") || 360), HC = +(Q.get("hc") || 540);
+LTT.deck({ title: "cdp fixture", theme: "paper", scenes: [
+  { type: "predict", title: "던지는 정답 그림", question: "어느 쪽인가", choices: [{ id: "a", text: "가" }, { id: "b", text: "나" }], answer: "a",
+    answerVisual: function (node, id) {
+      if (id === "b") throw new Error("fixture b");
+      var d = document.createElement("div"); d.style.height = "1400px"; d.textContent = "답 " + id; node.appendChild(d);
+    }, why: "이유." },
+  { type: "figure", title: "던지는 단계", caption: "캡션",
+    figure: function (pic) {
+      var el = document.createElement("div"), svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"), t = document.createElement("div");
+      t.className = "fx-text"; t.style.height = "200px"; t.textContent = "그림";
+      el.appendChild(svg); el.appendChild(t);
+      var dg = LTT.diagram(svg, { cols: 2, rows: 1, cell: [160, 60], node: [60, 30], nodes: [{ id: "p", c: 0, r: 0, l: "p" }, { id: "q", c: 1, r: 0, l: "q" }], edges: [{ f: "p", t: "q" }] });
+      return { el: el, text: t, dg: dg };
+    },
+    steps: [{ caption: "하나", enter: function (k, fig) { fig.text.textContent = "단계 0"; fig.text.style.height = "200px"; fig.dg.send("p", "q", { count: 1, ms: 60000 }); } },
+      { caption: "둘", enter: function (k, fig) { fig.text.textContent = "단계 1"; fig.text.style.height = "320px"; } },
+      { caption: "셋", enter: function () { throw new Error("fixture step"); } }] },
+  { type: "predict", title: "인자 하나", question: "어느 쪽인가", choices: [{ id: "a", text: "가" }, { id: "b", text: "나" }], answer: "b",
+    answerVisual: function (node) { window.__oneCalls = (window.__oneCalls || 0) + 1; node.textContent = "하나"; }, why: "이유." },
+  { type: "figure", title: "마지막 단계가 가장 높다", caption: "캡션",
+    figure: function (pic) { var d = document.createElement("div"); d.style.height = "100px"; d.textContent = "그림"; return { el: d }; },
+    steps: [{ caption: "하나", enter: function (k, fig) { fig.el.style.height = "100px"; } }, { caption: "둘", enter: function (k, fig) { fig.el.style.height = "150px"; } },
+      { caption: "셋", enter: function (k, fig) { fig.el.style.height = "300px"; } }] },
+  { type: "predict", title: "공개 상태에서 던지는 정답 그림", question: "어느 쪽인가", unsure: false,
+    choices: [{ id: "a", text: "가" }, { id: "c", text: "다" }, { id: "b", text: "나" }], answer: "a",
+    answerVisual: function (node, id) {
+      if (id === "b") { if (!SAFE && innerWidth < 1300) throw new Error("fixture b"); return; }
+      var d = document.createElement("div"); d.style.height = (id === "a" ? HA : HC) + "px"; d.textContent = "답 " + id; node.appendChild(d);
+    }, why: "이유.",
+    reveal: function () { window.__reveals = (window.__reveals || 0) + 1; } },
+  { type: "keywords", terms: [{ ko: "용어" }] }
+] });
+</script>
+</body></html>

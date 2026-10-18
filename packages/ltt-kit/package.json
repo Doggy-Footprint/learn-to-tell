@@ -9,6 +9,7 @@
   },
   "files": [
     "*.js",
+    "*.css",
     "API.md",
     "api/",
     "vendor/",

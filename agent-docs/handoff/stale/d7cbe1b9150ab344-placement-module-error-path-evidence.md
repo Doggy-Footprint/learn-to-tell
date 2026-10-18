@@ -83,3 +83,4 @@
   - 4번: vw 규칙과 갤러리 두 페이지, `widen` 제거. `widen`은 측정 크기 중 창 폭 760에서만 작동했다(`74cb05d7da21907e-widen-sizes.json`).
   - 6번: `server/audit.mjs`와 기준선 테스트를 이 run의 oracle로 씀.
 - 카운터: correction batch 4회, verifier 2회(retry, retry).
+- 2026-10-19 종료(run bf761aaf871d8d45, VO-9): 새 R-2 errors fixture `agent-docs/spec-logs/bf761aaf871d8d45-error-fixture.html`와 하네스 `-cdp-review.mjs errors`로 TV-6을 닫았다. (a) 5장면(a 360px 정답, c 540px, b는 1300px 미만에서만 throw)에서 공개 상태 재측정 throw 뒤 배율 0.89456 = 새로 열어 공개한 배율, 판별력 가드(하한 0.78·성공한 상태만 잠근 0.78·옛 zmax 0.805793과 0.01 이상 떨어짐), 세 번째 warn 글자 단위 비교. (b) 2장면 0단계 `diagram.send`로 `.pk` 1을 남겨 정리를 판별. 기준·최종 트리 모두 전 항목 ok. hand mutation P-1a(HM-5)·P-1b(HM-6)·P-2(HM-7)·P-3(HM-8)·fixture 퇴화(HM-4) 탐지. 새 run verifier 2가 VO-9를 accepted(TV-6 닫힘). refactoring-4·5 handoff는 이미 stale/에 있었다.

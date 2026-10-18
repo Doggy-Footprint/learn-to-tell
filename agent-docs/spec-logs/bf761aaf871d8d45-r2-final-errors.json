@@ -1,0 +1,86 @@
+{
+ "mode": "errors",
+ "qs": "",
+ "discriminating": true,
+ "failed": [],
+ "cases": 7,
+ "bad": 0,
+ "rows": {
+  "EG1": {
+   "zoomEntry": 1,
+   "warns": 2,
+   "exactWarn": true,
+   "still": false,
+   "shown": false,
+   "done": false,
+   "pressed": [],
+   "right": [],
+   "wrong": [],
+   "ok": true
+  },
+  "EG2": {
+   "entry1440": 0.805793,
+   "entryWarns": 0,
+   "zoomBefore": 0.805793,
+   "warnsBefore": 0,
+   "warnsAfter": 1,
+   "newWarns": [
+    "⚠ 장면 5: answerVisual을 미리 그려 보다 실패해 정답을 열 때 배율이 바뀔 수 있다 (fixture b)"
+   ],
+   "zoom": 0.89456,
+   "fresh": 0.89456,
+   "freshFloat": false,
+   "float": false,
+   "successOnly": 0.78,
+   "shown": true,
+   "done": true,
+   "still": false,
+   "pressed": [
+    "a"
+   ],
+   "right": [
+    "a"
+   ],
+   "wrong": [],
+   "avText": "답 a",
+   "guard": {
+    "aboveFloor": true,
+    "aboveSuccessOnly": true,
+    "aboveOld": true,
+    "entryLockSucceeded": true
+   },
+   "discriminating": true,
+   "ok": true
+  },
+  "EG5": {
+   "revealsOnPick": 1,
+   "reveals": 0,
+   "records": 0,
+   "ok": true
+  },
+  "EG3": {
+   "warns": 2,
+   "exactWarn": true,
+   "still": false,
+   "pk": 1,
+   "cap": "하나",
+   "drawing": "단계 0",
+   "minHeight": "",
+   "ok": true
+  },
+  "EG4": {
+   "warnsBefore": 2,
+   "warnsAfterResize": 3,
+   "ok": true
+  },
+  "C16": {
+   "callsPerLock": 1,
+   "ok": true
+  },
+  "C17": {
+   "minHeight": "300px",
+   "shown": 300,
+   "ok": true
+  }
+ }
+}

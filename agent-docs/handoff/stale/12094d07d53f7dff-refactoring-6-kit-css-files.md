@@ -38,3 +38,4 @@
 ## Execution Ledger
 
 - 2026-10-18 측정: `STYLE` 배열 줄 수 ltt.js 74, ltt-parts.js 112, ltt-ui.js 101, ltt-mock.js 45, ltt-deck.js 256(합 588).
+- 2026-10-19 종료(run bf761aaf871d8d45, spec `agent-docs/spec-logs/bf761aaf871d8d45-kit-css-files.md`): 런타임 `<link>` 대신 `.css` 원본을 편집 시점에 JS 문자열로 생성하는 방식으로 끝냈다(`node scripts/build.mjs css`/`--check`, `tests/kit-css.test.mjs`, pre-commit). `<link>` 안은 기각 기록 `agent-docs/rejections/f9e3756dd41b66c2-kit-css-runtime-link.md`. Open Questions 답: 파일은 모듈 경계대로 다섯 개; `@font-face`는 `KIT` 경로 치환과 규칙 순서 때문에 `ltt.js`에 남김(테마 토큰도 JS); standalone 요청 수는 런타임에 아무것도 링크하지 않아 해당 없음(R-2 requests 13페이지 요청 집합 기준과 같음). kit `<style>` 텍스트는 기준과 바이트 단위로 같다(R-1).

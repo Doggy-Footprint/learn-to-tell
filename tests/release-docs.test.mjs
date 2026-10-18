@@ -404,3 +404,66 @@ test("VO-5 DOC-4 FR-3 C-16: kit/CHANGELOG.md ## 0.2.0 has one line between 작�
   const err = authorContractError(section);
   assert.equal(err, null, err ?? "");
 });
+
+// ---------- spec bf761aaf871d8d45 VO-7 (FR-7): kit .css files and npm run build:css in the docs ----------
+
+// The kit 개발자용 part runs from its label to the next heading or bold label line, or to the end of ## 0.2.0.
+function devPart(section) {
+  const ls = lines(section);
+  const start = ls.findIndex((l) => isPartLabel(l, "kit 개발자용"));
+  if (start < 0) return null;
+  const rel = ls.slice(start + 1).findIndex((l) => /^#{1,6}\s/.test(l) || /^\s*\*\*[^*]+\*\*\s*$/.test(l));
+  return ls.slice(start + 1, rel < 0 ? ls.length : start + 1 + rel);
+}
+
+test("VO-7 FR-7 CHANGELOG 0.2.0 kit 개발자용: one line holds .css, build:css and npm test or --check", () => {
+  const section = sectionAt2(readReal(CHANGELOG, "kit/CHANGELOG.md"));
+  assert.ok(section !== null, "kit/CHANGELOG.md has no ## 0.2.0 heading");
+  const part = devPart(section);
+  assert.ok(part, "## 0.2.0 has no kit 개발자용 label");
+  const hit = (l) => l.includes(".css") && l.includes("build:css") && (l.includes("npm test") || l.includes("--check"));
+  assert.ok(part.some(hit), "no kit 개발자용 line holds .css, build:css and one of npm test / --check");
+});
+
+function cssSection() {
+  const text = internals();
+  const h = headings(text).find((x) => x.level === 2 && x.title.trim().startsWith("CSS를 고치려면"));
+  assert.ok(h, "kit/api/internals.md has no ## CSS를 고치려면 heading");
+  return sectionsUnder(text, (t) => t === h.title);
+}
+
+for (const [label, ok] of [
+  [".css", (s) => s.includes(".css")],
+  ["npm run build:css", (s) => s.includes("npm run build:css")],
+  ["--check", (s) => s.includes("--check")],
+  ["themeCss or 테마", (s) => hasToken(s, "themeCss") || s.includes("테마")],
+  ["@font-face", (s) => s.includes("@font-face")],
+  ["one line with css:start and 손으로", (s) => lines(s).some((l) => l.includes("css:start") && l.includes("손으로"))],
+]) {
+  test(`VO-7 FR-7 internals.md ## CSS를 고치려면: ${label}`, () => {
+    assert.ok(ok(cssSection()), `## CSS를 고치려면 lacks ${label}`);
+  });
+}
+
+function fencedBlocks(text) {
+  const blocks = [];
+  let cur = null;
+  for (const line of lines(text)) {
+    if (/^\s*```/.test(line)) {
+      if (cur) blocks.push(cur);
+      cur = cur ? null : [];
+    } else if (cur) cur.push(line);
+  }
+  return blocks;
+}
+
+test("VO-7 FR-7 README ## 사용: a fenced code block holds npm run build:css", () => {
+  const text = readReal(README, "README.md");
+  const ls = lines(text);
+  const hs = headings(text);
+  const h = hs.find((x) => x.level === 2 && x.title.trim().startsWith("사용"));
+  assert.ok(h, "README.md has no ## 사용 heading");
+  const next = hs.find((n) => n.i > h.i && n.level <= 2);
+  const section = ls.slice(h.i, next ? next.i : ls.length).join("\n");
+  assert.ok(fencedBlocks(section).some((b) => b.some((l) => l.includes("npm run build:css"))), "no fenced code block under ## 사용 holds npm run build:css");
+});

@@ -60,3 +60,13 @@ File: 2f6fe9bc88fb2faa-gallery-audit-zero-limit-evidence.md
 Summary: 갤러리 audit 0건 run 1e62814b16984176이 verifier 예산 소진(limit)으로 멈춤: 갤러리 13편 두 크기 0건·기준선 0·hero 실제 layout은 끝났고, R-3 단계 자막(TF-4)·R-6 JS 표기(TF-5) 증거의 감사만 남음
 Related Files: site/gallery, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/API.md, tests/gallery-audit.baseline.json, agent-docs/spec-logs/1e62814b16984176-gallery-audit-zero.md, agent-docs/spec-logs/1e62814b16984176-review.mjs
 Related Symbols: LTT.auditScene
+---
+File: 12094d07d53f7dff-refactoring-6-kit-css-files.md
+Summary: refactoring-6: 다섯 kit 모듈의 CSS 문자열 588줄을 .css 파일로 분리하고 각 JS가 자기 경로 기준으로 link를 넣게 하는 작업
+Related Files: skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-parts.js, skills/learn-to-tell/kit/ltt-ui.js, skills/learn-to-tell/kit/ltt-mock.js, skills/learn-to-tell/kit/ltt-deck.js, packages/ltt-kit/package.json
+Related Symbols: STYLE, themeCss, KIT
+---
+File: d7cbe1b9150ab344-placement-module-error-path-evidence.md
+Summary: 측정 모듈 분리 run 74cb05d7da21907e가 verifier 예산 소진(limit)으로 멈춤: 구현·테스트는 끝났고 R-2 오류 fixture의 판별력(TV-6: 공개 상태 재측정 throw의 zmax 1·warn 문구, E-2 `.pk` 정리)만 남음
+Related Files: skills/learn-to-tell/kit/ltt-deck.js, agent-docs/spec-logs/74cb05d7da21907e-cdp-review.mjs, agent-docs/spec-logs/74cb05d7da21907e-error-fixture.html, agent-docs/spec-logs/74cb05d7da21907e-placement-module-float-aware-zoom.md
+Related Symbols: placement, LTT.placement.zoomLock

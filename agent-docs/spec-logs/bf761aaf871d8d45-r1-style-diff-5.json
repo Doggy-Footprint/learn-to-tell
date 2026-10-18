@@ -1,0 +1,812 @@
+{
+ "files": 26,
+ "composition": true,
+ "bad": 0,
+ "badFiles": [],
+ "rows": [
+  {
+   "name": "1280x800__cache-ttl.html",
+   "kinds": [
+    "deck",
+    "ltt-mock-style",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-mock-style": [
+     4650,
+     4650
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1280x800__cognition__anchoring.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1280x800__finance__diversification.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1280x800__gpu__single-gpu-dataflow.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1280x800__knowledge-graph__ontology-triples.html",
+   "kinds": [
+    "deck",
+    "ltt-mock-style",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-mock-style": [
+     4650,
+     4650
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1280x800__linear-algebra__matrix-as-transform.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1280x800__network__tls13-quic.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1280x800__pedagogy__retrieval-practice.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1280x800__philosophy__trolley-ethics.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1280x800__physics__projectile-drag.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1280x800__scenes.html",
+   "kinds": [
+    "deck",
+    "ltt-mock-style",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-mock-style": [
+     4650,
+     4650
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1280x800__uiux__color-contrast.html",
+   "kinds": [
+    "deck",
+    "ltt-mock-style",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-mock-style": [
+     4650,
+     4650
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1280x800__uiux__visual-hierarchy-spacing.html",
+   "kinds": [
+    "deck",
+    "ltt-mock-style",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-mock-style": [
+     4650,
+     4650
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1440x900__cache-ttl.html",
+   "kinds": [
+    "deck",
+    "ltt-mock-style",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-mock-style": [
+     4650,
+     4650
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1440x900__cognition__anchoring.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1440x900__finance__diversification.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1440x900__gpu__single-gpu-dataflow.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1440x900__knowledge-graph__ontology-triples.html",
+   "kinds": [
+    "deck",
+    "ltt-mock-style",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-mock-style": [
+     4650,
+     4650
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1440x900__linear-algebra__matrix-as-transform.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1440x900__network__tls13-quic.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1440x900__pedagogy__retrieval-practice.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1440x900__philosophy__trolley-ethics.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1440x900__physics__projectile-drag.html",
+   "kinds": [
+    "deck",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1440x900__scenes.html",
+   "kinds": [
+    "deck",
+    "ltt-mock-style",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-mock-style": [
+     4650,
+     4650
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1440x900__uiux__color-contrast.html",
+   "kinds": [
+    "deck",
+    "ltt-mock-style",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-mock-style": [
+     4650,
+     4650
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  },
+  {
+   "name": "1440x900__uiux__visual-hierarchy-spacing.html",
+   "kinds": [
+    "deck",
+    "ltt-mock-style",
+    "ltt-parts-style",
+    "ltt-style",
+    "ltt-ui-style"
+   ],
+   "differ": [],
+   "composition": [],
+   "bytes": {
+    "deck": [
+     27029,
+     27029
+    ],
+    "ltt-mock-style": [
+     4650,
+     4650
+    ],
+    "ltt-parts-style": [
+     13501,
+     13501
+    ],
+    "ltt-style": [
+     24678,
+     24678
+    ],
+    "ltt-ui-style": [
+     9902,
+     9902
+    ]
+   }
+  }
+ ]
+}

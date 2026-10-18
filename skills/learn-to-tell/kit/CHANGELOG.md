@@ -21,3 +21,4 @@ kit 개발자용
 - 장면 타입 메타 표 `LTT.sceneTypes`가 생겼고 `LTT.deckTypes`는 같은 표를 가리킨다(값이 그리기 함수에서 메타 entry로 바뀜).
 - lint 규칙 레지스트리: `LTT.lintDeck`이 내부 규칙 목록을 등록 순서로 돌린다(경고와 순서는 그대로).
 - 미리 그려 재기·배율 잠금·답 자리 예약이 `ltt-deck.js`의 지역 `placement` 한 곳으로 모였다(측정 모듈 분리). 순수 함수 `LTT.placement.zoomLock`을 공개한다.
+- 다섯 모듈의 정적 CSS 원본이 `kit/ltt.css`·`ltt-parts.css`·`ltt-ui.css`·`ltt-mock.css`·`ltt-deck.css`로 옮겨졌다. `npm run build:css`가 JS 안 문자열을 다시 만들고, 어긋나면 `npm test`와 pre-commit의 `build.mjs css --check`가 실패한다. 런타임 `<style>` 텍스트와 요청은 그대로다.

@@ -88,3 +88,11 @@ render는 `{enter}`(또는 `{}`)를 돌려준다. `enter`는 방문할 때마다
 ## lint 규칙 추가
 
 `LTT.lintDeck`은 `ltt.js`의 지역 배열 `RULES`로 돈다. 항목은 `{id, scene(s, i, c)}` 또는 `{id, deck(c)}` 중 하나이고, `c`는 덱마다 한 번 만드는 `{spec, scenes, glossary, first}`다(`glossary` = `spec.glossary` 키 뒤에 terms 장면 key, `first` = `LTT.termIndex(spec)`). 규칙은 `[index, rule, msg]` 배열을 돌려준다. `index`는 0부터 센 장면 번호이고 덱 전체 경고는 -1이다(출력 `scene`은 `index + 1`). `scene` 규칙은 장면마다(장면 순서) 등록 순서로, 이어서 `deck` 규칙이 등록 순서로 돈다. 등록 순서가 곧 출력 순서이므로 새 규칙을 넣는 자리가 경고 순서를 정한다.
+
+## CSS를 고치려면
+
+- 다섯 모듈의 정적 CSS는 `kit/<모듈>.css`(`ltt.css`·`ltt-parts.css`·`ltt-ui.css`·`ltt-mock.css`·`ltt-deck.css`)에서 고친다. 런타임은 `.css`를 요청하지 않고 JS 안 문자열을 `<style>`로 넣는다.
+- 고친 뒤 `npm run build:css`로 JS 안 문자열을 다시 만든다. JS의 `/* css:start <모듈>.css */`와 `/* css:end */` 사이 구간은 생성 결과라 손으로 고치지 않는다.
+- `.css`와 생성 구간이 어긋나면 `npm test`와 `node scripts/build.mjs css --check`(pre-commit)가 실패한다.
+- 테마 토큰(`:root` 토큰 블록, 다크 블록, `themeCss()`)과 `@font-face`는 `ltt.js`에 남는다. `ltt.css`는 `body`부터이고, 생성 구간은 이 블록들 뒤, `themeCss()` 출력 앞에 붙는다.
+- 생성 문자열에서 달라지는 것은 주석·공백·`}` 앞 `;`뿐이다. 규칙 순서·선택자·값은 `.css`에 쓴 그대로 들어간다.

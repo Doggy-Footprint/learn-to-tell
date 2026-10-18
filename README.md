@@ -162,6 +162,9 @@ npm run audit:baseline
 npm run build:zip
 npm run build:kit
 
+# kit/*.css를 고친 뒤 kit JS 안 CSS 문자열 다시 만들기
+npm run build:css
+
 # 갤러리를 로컬에서 보기 → http://127.0.0.1:47823/gallery/index.html
 node skills/learn-to-tell/server/server.mjs
 ```

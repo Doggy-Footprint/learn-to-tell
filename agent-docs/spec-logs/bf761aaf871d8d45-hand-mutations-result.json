@@ -1,0 +1,447 @@
+{
+ "seed": "none",
+ "results": [
+  {
+   "id": "HM-1",
+   "files": [
+    "skills/learn-to-tell/kit/ltt-deck.css",
+    "skills/learn-to-tell/kit/ltt-deck.js",
+    "skills/learn-to-tell/kit/ltt-mock.js",
+    "skills/learn-to-tell/kit/ltt-parts.js",
+    "skills/learn-to-tell/kit/ltt-ui.js",
+    "skills/learn-to-tell/kit/ltt.js"
+   ],
+   "check": [
+    1,
+    "build.mjs css: ltt-deck.js: drift (ltt-deck.css)\n"
+   ],
+   "preCommit": 1,
+   "npm": {
+    "rc": 1,
+    "fail": 37,
+    "failing": [
+     "VO-1 C-1 ltt-deck.js: the region evaluates to N(ltt-deck.css)",
+     "VO-1 C-1 ltt-deck.js: the region is [ one JSON string per top-level rule of N(ltt-deck.css) ].join(\"\")",
+     "VO-2 S1 C-2: node scripts/build.mjs css --check exits 0 on the real tree",
+     "VO-2 S10 E-4 extra } in ltt-ui.css (depth negative, final depth 0): css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S10 E-4 missing } in ltt.css (final depth 1): css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S11 C-7 E-5: two drifted pairs make --check exit 1 naming ltt-parts.js and ltt-mock.js but not ltt.js, ltt-ui.js, ltt-deck.js, writing nothing",
+     "VO-2 S2 C-3 E-5: after one ltt-deck.css value changes, --check exits 1 naming ltt-deck.js and no other JS, and writes nothing",
+     "VO-2 S3 C-3: css exits 0 printing 1, the ltt-deck.js region becomes N(new css) in rule-per-line shape, bytes outside the markers and the other four JS stay",
+     "VO-2 S4 C-3: --check right after css exits 0",
+     "VO-2 S5 C-3: a second css changes no JS byte and prints 0",
+     "VO-2 S6 C-5: comment only ltt-mock.css regenerates to \"\" without error",
+     "VO-2 S6 C-5: empty file ltt-mock.css regenerates to \"\" without error",
+     "VO-2 S7 E-1 ltt-ui.css missing: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 end marker before start marker in ltt-deck.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 end marker missing in ltt-ui.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 end marker twice in ltt.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 ltt-deck.js start marker names ltt-ui.css: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 start marker missing in ltt-parts.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 start marker twice in ltt-mock.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S9 E-3 unterminated comment in ltt-mock.css: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S9 E-3 unterminated string in ltt-parts.css: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-3 C-4 nested @media and @keyframes: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 1 comment (one space in its place, unbalanced { inside): css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 2 double-quoted string keeps { , > and runs of spaces, \\\" skipped: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 2 single-quoted string keeps { } ; , : /* and runs of spaces, \\' skipped: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 2 trailing whitespace inside strings stays: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 3 tabs, CRLF and form feed collapse: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 3/4 spaces around + and - inside calc stay single: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 4 space after : goes: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 4 space before : stays (.a :hover): css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 4 spaces around { } ; , > go: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 5 ; right before } goes, other ; stay: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 5 after rule 4: ; } loses the ;: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 5 applies once: ;;} keeps one ;: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 6 leading and trailing whitespace go: css regenerates ltt-mock.js to the hand-written string",
+     "VO-6 FR-6: bash scripts/git/pre-commit exits 0 on the real tree",
+     "VO-6 FR-6: in a git-initialised temp tree without drift, bash scripts/git/pre-commit exits 0"
+    ]
+   }
+  },
+  {
+   "id": "HM-2",
+   "files": [
+    "skills/learn-to-tell/kit/ltt-deck.js",
+    "skills/learn-to-tell/kit/ltt-mock.js",
+    "skills/learn-to-tell/kit/ltt-parts.js",
+    "skills/learn-to-tell/kit/ltt-ui.js",
+    "skills/learn-to-tell/kit/ltt.js"
+   ],
+   "css": [
+    1,
+    "build.mjs css: ltt-deck.js: marker: expected one css:start and one css:end, found 1 and 0\n"
+   ],
+   "npm": {
+    "rc": 1,
+    "fail": 38,
+    "failing": [
+     "VO-1 C-1 ltt-deck.js: exactly one css:start and one css:end marker, start before end",
+     "VO-1 C-1 ltt-deck.js: the region evaluates to N(ltt-deck.css)",
+     "VO-1 C-1 ltt-deck.js: the region is [ one JSON string per top-level rule of N(ltt-deck.css) ].join(\"\")",
+     "VO-2 S1 C-2: node scripts/build.mjs css --check exits 0 on the real tree",
+     "VO-2 S10 E-4 extra } in ltt-ui.css (depth negative, final depth 0): css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S10 E-4 missing } in ltt.css (final depth 1): css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S11 C-7 E-5: two drifted pairs make --check exit 1 naming ltt-parts.js and ltt-mock.js but not ltt.js, ltt-ui.js, ltt-deck.js, writing nothing",
+     "VO-2 S2 C-3 E-5: after one ltt-deck.css value changes, --check exits 1 naming ltt-deck.js and no other JS, and writes nothing",
+     "VO-2 S3 C-3: css exits 0 printing 1, the ltt-deck.js region becomes N(new css) in rule-per-line shape, bytes outside the markers and the other four JS stay",
+     "VO-2 S4 C-3: --check right after css exits 0",
+     "VO-2 S5 C-3: a second css changes no JS byte and prints 0",
+     "VO-2 S6 C-5: comment only ltt-mock.css regenerates to \"\" without error",
+     "VO-2 S6 C-5: empty file ltt-mock.css regenerates to \"\" without error",
+     "VO-2 S7 E-1 ltt-ui.css missing: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 end marker before start marker in ltt-deck.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 end marker missing in ltt-ui.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 end marker twice in ltt.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 ltt-deck.js start marker names ltt-ui.css: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 start marker missing in ltt-parts.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 start marker twice in ltt-mock.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S9 E-3 unterminated comment in ltt-mock.css: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S9 E-3 unterminated string in ltt-parts.css: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-3 C-4 nested @media and @keyframes: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 1 comment (one space in its place, unbalanced { inside): css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 2 double-quoted string keeps { , > and runs of spaces, \\\" skipped: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 2 single-quoted string keeps { } ; , : /* and runs of spaces, \\' skipped: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 2 trailing whitespace inside strings stays: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 3 tabs, CRLF and form feed collapse: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 3/4 spaces around + and - inside calc stay single: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 4 space after : goes: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 4 space before : stays (.a :hover): css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 4 spaces around { } ; , > go: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 5 ; right before } goes, other ; stay: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 5 after rule 4: ; } loses the ;: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 5 applies once: ;;} keeps one ;: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 6 leading and trailing whitespace go: css regenerates ltt-mock.js to the hand-written string",
+     "VO-6 FR-6: bash scripts/git/pre-commit exits 0 on the real tree",
+     "VO-6 FR-6: in a git-initialised temp tree without drift, bash scripts/git/pre-commit exits 0"
+    ]
+   }
+  },
+  {
+   "id": "HM-3",
+   "files": [
+    "skills/learn-to-tell/kit/ltt-deck.css",
+    "skills/learn-to-tell/kit/ltt-deck.js"
+   ],
+   "regen": [
+    0,
+    "1 file(s) regenerated: ltt-deck.js\n"
+   ],
+   "npm": {
+    "rc": 1,
+    "fail": 1,
+    "failing": [
+     "gallery decks stay at or under the audit baseline in both sizes"
+    ]
+   },
+   "r1": {
+    "styleDiff": "files=26 styleDiff=26",
+    "domMatch": "files=26 nomatch=26"
+   }
+  },
+  {
+   "id": "HM-4",
+   "files": [
+    "agent-docs/spec-logs/bf761aaf871d8d45-error-fixture.html"
+   ],
+   "errors": {
+    "rc": 0,
+    "failed": [],
+    "discriminating": false,
+    "EG1zoom": 1,
+    "EG2": {
+     "zoom": 0.78,
+     "fresh": 0.78,
+     "successOnly": 0.78,
+     "entry1440": 0.78,
+     "newWarns": [
+      "⚠ 장면 5: answerVisual을 미리 그려 보다 실패해 정답을 열 때 배율이 바뀔 수 있다 (fixture b)"
+     ],
+     "guard": {
+      "aboveFloor": false,
+      "aboveSuccessOnly": false,
+      "aboveOld": false,
+      "entryLockSucceeded": true
+     }
+    },
+    "EG3pk": 1
+   }
+  },
+  {
+   "id": "HM-5",
+   "files": [
+    "skills/learn-to-tell/kit/ltt-deck.js"
+   ],
+   "errors": {
+    "rc": 0,
+    "failed": [
+     "EG1"
+    ],
+    "discriminating": false,
+    "EG1zoom": 0.78,
+    "EG2": {
+     "zoom": 0.78,
+     "fresh": 0.78,
+     "successOnly": 0.78,
+     "entry1440": 0.805793,
+     "newWarns": [
+      "⚠ 장면 5: answerVisual을 미리 그려 보다 실패해 정답을 열 때 배율이 바뀔 수 있다 (fixture b)"
+     ],
+     "guard": {
+      "aboveFloor": false,
+      "aboveSuccessOnly": false,
+      "aboveOld": false,
+      "entryLockSucceeded": true
+     }
+    },
+    "EG3pk": 1
+   }
+  },
+  {
+   "id": "HM-6",
+   "files": [
+    "skills/learn-to-tell/kit/ltt-deck.js"
+   ],
+   "errors": {
+    "rc": 0,
+    "failed": [
+     "EG2"
+    ],
+    "discriminating": true,
+    "EG1zoom": 1,
+    "EG2": {
+     "zoom": 0.805793,
+     "fresh": 0.89456,
+     "successOnly": 0.78,
+     "entry1440": 0.805793,
+     "newWarns": [
+      "⚠ 장면 5: answerVisual을 미리 그려 보다 실패해 정답을 열 때 배율이 바뀔 수 있다 (fixture b)"
+     ],
+     "guard": {
+      "aboveFloor": true,
+      "aboveSuccessOnly": true,
+      "aboveOld": true,
+      "entryLockSucceeded": true
+     }
+    },
+    "EG3pk": 1
+   }
+  },
+  {
+   "id": "HM-7",
+   "files": [
+    "skills/learn-to-tell/kit/ltt-deck.js"
+   ],
+   "errors": {
+    "rc": 0,
+    "failed": [
+     "EG3"
+    ],
+    "discriminating": true,
+    "EG1zoom": 1,
+    "EG2": {
+     "zoom": 0.89456,
+     "fresh": 0.89456,
+     "successOnly": 0.78,
+     "entry1440": 0.805793,
+     "newWarns": [
+      "⚠ 장면 5: answerVisual을 미리 그려 보다 실패해 정답을 열 때 배율이 바뀔 수 있다 (fixture b)"
+     ],
+     "guard": {
+      "aboveFloor": true,
+      "aboveSuccessOnly": true,
+      "aboveOld": true,
+      "entryLockSucceeded": true
+     }
+    },
+    "EG3pk": 3
+   }
+  },
+  {
+   "id": "HM-8",
+   "files": [
+    "skills/learn-to-tell/kit/ltt-deck.js"
+   ],
+   "errors": {
+    "rc": 0,
+    "failed": [
+     "EG2"
+    ],
+    "discriminating": true,
+    "EG1zoom": 1,
+    "EG2": {
+     "zoom": 0.89456,
+     "fresh": 0.89456,
+     "successOnly": 0.78,
+     "entry1440": 0.805793,
+     "newWarns": [],
+     "guard": {
+      "aboveFloor": true,
+      "aboveSuccessOnly": true,
+      "aboveOld": true,
+      "entryLockSucceeded": true
+     }
+    },
+    "EG3pk": 1
+   }
+  },
+  {
+   "id": "HM-9",
+   "files": [
+    "scripts/build.mjs",
+    "skills/learn-to-tell/kit/ltt-deck.js",
+    "skills/learn-to-tell/kit/ltt-mock.js",
+    "skills/learn-to-tell/kit/ltt-parts.js",
+    "skills/learn-to-tell/kit/ltt-ui.js",
+    "skills/learn-to-tell/kit/ltt.js"
+   ],
+   "npm": {
+    "rc": 1,
+    "fail": 35,
+    "failing": [
+     "VO-2 S1 C-2: node scripts/build.mjs css --check exits 0 on the real tree",
+     "VO-2 S10 E-4 extra } in ltt-ui.css (depth negative, final depth 0): css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S10 E-4 missing } in ltt.css (final depth 1): css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S11 C-7 E-5: two drifted pairs make --check exit 1 naming ltt-parts.js and ltt-mock.js but not ltt.js, ltt-ui.js, ltt-deck.js, writing nothing",
+     "VO-2 S2 C-3 E-5: after one ltt-deck.css value changes, --check exits 1 naming ltt-deck.js and no other JS, and writes nothing",
+     "VO-2 S3 C-3: css exits 0 printing 1, the ltt-deck.js region becomes N(new css) in rule-per-line shape, bytes outside the markers and the other four JS stay",
+     "VO-2 S4 C-3: --check right after css exits 0",
+     "VO-2 S5 C-3: a second css changes no JS byte and prints 0",
+     "VO-2 S6 C-5: comment only ltt-mock.css regenerates to \"\" without error",
+     "VO-2 S6 C-5: empty file ltt-mock.css regenerates to \"\" without error",
+     "VO-2 S7 E-1 ltt-ui.css missing: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 end marker before start marker in ltt-deck.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 end marker missing in ltt-ui.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 end marker twice in ltt.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 ltt-deck.js start marker names ltt-ui.css: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 start marker missing in ltt-parts.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S8 E-2 start marker twice in ltt-mock.js: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S9 E-3 unterminated comment in ltt-mock.css: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-2 S9 E-3 unterminated string in ltt-parts.css: css and --check exit 1 with the names in stderr, all five JS unchanged",
+     "VO-3 C-4 nested @media and @keyframes: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 1 comment (one space in its place, unbalanced { inside): css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 2 double-quoted string keeps { , > and runs of spaces, \\\" skipped: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 2 single-quoted string keeps { } ; , : /* and runs of spaces, \\' skipped: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 2 trailing whitespace inside strings stays: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 3 tabs, CRLF and form feed collapse: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 3/4 spaces around + and - inside calc stay single: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 4 space after : goes: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 4 space before : stays (.a :hover): css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 4 spaces around { } ; , > go: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 5 ; right before } goes, other ; stay: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 5 after rule 4: ; } loses the ;: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 5 applies once: ;;} keeps one ;: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 6 leading and trailing whitespace go: css regenerates ltt-mock.js to the hand-written string",
+     "VO-6 FR-6: bash scripts/git/pre-commit exits 0 on the real tree",
+     "VO-6 FR-6: in a git-initialised temp tree without drift, bash scripts/git/pre-commit exits 0"
+    ]
+   }
+  },
+  {
+   "id": "HM-10",
+   "files": [
+    "scripts/build.mjs",
+    "skills/learn-to-tell/kit/ltt-deck.js",
+    "skills/learn-to-tell/kit/ltt-mock.js",
+    "skills/learn-to-tell/kit/ltt-parts.js",
+    "skills/learn-to-tell/kit/ltt-ui.js",
+    "skills/learn-to-tell/kit/ltt.js"
+   ],
+   "npm": {
+    "rc": 1,
+    "fail": 1,
+    "failing": [
+     "VO-8 bf761 VO-5 C-9: build kit removes planted zz-stale.css and zz-stale.js and copies the five kit .css byte for byte"
+    ]
+   }
+  },
+  {
+   "id": "HM-11",
+   "files": [
+    "scripts/build.mjs",
+    "skills/learn-to-tell/kit/ltt-deck.js",
+    "skills/learn-to-tell/kit/ltt-mock.js",
+    "skills/learn-to-tell/kit/ltt-parts.js",
+    "skills/learn-to-tell/kit/ltt-ui.js",
+    "skills/learn-to-tell/kit/ltt.js"
+   ],
+   "regen": [
+    0,
+    "5 file(s) regenerated: ltt.js, ltt-parts.js, ltt-ui.js, ltt-mock.js, ltt-deck.js\n"
+   ],
+   "npm": {
+    "rc": 1,
+    "fail": 20,
+    "failing": [
+     "VO-1 C-1 ltt-deck.js: the region is [ one JSON string per top-level rule of N(ltt-deck.css) ].join(\"\")",
+     "VO-1 C-1 ltt-mock.js: the region is [ one JSON string per top-level rule of N(ltt-mock.css) ].join(\"\")",
+     "VO-1 C-1 ltt-parts.js: the region is [ one JSON string per top-level rule of N(ltt-parts.css) ].join(\"\")",
+     "VO-1 C-1 ltt-ui.js: the region is [ one JSON string per top-level rule of N(ltt-ui.css) ].join(\"\")",
+     "VO-1 C-1 ltt.js: the region is [ one JSON string per top-level rule of N(ltt.css) ].join(\"\")",
+     "VO-2 S3 C-3: css exits 0 printing 1, the ltt-deck.js region becomes N(new css) in rule-per-line shape, bytes outside the markers and the other four JS stay",
+     "VO-3 C-4 nested @media and @keyframes: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 1 comment (one space in its place, unbalanced { inside): css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 2 double-quoted string keeps { , > and runs of spaces, \\\" skipped: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 2 single-quoted string keeps { } ; , : /* and runs of spaces, \\' skipped: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 2 trailing whitespace inside strings stays: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 3 tabs, CRLF and form feed collapse: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 3/4 spaces around + and - inside calc stay single: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 4 space after : goes: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 4 space before : stays (.a :hover): css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 4 spaces around { } ; , > go: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 5 ; right before } goes, other ; stay: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 5 after rule 4: ; } loses the ;: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 5 applies once: ;;} keeps one ;: css regenerates ltt-mock.js to the hand-written string",
+     "VO-3 C-4 rule 6 leading and trailing whitespace go: css regenerates ltt-mock.js to the hand-written string"
+    ]
+   }
+  },
+  {
+   "id": "HM-12",
+   "files": [
+    "skills/learn-to-tell/kit/ltt-deck.css",
+    "skills/learn-to-tell/kit/ltt-deck.js",
+    "skills/learn-to-tell/kit/ltt-mock.js",
+    "skills/learn-to-tell/kit/ltt-parts.js",
+    "skills/learn-to-tell/kit/ltt-ui.js",
+    "skills/learn-to-tell/kit/ltt.js"
+   ],
+   "npm": {
+    "rc": 1,
+    "fail": 1,
+    "failing": [
+     "VO-1 FR-4 ltt-deck.css: format (one declaration per line, } lines, 2-space depth indent, prop: value;, final ;)"
+    ]
+   }
+  },
+  {
+   "id": "HM-13",
+   "files": [
+    "scripts/git/pre-commit",
+    "skills/learn-to-tell/kit/ltt-deck.js",
+    "skills/learn-to-tell/kit/ltt-mock.js",
+    "skills/learn-to-tell/kit/ltt-parts.js",
+    "skills/learn-to-tell/kit/ltt-ui.js",
+    "skills/learn-to-tell/kit/ltt.js"
+   ],
+   "npm": {
+    "rc": 1,
+    "fail": 1,
+    "failing": [
+     "VO-6 FR-6 UI-2: after one css value changes without regeneration, the temp-tree pre-commit exits non-zero"
+    ]
+   }
+  },
+  {
+   "id": "HM-14",
+   "files": [
+    "skills/learn-to-tell/kit/ltt-deck.js"
+   ],
+   "r3deck": [
+    ".dk-x{color:red}",
+    "{}"
+   ]
+  }
+ ]
+}
