@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>cdp fixture</title>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head><body>
+<script>
+// R-2 errors fixture (spec 74cb05d7da21907e VO-8, C-16): scene 1 answerVisual throws for choice "b", scene 2 step 3 enter throws,
+// scene 3 has a one-parameter answerVisual that counts its calls; scene 1 counts s.reveal calls; scene 4's last step is the tallest.
+LTT.deck({ title: "cdp fixture", theme: "paper", scenes: [
+  { type: "predict", title: "던지는 정답 그림", question: "어느 쪽인가", choices: [{ id: "a", text: "가" }, { id: "b", text: "나" }], answer: "a",
+    answerVisual: function (node, id) {
+      if (id === "b") throw new Error("fixture b");
+      // Choice "a" alone needs a smaller zoom, so a lock over the states that succeeded would differ from the E-1 zmax of 1.
+      var d = document.createElement("div"); d.style.height = "1400px"; d.textContent = "답 " + id; node.appendChild(d);
+    }, why: "이유.",
+    reveal: function () { window.__reveals = (window.__reveals || 0) + 1; } },
+  { type: "figure", title: "던지는 단계", caption: "캡션",
+    figure: function (pic) { var d = document.createElement("div"); d.style.height = "200px"; d.textContent = "그림"; return { el: d }; },
+    // Each step leaves its number in the drawing and step 2 is taller, so a skipped redraw or a partial max height shows.
+    steps: [{ caption: "하나", enter: function (k, fig) { fig.el.textContent = "단계 0"; fig.el.style.height = "200px"; } },
+      { caption: "둘", enter: function (k, fig) { fig.el.textContent = "단계 1"; fig.el.style.height = "320px"; } },
+      { caption: "셋", enter: function () { throw new Error("fixture step"); } }] },
+  { type: "predict", title: "인자 하나", question: "어느 쪽인가", choices: [{ id: "a", text: "가" }, { id: "b", text: "나" }], answer: "b",
+    answerVisual: function (node) { window.__oneCalls = (window.__oneCalls || 0) + 1; node.textContent = "하나"; }, why: "이유." },
+  { type: "figure", title: "마지막 단계가 가장 높다", caption: "캡션",
+    figure: function (pic) { var d = document.createElement("div"); d.style.height = "100px"; d.textContent = "그림"; return { el: d }; },
+    steps: [{ caption: "하나", enter: function (k, fig) { fig.el.style.height = "100px"; } }, { caption: "둘", enter: function (k, fig) { fig.el.style.height = "150px"; } },
+      { caption: "셋", enter: function (k, fig) { fig.el.style.height = "300px"; } }] },
+  { type: "keywords", terms: [{ ko: "용어" }] }
+] });
+</script>
+</body></html>

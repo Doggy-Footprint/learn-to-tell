@@ -43,7 +43,7 @@
 
 ## Open Questions
 
-- overview는 mount에서 기본 full로 그려지지만 `auditScene`의 hero는 작가가 적은 `layout`만 본다(`m.layout = s.layout`). 그래서 layout을 적지 않은 overview는 small-visual 10% 기준을 받고 empty-stage를 판정받지 않는다. run 0041d668222ce019는 동작을 바꾸지 않고 관찰만 남겼다(3번 측정 로직 분리 때 hero를 실제 layout 기준으로 볼지 정한다).
+- (refactoring-8로 옮김, run 74cb05d7da21907e) overview hero 판정 질문은 audit 의미 문제라 `agent-docs/handoff/fb7b84e0280f15ef-refactoring-8-gallery-audit-zero-and-cleanup.md` Open Questions에 있다.
 - 부하 아래(동시 headless Chrome 여러 개)에서 `server/audit.mjs`의 Chrome 하나가 60초 SIGKILL 뒤에도 끝나지 않아 gallery-audit 테스트가 14분 멈춘 적이 있다(run 0041d668222ce019 ledger 13, 원인 가설: Chrome 자식 프로세스가 stdout을 잡고 있음).
 
 - TYPES 메타를 `ltt.js`로 내릴지, lintDeck이 `LTT.deckTypes`가 있으면 쓰고 없으면 기본 표를 쓰게 할지.
@@ -60,3 +60,5 @@
 - 2026-10-18 측정: 타입별 성질을 담은 표 5개가 두 파일에 있다(위 State). 이 브랜치의 `ltt-deck.js` 커밋 12회, `API.md` 9회, 테스트 추가 1건.
 - 2026-10-18 측정: `vw`가 등장하는 갤러리 페이지 8편(anchoring 1, tls13-quic 4, ontology 1, trolley 1, matrix 7, retrieval 1, cache-ttl 2, color-contrast 1; 글자 크기 clamp 포함).
 - 2026-10-19 run 0041d668222ce019 (1·2·5·7번): 구현 1회, 테스트 correction 2회(동일성 단언 제거; verifier 1의 SC-1..SC-4·EG-1에 따른 증거 보강), 문서 문장 2개 수정(R-4), verifier 2회. hand mutation 15건 모두 탐지(HM-14는 모든 규칙을 감싼 변형으로). mutation 도구 없음(Stryker 미설치). 차분 fuzz 위반 0.
+- 2026-10-19 run 74cb05d7da21907e(spec `agent-docs/spec-logs/74cb05d7da21907e-placement-module-float-aware-zoom.md`, status limit, verifier 2회): 3번은 `ltt-deck.js` 지역 `placement`로 측정 로직을 모았다(핸들러 본문의 측정 식별자 0, phase 1 DOM·audit·lint가 기준과 같음), 공개 이름 `LTT.placement.zoomLock`. 4번은 API.md vw 규칙을 넣고 tls13-quic `.seqwrap`·ontology-triples `.kg.wide, .ladder`에서 vw를 뺐으며 `widen`을 지웠다(측정한 9개 크기 중 창 폭 760에서만 작동, audit 건수 26/26 같음). 6번은 `server/audit.mjs`와 기준선 테스트를 이 run의 oracle로 써서 완료. 남은 것은 오류 경로 증거(TV-6) 하나로 `agent-docs/handoff/d7cbe1b9150ab344-placement-module-error-path-evidence.md`가 맡는다. 그것이 끝나면 이 문서를 닫는다.
+- 2026-10-19 사용자 결정으로 닫음. 남은 TV-6(오류 경로 fixture 판별력)은 handoff d7cbe1b9150ab344가 추적.

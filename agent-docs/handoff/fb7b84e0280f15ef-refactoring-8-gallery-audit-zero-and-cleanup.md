@@ -39,6 +39,7 @@
 
 ## Open Questions
 
+- (refactoring-4에서 옮김, run 74cb05d7da21907e) overview는 mount에서 기본 full로 그려지지만 `auditScene`의 hero는 작가가 적은 `layout`만 본다(`m.layout = s.layout`). 그래서 layout을 적지 않은 overview는 small-visual 10% 기준을 받고 empty-stage를 판정받지 않는다. hero를 실제 layout 기준으로 볼지 정한다(바꾸면 갤러리 audit 건수가 바뀔 수 있다).
 - 1280×800 크기를 유지할지, 1440×900 하나로 줄일지.
 - 헤드리스 측정을 기준으로 삼아도 되는지(실제 Chrome과의 차이 크기). → 2026-10-18 tls13-quic 대조에서 같은 viewport면 결과가 같았다(Execution Ledger).
 - `shrunk`가 공개 상태 포함 최소 배율을 보는 것이 의도인지.

@@ -277,6 +277,166 @@
 
   function pad2(n) { return n < 10 ? "0" + n : String(n); }
 
+  /* ---- placement: drawing scene states ahead to measure them, zoom locking, reserved answer space ----
+     Handlers only enumerate their states and hand over their elements; every size read and measuring run is here. */
+
+  function zoomLock(question, zs) {
+    function ok(z) { return typeof z === "number" && isFinite(z) && z > 0 && z <= 1; }
+    if (!ok(question) || !Array.isArray(zs)) return 1;
+    var z = question;
+    for (var i = 0; i < zs.length; i++) {
+      if (!ok(zs[i])) return 1;
+      z = Math.min(z, zs[i]);
+    }
+    return z;
+  }
+
+  var placement = {
+    // A measurement holds until the window size or the loaded fonts change. The key is taken when measuring starts, so a
+    // run that throws is not retried until the next change.
+    sizeWatch: function () {
+      var last = null;
+      return {
+        changed: function () {
+          var key = innerWidth + "x" + innerHeight + document.fonts.status;
+          if (key === last) return false;
+          last = key;
+          return true;
+        },
+        reset: function () { last = null; }
+      };
+    },
+    // A probe reads sizes right after each state is drawn, so `root` drops transitions meanwhile; they come back only after
+    // `restore` has been laid out, so the restored state does not animate from the last measured one.
+    still: function (root, run, fail, restore) {
+      root.classList.add("dk-still");
+      try { run(); } catch (e) { fail(e); } finally {
+        try { restore(); } finally {
+          void root.offsetHeight;
+          root.classList.remove("dk-still");
+        }
+      }
+    },
+    // Figure `steps` may grow the drawing, so on entry and per window size every step is run once (their enter() is
+    // idempotent already, since looping jumps from the last step to the first) to fix the picture's height and the caption
+    // side up front. A step that still grows the picture later (async drawing) re-runs placement through the ratchet.
+    steps: function (ctx, o) {
+      var pic = o.pic, ctl = o.ctl, row = o.row;
+      var tallest = { side: 0, stack: 0 }, size = placement.sizeWatch(), stuck = false;
+      function layout(mode) {
+        row.classList.toggle("stack", mode === "stack");
+        pic.style.minHeight = tallest[mode] ? tallest[mode] + "px" : "";
+        ctx.refit();
+      }
+      function under() {
+        var c = ctl.getBoundingClientRect(), box = { x0: c.left, y0: c.top, x1: c.right, y1: c.bottom };
+        return solidRects(pic, null, null, true).some(function (r) { return LTT.rectHit(box, r); });
+      }
+      function eachStep(fn) {
+        LTT.measure(function () { for (var k = 0; k < o.count; k++) { o.draw(k); fn(); } });
+      }
+      function measureAll() {
+        tallest = { side: 0, stack: 0 };
+        stuck = innerWidth <= 760;
+        if (!stuck) {
+          layout("side");
+          eachStep(function () { tallest.side = Math.max(tallest.side, pic.offsetHeight); stuck = stuck || under(); });
+        }
+        if (stuck) {
+          layout("stack");
+          eachStep(function () { tallest.stack = Math.max(tallest.stack, pic.offsetHeight); });
+          layout("stack");
+        }
+      }
+      function probe() {
+        placement.still(pic, measureAll, function (e) {
+          tallest = { side: 0, stack: 0 };
+          LTT.warn("장면 " + (ctx.index + 1) + ": 단계를 미리 그려 보다 실패해 단계마다 배율이 바뀔 수 있다 (" + e.message + ")");
+        }, function () {
+          // Outside measuring, so the current step's own sends start again after the probe interrupted them; packets
+          // already in flight from the entry would otherwise run twice.
+          [].forEach.call(pic.querySelectorAll(".pk"), function (c) { c.remove(); });
+          o.draw(o.current());
+        });
+      }
+      return {
+        stepped: function () {
+          requestAnimationFrame(function () {
+            var mode = row.classList.contains("stack") ? "stack" : "side";
+            if (LTT.mobile() || pic.offsetHeight <= tallest[mode] + 1) return;
+            tallest[mode] = pic.offsetHeight;
+            ctx.fit();
+          });
+        },
+        // The captions sit beside the picture only while no text, control or diagram box of the picture runs under them.
+        place: function () {
+          if (size.changed()) probe();
+          if (stuck) return layout("stack");
+          layout("side");
+          if (under()) { stuck = true; layout("stack"); }
+        },
+        unplace: function () { row.classList.remove("stack"); pic.style.minHeight = ""; size.reset(); }
+      };
+    },
+    // Predict: the zoom is fixed to the smallest any state needs (the question, or the answer for each choice), so
+    // revealing never rescales the scene. It is fixed again per window size even after the reveal; the revealed look is
+    // then put back with its answer drawn anew. Measuring renders each answer off-screen without recording or s.reveal.
+    predict: function (ctx, o) {
+      var ans = o.ans, av = o.av, w = o.w, size = placement.sizeWatch();
+      function unfloat() { ans.classList.remove("dk-float"); ans.style.left = ans.style.top = ans.style.width = ""; }
+      function fail(e) {
+        LTT.warn("장면 " + (ctx.index + 1) + ": answerVisual을 미리 그려 보다 실패해 정답을 열 때 배율이 바뀔 수 있다 (" + e.message + ")");
+      }
+      function lock(revealed) {
+        var focused = revealed && ans.contains(document.activeElement) ? document.activeElement : null;
+        if (revealed) { unfloat(); w.classList.remove("done"); ans.classList.add("ltt-hidden"); }
+        ctx.zmax = 1;
+        var question = ctx.refit(), zs = [], z = 1;
+        ans.classList.remove("ltt-hidden");
+        ans.classList.add("dk-probe");
+        w.classList.add("done");
+        // A one-parameter answerVisual ignores the choice, so one drawing stands for all of them.
+        var drawn = o.perChoice ? o.choices : o.choices.slice(0, 1);
+        placement.still(w, function () {
+          LTT.measure(function () {
+            drawn.forEach(function (c) {
+              o.draw(c.id);
+              zs.push(ctx.refit());
+            });
+          });
+          z = zoomLock(question, zs);
+        }, function (e) { z = 1; fail(e); }, function () {
+          w.classList.remove("done");
+          ans.classList.remove("dk-probe");
+          ans.classList.add("ltt-hidden");
+          av.replaceChildren();
+          if (!revealed) return;
+          w.classList.add("done");
+          ans.classList.remove("ltt-hidden");
+          try {
+            o.draw(o.chosen());
+            LTT.linkTerms(ans, ctx.index);
+          } catch (e) { z = 1; fail(e); }
+          // Hiding the answer while measuring took focus away from its reason text.
+          if (focused) focused.focus({ preventScroll: true });
+        });
+        ctx.zmax = z;
+      }
+      return {
+        place: function () {
+          var revealed = o.revealed();
+          if (size.changed()) lock(revealed);
+          if (revealed) ctx.float(ans, w, ans.__lttPlace.skip, ans.__lttPlace.keepFaded);
+          else ctx.refit();
+        },
+        unplace: unfloat
+      };
+    },
+    // Summary recall: the answer keeps its space while hidden, so the scene's zoom already counts it and revealing never rescales.
+    reserve: function (a) { a.classList.add("pending"); },
+    release: function (a) { a.classList.remove("pending"); }
+  };
+
   var RENDERS = {
     hook: function (s, body) {
       var w = h("div", "dk-hook");
@@ -393,21 +553,13 @@
         } else fill(pic, s.figure, ctx);
         var api = ret && ret.el ? ret : pic;
         var ctl = row.appendChild(h("div", "ctl"));
-        // Steps may grow the drawing, so on entry and per window size every step is run once (their enter() is idempotent
-        // already, since looping jumps from the last step to the first) to fix the picture's height and the caption side
-        // up front. A step that still grows the picture later (async drawing) re-runs placement through the ratchet.
-        var tallest = { side: 0, stack: 0 }, probed = null, stuck = false;
-        var sp = LTT.stepper(ctl, s.steps.map(function (x) {
+        var sp, fp = placement.steps(ctx, { count: s.steps.length, pic: pic, ctl: ctl, row: row,
+          draw: function (k) { var x = s.steps[k]; if (x.enter) x.enter(k, api, 1); },
+          current: function () { return sp.index; } });
+        sp = LTT.stepper(ctl, s.steps.map(function (x) {
           return { caption: x.caption, enter: function (k, dir) { if (x.enter) x.enter(k, api, dir); } };
-        }), { onStep: function () {
-          requestAnimationFrame(function () {
-            var mode = row.classList.contains("stack") ? "stack" : "side";
-            if (LTT.mobile() || pic.offsetHeight <= tallest[mode] + 1) return;
-            tallest[mode] = pic.offsetHeight;
-            ctx.fit();
-          });
-        } });
-        // Every caption sits in one grid cell under the shown one, so the column is as tall as the longest caption.
+        }), { onStep: fp.stepped });
+        // Every caption sits in one grid cell beneath the shown one, so the column is as tall as the longest caption.
         var capEl = ctl.querySelector(".ltt-caption"), capStack = h("div", "dk-capstack");
         ctl.insertBefore(capStack, capEl);
         capStack.appendChild(capEl);
@@ -416,92 +568,8 @@
           g.setAttribute("aria-hidden", "true");
         });
         ctl.__lttPlace = { scope: pic, keepFaded: true };
-        function layout(mode) {
-          row.classList.toggle("stack", mode === "stack");
-          pic.style.minHeight = tallest[mode] ? tallest[mode] + "px" : "";
-          ctx.refit();
-        }
-        function under() {
-          var c = ctl.getBoundingClientRect(), box = { x0: c.left, y0: c.top, x1: c.right, y1: c.bottom };
-          return solidRects(pic, null, null, true).some(function (o) { return LTT.rectHit(box, o); });
-        }
-        function eachStep(fn) {
-          LTT.measure(function () { s.steps.forEach(function (x, k) { if (x.enter) x.enter(k, api, 1); fn(); }); });
-        }
-        // Page CSS often pins a drawing to a viewport fraction (56vw) sized for the side-by-side layout. Once the captions
-        // go below, the one drawing takes the column width, but only as far as the scene's free height allows, so
-        // widening never shrinks the whole scene.
-        var grown = [];
-        function unwiden() {
-          grown.forEach(function (g) { g[0].style.width = g[1]; g[0].style.height = g[2]; });
-          grown = [];
-        }
-        function widen() {
-          var svgs = [].filter.call(pic.querySelectorAll("svg[viewBox]"), function (v) { return !v.matches(".ltt-ic") && !v.parentElement.closest("svg"); });
-          if (svgs.length !== 1 || ctx.el.firstChild.style.zoom) return false;
-          var svg = svgs[0], r = svg.getBoundingClientRect();
-          var free = ctx.el.clientHeight - 8 - ctx.el.firstChild.getBoundingClientRect().height;
-          // Steps may draw taller pictures at the same width, so the growth uses the tallest step's height.
-          var w = Math.min(pic.clientWidth, r.width + free * r.width / Math.max(r.height, tallest.stack));
-          if (!r.height || w <= r.width + 1) return false;
-          // Steps may redraw the svg itself, so the width goes on the picture's own box and the boxes between follow it.
-          var top = svg;
-          while (top.parentElement !== pic) top = top.parentElement;
-          for (var up = svg.parentElement; up !== top && up; up = up.parentElement) {
-            if (up.getBoundingClientRect().width < w - 1) { grown.push([up, up.style.width, up.style.height]); up.style.width = "100%"; }
-          }
-          grown.push([top, top.style.width, top.style.height]);
-          top.style.width = top.getBoundingClientRect().width + w - r.width + "px";
-          if (top === svg) svg.style.height = "auto";
-          return true;
-        }
-        function probe() {
-          pic.classList.add("dk-still");
-          try { measureAll(); } catch (e) {
-            unwiden();
-            tallest = { side: 0, stack: 0 };
-            LTT.warn("장면 " + (ctx.index + 1) + ": 단계를 미리 그려 보다 실패해 단계마다 배율이 바뀔 수 있다 (" + e.message + ")");
-          } finally {
-            // Outside measuring, so the current step's own sends start again after the probe interrupted them; packets
-            // already in flight from the entry would otherwise run twice.
-            [].forEach.call(pic.querySelectorAll(".pk"), function (c) { c.remove(); });
-            var x = s.steps[sp.index];
-            if (x.enter) x.enter(sp.index, api, 1);
-            // Transitions come back only after the current step has been laid out, so entry does not animate from the last probed step.
-            void pic.offsetHeight;
-            pic.classList.remove("dk-still");
-          }
-        }
-        function measureAll() {
-          unwiden();
-          tallest = { side: 0, stack: 0 };
-          stuck = innerWidth <= 760;
-          if (!stuck) {
-            layout("side");
-            eachStep(function () { tallest.side = Math.max(tallest.side, pic.offsetHeight); stuck = stuck || under(); });
-          }
-          if (stuck) {
-            layout("stack");
-            eachStep(function () { tallest.stack = Math.max(tallest.stack, pic.offsetHeight); });
-            layout("stack");
-            if (widen()) {
-              var before = tallest.stack;
-              tallest.stack = 0;
-              eachStep(function () { tallest.stack = Math.max(tallest.stack, pic.offsetHeight); });
-              layout("stack");
-              if (ctx.el.firstChild.style.zoom) { unwiden(); tallest.stack = before; }
-            }
-          }
-        }
-        // The captions sit beside the picture only while no text, control or diagram box of the picture runs under them.
-        ctx.place = function () {
-          var key = innerWidth + "x" + innerHeight + document.fonts.status;
-          if (key !== probed) { probed = key; probe(); }
-          if (stuck) return layout("stack");
-          layout("side");
-          if (under()) { stuck = true; layout("stack"); }
-        };
-        ctx.unplace = function () { row.classList.remove("stack"); pic.style.minHeight = ""; unwiden(); probed = null; };
+        ctx.place = fp.place;
+        ctx.unplace = fp.unplace;
       } else fill(st, s.figure, ctx);
       if (s.caption) {
         var n = ctx.scenes.slice(0, ctx.index + 1).filter(function (x) { return x.type === "figure"; }).length;
@@ -559,46 +627,17 @@
       // Only hidden choices free their space; dim and dot choices are meant to stay visible, so the answer avoids them.
       var faded = rest === "hide" ? ".ltt-choices button:not(.right):not([aria-pressed=true])" : null;
       ans.__lttPlace = { scope: ctx.el.firstChild, skip: faded, keepFaded: !faded };
-      // The zoom is fixed on entry to the smallest any state needs (the question, or the answer for each choice), so
-      // revealing never rescales the scene. Probing renders each answer off-screen without recording or s.reveal.
-      var probed = null;
-      function lockZoom() {
-        var key = innerWidth + "x" + innerHeight + document.fonts.status;
-        if (key === probed) return;
-        probed = key;
-        ctx.zmax = 1;
-        var z = ctx.refit();
-        ans.classList.remove("ltt-hidden");
-        ans.classList.add("dk-probe");
-        w.classList.add("done", "dk-still");
-        // A one-parameter answerVisual ignores the choice, so one drawing stands for all of them.
-        var drawn = typeof s.answerVisual === "function" && s.answerVisual.length > 1 ? choices : choices.slice(0, 1);
-        try {
-          LTT.measure(function () {
-            drawn.forEach(function (c) {
-              if (typeof s.answerVisual === "function") { av.replaceChildren(); s.answerVisual(av, c.id); }
-              else if (s.answerVisual) av.innerHTML = s.answerVisual;
-              z = Math.min(z, ctx.refit());
-            });
-          });
-        } catch (e) {
-          z = 1;
-          LTT.warn("장면 " + (ctx.index + 1) + ": answerVisual을 미리 그려 보다 실패해 정답을 열 때 배율이 바뀔 수 있다 (" + e.message + ")");
-        } finally {
-          w.classList.remove("done");
-          ans.classList.remove("dk-probe");
-          ans.classList.add("ltt-hidden");
-          av.replaceChildren();
-          void w.offsetHeight;
-          w.classList.remove("dk-still");
-        }
-        ctx.zmax = z;
+      var chosen = null;
+      function draw(v) {
+        if (typeof s.answerVisual === "function") { av.replaceChildren(); s.answerVisual(av, v); }
+        else if (s.answerVisual) av.innerHTML = s.answerVisual;
       }
-      ctx.place = function () {
-        if (w.classList.contains("done")) ctx.float(ans, w, faded, !faded);
-        else { lockZoom(); ctx.refit(); }
-      };
-      ctx.unplace = function () { ans.classList.remove("dk-float"); ans.style.left = ans.style.top = ans.style.width = ""; };
+      var pp = placement.predict(ctx, { choices: choices, perChoice: typeof s.answerVisual === "function" && s.answerVisual.length > 1,
+        draw: draw, ans: ans, av: av, w: w,
+        revealed: function () { return w.classList.contains("done"); },
+        chosen: function () { return chosen; } });
+      ctx.place = pp.place;
+      ctx.unplace = pp.unplace;
       body.appendChild(w);
       var gate = { btn: lock, alt: box, word: "정답" };
       ctx.gate = gate;
@@ -617,8 +656,8 @@
           w.classList.add("done");
           why.tabIndex = -1;
           why.focus({ preventScroll: true });
-          if (typeof s.answerVisual === "function") s.answerVisual(av, v);
-          else if (s.answerVisual) av.innerHTML = s.answerVisual;
+          chosen = v;
+          draw(v);
           LTT.linkTerms(ans, ctx.index);
           if (s.reveal) s.reveal(v);
           ctx.fit();
@@ -732,8 +771,8 @@
     cards.forEach(function (c) {
       var li = w.appendChild(h("li", null, "<p class='q'></p>"));
       li.firstChild.innerHTML = c.recall || c.title || "";
-      // The answer keeps its space while hidden, so the scene's zoom already counts it and revealing never rescales.
-      var a = h("div", "a" + (c.recall ? " pending" : ""), "<p></p>");
+      var a = h("div", "a", "<p></p>");
+      if (c.recall) placement.reserve(a);
       a.firstChild.innerHTML = c.text;
       if (c.ask) a.appendChild(h("p", "ask", "<b>agent에게</b>" + c.ask));
       if (c.recall) {
@@ -743,7 +782,7 @@
         box.placeholder = "떠올린 답 (적지 않아도 된다)";
         var b = row.appendChild(h("div", "dk-actions")).appendChild(h("button", "ghost", "답 보기"));
         b.onclick = function () {
-          a.classList.remove("pending"); b.disabled = true;
+          placement.release(a); b.disabled = true;
           LTT.linkTerms(a, ctx.index);
           ctx.fit();
           LTT.record("recall", { scene: c.title, question: stripTags(c.recall), answer: box.value.trim() });
@@ -1191,5 +1230,6 @@
   }
 
   LTT.deck = deck;
+  LTT.placement = { zoomLock: zoomLock };
   LTT.deckTypes = LTT.sceneTypes;
 })(typeof globalThis !== "undefined" ? globalThis : this);

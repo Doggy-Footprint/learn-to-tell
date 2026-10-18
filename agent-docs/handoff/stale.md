@@ -40,3 +40,13 @@ File: a3a320e98302b058-refactoring-2-api-core-and-part-docs.md
 Summary: refactoring-2: kit/API.md를 항상 읽는 핵심과 쓸 때만 읽는 부품별 참조(kit/api/<part>.md)로 나누고 SKILL.md가 고른 부품만 읽게 하는 작업
 Related Files: skills/learn-to-tell/kit/API.md, skills/learn-to-tell/kit/api/, skills/learn-to-tell/SKILL.md, site/gallery/catalog.html, packages/ltt-kit/package.json, scripts/build.mjs, tests/api-docs.test.mjs, tests/api-docs-preservation.test.mjs, agent-docs/spec-logs/fd310baab4363801-api-split-cost-budget.md
 Related Symbols: 없음
+---
+File: 47c0f728cfa2d600-refactoring-4-deck-type-meta-and-ctx-protocol.md
+Summary: refactoring-4: 1·2·5·7번(run 0041d668222ce019)과 3·4·6번(run 74cb05d7da21907e: placement 측정 모듈, vw 규칙·widen 제거, audit 회귀 기준)이 구현됐고, 오류 경로 증거(handoff d7cbe1b9150ab344)가 끝나면 닫는다
+Related Files: skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/api/internals.md, skills/learn-to-tell/kit/API.md, tests/scene-types.test.mjs, tests/lint-rules.test.mjs
+Related Symbols: LTT.sceneTypes, RENDERS, RULES, LTT.deckTypes, LTT.lintDeck, LTT.auditScene, placement, LTT.placement.zoomLock, measure
+---
+File: e72bbfb2418e2e6d-refactoring-5-scene-scale-deferred.md
+Summary: refactoring-5: 장면 배율 보류 항목. 1·2번 기각 기록, 3번 측정 근거로 구현 안 함, 4번 공개 상태 resize 구현(run 74cb05d7da21907e). 오류 경로 증거(handoff d7cbe1b9150ab344)가 끝나면 닫는다
+Related Files: skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt-parts.js, skills/learn-to-tell/kit/API.md
+Related Symbols: placement, LTT.placement.zoomLock, floatPanel, fit, LTT.stepper, diagram.send

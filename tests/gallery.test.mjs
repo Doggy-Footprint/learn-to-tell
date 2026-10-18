@@ -185,3 +185,59 @@ test("VO-8 support card content: chips, vendor rows, feature items", () => {
   assert.ok(items.math?.includes("LTT.math"), "feature math lacks LTT.math");
   assert.ok(items.map?.includes("LTT.map"), "feature map lacks LTT.map");
 });
+
+// ---------- spec 74cb05d7da21907e VO-4 (FR-7, C-15): figure picture widths are not pinned with vw ----------
+
+const LESSON_PAGES = pages.filter((p) => !["index.html", "catalog.html"].includes(p) && p.split("/").length <= 2);
+const WIDTH_PROPS = new Set(["width", "min-width", "max-width"]);
+const VW_ALLOWED = [{ page: "cache-ttl.html", selector: ".ans-row .ltt-units" }];
+const normSelector = (s) => s.trim().replace(/\s+/g, " ");
+
+// Innermost `selector { declarations }` blocks, so rules nested in @media/@supports keep their own selector.
+function cssRules(css) {
+  const out = [];
+  for (const m of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
+    const selectors = m[1].split(";").pop().split(",").map(normSelector).filter(Boolean);
+    const decls = m[2].split(";").map((d) => d.split(":")).filter((kv) => kv.length >= 2)
+      .map(([k, ...v]) => ({ prop: k.trim().toLowerCase(), value: v.join(":").trim() }));
+    out.push({ selectors, decls });
+  }
+  return out;
+}
+const styleRules = (page) => [...read(page).matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].flatMap((m) => cssRules(m[1]));
+const vwWidths = (rule) => rule.decls.filter((d) => WIDTH_PROPS.has(d.prop) && /vw/i.test(d.value));
+
+test("VO-4 css parser: nested @media rules, comments, non-width properties and grouped selectors", () => {
+  const rules = cssRules("/* .x { width: 9vw } */ .a, .b  .c { gap: 2vw; font-size: clamp(1px, 1vw, 2px); border-width: 1vw; width: 50% }\n@media (max-width: 900px) { .d { max-width: 40vw; } }");
+  assert.deepEqual(rules.map((r) => r.selectors), [[".a", ".b .c"], [".d"]]);
+  assert.deepEqual(rules.map((r) => vwWidths(r).map((d) => `${d.prop}: ${d.value}`)), [[], ["max-width: 40vw"]]);
+});
+
+test("VO-4 FR-7: the scan covers the 13 gallery lesson pages (site/gallery/*.html and */*.html, minus index, catalog, stale/)", () => {
+  assert.equal(LESSON_PAGES.length, 13, LESSON_PAGES.join(", "));
+  for (const p of ["cache-ttl.html", "scenes.html", "network/tls13-quic.html", "knowledge-graph/ontology-triples.html"]) assert.ok(LESSON_PAGES.includes(p), `scan misses ${p}`);
+  for (const p of LESSON_PAGES) assert.ok(styleRules(p).length > 0, `${p} has no <style> rule`);
+});
+
+test("VO-4 FR-7: no <style> width, min-width or max-width declaration uses vw outside the allow-list (cache-ttl .ans-row .ltt-units)", () => {
+  const offenders = [];
+  for (const page of LESSON_PAGES) {
+    for (const rule of styleRules(page)) {
+      const vw = vwWidths(rule);
+      if (vw.length === 0) continue;
+      const allowed = rule.selectors.every((s) => VW_ALLOWED.some((a) => a.page === page && a.selector === s));
+      if (!allowed) offenders.push(`${page} ${rule.selectors.join(", ")} { ${vw.map((d) => `${d.prop}: ${d.value}`).join("; ")} }`);
+    }
+  }
+  assert.deepEqual(offenders, [], `vw widths outside the allow-list:\n${offenders.join("\n")}`);
+});
+
+for (const [page, need] of [["network/tls13-quic.html", [".seqwrap"]], ["knowledge-graph/ontology-triples.html", [".kg.wide", ".ladder"]]]) {
+  test(`VO-4 FR-7 C-15: ${page} has a rule for ${need.join(", ")} and no rule naming them pins a width with vw`, () => {
+    const rules = styleRules(page);
+    assert.ok(rules.some((r) => need.every((s) => r.selectors.includes(s))), `${page} has no <style> rule whose selector list includes ${need.join(" and ")}`);
+    const pinned = rules.filter((r) => need.some((s) => r.selectors.includes(s)) && vwWidths(r).length > 0)
+      .map((r) => `${r.selectors.join(", ")} { ${vwWidths(r).map((d) => `${d.prop}: ${d.value}`).join("; ")} }`);
+    assert.deepEqual(pinned, [], `${page} still pins a width with vw:\n${pinned.join("\n")}`);
+  });
+}

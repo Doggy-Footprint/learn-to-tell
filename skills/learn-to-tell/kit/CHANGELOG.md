@@ -11,9 +11,12 @@
 - 선택지를 고른 predict에서 다음 이동은 정답을 연다(auto-reveal).
 - 펼친 정답과 단계 자막이 장면의 빈자리에 놓여 공개·단계 이동에 장면이 다시 줄지 않는다.
 - audit 규칙 `panel-overlap`: 자막·정답 패널이 글·그림과 겹치면 경고한다.
+- figure 그림 폭을 페이지 CSS에서 `vw`로 고정하지 않는다(kit이 칸 폭을 준다). 자막이 아래로 내려갈 때 `vw`로 묶인 그림을 칸 폭까지 넓히던 덱 동작(`widen`)은 없어졌다.
+- predict: 공개 상태에서 창 크기가 바뀌면 배율을 다시 재고, `answerVisual`이 다시 불린다.
 
 kit 개발자용
 - `?audit` 결과가 `<script id="ltt-audit">` JSON으로 남고 `server/audit.mjs`가 headless Chrome으로 갤러리·수업을 점검한다.
 - API 문서가 `kit/API.md`와 `kit/api/*.md`로 나뉘었다.
 - 장면 타입 메타 표 `LTT.sceneTypes`가 생겼고 `LTT.deckTypes`는 같은 표를 가리킨다(값이 그리기 함수에서 메타 entry로 바뀜).
 - lint 규칙 레지스트리: `LTT.lintDeck`이 내부 규칙 목록을 등록 순서로 돌린다(경고와 순서는 그대로).
+- 미리 그려 재기·배율 잠금·답 자리 예약이 `ltt-deck.js`의 지역 `placement` 한 곳으로 모였다(측정 모듈 분리). 순수 함수 `LTT.placement.zoomLock`을 공개한다.

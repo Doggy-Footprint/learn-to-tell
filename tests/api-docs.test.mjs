@@ -250,13 +250,24 @@ const BASE_DEFINITIONS = {
   "kit/api/map.md": "map",
   "kit/api/controls.md": "sweep, drag, predict, stepper, sim, tween",
   "kit/api/charts.md": "axisPlot, hbars, lanes, sankey, plot, plotTheme, plane, units, bar",
-  "kit/api/internals.md": "kitBase, lessonId, compare, termsIn, sceneText, termIndex, rectHit, freeSlot, stepValues, goalReach, setGlossary, auditScene, mobile, measure, $, deckTypes, sceneTypes",
+  "kit/api/internals.md": "kitBase, lessonId, compare, termsIn, sceneText, termIndex, rectHit, freeSlot, stepValues, goalReach, setGlossary, auditScene, mobile, measure, $, deckTypes, sceneTypes, placement",
 };
 
-test("VO-2 oracle table lists 74 distinct base names", () => {
+// Spec 74cb05d7da21907e v1 FR-3: the base 74 public names plus placement (defined by ltt-deck.js, documented in internals.md) = 75.
+test("VO-2 oracle table lists 75 distinct names: the base 74 plus placement", () => {
   const all = Object.values(BASE_DEFINITIONS).flatMap((s) => s.split(", "));
-  assert.equal(new Set(all).size, 74);
-  assert.equal(all.length, 74);
+  assert.equal(new Set(all).size, 75);
+  assert.equal(all.length, 75);
+  assert.equal(all.filter((n) => n !== "placement").length, 74);
+});
+
+test("VO-2 FR-3 QR-2: the runtime LTT public names are exactly the 75 oracle names", () => {
+  const expected = Object.values(BASE_DEFINITIONS).flatMap((s) => s.split(", ")).sort();
+  const names = Object.keys(loadLTT()).sort();
+  const missing = expected.filter((n) => !names.includes(n));
+  const extra = names.filter((n) => !expected.includes(n));
+  assert.deepEqual({ missing, extra }, { missing: [], extra: [] }, `runtime LTT differs from the oracle: missing [${missing.join(", ")}], extra [${extra.join(", ")}]`);
+  assert.equal(names.length, 75);
 });
 
 for (const [file, list] of Object.entries(BASE_DEFINITIONS)) {

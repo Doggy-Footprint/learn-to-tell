@@ -274,3 +274,83 @@ test("VO-11 C-16: README ### 릴리스 section mentions kit/CHANGELOG.md", () =>
   const section = ls.slice(h.i, next ? next.i : ls.length).join("\n");
   assert.ok(section.includes("kit/CHANGELOG.md"), "README ### 릴리스 section lacks kit/CHANGELOG.md");
 });
+
+// ---------- spec 74cb05d7da21907e VO-3 (FR-9): placement module, vw rule, revealed-state resize ----------
+
+const API = join(KIT, "API.md");
+const CONTRACTS = join(KIT, "api/deck-contracts.md");
+const lineHasAll = (text, tokens) => lines(text).some((l) => tokens.every((t) => (/^[\w$]+$/.test(t) ? hasToken(l, t) : l.includes(t))));
+
+function sectionsOrFail(text, what, match, label) {
+  const section = sectionsUnder(text, match);
+  assert.ok(section, `${what} has no heading ${label}`);
+  return section;
+}
+
+test("VO-3 FR-9 API.md ## 원칙: exactly one line states the vw rule with vw and figure", () => {
+  const text = readReal(API, "kit/API.md");
+  const h = headings(text).find((x) => x.level === 2 && x.title.trim().startsWith("원칙"));
+  assert.ok(h, "kit/API.md has no ## 원칙 heading");
+  const section = sectionsUnder(text, (t) => t === h.title);
+  const hits = lines(section).filter((l) => hasToken(l, "vw") && hasToken(l, "figure"));
+  assert.equal(hits.length, 1, `## 원칙 lines holding both vw and figure:\n${hits.join("\n")}`);
+});
+
+test("VO-3 FR-9 internals.md: exactly one table row defines LTT.placement in a first-cell code span, and it names zoomLock", () => {
+  const hits = rows(internals()).filter((r) => definesName(r, "placement"));
+  assert.equal(hits.length, 1, `rows defining LTT.placement:\n${hits.join("\n")}`);
+  assert.ok(hasToken(hits[0], "zoomLock"), `LTT.placement row lacks zoomLock: ${hits[0]}`);
+});
+
+test("VO-3 FR-9 internals.md measurement-mode section: one line holds answerVisual, 공개, 창 크기 and 다시 (called again after reveal on resize)", () => {
+  const section = sectionsOrFail(internals(), "kit/api/internals.md", (t) => t.includes("측정"), "containing 측정");
+  assert.ok(lineHasAll(section, ["answerVisual", "공개", "창 크기", "다시"]), "no line under a 측정 heading holds answerVisual, 공개, 창 크기 and 다시");
+});
+
+const contracts = () => readReal(CONTRACTS, "kit/api/deck-contracts.md");
+
+test("VO-3 FR-9 deck-contracts.md figure section: no 칸 폭까지 넓힌다, no 56vw, and the vw rule is stated", () => {
+  const section = sectionsOrFail(contracts(), "kit/api/deck-contracts.md", (t) => t.includes("figure"), "containing figure");
+  assert.ok(!section.includes("칸 폭까지 넓힌다"), "figure section still says 칸 폭까지 넓힌다");
+  assert.ok(!section.includes("56vw"), "figure section still mentions 56vw");
+  assert.ok(hasToken(section, "vw"), "figure section does not mention vw");
+});
+
+test("VO-3 FR-9 deck-contracts.md predict section: one line says it re-measures (다시) when the 창 크기 changes", () => {
+  const section = sectionsOrFail(contracts(), "kit/api/deck-contracts.md", (t) => t.includes("predict"), "containing predict");
+  assert.ok(lineHasAll(section, ["창 크기", "다시"]), "no line in the predict section holds 창 크기 and 다시");
+});
+
+for (const token of ["vw", "placement", "widen"]) {
+  test(`VO-3 FR-9 CHANGELOG 0.2.0 item: ${token}`, () => {
+    const section = sectionAt2(readReal(CHANGELOG, "kit/CHANGELOG.md"));
+    assert.ok(section !== null, "kit/CHANGELOG.md has no ## 0.2.0 heading");
+    assert.ok(/^[\w$]+$/.test(token) ? hasToken(section, token) : section.includes(token), `## 0.2.0 lacks ${token}`);
+  });
+}
+
+test("VO-3 FR-9 CHANGELOG 0.2.0 item: 창 크기 or resize", () => {
+  const section = sectionAt2(readReal(CHANGELOG, "kit/CHANGELOG.md"));
+  assert.ok(section !== null, "kit/CHANGELOG.md has no ## 0.2.0 heading");
+  assert.ok(section.includes("창 크기") || hasToken(section, "resize"), "## 0.2.0 lacks both 창 크기 and resize");
+});
+
+// v4 (IM-1): option C was dropped, so no doc may promise that a floatable answer keeps the entry zoom.
+const FLOAT_PROMISES = ["뜰 수 있는 정답", "띄울 수 있는 정답"];
+const floatPromiseTargets = [
+  ["kit/api/deck-contracts.md", () => contracts()],
+  ["kit/api/internals.md", () => internals()],
+  ["kit/CHANGELOG.md ## 0.2.0", () => {
+    const section = sectionAt2(readReal(CHANGELOG, "kit/CHANGELOG.md"));
+    assert.ok(section !== null, "kit/CHANGELOG.md has no ## 0.2.0 heading");
+    return section;
+  }],
+];
+
+for (const [what, text] of floatPromiseTargets) {
+  test(`VO-3 FR-9 v4: ${what} contains neither ${FLOAT_PROMISES.join(" nor ")}`, () => {
+    const t = text();
+    const found = FLOAT_PROMISES.filter((p) => t.includes(p));
+    assert.deepEqual(found, [], `${what} still contains ${found.join(", ")}`);
+  });
+}

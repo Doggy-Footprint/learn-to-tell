@@ -17,6 +17,7 @@ kit 개발자용 · 수업에서 부르지 않는 kit 내부 이름이다. kit �
 | `LTT.setGlossary(defs, first)` | `linkTerms`가 쓸 용어 풀이와 용어별 첫 장면을 정한다. 덱이 시작할 때 부른다. |
 | `LTT.auditScene(m)` | 그려진 장면 하나의 측정값으로 `?audit` 규칙을 판정 → `[{rule, msg}]`. |
 | `LTT.mobile()` | `<html data-ltt-mobile>`가 붙어 있는가(폰 재배치 중인가). |
+| `LTT.placement` | `{zoomLock}`. `zoomLock(question, zs)` → 배율. `question`은 질문 상태(정답 숨김)를 상한 1에서 맞춘 배율, `zs`는 선택지별 정답을 흐름 안에 둔 상태를 상한 1에서 맞춘 배율의 배열. `Math.min(question, ...zs)`를 돌려주고 `zs`가 비면 `question`. 잘못된 입력(`question`이나 원소가 number가 아니거나 유한수가 아니거나 0 이하이거나 1 초과, `zs`가 배열이 아님)이면 1. DOM·전역을 읽지 않고 인자를 바꾸지 않는다. predict 배율 잠금이 `ctx.zmax`를 이것으로 정한다. |
 | `LTT.measure(fn)` | `fn`을 측정 모드로 실행한다. 그동안 diagram·sequence·map의 `send` 패킷(단계 반복 포함)은 아무것도 하지 않는다. 덱이 figure 단계·predict 정답을 미리 잴 때 쓴다. |
 | `LTT.$` | `ltt-parts.js`의 `document.getElementById(id)` 줄임. |
 | `LTT.sceneTypes` | 장면 타입 이름 → 메타 entry 표. 덱·lint·audit이 타입 성질을 이 표에서 읽는다(아래 "장면 타입 메타 표"). |
@@ -68,12 +69,21 @@ kit 개발자용 · 수업에서 부르지 않는 kit 내부 이름이다. kit �
 
 render는 `{enter}`(또는 `{}`)를 돌려준다. `enter`는 방문할 때마다 `fit()` 전에 불린다(이어서 `mount`가 돌려준 `enter`, points 다시 그리기, 장면 `enter` 순). `leave`는 장면 `mount`가 돌려준 것만 다른 장면으로 갈 때 쓰이고, render가 돌려준 `leave`는 쓰이지 않는다. `?audit`은 모든 장면을 mount하고 `fit()`을 부른 뒤 잰다. 방문하지 않은 장면은 `enter` 없이 `fit()`만 불리므로 `place`는 `enter` 전에도 동작해야 한다.
 
+## placement
+
+`ltt-deck.js`의 지역 `placement`가 미리 그려 재기(측정 모드, `.dk-still`, 끝난 뒤 원상 복구), 창 크기 키(창 너비·높이와 `document.fonts.status`) 비교, predict 배율 잠금, summary recall 답 자리 예약을 맡는다. 타입 render는 상태를 열거하는 함수와 요소만 넘기고 크기를 직접 읽지 않는다.
+
+- figure `steps`: 단계 수, 단계 k를 그리는 함수(`enter(k, fig, 1)`), 현재 단계 번호, 그림 상자·자막 칸·행.
+- predict: 선택지 목록(`잘 모르겠다` 포함), 선택지별 `answerVisual` 그리기, 정답 패널과 host, 공개 상태 여부와 고른 값. 측정은 버튼 표시를 건드리지 않는다.
+- summary recall: 답 요소. 예약은 자리를 남긴 채 숨기고 해제는 보인다.
+- 크기 키는 측정을 시작할 때 기록되므로, 측정이 throw하면 다음 키 변경 때 다시 잰다.
+
 ## 측정 모드
 
 - `LTT.measure(fn)` 안에서는 diagram·sequence·map의 `send`와 단계 반복 send가 아무것도 하지 않는다. `LTT.record`는 꺼지지 않는다.
 - `.dk-still`이 붙은 상자 안은 CSS transition이 꺼진다.
 - figure `steps`: `place`할 때 창 크기나 글꼴 상태가 지난번 측정과 다르면 모든 단계의 `enter`를 측정 모드에서 차례로(배치에 따라 여러 번) 미리 부르고, 측정 모드 밖에서 현재 단계의 `enter`를 다시 부른다. 그래서 `enter`는 멱등이어야 한다.
-- predict 함수형 `answerVisual`: 공개 전 `place`할 때 창 크기나 글꼴 상태가 지난번 측정과 다르면 측정 모드로 미리 불린다. 인자를 둘 이상 받으면 선택지마다(`unsure: false`가 아니면 `잘 모르겠다` 포함), 아니면 한 번(HTML 문자열 `answerVisual`도 한 번). 같은 입력이면 같은 크기를 내고 동기로 그려야 하며 전역 상태·기록을 건드리지 않는다.
+- predict 함수형 `answerVisual`: `place`할 때 창 크기나 글꼴 상태가 지난번 측정과 다르면 측정 모드로 미리 불린다. 공개 뒤에도 창 크기가 바뀌면 다시 불리고, 측정이 끝나면 고른 값으로 한 번 더 불려 공개 모습을 다시 그린다(`s.reveal`·`LTT.record`는 부르지 않는다). 인자를 둘 이상 받으면 선택지마다(`unsure: false`가 아니면 `잘 모르겠다` 포함), 아니면 한 번(HTML 문자열 `answerVisual`도 한 번). 같은 입력이면 같은 크기를 내고 동기로 그려야 하며 전역 상태·기록을 건드리지 않는다.
 
 ## lint 규칙 추가
 

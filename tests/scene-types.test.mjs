@@ -147,9 +147,10 @@ test("VO-2 FR-3: LTT.deckTypes is the same object as LTT.sceneTypes", () => {
   assert.equal(LTT.deckTypes, LTT.sceneTypes);
 });
 
-test("VO-2 FR-11 C-3: public names are the 73 base names plus sceneTypes", () => {
+// Spec 74cb05d7da21907e v3 FR-3 adds placement (defined by ltt-deck.js) to the public set.
+test("VO-2 FR-11 C-3 (74cb05d7da21907e FR-3): public names are the 73 base names plus sceneTypes and placement", () => {
   assert.equal(new Set(BASE_NAMES).size, 73);
-  assert.deepEqual(Object.keys(loadDeck()).sort(), [...BASE_NAMES, "sceneTypes"].sort());
+  assert.deepEqual(Object.keys(loadDeck()).sort(), [...BASE_NAMES, "sceneTypes", "placement"].sort());
 });
 
 // ---------- VO-3 load errors (error guessing) ----------

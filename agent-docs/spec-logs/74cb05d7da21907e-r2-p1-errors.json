@@ -1,0 +1,43 @@
+{
+ "mode": "errors",
+ "rows": {
+  "EG1": {
+   "zoomEntry": 1,
+   "warns": 2,
+   "still": false,
+   "shown": false,
+   "done": false
+  },
+  "EG2": {
+   "warnsBefore": 2,
+   "warnsAfter": 3,
+   "zoom": 1,
+   "shown": true,
+   "done": true,
+   "still": false,
+   "pressed": [
+    "a"
+   ],
+   "right": [
+    "a"
+   ],
+   "avText": "답 a"
+  },
+  "EG5": {
+   "reveals": 0,
+   "records": 0
+  },
+  "EG3": {
+   "warns": 2,
+   "still": false,
+   "pk": 0,
+   "cap": "하나"
+  },
+  "EG4": {
+   "warnsAfterResize": 3
+  },
+  "C16": {
+   "callsPerLock": 1
+  }
+ }
+}
