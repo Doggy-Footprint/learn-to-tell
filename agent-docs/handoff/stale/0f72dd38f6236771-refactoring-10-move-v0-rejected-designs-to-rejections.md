@@ -36,7 +36,7 @@
 
 ## Execution Ledger
 
-해당 없음.
+- 2026-10-19: Moved Table 8행을 agent-docs/rejections/ 기록 8개로 옮기고 index.md를 갱신했다(행 합치기 없음).
 
 ## Moved Table
 

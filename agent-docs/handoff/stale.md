@@ -70,3 +70,8 @@ File: d7cbe1b9150ab344-placement-module-error-path-evidence.md
 Summary: 측정 모듈 분리 run 74cb05d7da21907e가 verifier 예산 소진(limit)으로 멈춤: 구현·테스트는 끝났고 R-2 오류 fixture의 판별력(TV-6: 공개 상태 재측정 throw의 zmax 1·warn 문구, E-2 `.pk` 정리)만 남음
 Related Files: skills/learn-to-tell/kit/ltt-deck.js, agent-docs/spec-logs/74cb05d7da21907e-cdp-review.mjs, agent-docs/spec-logs/74cb05d7da21907e-error-fixture.html, agent-docs/spec-logs/74cb05d7da21907e-placement-module-float-aware-zoom.md
 Related Symbols: placement, LTT.placement.zoomLock
+---
+File: 0f72dd38f6236771-refactoring-10-move-v0-rejected-designs-to-rejections.md
+Summary: refactoring-10: learn-to-tell-PROJECT.md에서 옮긴 v0 폐기 설계 표를 rejection 기록으로 정리하는 남은 작업
+Related Files: learn-to-tell-PROJECT.md, agent-docs/rejections/index.md
+Related Symbols: 없음
