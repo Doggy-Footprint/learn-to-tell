@@ -1,7 +1,7 @@
 # learn-to-tell 생성 경로 다이어트: 빠르고 싼 수업 생성
 
 - 상태: 2026-10-19 사용자 승인. 진행 상황은 handoff `agent-docs/handoff/3b9ef4b406088e7f-skill-generation-diet.md`에 있다.
-- 이 문서는 작업 동안만 쓰는 계획이다. 작업을 마치면 `stale/`로 옮긴다.
+- 이 문서는 작업 동안만 쓰는 계획이다. 작업을 마치면 `agent-docs/plans/` 폴더째 지운다(`git rm -r agent-docs/plans`).
 
 ## Context
 
@@ -148,7 +148,7 @@ workflow-approach는 active spec을 한 번에 하나만 두므로 코드 run은
 - audit: `skills/learn-to-tell/server/audit.mjs`, `kit/ltt-deck.js`(`measure`, `zoomLock` 결과 보존, contact sheet용 장면 이동), `kit/ltt.js`(`auditScene`·`lintDeck` 메시지·심각도·새 규칙).
 - kit: `kit/ltt-deck.js`(`fit`, sweep 장면, spec 칸), `kit/ltt-ui.js`(`fill`), `kit/ltt-parts.js`(diagram 컨테이너, axisPlot marks, timeline, glyph), `kit/ltt-*.css` → `npm run build:css`, `kit/CHANGELOG.md`, `site/gallery/catalog.html`.
 - 테스트: `tests/api-docs.test.mjs`, `tests/map/skill.test.mjs`, `tests/release-docs.test.mjs`, `tests/kit.test.mjs`, `tests/scene-types.test.mjs`, `tests/placement.test.mjs`, `tests/server.test.mjs`, `tests/gallery-audit.test.mjs`.
-- 기록: 미커밋 handoff `418133af…`와 `index.md` 변경을 먼저 커밋. 끝나면 `b41cd6ae…`(Next Step 4 tier 결정이 이 작업으로 정리됨)와 `418133af…`를 stale로 옮기고 compare2 ledger를 남긴다.
+- 기록: 미커밋 handoff `418133af…`와 `index.md` 변경을 먼저 커밋. 끝나면 `b41cd6ae…`(Next Step 4 tier 결정이 이 작업으로 정리됨)와 `418133af…`를 stale로 옮기고 compare2 ledger를 남긴다. 이 계획이 든 `agent-docs/plans/`는 폴더째 지운다.
 
 재사용: `LTT.sceneText`(lint의 글 추출), `LTT.contrast`(대비 규칙), `LTT.rectHit`(겹침 규칙), `LTT.graphOverlaps`(겹친 id), `createLttServer`(audit 내장 서버), diagram `player`의 `hot`·`flow`·`send`(선언형 단계).
 

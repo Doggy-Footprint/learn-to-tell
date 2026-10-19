@@ -14,7 +14,8 @@
   - `agent-docs/plans/`(새 디렉터리: 계획, `index.md`, `stale.md`, `stale/`)
   - 이 handoff
   - `agent-docs/handoff/index.md`
-- `tmp/`는 `.gitignore`에 있어 커밋할 수 없다. 그래서 계획을 `agent-docs/plans/`에 두었다. 작업을 마치면 계획과 이 handoff를 각각 `stale/`로 옮긴다.
+- `tmp/`는 `.gitignore`에 있어 커밋할 수 없다. 그래서 계획을 `agent-docs/plans/`에 두었다.
+- `agent-docs/plans/`는 이 작업을 위해 2026-10-19 세션이 새로 만든 임시 디렉터리다. 이 handoff가 끝나면 `git rm -r agent-docs/plans`로 폴더째 지운다(사용자 지시). `stale/`로 옮기지 않는다. 이 handoff 자체는 Handoff Rule대로 `stale/`로 옮긴다.
 - 계획 단계 0의 첫 항목(미커밋 handoff 커밋)은 `f16c44e`로 끝났다. 나머지는 착수 전이다.
 
 ## Failed Attempts
@@ -36,6 +37,10 @@
    - 도구는 `--allowedTools`로 좁힌다(CLI 2.1.303에 `--model`·`--effort`·`--plugin-dir`·`--allowedTools`가 있다).
    - 결과는 `agent-docs/handoff/b41cd6aec66a2589-refactoring-1-lesson-cost-ledger.md` Execution Ledger에 적는다.
 3. 단계 1(문서·흐름, workflow 아님) → 단계 2(측정 1차) → 단계 3–6(workflow-approach run A–D) → 단계 7(측정 2차).
+4. 마무리:
+   - `agent-docs/plans/` 폴더를 통째로 지운다(`git rm -r agent-docs/plans`).
+   - 이 handoff의 index 항목을 `stale.md`로 옮기고 파일을 `stale/`로 옮긴다.
+   - `b41cd6ae…`와 `418133af…`도 계획대로 `stale/`로 옮긴다.
 
 사용자가 정한 에이전트 운용:
 - 작업·분석 서브에이전트는 `model: opus`, `effort: low`로 띄운다. 탐색 에이전트와 workflow의 implementer·test-implementer·test-verifier·mutant-triager가 모두 여기에 든다.
