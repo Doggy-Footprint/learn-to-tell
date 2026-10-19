@@ -16,6 +16,7 @@
 
 kit 개발자용
 - 장면 요소 `data-ltt-beats`와 audit JSON `beats`가 장면마다 비트 시각을 내보낸다.
+- 같은 시각 비트가 여러 번 오면 글 있는 비트가 글 없는 비트를 대신한다(글이 둘이면 먼저 온 글). audit JSON에 장면 type 목록 `types`가 더해졌다.
 - 움직임 시간은 `setTimeout` + `Date.now()`로 재므로 헤드리스 가상 시간에서도 돈다(`requestAnimationFrame`을 쓰지 않는다).
 
 ## 0.2.0

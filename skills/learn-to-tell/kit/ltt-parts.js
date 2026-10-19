@@ -1639,7 +1639,10 @@
   function sceneBeats(sc, list) {
     if (!sc || !list.length) return;
     list.forEach(function (b) {
-      if (!sc.beats.some(function (x) { return x.t === b.t; })) sc.beats.push(b.text ? { t: b.t, text: b.text } : { t: b.t });
+      var at = -1;
+      sc.beats.forEach(function (x, i) { if (x.t === b.t) at = i; });
+      if (at < 0) sc.beats.push(b.text ? { t: b.t, text: b.text } : { t: b.t });
+      else if (b.text && !sc.beats[at].text) sc.beats[at] = { t: b.t, text: b.text };
     });
     sc.beats.sort(function (a, b) { return a.t - b.t; });
     if (sc.el) sc.el.setAttribute("data-ltt-beats", JSON.stringify(sc.beats));

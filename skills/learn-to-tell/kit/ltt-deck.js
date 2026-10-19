@@ -1265,7 +1265,7 @@
       if (!out) { out = h("script"); out.id = "ltt-audit"; out.type = "application/json"; document.documentElement.appendChild(out); }
       var fails = [].map.call(document.querySelectorAll("#ltt-expect div.fail"), function (d) { return d.textContent; });
       var beats = scenes.map(function (s, i) { var b = stage.children[i].getAttribute("data-ltt-beats"); return b ? JSON.parse(b) : []; });
-      out.textContent = JSON.stringify({ viewport: [innerWidth, innerHeight], scenes: scenes.length, audit: found, lint: lint, expectFails: fails, beats: beats }).replace(/</g, "\\u003c");
+      out.textContent = JSON.stringify({ viewport: [innerWidth, innerHeight], scenes: scenes.length, audit: found, lint: lint, expectFails: fails, beats: beats, types: scenes.map(function (s) { return s.type || ""; }) }).replace(/</g, "\\u003c");
       LTT.record("layout-audit", { viewport: [innerWidth, innerHeight], found: found });
       return found;
     }

@@ -57,8 +57,8 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 4. `lesson.html`을 한 번에 Write한다. `LTT.expect`의 기대값 자리는 비워 둔다.
 5. `node <skill>/server/audit.mjs <home>/lessons/<id>/lesson.html`을 실행한다.
 6. 검토 결과와 audit 지적을 한 응답의 Edit 묶음으로 반영한다(기대값 넣기 포함).
-7. audit을 다시 돌린다. audit은 최대 3회다. "고침" 경고와 expect 불일치는 0이어야 하고, 3회째에도 남은 "권고"는 `result.md`에 적고 공개한다.
-8. audit 출력에 contact sheet가 있으면 그 한 장만 본다.
+7. `--sheet`를 붙여 audit을 다시 돌린다. audit은 최대 3회다. "고침" 경고와 expect 불일치는 0이어야 하고, 3회째에도 남은 "권고"는 `result.md`에 적고 공개한다.
+8. 출력 끝 줄의 sheet를 모두 한 응답에서 Read해 outline의 기대 화면·비트와 look.md 눈 기준으로 대조한다. 고칠 것은 남은 audit 지적과 한 Edit 묶음으로 고치고, sheet 다시 보기는 한 번까지다.
 9. 서버를 백그라운드로 실행한다: `node <skill>/server/server.mjs`(실행 중이면 재사용, 포트는 `LTT_PORT`). `http://127.0.0.1:47823/lessons/<id>/lesson.html`을 안내한다.
 10. 사용자가 다 봤다고 하면 `events.jsonl`의 예측, `term`, `recall`, `goal`, `expect-mismatch`, `lint` 이벤트를 읽는다. 여러 번 연 용어와 비었거나 틀린 `recall`은 §4에서 다시 묻는다.
 

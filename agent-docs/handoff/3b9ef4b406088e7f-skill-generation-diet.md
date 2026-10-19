@@ -49,6 +49,11 @@
   - 문서: API.md motion 행·모션 규칙 줄(동사 이름), 샌드박스 문장 되살림, deck-contracts `play` 절, catalog 동사 데모 다섯. look.md 비트 문법(비트 하나 = 동사 하나, 끝 화면이 프레임), SKILL.md 2단계.
   - shot s29·s37·s45·s47을 `play`로 다시 썼고, `scripts/shots.mjs`가 페이지 `data-ltt-beats`의 글 있는 비트를 먼저 쓴다. 네 beats json에서는 낡은 beats를 지웠다. 카드 4장과 무드보드를 다시 찍었다.
   - 검증: npm test 1212 통과, gallery audit 통과, css in sync. shot 4편 audit 경고는 고치기 전과 같다.
+- 2026-10-20 일곱 번째 세션: run S(`a96c8781ab82e025`) limit(verifier 2/2, 열린 F-2는 테스트 증거 공백, 구현은 맞음).
+  - audit: `--sheet`(값 없음)가 장면을 칸으로 찍어 JPEG로 합친다. 비트가 있으면 비트 시각마다 칸(글 있는 비트 우선, 최대 4), 없으면 쉬는 칸 1. 1280×800 한 크기, 칸 320px, 4열, 위 띠 장면 번호·type·경고 배지(두 크기 합집합), 아래 띠 비트 글 3줄. 장당 1320×≤800. 수업은 `<lesson>/audit/sheet*.jpg`, 그 밖은 `<tmpdir>/ltt-audit-sheets/<slug>/`. 출력 끝 줄 `sheet <대상>: <경로>`, `--json`은 `sheet.cells`(장면·t·text·warn·사각형). Chrome canvas로 JPEG를 만든다(sips 없음).
+  - kit: `#ltt-audit`에 `types`, `sceneBeats` 같은 시각이면 글 있는 비트가 이긴다(kit 후보 1).
+  - 문서: SKILL.md §3 7단계 `--sheet`, 8단계 sheet 눈 검토(9,479자), look.md 눈 기준에 sheet 모양, standalone.md 검증 행, PROJECT.md 검증 절.
+  - 검증: npm test 1222 통과, gallery audit 통과, css in sync. 손 변이 HM-1..HM-16 KILLED, HM-17 SURVIVED(F-2). R-1 gallery 2편 + s47 sheet 눈 확인.
 
 ## Failed Attempts
 
@@ -63,9 +68,14 @@
 | run M2 시간 검사를 MutationObserver 콜백 시각으로 | 전체 Test command에서 offset/L +473ms 0.598 대 0.577, reduced "+6ms" | verified: 부하에서 콜백이 그리기보다 늦다. 쓰기 순간 시각 기록 + t0 맞춤, 횟수 기반 판정으로 바꿈 |
 | run M2 픽스처가 다음 장면 이동을 미리 예약 | 부하에서 VO-5 E1·E2 "the play stopped" | verified: 늦은 표본 타이머를 이동이 앞질러 장면 밖에서 `running`을 읽음. 기다림을 사슬로 이어 해결 |
 | shot s29·s45를 정수 바퀴 flow 비트로 나눔 | 카드 프레임끼리 입자 자리가 같다 | verified: 고른 간격 입자가 정수 바퀴를 돌면 비트 끝 화면 = 시작 화면. `laps` 0.75, 주기 내내 도는 flow + 글만 단 머무는 비트로 바꿈(look.md에 적음) |
+| run S 비트 칸 아래 글을 한 줄로 | ontology-triples sheet에서 비트 글이 약 22자에서 잘림 | verified: 칸 폭 320px에 14px 한 줄. 3줄 줄바꿈 띠(56px)로 바꿈 |
 
 ## Next Step
 
+재개 지점(2026-10-20 일곱 번째 세션 뒤): 계획 3의 남은 일.
+1. run S F-2 닫기(선택): `tests/audit-sheet.test.mjs`에 late.js 장면을 budget 2000(회색 기대)·6000(파랑 기대)으로 두 번 찍는 검사를 넣고 HM-17(쉬는 칸 고정 12000)이 잡히는지 본다. 테스트만 바꾸는 일이라 새 run 없이 할지 사용자가 정한다.
+2. 마무리 측정: 단계 1과 같은 3주제(CPU+cache, cache-ttl, 공기저항 최대 사거리)로 `dd6e1f9` 대 HEAD, sonnet medium 6회. 눈 검토가 그림 결함을 고쳤는지(sheet Read 수, 8단계 Edit 내용), 가중 토큰·벽시계가 얼마나 늘었는지.
+3. 그 뒤 마무리(아래).
 재개 지점(2026-10-20 여섯 번째 세션 뒤): 계획 `~/.claude/plans/vast-baking-lark.md` 3(run S: audit `--sheet`, SKILL.md §3 8단계·standalone·PROJECT.md, 마무리 측정)부터 한다. sheet 필름스트립은 장면 `data-ltt-beats`(글 있는 비트 우선, M2 형식 `{t, text}`)를 찍는다. 아래 kit 후보 중 1(같은 시각 비트 합치기)은 sheet가 비트 글을 읽으므로 run S에 함께 넣는 것을 기본값으로 제안한다.
 M2 kit 후보(shot 4편을 다시 쓰며 나온 것):
 1. 같은 시각의 비트를 합칠 때 먼저 온 글 없는 비트가 글을 가린다(`sceneBeats`). 페이지에서는 글 있는 비트를 앞에 두어 피했다(s45·s47).
@@ -115,6 +125,7 @@ M1 입력(1 실사용 확인에서 나온 것):
 
 - run M1: `agent-docs/spec-logs/6cc24f891a69c407-motion-runtime.md` v4, status limit, run ID `6cc24f891a69c407`. verifier 2/2, 정정 묶음 4, 열린 finding S-1(Next Step).
 - run M2: `agent-docs/spec-logs/2d467cf453771b95-motion-verbs.md` v3, status complete, run ID `2d467cf453771b95`. verifier 2/2(retry → pass), 정정 묶음 3.
+- run S: `agent-docs/spec-logs/a96c8781ab82e025-audit-sheet.md` v3, status limit, run ID `a96c8781ab82e025`. verifier 2/2(retry → retry), 정정 묶음 2, 열린 finding F-2(Next Step 1).
 - 계획 단계 3–6에서 run마다 `agent-docs/specs/`에 spec을 만든다(run A: kit 측정·판정, B: audit CLI, C: 선언형 칸, D: 부품).
 
 ## Execution Ledger
@@ -134,6 +145,14 @@ M1 입력(1 실사용 확인에서 나온 것):
 - 리뷰: R-1 `2d467cf453771b95-r1-verbs.txt`(catalog 동사 데모 값 표), R-2 shot 카드 4장 눈 확인(이 세션).
 - verifier 권고(비차단): F-3 픽스처 대기 시간 의존, F-4 `play(` 검사 접두, F-5 가림 재개 허용창 약 150ms.
 - 범위 밖 부하 흔들림: `tests/server.test.mjs` "second start reuses" 1회(단독 3/3 통과).
+
+### run S (`a96c8781ab82e025`)
+
+- 정정: batch 1(TD-1 `cells.text` 전체 글 → v3, R1-1 비트 글 3줄), batch 2(verifier F-1 Chrome 호출 기록 래퍼, F-2 늦게 바뀌는 쉬는 장면, F-3 크기별 경고 단언, F-4 실패 뒤 다른 칸 색, F-5 두 대상 합성 실패, F-9).
+- 손 변이(`agent-docs/spec-logs/a96c8781ab82e025-hand-mutations.txt`, runner `.py`): 1회차 HM-1..12 KILLED, 2회차 HM-1..16 KILLED, HM-17 SURVIVED(F-2 확인). 변이 도구·fuzz 없음(spec 사유).
+- 리뷰: R-1·R-2 `a96c8781ab82e025-r1-sheet.txt`, sheet 사본 `r1-gpu-1.jpg`·`r1-ontology-2.jpg`·`r1-s47.jpg`.
+- verifier 권고(비차단): F-6 t+300 상한·loop 비트 색 oracle 없음, F-7 라벨 `…`·`s` 꼴 이미지 검사 없음, P3 호출 수 하한만.
+- 범위 밖 부하 흔들림: `tests/autolayout.test.mjs` VO-9 PF1 성능(중앙값 393ms > 300) 1회, 재실행 통과. audit-sheet 테스트(약 108s, Chrome 다수)가 병렬 부하를 늘린다.
 
 ### audit.mjs 구조 (CDP 재작성 run B 입력)
 
