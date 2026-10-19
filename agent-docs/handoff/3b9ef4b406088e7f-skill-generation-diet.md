@@ -1,0 +1,149 @@
+# 수업 생성 경로 다이어트: 흐름·검증·문서·audit·kit 선언형 부품
+
+## Goal
+
+- "handoff를 참고해서 skill의 시행 흐름과 속도, 비용을 개선해야 해."
+- "내 진짜 intent는 '이 프로젝트가 좋은 품질의 학습 자료를 빠르고 적은 토큰 비용으로 제공하는 것'이야."
+- "이 계획을 임시 폴더에 커밋하고 handoff에 적어줄 수 있어? 새로운 세션에서 이어가야해"
+
+## State
+
+- 브랜치 `fix/efficiency`. 기준 커밋 `f16c44e`(앞 세션 handoff `418133af…` 커밋)이다.
+- 승인된 계획: `agent-docs/plans/b71ddee49f77ac06-skill-generation-diet.md`. 이 handoff와 같은 커밋에 들어 있다.
+- 변경 파일은 다음과 같고, 코드 변경은 없다.
+  - `agent-docs/plans/`(새 디렉터리: 계획, `index.md`, `stale.md`, `stale/`)
+  - 이 handoff
+  - `agent-docs/handoff/index.md`
+- `tmp/`는 `.gitignore`에 있어 커밋할 수 없다. 그래서 계획을 `agent-docs/plans/`에 두었다. 작업을 마치면 계획과 이 handoff를 각각 `stale/`로 옮긴다.
+- 계획 단계 0의 첫 항목(미커밋 handoff 커밋)은 `f16c44e`로 끝났다. 나머지는 착수 전이다.
+
+## Failed Attempts
+
+| attempt | failure evidence | cause |
+| --- | --- | --- |
+| (없음) | 착수 전 | - |
+
+## Next Step
+
+계획의 "단계와 순서"를 차례로 한다. 시작점은 단계 0의 `scripts/transcript-cost.mjs`다.
+
+1. `scripts/transcript-cost.mjs`
+   - 입력: main transcript `~/.claude/projects/<cwd>/<session>.jsonl`과 `<session>/subagents/agent-*.jsonl`.
+   - 측정 정의는 아래 Execution Ledger "transcript 측정 주의"를 따른다.
+2. 단계 0 측정: 현재 skill(HEAD)과 기준선을 CPU+cache 주제로 1회씩 돌린다. 조건은 다음과 같다.
+   - `claude -p --model sonnet --effort medium`을 빈 scratch 디렉터리에서 실행한다.
+   - skill 쪽은 `--plugin-dir <repo>`와 `LTT_HOME=<scratch>/home`을 준다. 기준선은 plugin 없이 실행한다.
+   - 도구는 `--allowedTools`로 좁힌다(CLI 2.1.303에 `--model`·`--effort`·`--plugin-dir`·`--allowedTools`가 있다).
+   - 결과는 `agent-docs/handoff/b41cd6aec66a2589-refactoring-1-lesson-cost-ledger.md` Execution Ledger에 적는다.
+3. 단계 1(문서·흐름, workflow 아님) → 단계 2(측정 1차) → 단계 3–6(workflow-approach run A–D) → 단계 7(측정 2차).
+
+사용자가 정한 에이전트 운용:
+- 작업·분석 서브에이전트는 `model: opus`, `effort: low`로 띄운다. 탐색 에이전트와 workflow의 implementer·test-implementer·test-verifier·mutant-triager가 모두 여기에 든다.
+- skill을 실제로 써 보는 테스트는 sonnet-5.5 + effort medium으로 돌린다.
+
+## Open Questions
+
+- `claude -p` 중첩 실행의 권한 범위(`--allowedTools` 목록)와, 백그라운드 서버 시작 단계를 테스트에서 뺄지는 아직 정하지 않았다.
+- 계획 "기본값" 세 가지는 사용자가 바꾸라고 하지 않으면 그대로 쓴다.
+  - 검토 서브에이전트 모델은 부모 모델을 상속한다.
+  - 테스트 주제는 CPU+cache의 AoS vs SoA 시나리오다.
+  - gallery 수업은 다시 쓰지 않는다.
+
+## Spec
+
+해당 없음. 아직 workflow run을 시작하지 않았다. 단계 3–6에서 run마다 `agent-docs/specs/`에 spec을 만든다(run A: kit 측정·판정, B: audit CLI, C: 선언형 칸, D: 부품).
+
+## Execution Ledger
+
+### 근거 출처
+
+계획 Context의 수치는 2026-10-19 세션의 탐색 에이전트 3개와 Plan 에이전트 1개가 원자료를 읽어 낸 것이다. 원자료는 아래에 있다.
+- compare1 transcript: `~/.claude/projects/-Users-hwansu-orca-workspaces-learn-to-tell-run-time/76d97b37-2581-43f6-a4e0-feeda1bf2e34/subagents/`
+- lesson 파일: `site/compare1/*/skill.html`
+- 검토 지적 원문: `site/compare1/index.html`에 들어 있다.
+
+검증 에이전트 ID(기대값 / 주장 / 독자 / 눈):
+
+| 주제 | 기대값 | 주장 | 독자 | 눈 |
+| --- | --- | --- | --- | --- |
+| cache-ttl | aca65 | acf7e | a2480 | ad6ea |
+| trolley | a7135 | a70b0 | a928c | ad818 |
+| projectile | a0ec2 | a80b3 | aa177 | a7967 |
+| contrast | a12ef | a262f | ab3e0 | a09c8 |
+| ontology | a86b8 | a506c | aa30b | ad7ca |
+
+생성 에이전트 ID는 `418133af…` handoff에 있다. 수정 전 사본과 `review-findings.md`는 앞 세션 scratchpad `/private/tmp/claude-501/-Users-hwansu-orca-workspaces-learn-to-tell-run-time/76d97b37-2581-43f6-a4e0-feeda1bf2e34/scratchpad/`(`ltt-exp/`)에 있다. 영구 보존이 아니다.
+
+### transcript 측정 주의
+
+- JSONL은 tool call을 `api-request-blob` 레코드에 한 번 더 남긴다. `assistant`·`user` 레코드만 세야 하고, 아니면 PNG·패치 수가 두 배로 나온다.
+- usage는 `message.id`로 중복을 지운다.
+- `output_tokens`는 믿을 수 없다. 26–46K자 Write 메시지가 3–35로 기록되어 있다. 출력은 assistant 글 + tool 입력 글자 수로 추정한다. lesson Write 전후 context 증가로 재면 약 1.6자/token이다.
+- `subagent_tokens`(Agent 완료 알림)는 마지막 context 크기다. 누적 비용이 아니다.
+- 비용 지표는 가중 합으로 정했다: 입력 1, cache write 1.25, cache read 0.1, 출력 5.
+
+### 생성 에이전트의 kit·gallery 조회 (문서 공백 근거)
+
+- 아이콘 이름: 5/5 에이전트가 grep했다. API.md에는 `LTT.icons`가 있다는 말만 있고, base.md는 Lucide 16개만 적고 손그림 44개는 적지 않았다.
+- sweep 마크업: `#id`/`#id-v`, `.ltt-param` 예가 없다. 4/5가 gallery에서 찾았다.
+- kit CSS 클래스 목록: `ltt-param`, `ltt-hero`, `ltt-stat`, `ltt-key`가 없다.
+- audit CLI와 home/kit 경로: 5/5가 `audit.mjs` 앞부분을 읽었다.
+- 그 밖에 찾은 것: overview·figure 크기, figure-with-steps 반환값, axisPlot·hbars 옵션, `diagram.edge()`가 라벨을 주지 않는 점, expect tolerance(`internals.md`에만 있다).
+- `LTT.$`: 수업 3개와 gallery 4개가 쓰지만 `internals.md:22`에만 적혀 있다. sweep이 DOM id에 묶여 있어서 쓰게 된다.
+
+### audit.mjs 구조 (CDP 재작성 run B 입력)
+
+- Chrome 찾기: `audit.mjs:36-44`. 없으면 종료 코드 2.
+- 실행: 대상 × 크기마다 1회, `--jobs` 4 pool(`:13, :144-154, :170`). `--dump-dom` + `--virtual-time-budget=12000`(`:12, :79-81, :114`).
+- 결과 추출: `<script id="ltt-audit">`를 정규식으로 읽는다(`:116`).
+- 재시도: JSON이 없으면 예산 3배로 두 번 재시도(`:118-122`), 각각 `RUN_TIMEOUT` 60s(`:14, :96-99`).
+- 스크린샷: `takeShots`(`:133-141`)가 장면마다 Chrome을 새로 띄워 `--screenshot`, `url#i`로 차례로 찍는다.
+- 출력: `formatReport`(`:185-205`). lint 줄에 rule id가 없고(`:199`), lint·expect를 크기마다 반복한다. 종료 코드는 0/1/2(`:207-210`).
+- 페이지 쪽: `ltt-deck.js:1235-1236`이 `fonts.ready` + 300ms 뒤 `audit()`을 부른다. 장면 `#n`은 시작 때만 읽는다(`:1224`). `go(i)`는 closure다(`:1081`, 점 클릭 `:1016/:1217`). `data-ltt-audit`는 `:1203`.
+- server 경로: `server.mjs` `/kit/*`(`:109`), `/lessons/<id>/*`(`:123`), events POST(`:105`). audit 임시 home에서는 `/map/data.json`이 404다.
+
+### kit 지점 (run A·C 입력, Plan 에이전트 검토)
+
+- `fit()`: `ltt-deck.js:826-838`이 장면 zoom을 정하는 유일한 곳이다(하한 0.78). `placement`는 `ctx.refit`(`:1024`)로 거기에 닿는다.
+  - predict lock은 정답 상태마다 `refit()`을 읽는다(`~:392-398`). steps `measureAll`은 `~:333-345`다.
+  - steps의 `tallest`는 `pic.offsetHeight`와 `minHeight`로 잰다(`~:325`).
+  - 폰은 `mobileFit`(`:848`)이 맡는다.
+- `zoomLock`: `ltt-deck.js:292-301`. 최소 배율을 만든 상태를 버린다.
+- `measure`: `ltt-deck.js:946-981`. `graphOverlaps`는 개수만 남긴다(`:976`). `visualRatio`는 그림이 없으면 `null`이고, 그러면 `small-visual`이 판정을 건너뛴다.
+- `auditScene`: `ltt.js:619-639`. `lintDeck` 규칙은 `ltt.js:513-599`, runner는 `:602-613`이다. 메시지 문구를 고정한 테스트는 없다(rule id만 확인한다). 그래서 메시지를 고쳐 써도 테스트는 깨지지 않는다.
+- `fill`: `ltt-ui.js:115-121`. 함수·Node·그 밖(innerHTML)만 받아서, 객체를 주면 `[object Object]`가 나온다.
+  - figure는 `ltt-deck.js:552-583`, overview는 figure를 다시 쓴다(`:594`).
+  - `answerVisual`은 `fill`을 거치지 않는다(`:640-643`).
+  - `mount`는 `:1046`이다.
+- 장면 타입: `ltt-deck.js:819-821`이 `LTT.sceneTypes` entry 없는 타입을 막는다. `internals.md:28`에 "12개 entry"라고 적혀 있다. sweep `control`은 `ltt-parts.js:376`이다.
+- K1 위험: 2안(`fit` 안에서 줄이기)으로 가면 `zoomLock`이 `{z, figMax}`를 잠가야 한다. 그렇지 않으면 predict 공개 때 그림 크기가 바뀐다. 1안(장면당 한 번 계산하는 CSS `--avail`)은 상태와 무관해서 ADR `40552fcb…`를 그대로 지킨다.
+
+### 문서 문구를 고정한 테스트 (단계 1에서 고친다)
+
+- `tests/map/skill.test.mjs`: SKILL.md를 `## N` 헤딩으로 나눈다(`:10`). 고정한 것:
+  - `:21` §5 frontmatter 필드
+  - `:27` §0 `find`·`show`, map.md는 통째로 읽지 않는다
+  - `:36` §6 find/재사용
+  - `:44` 입자도
+  - `:50` level 1–5
+  - `:58` sweep 문구
+  - `:69` grid·focus URL
+- `tests/api-docs.test.mjs`:
+  - 이름 정의: `:230-274`(런타임 `LTT.*` 75개가 API.md·api/*.md 첫 칸에 한 번씩), `:284`(deck-contracts.md는 이름을 정의하지 않는다)
+  - 크기 상한: `:307` API.md ≤ 8,500자, `:324` API.md + 가장 큰 부품 문서 2개 ≤ 18,000
+  - API.md 구조: `:351` 불러오기 순서, `:357` 테마 이름, `:370` lint 17·audit 12 id, `:407`·`:412` 행 길이, `:424`, `:429`, `:436`
+  - 부품 문서: `:440` 10개, `:453` 첫 줄 언제·vendor·catalog
+  - SKILL.md 문구: `:480` §2 예산 B1–B4, `:486`, `:490` §3 읽기 줄, `:498` 부품 표, `:512` internals 언급 금지, `:526`·`:535` §5 생성 비용
+  - 그 밖: `:544` standalone 줄, `:551`·`:561` PROJECT.md, `:580` catalog 앵커, `:719`·`:762` audit 임계값 문구
+- `tests/release-docs.test.mjs`:
+  - internals.md: `:75`, `:83`, `:88`, `:99`, `:105`, `:115`, `:176`, `:190`, `:299`, `:305`, `:443`
+  - CHANGELOG: `:230-262`, `:325-336`, `:401`, `:419`
+  - README: `:267`, `:460`
+  - API.md 원칙 vw 줄: `:290`
+  - deck-contracts: `:312`, `:319`, `:351`
+- gallery audit 테스트(`tests/gallery-audit.test.mjs`)는 `LTT_AUDIT=1`일 때만 Chrome으로 돈다. 기준선은 전부 0이다.
+
+### 결정 기록
+
+- 2026-10-19 사용자 답: 검토 서브에이전트 1개 유지, audit "고침" 0 + "권고"는 3회 안, kit K1–K8 전부, kit·audit 코드는 workflow-approach.
+- 계획의 counter proposal도 승인과 함께 받아들여졌다. 비용 지표를 가중 합으로 바꾸고, 목표치를 기준선 대비 벽시계 ≤ 1.5배·가중 토큰 ≤ 2배로 둔다.
