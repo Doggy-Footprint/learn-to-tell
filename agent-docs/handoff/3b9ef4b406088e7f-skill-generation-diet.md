@@ -44,6 +44,11 @@
   - 문서: API.md 모션 규칙 줄(예외 셋, `once`), deck-contracts, rules.md, charts.md 데이터 형식, compare head·cols, ui.md `ms`, CHANGELOG(미배포), catalog `#motion`. SKILL.md §3 권고 목록에 `still-visual`.
   - ADR `61d6c4210ba48008`: gallery 13편은 새 규칙에 맞춰 고치지 않는다. baseline에 `still-visual` 허용치(두 크기 32)를 따로 적고 `scripts/gallery-audit.mjs` 기록기도 맞췄다.
   - 검증: npm test 1139 통과, gallery audit 통과, 손 변이 13개 중 12 KILLED + 1 equivalent.
+- 2026-10-19~20 여섯 번째 세션: run M2(`2d467cf453771b95`) complete(`07c9c39`), 계획 2 끝.
+  - kit: `LTT.motion.play(root, [{t: [a, b], 동사: 대상, text}], {period, once, el})`, 동사 `draw`·`flow`·`camera`·`morph`·`stack`. 비트 노출은 비트 끝 시각(loop는 `period − 1`로 깎음)과 `text`. `beforeAfter().ms` = 0 또는 700 + 140(m − 1). diagram 노드·엣지·라벨, axisPlot 계열에 `data-ltt-*` 표식.
+  - 문서: API.md motion 행·모션 규칙 줄(동사 이름), 샌드박스 문장 되살림, deck-contracts `play` 절, catalog 동사 데모 다섯. look.md 비트 문법(비트 하나 = 동사 하나, 끝 화면이 프레임), SKILL.md 2단계.
+  - shot s29·s37·s45·s47을 `play`로 다시 썼고, `scripts/shots.mjs`가 페이지 `data-ltt-beats`의 글 있는 비트를 먼저 쓴다. 네 beats json에서는 낡은 beats를 지웠다. 카드 4장과 무드보드를 다시 찍었다.
+  - 검증: npm test 1212 통과, gallery audit 통과, css in sync. shot 4편 audit 경고는 고치기 전과 같다.
 
 ## Failed Attempts
 
@@ -55,9 +60,18 @@
 | run M1 VO-7 판정표를 figure 기준으로 | R3(그림 없음) 행이 항상 그림으로 잡힘 | verified: figure 무대의 자식은 정의상 그림. statement 기준으로 바꿈 |
 | motion 테스트 1회 실행 runner | 부하 중 bind 페이지가 결과 블록 없이 끝남(13 fail 동시) | verified: 헤드리스 Chrome이 가상 시간 예산 전에 끝남. audit.mjs처럼 3배 예산 재시도 |
 | 단계 1의 눈 검토·장면별 스크린샷 제거(`46feba8`, 대체로 계획한 contact sheet는 run B 전이라 없음) | 사용자가 생성된 수업을 직접 보고 그림 결함을 찾았다. 새 흐름은 이미지를 한 번도 Read하지 않았다 | verified: 화면을 보는 단계가 없고, audit·lint가 이 결함 종류를 잡지 못한다 |
+| run M2 시간 검사를 MutationObserver 콜백 시각으로 | 전체 Test command에서 offset/L +473ms 0.598 대 0.577, reduced "+6ms" | verified: 부하에서 콜백이 그리기보다 늦다. 쓰기 순간 시각 기록 + t0 맞춤, 횟수 기반 판정으로 바꿈 |
+| run M2 픽스처가 다음 장면 이동을 미리 예약 | 부하에서 VO-5 E1·E2 "the play stopped" | verified: 늦은 표본 타이머를 이동이 앞질러 장면 밖에서 `running`을 읽음. 기다림을 사슬로 이어 해결 |
+| shot s29·s45를 정수 바퀴 flow 비트로 나눔 | 카드 프레임끼리 입자 자리가 같다 | verified: 고른 간격 입자가 정수 바퀴를 돌면 비트 끝 화면 = 시작 화면. `laps` 0.75, 주기 내내 도는 flow + 글만 단 머무는 비트로 바꿈(look.md에 적음) |
 
 ## Next Step
 
+재개 지점(2026-10-20 여섯 번째 세션 뒤): 계획 `~/.claude/plans/vast-baking-lark.md` 3(run S: audit `--sheet`, SKILL.md §3 8단계·standalone·PROJECT.md, 마무리 측정)부터 한다. sheet 필름스트립은 장면 `data-ltt-beats`(글 있는 비트 우선, M2 형식 `{t, text}`)를 찍는다. 아래 kit 후보 중 1(같은 시각 비트 합치기)은 sheet가 비트 글을 읽으므로 run S에 함께 넣는 것을 기본값으로 제안한다.
+M2 kit 후보(shot 4편을 다시 쓰며 나온 것):
+1. 같은 시각의 비트를 합칠 때 먼저 온 글 없는 비트가 글을 가린다(`sceneBeats`). 페이지에서는 글 있는 비트를 앞에 두어 피했다(s45·s47).
+2. play에 매 프레임 훅이 없어 path `d`·글자처럼 숫자 속성 하나로 못 옮기는 파생 그림은 따로 `loop`(다른 `el`)로 따라 그린다(s47 띠·칸 글자). 그 loop는 기본 비트 셋을 더 노출한다.
+3. flow 입자 색을 비트마다 정할 수 없다(s45는 `r` 속성 CSS로 기체 입자 색을 바꿨다).
+4. sweep `attract`(기본 true)와 render마다 play를 새로 만드는 그림이 부딪친다. 손잡이를 훑을 때마다 play가 처음부터 다시 시작해서 s29·s47은 `attract: false`.
 재개 지점(2026-10-19 다섯 번째 세션 뒤): 계획 `~/.claude/plans/vast-baking-lark.md` 2의 run M2(움직임 동사)부터 한다. M2 spec에 넣을 것: M1 S-1(`LTT.beforeAfter().ms` 값 의무 — 표식 없음 0, 표식 있음 재생 길이 — 와 ui.md 문서 항목), API.md에서 크기 때문에 빠진 두 문장 되살리기(결정 변수끼리 영향을 주면 summary 앞 샌드박스, 모션 예시 "선이 그려지고·모양이 바뀌고·값이 쌓이고·패킷이 흐르며"는 동사 이름으로). M2 뒤에 main이 look.md·SKILL.md에 기대 화면 비트·예외(`still`·`once`)를 적고 s29·s45·s37·s47 카드를 다시 찍는다.
 이전 재개 지점(네 번째 세션 뒤): 계획의 2(run M1)부터.
 이전 재개 지점: Open Questions의 생성기 수정 제안을 사용자가 정하면 그 순서로 진행한다. 남은 것은 계획 "단계와 순서"의 단계 3–6(workflow-approach run A–D), 단계 7, 마무리다.
@@ -100,6 +114,7 @@ M1 입력(1 실사용 확인에서 나온 것):
 ## Spec
 
 - run M1: `agent-docs/spec-logs/6cc24f891a69c407-motion-runtime.md` v4, status limit, run ID `6cc24f891a69c407`. verifier 2/2, 정정 묶음 4, 열린 finding S-1(Next Step).
+- run M2: `agent-docs/spec-logs/2d467cf453771b95-motion-verbs.md` v3, status complete, run ID `2d467cf453771b95`. verifier 2/2(retry → pass), 정정 묶음 3.
 - 계획 단계 3–6에서 run마다 `agent-docs/specs/`에 spec을 만든다(run A: kit 측정·판정, B: audit CLI, C: 선언형 칸, D: 부품).
 
 ## Execution Ledger
@@ -112,6 +127,13 @@ M1 입력(1 실사용 확인에서 나온 것):
 - verifier: 1회 retry(F-1~F-9), 2회 retry(S-1) → limit.
 - 부하 민감: `tests/map/perf.test.mjs`의 벽시계 중앙값 ≤2000ms 검사가 병렬 부하에서 1회 실패(2557ms). 이 run 밖.
 
+### run M2 (`2d467cf453771b95`)
+
+- 정정: batch 1(관찰 시각 TD-1~4: reduced 횟수 판정, 쓰기 순간 시각, ui.md 700·140, 성능 3회 중 최선), batch 2(verifier F-1 → v3 VO-4 9항목·VO-3 T8·T9·VO-2 V14·V15, F-2 API.md play 항목 검사), batch 3(픽스처 사슬, JOBS 5 → 3).
+- 손 변이(`agent-docs/spec-logs/2d467cf453771b95-hand-mutations.txt`): HM-1..HM-15 모두 KILLED. 변이 도구·fuzz 없음(spec 사유).
+- 리뷰: R-1 `2d467cf453771b95-r1-verbs.txt`(catalog 동사 데모 값 표), R-2 shot 카드 4장 눈 확인(이 세션).
+- verifier 권고(비차단): F-3 픽스처 대기 시간 의존, F-4 `play(` 검사 접두, F-5 가림 재개 허용창 약 150ms.
+- 범위 밖 부하 흔들림: `tests/server.test.mjs` "second start reuses" 1회(단독 3/3 통과).
 
 ### audit.mjs 구조 (CDP 재작성 run B 입력)
 

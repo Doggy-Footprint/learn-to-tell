@@ -52,7 +52,7 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 - **한 장 정리**: `overview`는 summary 다음, 회상을 마친 뒤 보는 한 장 인포그래픽이다. 주 그림을 다시 쓰고, 각 takeaway를 그림 안의 자리(구역·화살표·번호)에 놓는다. 새 내용은 넣지 않는다.
 
 1. `<skill>/kit/API.md`, `<skill>/look/look.md`, `<skill>/look/board.jpg`, 그 부품 표에서 고른 `<skill>/kit/api/<part>.md`만 읽는다(한 응답에서 함께 Read). 작성 기준·원칙·조합 조각은 API.md, 화면 기준과 shot 색인은 look.md에 있다. 이어서 색인에서 고른 shot 카드 2–3장을 읽는다.
-2. `<home>/lessons/<id>/outline.md`를 쓴다(3,000자 안팎): 매체·테마·주 그림, 장면마다 `type · 주장 제목 · 핵심 내용 · 부품 · 기대 화면` 한 줄(기대 화면은 쓰기 전에 정하는 평가 기준, look.md), 결정 변수에 관한 주장(공식·범위·비교 판정과 근거), 수치 모델의 공식과 계산 지점.
+2. `<home>/lessons/<id>/outline.md`를 쓴다(3,000자 안팎): 매체·테마·주 그림, 장면마다 `type · 주장 제목 · 핵심 내용 · 부품 · 기대 화면` 한 줄(기대 화면은 쓰기 전에 정하는 평가 기준이고 움직임은 비트로 적는다, look.md), 결정 변수에 관한 주장(공식·범위·비교 판정과 근거), 수치 모델의 공식과 계산 지점.
 3. 같은 응답에서 검토 서브에이전트를 background로 띄운다(아래 검증).
 4. `lesson.html`을 한 번에 Write한다. `LTT.expect`의 기대값 자리는 비워 둔다.
 5. `node <skill>/server/audit.mjs <home>/lessons/<id>/lesson.html`을 실행한다.
