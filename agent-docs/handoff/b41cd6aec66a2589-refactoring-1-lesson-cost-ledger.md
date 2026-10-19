@@ -135,3 +135,35 @@
   - 5쌍의 최종 산출물(기준선 HTML, skill 최종 `lesson.html`)과 비교 페이지는 `site/compare1/`에 남겼다.
     - 로컬 서버의 `/compare1/index.html`로 열고, Vercel에는 배포하지 않는다.
     - 스크린샷, 수정 전 사본, 생성기(`build_review.py`)와 원자료(`data.json`·`notes.md`)는 세션 scratchpad에만 있었다(영구 보존 아님).
+- 2026-10-19 실험 3(계획 `b71ddee49f77ac06` 단계 0, 기준 커밋 `b6dd805`의 skill). 조건:
+  - 측정 도구는 `scripts/transcript-cost.mjs`(main + `subagents/agent-*.jsonl`)다. 정의는 handoff `3b9ef4b406088e7f` "transcript 측정 주의"를 따른다. 출력 추정은 메시지마다 `max(output_tokens, 글자 ÷ 1.6)`이다.
+  - 두 쪽 모두 클라우드 컨테이너(Linux)에서 `claude -p --model sonnet --effort medium`(claude-sonnet-5-5)을 빈 디렉터리에서 동시에 실행했다.
+    - 격리 `HOME`으로 사용자 skill·plugin·설정을 뺐다. 상위 세션 환경 변수(`CLAUDE_CODE_SESSION_ID` 등)는 지웠다.
+    - Chrome은 root에서 `--no-sandbox`가 필요해 wrapper를 `LTT_CHROME`으로 줬다.
+    - `--allowedTools`: 기준선 `Read Write Edit Glob Grep Bash`, skill은 거기에 `Agent Skill TaskOutput`을 더했다.
+  - skill 쪽은 HEAD 스냅샷(`git archive`)을 `--plugin-dir`로 주고 `LTT_HOME`에 background.md 2줄을 넣었다. §1 진단·§4 대화·§3 7번 서버 실행·§3 8번은 뺐다. 진단 결과는 고정값이다(계획 기본값의 CPU+cache AoS/SoA 시나리오).
+  - 기준선 프롬프트: 같은 작업·배경 문장 + "혼자 읽고 이해할 수 있는 인터랙티브 HTML 파일 하나, 질문하지 말고 끝까지".
+
+  | 지표 | 기준선 | skill(HEAD) |
+  | --- | --- | --- |
+  | 벽시계 | 667 s | 658 s |
+  | API 호출(main + 서브) | 16 | 39 + 7 |
+  | 최대 context | 120,497 | 176,566 |
+  | 누적 cache read | 1,290,391 | 4,971,981 |
+  | 출력 추정 | 74,561 | 95,104 |
+  | 가중 토큰 | 652,495 | 1,319,879 (main 1,021,794) |
+  | 이미지 Read | 2 | 14(main 2, 눈 검토 12) |
+  | audit 실행 | 0 | 9 |
+  | 산출물 | HTML 64,081 B | lesson.html 31,605 B, 12장면 |
+
+  - 비율: 벽시계 0.99배, 가중 토큰 2.0배.
+  - 기준선이 compare1 기준선과 다르게 행동했다. JS 캐시 시뮬레이터를 먼저 짜서 node로 6회 고치고, Playwright로 스크린샷 2장을 찍어 고쳤다. 그래서 기준선 비용이 compare1(4–6 호출)보다 크다. 1회 측정이라 기준선 변동 폭은 모른다.
+  - skill 쪽 흐름(시각은 시작 기준 초):
+    - 2–23 s: SKILL·API·부품 문서 5개를 읽은 뒤 `ltt-deck.js`를 `sed`로 5번 읽었다. 133 s에 `ltt-parts.js`, 200 s에 `node -e`로 아이콘 이름을 뽑았다.
+    - 96 s: 기대값 서브에이전트(haiku 지정).
+    - 296 s: lesson.html 1회 Write.
+    - 그 뒤 python 패치 9회, Edit 3회, audit 9회.
+    - 466–476 s: 주장·독자·눈 검토 서브에이전트(눈 검토가 PNG 12장).
+    - result.md 자기 기록: audit 7회, 스크린샷 24장, 토큰 "없음".
+  - 검토 결과: 기대값 15칸 일치, 주장 10개 중 부정확 2건 반영, 독자·눈 지적 일부 반영, 일부는 미반영으로 result.md에 남겼다.
+  - 산출물과 transcript는 세션 scratchpad에만 있다(영구 보존 아님).
