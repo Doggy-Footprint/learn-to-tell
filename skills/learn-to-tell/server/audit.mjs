@@ -15,6 +15,8 @@ const RUN_TIMEOUT = 60_000;
 const LESSON_ID = /^[a-z0-9][a-z0-9-]*$/;
 // Linked from the gallery index but they run no deck of their own, so `?audit` never fires there.
 const GALLERY_SKIP = new Set(["index.html", "catalog.html"]);
+// stale/ needs the old kit; shots/ holds single-scene exemplars, where deck-order lint (hook first, keywords last) always fires.
+const GALLERY_SKIP_DIRS = ["stale/", "shots/"];
 const CHROME_PATHS = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"];
 const CHROME_NAMES = ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"];
 export const NO_CHROME = "Chrome을 찾지 못했다. --chrome <경로>나 LTT_CHROME으로 알려 주거나, 브라우저에서 수업 URL에 ?audit을 붙여 1440×900과 1280×800으로 연다.";
@@ -47,7 +49,7 @@ export function galleryTargets(galleryDir = GALLERY_DIR) {
   if (!existsSync(galleryDir)) throw new Error(`갤러리가 없다: ${galleryDir} (갤러리는 저장소에만 있다)`);
   return readdirSync(galleryDir, { recursive: true })
     .map((f) => f.split("\\").join("/"))
-    .filter((f) => f.endsWith(".html") && !f.startsWith("stale/") && !GALLERY_SKIP.has(f))
+    .filter((f) => f.endsWith(".html") && !GALLERY_SKIP_DIRS.some((d) => f.startsWith(d)) && !GALLERY_SKIP.has(f))
     .sort()
     .map((f) => join(galleryDir, f));
 }

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>얼음-알베도 되먹임</title>
+<script type="application/json" id="ltt-meta">{"topic":"얼음-알베도 되먹임","audience":"기후 입문자","theme":"paper","medium":"교과서 figure","decision":"북극 온난화 증폭의 원인","domain":"기후","pattern":["overview"],"mode":"카탈로그용: 장면 하나짜리 본보기. 되먹임 구조를 \"확대·축소\" 움직임과 작은 여러 칸 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.ia-wrap{display:flex;justify-content:center}
+.ia{width:860px;max-width:100%;height:auto;display:block}
+.ia text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const tx = (p, x, y, t, st) => { const n = mk("text", { x, y, style: st }, p); n.textContent = t; return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const H1 = "font-size:20px;font-weight:700;fill:var(--ltt-ink)", SM = "font-size:14px;fill:var(--ltt-muted)", NUM = "font-size:15px;font-weight:700;fill:var(--ltt-accent)";
+
+// 칸 하나 360×220, 2×2 격자, 칸 사이 80px(순환 화살표 자리)
+const W = 860, H = 560, PW = 360, PH = 220;
+const POS = [[30, 40], [470, 40], [470, 300], [30, 300]];
+
+function panel(g, i) {
+  const [x, y] = POS[i];
+  const p = mk("g", { transform: `translate(${x},${y})` }, g);
+  mk("rect", { width: PW, height: PH, rx: 6, style: "fill:var(--ltt-card);stroke:var(--ltt-line);stroke-width:1.5" }, p);
+  tx(p, 18, 30, ["①", "②", "③", "④"][i], NUM);
+  if (i === 0) { tx(p, 42, 30, "북극 기온이 오른다", H1);
+    mk("rect", { x: 40, y: 60, width: 22, height: 130, rx: 11, style: "fill:none;stroke:var(--ltt-ink-2);stroke-width:2" }, p);
+    mk("rect", { x: 46, y: 110, width: 10, height: 76, rx: 5, style: "fill:var(--ltt-bad)" }, p);
+    const yr = [[1980, 0], [2000, 0.9], [2023, 2.6]];   // 1951–1980 대비 북극 연평균 기온 편차, NASA GISTEMP 근사
+    yr.forEach(([t, v], k) => { const bx = 110 + k * 76, bh = 20 + v * 46;
+      mk("rect", { x: bx, y: 190 - bh, width: 44, height: bh, style: "fill:var(--ltt-bad-soft);stroke:var(--ltt-bad)" }, p);
+      tx(p, bx + 22, 184 - bh, "+" + v.toFixed(1) + "℃", "font-size:14px;font-weight:700;fill:var(--ltt-ink-2);text-anchor:middle");
+      tx(p, bx + 22, 208, t, SM + ";text-anchor:middle"); });
+  }
+  if (i === 1) { tx(p, 42, 30, "9월 해빙이 줄어든다", H1);
+    mk("ellipse", { cx: 92, cy: 125, rx: 66, ry: 54, style: "fill:none;stroke:var(--ltt-muted);stroke-width:1.5;stroke-dasharray:5 4" }, p);
+    mk("ellipse", { cx: 92, cy: 125, rx: 50, ry: 40, style: "fill:var(--ltt-line-2);stroke:var(--ltt-ink-2);stroke-width:1.5" }, p);
+    tx(p, 178, 100, "1979–88 평균 약 7.0", "font-size:14px;fill:var(--ltt-muted)");
+    tx(p, 178, 128, "2014–23 평균 약 4.4", "font-size:14px;font-weight:700;fill:var(--ltt-ink)");
+    tx(p, 178, 154, "백만 km², NSIDC", SM);
+  }
+  if (i === 2) { tx(p, 42, 30, "반사율(알베도)이 떨어진다", H1);
+    [["해빙(눈 덮임)", 0.7, "var(--ltt-card-2)"], ["열린 바다", 0.06, "var(--ltt-ink-2)"]].forEach(([n, a, c], k) => {
+      const by = 70 + k * 64; tx(p, 24, by + 22, n, "font-size:15px;fill:var(--ltt-ink-2)");
+      mk("rect", { x: 130, y: by, width: 200, height: 32, rx: 4, style: "fill:none;stroke:var(--ltt-line)" }, p);
+      mk("rect", { x: 130, y: by, width: 200 * a, height: 32, rx: 4, style: `fill:${c};stroke:var(--ltt-ink-2)` }, p);
+      tx(p, 136 + 200 * a, by + 22, Math.round(a * 100) + "% 반사", "font-size:14px;font-weight:700;fill:var(--ltt-ink)"); });
+    tx(p, 24, 202, "해빙 0.5–0.7, 바다 약 0.06", SM);
+  }
+  if (i === 3) { tx(p, 42, 30, "바다가 햇빛을 더 흡수한다", H1);
+    mk("rect", { x: 20, y: 150, width: 320, height: 50, style: "fill:var(--ltt-ink-2);opacity:.85" }, p);
+    [70, 130, 190, 250, 310].forEach((ax, k) => {
+      mk("line", { x1: ax - 30, y1: 52, x2: ax, y2: 146, style: "stroke:var(--ltt-warn);stroke-width:3" }, p);
+      mk("path", { d: `M${ax - 6},${136} L${ax},${148} L${ax + 3},${134} Z`, style: "fill:var(--ltt-warn)" }, p); });
+    tx(p, 180, 182, "흡수 약 94% → 물이 데워진다", "font-size:15px;font-weight:700;fill:var(--ltt-on-dark);text-anchor:middle");
+  }
+  return p;
+}
+
+function loopFig(host) {
+  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "ia", "data-annotate": "" }, host);
+  mk("defs", {}, s).innerHTML = `<marker id="ia-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ltt-accent)"/></marker>`;
+  const g = mk("g", {}, s); const conn = mk("g", {}, s);
+  const panels = [0, 1, 2, 3].map((i) => panel(g, i));
+  const arrow = (d, l, lx, ly, anc) => { mk("path", { d, style: "fill:none;stroke:var(--ltt-accent);stroke-width:3", "marker-end": "url(#ia-ah)" }, conn);
+    tx(conn, lx, ly, l, `font-size:14px;font-weight:700;fill:var(--ltt-accent);text-anchor:${anc}`); };
+  arrow("M396,130 L462,130", "녹는다", 430, 120, "middle");
+  arrow("M650,266 L650,294", "", 0, 0, "start");
+  arrow("M464,410 L398,410", "흡수↑", 430, 400, "middle");
+  arrow("M210,294 L210,266", "", 0, 0, "start");
+  tx(conn, 430, 286, "+ 되먹임: 처음 변화를 키운다", "font-size:16px;font-weight:700;fill:var(--ltt-ink);text-anchor:middle");
+  const view = (vb) => s.setAttribute("viewBox", vb.map((v) => v.toFixed(1)).join(" "));
+  const full = [0, 0, W, H];
+  const zoomOf = (i) => { const [x, y] = POS[i]; const pad = 26, w = PW + pad * 2, h = w * H / W; return [x - pad, y + PH / 2 - h / 2, w, h]; };
+  const lerp = (a, b, t) => a.map((v, k) => v + (b[k] - v) * t);
+  // 10초 한 바퀴: 전체 1.6초 → 칸마다 들어가 머문 뒤 다음 칸으로 → 다시 전체
+  const keys = [full, zoomOf(0), zoomOf(1), zoomOf(2), zoomOf(3), full];
+  const draw = (u) => {
+    const seg = keys.length - 1, hold = 0.55;
+    let k = Math.min(seg - 1, Math.floor(u * seg)), f = u * seg - k;
+    const t = f < hold ? 0 : ease((f - hold) / (1 - hold));
+    view(lerp(keys[k], keys[k + 1], t));
+    const focus = t > .5 ? k : k - 1;
+    panels.forEach((p, i) => p.style.opacity = (focus < 0 || focus > 3 || focus === i) ? 1 : 0.1);
+    conn.style.opacity = (focus < 0 || focus > 3) ? 1 : 0;
+  };
+  if (reduced) { view(full); return { el: s }; }
+  const t0 = Date.now(); const tick = () => { if (!s.isConnected && Date.now() - t0 > 500) return; draw(((Date.now() - t0) / 10000) % 1); setTimeout(tick, 16); }; tick();
+  return { el: s };
+}
+
+LTT.deck({
+  title: "얼음-알베도 되먹임", theme: "paper",
+  glossary: { "알베도": "표면에 닿은 햇빛 가운데 되튕겨 나가는 비율. 0이면 모두 흡수, 1이면 모두 반사" },
+  scenes: [{
+    type: "overview",
+    title: "한 장 정리: 녹을수록 더 녹는 고리",
+    sub: "네 칸을 차례로 확대했다가 다시 전체로 돌아온다. 화살표를 따라 ④에서 ①로 이어지면 고리가 닫힌다.",
+    figure: (el) => { const w = el.appendChild(document.createElement("div")); w.className = "ia-wrap"; return loopFig(w); },
+    caption: "{{알베도}}가 0.7에서 0.06으로 떨어지면 같은 햇빛에서 흡수량이 약 3배가 된다(30% → 94%).",
+    basis: "해빙 범위: NSIDC Sea Ice Index 9월 평균. 알베도: NSIDC 'Thermodynamics: Albedo'(해빙 0.5–0.7, 바다 0.06). 기온 편차: NASA GISTEMP 북극(64–90°N) 근사값."
+  }]
+});
+</script>
+</body>
+</html>
