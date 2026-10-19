@@ -7,3 +7,8 @@ File: 3d2bdfc94cd5e417-refactoring-9-kit-3d-lessons.md
 Summary: refactoring-9: 3D가 핵심인 수업이 생기면 three.js를 kit에 넣는 남은 작업(kit 확장 handoff에서 보류된 항목)
 Related Files: skills/learn-to-tell/kit/vendor/VERSIONS, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/gallery/catalog.html
 Related Symbols: 없음
+---
+File: 418133af7560aefc-refactoring-1-skill-time-breakdown.md
+Summary: refactoring-1 compare1 실험의 skill·기준선 서브에이전트 소요 시간 분해 원자료(단계·도구·이벤트 시각)
+Related Files: site/compare1/index.html, agent-docs/handoff/b41cd6aec66a2589-refactoring-1-lesson-cost-ledger.md
+Related Symbols: 없음
