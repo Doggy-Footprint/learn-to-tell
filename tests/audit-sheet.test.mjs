@@ -351,13 +351,15 @@ test("VO-3 FR-4: a no-beat cell is captured at the budget time", { skip, ...T },
   await writeLesson(home, "sheet-late", "late.js");
   const { json } = await kitAudit(home, "sheet-late");
   assert.deepEqual(json.beats[1], [], "late scene must expose no beats");
-  const results = await audit({ targets: ["sheet-late"], sizes: ["1280x800"], chrome, home, jobs: JOBS, sheet: true, budget: 6000 });
-  const sheet = results[0].sheet;
-  assert.ok(sheet && !sheet.error, `sheet: ${sheet?.error}`);
-  const cells = sheet.cells.filter((c) => c.scene === 2);
-  assert.deepEqual(cells.map((c) => c.t), [null]);
-  const [[, p]] = await cellPixels(sheet, cells);
-  assert.ok(near(p, hex("#0000ff")), `rest cell ${p} is not the colour painted at 3000 ms (budget 6000)`);
+  for (const [budget, colour] of [[2000, "#808080"], [6000, "#0000ff"]]) {
+    const results = await audit({ targets: ["sheet-late"], sizes: ["1280x800"], chrome, home, jobs: JOBS, sheet: true, budget });
+    const sheet = results[0].sheet;
+    assert.ok(sheet && !sheet.error, `sheet: ${sheet?.error}`);
+    const cells = sheet.cells.filter((c) => c.scene === 2);
+    assert.deepEqual(cells.map((c) => c.t), [null]);
+    const [[, p]] = await cellPixels(sheet, cells);
+    assert.ok(near(p, hex(colour)), `rest cell ${p} at budget ${budget} is not ${colour} (repaint at 3000 ms)`);
+  }
 });
 
 // ---------- VO-5 C-4 ----------

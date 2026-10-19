@@ -73,7 +73,7 @@
 ## Next Step
 
 재개 지점(2026-10-20 일곱 번째 세션 뒤): 계획 3의 남은 일.
-1. run S F-2 닫기(선택): `tests/audit-sheet.test.mjs`에 late.js 장면을 budget 2000(회색 기대)·6000(파랑 기대)으로 두 번 찍는 검사를 넣고 HM-17(쉬는 칸 고정 12000)이 잡히는지 본다. 테스트만 바꾸는 일이라 새 run 없이 할지 사용자가 정한다.
+1. run S F-2: 닫음(아래 Execution Ledger run S).
 2. 마무리 측정: 단계 1과 같은 3주제(CPU+cache, cache-ttl, 공기저항 최대 사거리)로 `dd6e1f9` 대 HEAD, sonnet medium 6회. 눈 검토가 그림 결함을 고쳤는지(sheet Read 수, 8단계 Edit 내용), 가중 토큰·벽시계가 얼마나 늘었는지.
 3. 그 뒤 마무리(아래).
 재개 지점(2026-10-20 여섯 번째 세션 뒤): 계획 `~/.claude/plans/vast-baking-lark.md` 3(run S: audit `--sheet`, SKILL.md §3 8단계·standalone·PROJECT.md, 마무리 측정)부터 한다. sheet 필름스트립은 장면 `data-ltt-beats`(글 있는 비트 우선, M2 형식 `{t, text}`)를 찍는다. 아래 kit 후보 중 1(같은 시각 비트 합치기)은 sheet가 비트 글을 읽으므로 run S에 함께 넣는 것을 기본값으로 제안한다.
@@ -152,6 +152,7 @@ M1 입력(1 실사용 확인에서 나온 것):
 - 손 변이(`agent-docs/spec-logs/a96c8781ab82e025-hand-mutations.txt`, runner `.py`): 1회차 HM-1..12 KILLED, 2회차 HM-1..16 KILLED, HM-17 SURVIVED(F-2 확인). 변이 도구·fuzz 없음(spec 사유).
 - 리뷰: R-1·R-2 `a96c8781ab82e025-r1-sheet.txt`, sheet 사본 `r1-gpu-1.jpg`·`r1-ontology-2.jpg`·`r1-s47.jpg`.
 - verifier 권고(비차단): F-6 t+300 상한·loop 비트 색 oracle 없음, F-7 라벨 `…`·`s` 꼴 이미지 검사 없음, P3 호출 수 하한만.
+- run 뒤 F-2 닫기(사용자 지시, 테스트만): VO-3 FR-4 검사를 budget 2000(회색)·6000(파랑) 두 번 찍게 바꿈. HM-17 재주입 → `rest cell 0,0,254 at budget 2000 is not #808080`로 KILLED, 복원 뒤 Test command 1222 통과·gallery audit·css in sync.
 - 범위 밖 부하 흔들림: `tests/autolayout.test.mjs` VO-9 PF1 성능(중앙값 393ms > 300) 1회, 재실행 통과. audit-sheet 테스트(약 108s, Chrome 다수)가 병렬 부하를 늘린다.
 
 ### audit.mjs 구조 (CDP 재작성 run B 입력)
