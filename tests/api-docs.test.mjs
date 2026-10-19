@@ -13,9 +13,12 @@ const API_DIR = join(KIT, "api");
 const PKG = join(ROOT, "packages/ltt-kit");
 
 const PART_DOCS = ["base", "ui", "mock", "diagram", "sequence", "map", "controls", "charts"];
-const API_FILES = [...PART_DOCS, "deck-contracts", "internals"].map((f) => `${f}.md`);
+const API_FILES = [...PART_DOCS, "deck-contracts", "internals", "rules"].map((f) => `${f}.md`);
 const P2_PARTS = ["ui", "mock", "diagram", "sequence", "map", "controls", "charts"];
-const CORE_LIMIT = 8500;
+// Plan b71ddee49f77ac06 §3: what a generating agent reads before writing (SKILL.md + API.md) stays near 30K bytes.
+// API.md now carries the authoring rules and a lesson example; the example shrinks once scene specs become declarative.
+const CORE_LIMIT = 11500;
+const SKILL_LIMIT = 8500;
 const P2_LIMIT = 18000;
 const ROW_LIMIT = 300;
 
@@ -170,6 +173,7 @@ function realDocs() {
 
 const apiText = () => readReal(join(KIT, "API.md"), "kit/API.md");
 const apiDoc = (f) => readReal(join(API_DIR, f), `kit/api/${f}`);
+const rulesText = () => apiDoc("rules.md");
 const skillText = () => readReal(join(SKILL, "SKILL.md"), "SKILL.md");
 
 // ---------- VO-1 definition checker (synthetic) ----------
@@ -292,20 +296,25 @@ test("VO-2 FR-2: kit/api/deck-contracts.md defines no name", () => {
 
 const pad = (n) => "😀".repeat(100) + "가".repeat(4000) + "a".repeat(n - 4100);
 
-test("VO-3 C-2: 8,500 code points pass the core size check", () => {
-  const text = pad(8500);
-  assert.equal(cp(text), 8500);
+test("VO-3 C-2: 11,500 code points pass the core size check", () => {
+  const text = pad(11500);
+  assert.equal(cp(text), 11500);
   assert.equal(sizeError(text, CORE_LIMIT, "kit/API.md"), null);
 });
 
-test("VO-3 C-2: 8,501 code points fail with the actual count and the limit", () => {
-  const err = sizeError(pad(8501), CORE_LIMIT, "kit/API.md");
-  assert.ok(err, "8,501 code points passed");
-  assert.ok(err.includes("8501") && err.includes("8500"), err);
+test("VO-3 C-2: 11,501 code points fail with the actual count and the limit", () => {
+  const err = sizeError(pad(11501), CORE_LIMIT, "kit/API.md");
+  assert.ok(err, "11,501 code points passed");
+  assert.ok(err.includes("11501") && err.includes("11500"), err);
 });
 
-test("VO-3 FR-3 QR-P1: real kit/API.md is at most 8,500 code points", () => {
+test("VO-3 FR-3 QR-P1: real kit/API.md is at most 11,500 code points", () => {
   const err = sizeError(apiText(), CORE_LIMIT, "kit/API.md");
+  assert.equal(err, null, err);
+});
+
+test("plan b71ddee49f77ac06 §3: real SKILL.md is at most 8,500 code points", () => {
+  const err = sizeError(skillText(), SKILL_LIMIT, "SKILL.md");
   assert.equal(err, null, err);
 });
 
@@ -367,8 +376,8 @@ const LINT_IDS = ["unknown-term", "used-before-defined", "predict-new-term", "no
 const AUDIT_IDS = ["overflow", "shrunk", "small-visual", "loose-figure", "empty-stage", "many-sizes", "hscroll", "graph-overlap", "panel-overlap", "goal-unreachable", "goal-narrow", "goal-at-start"];
 
 for (const [label, ids] of [["lint", LINT_IDS], ["audit", AUDIT_IDS]]) {
-  test(`VO-4 ${label} rules: all ${ids.length} ids are first-cell code spans`, () => {
-    const spans = firstCellSpans(apiText());
+  test(`VO-4 ${label} rules: all ${ids.length} ids are first-cell code spans of kit/api/rules.md`, () => {
+    const spans = firstCellSpans(rulesText());
     const missing = ids.filter((id) => !spans.has(id));
     assert.deepEqual(missing, [], `${label} rule rows missing: ${missing.join(", ")}`);
   });
@@ -495,10 +504,11 @@ test("VO-6 FR-7 §3 read line: one line holds kit/API.md, kit/api/<part>.md and 
 const REF_HEADER = "| 보여 줄 것 | 부품 | 참조 |";
 const REF_PATHS = [...["diagram", "sequence", "map", "controls", "charts", "ui", "mock"].map((x) => `\`kit/api/${x}.md\``), "`kit/API.md`"];
 
-test("VO-6 FR-7 §3 reference column: every row of the 보여 줄 것 | 부품 | 참조 table points at a doc", () => {
-  const ls = lines(section(skillText(), 3));
+// Plan b71ddee49f77ac06 §3 moved the part-picking table from SKILL.md §3 into kit/API.md.
+test("VO-6 FR-7 API.md reference column: every row of the 보여 줄 것 | 부품 | 참조 table points at a doc", () => {
+  const ls = lines(apiText());
   const at = ls.findIndex((l) => l.trim() === REF_HEADER);
-  assert.ok(at >= 0, `FR-7: §3 has no table header ${REF_HEADER}`);
+  assert.ok(at >= 0, `FR-7: kit/API.md has no table header ${REF_HEADER}`);
   const rows = [];
   for (let i = at + 1; i < ls.length && ls[i].trimStart().startsWith("|"); i++) {
     const row = ls[i].trimStart();
@@ -513,7 +523,7 @@ test("VO-6 FR-7 no-internals: SKILL.md never mentions internals.md", () => {
   assert.equal(skillText().includes("internals.md"), false, "FR-7: SKILL.md mentions internals.md");
 });
 
-const COST_TOKENS = ["읽은 문서", "바이트", "lesson.html", "장면 수", "결정 변수 수", "기대값", "주장 검토", "독자 검토", "눈 검토", "audit", "스크린샷", "시작", "공개", "토큰"];
+const COST_TOKENS = ["lesson.html", "바이트", "장면 수", "결정 변수 수", "검토 서브에이전트", "audit", "남은 권고", "시작", "공개", "토큰"];
 const isCostLine = (l) => l.trimStart().startsWith("- 생성 비용:");
 
 function costTemplate() {
@@ -523,7 +533,7 @@ function costTemplate() {
   return { s5, block };
 }
 
-test("VO-6 FR-9 §5 template: a - 생성 비용: line followed by all 14 sub-value tokens before the block end", () => {
+test("VO-6 FR-9 §5 template: a - 생성 비용: line followed by all 10 sub-value tokens before the block end", () => {
   const { block } = costTemplate();
   const at = block.body.findIndex(isCostLine);
   assert.ok(at >= 0, "FR-9: §5 template has no line starting with - 생성 비용:");
@@ -716,8 +726,8 @@ test("VO-5 checker: a first cell holding several ids counts for each of them", (
 });
 
 for (const { id, rule, tokens } of DOC_ROWS) {
-  test(`VO-5 ${id} FR-2 C-15: kit/API.md has a row with \`${rule}\` in the first cell containing ${tokens.join(" and ")}`, () => {
-    const err = auditRowError(apiText(), rule, tokens);
+  test(`VO-5 ${id} FR-2 C-15: kit/api/rules.md has a row with \`${rule}\` in the first cell containing ${tokens.join(" and ")}`, () => {
+    const err = auditRowError(rulesText(), rule, tokens);
     assert.equal(err, null, err ?? "");
   });
 }
@@ -728,7 +738,7 @@ for (const { id, rule, tokens } of DOC_ROWS) {
 const hasThreshold = (row, t) => new RegExp(`(?<![\\d.])${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(row);
 
 const THRESHOLD_ROWS = [
-  { rule: "shrunk", tokens: ["78%", "88%"], what: "the overflow · shrunk · hscroll row" },
+  { rule: "shrunk", tokens: ["78%", "88%"], what: "the shrunk row" },
   { rule: "small-visual", tokens: ["10%", "22%"], what: "the small-visual row" },
   { rule: "empty-stage", tokens: ["35%", "60%"], what: "the loose-figure · empty-stage row" },
   { rule: "many-sizes", tokens: ["7단계"], what: "the many-sizes row" },
@@ -759,8 +769,29 @@ test("VO-5 DOC-5 checker: digit-extended numbers (188%, 17단계, 0.88%) do not 
 });
 
 for (const { rule, tokens, what } of THRESHOLD_ROWS) {
-  test(`VO-5 DOC-5 FR-2(c): kit/API.md ${what} (first cell holds \`${rule}\`) keeps ${tokens.join(" and ")}`, () => {
-    const err = auditRowError(apiText(), rule, tokens, hasThreshold);
+  test(`VO-5 DOC-5 FR-2(c): kit/api/rules.md ${what} (first cell holds \`${rule}\`) keeps ${tokens.join(" and ")}`, () => {
+    const err = auditRowError(rulesText(), rule, tokens, hasThreshold);
     assert.equal(err, null, err ?? "");
   });
 }
+
+// ---------- plan b71ddee49f77ac06 §1–3: flow docs stay consistent ----------
+
+test("plan §2: the 권고 ids named in SKILL.md §3 are exactly the rules.md rows graded 권고", () => {
+  const graded = lines(rulesText()).filter(isRow).filter((r) => (cells(r)[1] ?? "").trim() === "권고").flatMap((r) => codeSpans(firstCell(r)));
+  const line = lines(section(skillText(), 3)).find((l) => l.includes("**권고**"));
+  assert.ok(line, "SKILL.md §3 has no line naming **권고**");
+  const named = codeSpans(line.slice(line.indexOf("**권고**"), line.indexOf("**고침**")));
+  assert.deepEqual([...named].sort(), [...graded].sort());
+});
+
+test("plan §2: every rules.md row is graded 고침 or 권고", () => {
+  const bad = lines(rulesText()).filter(isRow).filter((r) => firstCell(r).trim() !== "rule" && !["고침", "권고"].includes((cells(r)[1] ?? "").trim()));
+  assert.deepEqual(bad, []);
+});
+
+test("plan §3: the kit/API.md lesson example is valid JavaScript", () => {
+  const block = apiText().match(/^```js\n([\s\S]*?)^```/m);
+  assert.ok(block, "kit/API.md has no ```js example");
+  assert.doesNotThrow(() => new vm.Script(block[1]));
+});
