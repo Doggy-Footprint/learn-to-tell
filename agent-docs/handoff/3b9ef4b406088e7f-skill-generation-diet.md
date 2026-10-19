@@ -55,6 +55,7 @@
 
 화면 품질 작업(2026-10-19 세 번째 세션):
 - 참고 GIF를 구하기 어려워 사용자 지시로 본보기 후보 51개를 kit으로 만들었다(축 조합 51, 에이전트 17 × 3). `site/gallery/shots/`에 넣었고 `shots/index.html`에서 모아 본다. 사용자가 이 중에서 shot을 고른다. 공통 kit 공백(자동 재생 반복 도우미, 그림 칸 함수의 `leave` 부재와 측정용 사본, terms 주 그림 자리, contrast 칸 폭, 경로 입자·선 그리기·카메라·배치 모핑 부품, predict `question` 미표시·`takeaway` 선공개, sweep 자동 재생, `expect` boolean)은 카드마다 "kit 공백"으로 적혀 있다. 헤드리스 가상 시간에서는 `requestAnimationFrame`이 진행되지 않아 반복을 `setTimeout`으로 돌렸다(contact sheet에 반영할 것).
+- shot 카드: 사용자가 49개(05·08 제외)를 골랐다. `scripts/shots.mjs`로 카드 49장과 무드보드를 만들었고 SKILL.md §3 1단계가 무드보드 + 카드 2–3장을 읽는다. 정지 프레임으로 움직임이 잘 안 보이는 카드: s29·s45(위상 없이 계속 흐름), s37 프레임 1(비트보다 앞선 상태), s47(연도 단추가 2000에 고정). kit `LTT.timeline`(비트 시각을 알려 주는 반복 도우미)이 생기면 비트 시각을 페이지에서 받아 찍게 바꾼다.
 - contact sheet: audit에 줄인 장면 스크린샷을 한 장으로 합치는 옵션을 workflow-approach로 만든다(계획 run B의 contact sheet와 같은 일). 그 뒤 SKILL.md §3 8단계를 "sheet 한 장을 Read해 outline의 기대 화면과 look.md 눈 기준으로 대조하고 Edit 한 묶음, 다시 보기는 한 번까지"로 바꾸고 PROJECT.md 검증 절에 적는다.
 - shot(few-shot 본보기): 사용자가 외부 GIF를 주면 그것을 바탕으로 kit으로 본보기 10–12개를 만든다. 구성: 개념 구조(순환·순서·비율·연결·공간·시간·분포·변환) × 매체(테마) × 모션 종류가 겹치지 않는 다양성 격자, shot마다 "옮길 것(원리) / 옮기지 않을 것(주제·구도)" 캡션 두 줄, 약한/강한 대비 쌍 2–3개, 코드는 넣지 않는다(rejection `2c5216fd…`). 정지 contact sheet 1장 + 필름스트립(핵심 프레임 3–4개) 1장, 한 장 800–1000px 폭이면 된다(모델은 GIF를 첫 프레임만 보고, 긴 변 1568px 넘으면 줄여 본다). 테스트 주제의 분야는 shot에서 뺀다. kit으로 만들 수 없는 효과는 kit 작업 목록이 된다. 이미지는 `look/`에 두고 look.md에 캡션을 넣는다.
 
