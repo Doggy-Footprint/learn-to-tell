@@ -16,7 +16,12 @@
   - `agent-docs/handoff/index.md`
 - `tmp/`는 `.gitignore`에 있어 커밋할 수 없다. 그래서 계획을 `agent-docs/plans/`에 두었다.
 - `agent-docs/plans/`는 이 작업을 위해 2026-10-19 세션이 새로 만든 임시 디렉터리다. 이 handoff가 끝나면 `git rm -r agent-docs/plans`로 폴더째 지운다(사용자 지시). `stale/`로 옮기지 않는다. 이 handoff 자체는 Handoff Rule대로 `stale/`로 옮긴다.
-- 계획 단계 0의 첫 항목(미커밋 handoff 커밋)은 `f16c44e`로 끝났다. 나머지는 착수 전이다.
+- 계획 단계 0의 첫 항목(미커밋 handoff 커밋)은 `f16c44e`로 끝났다.
+- 2026-10-19 두 번째 세션:
+  - 단계 0 완료(`bed2771`): `scripts/transcript-cost.mjs`, ledger `b41cd6ae…` 실험 3.
+  - 단계 1 완료(`46feba8`): SKILL.md·API.md·rules.md·map/import.md·standalone·PROJECT·README, 테스트. `npm test` 1025 통과.
+  - 단계 2 완료: ledger 실험 4.
+  - run A는 understanding round에서 사용자 확인을 기다린다. K1 1안 spike 결과는 Execution Ledger "K1 spike"에 있다.
 
 ## Failed Attempts
 
@@ -147,6 +152,20 @@
   - API.md 원칙 vw 줄: `:290`
   - deck-contracts: `:312`, `:319`, `:351`
 - gallery audit 테스트(`tests/gallery-audit.test.mjs`)는 `LTT_AUDIT=1`일 때만 Chrome으로 돈다. 기준선은 전부 0이다.
+
+### K1 spike (2026-10-19, scratch만, 저장소 변경 없음)
+
+- 1안 구현: 장면마다 창 크기가 바뀔 때 한 번, zoom 1에서 넘침량을 재고, `.dk-body` 안 가장 큰 `svg[viewBox]`·`img`·`canvas`(아이콘·목업·SVG 안 SVG 제외, 높이 120px 이상)에 `max-height = max(높이 × 0.65, 높이 − 넘침)`을 건다. 이어서 기존 `fit`이 남은 넘침을 zoom한다.
+- 결과(audit JSON에 장면별 zoom을 더해 비교):
+
+  | 대상 | zoom < 1 장면 | 경고 변화 |
+  | --- | --- | --- |
+  | gallery 11편 × 2크기(338장면) | 65 → 40 | 0 → 0 |
+  | compare1 5편 + 실험 3 첫 초안·최종(192장면) | 64 → 48 | shrunk 2 → 2, small-visual 0 → 2 |
+
+- 실패한 시도: 처음 구현은 매번 `style.maxHeight = ""`로 되돌려 작가가 건 `max-height: 90px`(compare1 projectile 장면 8)를 지웠다. 그 장면 zoom이 0.96 → 0.78로 나빠졌다. kit이 건 값만 기억해 되돌리게 고쳤다.
+- 남은 shrunk 2건(실험 3 초안)은 큰 그림이 없는 글 장면이라 1안이 다루지 않는다. 새 small-visual 2건은 그림을 줄인 뒤 비율로 판정해서 생겼다. 계획대로 줄이기 전 비율로 판정하면 사라질 것이다(hypothesis).
+- 판단: 2안(`fit` 안에서 줄이고 `zoomLock`이 `{z, figMax}`를 잠금)은 필요 없다.
 
 ### 결정 기록
 
