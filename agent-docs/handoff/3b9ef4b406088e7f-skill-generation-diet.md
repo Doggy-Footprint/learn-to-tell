@@ -29,6 +29,16 @@
   - artifact-design·artifact-diagramming·dataviz에서 쓸 부분을 흡수했다. 차트 기준은 `kit/api/charts.md` "그리기", 도식 기준은 `kit/api/diagram.md` "그리기", 구조 장치 규칙은 API.md 독학 기준에 넣었다. API.md의 매체 줄은 SKILL.md §3과 겹쳐서 뺐다.
   - 모션 규칙을 "제한 없음(자동 재생·반복 허용)"으로 바꿨다(API.md, PROJECT.md).
   - 평가 먼저: `skills/learn-to-tell/look/look.md`(화면 기준, 기대 화면 형식, 눈 기준)를 새로 만들고, SKILL.md §3 outline 줄에 장면별 "기대 화면"을 넣었다. contact sheet는 아직 없어서 §3 8단계는 그대로다.
+  - shot 카드 49장과 무드보드(`dd6e1f9`).
+- 2026-10-19 네 번째 세션: 계획 `~/.claude/plans/vast-baking-lark.md`(1 실사용 확인 → 2 kit 움직임 부품 run M1·M2 → 3 audit `--sheet`와 눈 검토, 1·2 뒤에 `/compact`)를 승인받았다.
+  - 1 완료(코드 변경 없음). `3e5d277` 대 `dd6e1f9`, 3주제(CPU+cache, cache-ttl, projectile) × 1쌍, opus low 블라인드 채점.
+    - 베끼기: 0건이다. 주제·글·숫자를 옮긴 수업이 없었다. cache-ttl 변경 후의 sweep 좌우 분할이 s29와 부분적으로 닮았다.
+    - 품질: 5축 합은 변경 후가 3/3 주제에서 1–2점 앞섰다(채점 편차 안). 시각 축은 projectile만 4 대 3이고 나머지 둘은 같아서 기준(2/3)에 못 미쳤다.
+    - 원인(verified): 변경 후 outline의 기대 화면은 움직임을 계획했다("줄이 차례로 켜짐", "띠와 눈금이 차례로 그려짐", "화살표 셋이 자란다"). 그러나 lesson.html의 타이머·애니메이션 코드는 0줄이고, 클릭 단계(steps)로만 구현했다. 그래서 0.9s와 5s 프레임이 같다. 문서에 반복 재생 부품이 없어 움직임이 클릭 단계로 바뀐다. look.md는 고치지 않고 2로 간다.
+    - 비용: 변경 후가 1.1–1.5배다(가중 46만–65만, 목표 130만 안). 이미지 Read는 3–4장(무드보드 + 카드 2–3장)이다.
+  - 테스트 실행 방법(3의 마무리 측정에 다시 쓴다).
+    - macOS에서 `CLAUDE_CONFIG_DIR`로 격리하면 로그인이 풀린다. 그래서 실제 config에 `--setting-sources project --strict-mcp-config --mcp-config <빈 JSON>`을 줬다. 이러면 사용자 동기 skill과 MCP가 빠지고 plugin skill만 보인다.
+    - 생성 agent가 Write 경로의 `<home>`을 기본값 `~/.learn-to-tell`로 풀었다가 `$LTT_HOME`으로 옮긴 일이 1회 있었다. 사용자 파일은 바뀌지 않았다.
 
 ## Failed Attempts
 
@@ -40,7 +50,8 @@
 
 ## Next Step
 
-재개 지점(2026-10-19): Open Questions의 생성기 수정 제안을 사용자가 정하면 그 순서로 진행한다. 남은 것은 계획 "단계와 순서"의 단계 3–6(workflow-approach run A–D), 단계 7, 마무리다.
+재개 지점(2026-10-19 네 번째 세션 뒤): 계획 `~/.claude/plans/vast-baking-lark.md`의 2(run M1)부터 한다. understanding round 입력은 Open Questions의 "M1 입력"이다.
+이전 재개 지점: Open Questions의 생성기 수정 제안을 사용자가 정하면 그 순서로 진행한다. 남은 것은 계획 "단계와 순서"의 단계 3–6(workflow-approach run A–D), 단계 7, 마무리다.
 
 마무리:
 - `agent-docs/plans/` 폴더를 통째로 지운다(`git rm -r agent-docs/plans`).
@@ -59,6 +70,16 @@
 - contact sheet: audit에 줄인 장면 스크린샷을 한 장으로 합치는 옵션을 workflow-approach로 만든다(계획 run B의 contact sheet와 같은 일). 그 뒤 SKILL.md §3 8단계를 "sheet 한 장을 Read해 outline의 기대 화면과 look.md 눈 기준으로 대조하고 Edit 한 묶음, 다시 보기는 한 번까지"로 바꾸고 PROJECT.md 검증 절에 적는다.
 - shot(few-shot 본보기): 사용자가 외부 GIF를 주면 그것을 바탕으로 kit으로 본보기 10–12개를 만든다. 구성: 개념 구조(순환·순서·비율·연결·공간·시간·분포·변환) × 매체(테마) × 모션 종류가 겹치지 않는 다양성 격자, shot마다 "옮길 것(원리) / 옮기지 않을 것(주제·구도)" 캡션 두 줄, 약한/강한 대비 쌍 2–3개, 코드는 넣지 않는다(rejection `2c5216fd…`). 정지 contact sheet 1장 + 필름스트립(핵심 프레임 3–4개) 1장, 한 장 800–1000px 폭이면 된다(모델은 GIF를 첫 프레임만 보고, 긴 변 1568px 넘으면 줄여 본다). 테스트 주제의 분야는 shot에서 뺀다. kit으로 만들 수 없는 효과는 kit 작업 목록이 된다. 이미지는 `look/`에 두고 look.md에 캡션을 넣는다.
 
+
+M1 입력(1 실사용 확인에서 나온 것):
+- 기대 화면에 적은 움직임이 클릭 단계로 바뀌었다. figure `steps`를 자동으로 재생하는 반복 도우미가 필요하다. 이름의 기본값은 `LTT.motion`이다. 원래 계획 K5가 `LTT.timeline`을 시간축 부품 이름으로 잡아 두었다.
+- 문서에 형식이 없어 추측하거나 포기한 것들이 있다.
+  - `LTT.axisPlot`의 `set(id, points)` 점 형식.
+  - `LTT.hbars`의 `ticks`·`tickFormat`.
+  - compare `form: "table"`의 head·cols 스키마(2회).
+  - 이것들은 M1 문서에서 함께 고친다.
+- 손으로 그린 반복 도메인 그림: 64B 메모리 띠 격자(2회), 요청 테이프(키별 시간축 + TTL 띠, 2회, K5 후보), 한 점의 힘 화살표(2회).
+- predict 장면에 그림이 없는 경우(projectile 2회)와 `shrunk` 78–86%는 6편 중 5편에 남았다.
 
 생성기 수정 제안(사용자 결정 대기, AGENTS.md "Generated Lesson Defects"):
 - lint: 장면 타입에 없는 필드(예: 타입 없는 장면의 `figure`)를 "고침"으로 잡는다.
