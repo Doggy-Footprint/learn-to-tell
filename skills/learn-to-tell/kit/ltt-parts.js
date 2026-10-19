@@ -333,11 +333,11 @@
       });
       return v;
     }
-    var goal = opts.goal && sweepGoal(opts.goal), reached = false;
+    var goal = opts.goal && sweepGoal(opts.goal), reached = false, attracting = false, attract = null;
     function render() {
       var v = values();
       opts.render(v);
-      if (!goal) return;
+      if (!goal || attracting) return;
       var hit = !!opts.goal.check(v);
       goal.classList.toggle("done", hit);
       if (hit && !reached) {
@@ -346,10 +346,27 @@
       }
       reached = reached || hit;
     }
-    ids.forEach(function (id) { ctl[id].on(render); });
+    var startRaw = {};
+    ids.forEach(function (id) { startRaw[id] = ctl[id].read(); });
+    // The first touch ends the attract for good and starts from the start values, so the goal is still found by hand.
+    function touched(restore) {
+      if (!attract) return;
+      attract.end();
+      attract = null;
+      if (!restore) return;
+      ids.forEach(function (id) { ctl[id].write(startRaw[id]); });
+      render();
+    }
+    ids.forEach(function (id) {
+      ctl[id].on(function () { if (!attracting) touched(false); });
+      ctl[id].on(render);
+      var node = opts.params[id].control ? null : $(id);
+      if (node) ["pointerdown", "keydown"].forEach(function (t) { node.addEventListener(t, function () { touched(true); }, true); });
+    });
     if (opts.presets) {
       document.querySelectorAll(opts.presets).forEach(function (btn) {
         btn.addEventListener("click", function () {
+          touched(true);
           var set = JSON.parse(btn.dataset.preset);
           Object.keys(set).forEach(function (k) { ctl[k].write(set[k]); });
           render();
@@ -368,6 +385,22 @@
       goal.dataset.start = reach.start ? "1" : "0";
     }
     if (opts.immediate !== false) render();
+    var at = opts.attract == null ? true : opts.attract;
+    if (at !== false && !MEASURING && !LTT.motion.reduced()) {
+      var aid = at.param == null ? ids[0] : at.param;
+      if (!ctl.hasOwnProperty(aid)) motionWarn(building || currentScene, "LTT.sweep attract param '" + aid + "'가 params에 없어 자동 훑기를 하지 않는다");
+      else {
+        var period = typeof at.period === "number" && at.period > 0 ? at.period : 6000;
+        attract = makeLoop(function (u) {
+          var raws = ctl[aid].raws(), f = u < 0.5 ? 2 * u : 2 - 2 * u;
+          attracting = true;
+          try {
+            ctl[aid].write(raws[Math.round(f * (raws.length - 1))]);
+            render();
+          } finally { attracting = false; }
+        }, { period: period });
+      }
+    }
     return { render: render, values: values, controls: ctl };
   }
 
@@ -613,17 +646,18 @@
     var timer = null;
     function stop() { clearTimeout(timer); timer = null; loop.textContent = "▶ 반복 재생"; loop.setAttribute("aria-pressed", "false"); }
     function hold(k) { return steps[k].hold || opts.interval || 1800; }
-    function tick() {
+    function tick(once) {
       timer = setTimeout(function () {
         if (!container.isConnected) return stop();
         go(i === steps.length - 1 ? 0 : i + 1, 1);
-        tick();
+        if (once && i === steps.length - 1) return stop();
+        tick(once);
       }, hold(i));
     }
-    function play() {
+    function play(once) {
       stop();
       loop.textContent = "■ 정지"; loop.setAttribute("aria-pressed", "true");
-      tick();
+      tick(once === true);
     }
     loop.onclick = function () { if (timer) stop(); else play(); };
     function go(k, dir) {
@@ -1588,6 +1622,166 @@
     });
   }
 
+  // Scene-bound motion. Ticks use setTimeout + Date.now(), never requestAnimationFrame: headless Chrome's virtual time
+  // (audit, shots, sheets) does not advance rAF, so a rAF loop would stand still there.
+  // A loop or bind made while a scene mounts belongs to that scene; one made while a scene is current belongs to it and
+  // starts at once; one made outside a deck just runs. Mounting is not entering (audit mounts every scene), so mount-time
+  // loops wait for the scene's entry.
+  var motionScenes = {}, building = null, currentScene = null, allLoops = [];
+  function reducedMotion() {
+    try { return !!(root.matchMedia && root.matchMedia("(prefers-reduced-motion: reduce)").matches); } catch (e) { return false; }
+  }
+  function motionScene(i) { return motionScenes[i] || (motionScenes[i] = { index: i, el: null, loops: [], binds: [], beats: [], on: false }); }
+  function motionWarn(sc, msg) { LTT.warn((sc ? "장면 " + (sc.index + 1) + ": " : "") + msg); }
+  function tabHidden() { return typeof document !== "undefined" && !!document.hidden; }
+
+  function sceneBeats(sc, list) {
+    if (!sc || !list.length) return;
+    list.forEach(function (b) {
+      if (!sc.beats.some(function (x) { return x.t === b.t; })) sc.beats.push(b.text ? { t: b.t, text: b.text } : { t: b.t });
+    });
+    sc.beats.sort(function (a, b) { return a.t - b.t; });
+    if (sc.el) sc.el.setAttribute("data-ltt-beats", JSON.stringify(sc.beats));
+  }
+
+  function loopBeats(list, period, sc) {
+    var out = [];
+    [].concat(list).forEach(function (b) {
+      var t = typeof b === "number" ? b : b && b.t;
+      if (typeof t !== "number" || !isFinite(t) || t <= 0 || t > period) {
+        motionWarn(sc, "LTT.motion.loop beat t=" + t + "가 (0, " + period + "] 밖이라 버린다");
+        return;
+      }
+      out.push(b && typeof b.text === "string" ? { t: Math.round(t), text: b.text } : { t: Math.round(t) });
+    });
+    return out.sort(function (a, b) { return a.t - b.t; });
+  }
+
+  function loopCall(L, u) {
+    try { L.draw(u); } catch (e) {
+      L.ended = true;
+      clearTimeout(L.timer); L.timer = null;
+      motionWarn(L.sc, "LTT.motion.loop draw가 실패해 그 움직임을 멈춘다 (" + (e && e.message) + ")");
+    }
+  }
+  function loopLive(L) { return !L.ended && !L.stopped && !L.done && (!L.sc || L.sc.on); }
+  function loopTick(L) {
+    L.timer = null;
+    if (!loopLive(L)) return;
+    if (tabHidden()) { if (L.hiddenAt == null) L.hiddenAt = Date.now(); return; }
+    // The drawing function runs before its node joins the document, so only a node that was attached and then removed ends it.
+    if (L.el) {
+      if (L.el.isConnected) L.seen = true;
+      else if (L.seen) { L.ended = true; return; }
+    }
+    var e = Date.now() - L.t0;
+    L.u = L.once ? Math.min(1, e / L.period) : (e % L.period) / L.period;
+    loopCall(L, L.u);
+    if (L.ended) return;
+    if (L.once && L.u >= 1) { L.done = true; return; }
+    L.timer = setTimeout(function () { loopTick(L); }, 16);
+  }
+  function loopStart(L) {
+    if (L.ended) return;
+    clearTimeout(L.timer); L.timer = null;
+    L.stopped = false; L.done = false; L.hiddenAt = null; L.t0 = Date.now(); L.u = 0;
+    if (reducedMotion()) { loopCall(L, L.rest); L.done = true; return; }
+    loopTick(L);
+  }
+  function loopPause(L) { clearTimeout(L.timer); L.timer = null; }
+
+  function makeLoop(draw, opts) {
+    opts = opts || {};
+    var sc = building || currentScene;
+    var period = opts.period == null ? 4000 : opts.period;
+    if (!(typeof period === "number" && isFinite(period) && period > 0)) {
+      motionWarn(sc, "LTT.motion.loop period " + period + "는 양수 ms여야 한다. 4000으로 돈다");
+      period = 4000;
+    }
+    var once = !!opts.once, given = opts.beats == null ? [] : loopBeats(opts.beats, period, sc);
+    var rest = typeof opts.rest === "number" ? opts.rest : given.length ? given[given.length - 1].t / period : 1;
+    var L = { draw: draw, period: period, once: once, rest: rest, el: opts.el || null, sc: MEASURING ? null : sc,
+      t0: Date.now(), u: 0, timer: null, stopped: false, ended: false, done: false, seen: false, hiddenAt: null };
+    var handle = {
+      stop: function () { loopPause(L); L.stopped = true; },
+      play: function () {
+        if (!L.stopped || MEASURING) return;
+        L.stopped = false;
+        L.t0 = Date.now() - L.u * L.period;
+        L.hiddenAt = null;
+        if (!reducedMotion()) loopTick(L);
+      },
+      get running() { return loopLive(L) && !L.done && !reducedMotion(); }
+    };
+    var end = function () { L.ended = true; loopPause(L); };
+    // Steps and predict answers are drawn off-screen to be measured; a loop made there shows its rest frame and nothing else.
+    if (MEASURING) { L.ended = true; loopCall(L, rest); return { handle: handle, end: end }; }
+    // A drawing redrawn into the same node replaces its loop instead of stacking a second one on it.
+    if (L.el) allLoops.forEach(function (o) { if (o.el === L.el && !o.ended) { o.ended = true; loopPause(o); } });
+    allLoops = allLoops.filter(function (o) { return !o.ended; });
+    allLoops.push(L);
+    if (sc) {
+      sc.loops.push(L);
+      if (building === sc) {
+        var P = period;
+        sceneBeats(sc, given.length ? given : [P / 3, 2 * P / 3, once ? P : P - 1].map(function (t) { return { t: Math.round(t) }; }));
+      }
+      // Made during a visit (step enter, scene enter, reveal): that code runs again next visit, so this loop ends on leave.
+      if (sc.on && building !== sc) { L.visit = true; loopStart(L); }
+    } else loopStart(L);
+    return { handle: handle, end: end };
+  }
+
+  function bindCall(sc, b, k) {
+    if (typeof b[k] !== "function") return;
+    try { b[k](); } catch (e) { motionWarn(sc, "LTT.motion.bind " + k + "가 실패했다 (" + (e && e.message) + ")"); }
+  }
+
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden) return;
+      allLoops.forEach(function (L) {
+        if (L.hiddenAt == null) return;
+        L.t0 += Date.now() - L.hiddenAt;
+        L.hiddenAt = null;
+        if (!L.timer) loopTick(L);
+      });
+    });
+  }
+
+  var motion = {
+    loop: function (draw, opts) { return makeLoop(draw, opts).handle; },
+    bind: function (o) {
+      if (MEASURING || !o) return;
+      var sc = building || currentScene;
+      if (!sc) { bindCall(null, o, "enter"); return; }
+      sc.binds.push(o);
+      if (sc.on && building !== sc) { o = { enter: o.enter, leave: o.leave, visit: true }; sc.binds[sc.binds.length - 1] = o; bindCall(sc, o, "enter"); }
+    },
+    reduced: reducedMotion
+  };
+  // The deck tells motion which scene is mounting, entered or left; kept off the enumerable surface authors read.
+  Object.defineProperty(motion, "_deck", { enumerable: false, value: {
+    begin: function (i, sceneEl) { building = motionScene(i); building.el = sceneEl; },
+    end: function () { building = null; },
+    beats: function (list) { if (!MEASURING) sceneBeats(building, list); },
+    enter: function (i) {
+      var sc = motionScene(i);
+      sc.on = true; currentScene = sc;
+      sc.loops.forEach(loopStart);
+      sc.binds.slice().forEach(function (b) { bindCall(sc, b, "enter"); });
+    },
+    leave: function (i) {
+      var sc = motionScene(i);
+      sc.on = false;
+      if (currentScene === sc) currentScene = null;
+      sc.loops.forEach(function (L) { loopPause(L); if (L.visit) L.ended = true; });
+      sc.loops = sc.loops.filter(function (L) { return !L.ended; });
+      sc.binds.slice().forEach(function (b) { bindCall(sc, b, "leave"); });
+      sc.binds = sc.binds.filter(function (b) { return !b.visit; });
+    }
+  } });
+
   if (typeof document !== "undefined") {
     var style = document.createElement("style");
     style.id = "ltt-parts-style";
@@ -1597,6 +1791,7 @@
   }
 
   LTT.MOTION_MS = MOTION_MS;
+  LTT.motion = motion;
   LTT.measure = function (fn) { MEASURING++; try { return fn(); } finally { MEASURING--; } };
   LTT.$ = $;
   // Coordinate-free diagram -> pixel diagram spec via elkjs layered layout. elk rejects arrays/objects built in another

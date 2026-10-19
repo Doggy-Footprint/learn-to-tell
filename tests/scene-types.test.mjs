@@ -148,9 +148,10 @@ test("VO-2 FR-3: LTT.deckTypes is the same object as LTT.sceneTypes", () => {
 });
 
 // Spec 74cb05d7da21907e v3 FR-3 adds placement (defined by ltt-deck.js) to the public set.
-test("VO-2 FR-11 C-3 (74cb05d7da21907e FR-3): public names are the 73 base names plus sceneTypes and placement", () => {
+// Spec 6cc24f891a69c407 Signatures adds motion (LTT.motion).
+test("VO-2 FR-11 C-3 (74cb05d7da21907e FR-3, 6cc24f891a69c407): public names are the 73 base names plus sceneTypes, placement and motion", () => {
   assert.equal(new Set(BASE_NAMES).size, 73);
-  assert.deepEqual(Object.keys(loadDeck()).sort(), [...BASE_NAMES, "sceneTypes", "placement"].sort());
+  assert.deepEqual(Object.keys(loadDeck()).sort(), [...BASE_NAMES, "sceneTypes", "placement", "motion"].sort());
 });
 
 // ---------- VO-3 load errors (error guessing) ----------

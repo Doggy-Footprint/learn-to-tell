@@ -6,7 +6,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { audit, findChrome, galleryTargets } from "../skills/learn-to-tell/server/audit.mjs";
 
-const baseline = JSON.parse(readFileSync(new URL("./gallery-audit.baseline.json", import.meta.url), "utf8"));
+const raw = JSON.parse(readFileSync(new URL("./gallery-audit.baseline.json", import.meta.url), "utf8"));
+// Spec 6cc24f891a69c407 A-10/QR-3: still-visual has its own per-page allowance (measured after the run); every other rule stays at the per-page counts.
+const STILL = "still-visual";
+const stillAllow = raw[STILL] ?? {};
+const baseline = Object.fromEntries(Object.entries(raw).filter(([k]) => k !== STILL));
 const chrome = findChrome();
 const skip = process.env.LTT_AUDIT === "0" ? "LTT_AUDIT=0"
   : process.env.CI && process.env.LTT_AUDIT !== "1" ? "CI without LTT_AUDIT=1"
@@ -28,7 +32,11 @@ test("gallery decks stay at or under the audit baseline in both sizes", { skip }
         continue;
       }
       const allowed = baseline[r.size][r.target] ?? 0;
-      if (r.audit.length > allowed) problems.push(`${at}: audit ${r.audit.length} > ${allowed}\n` + r.audit.map((w) => `    장면 ${w.scene} [${w.rule}]: ${w.msg}`).join("\n"));
+      const others = r.audit.filter((w) => w.rule !== STILL);
+      const still = r.audit.filter((w) => w.rule === STILL);
+      const stillAllowed = stillAllow[r.size]?.[r.target] ?? 0;
+      if (others.length > allowed) problems.push(`${at}: audit ${others.length} > ${allowed}\n` + others.map((w) => `    장면 ${w.scene} [${w.rule}]: ${w.msg}`).join("\n"));
+      if (still.length > stillAllowed) problems.push(`${at}: ${STILL} ${still.length} > ${stillAllowed}\n` + still.map((w) => `    장면 ${w.scene}: ${w.msg}`).join("\n"));
       if (r.lint.length) problems.push(`${at}: lint ${r.lint.map((w) => w.msg).join(" / ")}`);
       if (r.expectFails.length) problems.push(`${at}: ${r.expectFails.join(" / ")}`);
     }

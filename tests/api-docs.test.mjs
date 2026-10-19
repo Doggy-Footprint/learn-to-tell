@@ -245,7 +245,7 @@ test("VO-1 C-6: an undocumented runtime name newThing is reported", () => {
 });
 
 const BASE_DEFINITIONS = {
-  "kit/API.md": "theme, themes, palette, mark, marks, icon, icons, expect, record, lintDeck, math, MOTION_MS, deck",
+  "kit/API.md": "theme, themes, palette, mark, marks, icon, icons, expect, record, lintDeck, math, MOTION_MS, deck, motion",
   "kit/api/base.md": "themeTokens, summaryCards, linkTerms, warn",
   "kit/api/ui.md": "narration, annotate, beforeAfter, facts, chips, badge, callout, swatches, takeaway, chartFrame, inspector, redline, h, fill, contrast",
   "kit/api/mock.md": "mock",
@@ -258,20 +258,21 @@ const BASE_DEFINITIONS = {
 };
 
 // Spec 74cb05d7da21907e v1 FR-3: the base 74 public names plus placement (defined by ltt-deck.js, documented in internals.md) = 75.
-test("VO-2 oracle table lists 75 distinct names: the base 74 plus placement", () => {
+// Spec 6cc24f891a69c407 v1 Signatures/FR-18: plus motion (LTT.motion, defined in kit/API.md) = 76.
+test("VO-2 oracle table lists 76 distinct names: the base 74 plus placement and motion", () => {
   const all = Object.values(BASE_DEFINITIONS).flatMap((s) => s.split(", "));
-  assert.equal(new Set(all).size, 75);
-  assert.equal(all.length, 75);
-  assert.equal(all.filter((n) => n !== "placement").length, 74);
+  assert.equal(new Set(all).size, 76);
+  assert.equal(all.length, 76);
+  assert.equal(all.filter((n) => n !== "placement" && n !== "motion").length, 74);
 });
 
-test("VO-2 FR-3 QR-2: the runtime LTT public names are exactly the 75 oracle names", () => {
+test("VO-2 FR-3 QR-2: the runtime LTT public names are exactly the 76 oracle names", () => {
   const expected = Object.values(BASE_DEFINITIONS).flatMap((s) => s.split(", ")).sort();
   const names = Object.keys(loadLTT()).sort();
   const missing = expected.filter((n) => !names.includes(n));
   const extra = names.filter((n) => !expected.includes(n));
   assert.deepEqual({ missing, extra }, { missing: [], extra: [] }, `runtime LTT differs from the oracle: missing [${missing.join(", ")}], extra [${extra.join(", ")}]`);
-  assert.equal(names.length, 75);
+  assert.equal(names.length, 76);
 });
 
 for (const [file, list] of Object.entries(BASE_DEFINITIONS)) {
@@ -373,7 +374,7 @@ test("VO-4 themes: every LTT.themes name is a first-cell code span", () => {
 });
 
 const LINT_IDS = ["unknown-term", "used-before-defined", "predict-new-term", "no-reading-guide", "no-title", "overview-missing", "overview-order", "overview-no-visual", "keywords-last", "unused-term", "term-no-visual", "summary-no-recall", "card-monotony", "no-signature", "no-theme", "unknown-theme", "filler-content"];
-const AUDIT_IDS = ["overflow", "shrunk", "small-visual", "loose-figure", "empty-stage", "many-sizes", "hscroll", "graph-overlap", "panel-overlap", "goal-unreachable", "goal-narrow", "goal-at-start"];
+const AUDIT_IDS = ["overflow", "shrunk", "small-visual", "loose-figure", "empty-stage", "many-sizes", "hscroll", "graph-overlap", "panel-overlap", "goal-unreachable", "goal-narrow", "goal-at-start", "still-visual"];
 
 for (const [label, ids] of [["lint", LINT_IDS], ["audit", AUDIT_IDS]]) {
   test(`VO-4 ${label} rules: all ${ids.length} ids are first-cell code spans of kit/api/rules.md`, () => {
@@ -794,4 +795,61 @@ test("plan §3: the kit/API.md lesson example is valid JavaScript", () => {
   const block = apiText().match(/^```js\n([\s\S]*?)^```/m);
   assert.ok(block, "kit/API.md has no ```js example");
   assert.doesNotThrow(() => new vm.Script(block[1]));
+});
+
+// ---------- spec 6cc24f891a69c407 v1 VO-13 (FR-18, QR-6): motion documentation (syntax) ----------
+
+const rowsWithFirstSpan = (text, pred) => lines(text).filter(isRow).filter((r) => codeSpans(firstCell(r)).some(pred));
+
+test("VO-13 D1: kit/API.md has a table row whose first cell holds LTT.motion", () => {
+  const rows = rowsWithFirstSpan(apiText(), (s) => /LTT\.motion\b/.test(s));
+  assert.ok(rows.length >= 1, "no first-cell LTT.motion row in kit/API.md");
+});
+
+test("VO-13 D2: kit/API.md's motion rule line says pictures move by default (기본), names once and still", () => {
+  const ok = lines(apiText()).some((l) => /모션|움직/.test(l) && l.includes("기본") && l.includes("once") && l.includes("still"));
+  assert.ok(ok, "no single kit/API.md line holds 모션/움직, 기본, once and still");
+});
+
+for (const [id, tokens] of [["D3 loop", ["loop"]], ["D4 bind", ["bind"]], ["D5 autoplay", ["autoplay"]], ["D6 attract", ["attract"]], ["D7 beats", ["data-ltt-beats", "beats"]]]) {
+  test(`VO-13 ${id}: kit/api/deck-contracts.md documents ${tokens.join(" and ")}`, () => {
+    const text = apiDoc("deck-contracts.md");
+    const missing = tokens.filter((t) => !text.includes(t));
+    assert.deepEqual(missing, [], `deck-contracts.md lacks ${missing.join(", ")}`);
+  });
+}
+
+test("VO-13 D8: kit/api/rules.md has a still-visual row graded 권고, and lists 13 audit ids", () => {
+  const rows = rowsWithFirstSpan(rulesText(), (s) => s === "still-visual");
+  assert.equal(rows.length, 1, "expected exactly one rules.md row with `still-visual` in the first cell");
+  assert.equal((cells(rows[0])[1] ?? "").trim(), "권고");
+  assert.equal(AUDIT_IDS.length, 13);
+});
+
+test("VO-13 D9: kit/api/charts.md documents axisPlot set(id, points) point format", () => {
+  const ok = lines(apiDoc("charts.md")).some((l) => l.includes("set(") && l.includes("points"));
+  assert.ok(ok, "charts.md has no line with set( and points");
+});
+
+test("VO-13 D10: kit/api/charts.md documents hbars ticks and tickFormat", () => {
+  const ok = lines(apiDoc("charts.md")).some((l) => l.includes("hbars") && l.includes("ticks") && l.includes("tickFormat"))
+    || rowsWithFirstSpan(apiDoc("charts.md"), (s) => s.includes("hbars")).some((r) => r.includes("ticks") && r.includes("tickFormat"));
+  assert.ok(ok, "charts.md has no hbars line naming ticks and tickFormat");
+});
+
+test("VO-13 D11: compare form \"table\" head and cols format is documented in kit/API.md or deck-contracts.md", () => {
+  const ok = [apiText(), apiDoc("deck-contracts.md")].some((t) => lines(t).some((l) => l.includes("table") && l.includes("head") && l.includes("cols")));
+  assert.ok(ok, "no line names table, head and cols");
+});
+
+test("VO-13 D12: kit/CHANGELOG.md mentions LTT.motion", () => {
+  assert.ok(readReal(join(KIT, "CHANGELOG.md"), "kit/CHANGELOG.md").includes("LTT.motion"));
+});
+
+// catalog anchors get their id from group(title, "<id>") and demo("<id>", ...) at runtime, so a static id="motion" and the demo call both count.
+test("VO-13 D13: catalog.html defines the #motion demo anchor exactly once", () => {
+  const html = readReal(join(ROOT, "site/gallery/catalog.html"), "site/gallery/catalog.html");
+  const n = (html.match(/demo\(\s*["']motion["']/g) ?? []).length + (html.match(/id=["']motion["']/g) ?? []).length
+    + (html.match(/group\([^()]*,\s*["']motion["']\s*\)/g) ?? []).length;
+  assert.equal(n, 1, `#motion anchor defined ${n} times`);
 });

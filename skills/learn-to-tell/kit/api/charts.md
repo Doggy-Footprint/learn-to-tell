@@ -13,6 +13,11 @@
 | `LTT.units(el, n, cols, {band}).paint(k, cls, alt)` | 단위 그림(100칸 = 100건). `band: true`면 가는 틱의 넓은 띠(예: 2×50, 시간순 요청). |
 | `LTT.bar(el, [{color}]).set(values, labels)` | 비율 막대. |
 
+## 데이터 형식
+
+- `axisPlot`의 `set(id, points)`: `points`는 데이터 좌표 `[[x, y], …]`이고 배열 순서대로 선을 잇는다. 빈 배열이면 선을 지운다. `dot: true` 계열은 마지막 점에 점을 찍는다. 없는 `id`면 throw하고, 돌려주는 값은 같은 객체라 이어 부를 수 있다. `ticks`는 `[x 눈금 수, y 눈금 수]`(기본 `[6, 4]`)이고, 각 칸에 값 배열을 주면 그 값에만 눈금을 둔다. 눈금 글은 `xFormat`·`yFormat`(기본 `String`).
+- `hbars`의 `ticks`는 눈금 값 배열(기본: `domain`에서 d3가 고른 4개 안팎), `tickFormat(값) → 글`(기본 `String`)이 축 위 눈금 글을 만든다. 막대 값 글은 `fmt`(또는 행의 `text`).
+
 ## 그리기
 
 - 데이터가 하는 일이 모양을 정한다: 크기 비교는 막대, 시간에 따른 변화는 선, 비율은 `units`·`bar`, 흐름량은 `sankey`. 숫자 하나가 요점이면 차트 대신 `ltt-hero`.

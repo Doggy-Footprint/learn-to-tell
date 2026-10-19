@@ -1,4 +1,4 @@
-언제: figure `steps`, predict `answerVisual`·`rest`를 쓸 때, 또는 덱 이동·layout 기본값·`?audit`·폰 재배치의 세부 동작이 필요할 때 읽는다. 수업 작가가 지킬 계약만 담는다.
+언제: `LTT.motion`, figure `steps`·`autoplay`, sweep `attract`, predict `answerVisual`·`rest`를 쓸 때, 또는 덱 이동·layout 기본값·`?audit`·폰 재배치의 세부 동작이 필요할 때 읽는다. 수업 작가가 지킬 계약만 담는다.
 
 # ltt-deck.js: 장면 덱 계약
 
@@ -18,10 +18,56 @@
 - 자막 칸 높이는 가장 긴 단계 자막에 맞춰 고정되어 단계를 넘겨도 버튼이 움직이지 않는다.
 - `figure` 함수가 `{el, ...}`를 돌려주면 `enter`의 `fig`로 그 객체가 온다(같은 그림의 여러 상태). 장면에 들어올 때마다 다시 그리려면 공통 필드 `enter(body, ctx)`.
 
+## 움직임 (`LTT.motion`)
+
+### `loop`
+
+- `LTT.motion.loop(draw, {period, beats, once, rest, el})`은 `draw(u)`를 33ms 이하 간격으로 부른다. u = (진입 뒤 흐른 시간 mod `period`) / `period`(기본 4000ms). `once: true`면 u = min(1, 흐른 시간/`period`)이고 `draw(1)` 뒤 다음 진입까지 멈춘다.
+- 돌려받는 `{stop(), play(), running}`: `stop()` 뒤에는 그리지 않고, `play()`는 멈춘 u에서 이어 간다. 장면에 다시 들어오면 stop 여부와 상관없이 u≈0에서 다시 돈다.
+- `el`(노드)을 주면, 장면이 현재인 동안 그 노드가 문서에서 떨어질 때 loop가 영구히 끝난다(처음 만들 때 떨어져 있는 것은 괜찮다). 새 loop의 `el`이 아직 끝나지 않은 다른 loop의 `el`과 같으면 옛 loop가 영구히 끝난다. 같은 노드에 다시 그리는 곳(단계 `enter`, 다시 불리는 `answerVisual`)에서는 `el`을 주어 loop가 쌓이지 않게 한다.
+- 탭이 가려진 동안(`document.hidden`) 그리지 않고, 다시 보이면 이어서 그린다.
+- 시간은 `setTimeout` + `Date.now()`라 헤드리스 Chrome 가상 시간(audit·shot)에서도 돈다. 페이지에서 `requestAnimationFrame`으로 움직임을 짜지 않는다.
+- `draw`가 던지면 장면 번호와 함께 경고가 남고 그 loop만 끝난다. `period`가 양의 유한수가 아니면 경고 뒤 4000ms로 돈다.
+
+### 결합 범위
+
+- 장면 i를 처음 그리는 동안(figure·`visual`·`answerVisual`·terms `visual`·compare 칸·contrast 양쪽 그림·`mount`) 만든 loop·`bind`는 장면 i에 붙고, 진입 때 시작해 이탈 때 멈춘다. 공통 필드 `enter`·step `enter`·predict 공개처럼 장면이 현재일 때 만든 loop는 그 방문에만 속한다: 바로 시작하고, 떠나면 영구히 끝난다(다음 방문에 그 코드가 다시 만든다).
+- 덱 밖에서 만든 loop는 바로 돌고 탭 가림·`el`·`stop()`으로만 멈춘다.
+- `LTT.motion.bind({enter, leave})`는 붙은 장면에 들어올 때마다 `enter()`, 떠날 때마다 `leave()`를 부른다. 현재 장면에서 등록하면 `enter()`를 바로 한 번 부르고, 그 방문에만 속해 떠날 때 `leave()`를 한 번 부른 뒤 버려진다(방문마다 쌓이지 않는다). 덱 밖에서 등록하면 `enter()`를 바로 한 번 부르고 `leave()`는 부르지 않는다. 던지면 경고만 남고 다른 훅과 이동은 계속된다. `mount`가 돌려주는 `{enter, leave}`와 공통 `enter`는 전과 같다.
+
+### 측정 모드·reduced-motion
+
+- figure 단계와 predict 정답을 미리 그려 재는 동안(측정 모드) 만든 loop는 `draw(rest)`를 한 번만 부르고 결합·반복·비트 노출을 하지 않는다. `bind`도 무시된다.
+- `LTT.motion.reduced()`(`prefers-reduced-motion: reduce`, DOM이 없으면 false)가 참이면 loop는 진입마다 `draw(rest)`를 한 번 부르고 반복하지 않는다. `rest` 기본값은 `beats`가 있으면 마지막 beat의 t/`period`, 없으면 1. figure 자동 재생과 sweep 자동 훑기도 돌지 않는다(figure는 단계 0에서 클릭을 기다린다).
+
+### figure `autoplay`
+
+- `steps`가 둘 이상이면(하나면 자동 재생·비트 없음) 기본(`autoplay: true`)으로 진입 때 단계 0에서 시작해 단계마다 `hold`ms(기본 1800) 뒤 다음으로 가고, 마지막 뒤에 0으로 돌아간다. `"once"`는 마지막 단계에서 멈추고, `false`는 자동 재생을 끈다.
+- 이전·다음·반복 단추(←/→ 키 포함)를 누르면 그 방문 동안 자동 재생이 멈춘다. 떠나면 멈추고, 다시 들어오면 단계 0부터 다시 재생한다. 측정 미리 그리기 뒤에도 현재 단계에서 이어 간다.
+
+### sweep `attract`
+
+- `LTT.sweep`의 `attract`(기본 `true`, `false`, 또는 `{param, period}`; param 기본은 첫 param, period 기본 6000ms): 장면이 현재이고 아직 아무도 손대지 않은 동안 그 param의 손잡이를 `raws()` 처음→끝→처음으로 옮기며 `render`를 부른다. 손잡이와 `#id-v` 값 표시도 함께 움직인다.
+- 훑는 동안에는 goal의 `done`·`first`를 바꾸지 않고 `goal` 이벤트도 남기지 않는다.
+- 처음 손대면(손잡이의 pointerdown·keydown·input, preset 클릭) 시작값으로 되돌린 뒤 그 조작을 적용하고, 그 페이지에서 다시 훑지 않는다. 그래서 시작값은 여전히 목표 밖이어야 한다(`goal-at-start`).
+- 없는 param id면 경고 뒤 자동 훑기 없이 평소대로 동작한다.
+
+### 비트 노출
+
+- 장면 요소 `section.dk-scene`의 `data-ltt-beats`에 `[{"t": 정수 ms, "text"?: 글}]`이 t 오름차순으로 적힌다. t는 장면 진입 기준이다. shot·sheet가 비트마다 화면을 찍는다.
+- 합쳐 적히는 것: 그리는 동안 붙은 loop의 `beats`(`[{t, text}]` 또는 `[t]`, 0 < t ≤ `period`, 범위 밖·수가 아닌 t는 경고 뒤 버림. 없으면 `period`의 1/3, 2/3, 끝 − 1ms, `once`는 1/3, 2/3, 끝), figure 자동 재생(단계 k마다 단계 시작 + 0.8 × `hold`, text는 마크업과 `{{x|y}}` 표시를 지운 자막), sweep 자동 훑기(loop 기본값), contrast 재생(재생이 끝나는 시각 하나). 같은 t는 하나로 합친다. 움직임이 없으면 속성이 없다.
+- `?audit` 결과 JSON의 `beats`는 장면마다 이 배열이다(없으면 `[]`). audit은 장면에 들어가지 않고 그리기만 해도 채운다.
+
+### 정지 그림 (`still`)
+
+- 장면 공통 `still: "이유"`(비어 있지 않은 문자열)는 일부러 멈춰 둔 그림이라는 표시다. 문자열이 아니거나 비어 있으면 없는 것과 같다.
+- audit `still-visual`(권고)은 좁은 창이 아니고, 본문에 목업이 아닌 그림이 있고, 노출 비트가 없고, `still`이 없고, 타입이 terms·summary·keywords·hook·map-related가 아닐 때 난다.
+
 ## predict `rest`·배율·`answerVisual`
 
 - `rest`는 정답 공개 뒤 고르지 않은 오답의 모습: `"hide"`(기본, 자리만 남기고 숨김) · `"dim"`(흐리게) · `"dot"`(점으로). 어느 쪽이든 자리를 유지해 화면이 흔들리지 않는다. 펼친 정답은 hide로 숨긴 자리에는 놓일 수 있지만 dim·dot 선택지는 가리지 않는다. 덱 전체 기본값은 `LTT.deck({predictRest})`.
 - 배율은 장면에 들어올 때 문제 상태와 선택지별 정답 상태 중 가장 큰 쪽에 맞춰 정하고, 공개할 때 바꾸지 않는다. 그래서 해설(`why`)·`answerVisual`이 길면 공개 전에도 장면이 작아지니 짧게 쓴다.
+- `question`이 `title`과 다르면 선택지 위에 글로 보인다. `hint`가 없으면 기본 안내 줄("틀려도 괜찮다…") 자리에 들어가 줄이 늘지 않고, `hint`를 주면 둘 다 보인다. 공통 `takeaway`는 공개 전에는 자리만 남기고 가려져(접근성 트리에서도 빠짐) 공개 때 보이고, 초기화하면 다시 가려진다. 자리를 지키므로 공개해도 배율이 바뀌지 않는다.
 - 공개 뒤 창 크기가 바뀌면 배율을 다시 잰다. 그 크기에서 새로 열어 같은 답을 공개한 배율과 같다.
 - 측정을 위해 함수형 `answerVisual(node, id)`는 선택지마다 화면 밖에서 미리 한 번씩 불릴 수 있다(인자를 하나만 받으면 한 번만). 공개 뒤에도 창 크기가 바뀌면 다시 불리고, 이어서 고른 값으로 한 번 더 불려 공개 모습을 다시 그린다. 같은 입력이면 같은 크기를 내고, 전역 상태·기록을 건드리지 않아야 한다. 미리 그리는 동안 kit의 `send`는 아무것도 하지 않는다. `node` 안의 지연 애니메이션은 크기를 바꾸지 않을 때만 괜찮다.
 
@@ -46,7 +92,7 @@
 ## 화면 점검 (`?audit`) 세부
 
 - 덱이 모든 장면을 그려 잰다. `LTT.deck(...)`가 돌려주는 객체의 `audit()`으로 직접 부를 수도 있다. 판정은 `LTT.auditScene(측정값)`이 한다.
-- 결과는 `<script type="application/json" id="ltt-audit">`에 `{viewport, scenes, audit, lint, expectFails}`로도 남고, `server/audit.mjs`가 헤드리스 Chrome의 `--dump-dom` 출력에서 그것을 읽어 두 크기의 표를 만든다.
+- 결과는 `<script type="application/json" id="ltt-audit">`에 `{viewport, scenes, audit, lint, expectFails, beats}`로도 남고, `server/audit.mjs`가 헤드리스 Chrome의 `--dump-dom` 출력에서 그것을 읽어 두 크기의 표를 만든다.
 - 폭 1000px 이하 창에서는 `shrunk`·`small-visual`·`loose-figure`를 판정하지 않는다. `small-visual`은 hook·terms·summary·keywords·statement·predict 장면에서도 판정하지 않는다.
 - `goal-unreachable`·`goal-narrow`·`goal-at-start`의 자리는 손잡이마다 최대 201곳(dial은 최대 360곳, pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다.
 

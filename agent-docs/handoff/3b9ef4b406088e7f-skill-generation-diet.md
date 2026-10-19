@@ -39,6 +39,11 @@
   - 테스트 실행 방법(3의 마무리 측정에 다시 쓴다).
     - macOS에서 `CLAUDE_CONFIG_DIR`로 격리하면 로그인이 풀린다. 그래서 실제 config에 `--setting-sources project --strict-mcp-config --mcp-config <빈 JSON>`을 줬다. 이러면 사용자 동기 skill과 MCP가 빠지고 plugin skill만 보인다.
     - 생성 agent가 Write 경로의 `<home>`을 기본값 `~/.learn-to-tell`로 풀었다가 `$LTT_HOME`으로 옮긴 일이 1회 있었다. 사용자 파일은 바뀌지 않았다.
+- 2026-10-19 다섯 번째 세션: 사용자 지시 "예외를 빼고 모든 그림을 움직이는 것을 기본으로". run M1(`6cc24f891a69c407`) 끝(status limit).
+  - kit: `LTT.motion.loop/bind/reduced`(장면 수명 결합, setTimeout 16ms, 방문 범위, 같은 `el` 대체), figure `autoplay`(단계 2개 이상), sweep `attract`, 장면 `data-ltt-beats`·audit JSON `beats`, `still` 필드, audit `still-visual`(권고), predict question(기본 안내 줄 자리)·takeaway 공개 뒤, `expect` 비숫자 엄격 비교, stepper 단계 `hold`가 덱에서 버려지던 버그 수정.
+  - 문서: API.md 모션 규칙 줄(예외 셋, `once`), deck-contracts, rules.md, charts.md 데이터 형식, compare head·cols, ui.md `ms`, CHANGELOG(미배포), catalog `#motion`. SKILL.md §3 권고 목록에 `still-visual`.
+  - ADR `61d6c4210ba48008`: gallery 13편은 새 규칙에 맞춰 고치지 않는다. baseline에 `still-visual` 허용치(두 크기 32)를 따로 적고 `scripts/gallery-audit.mjs` 기록기도 맞췄다.
+  - 검증: npm test 1139 통과, gallery audit 통과, 손 변이 13개 중 12 KILLED + 1 equivalent.
 
 ## Failed Attempts
 
@@ -46,11 +51,15 @@
 | --- | --- | --- |
 | (없음) | 착수 전 | - |
 | 단계 1 흐름(`46feba8`: outline → 한 번 Write, outline만 보는 검토 1개, 독자·눈 검토 제거) | 블라인드 비교에서 변경 전 흐름보다 낮게 평가됐다 | hypothesis: outline이 범위를 굳히고, 완성본을 읽는 검토가 없어 빠진 개념·약한 그림을 고칠 단계가 없다(뒤 분석에서 약해졌다: 분량 차이는 쓰기 전 지시문에서 생겼다) |
+| run M1 FR-16 v1(predict question을 선택지 위 새 줄로) | gallery 4편 5장면이 1280×800 `shrunk`(기준 커밋 0) | verified: 줄이 늘어 배율이 88% 아래로. 기본 안내 줄 자리에 넣어 해결 |
+| run M1 VO-7 판정표를 figure 기준으로 | R3(그림 없음) 행이 항상 그림으로 잡힘 | verified: figure 무대의 자식은 정의상 그림. statement 기준으로 바꿈 |
+| motion 테스트 1회 실행 runner | 부하 중 bind 페이지가 결과 블록 없이 끝남(13 fail 동시) | verified: 헤드리스 Chrome이 가상 시간 예산 전에 끝남. audit.mjs처럼 3배 예산 재시도 |
 | 단계 1의 눈 검토·장면별 스크린샷 제거(`46feba8`, 대체로 계획한 contact sheet는 run B 전이라 없음) | 사용자가 생성된 수업을 직접 보고 그림 결함을 찾았다. 새 흐름은 이미지를 한 번도 Read하지 않았다 | verified: 화면을 보는 단계가 없고, audit·lint가 이 결함 종류를 잡지 못한다 |
 
 ## Next Step
 
-재개 지점(2026-10-19 네 번째 세션 뒤): 계획 `~/.claude/plans/vast-baking-lark.md`의 2(run M1)부터 한다. understanding round 입력은 Open Questions의 "M1 입력"이다.
+재개 지점(2026-10-19 다섯 번째 세션 뒤): 계획 `~/.claude/plans/vast-baking-lark.md` 2의 run M2(움직임 동사)부터 한다. M2 spec에 넣을 것: M1 S-1(`LTT.beforeAfter().ms` 값 의무 — 표식 없음 0, 표식 있음 재생 길이 — 와 ui.md 문서 항목), API.md에서 크기 때문에 빠진 두 문장 되살리기(결정 변수끼리 영향을 주면 summary 앞 샌드박스, 모션 예시 "선이 그려지고·모양이 바뀌고·값이 쌓이고·패킷이 흐르며"는 동사 이름으로). M2 뒤에 main이 look.md·SKILL.md에 기대 화면 비트·예외(`still`·`once`)를 적고 s29·s45·s37·s47 카드를 다시 찍는다.
+이전 재개 지점(네 번째 세션 뒤): 계획의 2(run M1)부터.
 이전 재개 지점: Open Questions의 생성기 수정 제안을 사용자가 정하면 그 순서로 진행한다. 남은 것은 계획 "단계와 순서"의 단계 3–6(workflow-approach run A–D), 단계 7, 마무리다.
 
 마무리:
@@ -90,9 +99,19 @@ M1 입력(1 실사용 확인에서 나온 것):
 
 ## Spec
 
-해당 없음. 아직 workflow run을 시작하지 않았다. 단계 3–6에서 run마다 `agent-docs/specs/`에 spec을 만든다(run A: kit 측정·판정, B: audit CLI, C: 선언형 칸, D: 부품).
+- run M1: `agent-docs/spec-logs/6cc24f891a69c407-motion-runtime.md` v4, status limit, run ID `6cc24f891a69c407`. verifier 2/2, 정정 묶음 4, 열린 finding S-1(Next Step).
+- 계획 단계 3–6에서 run마다 `agent-docs/specs/`에 spec을 만든다(run A: kit 측정·판정, B: audit CLI, C: 선언형 칸, D: 부품).
 
 ## Execution Ledger
+
+### run M1 (`6cc24f891a69c407`)
+
+- 정정: impl-1(FR-16 shrunk → 안내 줄 자리), impl-2(loop·bind 방문 범위, 같은 el 대체), TD-1~4(mark 시각, M6/M8 oracle, catalog 앵커, 공개 이름 76), verify-1 F-1~F-9(간격 ≤33ms, B5a, 재측정 증명, goal 양성 대조, 판정표 격리, contrast 식, warn 분리, VO-7 층, R-2 판정 열), run-2(사이트별 증분, statement 판정표), load-1(runPage 재시도).
+- 손 변이(`agent-docs/spec-logs/6cc24f891a69c407-hand-mutations.txt`): HM-1,2,3b,4–12 KILLED, HM-3 equivalent(이탈 멈춤이 타이머 해제와 sc.on 검사 두 겹). 변이 도구·fuzz 없음(spec 사유).
+- 리뷰: R-1 `6cc24f891a69c407-r1-vhs-*.png`, `r1-catalog-dom.txt`. R-2 `r2-still.txt`(32건 장면별 판정).
+- verifier: 1회 retry(F-1~F-9), 2회 retry(S-1) → limit.
+- 부하 민감: `tests/map/perf.test.mjs`의 벽시계 중앙값 ≤2000ms 검사가 병렬 부하에서 1회 실패(2557ms). 이 run 밖.
+
 
 ### audit.mjs 구조 (CDP 재작성 run B 입력)
 
