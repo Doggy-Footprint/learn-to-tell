@@ -42,7 +42,7 @@ head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "th
 | `LTT.record(type, data)` | 서버로 이벤트(lesson 페이지만) |
 | `LTT.math(scope)` | `data-tex`를 KaTeX로 |
 | `LTT.MOTION_MS` | 기본 모션 길이. reduced-motion이면 0 |
-| `LTT.motion.loop(draw(u), {period, beats, once, rest, el})` → `{stop, play, running}`, `.bind({enter, leave})`, `.reduced()` | 장면에 묶인 반복 움직임(u: 0→1). `kit/api/deck-contracts.md` |
+| `LTT.motion.loop(draw(u), {period, beats, once, rest, el})` → `{stop, play, running}`, `.play(svg, beats, {period, once, el})`, `.bind({enter, leave})`, `.reduced()` | 장면에 묶인 반복 움직임(u: 0→1) / 비트 타임라인. `kit/api/deck-contracts.md` |
 
 색 토큰: `--ltt-bg` `--ltt-card` `--ltt-card-2` `--ltt-line` `--ltt-line-2` `--ltt-ink` `--ltt-ink-2` `--ltt-muted` `--ltt-accent(-soft)` `--ltt-good(-soft)` `--ltt-bad(-soft)` `--ltt-warn(-soft)` `--ltt-dark` `--ltt-on-dark`, 범주형 `--ltt-c1`…`c6`, 지도 `--ltt-sea` `--ltt-land` `--ltt-border`. CSS 클래스: `ltt-param`(손잡이 줄), `ltt-bar`, `ltt-stat`·`ltt-hero`(큰 숫자, `<small>` 단위), `ltt-key`(범례), `ltt-basis`(근거 작은 글), `ltt-tag`(+`warn`·`bad`·`good`·`muted`), `ltt-mono`.
 
@@ -101,9 +101,9 @@ head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "th
 - 고정 순서: hook이 처음, keywords가 마지막, overview는 summary 바로 뒤. 흔한 흐름은 hook → 파트마다 [(terms) → 원리 → predict → 조작] → summary → overview → keywords.
 - 원리: 원인 → 과정 → 결과가 한 그림에 보이면 `figure`, 순서가 핵심이면 explain `strip`·`stack`, 독립 요소 나열만 `cards`. 수식(`tex`)보다 먼저.
 - `statement`는 직관과 반대인 결론을 못 박을 때, `contrast`는 같은 대상의 BEFORE/AFTER, `compare`는 실제 사례 2–4개를 같은 질문으로(속성 차이면 `table`, 판정을 미리 말하는 설명은 `noteAfter`).
-- `predict`는 퀴즈가 아니다. 결정 변수를 조작하는 장면 바로 앞에 두고, 질문 용어는 앞 장면에서 푼다. 세계·시스템을 짐작할 때만 쓴다(자기 편향 체험은 사례 `compare`로).
-- 조작(`mount` 안의 `LTT.sweep`)은 조작 자체가 배움일 때만, 실사용 범위만. `goal`은 손잡이 두 자리 이상에서 맞고, 시작 위치는 목표 밖에 둔다.
-- 그림은 기본으로 움직인다(`LTT.motion.loop`, figure `steps` 자동 재생). 장면마다 움직임 하나. 예외는 셋: 읽는 글(코드·터미널 목업, 표, terms, summary·recall), 답 가림(공개 전 predict), `still: "이유"`. 예외도 가능하면 한 번 재생 후 멈춤(`once`). 이탈·reduced-motion은 kit이 처리한다.
+- `predict`는 퀴즈가 아니다. 결정 변수를 조작하는 장면 바로 앞에 두고, 질문 용어는 앞 장면에서 푼다. 세계·시스템을 짐작할 때만 쓴다(자기 편향은 `compare`로).
+- 조작(`mount` 안의 `LTT.sweep`)은 조작 자체가 배움일 때만, 실사용 범위만. `goal`은 손잡이 두 자리 이상에서 맞고, 시작 위치는 목표 밖에 둔다. 결정 변수끼리 영향을 주면 summary 앞에 손잡이를 함께 여는 샌드박스를 둘 수 있다.
+- 그림은 기본으로 움직인다(`LTT.motion.play`의 `draw` 선 그리기·`flow` 입자 흐름·`camera` 확대·`morph` 모양 바꾸기·`stack` 쌓기, 그 밖은 `loop`, figure `steps` 자동 재생). 장면마다 움직임 하나. 예외는 셋: 읽는 글(코드·터미널 목업, 표, terms, summary·recall), 답 가림(공개 전 predict), `still: "이유"`. 예외도 가능하면 한 번 재생 후 멈춤(`once`). 이탈·reduced-motion은 kit이 처리한다.
 
 ### 부품 고르기
 
@@ -139,7 +139,7 @@ head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "th
 
 - 장면마다 독자의 질문에 답한다: 왜 보지(`hook`), 무슨 뜻이지(`terms`·`{{}}`, 새 용어는 장면당 2개 이하), 어딜 보지(`points`·`sub`), 왜 그렇지(라벨·단계 자막), 내 일에선(목업·사례), 어디서 틀리지(`predict`+`why`), 뭘 기억하지(주장 제목, `takeaway`+`recall`), 더 알려면(`basis`·`sources`·`ask`).
 - 익히는 장면은 인포그래픽으로: 설명은 그림 위 주석·라벨로 얹고, 얹을 수 없는 것만 글로 쓴다. `summary`는 반대로 글과 `recall`이다.
-- 글이 말하는 동작(돌린다, 늘린다, 옮긴다)과 그림·손잡이의 동작을 맞춘다.
+- 글이 말하는 동작과 그림·손잡이의 동작을 맞춘다.
 - 장면마다 가장 큰 것은 그림 하나다. 그림 아래 문단이 그림보다 길면 장면을 나눈다. 카드 격자는 연속 2장까지, 전체의 절반 이하.
 - 글자 크기는 kit 단계만. `accent`는 장면당 한 의미, good·bad·warn은 판정에만. 색 이름 대신 모양·라벨로 가리킨다.
 - 구조 장치는 정보일 때만: 번호는 실제 순서, 테두리·카드는 따로 볼 것에만. 장식 이모지는 쓰지 않는다.
@@ -150,7 +150,7 @@ head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "th
 
 ```js
 const SVG = "http://www.w3.org/2000/svg";
-const hours = (lines, parcels = 12000, perLine = 1500) => parcels / (lines * perLine); // 분류에 걸리는 시간
+const hours = (lines, parcels = 12000, perLine = 1500) => parcels / (lines * perLine);
 // 그림 함수는 새 svg를 만들어 { el }로 돌려준다. 주 그림이면 같은 함수를 figure·overview에서 다시 쓴다.
 const hub = (el) => { const s = el.appendChild(document.createElementNS(SVG, "svg"));
   return { el: s, dg: LTT.diagram(s, { cols: 3, rows: 2, cell: [280, 170], node: [160, 64],
@@ -158,8 +158,7 @@ const hub = (el) => { const s = el.appendChild(document.createElementNS(SVG, "sv
       { id: "out", c: 2, r: 0, l: "출고", icon: "route" }, { id: "cut", c: 1, r: 1, l: "마감", s: "18시", icon: "clock", k: "warn" }],
     edges: [{ f: "in", t: "sort", l: "12,000상자" }, { f: "sort", t: "out", l: "라인당 시간당 1,500" }, { f: "cut", t: "sort", dash: true }] }) }; };
 const figureScene = { type: "figure", title: "상자는 분류 라인을 지나야 출고된다", sub: "위는 상자의 길, 아래는 지켜야 할 마감", figure: hub,
-  steps: [{ caption: "① 입고된 상자가 분류 라인 앞에 쌓인다", enter: (k, f) => f.dg.highlight(["in", "sort"]) },
-          { caption: "② 라인이 많을수록 빨리 비운다", enter: (k, f) => f.dg.highlight(["sort", "out"]) }],
+  steps: [{ caption: "① 입고된 상자가 분류 라인 앞에 쌓인다", enter: (k, f) => f.dg.highlight(["in", "sort"]) }],
   takeaway: "분류 시간은 물량 ÷ (라인 수 × 라인 처리량)이다.", recall: "라인을 두 배로 늘리면 분류 시간은?" };
 const predictScene = { type: "predict", title: "라인 4개면 몇 시간 걸릴까?", question: "12,000상자, 라인 하나가 시간당 1,500상자",
   visual: () => LTT.facts([{ icon: "package", value: "12,000", label: "상자" }, { icon: "gauge", value: "1,500/시간", label: "라인당" }]),
@@ -174,7 +173,7 @@ const knobScene = { title: "마감에 맞추려면 라인이 몇 개 필요할�
       goal: { el: "g", text: "1.5시간 안에 끝나는 라인 수를 찾는다", check: ({ lines }) => hours(lines) <= 1.5 } });
     return {};
   }, takeaway: "라인 수를 늘리면 분류 시간은 반비례로 준다.", recall: "라인 8개면 몇 시간?" };
-// LTT.deck({ title, theme, glossary, scenes: [hook, …, figureScene, predictScene, knobScene, …, summary, overview, keywords] })
+// LTT.deck({ title, theme, glossary, scenes: [hook, …, figureScene, …, keywords] })
 LTT.expect("라인 8개 분류 시간", hours(8), 1, { tol: 1e-9 });
 ```
 
@@ -182,7 +181,7 @@ LTT.expect("라인 8개 분류 시간", hours(8), 1, { tol: 1e-9 });
 
 - 페이지에는 모델 함수, 기대값, 장면 데이터, 부품 조합, 그 수업만의 작은 CSS만 둔다. kit에 없는 부품이 필요하면 페이지에 짜고 `result.md`의 "kit 후보"에 적는다.
 - 색은 위 토큰만 쓴다. hex를 새로 적으면 다크 모드가 깨진다(목업 속 '실제 화면' 색은 예외). 범주 색은 `--ltt-c1`부터 차례로 쓴다.
-- 테마는 매체를 고르는 것이다. 페이지 CSS에서 토큰을 다시 정의하지 않는다.
+- 페이지 CSS에서 토큰을 다시 정의하지 않는다.
 - 범위와 상수에는 `basis`를 적고, 근거가 약하면 "불확실", 화면 수치에는 "모델로 계산한 예시" 태그를 단다. 근거 없는 수치를 지어내지 않는다. 실제 활용 예와 실패·주의 예를 함께 둔다. 목업·표에는 채움 글 대신 실제 작업의 이름과 값을 넣는다.
 - lint는 `{{}}`로 표시된 용어만 안다. 표시하지 않은 용어는 직접 풀어 둔다.
 - 작성·점검 기준은 1280px 이상 데스크톱이다. 폰에서는 kit이 한 열로 다시 배치한다. figure 그림 폭을 `vw`로 고정하지 않는다.

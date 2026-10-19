@@ -29,6 +29,16 @@
 - 시간은 `setTimeout` + `Date.now()`라 헤드리스 Chrome 가상 시간(audit·shot)에서도 돈다. 페이지에서 `requestAnimationFrame`으로 움직임을 짜지 않는다.
 - `draw`가 던지면 장면 번호와 함께 경고가 남고 그 loop만 끝난다. `period`가 양의 유한수가 아니면 경고 뒤 4000ms로 돈다.
 
+### `play` (비트 타임라인)
+
+- `LTT.motion.play(root, beats, {period, once, el})`은 `loop` 하나 위에서 돌아 결합·reduced-motion·측정 모드·`once`·`el`·`{stop, play, running}`이 같다. `root`는 `<svg>`, d3 선택, 또는 `<svg>`를 품은 Element. `beats`는 `[{t: [a, b], text, 동사: 대상, ...옵션}]`(0 ≤ a < b ≤ `period`, ms). `period` 기본은 가장 큰 b + 1000. 비트마다 동사는 0개(머묾) 또는 1개.
+- 동사(p = 비트 안 진행도 0→1, e = easeInOutCubic(p)): `draw: 대상` 윤곽이 처음부터 그려진다(`stroke-dashoffset`). `flow: 대상, count(3), tail(24), r(4), laps(1)` 선 위로 입자가 선형으로 흐르고 비트 밖에는 숨는다(root 안 `g.ltt-flow`). `camera: 대상 | [x, y, w, h], pad(16)` root `viewBox`가 가고, 다음 camera 비트는 앞 비트의 도착점에서 시작한다. `morph: 대상, to: {속성: 수, translate: [dx, dy]}` 숫자 속성이 play 때 값에서 `to`로 간다. `stack: 대상, from("bottom"|"left")` 대상이 문서 순서대로 차례로 자란다(`scale`).
+- diagram 노드 `morph`의 `to: {x, y}`는 노드 spec의 `x`, `y`(중심 px)와 같은 좌표다. 닿은 엣지와 라벨이 매 프레임 다시 그려진다.
+- 대상: Element·배열은 그대로. 문자열은 diagram이면 노드 id, 엣지 id, `"from>to"`, `LTT.axisPlot`이면 계열 id, 그 밖은 root 안 CSS 선택자(여럿 가능).
+- 상태는 주기 시각의 함수다. 비트 전은 p = 0, 후는 p = 1을 유지하고 주기가 다시 시작하면 모두 p = 0이다. 같은 속성을 움직이는 비트가 이어지면 뒤 비트는 앞 비트의 도착 값에서 시작한다. reduced-motion·측정 모드는 모든 비트 p = 1 한 장이다.
+- 비트 노출: 비트마다 끝 시각이 장면 비트(`data-ltt-beats`)가 되고 `text`가 같이 실린다(`once`가 아니면 `period − 1`로 깎임).
+- 잘못된 비트(`t` 범위, 동사 둘 이상, 없는 대상, `camera`·`morph` 인자)는 장면·비트 번호와 함께 경고하고 그 비트만 버린다. `<svg>`가 없으면 경고하고 돌지 않는 handle을 돌려준다.
+
 ### 결합 범위
 
 - 장면 i를 처음 그리는 동안(figure·`visual`·`answerVisual`·terms `visual`·compare 칸·contrast 양쪽 그림·`mount`) 만든 loop·`bind`는 장면 i에 붙고, 진입 때 시작해 이탈 때 멈춘다. 공통 필드 `enter`·step `enter`·predict 공개처럼 장면이 현재일 때 만든 loop는 그 방문에만 속한다: 바로 시작하고, 떠나면 영구히 끝난다(다음 방문에 그 코드가 다시 만든다).

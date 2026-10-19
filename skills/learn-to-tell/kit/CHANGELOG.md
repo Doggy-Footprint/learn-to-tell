@@ -6,6 +6,8 @@
 
 작가 계약
 - 그림은 기본으로 움직인다. `LTT.motion.loop`·`bind`·`reduced`가 장면에 묶인 반복 움직임을 주고, 장면을 떠나면 멈춘다. 예외(읽는 글, 공개 전 답, `still: "이유"`)도 가능하면 `once`로 한 번 재생 후 멈춘다.
+- `LTT.motion.play(svg, beats, opts)`가 비트 타임라인(`t: [a, b]`, `text`)에 동사 `draw`·`flow`·`camera`·`morph`·`stack`을 붙인다. 대상은 diagram 노드·엣지 id, axisPlot 계열 id, CSS 선택자, Element이고 diagram 노드 `morph`는 엣지를 따라 그린다.
+- `LTT.beforeAfter().ms`는 표식이 없으면 0, 있으면 700 + 140 × (m − 1)이다.
 - figure `steps`는 기본으로 자동 재생된다(`autoplay`: `true`·`"once"`·`false`). 단계 `hold`가 덱 figure에서도 쓰인다.
 - `LTT.sweep`은 기본으로 손대기 전까지 손잡이를 혼자 훑는다(`attract`, 끄려면 `false`).
 - 장면 공통 필드 `still`과 audit 권고 `still-visual`이 생겼다.

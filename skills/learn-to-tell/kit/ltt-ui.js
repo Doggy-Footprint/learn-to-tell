@@ -212,9 +212,9 @@
       if (k === 0) w.appendChild(h("div", "ltt-ba-arrow", LTT.icon("arrow", { weight: 2.4 })));
       sides[key] = { side: side, stage: stage, rail: rail };
     });
-    // Replay length in ms, from .ltt-mk.pop: 250ms delay + 140ms per marker index + .45s pop.
-    var last = Math.max.apply(null, [-1].concat(annos.map(function (a) { return a.markers.reduce(function (m, mk, i) { return mk ? i : m; }, -1); })));
-    return { el: w, before: sides.before, after: sides.after, ms: last < 0 ? 0 : 250 + 140 * last + 450,
+    // Replay length in ms for m markers on the busier side: 700 + 140 per marker after the first.
+    var m = Math.max.apply(null, [0].concat(annos.map(function (a) { return a.markers.filter(Boolean).length; })));
+    return { el: w, before: sides.before, after: sides.after, ms: m < 1 ? 0 : 700 + 140 * (m - 1),
       replay: function () { annos.forEach(function (a) { a.replay(); }); } };
   }
 

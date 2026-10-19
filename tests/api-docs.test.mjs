@@ -853,3 +853,80 @@ test("VO-13 D13: catalog.html defines the #motion demo anchor exactly once", () 
     + (html.match(/group\([^()]*,\s*["']motion["']\s*\)/g) ?? []).length;
   assert.equal(n, 1, `#motion anchor defined ${n} times`);
 });
+
+// ---------- spec 2d467cf453771b95 VO-9: motion verbs documentation (syntax checks on document strings) ----------
+
+const MOTION_VERBS = ["draw", "flow", "camera", "morph", "stack"];
+const verbMentioned = (text, verb) => new RegExp(`(^|[^A-Za-z])${verb}([^A-Za-z]|$)`).test(text);
+const motionRows = () => lines(apiText()).filter((l) => isRow(l) && firstCell(l).includes("LTT.motion"));
+
+test("VO-9 FR-11: the LTT.motion rows of kit/API.md mention play", () => {
+  const rows = motionRows();
+  assert.ok(rows.length >= 1, "no LTT.motion row in kit/API.md");
+  // The pre-existing loop row already says {stop, play, running}, so require the new call form with its beats argument.
+  assert.ok(rows.some((r) => /play\([^)]*(t:\s*\[|beats)/.test(r)), "no LTT.motion row shows a play( call with a beats argument");
+});
+
+test("VO-9 FR-11: the motion rule line of kit/API.md names the five verbs draw, flow, camera, morph, stack", () => {
+  const rule = lines(apiText()).filter((l) => l.includes("기본으로 움직인다"));
+  assert.equal(rule.length, 1, `lines holding "기본으로 움직인다": ${rule.length}`);
+  const missing = MOTION_VERBS.filter((v) => !verbMentioned(rule[0], v));
+  assert.deepEqual(missing, [], `verbs missing on the motion rule line: ${missing}`);
+});
+
+test("VO-9 UI-5: kit/API.md restores the knob sandbox sentence", () => {
+  assert.ok(apiText().includes("결정 변수끼리 영향을 주면 summary 앞에 손잡이를 함께 여는 샌드박스를 둘 수 있다"));
+});
+
+// Clauses are checked inside the play subsection only: the file already had a 비트 노출 heading and loop text before play existed.
+const playSection = () => {
+  const ls = lines(apiDoc("deck-contracts.md")), i = ls.findIndex((l) => /^###\s+`play`/.test(l));
+  assert.ok(i >= 0, "no ### `play` subsection in deck-contracts.md");
+  let j = i + 1;
+  while (j < ls.length && !/^#{1,3}\s/.test(ls[j])) j++;
+  return ls.slice(i, j).join("\n");
+};
+
+test("VO-9 FR-11: the deck-contracts play subsection documents LTT.motion.play and the five verbs", () => {
+  const t = playSection();
+  assert.ok(t.includes("LTT.motion.play"), "no LTT.motion.play");
+  const missing = MOTION_VERBS.filter((v) => !verbMentioned(t, v));
+  assert.deepEqual(missing, [], `verbs missing: ${missing}`);
+});
+
+test("VO-9 FR-11: the play subsection has the target-resolution clause (diagram ids, \"from>to\", axisPlot series, CSS selector)", () => {
+  const t = playSection();
+  for (const needle of ["from>to", "LTT.axisPlot", "CSS 선택자"]) assert.ok(t.includes(needle), `no "${needle}"`);
+});
+
+test("VO-9 FR-11: the play subsection has the state-rule clause (period restart, p = 0 before a beat, p = 1 after)", () => {
+  const t = playSection();
+  assert.ok(/p\s*=\s*0/.test(t) && /p\s*=\s*1/.test(t), "no p = 0 / p = 1 state statement");
+  assert.ok(/주기가 다시 시작/.test(t), "no statement about the period restarting");
+});
+
+test("VO-9 FR-11: the play subsection has the beat-exposure clause (data-ltt-beats, period − 1)", () => {
+  const t = playSection();
+  assert.ok(t.includes("비트 노출") && t.includes("data-ltt-beats") && /period\s*[-−]\s*1/.test(t), "no beat exposure with data-ltt-beats and period − 1");
+});
+
+test("VO-9 FR-10: the beforeAfter row of kit/api/ui.md documents ms", () => {
+  const row = lines(apiDoc("ui.md")).find((l) => isRow(l) && firstCell(l).includes("LTT.beforeAfter"));
+  assert.ok(row, "no LTT.beforeAfter row in kit/api/ui.md");
+  assert.ok(/(^|[^A-Za-z])ms([^A-Za-z]|$)/.test(row), "the beforeAfter row does not mention ms");
+  assert.ok(/없으면\s*0/.test(row), "the row does not state 0 for no markers");
+  assert.ok(row.includes("700") && row.includes("140"), "the row does not state the constants 700 and 140");
+});
+
+test("VO-9 FR-11: kit/CHANGELOG.md mentions LTT.motion.play", () => {
+  assert.ok(readReal(join(KIT, "CHANGELOG.md"), "kit/CHANGELOG.md").includes("LTT.motion.play"));
+});
+
+for (const id of ["motion-draw", "motion-flow", "motion-camera", "motion-morph", "motion-stack"]) {
+  test(`VO-9 FR-11: catalog.html defines the ${id} verb demo exactly once`, () => {
+    const html = readReal(join(ROOT, "site/gallery/catalog.html"), "site/gallery/catalog.html");
+    const n = (html.match(new RegExp(`demo\\(\\s*["']${id}["']`, "g")) ?? []).length + (html.match(new RegExp(`id=["']${id}["']`, "g")) ?? []).length
+      + (html.match(new RegExp(`group\\([^()]*,\\s*["']${id}["']\\s*\\)`, "g")) ?? []).length;
+    assert.equal(n, 1, `${id} defined ${n} times`);
+  });
+}

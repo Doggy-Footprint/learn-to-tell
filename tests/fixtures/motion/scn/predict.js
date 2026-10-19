@@ -27,14 +27,18 @@ const snap = (name) => {
     choiceTop: (cur.querySelector("[data-choice]") || { getBoundingClientRect: () => ({ top: NaN }) }).getBoundingClientRect().top,
   };
 };
-H.at(100, () => H.go("in", 1));
-H.at(600, () => snap("before"));
-H.at(700, () => { H.act("reveal", () => { H.click(H.cur().querySelector('[data-choice="b"]')); H.click(H.button(H.cur(), "정답 보기")); }); });
-H.at(1300, () => snap("after"));
-H.at(1400, () => { H.act("reset", () => { H.click(H.button(H.cur(), "초기화")); }); });
-H.at(2000, () => snap("reset"));
-H.at(2100, () => H.go("same", 2));
-H.at(2600, () => { H.samples.sameText = H.cur().innerText; });
-H.at(2700, () => H.go("hint", 3));
-H.at(3200, () => { H.samples.hintText = H.cur().innerText; });
-H.done(3300);
+// Chained (wait -> act -> wait -> sample): a late timer delays the next step instead of letting a pre-scheduled action overtake a sample.
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+(async () => {
+  await wait(100); H.go("in", 1);
+  await wait(500); snap("before");
+  await wait(100); H.act("reveal", () => { H.click(H.cur().querySelector('[data-choice="b"]')); H.click(H.button(H.cur(), "정답 보기")); });
+  await wait(600); snap("after");
+  await wait(100); H.act("reset", () => { H.click(H.button(H.cur(), "초기화")); });
+  await wait(600); snap("reset");
+  await wait(100); H.go("same", 2);
+  await wait(500); H.samples.sameText = H.cur().innerText;
+  await wait(100); H.go("hint", 3);
+  await wait(500); H.samples.hintText = H.cur().innerText;
+  H.done(H.now());
+})().catch((e) => H.errors.push("chain: " + (e && e.stack || e)));
