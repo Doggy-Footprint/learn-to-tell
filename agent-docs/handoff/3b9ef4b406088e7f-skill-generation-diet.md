@@ -79,7 +79,7 @@
 
 재개 지점(2026-10-20 여덟 번째 세션 뒤): 계획 3까지 끝났다. 남은 일은 사용자 결정 대기.
 1. 측정에서 나온 생성기 후보(Open Questions 맨 아래) 처리 여부.
-2. 마무리(아래): `git rm -r agent-docs/plans`, handoff 3b9ef4b4·b41cd6ae·418133af를 stale로.
+2. 마무리(아래): `git rm -r agent-docs/plans`, handoff 3b9ef4b4·b41cd6ae를 stale로(418133af는 2026-10-20에 옮김).
 재개 지점(2026-10-20 여섯 번째 세션 뒤): 계획 `~/.claude/plans/vast-baking-lark.md` 3(run S: audit `--sheet`, SKILL.md §3 8단계·standalone·PROJECT.md, 마무리 측정)부터 한다. sheet 필름스트립은 장면 `data-ltt-beats`(글 있는 비트 우선, M2 형식 `{t, text}`)를 찍는다. 아래 kit 후보 중 1(같은 시각 비트 합치기)은 sheet가 비트 글을 읽으므로 run S에 함께 넣는 것을 기본값으로 제안한다.
 M2 kit 후보(shot 4편을 다시 쓰며 나온 것):
 1. 같은 시각의 비트를 합칠 때 먼저 온 글 없는 비트가 글을 가린다(`sceneBeats`). 페이지에서는 글 있는 비트를 앞에 두어 피했다(s45·s47).
@@ -93,7 +93,7 @@ M2 kit 후보(shot 4편을 다시 쓰며 나온 것):
 마무리:
 - `agent-docs/plans/` 폴더를 통째로 지운다(`git rm -r agent-docs/plans`).
 - 이 handoff의 index 항목을 `stale.md`로 옮기고 파일을 `stale/`로 옮긴다.
-- `b41cd6ae…`와 `418133af…`도 계획대로 `stale/`로 옮긴다.
+- `b41cd6ae…`도 계획대로 `stale/`로 옮긴다(`418133af…`는 2026-10-20에 옮김).
 
 사용자가 정한 에이전트 운용:
 - 작업·분석 서브에이전트는 `model: opus`, `effort: low`로 띄운다. 탐색 에이전트와 workflow의 implementer·test-implementer·test-verifier·mutant-triager가 모두 여기에 든다.
