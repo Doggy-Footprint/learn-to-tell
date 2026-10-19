@@ -1,0 +1,711 @@
+<!doctype html><html lang=ko><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>compare1 · 생성 비용 실험</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1f;--mut:#6a6a70;--line:#e2e0da;--card:#fff;--acc:#2f5bd3;--warn:#a5520f}
+@media (prefers-color-scheme:dark){:root{--bg:#16171a;--fg:#ececf0;--mut:#9a9aa3;--line:#2e3036;--card:#1e2024;--acc:#8fb0ff;--warn:#f0a35e}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 -apple-system,"Apple SD Gothic Neo",system-ui,sans-serif}
+main{max-width:1080px;margin:0 auto;padding:32px 16px 80px}
+h1{font-size:26px;margin:0 0 6px} h2{font-size:20px;margin:0 0 8px} h3{font-size:15px;margin:0 0 6px}
+.mut{color:var(--mut)} a{color:var(--acc)}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)} th{color:var(--mut);font-weight:600;font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin:20px 0}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:20px} @media (max-width:720px){.pair{grid-template-columns:1fr}}
+.pair>div{border:1px solid var(--line);border-radius:8px;padding:14px}
+.btn{display:inline-block;padding:6px 12px;border:1px solid var(--acc);border-radius:6px;text-decoration:none;font-weight:600}
+.req{font-size:14px} .verdict{border-left:3px solid var(--acc);padding-left:10px}
+.pend{color:var(--warn);font-size:13px;font-weight:600}
+ul{margin:6px 0;padding-left:18px} details{margin-top:10px} summary{cursor:pointer;color:var(--acc)}
+pre{white-space:pre-wrap;font-size:12.5px;background:var(--bg);padding:12px;border-radius:6px;overflow-x:auto}
+.note li{margin:4px 0}
+</style></head><body><main>
+<h1>compare1 · skill 유무에 따른 수업 생성 비용 (5쌍)</h1>
+<p class=mut>2026-10-19 · 모델 claude-opus-5-5 · 양쪽 모두 새 context의 서브에이전트</p>
+<table><thead><tr><th>주제</th><th>skill 수업</th><th>기준선 토큰</th><th>skill 토큰</th><th>배율</th><th>기준선 시간</th><th>skill 시간</th></tr></thead>
+<tbody><tr><td><a href='#cache-ttl'>캐시 TTL</a></td><td>12장면 · 41.0KB</td><td>56.8k</td><td>475.6k</td><td><b>8.4×</b></td><td>161s</td><td>973s</td></tr><tr><td><a href='#trolley'>공리주의 vs 의무론</a></td><td>12장면 · 32.5KB</td><td>55.7k</td><td>445.0k</td><td><b>8.0×</b></td><td>159s</td><td>1034s</td></tr><tr><td><a href='#projectile'>공기저항과 최대 사거리 각도</a></td><td>13장면 · 41.2KB</td><td>60.3k</td><td>467.7k</td><td><b>7.8×</b></td><td>194s</td><td>995s</td></tr><tr><td><a href='#contrast'>WCAG 색 대비</a></td><td>14장면 · 43.9KB</td><td>59.2k</td><td>494.9k</td><td><b>8.4×</b></td><td>179s</td><td>1299s</td></tr><tr><td><a href='#ontology'>온톨로지: 테이블 vs 트리플·추론·SHACL</a></td><td>21장면 · 53.3KB</td><td>72.4k</td><td>611.7k</td><td><b>8.4×</b></td><td>296s</td><td>1556s</td></tr></tbody>
+<tfoot><tr><th>합계</th><th></th><th>304.4k</th><th>2,494.9k</th><th>8.2×</th><th></th><th></th></tr></tfoot></table>
+<ul class="note mut">
+<li>토큰은 서브에이전트 완료 알림의 <code>subagent_tokens</code>입니다. 누적 처리량이 아니라 마지막 시점 context 크기로 보입니다(가설). skill 토큰 = 생성 에이전트 최종값 + 검증 4종 합.</li>
+<li>skill 시간 = 생성 + 수정 왕복 에이전트 시간. 검증 4종은 병렬이라 포함하지 않았습니다.</li>
+<li>skill 쪽은 진단(§1)과 이해 확인(§4) 대화를 빼고 생성 단계만 쟀습니다. 기준선 산출물은 검토·렌더링 확인을 하지 않았습니다.</li>
+<li>기준선 열기 링크는 기준선이 만든 HTML 그대로입니다(브라우저에서 처음 열어 보는 것).</li>
+<li>skill 수업은 수정 왕복 뒤 최종본이고, 두 크기(1440×900, 1280×800) audit·lint·expect 0건입니다. 이 경로에서 열면 학습 이벤트는 기록되지 않습니다.</li>
+<li>기록: <code>agent-docs/handoff/b41cd6aec66a2589-refactoring-1-lesson-cost-ledger.md</code> Execution Ledger. 이 페이지는 로컬 서버 전용이며 Vercel에 배포되지 않습니다.</li>
+</ul>
+
+<section class=card id="cache-ttl">
+  <h2>캐시 TTL</h2>
+  <p class=req><b>요청</b> 상품 정보 API에 캐시를 붙이려 한다. TTL을 얼마로 할지(원본 부하 vs 오래된 응답) 정해야 하는데 판단 근거를 모른다. 학습 자료를 만들어 달라.<br><b>배경</b> HTTP API를 만들어 본 백엔드 주니어. 캐시 hit/miss·TTL·stale은 이름만 안다.</p>
+  <div class=pair>
+    <div><h3>기준선 (skill 없음)</h3>
+      <p><a class=btn href="cache-ttl/baseline.html" target=_blank>산출물 열기 ↗</a></p>
+      <p>HTML 1개, 8섹션, 슬라이더 시뮬레이터 2개, 서술 퀴즈 4문항</p>
+      <ul><li>29.7KB</li><li>토큰 56.8k · 도구 4회 · 161s</li><li>읽은 문서 없음 · 서브에이전트·브라우저 0 · 렌더링 확인 안 함</li></ul>
+    </div>
+    <div><h3>skill 경로</h3>
+      <p><a class=btn href="cache-ttl/skill.html" target=_blank>수업 열기 ↗</a></p>
+      <p>12장면 · 결정 변수 1개 · 41.0KB (1차 34.2KB)</p>
+      <ul><li>생성 에이전트 235.0k (수정 포함 최종) · 973s</li>
+      <li>검증 240.7k: 기대값 41.0k, 주장 44.7k, 독자 65.8k, 눈 89.2k</li>
+      <li>audit 7회 · 최종 두 크기 0건</li></ul>
+    </div>
+  </div>
+  <p class=verdict><b>검증 결과</b> 기대값 12개 일치. 주장 13개 중 틀림 0, 조건 누락 8건 보강. 독자·눈 검토 지적은 kit 스타일 탓인 것(대비·좌측 여백·빈 판정 열)을 빼고 반영.</p>
+  <details><summary>검증 지적 전체 (review-findings.md)</summary><pre># §3.6 검증 결과 (수정 왕복 1회분)
+
+## 기대값 (독립 검산)
+12개 LTT.expect 모두 독립 계산값과 tol 안에서 일치. 공식 1~5 가정과 일치. 수정 없음.
+
+## 주장 검토 (틀린 주장 없음, 조건 보강 필요)
+- 1: &quot;TTL은 원본에서 가져온 시각부터 잰다(hit마다 연장하지 않음)&quot; 조건을 basis에.
+- 2: 동시 miss(stampede)·eviction 없음 가정을 basis에.
+- 3: &quot;TTL이 요청 간격보다 훨씬 짧은 동안에는&quot; 조건 필요(T=600이면 롱테일 원본 요청이 절반으로 줆).
+- 4: &quot;TTL을 몇 초 이상 주면&quot; 조건 필요(T≈5.6s에서 두 그룹 같아짐; T=0이면 인기 상품이 압도적).
+- 7: μT/2는 μT≪1, λT≫1 근사임을 밝힌다(1h에서 정확 0.368 vs 근사 0.5).
+- 10: 하한&gt;상한이면 고를 TTL이 없고 invalidation·필드 분리·원본 증설이 필요하다는 단서.
+- 11: 가격 변경 빈도가 8·9(시간당 1번)와 11(&quot;하루 몇 번&quot;)이 불일치 → 하나로 맞추거나 다른 시나리오임을 밝힌다. 재고는 &quot;표시용은 몇 초 캐시 + 주문 시 원본 확정&quot;과 구분.
+- 12: 필드를 별도 키로 캐시할 때만 가능(한 객체면 가장 짧은 필드가 TTL을 정함).
+- 13: stampede는 &quot;몰리는 크기는 TTL이 아니라 요청률×원본 응답 시간이 정한다&quot;로; invalidation은 창이 0이 아니라 전파 지연만큼 남음.
+
+## 독자 검토
+- 8: &quot;hit 비율&quot; 정의 없음 → glossary + {{}}.
+- 9: &quot;μ&quot; 기호만 씀 → &quot;가격 변경 빈도(μ)&quot;; &quot;결제 때 원본 확인&quot; 미정의 → 한 줄 정의.
+- 3: 평균 대기 1/λ 근거 없음 → 그림에 만료→다음 요청 &quot;대기&quot; 표시 + 한 문장.
+- 6·7: 평균 나이 T/2 단계가 글로만 → 요청별 나이 막대 step(장면 7 why 글과 통합).
+- 5: 상품 하나 → 전체 합계(/s) 전환에 ×200, ×2만 곱 단계를 readout에, 단위 /s 통일.
+- 5: narration 두 번째 문단이 결론을 미리 말함 → 지우고 인기/롱테일 원본 몫 누적 막대.
+- 5: 제목·takeaway를 &quot;TTL이 요청 간격보다 짧은 동안&quot;으로 조건화하거나 단계 10s–5m로 제한. goal을 롱테일 관찰형으로(예: 롱테일 몫이 절반을 넘는 TTL 찾기).
+- 5: 범례에 dense hit 띠 없음.
+- 6: 변경 1회뿐이라 &quot;변경 빈도↑ → stale↑&quot;를 그림에서 확인 불가 → 변경 1회/2회 step.
+- 8: 위 타임라인 20초 간격 표시라 TTL 10s에서 전부 miss로 보여 아래 패널 수치와 어긋남 → 장면 5와 같은 표현으로.
+- 8: 제목이 답을 미리 말함 → 질문형. 오래된 응답 패널 y max 40% → 10% 정도, 두 한도 만족 구간을 x축에 칠한다.
+- 9: 재고 판정 근거를 배운 관계(변경 빈도 × TTL)로. 세 필드 변경 빈도를 시간축 눈금 밀도로 그린다.
+- 10: takeaway가 recall 전에 보이면 가린다(kit 동작 확인).
+- 11 overview: 필드별 판단(장면 9)과 &quot;전체 원본 부하는 롱테일이 대부분&quot;이 없음, 두 수식 단서 없음 → 작은 띠·막대·수식 추가.
+
+## 눈 검토 (스크린샷)
+우선순위:
+1. 05·08 인기 상품 줄: MISS가 주황 띠로 뭉개지고 HIT가 안 보임. 첫 시선이 &quot;인기 상품이 원본을 때린다&quot;로 가서 주장과 반대. 축척 축소 또는 밀도 요약, 05에서 롱테일이 먼저 보이게.
+2. 06 첫 단계가 03과 구분 안 됨, 글의 &quot;칠한 구간&quot;·STALE이 첫 화면에 없음.
+3. 글자 충돌: 08 &quot;51.8/s&quot;·&quot;0.1%&quot;가 한도 점선에 걸림, 1440 커서선이 패널 제목 관통, &quot;가격 변경&quot; 라벨과 빗살 겹침; 11 &quot;상품 DB(원본)&quot;과 &quot;상품 7731&quot; 제목 맞닿음(1280), ① 마커 끼임, &quot;0.8%&quot; 점선 겹침, 축 눈금 너무 작음.
+4. 08 아래 패널 x축 = TTL 명시(위는 시간 축이라 혼동), 통과 구간 칠하기. &quot;요청 일부만 표시&quot;가 무엇을 뺐는지 불명.
+5. 09 빈 &quot;TTL 판단&quot; 열에 자리 표시.
+6. 07 선택지 &quot;약 4건/8건&quot;에 분모(100번 응답 중) 명시.
+7. 저대비: 각주·09 표 머리줄 회색 작은 글씨.
+8. 레이아웃: 04·05·08·09 좌측 여백이 다른 장면과 다름(약 90px vs 48px); 12 왼쪽 카드 빈 공간, 12(1280) 검색어 칩 &quot;stale-while-/revalidate&quot; 줄바꿈; 10 행 간격; 01 장식 아이콘을 로그 몇 줄 같은 medium 그림으로; 01 강조 박스 위치.
+9. (선택) TTL 칩 위에 `Cache-Control: max-age=60` 같은 설정 한 줄; 03·06 단계 버튼을 로그 시간 커서로.
+</pre></details>
+  <details><summary>skill 쪽 result.md</summary><pre>---
+lesson: 20261019-cache-ttl
+date: 2026-10-19
+concepts:
+  - id: cache-hit-miss
+    title: 캐시 hit과 miss
+    aliases: [cache hit, cache miss]
+    definition: 캐시에 쓸 수 있는 저장본이 있으면 hit(원본에 묻지 않음), 없으면 miss(원본 조회 후 저장)다.
+    domains: [backend]
+    level: 1
+    leads_to: [cache-ttl-expiry]
+    quiz: skipped
+  - id: cache-ttl-expiry
+    title: 캐시 TTL과 만료
+    aliases: [TTL, time to live, expiration]
+    definition: 저장 시각부터 TTL이 지나면 저장본을 쓰지 않으며, 원본 요청은 &#x27;TTL + 만료 뒤 다음 요청까지의 대기&#x27;마다 한 건이다.
+    domains: [backend]
+    level: 2
+    requires: [cache-hit-miss]
+    leads_to: [ttl-load-staleness-tradeoff]
+    quiz: skipped
+  - id: ttl-load-staleness-tradeoff
+    title: TTL의 원본 부하와 오래된 응답 트레이드오프
+    aliases: [stale ratio, cache staleness]
+    definition: TTL을 늘리면 원본 요청이 줄지만(요청 간격보다 짧은 동안 롱테일은 거의 안 줆) 오래된 응답이 늘어(≈ μT/2) TTL은 원본 한도와 오래된 응답 허용치 사이에서 필드별로 고른다.
+    domains: [backend]
+    level: 3
+    requires: [cache-ttl-expiry]
+    quiz: skipped
+---
+# 캐시 TTL 정하기 (20261019-cache-ttl)
+- 작업: 상품 정보 API에 캐시를 붙이며 TTL 길이(원본 부하 vs 오래된 응답)를 정한다.
+- 진단: HTTP 요청·응답 알고 있음 / 캐시 hit·miss 애매함 / TTL과 만료 아예 모름 / 오래된 응답 비율·원본 부하 트레이드오프 아예 모름. 학습 수준은 &quot;TTL과 만료&quot;(진단은 실험 고정값).
+- 이번 결정: 보류(실험이라 이해 확인을 하지 않음). 수업의 가정 수치에서는 원본 35/s·오래된 응답 5% 한도를 함께 맞추는 TTL이 60s~5m이었다.
+- 선택을 바꾸는 조건: 상품별 요청 간격 분포(롱테일 비중), 필드별 변경 빈도, 원본 DB 한도, 오래된 가격 허용 시간, 필드를 따로 캐시할 수 있는지 여부.
+- agent에게 할 질문: 접근 로그에서 상품별 요청 간격 분포를 뽑아 줄래? / 원본 DB 한도와 가격 표시 허용 지연은 누구에게 확인해야 해? / 상품 응답을 필드별로 나눠 캐시하려면 API를 어떻게 바꿔야 해?
+- 퀴즈: 실험이라 skipped(전 문항, 도움 없음)
+- 미룬 범위: 캐시 무효화(invalidation), cache stampede, stale-while-revalidate, TTL jitter, HTTP Cache-Control 세부
+- 검색어: 캐시 TTL과 만료(cache TTL, expiration), 캐시 적중률(cache hit ratio), 오래된 응답(stale response) / cache TTL hit ratio, stale data TTL trade-off, Cache-Control max-age, long tail cache hit ratio
+- kit 후보:
+  - 시간 축 캐시 타임라인(요청 점·저장본 띠·만료 점선·원본 줄로 내려가는 miss·stale 구간). 페이지에 직접 그렸다.
+  - 로그 x축 위에 한도선 두 개와 통과 구간을 칠한 트레이드오프 패널.
+  - 두 계열 몫을 보이는 누적 막대.
+  - compare table의 판정 열은 공개 전에 비어 보인다. 자리 표시를 kit에서 넣으면 좋겠다(눈 검토 지적).
+  - 각주(basis)와 표 머리줄이 작은 회색 글씨라 대비가 낮다(눈 검토 지적, kit 스타일).
+  - 장면별 좌측 여백이 다르다(눈 검토 지적, kit 레이아웃).
+- 생성 비용:
+  - 읽은 문서:
+    - SKILL.md (33714), background.md (236), kit/API.md (12316)
+    - kit/api/controls.md (3142), kit/api/deck-contracts.md (7198), kit/api/mock.md (1310), kit/api/ui.md (2762), kit/api/charts.md (1883)
+    - gallery/finance/diversification.html (25408, 부분), gallery/uiux/visual-hierarchy-spacing.html (29382, 부분), server/audit.mjs (12486, 부분), kit/ltt.js (아이콘 목록 부분)
+    - review-findings.md (4457)
+  - lesson.html: 40956 바이트, 장면 수 12, 결정 변수 수 1
+  - 서브에이전트: 기대값 1회, 주장 검토 1회, 독자 검토 1회, 눈 검토 1회
+  - 브라우저: audit 7회(1차 5회 + 수정 왕복 2회), 스크린샷 24장(최종 회차, 12장면 × 2크기)
+  - 시각: 시작 2026-10-19 08:46, 공개 서버 미기동(실험), 수정 완료 09:06
+  - 토큰: 생성 에이전트 234,965(수정 왕복 포함 최종값) + 검증 240,665(기대값 40,996, 주장 44,666, 독자 65,786, 눈 89,217) = 475,630. Agent usage의 subagent_tokens 값이며 누적 처리 토큰이 아니라 마지막 context 크기일 수 있다(가설)
+</pre></details>
+</section>
+<section class=card id="trolley">
+  <h2>공리주의 vs 의무론</h2>
+  <p class=req><b>요청</b> 윤리 토론 수업에서 결과의 합으로 판단할지(공리주의), 행위가 지키는 규칙으로 판단할지(의무론) 입장을 정해야 하는데 두 기준이 어디서 갈리는지 모른다. 학습 자료를 만들어 달라.<br><b>배경</b> 철학 비전공 대학생. 트롤리 문제를 들어 본 적은 있다.</p>
+  <div class=pair>
+    <div><h3>기준선 (skill 없음)</h3>
+      <p><a class=btn href="trolley/baseline.html" target=_blank>산출물 열기 ↗</a></p>
+      <p>HTML 1개, 7섹션, 트롤리 실험실(SVG 5사례), 문턱 시뮬레이터, 서술 5문항, 입장 체크리스트</p>
+      <ul><li>31.0KB</li><li>토큰 55.7k · 도구 4회 · 159s</li><li>읽은 문서 없음 · 서브에이전트·브라우저 0 · 렌더링 확인 안 함</li></ul>
+    </div>
+    <div><h3>skill 경로</h3>
+      <p><a class=btn href="trolley/skill.html" target=_blank>수업 열기 ↗</a></p>
+      <p>12장면 · 결정 변수 2개 · 32.5KB (1차 29.2KB)</p>
+      <ul><li>생성 에이전트 215.5k (수정 포함 최종) · 1034s</li>
+      <li>검증 229.5k: 기대값 35.9k, 주장 42.7k, 독자 63.2k, 눈 87.7k</li>
+      <li>audit 11회 · 최종 두 크기 0건</li></ul>
+    </div>
+  </div>
+  <p class=verdict><b>검증 결과</b> 기대값 일치. 주장 틀림 1건(7: 의무론의 비례성 조건 누락 — 모델·sweep·기대값까지 수정), 출처 오류 3건(레버 판본은 Thomson 1976 등) 수정. 4장면을 글 문단에서 단계 그림으로 바꿈.</p>
+  <details><summary>검증 지적 전체 (review-findings.md)</summary><pre># §3.6 검증 결과 (수정 왕복 1회분)
+
+## 기대값 (독립 검산)
+순효용 4, 4, 0 / 금지 플래그 육교 1, 레버 0 / 갈림 3칸: (육교,2), (육교,5), (육교,100). (육교,1)은 순효용 0이라 엄격 부등호(&gt;0)에서 갈림 아님. 페이지 기대값과 대조해 다르면 고친다.
+
+## 주장 검토
+- 틀림 — 7: 3·5와 모순. 레버 허용은 이중결과 원리의 비례성 조건에 기대므로, 레버에서 구하는 수를 1명으로 줄이면 의무론 판정도 바뀐다. 고친 문장: &quot;행위 방식을 바꾸면 의무론 판정이 움직이고 공리주의 판정은 움직이지 않는다. 구하는 수를 바꾸면 공리주의 판정이 움직인다. 의무론 판정은 행위가 제약에 걸리지 않을 때만(비례성) 수에 반응하고, 제약에 걸리면 수가 아무리 커도 움직이지 않는다. 이 단순 모델에는 문턱이 없다.&quot; 모델·sweep·기대값(갈림 칸 수)이 이 문장과 맞는지도 다시 본다.
+- 출처 — 2: 구경꾼이 레버를 당기는 판본은 Thomson(1976/1985)이 만들었다(Foot 1967은 운전사 사례). 6: 육교는 Thomson 1976. 11: 출처 목록에 Foot 1967 &quot;The Problem of Abortion and the Doctrine of the Double Effect&quot;, Thomson 1976 &quot;Killing, Letting Die, and the Trolley Problem&quot;, 1985 &quot;The Trolley Problem&quot;, 2008 &quot;Turning the Trolley&quot; 추가.
+- 1: &quot;(행위) 공리주의, 이 모델에서는 구한 수 − 희생 수로 근사. 어떻게 했는지는 그것이 낳는 추가 결과만큼만 셈에 들어간다.&quot;
+- 3: &quot;절대주의 의무론 기준&quot;임을 밝힌다(문턱 의무론은 예외).
+- 4: &quot;많은 의무론자는 직접 죽이는 것을 죽게 두는 것보다 더 무겁게 본다.&quot;
+- 5: Thomson 2008 철회는 확정 사실(태그 불필요). 태그는 &quot;많은 의무론자가 허용&quot; 정도 표현에만. 철회 이유는 수단/부작용이 아니라 &quot;자신이 치르지 않을 비용을 남에게 치르게 함&quot;이고, 운전사 방향 틀기는 여전히 허용 — 수단/부작용 논리로 철회한 것처럼 읽히지 않게.
+- 8: &quot;두 기준이 갈리는 대표적인 경우는 해악이 수단일 때다(유일한 경우는 아니다).&quot;
+- 9: 외과의 — &quot;간접 결과(병원 신뢰 붕괴)를 세면 행위 공리주의도 금지할 수 있고, 규칙 공리주의는 관행 자체를 금지한다.&quot; 시한폭탄 — 상대가 무고하지 않으므로 &quot;절대주의 의무론과 확실성을 가정한 행위 공리주의 기준&quot;이라는 조건. 자율주행차 — 제조사는 구경꾼보다 운전사 위치에 가까워 Foot 원래 사례와 같은 구조.
+- 10: &quot;행위 공리주의&quot;와 &quot;절대주의 의무론&quot;으로 한정.
+
+## 독자 검토
+- 정의 없음: 4 &quot;예견된 부작용&quot;(glossary에 넣고 이중 효과 원리 이름도 여기서); 8 &quot;규칙 공리주의&quot;(9에서야 정의 → 빼거나 glossary); 9 &quot;장기 결과&quot;가 장기(臟器)로 읽힘 → &quot;오랜 기간에 걸친 결과&quot;, &quot;분배&quot; 풀어 쓰기; 8 백신 &quot;본인 동의&quot;가 4의 검사 순서에 없음 → 4에 &quot;동의했다면 수단으로만 대우가 아니다&quot; 한 줄 또는 note에서 빼기.
+- 건너뛴 단계: 3 &quot;그대로 두면 0&quot; 기준점 설명(−5 대 −1 나란히); 4 1단계 &quot;죽이기 대 죽게 두기&quot;는 레버도 죽이기인데 왜 허용인지 연결 없음, 모델은 수단 검사만 씀 → 빼거나 연결; 4 3단계 수단/부작용을 가르는 반사실 시험(&quot;그 1명이 없어도 5명이 사는가?&quot;) 추가, 그림에서 1명을 지워 보이기.
+- 그림만으로 이유 불명: 4 STEP_ACT &quot;죽인다?/죽게 둔다?&quot; 글자만 → 두 경로 나란히; 3 4단계가 3단계와 같은 그림 → &quot;셈에 안 들어가는 것&quot;을 그림에 표시.
+- 글 문단 대신 그림: 4(가장 큼) — 3의 판정표가 &quot;다음 장면에서&quot; 예고하는데 4는 선로 그림 없는 stack 문단, 의무론 칸은 6에서야 채워짐 → 4를 trackFig steps로 레버 의무론 칸을 단계별로 채움; 5 육교를 facts 카드로만 → trackFig({act:&quot;push&quot;}) 판정 칸 빈 채로; 9 세 문단 → 2열×3행 표.
+- 그림 없는 용어: &quot;부작용 대 수단&quot;을 나란히 놓은 그림 없음(STEP_MEANS는 수단 쪽만) → 레버·육교 소형 그림 나란히.
+- 글과 그림 어긋남: 2 TERM_UTIL 저울에 죽을 사람 5/1을 올리고 &quot;무거운 쪽 = 더 좋은 결과&quot; → 라벨 &quot;구하는 생명&quot;, 저울대 실제로 기울이기; 3 &quot;선택지마다 계산&quot;인데 표에 &quot;당긴다&quot;만 → &quot;그대로 둔다 = 0&quot; 함께; 4는 3단계 검사, 그림·모델은 &quot;수단인가&quot; 하나 → 맞추기; 8 외과의 판정 &quot;갈린다&quot;와 note &quot;규칙 공리주의는 금지&quot; 엇갈림 → &quot;행위 공리주의 기준&quot; 명시.
+- 손잡이(경미): 6 버튼이 그림 밖 → 그림 속 레버·사람 묶음 옆으로.
+- 목표: 6 기본값 5명이라 &quot;육교&quot; 한 번에 달성, 사람 수 손잡이를 안 만짐 → 공리주의 판정이 바뀌는 칸(1↔2명)을 찾는 두 번째 목표 또는 기본값 1명.
+- 정리: 7 제목이 recall의 답 자체 → recall을 다른 사례(외과의) 적용 질문으로.
+- overview(11): 번호가 의미 없는 자리에, 5·8 흔적 없음 → notes를 장면 순서와 짝지어, 번호는 맞는 자리에만; 5명 고정 두 행뿐 → &quot;육교·1명&quot; 행 추가; 제목 &quot;…때만 갈린다&quot;의 &quot;만&quot;이 너무 강함 → &quot;주로&quot; 또는 &quot;이 수업의 단순화에서는&quot;.
+
+## 눈 검토 (스크린샷)
+우선순위:
+1. 4장 1440x900: 단계 내용이 거의 투명, 진행 막대에 현재 칸 없음(1280은 정상). 캡처 시점 문제인지 reveal 애니메이션 미시작 버그인지 확인.
+2. 1장(두 크기): 회청색 강조 사각형이 제목 둘째 줄 &quot;사람을 미는 것&quot; 글자 아랫부분을 가로지름 → 없애거나 밑줄 위치로.
+3. 5장: 육교 사례를 묻는데 육교 그림이 없음(카드·범용 아이콘만) → 육교·한 사람·주 선로 5명 선화. (독자 검토 5와 같음)
+4. 11장: 육교 기둥이 선로를 뚫고 아래 허공에서 끝남; ④ 배지가 &quot;순효용&quot;에 붙음(1280 거의 닿음); 1280에서 제목 두 줄 → 캡션이 이전/다음 버튼에 붙음.
+5. 2장: 저울대 수평, 1명 아래 삼각형이 두 번째 받침점처럼 보임 → 5명 쪽으로 기울이고 삼각형 제거. (독자 검토와 같음)
+6. 6·11장 판정표 본문(1280에서 약 10–11px), 3장 &quot;다음 장면에서&quot;, 6장 빨간 주석, 4·9장 출처 각주가 작고 흐림 → 키우기. 6장 제목이 결론을 말함 → 질문형. 가능하면 그림 속 레버·육교를 직접 누르는 손잡이.
+7. 7장: 왼쪽 330px 칸에만 글, 오른쪽 2/3 빔; 1280에서 &quot;때&quot;가 혼자 줄바꿈.
+8. 작은 것: 8장 머리글 자간 벌어짐; 5장 &quot;잘 모르겠다&quot; 흐림; 12장 &quot;인간성 정식(수단으로만 대우 / 금지)&quot; 줄바꿈; 10장 입력칸 높이 어긋남; 3장 1440 오른쪽 아래 빔; 4장 1280 오른쪽 절반 빔.
+9. 테마 &quot;paper&quot;인데 어두운 바탕으로 찍힘 — 다크 모드 캡처인지 확인(kit 동작이면 그대로).
+</pre></details>
+  <details><summary>skill 쪽 result.md</summary><pre>---
+lesson: 20261019-trolley-ethics
+date: 2026-10-19
+concepts:
+  - id: utilitarianism
+    title: 공리주의
+    aliases: [utilitarianism, 결과주의, consequentialism]
+    definition: 행위의 옳고 그름을 그 결과가 만드는 모든 사람의 복지의 합으로 판단하고, 합이 가장 큰 선택지를 고르는 이론
+    domains: [ethics]
+    level: 1
+    leads_to: [means-vs-side-effect]
+    quiz: skipped
+  - id: deontology
+    title: 의무론
+    aliases: [deontology, 의무론적 제약, 수단으로만 대우 금지]
+    definition: 결과를 보기 전에 행위가 제약(무고한 사람을 해치지 말라, 사람을 수단으로만 대우하지 말라)에 걸리는지 먼저 보고, 걸리면 결과가 좋아도 하지 않는 이론
+    domains: [ethics]
+    level: 1
+    leads_to: [means-vs-side-effect]
+    quiz: skipped
+  - id: means-vs-side-effect
+    title: 해악이 수단인가 부작용인가(공리주의·의무론이 갈리는 조건)
+    aliases: [이중 효과 원리, doctrine of double effect, 트롤리 문제, 육교 사례]
+    definition: 최선의 결과가 누군가를 도구로 써야 얻어지면(해악이 수단) 공리주의는 허용하고 의무론은 금지해 판정이 갈리고, 해악이 예견된 부작용이면 두 기준이 같은 행동을 받아들인다
+    domains: [ethics]
+    level: 2
+    requires: [utilitarianism, deontology]
+    quiz: skipped
+---
+# 공리주의와 의무론이 갈리는 조건 (20261019-trolley-ethics)
+- 작업: 윤리 토론 수업에서 결과의 합(공리주의)과 행위가 지키는 규칙(의무론) 중 어느 기준으로 입장을 정할지 고른다.
+- 진단: 사다리 [도덕 판단의 근거 → 결과주의·공리주의 → 의무론(규칙·권리) → 두 기준이 갈리는 사례]. 결과주의는 애매함, 의무론부터 아예 모름. 학습 수준은 의무론부터(실험 고정 진단).
+- 이번 결정: 보류. 실험이라 사용자가 입장을 정하지 않았다. 수업은 판정 조건만 다뤘다. 해악이 수단이면 판정이 갈리고, 부작용이면 두 기준이 같은 행동을 받아들인다.
+- 선택을 바꾸는 조건: 토론 주제의 사례에서 최선의 결과가 누군가를 도구로 써야 얻어지는지. 행위 공리주의는 육교·외과의 결론을 감수해야 한다(수정안: 규칙 공리주의). 절대주의 의무론은 큰 재앙을 감수해야 한다(수정안: 문턱 의무론).
+- agent에게 할 질문: &quot;100만 명이 걸려도 의무론은 끝까지 금지하나요?&quot;, &quot;내 토론 주제에서 상대가 들고 올 사례를 같이 골라 줘&quot;
+- 퀴즈: 실험이라 skipped
+- 미룬 범위: 이중 효과 원리의 세부, 규칙 공리주의와 문턱 의무론의 상세 논쟁, 덕 윤리, 칸트 정언명령의 다른 정식, 트롤리 변형(고리 선로 등), 실험철학 설문 수치
+- 검색어: 공리주의(utilitarianism), 결과주의(consequentialism), 의무론(deontology), 트롤리 문제(trolley problem), 인간성 정식(Formula of Humanity) / trolley problem footbridge Thomson, doctrine of double effect, rule utilitarianism vs act utilitarianism, threshold deontology, Kant formula of humanity means merely
+- kit 후보:
+  - 사례 그림 아래에 이론별 판정표를 붙인 &quot;판정 매트릭스&quot; 그림. 행 = 사례, 열 = 기준, 갈린 행에 음영을 준다. 페이지에서 직접 짰다.
+  - predict `visual`에 주 그림의 축약판(판정표 없이)을 쓰는 패턴
+  - overview 번호 주석을 &quot;장면 n · 정리&quot; 범례 줄과 짝짓는 패턴
+- 생성 비용:
+  - 읽은 문서: SKILL.md (33714), background.md (214), kit/API.md (12316), kit/api/controls.md (3142), kit/api/diagram.md (5487), kit/api/deck-contracts.md (7198), kit/api/ui.md (2762), kit/api/charts.md (1883, 부분), gallery/pedagogy/retrieval-practice.html (24373), gallery/cache-ttl.html (부분, 바이트 미측정), kit/ltt.js·ltt-deck.js·server/audit.mjs (부분, 바이트 미측정), review-findings.md (7076)
+  - lesson.html: 32529 바이트, 장면 수 12, 결정 변수 수 2
+  - 서브에이전트: 기대값 1회, 주장 검토 1회, 독자 검토 1회, 눈 검토 1회
+  - 브라우저: audit 11회(생성 6 + 수정 왕복 5), 스크린샷 24장(마지막 실행분, 12장면 × 2크기)
+  - 시각: 시작 2026-10-19 09:15, 공개 서버 미기동(실험)
+  - 토큰: 생성 에이전트 215,522(수정 왕복 포함 최종값) + 검증 229,451(기대값 35,864, 주장 42,667, 독자 63,213, 눈 87,707) = 444,973. Agent usage의 subagent_tokens 값이며 누적 처리 토큰이 아니라 마지막 context 크기일 수 있다(가설)
+</pre></details>
+</section>
+<section class=card id="projectile">
+  <h2>공기저항과 최대 사거리 각도</h2>
+  <p class=req><b>요청</b> 공 던지기 게임의 물리를 짜는데, 공기저항을 무시해도 되는지, 최대 사거리 각도를 45°로 둬도 되는지 판단 근거를 모른다. 학습 자료를 만들어 달라.<br><b>배경</b> 게임 클라이언트 개발자. 등가속도 운동과 sin2θ 사거리 공식은 안다.</p>
+  <div class=pair>
+    <div><h3>기준선 (skill 없음)</h3>
+      <p><a class=btn href="projectile/baseline.html" target=_blank>산출물 열기 ↗</a></p>
+      <p>HTML 1개, 요약 카드 + 6섹션, 궤적·사거리 곡선 캔버스 시뮬레이터, 서술 5문항 (node로 본문 수치 3곳 자체 수정)</p>
+      <ul><li>28.6KB</li><li>토큰 60.3k · 도구 5회 · 194s</li><li>읽은 문서 없음 · 서브에이전트·브라우저 0 · 렌더링 확인 안 함</li></ul>
+    </div>
+    <div><h3>skill 경로</h3>
+      <p><a class=btn href="projectile/skill.html" target=_blank>수업 열기 ↗</a></p>
+      <p>13장면 · 결정 변수 2개 · 41.2KB (1차 35.9KB)</p>
+      <ul><li>생성 에이전트 219.5k (수정 포함 최종) · 995s</li>
+      <li>검증 248.2k: 기대값 45.1k, 주장 45.6k, 독자 66.1k, 눈 91.4k</li>
+      <li>audit 9회 · 최종 두 크기 0건</li></ul>
+    </div>
+  </div>
+  <p class=verdict><b>검증 결과</b> 기대값 10개 일치(RK4·해석해 대조). 주장 틀림 1건(13: 실제 타구 각도가 낮은 원인) 수정, 조건 4건 보강. 발사각 손잡이를 2D 점에서 호 위 각도 핸들로 바꿈.</p>
+  <details><summary>검증 지적 전체 (review-findings.md)</summary><pre># §3.6 검증 결과 (수정 왕복 1회분)
+
+## 기대값 (독립 검산, RK4, 해석해 대조)
+공식 물리적으로 맞음. v_t: 투포환 149.435, 야구공 39.686, 테니스 22.019, 탁구 8.382. 낙하 v(v_t/g)/v_t = tanh1 = 0.761594; v=v_t/2 시각 0.549306 v_t/g. 수직 최고점 ½ln(1+u²): u=1 0.346574, u=2 0.804719.
+45° R/R0: u 0.01 0.99992, 0.2 0.96979, 0.25 0.95375, 0.3 0.93498, 0.5 0.84122, 0.76 0.70454, 1 0.58901, 2 0.29444, 4 0.11281.
+공별 45° 손실: 투포환 u 0.0870 0.59%, 야구공 0.7559 29.3%, 테니스 1.1354 46.8%, 탁구 1.7895 66.4%. 야구공 45°에서 손실 ≤5%는 v₀ 5–10 m/s(10에서 4.69%, 11에서 5.61%).
+최적각: u 0.5 43.67°, 0.76 42.32°, 1 40.98°, 2 36.20°, 4 30.88°. 45° 손실: 0.76 0.369%, 1 0.774%, 2 3.03%, 4 6.61%. u=2 99% 창 31.32°–41.21°(주장 &quot;약 32–41°&quot; → &quot;약 31–41°&quot;), 45°는 0.9697. R0(30 m/s) 91.743 m.
+모델 가정으로 밝혀 둘 것: C_d 상수(야구공 고속에서 0.3 아래로 떨어질 수 있음), 회전(Magnus) 무시, 부력 무시(탁구공 약 1.5%).
+페이지 기대값과 대조해 다르면 고친다.
+
+## 독자 검토
+- 정의 없음: 2 &quot;공 크기만 한 물체가 빠르게 날 때&quot;가 무엇을 가르는지, 3 basis &quot;제곱 영역&quot; → &quot;공·손 속도면 제곱, 먼지·꿀 속 구슬이면 선형&quot; 예시로 한 줄; 3 tanh, 4 ŷ와 |v|v 표기 풀기.
+- 건너뛴 단계: 2 &quot;가볍고 큰 공일수록 v_t 작다&quot; 이유 → 3 공식 옆 &quot;m↑ → v_t↑, A↑ → v_t↓&quot;; 4 ½ρC_dA/m = g/v_t² 대입 한 줄; 4 &quot;v₀/v_t 같으면 모양 같다&quot; 근거(무차원화) → 아래 그림으로; 5 answerVisual 축 정규화(÷v₀²/g) 설명이 6에서야 나옴 → 5 캡션으로.
+- 그림만으로 불명: 3 &quot;항력이 무게를 깎아 곡선이 눕는다&quot;인데 v–t 곡선뿐 → 몇 점에 무게·항력 화살표나 알짜힘 막대; 8 정답 그림이 결과(36°)만 → 낮은 각·높은 각의 수평 속도–시간 곡선 나란히.
+- 글 대신 그림: 4 &quot;모양이 같다&quot; → 탁구공·야구공 같은 u 실제 크기 궤적 두 개와 v₀²/g로 나눠 겹치는 그림; 10 핵심 &quot;항력 무시 손실 30% ≫ 각도 손실 0.4%&quot;가 basis 글에만 → 나란한 막대; 9 narration 둘째 문단 지우고 단계별 목표로.
+- 글과 그림 어긋남: 9 제목 &quot;발사 화살표를 끌어&quot;인데 선에 화살촉 없음, narration은 &quot;점선 원&quot; → 화살표 하나와 끝 손잡이로 통일; 12 overview 글 2(≲0.25)인데 0.25 궤적 없음, ①&quot;항력÷무게&quot;가 번호 하나뿐 → u=0.25 궤적 추가, 출발점 화살표 쌍.
+- 목표: 9 u 선택에 목표 없음, goal은 u=2만 → &quot;u=0,1,4에서도 최적각 찾기&quot; 순서 목표; 6 goal이 야구공 하나로 고정 → 두 공에서 5% 경계 속도를 찾고 그때 v₀/v_t가 같은지 비교.
+- 손잡이: 9 발사각(1차원)을 2D 점 [0.02,0.2]²로 잡음, 영역도 작음 → 원점 중심 고정 반지름 호 위 각도 손잡이.
+- 답이 미리 보임: 9 &quot;이 조건의 최적각&quot; 읽힘값과 goal 문장 &quot;45°로는 97%&quot;가 답을 줌 → 목표 달성 전 읽힘값 숨김.
+- overview(12): 결론만 나열 → 수업 순서대로 ① 낙하에서 v_t 정의 ② 항력÷무게=(v₀/v_t)² ③ 0.25 기준과 네 공 판정 ④ 최적각이 낮아지는 이유 ⑤ 45° 손해 3%, 각 항목에 그림 표식.
+
+## 주장 검토 (수치는 모두 맞음)
+- 틀림 — 13 원인: 첫 문장(손 높이면 진공 최적각 &lt; 45°)은 맞지만 효과는 작다(1.8 m, 30 m/s에서 약 44.4°; 항력 모델에서 야구공 42.3°→41.6°). 둘째 문장 고친 문장: &quot;실제 타구의 최적각이 더 낮게 보고되는 주된 이유는 항력(빠른 타구는 u &gt; 1)과 백스핀 양력이 함께 작용하기 때문이다. 양력은 범위 밖이다.&quot; 보고 각도(흔히 25–35°)를 적으면 불확실 태그.
+- 1: C_d 상수 가정을 밝히고 불확실 태그(레이놀즈 수 의존, 야구공 drag crisis·회전). 선형 항력은 Re ≲ 1(물방울, 미세 입자).
+- 2: 야구공 v_t는 C_d에 따라 약 33–42 m/s로 인용됨 → 불확실 태그 유지.
+- 4: 조건(제곱 항력, C_d 상수, 회전 없음, 같은 높이 발사·착지). 발사 높이가 있으면 h·g/v_t²도 같아야 함.
+- 9: 더 정확한 문장: &quot;각도를 올리면 체공 시간을 얻지만, 오래 날수록 항력이 수평 속도를 더 깎아 높이로 얻는 이득이 줄고 최적각이 내려간다.&quot;
+- 12: &quot;두 자릿수&quot;는 u ≲ 1 근처에서만(u=2 약 23배, u=4 약 13배). 고친 문장: &quot;같은 u에서 항력을 무시한 손실은 각도 손실의 10배 이상(최대 약 100배)이므로, 각도보다 항력 포함 여부를 먼저 정한다.&quot;
+- 11: 99% 창은 약 31–41°(검산 31.3–41.2°).
+
+## 눈 검토 (스크린샷)
+우선순위:
+1. 09: 플롯이 작고 축 글자 약 7px(1280 더 작음) → 키우기; 발사 손잡이를 실제 화살표·각도 핸들 모양으로(독자 검토와 같음); 초기 발사각이 45°라 45° 기준 점선이 실선과 겹쳐 안 보임 → 다른 값으로 시작; 1280에서 v₀/v_t 칩 &quot;4&quot;만 줄바꿈; 세 열로 쪼개져 산만(글 많고 플롯 작음).
+2. 12: 진공 점선이 &quot;← v₀/v_t = 0.76 (야구공 30 m/s)&quot; 주석 위를 지남; 배지 1·2가 곡선 위 → 비키기.
+3. 05와 08이 같은 틀(큰 번호, 질문, 카드 3개, 선택지 4개) → 08에 각도 시각 요소로 구분.
+4. 04: 수식이 &quot;(v₀ /&quot; 와 &quot;v_t)²&quot;로 두 줄에 쪼개짐.
+5. 07: 본문 &quot;밝은 띠(0.25 이하)&quot;인데 실제 띠는 어두운 녹색; 판정 열 비고 눈금 띠가 행 폭 25%만 씀.
+6. 02: 라벨 &quot;항력 4배&quot;인데 화살표 비 약 2.7배, 속도 화살표 약 1.8배 → 1:4, 1:2로; 미니 그래프 v_t 점선이 축 라벨 &quot;낙하 속도&quot;를 가로지름.
+7. 10: 제목 후반 &quot;45° 고집 손해는 작다&quot;를 보이는 그림 요소 없음(회색 각주뿐) → u=2에서 −3% 주석 등.
+8. 03·10: 그림 안 이전/다음 스테퍼가 하단 전역 버튼과 이름이 같아 혼동 → &quot;단계 ←/→&quot; 등.
+9. v_t가 밑줄 그대로 노출(v₀은 아래첨자) → 통일.
+10. 03 첫 단계에 포화 곡선 없이 진공 직선만 → 정지 화면이 주장과 반대로 읽힘; 회색 각주·눈금 대비 낮음; 06 y축 0.6까지인데 곡선은 0.25 아래 → 범위 줄이기; 05·08·04·13 아래 빈 공간; 모눈이 너무 옅어 노트 느낌 약함.
+</pre></details>
+  <details><summary>skill 쪽 result.md</summary><pre>---
+lesson: 20261019-projectile-drag
+date: 2026-10-19
+concepts:
+  - id: quadratic-drag
+    title: 제곱 항력
+    aliases: [quadratic drag, 공기저항]
+    definition: 손으로 던지는 공 크기·속도에서 항력은 속도의 제곱에 비례한다(F = ½ρC_dAv²); 선형 항력은 레이놀즈 수 ≲ 1인 미세 입자에만 맞는다.
+    domains: [physics, game-physics]
+    level: 2
+    leads_to: [terminal-velocity]
+    quiz: skipped
+  - id: terminal-velocity
+    title: 종단 속도
+    aliases: [terminal velocity, v_t]
+    definition: 낙하하는 물체의 항력이 무게와 같아져 더 빨라지지 않는 속도, v_t = √(2mg/ρC_dA).
+    domains: [physics, game-physics]
+    level: 2
+    requires: [quadratic-drag]
+    leads_to: [drag-speed-ratio]
+    quiz: skipped
+  - id: drag-speed-ratio
+    title: 발사 속도 대 종단 속도 비 (v0/vt)
+    aliases: [v0/vt, 무차원 비]
+    definition: (v0/vt)²가 출발 순간 항력÷무게이고, v0/vt ≲ 0.25이면 진공 사거리 공식의 오차가 5% 안이다.
+    domains: [physics, game-physics]
+    level: 3
+    requires: [terminal-velocity]
+    leads_to: [optimal-launch-angle-drag]
+    quiz: skipped
+  - id: optimal-launch-angle-drag
+    title: 항력이 있을 때 최대 사거리 발사각
+    aliases: [optimal launch angle with drag]
+    definition: v0/vt가 커질수록 최대 사거리 발사각은 45°보다 낮아지지만(2에서 약 36°), 45°를 고집한 손실은 항력 무시 손실보다 훨씬 작다.
+    domains: [physics, game-physics]
+    level: 3
+    requires: [drag-speed-ratio]
+    quiz: skipped
+---
+# 공기저항 무시 여부와 최대 사거리 각도 (20261019-projectile-drag)
+- 작업: 공 던지기 게임의 물리에서 공기저항을 무시해도 되는지, 최대 사거리 각도를 45°로 둬도 되는지 판단한다.
+- 진단: 개념 사다리는 등가속도 투사체(sin2θ) → 항력과 속도 의존(선형·제곱) → 종단 속도와 무차원 비 → 항력이 최적 각도를 바꾸는 이유였다. 응답은 sin2θ 앎, 항력 애매함, 종단 속도부터 아예 모름이었다. 학습 수준은 &quot;종단 속도와 무차원 비&quot;로 정했고, 항력은 일부 넣었다(실험 고정 진단 결과).
+- 이번 결정: 실험이라 보류. 수업이 주는 기준은 이렇다. 게임 공마다 v0/vt를 계산해 0.25를 넘으면 항력 a = −g ŷ − (g/vt²)|v|v를 넣는다. 각도는 45°로 두어도 v0/vt = 2에서 손실이 약 3%다.
+- 선택을 바꾸는 조건:
+  - 최대 던지기 속도나 공의 질량·지름이 바뀌어 v0/vt가 0.25를 넘거나 내려갈 때.
+  - 회전(양력)이나 바람, 높은 발사 위치를 넣을 때. 이 모델 밖이다.
+  - 사거리 오차 허용치가 5%가 아닐 때.
+- agent에게 할 질문:
+  - &quot;a = −g ŷ − (g/vt²)|v|v 적분 코드를 짜 줘&quot;
+  - &quot;우리 공들의 v₀/vₜ 표를 만들어 줘&quot;
+- 퀴즈: 실험이라 skipped (이해 확인 문항 없음, 도움 없음)
+- 미룬 범위: 마그누스 효과(회전 양력), 레이놀즈 수와 drag crisis, 발사 높이 효과, 바람, 게임 루프 수치 적분(semi-implicit Euler 등)
+- 검색어: 종단 속도(terminal velocity), 제곱 항력(quadratic drag), 항력 계수(drag coefficient), 최적 발사각(optimal launch angle with drag) / &quot;terminal velocity drag coefficient sphere&quot;, &quot;projectile motion quadratic air resistance optimal angle&quot;, &quot;game physics drag integration semi-implicit euler&quot;, &quot;Reynolds number drag regime sphere&quot;
+- kit 후보:
+  - **원호 위 각도 손잡이.** `LTT.drag`의 toSvg·fromSvg를 각도↔호 위 점으로 바꿔 1차원 각도 손잡이로 썼다. 반복되면 `kind: &quot;arc&quot;`(범위가 0–360 전체가 아닌 각도 dial)로 만들 만하다.
+  - **sweep `goal`의 한계.** 현재 값만 보는 순수 함수라 두 가지를 표현할 수 없다. 하나는 &quot;여러 조건에서 차례로 맞추기&quot;(장면 9의 v0/vt = 0, 1, 4 순서 목표), 다른 하나는 &quot;두 공에서 경계 속도를 찾아 비교&quot;(장면 6)다. 지금은 narration 문장으로만 안내했다. 순서·다중 목표 지원이 후보다.
+  - **figure 단계 스테퍼 버튼 이름.** &quot;이전/다음&quot;이 덱 하단의 전역 이전/다음과 이름이 같아 헷갈린다(눈 검토 지적). kit 쪽에서 &quot;단계 ←/→&quot;처럼 구분할 후보다.
+  - **lab 테마 모눈 대비.** 모눈이 옅어 실험 노트 느낌이 약하다는 눈 검토 지적이 있었다. 테마 토큰 문제라 페이지에서 고치지 않았다.
+  - **predict·statement 장면 아래 빈 공간.** 장면 4, 5, 8, 13 아래가 비어 보인다는 지적이 있었다. predict 배율은 펼친 정답 크기에 묶여 있어서, 그림을 키우면 1280×800에서 shrunk 경고가 난다. kit 배치 문제로 남긴다.
+  - **판정 열 칸.** compare table의 판정 열이 공개 전에 비어 있어 행 폭을 덜 쓴다.
+- 생성 비용:
+  - 읽은 문서: SKILL.md (33714), kit/API.md (12316), kit/api/charts.md (1883), kit/api/deck-contracts.md (7198), kit/api/controls.md (3142), kit/api/ui.md (2762), gallery/linear-algebra/matrix-as-transform.html (23962), background.md (232), review-findings.md (6419). 일부만 읽은 것: kit/ltt-parts.js (110959 중 일부), kit/ltt-parts.css (15912 중 일부), kit/ltt.css (6748 중 일부), kit/ltt.js (59760 중 일부), server/audit.mjs (12486 중 일부)
+  - lesson.html: 41223, 장면 수 13, 결정 변수 수 2
+  - 서브에이전트: 기대값 1회, 주장 검토 1회, 독자 검토 1회, 눈 검토 1회
+  - 브라우저: audit 9회(생성 5 + 수정 4), 스크린샷 26장(최종본 13장×2크기, 실행마다 덮어씀)
+  - 시각: 시작 2026-10-19 09:15, 공개 서버 미기동(실험)
+  - 토큰: 생성 에이전트 219,473(수정 왕복 포함 최종값) + 검증 248,192(기대값 45,131, 주장 45,606, 독자 66,089, 눈 91,366) = 467,665. Agent usage의 subagent_tokens 값이며 누적 처리 토큰이 아니라 마지막 context 크기일 수 있다(가설)
+</pre></details>
+</section>
+<section class=card id="contrast">
+  <h2>WCAG 색 대비</h2>
+  <p class=req><b>요청</b> 설정 화면의 보조 텍스트 색을 고르는데, 글자색과 배경색 조합이 WCAG AA/AAA 대비비 기준을 넘는지 판단 근거를 모른다. 학습 자료를 만들어 달라.<br><b>배경</b> CSS 색상 코드(#RRGGBB)를 읽을 수 있는 UI 프론트엔드 개발자.</p>
+  <div class=pair>
+    <div><h3>기준선 (skill 없음)</h3>
+      <p><a class=btn href="contrast/baseline.html" target=_blank>산출물 열기 ↗</a></p>
+      <p>HTML 1개, 9섹션, 대비비 계산기, 회색 슬라이더, 알파 합성, 객관식 6 + 서술 2</p>
+      <ul><li>31.0KB</li><li>토큰 59.2k · 도구 8회 · 179s</li><li>읽은 문서 없음 · 서브에이전트·브라우저 0 · 렌더링 확인 안 함</li></ul>
+    </div>
+    <div><h3>skill 경로</h3>
+      <p><a class=btn href="contrast/skill.html" target=_blank>수업 열기 ↗</a></p>
+      <p>14장면 · 결정 변수 2개 · 43.9KB (1차 36.0KB)</p>
+      <ul><li>생성 에이전트 248.2k (수정 포함 최종) · 1299s</li>
+      <li>검증 246.7k: 기대값 42.2k, 주장 43.5k, 독자 66.9k, 눈 94.1k</li>
+      <li>audit 16회 · 최종 두 크기 0건</li></ul>
+    </div>
+  </div>
+  <p class=verdict><b>검증 결과</b> 기대값 18개 WCAG 공식과 일치. 주장 틀림 0, 표현 5건 수정(버림 표기, ln 거리). 조작 목표를 &#x27;크기마다 정답 하나&#x27;로 바꿈. 예측 답이 앞 장면에 미리 나오던 곳 2곳 수정.</p>
+  <details><summary>검증 지적 전체 (review-findings.md)</summary><pre># §3.6 검증 결과 (수정 왕복 1회분)
+
+## 기대값 (독립 검산, python3)
+모든 공식이 WCAG 2.x와 일치. 값: lin(119)=0.1845, lin(128)=0.2159, lin(188)=0.5029; L #F3F4F6=0.9041; L=0.5 → 코드 187.516(≈188).
+대비비(흰 배경): #767676 4.5422, #777777 4.4781, #8A8A8A 3.4522, #9E9E9E 2.6792, #6B6B6B 5.3292, #595959 7.0047, #3D3D3D 10.8622, #6B7280 4.8345, #0000FF 8.5925, #00FF00 1.3722. #F3F4F6 배경: #6B7280 4.3929, #767676 4.1274.
+sweep 목표 만족 9/24칸: #8A8A8A@24px, #767676@4크기 전부, #6B6B6B@4크기 전부. #595959(7.0047)는 &quot;&lt; 7&quot;에서 제외 — 판정이 반올림 값을 쓰지 않는지 확인.
+페이지 기대값과 대조해 다르면 고친다.
+
+## 주장 검토 (틀린 주장 없음, 모든 수치 계산과 일치)
+- 공통: 화면 소수는 반올림이 아니라 버림(2.679→2.67, 5.329→5.32). 자료에 &quot;대비비는 소수 둘째 자리에서 버림 표기&quot;를 밝힌다(반올림 도구와 다르게 보일 수 있음, 불확실).
+- 5: 0.05 = flare 보정은 WCAG 설명이며 물리적 타당성은 논쟁 → 불확실 태그. &quot;WCAG는 0.05를 화면 반사광(flare) 보정으로 설명한다(0으로 나누기도 막는다).&quot;
+- 6: 두 점 사이 거리는 대비비가 아니라 ln(대비비). &quot;기준 4.5:1은 길이 ln 4.5인 고정 막대가 된다.&quot;
+- 9: 예외 목록 보완: incidental(비활성 UI 컴포넌트, 순수 장식, 보이지 않는 텍스트, 다른 중요한 시각 내용이 있는 그림 속 텍스트)과 로고타입.
+- 10·11·12: 값은 버림 표기임을 명시(반올림이면 2.68, 5.33, 4.13).
+
+## 독자 검토
+- 정의 없음: 1 AA/AAA(정의는 7) 그리고 {{대비비}} 풀이에 아직 안 배운 &quot;상대 휘도&quot; → &quot;접근성 기준&quot;으로 풀거나 &quot;(곧 정의함)&quot;; 2·4 &quot;sRGB&quot;(웹 CSS 색의 표준 색 공간), &quot;감마&quot;(코드값과 빛 사이의 거듭제곱 관계) 한 줄씩; 6 &quot;로그 눈금자&quot;(같은 배수가 같은 간격)와 0.05가 필요한 이유(검정도 빛을 반사); 7 &quot;SC&quot; = WCAG 성공 기준 번호.
+- 건너뛴 단계: 4 식의 앞 갈래(≤0.04045 → ÷12.92)와 상수 0.055·1.055·2.4 출처 → &quot;아주 어두운 끝은 직선 구간&quot; 단계 + &quot;sRGB 표준이 정한 값&quot;; 2·4 왜 휘게 저장하나(눈이 어두운 쪽 차이에 민감); 5 대비비(8.59:1, 1.37:1)를 6에서 배우기 전에 씀 → 옮기거나 L값으로; 6 &quot;차이가 아니라 비율&quot;의 이유, takeaway &quot;같은 차이라도 어두운 쪽에서 크게&quot;를 보이는 단계(ΔL 0.1 쌍 0→0.1, 0.9→1.0) 추가; 10 &quot;반올림하지 않는다&quot;가 처음 나오고 출처 없음 → 6·7에서 근거와 먼저.
+- 그림만으로 불명: 1 &quot;#8A8A8A는 진해 보이는데&quot;인데 그 글자를 안 보여 줌 → 흰 배경 #8A8A8A 샘플과 &#x27;미달&#x27; 표시; 13 번호 2·4가 관련 없는 자리.
+- 글 대신 그림: 5 네 문단이 핵심, 막대는 순색 하나 → #6B7280을 R·G·B 기여분 누적 막대로.
+- 글과 그림 어긋남: 6 단계 3 &quot;왼쪽으로 3배·4.5배·7배 거리&quot;는 틀림(길이는 log) → &quot;L+0.05가 1/3, 1/4.5, 1/7이 되는 지점까지&quot;; 4 단계 3 &quot;점선과의 간격이 감마다&quot; → &quot;감마 때문에 생긴 차이다&quot;; 10 basis &quot;소수 셋째 자리 버림&quot;인데 표는 둘째 자리 → &quot;둘째 자리까지 버림 표기&quot;.
+- 손잡이(경미): 9 손잡이가 그림 밖 → 눈금자 점 끌기나 목업 문구 클릭.
+- 목표와 메시지 어긋남: 9 판정식(AA 이상, 7 미만)은 가장 옅은 회색이 아니어도 통과(13·15·18b에서 #767676과 #6B6B6B 둘 다, 24px에서 셋) → &quot;AA 이상이고 한 단계 더 옅은 회색은 AA 미달&quot;로 바꿔 크기마다 정답 하나. (기대값 9칸은 이 바뀐 판정으로 다시 계산)
+- 예측이 미리 풀림: 3의 답(#777777 → 0.18)이 2 예시에 있음 → 2 예시를 다른 색으로; 8의 답(14px AA 4.5)이 7 예시에 있음 → 7 예시를 24px 등으로.
+- overview(13): 흐름 제목(hex → 감마 → 가중 합 → 비율 → 크기별 막대)인데 그림은 눈금자 하나 → 미니 감마 곡선, 가중 합 막대, 눈금자 순서 그림과 번호; 예시가 미달 쌍뿐이라 5번 노트 대상 없음 → 흰 배경 통과 쌍과 #F3F4F6 미달 쌍 나란히.
+
+## 눈 검토 (스크린샷)
+우선순위:
+1. 9장면(두 크기, 가장 심각): 눈금자가 약 270px로 줄어 색 이름·L 값·눈금·&quot;AA 4.5:1 미달&quot; 라벨이 3–5px로 읽히지 않음 → 6·13장면 수준으로 키우고, 지금 대비비와 AA/AAA 통과 여부를 크게 보이는 검사 패널(예: &quot;Ratio 4.54:1 · AA ✓ · AAA ✗&quot;) 추가.
+2. 10장면 &quot;핵심&quot; 띠가 판정 보기 전에 결론(&quot;통과하던 회색이 미달&quot;)을 알려 줌 → 숨기거나 중립 문구; 빈 판정 열에 &quot;?&quot; 등.
+3. 9장면 색 칩이 hex 글자만 → 색 견본 붙이기(또는 색 선택기·명도 슬라이더 모양); 목표 문구 상자가 입력칸처럼 보임.
+4. 13장면: ②·④ 번호가 아무 요소에도 안 붙음, ①은 손잡이 옆 빈 띠 → 해당 요소로. (독자 검토 overview와 함께)
+5. 1장면: 팔레트 아이콘 장식 → #8A8A8A 보조 텍스트 설정 화면 견본 + 검사기 &#x27;미달&#x27;; 형광 강조 띠가 &quot;비율&quot; 중간에서 끊김.
+6. 4·6장면: 첫 단계에 &quot;실선&quot;/&quot;아래 막대&quot;가 없는데 설명은 그것을 가리킴 → 단계 상태에 맞추기; 4장면 &quot;#777777 → 0.467 ?&quot; 라벨이 점선과 겹침, y축 &quot;1&quot;이 축 제목에 붙음; 출처 문구가 오른쪽 단 아래에 뜸(1440).
+7. 1280 좌측 여백 4·10·14장면이 다름(kit 레이아웃이면 kit 후보); 6장면 부제 &quot;Contrast ratio&quot; 줄바꿈.
+8. 11→12: 같은 틀의 서술 퀴즈 두 장면이라 넘긴 줄 모름 → 구분.
+9. 작은 글씨: 6·7·13 눈금·라벨 키우고 대비 높이기; 7장면 막대 길이가 무엇인지 눈금자 없이 불명; 3·8·11·14 아래 빈 공간.
+</pre></details>
+  <details><summary>skill 쪽 result.md</summary><pre>---
+lesson: 20261019-color-contrast
+date: 2026-10-19
+concepts:
+  - id: srgb-gamma-decoding
+    title: sRGB 감마 해제
+    aliases: [sRGB linearization, gamma decoding, 선형화]
+    definition: sRGB 코드값(0–255)을 표준 전달 함수로 되돌려 빛의 양(0–1)으로 바꾸는 계산. 코드 절반은 빛 절반이 아니다.
+    domains: [uiux]
+    level: 2
+    leads_to: [relative-luminance]
+    quiz: skipped
+  - id: relative-luminance
+    title: 상대 휘도
+    aliases: [relative luminance, L]
+    definition: 감마 해제한 R·G·B에 0.2126·0.7152·0.0722를 곱해 더한, 검정 0 ~ 흰색 1의 빛의 양.
+    domains: [uiux]
+    level: 2
+    requires: [srgb-gamma-decoding]
+    leads_to: [contrast-ratio]
+    quiz: skipped
+  - id: contrast-ratio
+    title: 대비비
+    aliases: [contrast ratio, WCAG 대비비]
+    definition: (밝은 쪽 L + 0.05) ÷ (어두운 쪽 L + 0.05)로 구하는 1~21의 비율. 같은 L 차이라도 어두운 쪽에서 크다.
+    domains: [uiux]
+    level: 2
+    requires: [relative-luminance]
+    leads_to: [wcag-contrast-thresholds]
+    quiz: skipped
+  - id: wcag-contrast-thresholds
+    title: WCAG 대비 기준(AA/AAA, 큰 글자)
+    aliases: [SC 1.4.3, SC 1.4.6, large-scale text]
+    definition: 일반 글자 AA 4.5:1·AAA 7:1, 큰 글자(24px 또는 굵게 18.67px 이상) AA 3:1·AAA 4.5:1. 반올림 없이 실제 배경과 쌍으로 판정한다.
+    domains: [uiux]
+    level: 3
+    requires: [contrast-ratio]
+    quiz: skipped
+---
+# 글자색·배경색 대비비와 WCAG 기준 (20261019-color-contrast)
+- 작업: 설정 화면 보조 텍스트 색을 고르면서 글자색·배경색 조합이 WCAG AA/AAA 대비비 기준을 넘는지 판단 근거를 세운다.
+- 진단: 사다리 [sRGB 색 코드 → 상대 휘도(감마 해제·채널 가중) → 대비비 → AA/AAA 기준과 글자 크기]. sRGB 색 코드는 알고 있음, 상대 휘도는 아예 모름. 학습 수준은 상대 휘도부터(실험 고정값).
+- 이번 결정: 보류(실험). 수업 예시 기준으로는 흰 카드 위 14px 보조 텍스트에 #767676(4.54:1)이 AA를 넘는 가장 옅은 무채색 회색이다. 24px이면 #8A8A8A(3.45:1)까지 내려갈 수 있다.
+- 선택을 바꾸는 조건: 배경이 흰색이 아닐 때(#F3F4F6이면 #767676도 4.12:1로 미달), 글자가 큰 글자 기준(24px, 굵게 18.67px 이상)을 넘을 때, 팀 목표가 AAA일 때, 반투명 글자를 쓸 때(합성색으로 다시 계산한다).
+- agent에게 할 질문: &quot;이 화면의 모든 글자색·배경색 쌍을 뽑아 실제 배경 기준 대비비와 AA 판정을 표로 만들어 줘&quot;, &quot;우리 회색 팔레트에서 흰 배경 14px 기준 AA를 넘는 가장 옅은 단계를 찾아 줘&quot;, &quot;이 브랜드 색의 상대 휘도를 채널별 기여도로 나눠 보여 줘&quot;
+- 퀴즈: 실험이라 skipped
+- 미룬 범위: 비텍스트 대비(SC 1.4.11), APCA(WCAG 3 초안), 지각 밝기 L*(CIELAB), 반투명 글자 합성, 다크 모드·P3 색 공간, 색각 이상
+- 검색어: 상대 휘도(relative luminance), 감마 해제(sRGB transfer function), 대비비(contrast ratio), WCAG SC 1.4.3/1.4.6, large-scale text / &quot;WCAG relative luminance formula&quot;, &quot;WCAG 1.4.3 contrast minimum large text&quot;, &quot;lightest gray 4.5:1 on white #767676&quot;, &quot;contrast ratio rounding WCAG&quot;
+- kit 후보:
+  - 밝기 눈금자(ln(L+0.05) 축, 기준 막대, 두 번째 배경 점선 막대): 페이지에 직접 짰다. 대비비 주제마다 다시 쓸 수 있다.
+  - R·G·B 기여분 누적 막대(stackSvg).
+  - `steps` 손잡이 버튼에 색 견본 넣기: `stopLabel`이 textContent라 버튼을 만든 뒤 DOM에 끼워 넣었다.
+  - hook `art`에 HTML 견본을 넣으면 둥근 아이콘 틀 안에 잘려 들어간다. 견본용 art 틀이 필요하다.
+  - sweep의 목표 문구 상자가 입력칸처럼 보인다(눈 검토).
+  - compare 표에서 판정 공개 전 판정 열이 빈칸이다. &quot;?&quot; 같은 자리 표시가 필요하다.
+  - 연속된 summary 두 장면이 같은 틀이라 넘긴 줄 모른다(kicker로만 구분).
+  - 1280px에서 장면마다 왼쪽 여백이 다르다(4·10·14장면). figure 출처 문구가 1440px에서 오른쪽 단 아래에 뜬다.
+  - mount 안에서 `width:100%` SVG가 축소 배율과 맞물려 shrunk가 줄지 않는다. 같은 SVG가 1440에서는 내용 폭으로 쪼그라든다. 폭을 px로 명시해야 했다.
+  - predict·summary·keywords 장면 아래쪽이 빈다.
+- 생성 비용:
+  - 읽은 문서:
+    - SKILL.md (33714), kit/API.md (12316)
+    - kit/api/ui.md (2762), kit/api/controls.md (3142), kit/api/charts.md (1883), kit/api/mock.md (1310), kit/api/deck-contracts.md (7198)
+    - background.md (218)
+    - gallery/uiux/visual-hierarchy-spacing.html (29382)
+    - kit/ltt-parts.js 부분 (7892/110959), kit/ltt.js 부분 (10605/59760)
+    - review-findings.md (5886)
+  - lesson.html: 43857바이트, 장면 수 14, 결정 변수 수 2
+  - 서브에이전트: 기대값 1회, 주장 검토 1회, 독자 검토 1회, 눈 검토 1회
+  - 브라우저: audit 16회(1차 생성 5회 + 수정 왕복 11회), 스크린샷 28장(최종 회차)
+  - 시각: 시작 2026-10-19 09:15, 공개 서버 미기동(실험)
+  - 토큰: 생성 에이전트 248,224(수정 왕복 포함 최종값) + 검증 246,673(기대값 42,231, 주장 43,482, 독자 66,853, 눈 94,107) = 494,897. Agent usage의 subagent_tokens 값이며 누적 처리 토큰이 아니라 마지막 context 크기일 수 있다(가설)
+</pre></details>
+</section>
+<section class=card id="ontology">
+  <h2>온톨로지: 테이블 vs 트리플·추론·SHACL</h2>
+  <p class=req><b>요청</b> 사내 제품·부품 데이터 모델을 고르는데, 테이블 스키마로 충분한지 온톨로지(RDFS·OWL 추론)와 SHACL 검증을 얹어야 하는지 판단 근거를 모른다. 교과서 한 챕터 분량으로 길게 학습 자료를 만들어 달라.<br><b>배경</b> SQL 테이블과 JSON을 다뤄 본 백엔드 개발자. RDF·OWL은 처음이다.</p>
+  <div class=pair>
+    <div><h3>기준선 (skill 없음)</h3>
+      <p><a class=btn href="ontology/baseline.html" target=_blank>산출물 열기 ↗</a></p>
+      <p>HTML 1개, 11섹션, 실습 5개(테이블→트리플, 추론 시뮬레이터, SQL/OWL/SHACL 비교, SHACL 플레이그라운드, 진단 8문항), 서술 8문항</p>
+      <ul><li>61.7KB</li><li>토큰 72.4k · 도구 4회 · 296s</li><li>읽은 문서 없음 · 서브에이전트·브라우저 0 · 렌더링 확인 안 함</li></ul>
+    </div>
+    <div><h3>skill 경로</h3>
+      <p><a class=btn href="ontology/skill.html" target=_blank>수업 열기 ↗</a></p>
+      <p>21장면 · 결정 변수 3개 · 53.3KB (1차 50.2KB)</p>
+      <ul><li>생성 에이전트 317.3k (수정 포함 최종) · 1556s</li>
+      <li>검증 294.4k: 기대값 45.0k, 주장 50.2k, 독자 79.9k, 눈 119.3k</li>
+      <li>audit 9회 · 최종 두 크기 0건</li></ul>
+    </div>
+  </div>
+  <p class=verdict><b>검증 결과</b> 기대값 22개 일치. 주장 틀림 2건(12: sh:class 오탐, 13: 전이 추론은 RDFS가 아니라 OWL RL, 결정 흐름이 다른 장면과 모순)과 SHACL 출처 절 번호 오류를 수정. 터미널 줄바꿈 깨짐·배지 겹침(16장면) 수정. 장면을 늘리는 지적(용어 추가, 손잡이 추가)은 반영하지 않음.</p>
+  <details><summary>검증 지적 전체 (review-findings.md)</summary><pre># §3.6 검증 결과 (수정 왕복 1회분)
+
+## 기대값 (독립 검산, python3 손 구현)
+- BOM (b,d) → D, I: (4,2) 20,16; (4,4) 340,912; (3,5) 363,1278; (2,6) 126,516; (6,5) 9330,35460; (6,4) 1554,4356. I &gt; 3D는 모든 b에서 정확히 d ≥ 5. C = Σ i·bⁱ는 실제 트리 조상 수와 일치(반사 트리플 제외).
+- 추론 누적: (가) rdfs9+rdfs11 = 4 [DriveMotor subClassOf Part(스키마 수준), M-200 a ElectricalPart, M-200 a Part, B-18 a Part] — 데이터 추론만 세면 3. 어느 쪽으로 세는지 명시. (나) +rdfs2 = 5 (+C-21 a Part). (다) +prp-trp = 6 (+C-21 partOf D-300).
+- 범위 표기: 전체 RDFS 함의는 rdfs4a/4b, rdf1도 비공리 트리플을 많이 만든다 → &quot;이 네 규칙만&quot; 명시. rdfs2·rdfs9·rdfs11은 RDFS, prp-trp는 OWL 2 RL 규칙임을 표기.
+- SPARQL: `?part :partOf :D-300` → M-200, B-18 (추론 켜면 + C-21); `+ :suppliedBy ?s` → (M-200, hanbit), (B-18, daesung); `:partOf+ :D-300` → M-200, B-18, C-21; `?x a :ElectricalPart` → B-18 / 추론 켜면 B-18, M-200. `:partOf+`는 BGP가 아니라 property path라는 용어를 바로잡는다.
+- SHACL: 대상 M-200, B-18, C-21. 위반 2건: C-21 MinCount, M-200 MaxCount. B-18 통과. SHACL은 기본적으로 RDFS/OWL 추론을 하지 않는다(클래스 대상의 subClassOf만 예외).
+페이지 기대값과 대조해 다르면 고친다.
+
+## 주장 검토
+치명적 3건: 12(D-300에 타입이 없어 `sh:class :Part`가 오탐), 13(전이성은 RDFS가 아님 + &quot;RDF면 SHACL이 함께 온다&quot;는 틀림 + 9와 모순), 출처 SHACL §4.3(→ §4.2).
+- 12 부분 틀림: partOf 값에 `sh:class :Part`를 걸면 타입 없는 D-300도 위반. sh:class는 데이터 그래프의 rdf:type/subClassOf*만 본다. 고친 문장: &quot;참조 오타(:B-81) — 모든 부품·조립품에 타입이 있을 때(예: D-300 a :Part 추가) SHACL `sh:class :Part`가 잡는다. OWL은 통과하고, 테이블은 FK가 막는다.&quot; 값 누락의 NOT NULL은 공급사가 열일 때 이야기.
+- 13 틀림: 고친 문장: &quot;검증이 필요하면 SHACL을 함께 둔다. Q2 분류 계층을 매번 쓰고 분류가 자주 바뀌나? 예 → RDFS 추론(subClassOf). 전이 관계 펼치기 → SPARQL 경로(`partOf+`)로 충분. 저장 시점에 전이를 물질화하려면 OWL 2 RL(prp-trp)이 필요하다.&quot; R2RML 외에 W3C Direct Mapping도 언급 가능.
+- 출처: SHACL minCount/maxCount는 §4.2 Cardinality(§4.3은 Value Range), sh:class §4.1.1, sh:not §4.6.1, targetSubjectsOf §2.1.3.4. RDF 1.1 Semantics 규칙 표는 §9.2.1. OWL 2 Primer §9는 Profiles일 가능성 — OWA·UNA 없음·카디널리티 sameAs는 §4.3 &quot;Property Cardinality Restrictions&quot;, §3.7 &quot;Equality and Inequality of Individuals&quot;(불확실, 확인 필요).
+- 1: &quot;PK가 아닌, 비어 있지 않은 칸 하나가 대개 트리플 하나다. 행의 키는 주어 IRI, 열은 술어, 값은 목적어(외래 키면 다른 행의 IRI)가 된다. NULL이면 트리플이 없을 뿐이다.&quot; (Direct Mapping은 행마다 rdf:type도 냄, 다중 열 FK는 칸 여럿이 간선 하나)
+- 2: 3.6은 xsd:decimal, 정수는 xsd:integer; `,` 설명 추가; 트리플 8개는 데이터만(스키마가 같은 파일이면 12) → 명시.
+- 5: &quot;`partOf+`는 SQL `WITH RECURSIVE`(UNION, 중복 제거)로 구하는 도달 가능 집합과 같다. 깊이나 경로는 얻을 수 없다.&quot;
+- 7: prp-trp는 OWL 2 RL 규칙(Profiles Table 5) → &quot;RDFS 부분집합 + OWL RL 규칙 하나&quot;; 공리 트리플만이 아니라 rdfs4a/4b, rdfs8 등도 빠지므로 &quot;RDFS 규칙의 일부만 적용&quot;.
+- 8: 작은 항 = 1/(b−1)로 구체화(I/D ≈ d − 1 − 1/(b−1)). &quot;분기 수 b≥3이면 배수는 거의 깊이로만 정해진다(b=2이면 약 1 작다).&quot; 절대량은 b^d로 늘어남 병기.
+- 9: &quot;단, skos:exactMatch도 전이적이고 개체를 skos:Concept으로 만든다.&quot;
+- 10: M-200 공급사 둘은 11의 daesung 추가를 전제 → 명시. sameAs 추론 조건: suppliedBy가 object property, differentFrom/AllDifferent 없음, 제약이 Part에 걸림. C-21은 domain 추론으로 Part가 되어 대상에 들어감.
+- 11: targetClass :Part 대신 targetSubjectsOf를 쓴 이유(SHACL은 rdfs:domain을 추론하지 않아 C-21이 빠짐)를 적는다. 도구 출력 축약본은 불확실.
+- 3·9·13 비교표·결정 흐름은 사실이 아니라 설계 의견임을 표시.
+
+## 독자 검토
+- 정의 없음:
+  - 1 `{{추론}}`, 15 `{{열린 세계 가정}}`, 3 `{{트리플}}`·`{{IRI}}`가 glossary에 없음 → glossary에 넣거나 1은 평이한 말로.
+  - 3 &quot;클래스&quot;·&quot;subClassOf&quot;가 8보다 먼저 → ④ 캡션에 한 구절.
+  - 4·9·15·17 접두어 rdf:/rdfs:/owl:/sh:/skos: → 4에 &quot;표준 어휘의 미리 정해진 접두어&quot; 한 줄.
+  - 15·17 Turtle 쉼표와 빈 노드 `[ ]` 설명 없음, 4 &quot;줄임 규칙 네 가지&quot; 중 4번째(3.6)는 리터럴 → 4에 쉼표 줄과 포인트, 15에서 `[ ]` 포인트.
+  - 8·10·12 `⊑` 읽는 법 없음 → &quot;⊑ = subClassOf&quot; 또는 subClassOf로 통일.
+  - 10 domain·TransitiveProperty가 sub에서 처음, rdfs11 하는 일 설명 없음 → 8 terms로 옮기고 ② 캡션에 &quot;DriveMotor ⊑ Part도 더해진다(rdfs11)&quot;.
+  - 12·18 `subClassOf*`의 `*` → 7 ③에 &quot;`*`는 0번 이상&quot; 또는 `+`로.
+  - 12 skos:exactMatch 정의가 21에서야.
+  - 16 robot·parts.owl(sub는 parts.ttl) → 파일명 맞추고 &quot;robot = OWL 추론기 HermiT를 돌리는 CLI&quot;.
+  - 17 sh:class·sh:not → &quot;값 노드가 그 클래스여야 함&quot;.
+  - 18 R2RML → &quot;테이블을 트리플로 보이게 하는 W3C 매핑 표준&quot;.
+- 건너뛴 단계:
+  - 3 열→술어 대응(parent_id→partOf, supplier_id→suppliedBy, kind→a), kind 문자열이 클래스 IRI가 되는 과정, D-300·hanbit 출처; id 셀은 주어 → 대응 표 한 줄, takeaway &quot;id = 주어, 나머지 셀 하나 = 트리플 하나&quot;. (주장 검토 1과 같음)
+  - 5 3행 예가 키가 다른 경우(M-200 / 10045-MTR) → &quot;누군가 키를 같은 IRI로 매핑해야 한다(12의 sameAs/exactMatch)&quot;.
+  - 6 &quot;다음 파트의 스키마&quot;인데 다음은 질의 → &quot;Part 3의 스키마&quot;, 술어 합의(owl:equivalentProperty나 subPropertyOf) 한 줄 예 또는 약속 삭제.
+  - 10→11→12 &quot;추론을 켠다&quot;와 &quot;물질화&quot; 관계 → 11 sub에 &quot;미리 저장(물질화) 또는 질의 때 계산하는 두 방식&quot;.
+  - 11 takeaway &quot;추가 트리플은 깊이에 비례&quot;는 틀림(배수가 ≈ 깊이−1, 개수는 지수적) → 고치고, 층별 bⁱ와 (i−1) 표.
+  - 15 정답 해설이 고유 이름 가정 없음에 기대는데 14 terms에 없음 → 세 번째 용어로.
+- 그림만으로 불명: 10 스키마 전제(domain, TransitiveProperty)와 결론(M-200/B-18/C-21 a Part)이 그래프에 없음 → 엣지·메모로 그리기; 11 체인 한 갈래라 분기 손잡이를 돌려도 그림 불변 → 층 막대(bⁱ, i−1).
+- 글 대신 그림: 6 :vendor와 :suppliedBy가 갈라진 그림; 13 &quot;결론을 늘린다&quot; → 10 ③ 상태 재사용; 12 sameAs 사실 복사 미니 그림.
+- 그림 없는 용어: 고유 이름 가정 없음(이름 상자 둘이 한 노드로), 닫힌 세계(TV.owa 옆 &quot;없음 = 거짓&quot;), domain(술어 꼬리에 클래스), sameAs/exactMatch.
+- 글과 그림 어긋남:
+  - 3 &quot;셀이 화살표가 된다&quot;인데 psql은 행 단위 강조 → 셀 강조나 술어 표시.
+  - 10 ① 캡션 &quot;점선 아직 없다&quot;인데 kgSpec({inferred:true})로 처음부터 그려짐.
+  - 18 &quot;질문 세 개&quot;인데 흐름도 질문 상자는 둘 → &quot;넣을 때 막아야 할 규칙이 있나?&quot; 추가.
+  - 18과 12 반대(전이 관계 → 추론 vs 경로) → q2를 &quot;분류 계층&quot;(추론)과 &quot;깊은 전이&quot;(경로)로 나눔. (주장 검토 13과 같음)
+  - 13 &quot;OWL은 틀렸다고 하지 않는다&quot;와 17 4행(disjointWith 모순) 충돌, 13의 근거 domain은 RDFS → &quot;누락·중복에 대해서는&quot;으로 좁히고 근거를 RDFS/OWL로.
+  - 12 1행 &quot;분기마다&quot;(3개월)가 11 &quot;분기 수&quot;와 같은 낱말 → &quot;석 달마다&quot;.
+  - 17 3행 sh:class D-300 오탐(주장 검토 12와 같음).
+- 손잡이: 11 깊이는 체인 끝 노드 끌기, 분기는 층 막대와 묶기(경미).
+- 정리: 11 recall 양자택일 → &quot;깊이 5, 분기 3일 때 배수가 대략 얼마이고 왜&quot;; 18 recall이 그림과 안 맞음; 12에 takeaway·recall 없음 → 추가.
+- overview(20): SPARQL 핀 없음, 물질화 비용·결정 1·2·3·흐름도 빠짐, ② &quot;Turtle 줄임&quot;이 v36에 꽂힘, ④에 두 개념, M-200 maxCount 빨간 표시를 캡션이 언급 안 함 → 수업 순서대로 핀(행→트리플 / 질의 경로 / 계층 추론 / 전이 추론·물질화 비용 / OWL 합침 / SHACL 누락·중복), 각 핀에 결정 번호.
+
+## 눈 검토 (스크린샷 42장)
+우선순위:
+1. 16(두 크기, 가장 심함): 터미널이 단어 중간 줄바꿈(&quot;MinCo / unt 1&quot;, &quot;--reasoner herm / it&quot;, &quot;part s.ttl&quot;); ①·× 배지가 `parts.owl`·`inferred.owl`·`:daesung`을 덮음; [1280] shapes.ttl 패널 오른쪽 잘림(`sh:path :supplie`); 부제 &quot;Reasoner vs validator&quot;가 떨어짐; `shapes.ttl` 라벨 중복; 한 장면에 터미널 2·결과 4·코드 패널이 들어가 [1280]에서 넘침 → 줄바꿈 금지, 배지를 줄 끝·여백으로, 덜어내기.
+2. 5: &quot;핵심&quot; 띠가 판정 열기 전에 답을 보여 줌; 5·12·17 판정 열 전체가 비어 있음 → 숨기거나 &quot;?&quot;.
+3. 4: ①–④ 배지가 줄 오른쪽 허공에(②는 빈 줄 위) → 토큰(`@prefix`, `a`, `;`, `3.6`) 바로 옆.
+4. 11: 첫 상태 &quot;저장 20 · 추론 16 · 0.80배&quot;가 제목 &quot;불어난다&quot;와 반대 → 시작값을 주장에 맞게(목표 밖 조건은 유지); 도식이 손잡이를 따라 안 바뀜(독자 검토와 같음); &quot;저장&quot; 막대 글자 대비.
+5. 20·18: 점선·화살표가 라벨을 관통(&quot;a (추론)&quot;, &quot;partOf (추론)&quot;, 18의 &quot;아니오&quot;·&quot;항상 함께&quot;); 20 `!` 배지가 M-200 모서리, ③이 ElectricalPart 윗변; 번호가 읽는 순서와 안 맞음.
+6. 10: 1단계에 이미 점선 추론 화살표 두 개(오른쪽 패널은 &quot;추론 0개&quot;) → 숨김(독자 검토와 같음); 오른쪽 패널 빈 공간; `a (추론)` 라벨이 `a` 라벨에 붙음; 각주 작고 흐림.
+7. 반복 틀: 5→12→17 같은 3열 표 + 빈 판정 열; 2→8→14 같은 2카드; 9↔15; 3↔7↔10; 6↔13 왼쪽 큰 글씨 + 오른쪽 2/3 빔 → 17을 SHACL 리포트·추론기 출력 나란히로, 6·13 오른쪽에 도면 조각(6은 :suppliedBy vs :vendor, 13은 C-21 a :Part).
+8. 8: `:Electrical...` 말줄임, ⊏ 기호 매우 작음.
+9. (선택) 3·7·10 행 선택·규칙 on/off, 16·17 검증기 실행 같은 손잡이.
+기타: 21 카드 아래 절반 빔; 17 [1280] &quot;판정 보기&quot;가 하단 버튼 줄에 붙음; 3·7 흐리게 처리한 노드가 거의 안 읽힘.
+</pre></details>
+  <details><summary>skill 쪽 result.md</summary><pre>---
+lesson: 20261019-ontology-triples
+date: 2026-10-19
+concepts:
+  - id: rdf-triple
+    title: RDF 트리플
+    aliases: [triple, RDF, Turtle]
+    definition: 데이터를 IRI로 된 주어–술어–목적어 세 칸 사실로 적는 모델. 테이블의 id는 주어, 나머지 빈칸 아닌 셀 하나가 트리플 하나다.
+    domains: [data-modeling, knowledge-graph]
+    level: 2
+    leads_to: [sparql-property-path, rdfs-entailment]
+    quiz: skipped
+  - id: sparql-property-path
+    title: SPARQL 패턴과 속성 경로
+    aliases: [SPARQL, property path, partOf+]
+    definition: 변수가 든 트리플 패턴을 그래프에 맞추는 질의. partOf+ 같은 속성 경로는 깊이를 모르는 관계의 도달 집합을 질의 때 계산한다.
+    domains: [knowledge-graph]
+    level: 2
+    requires: [rdf-triple]
+    quiz: skipped
+  - id: rdfs-entailment
+    title: RDFS 추론
+    aliases: [entailment, reasoning, rdfs:subClassOf, rdfs:domain]
+    definition: subClassOf·domain 같은 스키마 규칙으로 적히지 않은 트리플을 더하는 것. domain은 값을 막는 제약이 아니라 종류를 붙이는 규칙이다.
+    domains: [knowledge-graph]
+    level: 3
+    requires: [rdf-triple]
+    leads_to: [transitive-materialization, open-world-assumption]
+    quiz: skipped
+  - id: transitive-materialization
+    title: 전이 추론의 물질화 비용
+    aliases: [materialization, owl:TransitiveProperty, prp-trp]
+    definition: 전이 속성 추론을 미리 저장하면 균일 BOM에서 추가 트리플이 저장분의 약 (깊이−1)배가 된다. 펼치기만 필요하면 질의 경로로 충분하다.
+    domains: [knowledge-graph, data-modeling]
+    level: 3
+    requires: [rdfs-entailment, sparql-property-path]
+    quiz: skipped
+  - id: open-world-assumption
+    title: 열린 세계 가정
+    aliases: [open-world assumption, OWA, no unique name assumption]
+    definition: RDF·OWL은 적히지 않은 사실을 거짓이 아니라 모름으로 보고 고유 이름을 가정하지 않는다. 그래서 OWL 개수 제한은 누락·중복을 위반으로 보고하지 않는다.
+    domains: [knowledge-graph]
+    level: 3
+    requires: [rdfs-entailment]
+    leads_to: [shacl-validation]
+    quiz: skipped
+  - id: shacl-validation
+    title: SHACL 셰이프 검증
+    aliases: [SHACL, shape, sh:minCount, sh:class]
+    definition: 그래프에 적힌 것만 세어 필수 속성·개수·참조 종류를 검사하고 위반 리포트를 내는 W3C 표준. RDF에서 테이블 제약 역할을 한다.
+    domains: [knowledge-graph, data-modeling]
+    level: 3
+    requires: [open-world-assumption]
+    quiz: skipped
+---
+# 부품 데이터 모델: 테이블 vs 온톨로지·SHACL (20261019-ontology-triples)
+- 작업: 사내 제품·부품 데이터 모델에서 테이블 스키마로 충분한지, RDFS·OWL 추론과 SHACL 검증을 얹어야 하는지 판단 근거를 세운다.
+- 진단: 관계형 스키마 = 알고 있음, 트리플·RDF·Turtle = 아예 모름 → 학습 수준은 트리플·RDF부터. SPARQL, RDFS/OWL 추론, 열린 세계 가정·SHACL은 이 수업에서 다뤘다. (&quot;길게&quot; 요청이라 21장면)
+- 이번 결정: 실험이라 보류. 수업이 주는 흐름(설계 의견): Q1 속성이 자주 늘거나 출처가 여럿이면 트리플, 아니면 테이블 + DB 제약 → Q2 분류 계층을 매번 쓰고 자주 바뀌면 RDFS 추론, BOM 펼치기만이면 SPARQL 경로(물질화가 필요할 때만 OWL 2 RL) → Q3 넣을 때 막을 규칙이 있으면 SHACL.
+- 선택을 바꾸는 조건: 데이터 출처 수와 속성 증가 속도, 분류 계층 깊이·변경 빈도, BOM 깊이(물질화 비용), 반드시 막아야 할 필수·개수·참조 규칙, 모든 노드에 타입을 적을 수 있는지(sh:class 전제).
+- agent에게 할 질문: 부품 데이터는 몇 개 시스템에서 오나요? / 우리 BOM은 최대 몇 단인가요? / 넣을 때 꼭 막아야 할 규칙은? / 우리 요구는 이 흐름의 어디에 떨어지나요?
+- 퀴즈: 실험이라 skipped (모든 문항, 도움 없음)
+- 미룬 범위: OWL DL·프로파일 이론, 기술 논리, named graph·RDF-star, 속성 그래프(Neo4j) 비교, R2RML·Direct Mapping 실습, 추론기 성능, sh:not·SPARQL 기반 SHACL 제약, owl:equivalentProperty로 술어 합의.
+- 검색어: 트리플·RDF (RDF triple), RDFS 추론·물질화 (RDFS entailment · materialization), 열린 세계 가정 (open-world assumption), SHACL 셰이프 (SHACL shape) / RDF vs relational data model product data, RDFS entailment rules rdfs9 rdfs2, OWL open world assumption cardinality, SHACL minCount validation report, R2RML relational to RDF
+- 미반영 검토 항목과 이유:
+  - 고유 이름 가정을 세 번째 용어로, 닫힌 세계·domain·sameAs 용어 그림 추가: 장면 수를 늘리지 않으려고 predict 해설(15)과 statement 그림(13), 용어 예시(8)에 문장으로 넣었다.
+  - 10의 스키마 전제(domain, TransitiveProperty)와 &#x27;a :Part&#x27; 결론을 그래프 엣지로 그리기: 격자 그래프에 긴 대각선이 노드를 지나 겹침이 생긴다. 오른쪽 목록과 sub로 대신했다.
+  - 11 깊이를 체인 끝 노드 끌기로 바꾸기: 경미 항목이라 보류. 대신 시작값을 깊이 4(2.68배)로 바꾸고 체인에 층별 bⁱ 개수를 적어 분기 손잡이도 그림을 바꾸게 했다.
+  - 12 takeaway·recall 추가: 넣어 보니 summary가 1440·1280 모두 축소 경고(81%·78%)를 내서 뺐다. 같은 내용은 18의 takeaway에 들어 있다.
+  - 3·7·10의 행·규칙 on/off, 16·17 검증기 실행 손잡이(선택 항목): 범위 확장이라 하지 않았다.
+  - 17을 리포트 나란히 형태로 바꾸기, 5·12·17 반복 틀 해소: 장면 구조 변경이 커서 하지 않았다. 6·13은 오른쪽 빈자리에 statement visual(도면 조각)을 넣었다.
+  - 1 `{{추론}}`, 3 `{{트리플}}`·`{{IRI}}`, 15 `{{열린 세계 가정}}`가 glossary에 없다는 지적: terms 장면 key가 glossary에 자동 등록되고 lint unknown-term이 0건이라 그대로 두었다.
+  - OWL 2 Primer 절 번호: 확인하지 못해 &quot;(절 번호 미확인)&quot;으로 표시했다.
+  - 3 psql을 행 대신 셀 단위로 강조: terminal 목업이 줄 단위 색만 지원해 하지 않았다(kit 후보).
+- kit 후보:
+  - compare 장면의 takeaway 띠가 &quot;판정 보기&quot; 전에 보여 판정을 미리 알려 준다. 공개 전에는 takeaway를 숨기는 옵션이 필요하다(5, 17).
+  - compare table의 판정 열이 공개 전 통째로 비어 보인다. &quot;?&quot; 같은 자리 표시가 필요하다.
+  - diagram 엣지 선이 엣지 라벨을 관통해 보인다(18, 20). 라벨 뒤 배경 상자나 선 끊기가 필요하다.
+  - diagram highlight가 흐린 노드를 거의 안 보이게 만든다(3, 7). 흐림 정도 옵션이 필요하다.
+  - 노드 flaw 표식 &quot;!&quot;가 상자 모서리와 겹친다(20).
+  - terminal 목업은 줄 단위 색만 지원한다. 셀·토큰 강조가 필요하다.
+  - 단계형 지식 그래프 장면(그래프 + 오른쪽 패널 + stepper)을 페이지에서 `kgStepScene`으로 짰다. figure steps는 자막 칸이 오른쪽을 차지해 그래프 글자가 5px 수준으로 작아졌다.
+  - 추론 엣지를 단계별로 숨기는 기능이 없어, 페이지에서 엣지 선과 라벨 글자를 직접 찾아 숨겼다(`showInf`).
+  - keywords 장면의 카드 아래 절반이 빈다(21).
+  - BOM 막대의 &quot;저장&quot; 글자 대비가 약하다(LTT.bar 밝은 칸 위 흰 글자).
+- 생성 비용:
+  - 읽은 문서: SKILL.md (33714), kit/API.md (12316), kit/api/diagram.md (5487), kit/api/controls.md (3142), kit/api/deck-contracts.md (7198), kit/api/mock.md (1310), kit/api/ui.md (2762), background.md (223), gallery/cache-ttl.html (30598), gallery/scenes.html (16244, 부분), gallery/catalog.html (48622, 부분), kit/ltt.js (59760, 부분), kit/ltt-parts.js (110959, 부분), kit/ltt-deck.js (79344, 부분), server/audit.mjs (12486, 부분), review-findings.md (10817)
+  - lesson.html: 53307, 장면 수 21, 결정 변수 수 3
+  - 서브에이전트: 기대값 1회, 주장 검토 1회, 독자 검토 1회, 눈 검토 1회
+  - 브라우저: audit 9회(생성 5 + 수정 4), 스크린샷 378장(42장 × 9회, 최종 보관 42장)
+  - 시각: 시작 2026-10-19 09:15, 공개 서버 미기동(실험)
+  - 토큰: 생성 에이전트 317,291(수정 왕복 포함 최종값) + 검증 294,410(기대값 45,011, 주장 50,191, 독자 79,883, 눈 119,325) = 611,701. Agent usage의 subagent_tokens 값이며 누적 처리 토큰이 아니라 마지막 context 크기일 수 있다(가설)
+</pre></details>
+</section>
+</main></body></html>

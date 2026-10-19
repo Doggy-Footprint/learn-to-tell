@@ -6,7 +6,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createLttServer } from "../skills/learn-to-tell/server/server.mjs";
+import { compareUrls, createLttServer } from "../skills/learn-to-tell/server/server.mjs";
 
 const SERVER_PATH = fileURLToPath(new URL("../skills/learn-to-tell/server/server.mjs", import.meta.url));
 
@@ -87,6 +87,48 @@ test("redirects gallery requests to the public site when the gallery is not inst
     assert.equal(res.headers.get("location"), "https://learn-to-tell.vercel.app/gallery/catalog.html");
   } finally {
     await new Promise((r) => bare.close(r));
+  }
+});
+
+test("serves site/compareN pages and lists them for the startup notice", async () => {
+  const site = join(home, "site");
+  await mkdir(join(site, "compare2", "a"), { recursive: true });
+  await writeFile(join(site, "compare2", "index.html"), "<h1>c2</h1>");
+  await writeFile(join(site, "compare2", "a", "skill.html"), "<h1>a</h1>");
+  await mkdir(join(site, "compare10"), { recursive: true });
+  await writeFile(join(site, "compare10", "index.html"), "<h1>c10</h1>");
+  await mkdir(join(site, "compare3"), { recursive: true });
+  await mkdir(join(site, "notes"), { recursive: true });
+  await writeFile(join(site, "notes", "index.html"), "x");
+  const local = createLttServer({ home, siteDir: site });
+  await new Promise((r) => local.listen(0, "127.0.0.1", r));
+  const at = `http://127.0.0.1:${local.address().port}`;
+  try {
+    assert.equal(await (await fetch(at + "/compare2/index.html")).text(), "<h1>c2</h1>");
+    assert.equal((await fetch(at + "/compare2/a/skill.html")).status, 200);
+    assert.equal((await fetch(at + "/compare2/missing.html")).status, 404);
+    assert.equal((await fetch(at + "/notes/index.html")).status, 404);
+    assert.equal((await fetch(at + "/compare2/%2e%2e%2fnotes%2findex.html")).status, 403);
+  } finally {
+    await new Promise((r) => local.close(r));
+  }
+  assert.deepEqual(compareUrls(4000, site), [
+    "http://127.0.0.1:4000/compare2/index.html",
+    "http://127.0.0.1:4000/compare10/index.html",
+  ]);
+  assert.deepEqual(compareUrls(4000, join(home, "no-site")), []);
+});
+
+test("the repo's compare1 page is served and announced at startup", async () => {
+  const res = await fetch(base + "/compare1/index.html");
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type"), /text\/html/);
+  const port = await freePort();
+  const run = runMain(port, { waitFor: "compare1/index.html" });
+  try {
+    assert.match(await run.ready, new RegExp(`compare: http://127\\.0\\.0\\.1:${port}/compare1/index\\.html`));
+  } finally {
+    run.child.kill();
   }
 });
 

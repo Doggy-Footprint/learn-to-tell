@@ -97,6 +97,7 @@ skills/learn-to-tell/
 ├── standalone.md # claude.ai(웹·모바일)용 artifact 수업 절차
 └── hooks/        # background.md 크기 관리 (Claude Code 전용)
 site/gallery/     # 예시 수업 (Vercel 배포 대상, skill 패키지에는 포함되지 않음)
+site/compareN/    # skill 유무 비교 실험 결과 (로컬 서버 전용, Vercel 배포 안 함)
 packages/ltt-kit/ # kit npm 패키지 (artifact 수업이 jsDelivr로 불러옴)
 .claude-plugin/   # Claude Code plugin manifest
 tests/            # node --test 기반 kit·서버·gallery 테스트
@@ -166,6 +167,7 @@ npm run build:kit
 npm run build:css
 
 # 갤러리를 로컬에서 보기 → http://127.0.0.1:47823/gallery/index.html
+# 비교 실험 결과 → http://127.0.0.1:47823/compare1/index.html (시작 안내에 site/compareN 목록이 함께 나온다)
 node skills/learn-to-tell/server/server.mjs
 ```
 
