@@ -15,3 +15,10 @@
 | `LTT.state(svg, {states, transitions, initial, direction, groups, node, spacing})` → Promise<diagram> | 상태 기계. 상태 `{id, l, s, k, icon, final}`, 전이 `{f, t, l, k, dash}`. `initial` 앞에 시작 점, `final`은 이중 테두리(diagram 노드 `ring: true`), 자기 자신으로의 전이는 상태 아래 `↻ 이벤트` 줄. autoLayout으로 배치하므로 `elk.bundled.js`가 필요하다. 돌려받은 diagram으로 `player`·`highlight`·`send`를 쓴다(시작 점 id는 `__start`). |
 | `LTT.stateSpec(o)` | state가 autoLayout에 넘기는 입력만 만든다(테스트·조정용). |
 | 트리·트리맵 | kit 부품 없이 `d3.hierarchy` + `d3.tree`/`d3.treemap`. 예시는 catalog. |
+
+## 그리기
+
+- 이름이 아니라 메커니즘을 그린다. "캐시" 상자 하나보다 요청이 지나는 길, 캐시가 사이에 낀 두 저장소, 캐시를 빼면 사라지는 화살표가 더 많이 말한다.
+- 비교는 차이를 그린다. 두 안을 나란히 두고 한쪽이 더하거나 빼는 엣지·홉을 강조한다. 시스템과 이어지지 않은 선택지 상자 나열은 비교가 아니다.
+- 결정이 걸린 만큼만 그린다. 엣지에는 동작 라벨(`쓴다`, `무효화`, `30초마다 확인`)을 달고, 범례는 같은 표기(점선·색)가 반복될 때만 둔다.
+- 그림 하나에 주장 하나를 둔다. 그림 속 라벨은 한두 단어로 쓰고, 설명 문장은 `caption`·단계 자막에 쓴다.

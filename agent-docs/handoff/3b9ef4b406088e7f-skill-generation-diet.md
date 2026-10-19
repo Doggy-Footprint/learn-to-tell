@@ -25,6 +25,10 @@
   - 지시문 수정(`fc378e1`): API.md 수업 예를 다른 분야의 조합 조각으로 바꾸고 SKILL.md 범위·매체·주 그림 문단을 되살렸다.
   - AGENTS.md에 "생성된 수업의 결함은 생성기에서 고친다" 규칙을 넣었다(`96e06db`).
   - 사용자 지시로 여기서 멈췄다. 저장소 변경은 모두 커밋·푸시했다.
+- 2026-10-19 세 번째 세션(화면 품질):
+  - artifact-design·artifact-diagramming·dataviz에서 쓸 부분을 흡수했다. 차트 기준은 `kit/api/charts.md` "그리기", 도식 기준은 `kit/api/diagram.md` "그리기", 구조 장치 규칙은 API.md 독학 기준에 넣었다. API.md의 매체 줄은 SKILL.md §3과 겹쳐서 뺐다.
+  - 모션 규칙을 "제한 없음(자동 재생·반복 허용)"으로 바꿨다(API.md, PROJECT.md).
+  - 평가 먼저: `skills/learn-to-tell/look/look.md`(화면 기준, 기대 화면 형식, 눈 기준)를 새로 만들고, SKILL.md §3 outline 줄에 장면별 "기대 화면"을 넣었다. contact sheet는 아직 없어서 §3 8단계는 그대로다.
 
 ## Failed Attempts
 
@@ -48,6 +52,11 @@
 - skill을 실제로 써 보는 테스트는 sonnet-5.5 + effort medium으로 돌린다.
 
 ## Open Questions
+
+화면 품질 작업(2026-10-19 세 번째 세션):
+- contact sheet: audit에 줄인 장면 스크린샷을 한 장으로 합치는 옵션을 workflow-approach로 만든다(계획 run B의 contact sheet와 같은 일). 그 뒤 SKILL.md §3 8단계를 "sheet 한 장을 Read해 outline의 기대 화면과 look.md 눈 기준으로 대조하고 Edit 한 묶음, 다시 보기는 한 번까지"로 바꾸고 PROJECT.md 검증 절에 적는다.
+- shot(few-shot 본보기): 사용자가 외부 GIF를 주면 그것을 바탕으로 kit으로 본보기 10–12개를 만든다. 구성: 개념 구조(순환·순서·비율·연결·공간·시간·분포·변환) × 매체(테마) × 모션 종류가 겹치지 않는 다양성 격자, shot마다 "옮길 것(원리) / 옮기지 않을 것(주제·구도)" 캡션 두 줄, 약한/강한 대비 쌍 2–3개, 코드는 넣지 않는다(rejection `2c5216fd…`). 정지 contact sheet 1장 + 필름스트립(핵심 프레임 3–4개) 1장, 한 장 800–1000px 폭이면 된다(모델은 GIF를 첫 프레임만 보고, 긴 변 1568px 넘으면 줄여 본다). 테스트 주제의 분야는 shot에서 뺀다. kit으로 만들 수 없는 효과는 kit 작업 목록이 된다. 이미지는 `look/`에 두고 look.md에 캡션을 넣는다.
+
 
 생성기 수정 제안(사용자 결정 대기, AGENTS.md "Generated Lesson Defects"):
 - lint: 장면 타입에 없는 필드(예: 타입 없는 장면의 `figure`)를 "고침"으로 잡는다.
@@ -118,4 +127,5 @@
 ### 결정 기록
 
 - 2026-10-19 사용자 답: 검토 서브에이전트 1개 유지, audit "고침" 0 + "권고"는 3회 안, kit K1–K8 전부, kit·audit 코드는 workflow-approach.
+- 2026-10-19 세 번째 세션 사용자 답: 모션은 제한 없이 허용(정지 화면 규칙 없앰), contact sheet 눈 검토는 생성 agent 본인, shot은 사용자가 준 외부 GIF를 바탕으로 kit으로 제작한다. 모든 수정은 skill 실행 시점(수업 생성 흐름) 기준이다.
 - 계획의 counter proposal도 승인과 함께 받아들여졌다. 비용 지표를 가중 합으로 바꾸고, 목표치를 기준선 대비 벽시계 ≤ 1.5배·가중 토큰 ≤ 2배로 둔다.

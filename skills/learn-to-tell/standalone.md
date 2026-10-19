@@ -14,7 +14,7 @@ claude.ai에 올린 skill은 자동 업데이트되지 않는다. 시작할 때 
 | 단계 | Claude Code | standalone |
 | --- | --- | --- |
 | 0. 시작 | `/fork`, map `find`·`show`, `background.md` | fork·map·background 없음. 사용자가 대화에서 말한 배경만 쓴다. |
-| 3. 자료 | `outline.md` → `lesson.html` + 로컬 서버 | HTML artifact 하나. 제목은 `LTT · <주제>`. outline 파일 대신 기대값과 결정 변수 주장을 artifact를 쓰기 전에 응답에 짧게 적는다 |
+| 3. 자료 | `outline.md` → `lesson.html` + 로컬 서버 | HTML artifact 하나. 제목은 `LTT · <주제>`. outline 파일 대신 기대값, 결정 변수 주장, 장면별 기대 화면을 artifact를 쓰기 전에 응답에 짧게 적는다 |
 | 3. 검증 | 검토 서브에이전트, audit | 결정 변수 주장에 "미검증", 화면에 "미점검"을 표시하고 사용자에게 알린다(SKILL.md 검증). |
 | 3-10. events | `events.jsonl` | 없음. 예측·recall은 이해 확인 대화에서 직접 묻는다. |
 | 5. 작업 복귀 | `result.md` 파일 + SendMessage | 같은 artifact에 result 블록을 넣는다(아래). |
