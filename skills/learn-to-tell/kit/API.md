@@ -142,41 +142,38 @@ head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "th
 - 글자 크기는 kit 단계만 쓴다. `accent`는 장면당 한 의미, good·bad·warn은 판정에만. 색 이름("파란 선") 대신 모양·라벨로 가리킨다.
 - 매체: 이 분야 실무자가 실제로 보는 화면·종이의 모양으로 그리고 `theme`을 맞춘다. 수업을 관통하는 주 그림 하나를 여러 장면에서 단계적으로 바꿔 보인다. 색·대비처럼 지각이 주제면 `<html data-theme="light">`로 고정한다.
 
-## 수업 예
+## 조합 조각
 
-API를 어떻게 조합하는지 보이는 예다. 복사할 템플릿이 아니니 장면 구성은 주제에 맞게 새로 짠다.
+문법을 보이는 조각이다. 장면 구성·장면 수·그림 종류의 본보기가 아니다. 장면 구성은 SKILL.md §3과 위 "장면 고르기"로 주제에 맞게 짠다.
 
 ```js
-const model = (ttl, change = 600) => ttl / change / 2; // 옛 값 비율
-const flow = (el) => { const s = el.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "svg"));
+const SVG = "http://www.w3.org/2000/svg";
+const hours = (lines, parcels = 12000, perLine = 1500) => parcels / (lines * perLine); // 분류에 걸리는 시간
+// 그림 함수는 새 svg를 만들어 { el }로 돌려준다. 주 그림이면 같은 함수를 figure·overview에서 다시 쓴다.
+const hub = (el) => { const s = el.appendChild(document.createElementNS(SVG, "svg"));
   return { el: s, dg: LTT.diagram(s, { cols: 3, rows: 2, cell: [280, 170], node: [160, 64],
-    nodes: [{ id: "app", c: 0, r: 0, l: "API" }, { id: "cache", c: 1, r: 0, l: "캐시", icon: "cache" }, { id: "db", c: 2, r: 0, l: "DB", icon: "db" },
-      { id: "upd", c: 2, r: 1, l: "원본 변경", s: "10분마다", icon: "refresh", k: "warn" }],
-    edges: [{ f: "app", t: "cache", l: "조회" }, { f: "cache", t: "db", l: "없을 때만" }, { f: "upd", t: "db", dash: true }] }) }; };
-LTT.deck({ title: "캐시 TTL", theme: "terminal", glossary: { TTL: "캐시에 값을 두는 시간" }, scenes: [
-  { type: "hook", art: "cache", text: "{{TTL}}을 몇 초로 할까?" },
-  { type: "figure", title: "요청은 캐시를 먼저 보고, 없을 때만 DB로 간다", sub: "위는 조회 경로, 아래는 원본이 바뀌는 곳", figure: flow,
-    steps: [{ caption: "① 캐시에 있으면 바로 응답", enter: (k, f) => f.dg.highlight(["app", "cache"]) },
-            { caption: "② {{TTL}}이 지나면 DB에 묻는다", enter: (k, f) => f.dg.highlight(["cache", "db"]) }],
-    takeaway: "TTL이 길수록 DB 조회는 준다.", recall: "TTL을 늘리면 DB 조회는?" },
-  { type: "predict", title: "옛 값은 몇 %쯤일까?", question: "TTL 60초, 값은 10분마다 바뀐다",
-    visual: () => LTT.facts([{ icon: "hourglass", value: "60초", label: "{{TTL}}" }, { icon: "refresh", value: "10분", label: "변경 간격" }]),
-    choices: [{ id: "0", text: "거의 0%" }, { id: "5", text: "5%쯤" }, { id: "50", text: "절반" }], answer: "5",
-    why: "캐시 값의 평균 나이 30초 ÷ 600초 = 5%. <span class=\"ltt-tag\">모델로 계산한 예시</span>" },
-  { title: "TTL을 늘리면 옛 값도 는다", narration: "단계를 눌러 TTL을 바꾼다. 막대는 옛 값의 비율이다.",
-    mount(body) {
-      body.innerHTML = `<div id="g"></div><div class="ltt-param">TTL <b id="ttl-v"></b><div id="ttl"></div></div><div class="ltt-bar" id="b"></div>`;
-      const bar = LTT.bar("b", [{ color: "var(--ltt-warn)" }, { color: "var(--ltt-line)" }]);
-      LTT.sweep({ params: { ttl: { kind: "steps", stops: [10, 60, 300, 600], value: 600, fmt: (v) => v + "초" } },
-        render: ({ ttl }) => { const p = model(ttl) * 100; bar.set([p, 100 - p], [p.toFixed(1) + "%", ""]); },
-        goal: { el: "g", text: "옛 값 10% 이하인 TTL을 찾는다", check: ({ ttl }) => model(ttl) <= 0.1 } });
-      return {};
-    }, takeaway: "옛 값 비율은 대략 TTL ÷ 변경 간격의 절반이다.", recall: "TTL 60초, 변경 10분이면 옛 값은?" },
-  { type: "summary", title: "TTL을 정하기 전에 물을 것" },
-  { type: "overview", title: "캐시 TTL 한 장 정리", figure: flow, caption: "TTL ↑ → DB 조회 ↓, 옛 값 ↑" },
-  { type: "keywords", terms: [{ ko: "캐시 TTL", en: "cache TTL" }] },
-] });
-LTT.expect("TTL 60초 옛 값", model(60), 0.05, { tol: 1e-9 });
+    nodes: [{ id: "in", c: 0, r: 0, l: "입고", icon: "truck" }, { id: "sort", c: 1, r: 0, l: "분류 라인", icon: "package" },
+      { id: "out", c: 2, r: 0, l: "출고", icon: "route" }, { id: "cut", c: 1, r: 1, l: "마감", s: "18시", icon: "clock", k: "warn" }],
+    edges: [{ f: "in", t: "sort", l: "12,000상자" }, { f: "sort", t: "out", l: "라인당 시간당 1,500" }, { f: "cut", t: "sort", dash: true }] }) }; };
+const figureScene = { type: "figure", title: "상자는 분류 라인을 지나야 출고된다", sub: "위는 상자의 길, 아래는 지켜야 할 마감", figure: hub,
+  steps: [{ caption: "① 입고된 상자가 분류 라인 앞에 쌓인다", enter: (k, f) => f.dg.highlight(["in", "sort"]) },
+          { caption: "② 라인이 많을수록 빨리 비운다", enter: (k, f) => f.dg.highlight(["sort", "out"]) }],
+  takeaway: "분류 시간은 물량 ÷ (라인 수 × 라인 처리량)이다.", recall: "라인을 두 배로 늘리면 분류 시간은?" };
+const predictScene = { type: "predict", title: "라인 4개면 몇 시간 걸릴까?", question: "12,000상자, 라인 하나가 시간당 1,500상자",
+  visual: () => LTT.facts([{ icon: "package", value: "12,000", label: "상자" }, { icon: "gauge", value: "1,500/시간", label: "라인당" }]),
+  choices: [{ id: "1", text: "1시간" }, { id: "2", text: "2시간" }, { id: "8", text: "8시간" }], answer: "2",
+  why: "12,000 ÷ (4 × 1,500) = 2. <span class=\"ltt-tag\">모델로 계산한 예시</span>" };
+const knobScene = { title: "마감에 맞추려면 라인이 몇 개 필요할까", narration: "단계를 눌러 라인 수를 바꾼다. 막대는 분류에 걸리는 시간이다.",
+  mount(body) {
+    body.innerHTML = `<div id="g"></div><div class="ltt-param">라인 <b id="lines-v"></b><div id="lines"></div></div><div class="ltt-bar" id="b"></div>`;
+    const bar = LTT.bar("b", [{ color: "var(--ltt-accent)" }, { color: "var(--ltt-line)" }]);
+    LTT.sweep({ params: { lines: { kind: "steps", stops: [4, 6, 8, 10], value: 4, fmt: (v) => v + "개" } },
+      render: ({ lines }) => { const h = hours(lines); bar.set([h * 25, 100 - h * 25], [h.toFixed(1) + "시간", ""]); },
+      goal: { el: "g", text: "1.5시간 안에 끝나는 라인 수를 찾는다", check: ({ lines }) => hours(lines) <= 1.5 } });
+    return {};
+  }, takeaway: "라인 수를 늘리면 분류 시간은 반비례로 준다.", recall: "라인 8개면 몇 시간?" };
+// LTT.deck({ title, theme, glossary, scenes: [hook, …, figureScene, predictScene, knobScene, …, summary, overview, keywords] })
+LTT.expect("라인 8개 분류 시간", hours(8), 1, { tol: 1e-9 });
 ```
 
 ## 원칙

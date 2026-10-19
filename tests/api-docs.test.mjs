@@ -16,9 +16,9 @@ const PART_DOCS = ["base", "ui", "mock", "diagram", "sequence", "map", "controls
 const API_FILES = [...PART_DOCS, "deck-contracts", "internals", "rules"].map((f) => `${f}.md`);
 const P2_PARTS = ["ui", "mock", "diagram", "sequence", "map", "controls", "charts"];
 // Plan b71ddee49f77ac06 §3: what a generating agent reads before writing (SKILL.md + API.md) stays near 30K bytes.
-// API.md now carries the authoring rules and a lesson example; the example shrinks once scene specs become declarative.
+// API.md carries the authoring rules and syntax snippets; the snippets shrink once scene specs become declarative.
 const CORE_LIMIT = 11500;
-const SKILL_LIMIT = 8500;
+const SKILL_LIMIT = 9500;
 const P2_LIMIT = 18000;
 const ROW_LIMIT = 300;
 
