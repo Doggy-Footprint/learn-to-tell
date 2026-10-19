@@ -54,6 +54,11 @@
   - kit: `#ltt-audit`에 `types`, `sceneBeats` 같은 시각이면 글 있는 비트가 이긴다(kit 후보 1).
   - 문서: SKILL.md §3 7단계 `--sheet`, 8단계 sheet 눈 검토(9,479자), look.md 눈 기준에 sheet 모양, standalone.md 검증 행, PROJECT.md 검증 절.
   - 검증: npm test 1222 통과, gallery audit 통과, css in sync. 손 변이 HM-1..HM-16 KILLED, HM-17 SURVIVED(F-2). R-1 gallery 2편 + s47 sheet 눈 확인.
+- 2026-10-20 여덟 번째 세션: F-2 닫음(`79d132d`), 마무리 측정(`dd6e1f9` 대 `79d132d`, sonnet medium 6회).
+  - 블라인드 채점(opus low) 합계 기준→HEAD(시각 축): CPU+cache 19→23(3→4), cache-ttl 20→23(3→4), projectile 22→18(4→3). 시각 2/3 주제 상승, 내용 축 합 projectile −3(편차 경계). 베끼기(주제·글·숫자) 0건.
+  - 비용 가중 토큰 515k/497k/555k → 639k/629k/796k(평균 +32%), 벽시계 341–386s → 426–551s. 모두 목표 130만 안.
+  - 눈 검토: HEAD 3회 모두 8단계에서 sheet를 Read하고 Edit했다. 실제 결함을 잡은 것은 projectile 1회(hook `art`에 함수를 넘겨 소스가 글로 찍힘, y축 0 시작으로 최적각 이동이 안 보임). 그 수정 뒤 audit 3회 상한이라 마지막 Edit은 audit 없이 끝났다. 남은 audit은 6편 모두 권고뿐(shrunk, 기준 쪽 still-visual).
+  - 기준과 HEAD 사이에 M1·M2 kit 움직임 변경도 들어 있어, 점수 차를 눈 검토만의 효과로 볼 수 없다.
 
 ## Failed Attempts
 
@@ -72,10 +77,9 @@
 
 ## Next Step
 
-재개 지점(2026-10-20 일곱 번째 세션 뒤): 계획 3의 남은 일.
-1. run S F-2: 닫음(아래 Execution Ledger run S).
-2. 마무리 측정: 단계 1과 같은 3주제(CPU+cache, cache-ttl, 공기저항 최대 사거리)로 `dd6e1f9` 대 HEAD, sonnet medium 6회. 눈 검토가 그림 결함을 고쳤는지(sheet Read 수, 8단계 Edit 내용), 가중 토큰·벽시계가 얼마나 늘었는지.
-3. 그 뒤 마무리(아래).
+재개 지점(2026-10-20 여덟 번째 세션 뒤): 계획 3까지 끝났다. 남은 일은 사용자 결정 대기.
+1. 측정에서 나온 생성기 후보(Open Questions 맨 아래) 처리 여부.
+2. 마무리(아래): `git rm -r agent-docs/plans`, handoff 3b9ef4b4·b41cd6ae·418133af를 stale로.
 재개 지점(2026-10-20 여섯 번째 세션 뒤): 계획 `~/.claude/plans/vast-baking-lark.md` 3(run S: audit `--sheet`, SKILL.md §3 8단계·standalone·PROJECT.md, 마무리 측정)부터 한다. sheet 필름스트립은 장면 `data-ltt-beats`(글 있는 비트 우선, M2 형식 `{t, text}`)를 찍는다. 아래 kit 후보 중 1(같은 시각 비트 합치기)은 sheet가 비트 글을 읽으므로 run S에 함께 넣는 것을 기본값으로 제안한다.
 M2 kit 후보(shot 4편을 다시 쓰며 나온 것):
 1. 같은 시각의 비트를 합칠 때 먼저 온 글 없는 비트가 글을 가린다(`sceneBeats`). 페이지에서는 글 있는 비트를 앞에 두어 피했다(s45·s47).
@@ -113,6 +117,10 @@ M1 입력(1 실사용 확인에서 나온 것):
   - 이것들은 M1 문서에서 함께 고친다.
 - 손으로 그린 반복 도메인 그림: 64B 메모리 띠 격자(2회), 요청 테이프(키별 시간축 + TTL 띠, 2회, K5 후보), 한 점의 힘 화살표(2회).
 - predict 장면에 그림이 없는 경우(projectile 2회)와 `shrunk` 78–86%는 6편 중 5편에 남았다.
+
+마무리 측정 후보(2026-10-20 여덟 번째 세션, 사용자 결정 대기):
+- lint: hook `art`(아이콘 이름·HTML 문자열)에 문자열이 아닌 값이 오면 "고침". 함수를 넘기면 kit이 소스를 글로 찍는다.
+- SKILL.md 8단계: sheet 다시 보기 뒤 Edit이 audit 상한(3회) 밖에서 검증 없이 끝난다. 다시 보기 뒤 Edit을 하면 audit 1회를 더 허용할지, 다시 보기를 audit 3회 안에 두게 할지.
 
 생성기 수정 제안(사용자 결정 대기, AGENTS.md "Generated Lesson Defects"):
 - lint: 장면 타입에 없는 필드(예: 타입 없는 장면의 `figure`)를 "고침"으로 잡는다.
