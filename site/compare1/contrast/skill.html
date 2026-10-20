@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>보조 텍스트의 회색은 빛의 비율로 고른다</title>
+<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"상대 휘도와 WCAG 대비비(AA/AAA, 글자 크기)","audience":"CSS 색 코드(#RRGGBB)를 읽는 UI 프론트엔드 개발자. 상대 휘도(감마 해제·채널 가중)부터 모른다","pattern":["hook","terms","predict","figure:steps","mount:split","figure:steps","terms","predict","sweep","compare:table","summary","summary","overview","keywords"],"theme":"studio","medium":"설정 화면 목업과 디자인 툴의 대비 검사 패널, 그리고 글자색·배경색을 올려 비율을 거리로 재는 밝기 눈금자(로그 축) 도면","mode":"체험형: 코드값이 빛으로 바뀌는 곡선을 단계별로 보고, 밝기 눈금자 위에서 대비비를 거리로 읽은 뒤, 설정 화면의 보조 텍스트 색과 크기를 바꿔 AA를 넘기는 가장 옅은 회색을 찾는다","decision":"설정 화면 보조 텍스트의 글자색·배경색 조합이 글자 크기에 맞는 AA/AAA 기준(4.5·3·7:1)을 넘는지 판정하고, 넘는 범위에서 가장 옅은 회색을 고르는 것"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-mock.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .rl text { font-size: 15px; fill: var(--ltt-ink-2); }
+  .rl .hx { font: 700 16px var(--ltt-mono); fill: var(--ltt-ink); }
+  .rl .lv { font: 15px var(--ltt-mono); fill: var(--ltt-ink-2); }
+  .rl .rt { font: 800 22px var(--ltt-mono); fill: var(--ltt-accent); }
+  .rl .tk { font: 15px var(--ltt-mono); fill: var(--ltt-ink-2); }
+  .rl .bl { font: 700 15px var(--ltt-mono); }
+  .gm { width: 100%; max-width: 640px; margin: 0 auto; }
+  .gm .mk text { font: 700 14px var(--ltt-mono); }
+  .wt { width: 100%; max-width: 760px; }
+  .sw { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+  .sw > * { min-width: 0; }
+  .sw-l { display: grid; gap: 10px; }
+  #cg-ruler { width: 100%; max-width: 740px; margin: 0 auto; }
+  #cg-ruler svg { width: 100%; height: auto; display: block; }
+  @media (min-width: 1400px) { #cg-ruler { max-width: 1000px; } }
+  .swc { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -2px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .25); }
+  .set { background: #f2f2f7; padding: 14px; font-family: -apple-system, "Pretendard", sans-serif; }
+  .set h4 { margin: 0 0 10px; font-size: 20px; font-weight: 700; color: #111; }
+  .set .card { background: #fff; border-radius: 12px; }
+  .set .row { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-top: 1px solid #ececf0; }
+  .set .row:first-child { border-top: 0; }
+  .set .tx { flex: 1; min-width: 0; }
+  .set .t1 { font-size: 15px; color: #1f1f1f; }
+  .set .tg { flex: none; width: 40px; height: 24px; border-radius: 12px; background: #34c759; position: relative; }
+  .set .tg::after { content: ""; position: absolute; right: 2px; top: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; }
+  .set .tg.off { background: #e5e5ea; }
+  .set .tg.off::after { right: auto; left: 2px; }
+  .hk { display: grid; gap: 10px; width: 340px; max-width: 100%; }
+  .pair { padding: 7px 12px; border-radius: 8px; font-size: 14px; box-shadow: inset 0 0 0 1px #e5e7eb; }
+  .lb { display: grid; gap: 6px; font: 13px var(--ltt-mono); color: var(--ltt-ink-2); }
+  .lb div { display: flex; align-items: center; gap: 8px; }
+  .lb i { display: block; height: 14px; border-radius: 3px; }
+  .ov { display: grid; gap: 10px; }
+  .ov .flow { display: flex; align-items: center; justify-content: center; gap: 14px; }
+  .ov .flow svg { height: 120px; width: auto; }
+  .ov .rlw { max-width: 900px; width: 100%; margin: 0 auto; }
+  .ov ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; gap: 6px 28px; font-size: 15px; line-height: 1.4; color: var(--ltt-ink); }
+  .ov li { display: flex; gap: 10px; align-items: baseline; }
+  .ov li i { flex: none; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font: 800 13px var(--ltt-font); font-style: normal; background: var(--ltt-accent); color: var(--ltt-on-accent); }
+</style>
+</head>
+<body>
+<script>
+  // Hand-computed before the model below (WCAG 2.x formulas, 0.04045 linearization threshold).
+  const EXPECTED_BY_HAND = {
+    lin119: 0.1845, lin10: 0.00304, L777: 0.1845, L808: 0.2159, Lr: 0.2126, Lg: 0.7152, Lb: 0.0722, code50: 187.5,
+    crBW: 21, cr767: 4.542, cr777: 4.478, cr8A: 3.452, cr9E: 2.679, cr6B: 5.329, cr59: 7.005, cr3D: 10.862,
+    crTw: 4.834, crTwGray: 4.393, cr767Gray: 4.127, crDark: 2.998, crLight: 1.110,
+    twR: 0.0313, twG: 0.1203, twB: 0.0156,
+    // Sweep goal: lightest gray of GRAYS that meets AA at that size (next lighter gray fails AA). One cell per size.
+    goalCells: ["#767676@13px", "#767676@15px", "#767676@18px 굵게", "#8A8A8A@24px"],
+  };
+
+  const hexRGB = (h) => [0, 2, 4].map((i) => parseInt(h.replace("#", "").slice(i, i + 2), 16));
+  const lin = (code) => { const c = code / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const lum = (h) => { const [r, g, b] = hexRGB(h).map(lin); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const parts = (h) => { const [r, g, b] = hexRGB(h).map(lin); return [0.2126 * r, 0.7152 * g, 0.0722 * b]; };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const codeFor = (L) => 255 * (L <= 0.0031308 ? 12.92 * L : 1.055 * Math.pow(L, 1 / 2.4) - 0.055);
+  const grayOf = (L) => { const c = Math.round(Math.max(0, Math.min(255, codeFor(L)))); return `rgb(${c},${c},${c})`; };
+  const r2 = (x) => (Math.floor(x * 100) / 100).toFixed(2);
+
+  // WCAG "large scale": 18pt (24px) or 14pt bold (18.67px); 18px bold is below the bold bound on purpose.
+  const SIZES = {
+    "13px": { css: "font-size:13px", large: false },
+    "15px": { css: "font-size:15px", large: false },
+    "18px 굵게": { css: "font-size:18px;font-weight:700", large: false },
+    "24px": { css: "font-size:24px", large: true },
+  };
+  const GRAYS = ["#9E9E9E", "#8A8A8A", "#767676", "#6B6B6B", "#595959", "#3D3D3D"];
+  const levelFor = (large) => (large ? { aa: 3, aaa: 4.5 } : { aa: 4.5, aaa: 7 });
+  const meetsAA = (fg, sz) => ratio(fg, "#FFFFFF") >= levelFor(SIZES[sz].large).aa;
+  const goalCheck = ({ fg, sz }) => { const i = GRAYS.indexOf(fg); return meetsAA(fg, sz) && (i === 0 || !meetsAA(GRAYS[i - 1], sz)); };
+
+  const E = EXPECTED_BY_HAND, t3 = { tol: 0.001 };
+  LTT.expect("lin(119)", lin(119), E.lin119, { tol: 0.0005 });
+  LTT.expect("lin(10)", lin(10), E.lin10, { tol: 0.00005 });
+  LTT.expect("L(#777777)", lum("#777777"), E.L777, { tol: 0.0005 });
+  LTT.expect("L(#808080)", lum("#808080"), E.L808, { tol: 0.0005 });
+  LTT.expect("L(#FF0000)", lum("#FF0000"), E.Lr, { tol: 0.0001 });
+  LTT.expect("L(#00FF00)", lum("#00FF00"), E.Lg, { tol: 0.0001 });
+  LTT.expect("L(#0000FF)", lum("#0000FF"), E.Lb, { tol: 0.0001 });
+  LTT.expect("code for L=0.5", codeFor(0.5), E.code50, { tol: 0.1 });
+  LTT.expect("R part of #6B7280", parts("#6B7280")[0], E.twR, { tol: 0.0005 });
+  LTT.expect("G part of #6B7280", parts("#6B7280")[1], E.twG, { tol: 0.0005 });
+  LTT.expect("B part of #6B7280", parts("#6B7280")[2], E.twB, { tol: 0.0005 });
+  LTT.expect("CR(#000000,#FFFFFF)", ratio("#000000", "#FFFFFF"), E.crBW, t3);
+  LTT.expect("CR(#000000,#595959)", ratio("#000000", "#595959"), E.crDark, t3);
+  LTT.expect("CR(#F3F3F3,#FFFFFF)", ratio("#F3F3F3", "#FFFFFF"), E.crLight, t3);
+  LTT.expect("CR(#767676,#FFFFFF)", ratio("#767676", "#FFFFFF"), E.cr767, t3);
+  LTT.expect("CR(#777777,#FFFFFF)", ratio("#777777", "#FFFFFF"), E.cr777, t3);
+  LTT.expect("CR(#8A8A8A,#FFFFFF)", ratio("#8A8A8A", "#FFFFFF"), E.cr8A, t3);
+  LTT.expect("CR(#9E9E9E,#FFFFFF)", ratio("#9E9E9E", "#FFFFFF"), E.cr9E, t3);
+  LTT.expect("CR(#6B6B6B,#FFFFFF)", ratio("#6B6B6B", "#FFFFFF"), E.cr6B, t3);
+  LTT.expect("CR(#595959,#FFFFFF)", ratio("#595959", "#FFFFFF"), E.cr59, t3);
+  LTT.expect("CR(#3D3D3D,#FFFFFF)", ratio("#3D3D3D", "#FFFFFF"), E.cr3D, t3);
+  LTT.expect("CR(#6B7280,#FFFFFF)", ratio("#6B7280", "#FFFFFF"), E.crTw, t3);
+  LTT.expect("CR(#6B7280,#F3F4F6)", ratio("#6B7280", "#F3F4F6"), E.crTwGray, t3);
+  LTT.expect("CR(#767676,#F3F4F6)", ratio("#767676", "#F3F4F6"), E.cr767Gray, t3);
+  const cells = [];  // sorted on both sides: the set matters, not the loop order
+  GRAYS.forEach((fg) => Object.keys(SIZES).forEach((sz) => { if (goalCheck({ fg, sz })) cells.push(`${fg}@${sz}`); }));
+  LTT.expect("sweep goal cell count", cells.length, E.goalCells.length, { tol: 0 });
+  LTT.expect("sweep goal cells match hand list", cells.slice().sort().join(",") === E.goalCells.slice().sort().join(",") ? 1 : 0, 1, { tol: 0 });
+
+  // Luminance ruler: x = ln(L + 0.05), so ln(contrast ratio) is a horizontal distance and every threshold bar has a fixed length.
+  const RW = 980, X0 = 60, X1 = 890, AY = 132;
+  const tx = (L) => X0 + (Math.log(L + 0.05) - Math.log(0.05)) / Math.log(21) * (X1 - X0);
+  const barEnd = (xh, k) => xh - Math.log(k) / Math.log(21) * (X1 - X0);
+  const ruler = (vb) => {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", vb ? `0 ${vb[0]} ${RW} ${vb[1]}` : `0 0 ${RW} 300`);
+    svg.setAttribute("class", "ltt-svg rl");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "상대 휘도 눈금자: 왼쪽 검정, 오른쪽 흰색, 눈금은 L+0.05의 로그");
+    let band = "";
+    const n = 83, w = (X1 - X0) / n;
+    for (let i = 0; i < n; i++) {
+      const t = Math.log(0.05) + (i + 0.5) / n * Math.log(21), L = Math.exp(t) - 0.05;
+      band += `<rect x="${X0 + i * w}" y="${AY - 12}" width="${w + 0.5}" height="24" style="fill:${grayOf(L)}"/>`;
+    }
+    const ticks = [0, 0.05, 0.1, 0.2, 0.5, 1].map((L) => `<line x1="${tx(L)}" x2="${tx(L)}" y1="${AY + 12}" y2="${AY + 20}" style="stroke:var(--ltt-line-2)"/><text class="tk" x="${tx(L)}" y="${AY + 36}" text-anchor="middle">${L}</text>`).join("");
+    const base = `${band}<rect x="${X0}" y="${AY - 12}" width="${X1 - X0}" height="24" style="fill:none;stroke:var(--ltt-line-2)"/>${ticks}
+      <text class="tk" x="${X1}" y="${AY + 56}" text-anchor="end">상대 휘도 L · 같은 배수 = 같은 간격</text>`;
+    const set = (o) => {
+      const lf = lum(o.fg), lb = lum(o.bg), hi = Math.max(lf, lb), lo = Math.min(lf, lb);
+      const xh = tx(hi), xl = tx(lo), cr = (hi + 0.05) / (lo + 0.05), near = xh - xl < 150;
+      const hx = hi === lf ? o.fg : o.bg, lx = hi === lf ? o.bg : o.fg;
+      const pt = (x, h, L, anchor, dx) => `<rect x="${x - 11}" y="${AY - 18}" width="22" height="36" rx="4" style="fill:${h};stroke:var(--ltt-ink);stroke-width:2"/>
+        <text class="hx" x="${x + dx}" y="${AY - 54}" text-anchor="${anchor}">${h}</text><text class="lv" x="${x + dx}" y="${AY - 34}" text-anchor="${anchor}">L ${L.toFixed(3)}</text>`;
+      let s = base + pt(xl, lx, lo, near ? "end" : "middle", near ? -14 : 0) + pt(xh, hx, hi, near ? "start" : "middle", near ? 14 : 0);
+      if (o.alt) {
+        const xa = tx(lum(o.alt.bg));
+        s += `<rect x="${xa - 9}" y="${AY - 15}" width="18" height="30" rx="3" style="fill:${o.alt.bg};stroke:var(--ltt-bad);stroke-width:2;stroke-dasharray:3 2"/>`;
+      }
+      if (o.bracket !== false) {
+        s += `<path d="M${xl} ${AY - 76} V${AY - 84} H${xh} V${AY - 76}" style="fill:none;stroke:var(--ltt-accent);stroke-width:2"/>
+          <text class="rt" x="${(xl + xh) / 2}" y="${AY - 92}" text-anchor="middle">${r2(cr)} : 1</text>`;
+      }
+      const bars = o.bars || [];
+      bars.forEach((b, i) => {
+        const y = AY + 76 + i * 28, end = barEnd(xh, b.k), ok = cr >= b.k;
+        const tone = o.judge === false ? "muted" : ok ? "good" : "bad";
+        s += `<line x1="${xh}" x2="${end}" y1="${y}" y2="${y}" style="stroke:var(--ltt-${tone});stroke-width:6;stroke-linecap:round"/>
+          <line x1="${end}" x2="${end}" y1="${y - 9}" y2="${y + 9}" style="stroke:var(--ltt-${tone});stroke-width:2"/>
+          <text class="bl" x="${end - 8}" y="${y + 5}" text-anchor="end" style="fill:var(--ltt-${tone})">${b.label}${o.judge === false ? "" : ok ? " 통과" : " 미달"}</text>`;
+      });
+      if (o.alt) {
+        const xa = tx(lum(o.alt.bg)), y = AY + 76 + bars.length * 28, end = barEnd(xa, o.alt.k), ok = (lum(o.alt.bg) + 0.05) / (lo + 0.05) >= o.alt.k;
+        s += `<line x1="${xa}" x2="${end}" y1="${y}" y2="${y}" style="stroke:var(--ltt-${ok ? "good" : "bad"});stroke-width:6;stroke-linecap:round;stroke-dasharray:10 6"/>
+          <line x1="${end}" x2="${end}" y1="${y - 9}" y2="${y + 9}" style="stroke:var(--ltt-${ok ? "good" : "bad"});stroke-width:2"/>
+          <text class="bl" x="${end - 8}" y="${y + 5}" text-anchor="end" style="fill:var(--ltt-${ok ? "good" : "bad"})">${o.alt.label}</text>`;
+      }
+      const rows = bars.length + (o.alt ? 1 : 0);
+      if (rows) s += `<line x1="${xl}" x2="${xl}" y1="${AY + 18}" y2="${AY + 78 + (rows - 1) * 28}" style="stroke:var(--ltt-ink);stroke-dasharray:4 4"/>`;
+      (o.marks || []).forEach((m) => {
+        s += `<circle cx="${m.x}" cy="${m.y}" r="13" style="fill:var(--ltt-accent)"/><text x="${m.x}" y="${m.y + 5}" text-anchor="middle" style="font:800 15px var(--ltt-font);fill:var(--ltt-on-accent)">${m.n}</text>`;
+      });
+      svg.innerHTML = s;
+    };
+    return { el: svg, set };
+  };
+  const GENERIC = [{ k: 3, label: "3:1" }, { k: 4.5, label: "4.5:1" }, { k: 7, label: "7:1" }];
+  const barsFor = (large) => { const v = levelFor(large); return [{ k: v.aa, label: `AA ${v.aa}:1` }, { k: v.aaa, label: `AAA ${v.aaa}:1` }]; };
+
+  // Gamma curve with the guide lines of one or two sample codes.
+  const gammaFig = () => {
+    const wrap = LTT.h("div", "gm");
+    const p = LTT.axisPlot(wrap, { width: 620, height: 310, x: [0, 255], y: [0, 1], margin: { l: 52, b: 44, t: 24, r: 16 },
+      ticks: [[0, 64, 128, 192, 255], [0, 0.25, 0.5, 0.75]], labels: { x: "sRGB 코드값 (0–255)", y: "↑ 빛의 양 (0–1)" },
+      series: [{ id: "naive", color: "var(--ltt-muted)", dash: true }, { id: "curve", color: "var(--ltt-accent)" }] });
+    const mk = p.svg.append("g").attr("class", "mk");
+    const guide = (code, y, label, tone, at) => {
+      const [x0, y0] = p.px([code, 0]), [x1, y1] = p.px([code, y]), [xa] = p.px([0, y]);
+      mk.append("path").attr("d", `M${x0},${y0} V${y1} H${xa}`).style("fill", "none").style("stroke", `var(--ltt-${tone})`).style("stroke-dasharray", "4 4").style("stroke-width", 1.5);
+      mk.append("circle").attr("cx", x1).attr("cy", y1).attr("r", 6).style("fill", `var(--ltt-${tone})`);
+      const left = at === "left";
+      mk.append("text").attr("x", x1 + (left ? -10 : 10)).attr("y", y1 + (left ? -10 : 16)).attr("text-anchor", left ? "end" : "start").style("fill", `var(--ltt-${tone})`).text(label);
+    };
+    const curve = d3.range(0, 256, 3).concat([255]).map((c) => [c, lin(c)]);
+    const show = (k) => {
+      mk.selectAll("*").remove();
+      p.set("naive", [[0, 0], [255, 1]]);
+      p.set("curve", k >= 1 ? curve : []);
+      if (k === 0) guide(119, 119 / 255, "#777777 → 0.467 ?", "muted", "left");
+      if (k === 2) { guide(119, 119 / 255, "코드 비율 0.467", "muted", "left"); guide(119, lin(119), "빛 0.184", "accent"); }
+      if (k === 3) { guide(128, lin(128), "#808080 → 빛 0.216", "accent"); guide(188, lin(188), "#BCBCBC → 빛 0.50", "accent"); }
+      if (k === 4) guide(10, lin(10), "코드 10 → 0.003 (여기까지 직선 c/12.92)", "accent");
+    };
+    return { el: wrap, show };
+  };
+
+  // Stacked R/G/B contributions of one colour's L on a 0–scale axis.
+  const stackSvg = (hex, scale, w, labelL, plain) => {
+    const ps = parts(hex), x0 = labelL, sc = (w - x0 - 90) / scale, names = ["R", "G", "B"];
+    let x = x0, s = `<text x="0" y="34" style="font:700 15px var(--ltt-mono);fill:var(--ltt-ink)">${hex}</text>`;
+    ps.forEach((v, i) => {
+      const ww = v * sc;
+      s += `<rect x="${x}" y="14" width="${ww}" height="30" style="fill:var(--ltt-${["muted", "accent", "ink-2"][i]});stroke:var(--ltt-bg);stroke-width:1"/>`;
+      s += `<text x="${x + ww / 2}" y="64" text-anchor="middle" style="font:13px var(--ltt-mono);fill:var(--ltt-ink-2)">${names[i]} ${v.toFixed(3)}</text>`;
+      x += ww;
+    });
+    s += `<text x="${x + 8}" y="34" style="font:700 15px var(--ltt-mono);fill:var(--ltt-ink)">= ${lum(hex).toFixed(3)}</text>`;
+    return `<svg ${plain ? 'style="width:100%;height:auto;display:block"' : 'class="ltt-svg"'} viewBox="0 0 ${w} 74" role="img" aria-label="${hex}의 상대 휘도를 R·G·B 기여분으로 쌓은 막대">${s}</svg>`;
+  };
+
+  const settingsMock = (n, bare) => {
+    const b = LTT.mock.browser({ url: "app.example.com/settings/notifications", width: 420 });
+    const rows = [["푸시 알림", "새 댓글과 멘션이 오면 휴대폰으로 알려 줍니다", ""], ["이메일 요약", "매주 월요일 오전 9시에 지난주 활동을 보냅니다", ""], ["방해 금지 시간", "밤 11시~오전 7시에는 알림을 보내지 않습니다", "off"]];
+    b.screen.innerHTML = `<div class="set">${bare ? "" : "<h4>알림</h4>"}<div class="card">${rows.slice(0, n || 3).map(([a, c, off]) => `<div class="row"><div class="tx"><div class="t1">${a}</div><div class="t2" data-annotate>${c}</div></div><span class="tg ${off}"></span></div>`).join("")}</div></div>`;
+    const paint = (fg, size) => b.screen.querySelectorAll(".t2").forEach((n) => { n.style.cssText = `${SIZES[size].css};color:${fg};margin-top:3px;line-height:1.35`; });
+    return { el: b.el, paint };
+  };
+
+  const pair = (fg, bg) => `<div class="pair" style="background:${bg};color:${fg}">새 댓글과 멘션이 오면 휴대폰으로 알려 줍니다</div>`;
+
+
+  const TV = {
+    lum: `<div class="lb">${[["#FFFFFF", "흰색"], ["#F3F4F6", "밝은 회색 배경"], ["#000000", "검정"]].map(([h, t]) => `<div><span style="width:70px">${h}</span><i style="width:${Math.max(2, lum(h) * 120)}px;background:var(--ltt-accent)"></i>L ${lum(h).toFixed(2)} ${t}</div>`).join("")}</div>`,
+    gamma: `<svg class="ltt-svg" viewBox="0 0 240 70" style="max-height:80px" role="img" aria-label="hex 코드값이 감마 해제 계산을 거쳐 빛의 양이 된다">
+      ${[[0, "#RRGGBB 코드"], [88, "감마 해제"], [168, "빛의 양 0~1"]].map(([x, t], i) => `<rect x="${x}" y="18" width="${i === 1 ? 72 : 70}" height="32" rx="6" style="fill:${i === 1 ? "var(--ltt-accent-soft)" : "none"};stroke:var(--ltt-${i === 1 ? "accent" : "line-2"})"/><text x="${x + 35}" y="39" text-anchor="middle" style="font-size:11px;fill:var(--ltt-ink)">${t}</text>`).join("")}
+      <path d="M71 34 H86 M161 34 H166" style="stroke:var(--ltt-ink-2);stroke-width:1.5"/></svg>`,
+    levels: `<svg class="ltt-svg" viewBox="0 0 240 118" style="max-height:118px" role="img" aria-label="밝은 쪽 점에서 비율 3, 4.5, 7만큼 떨어진 곳까지의 기준 막대">
+      <rect x="226" y="2" width="12" height="16" rx="2" style="fill:#fff;stroke:var(--ltt-ink)"/><text x="222" y="14" text-anchor="end" style="font-size:12px;fill:var(--ltt-ink-2)">밝은 쪽 색</text>
+      ${[[3, "3:1"], [4.5, "4.5:1"], [7, "7:1"]].map(([k, t], i) => `<line x1="232" x2="${232 - Math.log(k) / Math.log(21) * 210}" y1="${36 + i * 24}" y2="${36 + i * 24}" style="stroke:var(--ltt-accent);stroke-width:6;stroke-linecap:round"/><text x="${226 - Math.log(k) / Math.log(21) * 210}" y="${41 + i * 24}" text-anchor="end" style="font:700 13px var(--ltt-mono);fill:var(--ltt-ink)">${t}</text>`).join("")}
+      <text x="232" y="112" text-anchor="end" style="font-size:12px;fill:var(--ltt-muted)">장면 6 눈금자 위 길이 (= ln 비율)</text></svg>`,
+    large: `<svg class="ltt-svg" viewBox="0 0 240 100" style="max-height:100px" role="img" aria-label="24px 보통과 19px 굵게는 큰 글자, 18px 굵게는 일반 글자">
+      <text x="4" y="26" style="font-size:24px;fill:var(--ltt-ink)">24px 보통</text><text x="236" y="24" text-anchor="end" style="font-size:13px;font-weight:700;fill:var(--ltt-good)">큰 글자</text>
+      <text x="4" y="58" style="font-size:19px;font-weight:700;fill:var(--ltt-ink)">19px 굵게</text><text x="236" y="56" text-anchor="end" style="font-size:13px;font-weight:700;fill:var(--ltt-good)">큰 글자</text>
+      <text x="4" y="88" style="font-size:18px;font-weight:700;fill:var(--ltt-ink)">18px 굵게</text><text x="236" y="86" text-anchor="end" style="font-size:13px;font-weight:700;fill:var(--ltt-bad)">일반 글자</text></svg>`,
+  };
+
+  const overview = () => {
+    const el = LTT.h("div", "ov");
+    const num = (n, x, y) => `<circle cx="${x}" cy="${y}" r="12" style="fill:var(--ltt-accent)"/><text x="${x}" y="${y + 5}" text-anchor="middle" style="font:800 14px var(--ltt-font);fill:var(--ltt-on-accent)">${n}</text>`;
+    const cx = (c) => 20 + c / 255 * 180, cy = (v) => 100 - v * 85;
+    const mini = `<svg class="ltt-svg" viewBox="0 0 230 120" role="img" aria-label="감마 해제 곡선">
+      <path d="M20 100 H200 M20 100 V12" style="fill:none;stroke:var(--ltt-line-2)"/>
+      <path d="M20 100 L200 15" style="fill:none;stroke:var(--ltt-muted);stroke-dasharray:5 4"/>
+      <path d="${d3.range(0, 256, 15).concat([255]).map((c, i) => `${i ? "L" : "M"}${cx(c).toFixed(1)} ${cy(lin(c)).toFixed(1)}`).join(" ")}" style="fill:none;stroke:var(--ltt-accent);stroke-width:2.5"/>
+      <circle cx="${cx(118)}" cy="${cy(lin(118))}" r="5" style="fill:var(--ltt-accent)"/>
+      <text x="${cx(118) + 8}" y="${cy(lin(118)) + 16}" style="font:12px var(--ltt-mono);fill:var(--ltt-ink-2)">118 → 0.181</text>
+      <text x="200" y="116" text-anchor="end" style="font-size:12px;fill:var(--ltt-muted)">코드 → 빛</text>${num(1, 214, 22)}</svg>`;
+    const stack = stackSvg("#767676", 0.2, 420, 80).replace("</svg>", `${num(2, 404, 30)}</svg>`);
+    const arrow = `<svg class="ltt-svg" viewBox="0 0 30 20" style="height:20px;width:30px"><path d="M2 10 H24 M18 4 L25 10 L18 16" style="fill:none;stroke:var(--ltt-ink-2);stroke-width:2"/></svg>`;
+    el.insertAdjacentHTML("beforeend", `<div class="flow">${mini}${arrow}${stack}${arrow}<span style="font:700 15px var(--ltt-mono);color:var(--ltt-ink)">눈금자 ↓</span></div>`);
+    const r = ruler([20, 280]);
+    const xf = tx(lum("#767676")), xw = tx(1);
+    r.set({ fg: "#767676", bg: "#FFFFFF", bars: [{ k: 4.5, label: "흰 배경 AA 4.5:1" }], alt: { bg: "#F3F4F6", k: 4.5, label: "#F3F4F6 배경이면 AA 미달" },
+      marks: [{ n: 3, x: (xf + xw) / 2 - 90, y: AY - 98 }, { n: 4, x: barEnd(xw, 4.5) - 220, y: AY + 76 }, { n: 5, x: xf - 32, y: AY }, { n: 6, x: barEnd(tx(lum("#F3F4F6")), 4.5) - 260, y: AY + 104 }] });
+    const w = LTT.h("div", "rlw");
+    w.appendChild(r.el);
+    el.appendChild(w);
+    const notes = [
+      "hex 코드는 감마로 휜 숫자. 감마를 풀어야 빛의 양(#777777 → 0.18)",
+      "L = 0.2126R + 0.7152G + 0.0722B. 초록 몫이 가장 크다",
+      "대비비 = (밝은 L+0.05) ÷ (어두운 L+0.05), 1~21. 눈금자 위 거리 = ln 대비비",
+      "일반 글자 AA 4.5·AAA 7, 큰 글자(24px, 굵게 18.67px 이상) 3·4.5. 반올림 없이",
+      "막대 끝을 넘는 가장 옅은 회색이 후보(흰 배경 14px → #767676)",
+      "배경이 #F3F4F6이면 막대 출발점이 밀려 같은 #767676도 미달",
+    ];
+    el.insertAdjacentHTML("beforeend", `<ol>${notes.map((t, i) => `<li><i>${i + 1}</i><span>${t}</span></li>`).join("")}</ol>`);
+    return el;
+  };
+
+  // Five recall answers do not fit one screen, so the recap splits at the luminance/contrast boundary.
+  const splitRecap = (spec) => {
+    const cards = LTT.summaryCards({}, spec.scenes);
+    spec.scenes.forEach((s) => { if (s.recap) s.cards = cards.slice(...s.recap); });
+    return spec;
+  };
+
+  LTT.deck(splitRecap({
+    title: "보조 텍스트의 회색은 빛의 비율로 고른다",
+    theme: "studio",
+    glossary: {
+      "대비비": "글자색과 배경색이 내는 빛의 양이 몇 배 차이 나는지 나타낸 비율. 같은 색이면 1:1, 검정과 흰색이면 21:1. 웹 접근성 국제 지침(WCAG)이 판정에 쓰며, 계산법은 장면 6에서 다룬다.",
+    },
+    scenes: [
+      { type: "hook", art: "palette", kicker: "설정 화면 · 보조 텍스트 색",
+        pre: "<span style=\"background:#fff;color:#8A8A8A;padding:0 10px;border-radius:8px\">#8A8A8A 설명 문구</span>는 눈에는 충분히 읽히는데, 접근성 검사기는 3.45:1로 '미달'이라고 한다.",
+        text: "판정 근거는 눈대중이 아니라<br><u>두 색의 빛의 비율</u>이다.",
+        sub: "이 수업을 마치면 글자색·배경색 hex 두 개로 {{대비비}}를 직접 계산하고, 글자 크기에 맞는 접근성 등급 기준(장면 7)으로 통과 여부를 판정해, 보조 텍스트에 쓸 수 있는 가장 옅은 회색을 근거와 함께 고를 수 있다." },
+
+      { type: "terms", title: "hex 코드와 대비비 사이에 있는 두 단계", en: "Terms",
+        terms: [
+          { key: "상대 휘도", en: "relative luminance, L", icon: "sun", visual: TV.lum,
+            plain: "색이 화면에서 내는 빛의 양을 검정 0 ~ 흰색 1로 잰 값. 코드값이 아니라 빛으로 잰다.",
+            example: "흰색 #FFFFFF는 1, 설정 화면 배경으로 흔한 #F3F4F6은 0.90, 검정은 0." },
+          { key: "감마 해제", en: "sRGB linearization (gamma decoding)", icon: "trend", visual: TV.gamma,
+            plain: "sRGB(웹 CSS 색의 표준 색 공간) 코드값은 빛의 양에 거듭제곱(감마)을 걸어 저장한 숫자다. 눈이 어두운 쪽 차이에 더 민감해 어두운 쪽에 코드를 더 많이 배정했기 때문이다. 이 거듭제곱을 되돌려 빛의 양을 얻는 계산이 감마 해제다.",
+            example: "대비비를 구하려면 hex의 R·G·B마다 먼저 감마 해제를 한다." },
+        ] },
+
+      { type: "predict", kicker: "짐작해 보기 · 파트 1", title: "#777777은 얼마나 밝을까?",
+        question: "#777777은 코드값 119, 255의 47% 지점이다. 이 회색의 {{상대 휘도}} L은 대략 얼마일까?",
+        visual: LTT.facts([{ icon: "palette", value: "#777777", label: "R = G = B = 119" }, { icon: "ruler", value: "119 / 255", label: "= 0.467" }, { icon: "sun", value: "L = ?", label: "검정 0 ~ 흰색 1" }]),
+        choices: [
+          { id: "a", text: "약 0.47. 코드 비율이 곧 빛의 비율이다" },
+          { id: "b", text: "약 0.18. 실제 빛은 코드 비율보다 훨씬 적다" },
+          { id: "c", text: "약 0.70. 회색은 실제보다 밝게 나온다" },
+        ],
+        answer: "b",
+        answerVisual: `<div class="lb"><div><span style="width:110px">코드 비율</span><i style="width:${(119 / 255 * 200).toFixed(0)}px;background:var(--ltt-muted)"></i>0.467</div><div><span style="width:110px">빛(감마 해제)</span><i style="width:${(lin(119) * 200).toFixed(0)}px;background:var(--ltt-accent)"></i>0.184</div></div>`,
+        why: "sRGB 코드는 빛의 양을 그대로 적은 값이 아니다. 감마를 풀면 0.467이 0.184가 된다. 다음 장면에서 그 곡선을 본다." },
+
+      { type: "figure", kicker: "파트 1 · 상대 휘도", title: "코드값 절반은 빛 절반이 아니다", en: "Gamma decoding",
+        figure: gammaFig,
+        caption: "가로는 sRGB 코드값, 세로는 감마를 푼 빛의 양. 점선은 '코드 비율 = 빛'이라고 볼 때이고, 2단계부터 나오는 실선이 실제 계산이다.",
+        steps: [
+          "<b>1. 코드값을 그대로 읽으면</b>: 119/255 = 0.467. 점선대로라면 #777777은 '반쯤 밝은 회색'이다.",
+          "<b>2. 실제 빛은 곡선</b>: 코드값은 감마로 휘어 저장한 숫자라, {{감마 해제}}를 하면 대부분의 코드가 점선 아래로 처진다.",
+          "<b>3. #777777 = 빛 0.184</b>: ((0.467 + 0.055) / 1.055)<sup>2.4</sup> = 0.184. 점선과의 차이는 감마 때문에 생긴 차이다.",
+          "<b>4. 빛 절반은 코드 188</b>: 가운데 코드 128(#808080)은 빛 0.216. 빛 0.5를 내려면 코드 188(#BCBCBC)까지 올라가야 한다.",
+          "<b>5. 아주 어두운 끝은 직선</b>: c = C/255가 0.04045 이하(코드 10 이하)면 c/12.92로 계산한다. 0.055·1.055·2.4·12.92는 sRGB 표준이 정한 상수다.",
+        ].map((caption, k) => ({ caption, enter: (_, fig) => fig.show(k) })),
+        tex: "C_{lin} = \\begin{cases} \\dfrac{C/255}{12.92} & C/255 \\le 0.04045 \\\\ \\left(\\dfrac{C/255 + 0.055}{1.055}\\right)^{2.4} & \\text{그 외} \\end{cases}",
+        basis: "WCAG 2.2 relative luminance 정의, sRGB 표준(IEC 61966-2-1). 곡선 위 수치는 모델로 계산한 예시.",
+        takeaway: "hex 코드는 감마로 휜 숫자라서, 빛의 양으로 쓰려면 먼저 감마를 푼다. #777777은 0.467이 아니라 0.184다.",
+        recall: "코드값 119(47%)인 회색의 빛의 양이 0.47이 아니라 0.18인 까닭은?",
+        sources: ["W3C WCAG 2.2 — Definition: relative luminance"],
+        ask: "\"이 hex 색들의 R·G·B를 감마 해제한 값을 표로 보여 줘\"" },
+
+      { kicker: "파트 1 · 채널 가중치", title: "같은 255라도 초록은 빨강의 3배, 파랑의 10배로 친다", en: "Channel weights",
+        layout: "split", bare: true,
+        mount(body) {
+          const f = LTT.chartFrame({ title: "채널 하나만 255일 때의 상대 휘도", dek: "가중치 = 눈이 그 색 빛에 얼마나 민감한가. 세 가중치의 합은 1", source: "WCAG 2.2 relative luminance (sRGB, ITU-R BT.709 계수)" });
+          f.el.classList.add("wt");
+          body.appendChild(f.el);
+          const hb = LTT.hbars(f.el, { domain: [0, 1], ticks: [0, 0.25, 0.5, 0.75, 1], width: 760, labelW: 230, rowH: 70, fmt: (v) => v.toFixed(4),
+            rows: [
+              { label: "초록 #00FF00 (G만 255)", value: lum("#00FF00") },
+              { label: "빨강 #FF0000 (R만 255)", value: lum("#FF0000") },
+              { label: "파랑 #0000FF (B만 255)", value: lum("#0000FF") },
+            ] });
+          // Bars are drawn at their final length so a still frame (screenshot, reduced motion) reads the same as the animation's end.
+          const vals = [lum("#00FF00"), lum("#FF0000"), lum("#0000FF")];
+          hb.svg.selectAll("rect").each(function (_, i) { this.setAttribute("width", vals[i] * 460); });
+          hb.svg.selectAll("text.val").each(function (_, i) { this.setAttribute("x", 230 + vals[i] * 460 + 8); this.style.opacity = 1; });
+          f.el.insertAdjacentHTML("beforeend", `<div style="margin-top:10px">${stackSvg("#6B7280", 0.2, 760, 230, true)}</div>`);
+          f.foot();
+          return {};
+        },
+        narration: [
+          "감마를 푼 R·G·B에 눈의 민감도만큼 가중치를 곱해 더한다. 같은 255라도 초록 하나가 0.7152를 낸다.",
+          "아래 막대는 설정 화면에 흔한 푸른 회색 #6B7280. B가 가장 큰데도 파랑 몫은 0.016뿐이고, 초록 몫이 L의 대부분이다.",
+        ],
+        tex: "L = 0.2126\\,R_{lin} + 0.7152\\,G_{lin} + 0.0722\\,B_{lin}",
+        basis: "계수는 WCAG 2.2 relative luminance 정의(sRGB 원색의 BT.709 휘도 계수). 막대 값은 모델로 계산한 예시.",
+        takeaway: "상대 휘도는 감마를 푼 R·G·B에 0.2126·0.7152·0.0722를 곱해 더한 값이다. 회색이면 감마 해제 값 그대로다.",
+        recall: "R·G·B를 같은 비중으로 더하지 않는 까닭과, 가장 큰 가중치를 받는 채널은?",
+        ask: "\"이 브랜드 색의 상대 휘도를 채널별 기여도로 나눠 보여 줘\"" },
+
+      { type: "figure", kicker: "파트 2 · 대비비", title: "대비비는 비율이라, 로그 눈금자 위에서는 거리다", en: "Contrast ratio",
+        figure: () => ruler(),
+        caption: "가로 띠는 상대 휘도 0(왼쪽)~1(오른쪽)의 실제 회색. 로그 눈금이라 L+0.05가 같은 배수로 커지면 같은 거리다. 위 괄호가 두 색의 {{대비비}}다.",
+        steps: [
+          { caption: "<b>1. 양 끝</b>: 검정 L 0, 흰색 L 1. 둘 다 0.05를 더해 나누면 1.05 / 0.05 = 21:1, 최댓값이다. WCAG는 0.05를 화면 반사광(flare) 보정으로 설명한다. 검정 화면도 주변 빛을 반사하고, 0으로 나누기도 막는다(물리적 근거는 논쟁 중, 불확실).",
+            set: { fg: "#000000", bg: "#FFFFFF" } },
+          { caption: "<b>2. 어두운 쪽 차이 0.1</b>: 검정(L 0)과 #595959(L 0.1)은 0.15 / 0.05 ≈ 3:1. 눈금자에서 꽤 먼 거리다.",
+            set: { fg: "#000000", bg: "#595959" } },
+          { caption: "<b>3. 밝은 쪽 차이 0.1</b>: #F3F3F3(L 0.896)과 흰색은 1.11:1. L 차이는 같은 0.1인데 거리는 훨씬 짧다. 눈은 대체로 밝기 차이보다 비율에 반응해서, 기준도 비율로 잰다.",
+            set: { fg: "#F3F3F3", bg: "#FFFFFF" } },
+          { caption: "<b>4. 보조 텍스트 후보</b>: #767676은 L 0.181. (1 + 0.05) / (0.181 + 0.05) = 4.54:1. 괄호 길이는 ln(대비비)다. 표시는 소수 둘째 자리까지 버림. WCAG는 반올림을 허용하지 않는다(4.499:1은 4.5 미달).",
+            set: { fg: "#767676", bg: "#FFFFFF" } },
+          { caption: "<b>5. 기준 막대</b>: 밝은 쪽 L+0.05를 3·4.5·7로 나눈 지점까지(길이 ln 3, ln 4.5, ln 7). 어두운 쪽 점(점선)이 막대 끝을 지나 있으면 그 기준을 넘는다.",
+            set: { fg: "#767676", bg: "#FFFFFF", bars: GENERIC } },
+          { caption: "<b>6. 배경을 #F3F4F6으로</b>: 밝은 쪽 점이 L 0.904로 왼쪽에 오고 막대도 같이 밀린다. 같은 #767676이 4.12:1로 4.5 막대 끝에 못 미친다.",
+            set: { fg: "#767676", bg: "#F3F4F6", bars: GENERIC } },
+        ].map((s) => ({ caption: s.caption, enter: (_, fig) => fig.set(s.set) })),
+        tex: "\\text{대비비} = \\dfrac{L_{밝은} + 0.05}{L_{어두운} + 0.05} \\qquad 1 \\le \\text{대비비} \\le 21",
+        basis: "WCAG 2.2 contrast ratio 정의, Understanding SC 1.4.3(반올림 금지). 화면 수치는 모델로 계산한 예시.",
+        takeaway: "대비비 = (밝은 쪽 L + 0.05) ÷ (어두운 쪽 L + 0.05)이고 1~21 사이다. 같은 L 차이라도 어두운 쪽에서 더 크게 친다.",
+        recall: "흰 배경(L 1)과 L 0.181인 글자의 대비비를 어떤 식으로 구하고, 같은 L 차이 0.1이 어두운 쪽에서 더 큰 대비비가 되는 까닭은?",
+        ask: "\"이 디자인 토큰 회색들을 흰 배경 기준 대비비 순서로 정렬해 줘\"" },
+
+      { type: "terms", title: "기준은 등급과 글자 크기로 정해진다", en: "WCAG levels",
+        terms: [
+          { key: "AA·AAA", en: "WCAG 성공 기준(SC) 1.4.3 최소 대비 / 1.4.6 향상된 대비", icon: "shield-check", visual: TV.levels,
+            plain: "AA는 일반 글자 4.5:1, 큰 글자 3:1. AAA는 일반 7:1, 큰 글자 4.5:1. 보통 요구되는 것은 AA다. 기준값은 반올림하지 않는다.",
+            example: "흰 배경의 24px 섹션 제목은 AA라면 3:1, AAA라면 4.5:1이면 된다." },
+          { key: "큰 글자", en: "large-scale text", icon: "ruler", visual: TV.large,
+            plain: "18pt(= 24px) 이상, 또는 굵게 14pt(≈ 18.67px) 이상인 글자. 이 크기부터 기준이 한 단계 낮아진다.",
+            example: "18px 굵게는 18.67px에 못 미쳐 여전히 일반 글자다." },
+        ] },
+
+      { type: "predict", kicker: "짐작해 보기 · 파트 2", title: "3.45:1인 14px 보조 텍스트, AA일까?",
+        question: "설정 화면 보조 텍스트를 14px 보통 굵기, #8A8A8A, 흰 배경으로 두었다. {{대비비}}는 3.45:1이다. {{AA·AAA}} 중 AA를 통과할까?",
+        visual: LTT.facts([{ icon: "ruler", value: "14px", label: "보통 굵기" }, { icon: "palette", value: "#8A8A8A", label: "글자 / 배경 #FFFFFF" }, { icon: "gauge", value: "3.45 : 1", label: "대비비" }]),
+        choices: [
+          { id: "a", text: "통과한다. 3:1을 넘었다" },
+          { id: "b", text: "미달이다. 14px 보통 글자는 4.5:1이 필요하다" },
+          { id: "c", text: "상관없다. 보조 텍스트는 대비 기준의 대상이 아니다" },
+        ],
+        answer: "b",
+        answerVisual: () => LTT.inspector({ title: "대비 검사 · 14px 보통", rows: [{ name: "보조 텍스트", fg: "#8A8A8A", bg: "#FFFFFF", ratio: 3.45 }], min: 4.5 }),
+        why: "3:1은 {{큰 글자}}에만 적용된다. 14px 보통은 일반 글자라 4.5:1. 설명 문구도 대상이다. 예외는 비활성 UI, 순수 장식, 보이지 않는 글자, 사진 속 부수적 글자, 로고뿐이다." },
+
+      { kicker: "파트 2 · 직접 맞추기", title: "기준 막대 끝을 넘는 가장 옅은 회색이 보조 텍스트 후보다", en: "Try it",
+        sub: "색·크기를 바꾸면 설정 화면과 눈금자(흰 카드 배경)가 바뀐다. 아래 두 막대가 지금 크기의 AA·AAA 판정이다.",
+        mount(body) {
+          body.innerHTML = `<div id="cg-goal"></div><div class="sw" style="margin-top:10px"><div class="sw-l">
+            <div class="ltt-param">설명 문구 색 <b id="fg-v"></b><div id="fg"></div></div>
+            <div class="ltt-param">설명 문구 크기 <b id="sz-v"></b><div id="sz"></div></div></div>
+            <div id="cg-mock"></div></div><div id="cg-ruler"></div>`;
+          const m = settingsMock(1, true), r = ruler([28, 214]);
+          LTT.$("cg-mock").appendChild(m.el);
+          LTT.$("cg-ruler").appendChild(r.el);
+          LTT.sweep({
+            params: {
+              fg: { kind: "steps", stops: GRAYS, value: "#9E9E9E", fmt: (v) => v, label: "설명 문구 색" },
+              sz: { kind: "steps", stops: Object.keys(SIZES), value: "13px", fmt: (v) => v, label: "설명 문구 크기" },
+            },
+            render: ({ fg, sz }) => {
+              const large = SIZES[sz].large;
+              m.paint(fg, sz);
+              r.set({ fg, bg: "#FFFFFF", bars: barsFor(large) });
+            },
+            goal: { el: "cg-goal", text: "이 크기에서 AA를 넘는 가장 옅은 회색을 찾는다(한 단계 더 옅으면 AA 미달)",
+              check: goalCheck },
+          });
+          LTT.$("fg").querySelectorAll("button").forEach((b, i) => b.insertAdjacentHTML("afterbegin", `<span class="swc" style="background:${GRAYS[i]}"></span>`));
+          return {};
+        },
+        basis: "WCAG 2.2 SC 1.4.3·1.4.6. 정답은 크기마다 하나: 13·15·18px 굵게 #767676, 24px #8A8A8A(모델로 계산한 예시).",
+        takeaway: "보조 텍스트 색은 '글자 크기로 정한 기준 막대 끝을 넘는 가장 옅은 회색'으로 고른다. 큰 글자가 되면 막대가 짧아진다.",
+        recall: "같은 #8A8A8A가 13px에서는 미달인데 24px에서는 AA를 넘는 까닭은?",
+        ask: "\"우리 회색 팔레트에서 흰 배경 14px 기준 AA를 넘는 가장 옅은 단계를 찾아 줘\"" },
+
+      { type: "compare", form: "table", kicker: "실제 후보 네 가지 · 모두 14px 보통", title: "눈으로는 못 가르는 차이가 판정을 가른다",
+        head: ["조합", "설정 화면에서", "판정"],
+        sub: "네 조합 모두 같은 14px 설명 문구다. 각 행이 AA(4.5:1)를 넘을지 먼저 짐작하고 '판정 보기'를 누르자.",
+        revealLabel: "판정 보기",
+        items: [
+          { label: "#777777 / 흰 배경", visual: pair("#777777", "#FFFFFF"), tone: "bad", verdict: "4.47:1 미달", noteAfter: true,
+            note: "#767676보다 코드 1 밝을 뿐. 4.5로 반올림하지 않는다." },
+          { label: "#767676 / 흰 배경", visual: pair("#767676", "#FFFFFF"), tone: "good", verdict: "4.54:1 AA 통과", noteAfter: true,
+            note: "흰 배경 AA를 넘는 가장 옅은 무채색." },
+          { label: "#6B7280 / 흰 배경", visual: pair("#6B7280", "#FFFFFF"), tone: "good", verdict: "4.83:1 AA 통과", noteAfter: true,
+            note: "B가 커도 파랑 가중치 0.0722라 L이 거의 안 오른다." },
+          { label: "#6B7280 / #F3F4F6", visual: pair("#6B7280", "#F3F4F6"), tone: "bad", verdict: "4.39:1 미달", noteAfter: true,
+            note: "같은 글자색도 배경 L이 0.904로 내려가면 미달." },
+        ],
+        basis: "WCAG 2.2 식, 소수 둘째 자리까지 버림 표기(반올림 도구와 0.01 다를 수 있음, 모델로 계산한 예시).",
+        takeaway: "판정은 실제로 놓일 배경과 쌍으로, 버림 표기 그대로 기준과 비교한다.",
+        recall: "흰 카드에서 AA를 통과한 #6B7280이 #F3F4F6 배경에서는 미달이 되는 까닭은? 4.47:1을 4.5로 보고하면 왜 안 되나?",
+        ask: "\"이 화면의 모든 글자색·배경색 쌍을 뽑아 실제 배경 기준 대비비와 AA 판정을 표로 만들어 줘\"" },
+
+      { type: "summary", kicker: "정리 1 / 2 · 파트 1", title: "먼저 hex 코드가 빛의 양이 되는 길을 떠올린다", en: "Recap 1 · 상대 휘도", recap: [0, 2] },
+
+      { type: "summary", kicker: "정리 2 / 2 · 파트 2", title: "이어서 비율과 기준으로 판정하는 법을 떠올린다", en: "Recap 2 · 대비비와 기준", recap: [2] },
+
+      { type: "overview", title: "hex 두 개 → 감마 해제 → 가중 합 → 비율 → 크기별 막대",
+        figure: overview,
+        caption: "왼쪽 위부터 감마 곡선, #767676의 R·G·B 몫, 눈금자. 실선 막대는 흰 배경, 점선 막대는 #F3F4F6 배경의 AA 기준이다. 번호 자리가 각 정리가 적용되는 곳이다." },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [{ ko: "상대 휘도", en: "relative luminance" }, { ko: "감마 해제(선형화)", en: "sRGB transfer function / linearization" }, { ko: "대비비", en: "contrast ratio" },
+          { ko: "최소 대비 · 향상된 대비", en: "WCAG SC 1.4.3 Contrast (Minimum) · 1.4.6 Contrast (Enhanced)" }, { ko: "큰 글자", en: "large-scale text (18pt / 14pt bold)" }],
+        signals: ["접근성 검사기가 회색 글자를 '미달'로 표시할 때", "디자인 시안이 회색 배경 카드 위에 옅은 회색 설명 문구를 올릴 때", "대비비가 4.4~4.5처럼 기준에 걸쳐 있을 때"],
+        queries: ["WCAG relative luminance formula", "WCAG 1.4.3 contrast minimum large text", "lightest gray 4.5:1 on white #767676", "contrast ratio rounding WCAG"],
+        neighbors: [
+          { term: "비텍스트 대비 (SC 1.4.11)", diff: "아이콘·입력칸 테두리·포커스 표시의 3:1 기준. 글자가 아니라 UI 부품에 적용된다." },
+          { term: "APCA (WCAG 3 초안)", diff: "글자 크기·굵기와 명암 방향까지 넣은 새 대비 모델. 아직 표준이 아니며 숫자 체계가 다르다." },
+          { term: "지각 밝기 L* (CIELAB)", diff: "사람이 느끼는 밝기의 균등 척도. 상대 휘도와 다른 값이며 WCAG 판정에는 쓰지 않는다." },
+          { term: "반투명 글자 (opacity)", diff: "배경과 합성된 최종 색으로 대비비를 계산해야 한다." },
+        ] },
+    ],
+  }));
+</script>
+</body>
+</html>

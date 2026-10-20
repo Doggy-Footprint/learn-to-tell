@@ -40,6 +40,28 @@ test("expect returns the comparison result outside a browser", () => {
   assert.equal(expect("mismatch", 2, 3), false);
 });
 
+// Spec 6cc24f891a69c407 v1 VO-8 (FR-15, C-17): equivalence partitions of LTT.expect's expected value.
+for (const [id, actual, expected, want] of [
+  ["same boolean", true, true, true],
+  ["different boolean", false, true, false],
+  ["boolean expected, number actual", 1, true, false],
+  ["same string", "a", "a", true],
+  ["different string", "a", "b", false],
+  ["boolean expected, string actual", "true", true, false],
+]) {
+  test(`VO-8 ${id}: expect(label, ${JSON.stringify(actual)}, ${JSON.stringify(expected)}) is ${want}`, () => {
+    assert.equal(loadKit().expect("b", actual, expected), want);
+  });
+}
+
+test("VO-8 number regression: numeric expect keeps compare semantics (C-17 expect(\"n\", 2, 2))", () => {
+  const { expect } = loadKit();
+  assert.equal(expect("n", 2, 2), true);
+  assert.equal(expect("n", 2, 3), false);
+  assert.equal(expect("n", 2.0005, 2, { tol: 1e-3 }), true);
+  assert.equal(expect("n", 2.01, 2, { tol: 1e-3 }), false);
+});
+
 function loadParts() {
   const context = { console: { info() {}, warn() {} } };
   vm.createContext(context);

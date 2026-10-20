@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>클럭과 동적 전력</title>
+<script type="application/json" id="ltt-meta">{"topic":"동적 전력과 클럭","audience":"칩 설계 입문자","theme":"blueprint","medium":"회로·블록 도면","decision":"클럭 목표 주파수","domain":"칩 설계","pattern":["predict"],"mode":"카탈로그용: 장면 하나짜리 본보기. 트레이드오프 구조를 \"값이 쌓임\" 움직임과 좌우 분할 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.pw{width:860px;max-width:100%;display:block;margin:0 auto}
+.pw text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+// P = α·C·V²·f. 같은 칩·같은 활동률이면 α·C는 상쇄되어 비율은 (f₂/f₁)·(V₂/V₁)²
+const power = (f, V) => f * V * V;
+const A = { f: 1.0, V: 0.8, name: "지금", ticks: 6 }, B = { f: 1.5, V: 1.0, name: "목표", ticks: 9 };
+const RATIO = power(B.f, B.V) / power(A.f, A.V);
+LTT.expect("전력 비율 1.5GHz·1.0V / 1.0GHz·0.8V", RATIO, 2.34375, { tol: 1e-9 });
+
+// 같은 6 ns 창에서: 클럭 한 번마다 C·V² 덩어리 하나가 쌓인다(블록 높이 ∝ V², 개수 ∝ f)
+function stacks(host, final) {
+  const W = 860, H = 420, s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "pw", "data-annotate": "" }, host);
+  const unit = 20 / 0.64;
+  const sides = [A, B].map((c, i) => {
+    const x0 = i ? 460 : 40, w = 360, base = 380;
+    mk("line", { x1: x0 + 200, x2: x0 + 200 + 120, y1: base, y2: base, style: "stroke:var(--ltt-ink-2);stroke-width:2" }, s);
+    mk("rect", { x: x0 + 210, y: 84, width: 100, height: base - 84, style: "fill:none;stroke:var(--ltt-line);stroke-dasharray:4 4" }, s);
+    const t = mk("text", { x: x0, y: 34, style: "font-size:24px;font-weight:700;fill:var(--ltt-ink)" }, s);
+    t.textContent = `${c.name}  ${c.f.toFixed(1)} GHz · ${c.V.toFixed(1)} V`;
+    const t2 = mk("text", { x: x0, y: 62, style: "font-size:16px;fill:var(--ltt-muted)" }, s);
+    t2.textContent = `6 ns 동안 클럭 ${c.ticks}번 · 한 번에 C·V² = ${(c.V * c.V).toFixed(2)}`;
+    // 클럭 파형: 위에서 아래로 시간축
+    const wave = mk("path", { style: "fill:none;stroke:var(--ltt-accent);stroke-width:2" }, s);
+    let d = "", y = 90, dy = 270 / c.ticks;
+    for (let k = 0; k < c.ticks; k++) { const y0 = 90 + k * dy; d += `${k ? "L" : "M"}${x0 + 40},${y0} L${x0 + 110},${y0} L${x0 + 110},${y0 + dy / 2} L${x0 + 40},${y0 + dy / 2} L${x0 + 40},${y0 + dy}`; }
+    wave.setAttribute("d", d);
+    const tl = mk("text", { x: x0 + 75, y: 380, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, s); tl.textContent = "시간 ↓ 6 ns";
+    mk("line", { class: `cur${i}`, x1: x0 + 30, x2: x0 + 120, style: "stroke:var(--ltt-ink);stroke-width:1.5" }, s);
+    const h = unit * c.V * c.V;
+    const blocks = []; for (let k = 0; k < c.ticks; k++) blocks.push(mk("rect", { class: `blk${i}`, x: x0 + 214, width: 92, height: h - 3, rx: 2, style: "fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:1.5" }, s));
+    mk("text", { class: `tot${i}`, x: x0 + 260, y: 0, "text-anchor": "middle", style: "font-size:20px;font-weight:700;fill:var(--ltt-ink)" }, s);
+    return { c, base, h, dy };
+  });
+  s.classList.add(final ? "final" : "live");
+  mk("line", { x1: 430, x2: 430, y1: 20, y2: 400, style: "stroke:var(--ltt-line-2);stroke-width:1" }, s);
+  // deck이 visual을 복제·재측정하므로 노드를 붙잡지 않고 매 틱 DOM에서 다시 찾는다
+  function draw(u, svg) { svg = svg || s; // u: 0..1 한 주기
+    const run = clamp(u / 0.75);
+    sides.forEach((sd, i) => {
+      sd.cursor = svg.querySelector(`.cur${i}`); sd.blocks = [...svg.querySelectorAll(`.blk${i}`)]; sd.total = svg.querySelector(`.tot${i}`);
+      const n = run * sd.c.ticks;
+      sd.cursor.setAttribute("y1", 90 + n * sd.dy); sd.cursor.setAttribute("y2", 90 + n * sd.dy);
+      sd.cursor.style.opacity = u < 0.75 ? 1 : 0;
+      let top = sd.base;
+      sd.blocks.forEach((b, k) => {
+        const p = ease(clamp(n - k)); const target = sd.base - (k + 1) * sd.h;
+        b.setAttribute("y", target - (1 - p) * 120); b.style.opacity = p;
+        if (p > 0) top = Math.min(top, target);
+      });
+      const e = run * sd.c.ticks, sum = Math.min(e, sd.c.ticks) * sd.c.V * sd.c.V;
+      sd.total.setAttribute("y", top - 10);
+      sd.total.textContent = final ? `에너지 ${(sd.c.ticks * sd.c.V * sd.c.V).toFixed(2)}` : (u < 0.75 ? "" : "?");
+    });
+  }
+  return { el: s, draw };
+}
+let ticker = 0;
+function play(fig, period) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { fig.draw(1); return; }
+  fig.draw(0); if (ticker) return;
+  const t0 = Date.now();
+  const f = () => { const live = document.querySelectorAll("svg.pw.live"); if (!live.length) { ticker = 0; return; }
+    live.forEach((sv) => fig.draw(((Date.now() - t0) / period + 0.3) % 1, sv)); ticker = setTimeout(f, 16); };
+  ticker = setTimeout(f, 16);
+}
+
+LTT.deck({
+  title: "클럭과 동적 전력", theme: "blueprint",
+  glossary: { "동적 전력": "트랜지스터가 0과 1을 오갈 때마다 배선 정전용량을 충전·방전하며 쓰는 전력. P = α·C·V²·f",
+    "DVFS": "Dynamic Voltage and Frequency Scaling. 클럭을 올릴 때 회로가 제때 동작하도록 전압도 함께 올리는 방식" },
+  scenes: [{
+    type: "predict", kicker: "예측",
+    title: "클럭을 1.5배 올리면 동적 전력은 몇 배가 될까?",
+    question: "{{DVFS}} 표에서 1.0 GHz → 1.5 GHz로 가려면 전압도 0.8 V → 1.0 V로 올려야 한다. 같은 칩의 {{동적 전력}}은?",
+    visual: (el) => { const f = stacks(el, false); play(f, 7000); },
+    choices: [{ id: "a", text: "1.5배" }, { id: "b", text: "약 1.9배" }, { id: "c", text: "약 2.3배" }, { id: "d", text: "약 3.5배" }],
+    answer: "c",
+    answerVisual: (el) => { const f = stacks(el, true); f.draw(1); },
+    why: "블록 개수가 1.5배(f), 블록 높이가 (1.0/0.8)² ≈ 1.56배(V²)라 1.5 × 1.56 ≈ 2.3배. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    hint: "블록 하나의 높이와 블록 개수를 따로 본다.",
+    basis: "P = α·C·V²·f(Weste & Harris, CMOS VLSI Design). 전압 값은 모바일 SoC DVFS 표에서 흔한 범위의 예시.",
+    takeaway: "클럭을 올리면 전압도 따라 올라 동적 전력은 주파수보다 훨씬 빨리 커진다.",
+    recall: "f를 1.5배, V를 1.25배 올리면 동적 전력은?"
+  }]
+});
+</script>
+</body>
+</html>

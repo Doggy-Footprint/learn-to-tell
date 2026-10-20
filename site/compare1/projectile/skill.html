@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>공기저항, 언제 무시하고 몇 도로 던지나?</title>
+<script type="application/json" id="ltt-meta">{"domain":"물리","topic":"종단 속도와 무차원 비 v0/vt로 공기저항 무시 여부와 최대 사거리 각도를 판단","audience":"게임 클라이언트 개발자. 등가속도 운동과 sin2θ 사거리 공식은 알고, 항력은 애매하고 종단 속도는 모른다","pattern":["hook","terms","figure:steps","statement","predict","sweep:full","compare:table","predict","arc-drag:full","figure:steps","summary","overview","keywords"],"theme":"lab","medium":"실험 노트의 모눈 플롯: 낙하 속도-시간 곡선, 무차원 궤적, 최적각 곡선","mode":"체험형: 종단 속도와 v0/vt를 익힌 뒤 공·속도·발사각을 직접 바꿔 진공 공식과의 차이를 잰다","decision":"공 던지기 게임 물리에서 (1) 공기저항을 무시해도 되는지 (2) 최대 사거리 각도를 45°로 둬도 되는지"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .pl { display: grid; gap: 14px 28px; grid-template-columns: minmax(0, 1.7fr) minmax(250px, 1fr); align-items: center; width: 100%; }
+  .pl svg { max-height: 58vh; width: 100%; overflow: hidden; }
+  .pl .ro { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 10px 0; font-family: var(--ltt-mono); }
+  .pl .ro b { font-variant-numeric: tabular-nums; text-align: right; }
+  .ov { display: grid; gap: 16px clamp(20px, 3vw, 44px); grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); align-items: center; width: 100%; }
+  .ov svg { max-height: 60vh; width: 100%; }
+  .ov ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .ov li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; line-height: 1.5; }
+  .ov li i { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--ltt-ink); color: var(--ltt-card); font-family: var(--ltt-mono); font-weight: 700; font-style: normal; }
+  .fg svg { width: 100%; max-height: 62vh; }
+  .ga svg { width: 100%; max-width: 560px; }
+  .nw { white-space: nowrap; }
+  .ratio { display: grid; grid-template-columns: repeat(4, auto); gap: 6px 26px; justify-content: center; font-family: var(--ltt-mono); text-align: center; }
+  .ratio b { color: var(--ltt-accent); }
+  .mk-t { font-family: var(--ltt-font-ui); font-weight: 700; }
+</style>
+</head>
+<body>
+<script>
+  // 기대값: 모델 코드보다 먼저 손계산으로 적었다(ρ = 1.2 kg/m³, g = 9.81 m/s²).
+  const EXPECTED_BY_HAND = {
+    vtBaseball: 39.69,     // √(2·0.145·9.81 / (1.2·0.35·π·0.037²))
+    vtTennis: 22.0,        // √(2·0.0575·9.81 / (1.2·0.55·π·0.0335²))
+    vtPingpong: 8.38,      // √(2·0.0027·9.81 / (1.2·0.5·π·0.02²))
+    vtShot: 149.4,         // √(2·7.26·9.81 / (1.2·0.47·π·0.06²))
+    fallAtTau: Math.tanh(1),          // 낙하 v(t = vₜ/g) / vₜ = tanh 1
+    riseU1: 0.5 * Math.log(2),        // 수직 발사 최고점 / (vₜ²/g) = ½ ln(1+u²), u = 1
+    riseU2: 0.5 * Math.log(5),        // u = 2
+    vacuumRel45: 1,                   // u → 0이면 R/R0(45°) = sin 90° = 1
+    vacuumBest: 45,                   // u → 0이면 최적각 45°
+    r0Baseball30: 900 / 9.81,         // v0²/g, v0 = 30 m/s
+  };
+
+  const G = 9.81, RHO = 1.2;
+  const BALLS = {
+    shot: { name: "투포환", m: 7.26, d: 0.12, cd: 0.47, v0: 13 },
+    baseball: { name: "야구공", m: 0.145, d: 0.074, cd: 0.35, v0: 30 },
+    tennis: { name: "테니스공", m: 0.0575, d: 0.067, cd: 0.55, v0: 25 },
+    pingpong: { name: "탁구공", m: 0.0027, d: 0.04, cd: 0.5, v0: 15 },
+  };
+  const vt = (b) => Math.sqrt(2 * b.m * G / (RHO * b.cd * Math.PI * (b.d / 2) ** 2));
+  Object.values(BALLS).forEach((b) => { b.vt = vt(b); });
+
+  // 무차원 단위: 속도 vₜ, 시간 vₜ/g, 길이 vₜ²/g. 가속도 a = −ŷ − |v|v.
+  const deriv = (s) => { const sp = Math.hypot(s[2], s[3]); return [s[2], s[3], -sp * s[2], -1 - sp * s[3]]; };
+  const rk4 = (s, dt) => {
+    const add = (a, b, k) => a.map((x, i) => x + b[i] * k);
+    const k1 = deriv(s), k2 = deriv(add(s, k1, dt / 2)), k3 = deriv(add(s, k2, dt / 2)), k4 = deriv(add(s, k3, dt));
+    return s.map((x, i) => x + dt / 6 * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]));
+  };
+  function fly(u, deg, n = 600) {
+    const th = deg * Math.PI / 180, dt = Math.max(2 * u * Math.sin(th) / n, 1e-5);
+    let s = [0, 0, u * Math.cos(th), u * Math.sin(th)], H = 0;
+    const pts = [[0, 0]];
+    for (let i = 0; i < 50 * n; i++) {
+      const nx = rk4(s, dt);
+      if (nx[1] < 0) { const r = s[1] / (s[1] - nx[1]), R = s[0] + r * (nx[0] - s[0]); pts.push([R, 0]); return { pts, R, H }; }
+      s = nx; H = Math.max(H, s[1]); pts.push([s[0], s[1]]);
+    }
+    return { pts, R: s[0], H };
+  }
+  function fallSpeed(t, n = 2000) {
+    let v = 0; const dt = t / n;
+    for (let i = 0; i < n; i++) {
+      const f = (w) => 1 - w * w, k1 = f(v), k2 = f(v + k1 * dt / 2), k3 = f(v + k2 * dt / 2), k4 = f(v + k3 * dt);
+      v += dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4);
+    }
+    return v;
+  }
+  // R0 = v0²/g를 1로 둔 좌표. u = 0은 진공 포물선.
+  function traj(u, deg) {
+    const th = deg * Math.PI / 180;
+    if (u < 1e-6) {
+      const R = Math.sin(2 * th);
+      return { pts: d3.range(0, 1.0001, 0.01).map((f) => { const x = f * R; return [x, x * Math.tan(th) - x * x / (2 * Math.cos(th) ** 2)]; }), R };
+    }
+    const f = fly(u, deg, 400);
+    return { pts: f.pts.map(([x, y]) => [x / (u * u), y / (u * u)]), R: f.R / (u * u) };
+  }
+  const rel = (u, deg) => traj(u, deg).R;
+  const bestCache = new Map();
+  function best(u) {
+    if (bestCache.has(u)) return bestCache.get(u);
+    let a = 15, b = 50;
+    const gr = (Math.sqrt(5) - 1) / 2;
+    for (let i = 0; i < 40; i++) {
+      const c = b - gr * (b - a), d = a + gr * (b - a);
+      if (rel(u, c) > rel(u, d)) b = d; else a = c;
+    }
+    const deg = (a + b) / 2, r = { deg, R: rel(u, deg) };
+    bestCache.set(u, r);
+    return r;
+  }
+
+  LTT.expect("vₜ 야구공 (m/s)", BALLS.baseball.vt, EXPECTED_BY_HAND.vtBaseball, { tol: 0.1 });
+  LTT.expect("vₜ 테니스공 (m/s)", BALLS.tennis.vt, EXPECTED_BY_HAND.vtTennis, { tol: 0.1 });
+  LTT.expect("vₜ 탁구공 (m/s)", BALLS.pingpong.vt, EXPECTED_BY_HAND.vtPingpong, { tol: 0.05 });
+  LTT.expect("vₜ 투포환 (m/s)", BALLS.shot.vt, EXPECTED_BY_HAND.vtShot, { tol: 0.3 });
+  LTT.expect("낙하 v(vₜ/g)/vₜ = tanh 1", fallSpeed(1), EXPECTED_BY_HAND.fallAtTau, { tol: 1e-6 });
+  LTT.expect("수직 발사 최고점 u=1", fly(1, 90, 4000).H, EXPECTED_BY_HAND.riseU1, { tol: 1e-3 });
+  LTT.expect("수직 발사 최고점 u=2", fly(2, 90, 4000).H, EXPECTED_BY_HAND.riseU2, { tol: 1e-3 });
+  LTT.expect("u=0.01 R/R0(45°)", rel(0.01, 45), EXPECTED_BY_HAND.vacuumRel45, { tol: 1e-3 });
+  LTT.expect("u=0.01 최적각", best(0.01).deg, EXPECTED_BY_HAND.vacuumBest, { tol: 0.5 });
+  LTT.expect("야구공 30 m/s 진공 사거리 (m)", 30 * 30 / G, EXPECTED_BY_HAND.r0Baseball30, { tol: 0.01 });
+
+  const pct = (x) => Math.round(x * 100) + "%";
+  const NS = "http://www.w3.org/2000/svg";
+  const svgIn = (node) => node.appendChild(document.createElementNS(NS, "svg"));
+  const label = (svg, x, y, t, o = {}) => svg.append("text").attr("x", x).attr("y", y).attr("text-anchor", o.anchor || "start")
+    .attr("class", "mk-t").style("font-size", (o.size || 13) + "px").style("fill", o.color || "var(--ltt-ink)").text(t);
+  const num = (svg, x, y, n) => {
+    svg.append("circle").attr("cx", x).attr("cy", y).attr("r", 13).style("fill", "var(--ltt-ink)");
+    svg.append("text").attr("x", x).attr("y", y + 5).attr("text-anchor", "middle").attr("class", "mk-t").style("font-size", "14px").style("fill", "var(--ltt-card)").text(n);
+  };
+
+  // 주 그림: R0 = v0²/g를 1로 둔 궤적 플롯.
+  function trajPlot(node, o = {}) {
+    const p = LTT.axisPlot(svgIn(node), {
+      width: o.width || 640, height: o.height || 380, x: [0, 1.1], y: [0], equal: true, ticks: [[0, 0.25, 0.5, 0.75, 1], [0.25, 0.5]],
+      labels: { x: "수평 거리 ÷ (v₀²/g)", y: "높이 ÷ (v₀²/g)" }, margin: { l: 44, r: 14, t: 12, b: 34 },
+      series: o.series || [{ id: "vac", k: "muted", dash: true }, { id: "drag", k: "c1", dot: true }],
+    });
+    p.svg.style("overflow", "hidden");
+    return p;
+  }
+
+  const TERM_VIS = {
+    drag: (node) => {
+      const s = d3.select(svgIn(node)).attr("viewBox", "0 0 240 110").attr("class", "ltt-svg").style("max-height", "120px");
+      [[30, 1], [62, 2]].forEach(([y, k], i) => {
+        s.append("circle").attr("cx", 120).attr("cy", y).attr("r", 9).style("fill", "var(--ltt-c1)");
+        s.append("line").attr("x1", 131).attr("y1", y).attr("x2", 131 + 20 * k - 8).attr("y2", y).style("stroke", "var(--ltt-ink)").style("stroke-width", 2.5);
+        s.append("path").attr("d", `M${131 + 20 * k - 8},${y - 5}l8,5l-8,5z`).style("fill", "var(--ltt-ink)");
+        s.append("line").attr("x1", 109).attr("y1", y).attr("x2", 109 - 20 * k * k + 8).attr("y2", y).style("stroke", "var(--ltt-bad)").style("stroke-width", 2.5);
+        s.append("path").attr("d", `M${109 - 20 * k * k + 8},${y - 5}l-8,5l8,5z`).style("fill", "var(--ltt-bad)");
+        label(s, 228, y + 4, i ? "속도 2배" : "속도 1", { anchor: "end", size: 12 });
+      });
+      label(s, 8, 98, "항력 4배 (속도의 제곱)", { size: 12, color: "var(--ltt-bad)" });
+    },
+    vt: (node) => {
+      const s = d3.select(svgIn(node)).attr("viewBox", "0 0 240 110").attr("class", "ltt-svg").style("max-height", "120px");
+      const x = d3.scaleLinear([0, 3], [24, 228]), y = d3.scaleLinear([0, 1.15], [92, 8]);
+      s.append("path").attr("d", `M24,8V92H228`).style("fill", "none").style("stroke", "var(--ltt-ink-2)");
+      s.append("line").attr("x1", 24).attr("x2", 228).attr("y1", y(1)).attr("y2", y(1)).style("stroke", "var(--ltt-muted)").attr("stroke-dasharray", "5 4");
+      s.append("path").attr("d", d3.line()(d3.range(0, 3.01, 0.05).map((t) => [x(t), y(Math.tanh(t))]))).style("fill", "none").style("stroke", "var(--ltt-c1)").style("stroke-width", 2.5);
+      label(s, 226, y(1) - 6, "vₜ", { anchor: "end", size: 12 });
+      label(s, 226, 106, "시간 →", { anchor: "end", size: 11, color: "var(--ltt-muted)" });
+      label(s, 26, 106, "↑ 낙하 속도", { size: 11, color: "var(--ltt-muted)" });
+    },
+  };
+
+  // 장면 3: 야구공을 떨어뜨렸을 때 속도-시간.
+  function fallFigure(node) {
+    const w = node.appendChild(LTT.h("div", "fg"));
+    const b = BALLS.baseball, T = 10;
+    const p = LTT.axisPlot(svgIn(w), {
+      width: 760, height: 400, x: [0, T], y: [0, 50], ticks: [[0, 2, 4, 6, 8, 10], [0, 10, 20, 30, 40, 50]],
+      labels: { x: "떨어진 시간 (s)", y: "낙하 속도 (m/s)" }, margin: { l: 44, r: 16, t: 14, b: 34 },
+      series: [{ id: "vac", k: "muted", dash: true }, { id: "drag", k: "c1" }],
+    });
+    const svg = p.svg;
+    const vac = d3.range(0, 50 / G, 0.05).concat([50 / G]).map((t) => [t, G * t]);
+    const drag = d3.range(0, T + 0.001, 0.1).map((t) => [t, b.vt * fallSpeed(t * G / b.vt, 200)]);
+    const vtLine = svg.append("g");
+    vtLine.append("line").attr("x1", p.x(0)).attr("x2", p.x(T)).attr("y1", p.y(b.vt)).attr("y2", p.y(b.vt)).style("stroke", "var(--ltt-bad)").attr("stroke-dasharray", "8 5").style("stroke-width", 1.5);
+    vtLine.append("text").attr("x", p.x(T) - 4).attr("y", p.y(b.vt) - 8).attr("text-anchor", "end").attr("class", "mk-t").style("font-size", "14px").style("fill", "var(--ltt-bad)").text(`종단 속도 vₜ ≈ ${b.vt.toFixed(0)} m/s`);
+    const vacLab = label(svg, p.x(3.3), p.y(G * 3.3) - 6, "진공: v = g·t (계속 빨라짐)", { anchor: "end", size: 13, color: "var(--ltt-muted)" });
+    const dragLab = label(svg, p.x(6), p.y(30), "항력 있음", { size: 13, color: "var(--ltt-c1)" });
+    const forces = svg.append("g");
+    [1.5, 3.5, 7].forEach((t) => {
+      const v = b.vt * fallSpeed(t * G / b.vt, 200), [cx, cy] = p.px([t, v]), L = 46, d = L * (v / b.vt) ** 2;
+      forces.append("line").attr("x1", cx - 5).attr("x2", cx - 5).attr("y1", cy + 8).attr("y2", cy + 8 + L - 7).style("stroke", "var(--ltt-ink-2)").style("stroke-width", 3);
+      forces.append("path").attr("d", `M${cx - 10},${cy + 1 + L}l5,8l5,-8z`).style("fill", "var(--ltt-ink-2)");
+      forces.append("line").attr("x1", cx + 5).attr("x2", cx + 5).attr("y1", cy + 8 + L).attr("y2", cy + 8 + L - d + 7).style("stroke", "var(--ltt-bad)").style("stroke-width", 3);
+      forces.append("path").attr("d", `M${cx},${cy + 15 + L - d}l5,-8l5,8z`).style("fill", "var(--ltt-bad)");
+    });
+    label(svg, p.x(1.5) + 14, p.y(b.vt * fallSpeed(1.5 * G / b.vt, 200)) + 50, "무게 ↓ · 항력 ↑", { size: 12, color: "var(--ltt-ink-2)" });
+    const half = svg.append("g");
+    const th = b.vt / G * Math.atanh(0.5);
+    half.append("circle").attr("cx", p.x(th)).attr("cy", p.y(b.vt / 2)).attr("r", 5).style("fill", "var(--ltt-ink)");
+    half.append("text").attr("x", p.x(th) + 10).attr("y", p.y(b.vt / 2) + 18).attr("class", "mk-t").style("font-size", "13px").style("fill", "var(--ltt-ink)").text("v = vₜ/2 → 항력 = 무게의 ¼");
+    return { el: w, show(k) {
+      p.set("vac", vac); vacLab.style("opacity", 1);
+      p.set("drag", drag); dragLab.style("opacity", 1);
+      forces.style("opacity", k >= 1 ? 1 : 0);
+      vtLine.style("opacity", k >= 2 ? 1 : 0); half.style("opacity", k >= 2 ? 1 : 0);
+    } };
+  }
+
+  // 장면 7: v0/vₜ 위치를 로그 눈금 위에.
+  const uScale = d3.scaleLog([0.05, 4], [16, 544]);
+  function gauge(u) {
+    return (node) => {
+      node.classList.add("ga");
+      const s = d3.select(svgIn(node)).attr("viewBox", "0 0 560 58").attr("class", "ltt-svg");
+      s.append("rect").attr("x", uScale(0.05)).attr("y", 12).attr("width", uScale(0.25) - uScale(0.05)).attr("height", 16).style("fill", "var(--ltt-good-soft)");
+      s.append("line").attr("x1", 16).attr("x2", 544).attr("y1", 28).attr("y2", 28).style("stroke", "var(--ltt-ink-2)");
+      [0.1, 0.25, 0.5, 1, 2, 4].forEach((t) => {
+        s.append("line").attr("x1", uScale(t)).attr("x2", uScale(t)).attr("y1", 28).attr("y2", 33).style("stroke", "var(--ltt-ink-2)");
+        s.append("text").attr("x", uScale(t)).attr("y", 47).attr("text-anchor", "middle").style("font", "11px var(--ltt-mono)").style("fill", "var(--ltt-muted)").text(t);
+      });
+      s.append("path").attr("d", `M${uScale(u)},26l-7,-12h14z`).style("fill", "var(--ltt-ink)");
+      s.append("text").attr("x", uScale(u)).attr("y", 10).attr("text-anchor", "middle").style("font", "700 11px var(--ltt-mono)").style("fill", "var(--ltt-ink)").text(u.toFixed(2));
+    };
+  }
+
+  // 장면 10: 최적각 곡선.
+  const U_GRID = d3.range(0, 4.001, 0.1).map((u) => +u.toFixed(2));
+  function angleFigure(node) {
+    const w = node.appendChild(LTT.h("div", "fg"));
+    const p = LTT.axisPlot(svgIn(w), {
+      width: 760, height: 400, x: [0, 4], y: [28, 47], ticks: [[0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4], [30, 35, 40, 45]],
+      labels: { x: "v₀ / vₜ", y: "최대 사거리 발사각 (°)" }, margin: { l: 44, r: 16, t: 14, b: 34 },
+      series: [{ id: "ref", k: "muted", dash: true }, { id: "best", k: "c1" }],
+    });
+    const svg = p.svg;
+    const curve = U_GRID.map((u) => [u, u === 0 ? 45 : best(u).deg]);
+    const balls = svg.append("g");
+    Object.values(BALLS).forEach((b, i) => {
+      const u = b.v0 / b.vt, [cx, cy] = p.px([u, best(u).deg]);
+      balls.append("circle").attr("cx", cx).attr("cy", cy).attr("r", 6).style("fill", "var(--ltt-card)").style("stroke", "var(--ltt-ink)").style("stroke-width", 2);
+      balls.append("text").attr("x", cx + (i === 0 ? 10 : -8)).attr("y", cy + (i === 0 ? 20 : -12)).attr("text-anchor", i === 0 ? "start" : "end").attr("class", "mk-t").style("font-size", "13px").style("fill", "var(--ltt-ink)").text(`${b.name} ${u.toFixed(2)}`);
+    });
+    const loss = svg.append("g");
+    [1, 2, 4].forEach((u) => {
+      const bb = best(u), pen = 1 - rel(u, 45) / bb.R, [cx, cy] = p.px([u, bb.deg]);
+      loss.append("line").attr("x1", cx).attr("x2", cx).attr("y1", p.y(45)).attr("y2", cy).style("stroke", "var(--ltt-warn)").style("stroke-width", 2);
+      loss.append("text").attr("x", cx + (u === 4 ? -8 : 8)).attr("y", (p.y(45) + cy) / 2 + 4).attr("text-anchor", u === 4 ? "end" : "start").attr("class", "mk-t").style("font-size", "13px").style("fill", "var(--ltt-warn)").text(`45°로 던지면 −${(pen * 100).toFixed(1)}%`);
+    });
+    const bars = svg.append("g");
+    const bx = p.x(1.75), by = p.y(46.4);
+    label(bars, bx, by, "v₀/vₜ = 0.76에서 잃는 사거리", { size: 12, color: "var(--ltt-ink-2)" });
+    [["항력 무시(진공 공식)", 1 - rel(0.76, 45), "var(--ltt-bad)"], ["45° 고집", 1 - rel(0.76, 45) / best(0.76).R, "var(--ltt-warn)"]].forEach(([t, v, c], i) => {
+      const y0 = by + 12 + i * 26;
+      bars.append("rect").attr("x", bx + 150).attr("y", y0).attr("width", Math.max(2, v * 400)).attr("height", 14).style("fill", c);
+      label(bars, bx, y0 + 12, t, { size: 12 });
+      label(bars, bx + 156 + Math.max(2, v * 400), y0 + 12, (v * 100).toFixed(1) + "%", { size: 12, color: c });
+    });
+    return { el: w, show(k) {
+      bars.style("opacity", k >= 2 ? 1 : 0);
+      p.set("ref", [[0, 45], [4, 45]]);
+      p.set("best", curve);
+      balls.style("opacity", k >= 1 ? 1 : 0);
+      loss.style("opacity", k >= 2 ? 1 : 0);
+    } };
+  }
+
+  function overviewFigure(node) {
+    const w = node.appendChild(LTT.h("div", "ov"));
+    w.innerHTML = `<div></div><ol>
+      <li><i>1</i><span>낙하에서 항력 = 무게가 되는 속도가 종단 속도 vₜ다.</span></li>
+      <li><i>2</i><span>출발 순간 항력 ÷ 무게 = (v₀/vₜ)². 이 비가 궤적 모양을 정한다.</span></li>
+      <li><i>3</i><span>v₀/vₜ ≲ 0.25면 진공 공식과 5% 안. 네 공 중 투포환만 해당한다.</span></li>
+      <li><i>4</i><span>오래 날수록 수평 속도를 잃어, 최적각이 45°보다 낮아진다(2에서 약 36°).</span></li>
+      <li><i>5</i><span>그래도 45°를 고집한 손해는 v₀/vₜ = 2에서 약 3%로 작다.</span></li></ol>`;
+    const p = trajPlot(w.firstElementChild, { height: 300, series: [{ id: "vac", k: "muted", dash: true }, { id: "q", k: "c3" }, { id: "mid", k: "c2" }, { id: "hi", k: "c1" }, { id: "hi45", k: "c1", dash: "3 4" }] });
+    p.set("q", traj(0.25, 45).pts);
+    p.set("vac", traj(0, 45).pts);
+    p.set("mid", traj(0.76, 45).pts);
+    const b2 = best(2);
+    p.set("hi", traj(2, b2.deg).pts);
+    p.set("hi45", traj(2, 45).pts);
+    const s = p.svg;
+    const [ox, oy] = p.px([0, 0]);
+    s.append("line").attr("x1", ox + 4).attr("x2", ox + 4).attr("y1", oy - 4).attr("y2", oy - 34).style("stroke", "var(--ltt-bad)").style("stroke-width", 3);
+    s.append("path").attr("d", `M${ox - 1},${oy - 32}l5,-8l5,8z`).style("fill", "var(--ltt-bad)");
+    s.append("line").attr("x1", ox + 4).attr("x2", ox + 24).attr("y1", oy - 44).attr("y2", oy - 180).style("stroke", "var(--ltt-muted)").style("stroke-width", 1.2);
+    num(s, ox + 30, oy - 194, 1); num(s, ox + 60, oy - 194, 2);
+    label(s, ox + 78, oy - 189, "출발: 항력 ÷ 무게 = (v₀/vₜ)²", { size: 12, color: "var(--ltt-bad)" });
+    const [vx, vy] = p.px([0.62, 0.25]); label(s, vx, vy - 6, "진공 45° (= 1)", { size: 13, color: "var(--ltt-muted)" });
+    const [qx, qy] = p.px([rel(0.25, 45) - 0.02, 0.07]); num(s, qx, qy, 3);
+    label(s, qx + 18, qy + 5, "0.25 (−5%)", { size: 13, color: "var(--ltt-c3)" });
+    const [mx, my] = p.px([rel(0.76, 45) - 0.08, 0.03]); label(s, mx, my, "0.76 야구공", { size: 13, color: "var(--ltt-c2)" });
+    const [hx, hy] = p.px([b2.R, 0]); num(s, hx + 16, hy - 16, 4);
+    label(s, hx + 34, hy - 11, `2, ${b2.deg.toFixed(0)}°`, { size: 13, color: "var(--ltt-c1)" });
+    const [fx, fy] = p.px([0.3, 0.17]);
+    num(s, fx, fy, 5);
+    label(s, fx + 18, fy + 5, "45°(점선): −3%", { size: 13, color: "var(--ltt-c1)" });
+  }
+
+  LTT.deck({
+    title: "공기저항, 언제 무시하고 몇 도로 던지나?",
+    theme: "lab",
+    glossary: {
+      "무차원 비": "단위가 약분되어 사라진 비율. 여기서는 v₀/vₜ. m/s ÷ m/s라 단위가 없고, 공의 크기·무게·던지는 속도를 숫자 하나로 묶는다.",
+      "진공 공식": "공기저항을 0으로 둔 사거리 공식 R = v₀² sin 2θ / g. 45°에서 최대 v₀²/g.",
+    },
+    scenes: [
+      { type: "hook", art: "ball", kicker: "공 던지기 게임의 물리",
+        pre: "sin 2θ 공식은 아는데",
+        text: "공기저항을 빼도 되는지, <u>45°가 맞는지</u>는 무엇으로 정하나?",
+        sub: "이 수업을 마치면 공이 공기에 얼마나 밀리는지를 나타내는 속도 하나와 던지는 속도 v₀의 비로 두 질문에 답하고, 그 근거를 숫자로 말할 수 있다. 수치는 모두 회전 없는 공, 바람 없음, 지면 높이에서 던지는 조건의 모델 계산이다." },
+
+      { type: "terms", title: "먼저, 이 수업에서 쓰는 두 말", en: "Terms",
+        terms: [
+          { key: "항력", en: "drag", icon: "wind", visual: TERM_VIS.drag,
+            plain: "공기가 움직이는 공을 뒤로 미는 힘. 방향은 속도와 반대, 손으로 던지는 공의 속도에서는 크기가 속도의 제곱에 비례한다: F = ½ρC_dAv² (ρ 공기 밀도, A 단면적, C_d 모양 계수). 먼지처럼 아주 작고 느린 물체만 속도에 정비례한다.",
+            example: "같은 공이 2배 빠르면 항력은 4배." },
+          { key: "종단 속도", en: "terminal velocity · vₜ", icon: "gauge", visual: TERM_VIS.vt,
+            plain: "공을 떨어뜨렸을 때 항력이 무게와 같아져 더는 빨라지지 않는 속도. 무게 mg = ½ρC_dAv²에서 vₜ = √(2mg/ρC_dA): 무거울수록(m↑) 커지고, 단면이 클수록(A↑) 작아진다.",
+            example: "탁구공 약 8 m/s, 야구공 약 40 m/s." },
+        ] },
+
+      { type: "figure", kicker: "종단 속도", title: "빨라질수록 항력이 커져, 공은 vₜ에서 더 빨라지지 않는다", en: "Falling baseball",
+        figure: fallFigure,
+        steps: [
+          { caption: "공기가 없으면 1초마다 9.8 m/s씩 끝없이 빨라진다(점선). 공기가 있으면 실선처럼 점점 눕는다.", enter: (k, fig) => fig.show(0) },
+          { caption: "화살표 쌍: 아래는 무게(고정), 위는 {{항력}}(속도의 제곱). 항력이 무게를 깎아 알짜힘이 줄수록 곡선이 눕는다.", enter: (k, fig) => fig.show(1) },
+          { caption: "항력 = 무게가 되는 속도가 {{종단 속도}}다. 속도가 vₜ의 절반이면 항력은 무게의 ¼(제곱이라서)이다.", enter: (k, fig) => fig.show(2) },
+        ],
+        caption: "야구공(0.145 kg, 7.4 cm, C_d 0.35) 낙하 속도. 실선은 tanh(0에서 1로 다가가는 함수) 모양. 모델로 계산한 예시.",
+        tex: "v_t=\\sqrt{\\dfrac{2mg}{\\rho C_d A}},\\qquad v(t)=v_t\\tanh\\!\\left(\\dfrac{g t}{v_t}\\right)",
+        basis: "ρ = 1.2 kg/m³, 부력 무시. C_d 상수 가정(실제는 레이놀즈 수·회전에 따라 변함, 불확실; 야구공 vₜ 인용값 약 33–42 m/s). 선형 항력은 미세 입자·물방울(레이놀즈 수 ≲ 1)뿐이다.",
+        takeaway: "vₜ는 항력이 무게와 같아지는 속도로, 공기저항의 세기를 속도 하나로 말한다.",
+        recall: "종단 속도는 어떤 두 힘이 같아지는 속도인가?" },
+
+      { type: "statement", kicker: "판단 기준 하나", title: "출발 순간 항력 ÷ 무게 = <em class=\"nw\">(v₀/vₜ)²</em>",
+        sub: "항력은 v²에 비례하고 v = vₜ일 때 무게와 같으므로, 이 {{무차원 비}} 하나가 공기저항의 세기를 정한다. v₀/vₜ가 같으면 탁구공이든 야구공이든 궤적은 크기만 다르고 모양이 같으며, {{진공 공식}}과의 차이도 이 값으로 정해진다.",
+        visual: `<div class="ratio"><span>v₀/vₜ</span><span>0.25</span><span>1</span><span>2</span><span>항력 ÷ 무게</span><b>6%</b><b>100%</b><b>400%</b></div>`,
+        tex: "\\frac{F_{drag}}{mg}=\\left(\\frac{v}{v_t}\\right)^2,\\qquad \\vec a=-g\\hat y-\\frac{g}{v_t^2}\\,|\\vec v|\\,\\vec v",
+        basis: "½ρC_dA/m = g/vₜ²를 항력 가속도에 대입하면 a = −g·ŷ − (g/vₜ²)|v|v (ŷ: 위쪽 단위 벡터, |v|v: 크기 v², 방향은 속도). 속도를 vₜ, 길이를 vₜ²/g로 재면 g·vₜ가 식에서 사라지고 v₀/vₜ와 θ만 남아 모양이 같아진다. 조건: 제곱 항력, C_d 상수, 회전 없음, 같은 높이에서 발사·착지(발사 높이가 있으면 h·g/vₜ²도 같아야 한다).",
+        takeaway: "(v₀/vₜ)²가 출발 순간 항력 ÷ 무게이고, 이 비가 궤적 모양을 정한다.",
+        recall: "v₀/vₜ = 2면 출발 순간 항력은 무게의 몇 배인가?" },
+
+      { type: "predict", kicker: "짐작해 보기", title: "야구공을 30 m/s, 45°로 던지면 진공 공식의 몇 %까지 갈까?",
+        sub: "진공 공식으로는 v₀²/g ≈ 92 m다.",
+        visual: () => LTT.facts([
+          { icon: "ball", value: "vₜ ≈ 40 m/s", label: "야구공 종단 속도" },
+          { icon: "send", value: "30 m/s · 45°", label: "던지는 속도와 각도" },
+          { icon: "ruler", value: "92 m", label: "진공 공식 사거리" },
+        ]),
+        question: "공기저항을 넣으면 사거리는 92 m의 몇 %인가",
+        choices: [{ id: "95", text: "95% 이상, 거의 그대로" }, { id: "70", text: "70% 안팎" }, { id: "40", text: "40% 이하" }],
+        answer: "70",
+        why: "약 70%(≈ 65 m). 출발 항력이 무게의 약 58%다. 그림은 거리를 v₀²/g로 나눈 궤적(점선 진공). 모델 계산.",
+        answerVisual: (node) => {
+          const p = trajPlot(node, { width: 420, height: 140 });
+          p.set("vac", traj(0, 45).pts); p.set("drag", traj(30 / BALLS.baseball.vt, 45).pts);
+        } },
+
+      { kicker: "직접 바꿔 보기 · 45° 고정", title: "v₀/vₜ가 0.25를 넘으면 진공 공식은 5% 넘게 틀린다", en: "Try it", layout: "full",
+        narration: "거리를 진공 45° 사거리 v₀²/g로 나눠 그렸다. 점선(진공)은 언제나 1에 떨어지고, 실선(공기저항)의 모양은 v₀/vₜ 하나로 정해진다. 경계 속도를 찾은 뒤 다른 공에서도 찾아 v₀/vₜ를 비교해 본다.",
+        mount: (body) => {
+          body.innerHTML = `<div class="pl"><div></div><div><div class="gl"></div>
+            <label class="ltt-param">공</label><div id="pb"></div>
+            <label class="ltt-param" for="pv">던지는 속도 v₀ <b id="pv-v"></b></label><input id="pv" type="range" min="5" max="40" step="1" value="30">
+            <div class="ro"><span>v₀/vₜ</span><b id="ru"></b><span>출발 항력÷무게</span><b id="rf"></b><span>진공 공식</span><b id="rv"></b><span>항력 넣은 사거리</span><b id="rd"></b><span>차이</span><b id="re"></b></div></div></div>`;
+          const p = trajPlot(body.querySelector(".pl > div"), { height: 300 });
+          p.set("vac", traj(0, 45).pts);
+          const err = (ball, v0) => 1 - rel(v0 / BALLS[ball].vt, 45);
+          LTT.sweep({
+            params: {
+              pb: { kind: "steps", stops: Object.keys(BALLS), value: "baseball", stopLabel: (k) => BALLS[k].name },
+              pv: { map: Number, fmt: (v) => v + " m/s" },
+            },
+            render: ({ pb, pv }) => {
+              const u = pv / BALLS[pb].vt, t = traj(u, 45), r0 = pv * pv / G;
+              p.set("drag", t.pts);
+              LTT.$("ru").textContent = u.toFixed(2);
+              LTT.$("rf").textContent = pct(u * u);
+              LTT.$("rv").textContent = r0.toFixed(1) + " m";
+              LTT.$("rd").textContent = (t.R * r0).toFixed(1) + " m";
+              LTT.$("re").innerHTML = `<span class="ltt-tag ${1 - t.R <= 0.05 ? "good" : "bad"}">−${((1 - t.R) * 100).toFixed(1)}%</span>`;
+            },
+            goal: { el: body.querySelector(".gl"), target: '<span class="ltt-tag good">차이 ≤ 5%</span>',
+              text: "야구공으로, 진공 공식과 사거리 차이가 5% 이내가 되는 던지기 속도를 찾아본다.",
+              check: ({ pb, pv }) => pb === "baseball" && err(pb, pv) <= 0.05 },
+          });
+          return {};
+        },
+        basis: "부력·회전 무시. 질량·지름·C_d: 투포환 7.26 kg/12 cm/0.47, 야구공 0.145 kg/7.4 cm/0.35, 테니스공 57.5 g/6.7 cm/0.55, 탁구공 2.7 g/4 cm/0.5. C_d는 속도·회전에 따라 달라 불확실. 수치는 모델로 계산한 예시.",
+        takeaway: "v₀/vₜ ≲ 0.25면 진공 공식의 사거리 오차가 5% 안이다.",
+        ask: "\"a = −g ŷ − (g/vₜ²)|v|v 적분 코드를 짜 줘\"",
+        recall: "진공 공식 오차가 5% 안에 드는 v₀/vₜ 한계는?" },
+
+      { type: "compare", form: "table", kicker: "내 게임의 공에 대입", title: "같은 기준으로 네 공을 판정한다", layout: "stack",
+        head: ["공 · vₜ · 던지는 속도", "v₀/vₜ (음영 = 0.25 이하)", "진공 공식으로 충분한가"],
+        narration: "네 공의 v₀/vₜ를 같은 로그 눈금에 놓았다. 음영 구간(0.25 이하) 안이면 사거리 오차 5% 이내다.",
+        items: Object.entries(BALLS).map(([k, b]) => {
+          const u = b.v0 / b.vt, e = 1 - rel(u, 45);
+          return { label: `${b.name} · vₜ ${b.vt.toFixed(0)} m/s · ${b.v0} m/s`, visual: gauge(u), tone: e <= 0.05 ? "good" : "bad",
+            verdict: e <= 0.05 ? "무시해도 됨" : "항력 필요", noteAfter: true, note: `진공 공식보다 ${(e * 100).toFixed(e < 0.05 ? 1 : 0)}% 짧다(모델 계산).` };
+        }),
+        basis: "던지는 속도는 사람이 던지는 대략적인 값으로, 게임 설정에 따라 바꾼다. 불확실." },
+
+      { type: "predict", kicker: "짐작해 보기", title: "공기저항이 셀 때도 45°가 가장 멀리 갈까?",
+        sub: "v₀/vₜ = 2: 탁구공을 세게(약 17 m/s) 던진 정도다.",
+        visual: (node) => {
+          const s = d3.select(svgIn(node)).attr("viewBox", "0 0 520 150").attr("class", "ltt-svg").style("max-height", "90px");
+          s.append("line").attr("x1", 20).attr("x2", 500).attr("y1", 130).attr("y2", 130).style("stroke", "var(--ltt-ink-2)").style("stroke-width", 2);
+          s.append("circle").attr("cx", 60).attr("cy", 130).attr("r", 7).style("fill", "var(--ltt-c1)");
+          [[30, "낮게"], [45, "45°"], [60, "높게"]].forEach(([a, t]) => {
+            const r = a === 45 ? 120 : 100, x = 60 + r * Math.cos(a * Math.PI / 180), y = 130 - r * Math.sin(a * Math.PI / 180);
+            s.append("line").attr("x1", 60).attr("y1", 130).attr("x2", x).attr("y2", y).style("stroke", a === 45 ? "var(--ltt-ink)" : "var(--ltt-muted)").style("stroke-width", a === 45 ? 3 : 2).attr("stroke-dasharray", a === 45 ? null : "6 4");
+            label(s, x + 6, y, t, { size: 13, color: a === 45 ? "var(--ltt-ink)" : "var(--ltt-muted)" });
+          });
+          label(s, 260, 60, "v₀/vₜ = 2", { size: 16 });
+          label(s, 260, 86, "출발 항력 = 무게의 4배", { size: 13, color: "var(--ltt-muted)" });
+        },
+        question: "v₀/vₜ = 2일 때 사거리가 가장 긴 발사각은",
+        choices: [{ id: "up", text: "45°보다 크다" }, { id: "same", text: "45° 그대로" }, { id: "down", text: "45°보다 작다" }],
+        answer: "down",
+        why: "약 36°. 높이 던지면 체공 시간을 얻지만, 오래 날수록 항력이 수평 속도를 더 깎아 이득이 줄어든다.",
+        answerVisual: (node) => {
+          const p = LTT.axisPlot(svgIn(node), { width: 440, height: 120, x: [10, 80], y: [0, 1.08], ticks: [[15, 30, 45, 60, 75], [0.5, 1]],
+            labels: { x: "발사각 (°)", y: "사거리 ÷ 그 조건의 최대" }, margin: { l: 44, r: 14, t: 12, b: 34 },
+            series: [{ id: "vac", k: "muted", dash: true }, { id: "drag", k: "c1" }] });
+          const b2 = best(2), angles = d3.range(10, 80.1, 1);
+          p.set("vac", angles.map((a) => [a, Math.sin(2 * a * Math.PI / 180)]));
+          p.set("drag", angles.map((a) => [a, rel(2, a) / b2.R]));
+          label(p.svg, p.x(b2.deg), p.y(1) - 4, `${b2.deg.toFixed(0)}°`, { anchor: "middle", size: 13, color: "var(--ltt-c1)" });
+          label(p.svg, p.x(60), p.y(0.95), "진공 (45°에서 최대)", { size: 12, color: "var(--ltt-muted)" });
+        } },
+
+      { kicker: "직접 겨눠 보기", title: "발사 화살표를 돌려 v₀/vₜ = 2에서 가장 멀리 보낸다", en: "Aim", layout: "full",
+        narration: "발사 화살표 끝의 손잡이를 호를 따라 돌리면 발사각이 바뀐다. 옅은 점선은 같은 조건에서 45°로 던진 궤적이고, 가로·세로는 그 조건의 최대 사거리를 1로 두었다. 목표를 맞춘 뒤 v₀/vₜ = 0, 1, 4에서도 가장 멀리 가는 각도를 찾아 본다.",
+        mount: (body) => {
+          body.innerHTML = `<div class="pl"><div></div><div><div class="gl"></div>
+            <label class="ltt-param">v₀ / vₜ</label><div id="qu"></div>
+            <div class="ro"><span>발사각</span><b id="qa"></b><span>최대 대비 사거리</span><b id="qr"></b><span>이 조건의 최적각</span><b id="qb"></b><span>45°일 때</span><b id="q45"></b></div>
+            <p class="ltt-basis">화살표 끝 원을 호를 따라 끌거나, 누른 뒤 화살표 키로 1°씩 돌린다.</p></div></div>`;
+          const p = LTT.axisPlot(svgIn(body.querySelector(".pl > div")), {
+            width: 560, height: 300, x: [0, 1.1], y: [0], equal: true, ticks: [[0, 0.25, 0.5, 0.75, 1], [0.25, 0.5]],
+            labels: { x: "수평 거리 ÷ 최대 사거리", y: "높이 ÷ 최대 사거리" }, margin: { l: 44, r: 14, t: 12, b: 34 },
+            series: [{ id: "ref", k: "muted", dash: true }, { id: "cur", k: "c1", dot: true }],
+          });
+          p.svg.style("overflow", "hidden");
+          const ang = (v) => v[0], AR = 0.16, rad = (d) => d * Math.PI / 180;
+          p.svg.append("path").attr("d", d3.line()(d3.range(5, 85.1, 1).map((d) => p.px([AR * Math.cos(rad(d)), AR * Math.sin(rad(d))]))))
+            .style("fill", "none").style("stroke", "var(--ltt-line-2)").attr("stroke-dasharray", "3 4");
+          const aimLine = p.svg.append("line").style("stroke", "var(--ltt-ink)").style("stroke-width", 2.5);
+          const aimHead = p.svg.append("path").style("fill", "var(--ltt-ink)");
+          const ratio = (u, deg) => (u === 0 ? Math.sin(2 * deg * Math.PI / 180) : rel(u, deg) / best(u).R);
+          const aim = LTT.drag(p.svg.node(), { value: [60, 0],
+            toSvg: ([d]) => p.px([AR * Math.cos(rad(d)), AR * Math.sin(rad(d))]),
+            fromSvg: ([sx, sy]) => [Math.atan2(p.y.invert(sy), p.x.invert(sx)) * 180 / Math.PI, 0],
+            bounds: [[5, 85], [0, 0]], step: 1, label: "발사각" });
+          LTT.sweep({
+            params: {
+              qu: { kind: "steps", stops: [0, 0.5, 1, 2, 4], value: 2, stopLabel: (v) => (v === 0 ? "0 (진공)" : String(v)) },
+              qa: { control: aim },
+            },
+            render: ({ qu, qa }) => {
+              const deg = ang(qa), Rb = qu === 0 ? 1 : best(qu).R, sc = (pts) => pts.map(([x, y]) => [x / Rb, y / Rb]);
+              p.set("ref", sc(traj(qu, 45).pts));
+              p.set("cur", sc(traj(qu, deg).pts));
+              const [ex, ey] = p.px([AR * Math.cos(rad(deg)), AR * Math.sin(rad(deg))]), [ox, oy] = p.px([0, 0]), ph = Math.atan2(ey - oy, ex - ox);
+              const tip = (t) => `${(ex - 12 * Math.cos(ph + t)).toFixed(1)},${(ey - 12 * Math.sin(ph + t)).toFixed(1)}`;
+              aimLine.attr("x1", ox).attr("y1", oy).attr("x2", ex - 8 * Math.cos(ph)).attr("y2", ey - 8 * Math.sin(ph));
+              aimHead.attr("d", `M${ex},${ey}L${tip(0.4)}L${tip(-0.4)}Z`);
+              LTT.$("qa").textContent = deg.toFixed(1) + "°";
+              LTT.$("qr").innerHTML = `<span class="ltt-tag ${ratio(qu, deg) >= 0.99 ? "good" : "warn"}">${(ratio(qu, deg) * 100).toFixed(1)}%</span>`;
+              LTT.$("qb").textContent = ratio(qu, deg) >= 0.99 ? (qu === 0 ? 45 : best(qu).deg).toFixed(1) + "°" : "99%를 맞추면 공개";
+              LTT.$("q45").textContent = (ratio(qu, 45) * 100).toFixed(1) + "%";
+            },
+            goal: { el: body.querySelector(".gl"), target: '<span class="ltt-tag good">최대의 99% 이상</span>',
+              text: "v₀/vₜ = 2에서 최대 사거리의 99% 이상이 나오는 발사각을 찾는다.",
+              check: ({ qu, qa }) => qu === 2 && ratio(qu, ang(qa)) >= 0.99 },
+          });
+          return {};
+        },
+        basis: "회전(마그누스 힘)·바람·부력 없음, 지면 높이에서 발사. 손 높이(1.8 m)에서 던져도 최적각은 조금만 낮아진다(30 m/s 진공에서 약 44.4°). 수치는 모델로 계산한 예시.",
+        takeaway: "v₀/vₜ가 클수록 최적각은 45°보다 낮다(2에서 약 36°).",
+        recall: "항력이 있으면 왜 최적각이 45°보다 낮아지나?" },
+
+      { type: "figure", kicker: "정리 곡선", title: "최적각은 v₀/vₜ를 따라 내려가지만, 45°를 고집한 손해는 작다", en: "Best angle",
+        figure: angleFigure,
+        steps: [
+          { caption: "실선이 v₀/vₜ마다 사거리가 가장 긴 발사각이다. 0에서 45°, 1에서 약 41°, 4에서 약 31°.", enter: (k, fig) => fig.show(0) },
+          { caption: "네 공을 앞 표의 던지기 속도로 올렸다. 투포환은 45°에 붙어 있고, 탁구공은 37° 근처다.", enter: (k, fig) => fig.show(1) },
+          { caption: "세로선은 45°로 던졌을 때 최대보다 잃는 사거리다. 위 막대처럼 같은 v₀/vₜ에서 항력을 무시한 손실이 각도 손실보다 훨씬 크다.", enter: (k, fig) => fig.show(2) },
+        ],
+        caption: "회전 없는 공, 지면 높이 발사에서 v₀/vₜ별 최대 사거리 발사각. 모델로 계산한 예시.",
+        basis: "같은 v₀/vₜ에서 항력을 무시한 손실은 각도 손실의 10배 이상(최대 약 100배)이므로, 각도보다 항력 포함 여부를 먼저 정한다. 실제 타구의 최적각이 더 낮게(흔히 25–35°, 불확실) 보고되는 주된 이유는 항력(빠른 타구는 v₀/vₜ > 1)과 백스핀 양력이 함께 작용하기 때문이다. 양력은 범위 밖이다.",
+        takeaway: "45°를 둬도 손해는 v₀/vₜ = 2에서 약 3%라, 항력을 넣는 결정이 먼저다.",
+        recall: "v₀/vₜ = 2에서 45°로 던진 사거리 손해는 대략 얼마인가?",
+        ask: "\"우리 공들의 v₀/vₜ 표를 만들어 줘\"" },
+
+      { type: "summary", title: "공기저항과 발사각을 정할 때 떠올릴 것", en: "Recap" },
+
+      { type: "overview", title: "v₀/vₜ 하나가 공기저항 여부와 최적각을 함께 정한다", en: "Overview",
+        figure: overviewFigure,
+        caption: "진공 45° 사거리를 1로 둔 궤적 위에 수업 순서대로 다섯 정리를 놓았다. 1·2는 출발점의 항력 화살표, 3은 v₀/vₜ = 0.25 궤적(5% 기준), 4는 v₀/vₜ = 2의 최적각 궤적, 5는 같은 공을 45°로 던진 점선과의 차이다." },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [
+          { ko: "종단 속도", en: "terminal velocity" },
+          { ko: "제곱 항력", en: "quadratic drag" },
+          { ko: "항력 계수", en: "drag coefficient" },
+          { ko: "최적 발사각", en: "optimal launch angle with drag" },
+        ],
+        signals: [
+          "게임·시뮬레이션에서 던지기·발사체 궤적을 정할 때",
+          "가볍거나 큰 공(탁구공, 셔틀콕, 비치볼)이 '너무 멀리 날아간다'는 피드백",
+          "최대 사거리 각도를 45°로 고정한 조준 보조가 어색할 때",
+        ],
+        queries: ["terminal velocity drag coefficient sphere", "projectile motion quadratic air resistance optimal angle", "game physics drag integration semi-implicit euler", "Reynolds number drag regime sphere"],
+        neighbors: [
+          { term: "선형 항력(스토크스)", diff: "속도에 정비례하는 항력. 아주 작고 느린 물체에서만 맞고 던지는 공은 제곱 항력이다." },
+          { term: "마그누스 효과", diff: "회전하는 공이 옆·위로 휘는 힘. 이 수업은 회전 없는 공만 다뤘다." },
+          { term: "발사 높이", diff: "손 높이에서 던지면 공기가 없어도 최적각이 45°보다 조금 낮다(1.8 m, 30 m/s에서 약 44.4°). 효과는 항력보다 작다." },
+        ] },
+    ],
+  });
+</script>
+</body>
+</html>

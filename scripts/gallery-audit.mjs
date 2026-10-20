@@ -17,8 +17,14 @@ try {
   console.log(formatReport(results));
   const code = exitCode(results);
   if (write && code < 2) {
-    const baseline = {};
-    for (const r of results) (baseline[r.size] ??= {})[r.target] = r.audit.length;
+    // still-visual keeps its own allowance (ADR 61d6c4210ba48008: gallery lessons are not edited for new rules).
+    const baseline = {}, still = {};
+    for (const r of results) {
+      const n = r.audit.filter((w) => w.rule === "still-visual").length;
+      (baseline[r.size] ??= {})[r.target] = r.audit.length - n;
+      (still[r.size] ??= {})[r.target] = n;
+    }
+    baseline["still-visual"] = still;
     await writeFile(BASELINE, JSON.stringify(baseline, null, 2) + "\n");
     console.log(`기준선을 ${BASELINE}에 썼다`);
     process.exit(0);

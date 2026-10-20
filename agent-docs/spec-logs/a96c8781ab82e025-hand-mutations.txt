@@ -1,0 +1,38 @@
+# run a96c8781ab82e025 hand mutations, round 1 (spec v3, tests after TD-1, before correction batch 2)
+runner: python3 <scratchpad>/hm.py — seed.py backup/restore per mutation, command: LTT_AUDIT=1 node --test tests/audit-sheet.test.mjs
+HM-1 FR-3 floor instead of round: KILLED exit 1; failing: ['VO-2 VO-3 VO-4 VO-9 C-1 C-2 C-3: cells follow FR-3, show the beat-end colour, carry labels']
+HM-2 FR-3 texted preference dropped: KILLED exit 1; failing: ['VO-2 VO-3 VO-4 VO-9 C-1 C-2 C-3: cells follow FR-3, show the beat-end colour, carry labels']
+HM-3 FR-4 capture 400ms early: KILLED exit 1; failing: ['VO-2 VO-3 VO-4 VO-9 C-1 C-2 C-3: cells follow FR-3, show the beat-end colour, carry labels']
+HM-4 FR-2 always first size: KILLED exit 1; failing: ['VO-1 C-1 C-7 C-11: CLI partitions lesson+flag, gallery+flag, no flag', 'VO-2 VO-3 VO-4 VO-9 C-1 C-2 C-3: cells follow FR-3, show the beat-end colour, carry labels', 'VO-6 C-5 C-6: sheet size decision table and warn union']
+HM-5 FR-5 warn from sheet size only: KILLED exit 1; failing: ['VO-6 C-5 C-6: sheet size decision table and warn union']
+HM-6 FR-7 cleanup regex unanchored: KILLED exit 1; failing: ['VO-7 C-8: only sheet(-n).jpg files are replaced']
+HM-7 Errors compose failure exit 1: KILLED exit 1; failing: ['VO-8 C-9 C-10 C-14: cell failure, composition failure, target error']
+HM-8 QR-5 slug keeps / and ..: KILLED exit 1; failing: ['VO-1 C-1 C-7 C-11: CLI partitions lesson+flag, gallery+flag, no flag']
+HM-9 FR-11 textless still hides text: KILLED exit 1; failing: ['VO-10 C-12 + VO-4 C-13: kit merges same-t beats and exposes scene types', 'VO-2 VO-3 VO-4 VO-9 C-1 C-2 C-3: cells follow FR-3, show the beat-end colour, carry labels']
+HM-10 FR-8 area cap ignored: KILLED exit 1; failing: ['VO-2 VO-3 VO-4 VO-9 C-1 C-2 C-3: cells follow FR-3, show the beat-end colour, carry labels', 'VO-5 C-4: a 25-scene lesson splits into sheets within the FR-8 limits']
+HM-11 Errors frame failure aborts sheet: KILLED exit 1; failing: ['VO-8 C-9 C-10 C-14: cell failure, composition failure, target error']
+HM-12 FR-1 sheet without flag: KILLED exit 1; failing: ['VO-1 C-1 C-7 C-11: CLI partitions lesson+flag, gallery+flag, no flag']
+DONE
+
+# round 2 (spec v3, tests after correction batch 2; HM-13..HM-16 target verifier F-1, F-2, F-4, F-5)
+HM-1 FR-3 floor instead of round: KILLED exit 1; failing: ['VO-2 VO-3 VO-4 VO-9 C-1 C-2 C-3: cells follow FR-3, show the beat-end colour, carry labels']
+HM-2 FR-3 texted preference dropped: KILLED exit 1; failing: ['VO-2 VO-3 VO-4 VO-9 C-1 C-2 C-3: cells follow FR-3, show the beat-end colour, carry labels']
+HM-3 FR-4 capture 400ms early: KILLED exit 1; failing: ['VO-2 VO-3 VO-4 VO-9 C-1 C-2 C-3: cells follow FR-3, show the beat-end colour, carry labels', 'VO-8 C-9 C-10 C-14: cell failure, composition failure, target error']
+HM-4 FR-2 always first size: KILLED exit 1; failing: ['VO-1 C-1 C-7 C-11: CLI partitions lesson+flag, gallery+flag, no flag', 'VO-2 VO-3 VO-4 VO-9 C-1 C-2 C-3: cells follow FR-3, show the beat-end colour, carry labels', 'VO-6 C-5 C-6: sheet size decision table and warn union']
+HM-5 FR-5 warn from sheet size only: KILLED exit 1; failing: ['VO-6 C-5 C-6: sheet size decision table and warn union']
+HM-6 FR-7 cleanup regex unanchored: KILLED exit 1; failing: ['VO-7 C-8: only sheet(-n).jpg files are replaced']
+HM-7 Errors compose failure exit 1: KILLED exit 1; failing: ['VO-8 C-9 C-10 C-14: cell failure, composition failure, target error']
+HM-8 QR-5 slug keeps / and ..: KILLED exit 1; failing: ['VO-1 C-1 C-7 C-11: CLI partitions lesson+flag, gallery+flag, no flag']
+HM-9 FR-11 textless still hides text: KILLED exit 1; failing: ['VO-10 C-12 + VO-4 C-13: kit merges same-t beats and exposes scene types', 'VO-2 VO-3 VO-4 VO-9 C-1 C-2 C-3: cells follow FR-3, show the beat-end colour, carry labels']
+HM-10 FR-8 area cap ignored: KILLED exit 1; failing: ['VO-2 VO-3 VO-4 VO-9 C-1 C-2 C-3: cells follow FR-3, show the beat-end colour, carry labels', 'VO-5 C-4: a 25-scene lesson splits into sheets within the FR-8 limits']
+HM-11 Errors frame failure aborts sheet: KILLED exit 1; failing: ['VO-8 C-9 C-10 C-14: cell failure, composition failure, target error']
+HM-12 FR-1 sheet without flag: KILLED exit 1; failing: ['VO-1 C-1 C-7 C-11: CLI partitions lesson+flag, gallery+flag, no flag']
+HM-13 FR-1 extra capture Chrome without flag: KILLED exit 1; failing: ['VO-1 C-1 C-7 C-11: CLI partitions lesson+flag, gallery+flag, no flag']
+HM-14 FR-4 rest cell captured at entry: KILLED exit 1; failing: ['VO-3 FR-4: a no-beat cell is captured at the budget time']
+HM-15 Errors other cells reuse one image after a failure: KILLED exit 1; failing: ['VO-8 C-9 C-10 C-14: cell failure, composition failure, target error']
+HM-16 Errors compose failure drops other targets' sheets: KILLED exit 1; failing: ['VO-8 C-9 C-10 C-14: cell failure, composition failure, target error']
+DONE
+
+# triage of verifier-2 F-2
+HM-17 FR-4 rest cell ignores --budget (fixed 12000): SURVIVED exit 0; failing: []
+DONE

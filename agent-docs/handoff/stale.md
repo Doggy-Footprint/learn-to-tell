@@ -75,3 +75,8 @@ File: 0f72dd38f6236771-refactoring-10-move-v0-rejected-designs-to-rejections.md
 Summary: refactoring-10: learn-to-tell-PROJECT.md에서 옮긴 v0 폐기 설계 표를 rejection 기록으로 정리하는 남은 작업
 Related Files: learn-to-tell-PROJECT.md, agent-docs/rejections/index.md
 Related Symbols: 없음
+---
+File: 418133af7560aefc-refactoring-1-skill-time-breakdown.md
+Summary: refactoring-1 compare1 실험의 skill·기준선 서브에이전트 소요 시간 분해 원자료(단계·도구·이벤트 시각)
+Related Files: site/compare1/index.html, agent-docs/handoff/b41cd6aec66a2589-refactoring-1-lesson-cost-ledger.md
+Related Symbols: 없음

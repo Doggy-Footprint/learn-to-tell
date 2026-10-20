@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
@@ -12,6 +12,9 @@ const DEFAULT_PORT = 47823;
 const GALLERY_SITE = "https://learn-to-tell.vercel.app";
 const MAX_BODY = 64 * 1024;
 const LESSON_ID = /^[a-z0-9][a-z0-9-]*$/;
+// site/compareN holds local-only comparison pages; vercel.json copies only site/gallery, so they are never deployed.
+const COMPARE_DIR = /^compare\d+$/;
+const SITE_DIR = join(SKILL_DIR, "..", "..", "site");
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -76,7 +79,7 @@ async function recordEvent(req, res, home, lessonId) {
   send(res, 204, "");
 }
 
-export function createLttServer({ home = lttHome(), skillDir = SKILL_DIR, galleryDir = join(skillDir, "..", "..", "site", "gallery"), onRequest = () => {} } = {}) {
+export function createLttServer({ home = lttHome(), skillDir = SKILL_DIR, galleryDir = join(skillDir, "..", "..", "site", "gallery"), siteDir = join(skillDir, "..", "..", "site"), onRequest = () => {} } = {}) {
   const hasGallery = existsSync(galleryDir);
   return createServer(async (req, res) => {
     onRequest();
@@ -95,6 +98,9 @@ export function createLttServer({ home = lttHome(), skillDir = SKILL_DIR, galler
         if (hasGallery) return await serveFile(res, galleryDir, parts.slice(1).join("/"));
         res.writeHead(302, { Location: GALLERY_SITE + pathname });
         return res.end();
+      }
+      if (req.method === "GET" && COMPARE_DIR.test(parts[0] ?? "") && parts.length > 1) {
+        return await serveFile(res, join(siteDir, parts[0]), parts.slice(1).join("/"));
       }
       if (req.method === "POST" && parts[0] === "api" && parts[1] === "lessons" && parts[3] === "events" && parts.length === 4) {
         if (!LESSON_ID.test(parts[2])) return send(res, 400, { error: "invalid lesson id" });
@@ -127,6 +133,18 @@ export function createLttServer({ home = lttHome(), skillDir = SKILL_DIR, galler
   });
 }
 
+export function compareUrls(port, siteDir = SITE_DIR) {
+  if (!existsSync(siteDir)) return [];
+  return readdirSync(siteDir)
+    .filter((name) => COMPARE_DIR.test(name) && existsSync(join(siteDir, name, "index.html")))
+    .sort((a, b) => Number(a.slice(7)) - Number(b.slice(7)))
+    .map((name) => `http://${HOST}:${port}/${name}/index.html`);
+}
+
+function announceCompare(port) {
+  for (const url of compareUrls(port)) console.log(`  compare: ${url}`);
+}
+
 async function isLttServer(port) {
   try {
     const res = await fetch(`http://${HOST}:${port}/api/health`);
@@ -151,6 +169,7 @@ async function main() {
   server.on("error", async (err) => {
     if (err.code === "EADDRINUSE" && (await isLttServer(port))) {
       console.log(`learn-to-tell server already running at http://${HOST}:${port}/gallery/index.html`);
+      announceCompare(port);
       process.exit(0);
     }
     console.error(`learn-to-tell server: ${err.message}`);
@@ -159,6 +178,7 @@ async function main() {
   server.listen(port, HOST, () => {
     touch();
     console.log(`learn-to-tell server running at http://${HOST}:${port}/gallery/index.html (home: ${lttHome()})`);
+    announceCompare(port);
   });
 }
 

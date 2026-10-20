@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>카르노 사이클</title>
+<script type="application/json" id="ltt-meta">{"topic":"카르노 사이클","audience":"열역학 입문자","theme":"lab","medium":"실험 노트 P-V 플롯","decision":"열기관 효율의 상한","domain":"열역학","pattern":["overview"],"mode":"카탈로그용: 장면 하나짜리 본보기. 순환 구조를 \"점이 궤적을 그림\" 움직임과 작은 여러 칸 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.cn{width:1040px;max-width:100%;display:block;margin:0 auto}
+.cn text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+// 이상기체 1 mol, γ = 5/3(헬륨, 단원자), 고온 500 K, 저온 300 K. P[kPa] = R·T / V[L]
+const R = 8.314, G = 5 / 3, TH = 500, TC = 300;
+const V1 = 10, V2 = 30, K = Math.pow(TH / TC, 1 / (G - 1)), V3 = V2 * K, V4 = V1 * K;
+const QIN = R * TH * Math.log(V2 / V1), QOUT = R * TC * Math.log(V3 / V4), W = QIN - QOUT, ETA = 1 - TC / TH;
+LTT.expect("카르노 효율 500K/300K", ETA, 0.4, { tol: 1e-9 });
+LTT.expect("흡열 Q_in [J]", QIN, 4566.9, { tol: 0.5 });
+LTT.expect("순일 W [J]", W, 1826.8, { tol: 0.5 });
+const legs = [
+  { n: "①", name: "등온 팽창", sub: `${TH} K 열원에서 열 ${Math.round(QIN).toLocaleString()} J 흡수`, a: V1, b: V2, T: TH, iso: true },
+  { n: "②", name: "단열 팽창", sub: `열 출입 없이 ${TH} → ${TC} K로 식음`, a: V2, b: V3, iso: false, Tstart: TH },
+  { n: "③", name: "등온 압축", sub: `${TC} K 저열원에 열 ${Math.round(QOUT).toLocaleString()} J 버림`, a: V3, b: V4, T: TC, iso: true },
+  { n: "④", name: "단열 압축", sub: `일을 받아 ${TC} → ${TH} K로 돌아옴`, a: V4, b: V1, iso: false, Tstart: TC }];
+const P = (leg, V) => leg.iso ? R * leg.T / V : R * leg.Tstart * Math.pow(leg.a, G - 1) / Math.pow(V, G);
+const at = (leg, s) => { const V = leg.a * Math.pow(leg.b / leg.a, s); return [V, P(leg, V)]; }; // 로그 간격으로 V를 지나 곡선이 고르게 그려진다
+
+function carnot(host) {
+  const Wd = 1040, Hd = 500, s = mk("svg", { viewBox: `0 0 ${Wd} ${Hd}`, class: "cn", "data-annotate": "" }, host);
+  const cw = 240, ch = 240, gx = 20, ox = 20;
+  const cells = legs.map((leg, i) => {
+    const x0 = ox + i * (cw + gx), y0 = 70;
+    const sx = (V) => x0 + 34 + (V - 5) / 65 * (cw - 44), sy = (p) => y0 + ch - 24 - p / 450 * (ch - 40);
+    const g = mk("g", {}, s);
+    mk("text", { x: x0, y: 30, style: "font-size:22px;font-weight:700;fill:var(--ltt-ink)" }, g).textContent = `${leg.n} ${leg.name}`;
+    mk("text", { x: x0, y: 54, style: "font-size:14px;fill:var(--ltt-muted)" }, g).textContent = leg.sub;
+    mk("line", { x1: sx(5), x2: sx(70), y1: sy(0), y2: sy(0), style: "stroke:var(--ltt-ink-2);stroke-width:1.5" }, g);
+    mk("line", { x1: sx(5), x2: sx(5), y1: sy(0), y2: sy(450), style: "stroke:var(--ltt-ink-2);stroke-width:1.5" }, g);
+    mk("text", { x: sx(70), y: sy(0) + 18, "text-anchor": "end", style: "font-size:13px;fill:var(--ltt-muted)" }, g).textContent = "V (L)";
+    mk("text", { x: sx(5) - 4, y: sy(450) - 8, "text-anchor": "start", style: "font-size:13px;fill:var(--ltt-muted)" }, g).textContent = "P (kPa)";
+    const curve = (lg, n = 60) => { let d = ""; for (let k = 0; k <= n; k++) { const [V, p] = at(lg, k / n); d += (k ? "L" : "M") + sx(V).toFixed(1) + "," + sy(p).toFixed(1); } return d; };
+    mk("path", { class: `area${i}`, d: legs.map((l, j) => j ? curve(l).replace(/^M/, "L") : curve(l)).join(" ") + "Z", style: "fill:var(--ltt-accent-soft);stroke:none;opacity:0" }, g);
+    mk("path", { d: legs.map((l) => curve(l)).join(" "), style: "fill:none;stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:3 4" }, g);
+    const done = mk("path", { class: `done${i}`, d: legs.slice(0, i).map((l) => curve(l)).join(" "), style: "fill:none;stroke:var(--ltt-ink-2);stroke-width:2" }, g);
+    const now = mk("path", { class: `now${i}`, style: "fill:none;stroke:var(--ltt-accent);stroke-width:3.5;stroke-linecap:round" }, g);
+    mk("circle", { class: `dot${i}`, r: 7, style: "fill:var(--ltt-accent);stroke:var(--ltt-bg);stroke-width:2.5" }, g);
+    return { leg, sx, sy, curve };
+  });
+  // 아래 띠: 한 바퀴의 결과
+  const by = 360;
+  mk("line", { x1: ox, x2: Wd - ox, y1: by - 26, y2: by - 26, style: "stroke:var(--ltt-line);stroke-width:1" }, s);
+  mk("text", { x: ox, y: by + 8, style: "font-size:22px;font-weight:700;fill:var(--ltt-ink)" }, s).textContent = "한 바퀴 = 고리 넓이만큼 일";
+  const bar = (y, label, val, cls) => {
+    mk("text", { x: ox, y: y + 18, style: "font-size:15px;fill:var(--ltt-ink-2)" }, s).textContent = label;
+    mk("rect", { x: 200, y, width: 760 * val / QIN, height: 24, style: "fill:none;stroke:var(--ltt-line-2)" }, s);
+    mk("rect", { class: cls, x: 200, y, width: 0, height: 24, "data-w": 760 * val / QIN, style: `fill:var(--ltt-${cls === "b-w" ? "accent" : "line-2"})` }, s);
+    mk("text", { class: cls + "t", x: 200 + 760 * val / QIN + 10, y: y + 18, style: "font-size:15px;font-weight:600;fill:var(--ltt-ink)" }, s).textContent = `${Math.round(val).toLocaleString()} J`;
+  };
+  bar(by + 34, "① 받은 열 Q_in", QIN, "b-in");
+  bar(by + 70, "③ 버린 열 Q_out", QOUT, "b-out");
+  bar(by + 106, "순일 W = 차이", W, "b-w");
+  mk("text", { class: "eta", x: Wd - ox, y: by + 8, "text-anchor": "end", style: "font-size:22px;font-weight:700;fill:var(--ltt-accent)" }, s).textContent = `효율 η = 1 − ${TC}/${TH} = ${Math.round(ETA * 100)}%`;
+  s.classList.add("live");
+  function draw(u, svg) { svg = svg || s; // 0–0.8: 네 칸을 차례로, 0.8–1: 결과 띠 유지
+    const k = Math.min(3, Math.floor(u / 0.2)), local = u >= 0.8 ? 1 : ease(clamp((u - k * 0.2) / 0.17));
+    cells.forEach((c, i) => {
+      const now = svg.querySelector(`.now${i}`), dot = svg.querySelector(`.dot${i}`);
+      const p = i < k ? 1 : i === k ? local : 0, n = Math.max(1, Math.round(60 * p));
+      let d = ""; for (let j = 0; j <= n; j++) { const [V, pr] = at(c.leg, (j / n) * p); d += (j ? "L" : "M") + c.sx(V).toFixed(1) + "," + c.sy(pr).toFixed(1); }
+      now.setAttribute("d", p > 0 ? d : ""); now.style.stroke = i === k ? "var(--ltt-accent)" : "var(--ltt-ink)";
+      const [V, pr] = at(c.leg, p); dot.setAttribute("cx", c.sx(V)); dot.setAttribute("cy", c.sy(pr)); dot.style.opacity = i === k ? 1 : 0;
+    });
+    const grow = (cls, f) => { const r = svg.querySelector("." + cls); r.setAttribute("width", r.dataset.w * f); svg.querySelector("." + cls + "t").style.opacity = f > .98 ? 1 : 0; };
+    grow("b-in", k >= 0 ? (k === 0 ? local : 1) : 0);
+    grow("b-out", k > 2 ? (k === 2 ? local : 1) : k === 2 ? local : 0);
+    const wf0 = ease(clamp((u - 0.8) / 0.08)); cells.forEach((c, i) => { svg.querySelector(`.area${i}`).style.opacity = wf0; });
+    const wf = ease(clamp((u - 0.8) / 0.08)); grow("b-w", wf);
+    svg.querySelector(".eta").style.opacity = wf;
+  }
+  return { el: s, draw };
+}
+let ticker = 0;
+function play(fig, period) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { fig.draw(0.999); return; }
+  fig.draw(0); if (ticker) return;
+  const t0 = Date.now();
+  const f = () => { const live = document.querySelectorAll("svg.cn.live"); if (!live.length) { ticker = 0; return; }
+    live.forEach((sv) => fig.draw(((Date.now() - t0) / period) % 1, sv)); ticker = setTimeout(f, 16); };
+  ticker = setTimeout(f, 16);
+}
+
+LTT.deck({
+  title: "카르노 사이클", theme: "lab",
+  glossary: { "카르노 사이클": "등온 팽창 → 단열 팽창 → 등온 압축 → 단열 압축으로 되돌아오는 가역 열기관의 이상적인 한 바퀴" },
+  scenes: [{
+    type: "overview", label: "한 장 정리",
+    title: "{{카르노 사이클}}은 네 구간을 돌아 고리 넓이만큼 일을 남긴다",
+    figure: (el) => { const f = carnot(el); play(f, 8000); return { el: f.el }; },
+    caption: "헬륨 1 mol(γ = 5/3), 500 K ↔ 300 K, V 10 → 30 L에서 시작. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    basis: "이상기체 등온 Q = nRT·ln(V₂/V₁), 단열 TV^(γ−1) = 일정, η = 1 − T_C/T_H(Çengel & Boles, Thermodynamics 6장).",
+    takeaway: "효율의 상한은 두 열원 온도만으로 정해진다."
+  }]
+});
+</script>
+</body>
+</html>

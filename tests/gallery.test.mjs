@@ -188,7 +188,9 @@ test("VO-8 support card content: chips, vendor rows, feature items", () => {
 
 // ---------- spec 74cb05d7da21907e VO-4 (FR-7, C-15): figure picture widths are not pinned with vw ----------
 
-const LESSON_PAGES = pages.filter((p) => !["index.html", "catalog.html"].includes(p) && p.split("/").length <= 2);
+// shots/ holds single-scene exemplars, not lessons.
+const isShot = (p) => p.startsWith("shots/");
+const LESSON_PAGES = pages.filter((p) => !["index.html", "catalog.html"].includes(p) && p.split("/").length <= 2 && !isShot(p));
 const WIDTH_PROPS = new Set(["width", "min-width", "max-width"]);
 const VW_ALLOWED = [{ page: "cache-ttl.html", selector: ".ans-row .ltt-units" }];
 const normSelector = (s) => s.trim().replace(/\s+/g, " ");
@@ -278,7 +280,7 @@ for (const { id, mode, ok } of MODE_CASES) {
   });
 }
 
-const DECK_PAGES = pages.filter((p) => scripts(p).includes("/kit/ltt-deck.js"));
+const DECK_PAGES = pages.filter((p) => scripts(p).includes("/kit/ltt-deck.js") && !isShot(p));
 const lttMeta = (page) => {
   const m = /<script type="application\/json" id="ltt-meta">(.*?)<\/script>/s.exec(read(page));
   assert.ok(m, `${page} has no ltt-meta`);

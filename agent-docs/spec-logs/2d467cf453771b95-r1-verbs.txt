@@ -1,0 +1,40 @@
+# R-1 catalog #motion 동사 데모, 1280×800, 가상 시간 예산 t(ms, 페이지 로드 포함)마다 --dump-dom. 스크립트: scratchpad r1.mjs(createLttServer로 site/ 제공)
+# 주기: draw 4500, flow 4000, camera 5800, morph 4000, stack 4000. 4200·4800은 주기 재시작 뒤(camera는 셋째 비트 중).
+# draw offsets는 계열마다 속성·인라인 style 두 번 나온다(fast, fast, slow, slow). flow dots는 u>c 3개, c>d 2개의 cx('-'는 숨김).
+t=700
+  draw offsets 101.7 101.7 520.2 520.2
+  flow dots 193 206 180 - -
+  camera viewBox 42.29120948148148 13.456293925925925 147.06842548148148 136.194304
+  morph b translate(220,135.51896971851852); edges a>b:M 163.38 108 L 212 129.48 | b>c:M 343.38 131.52 L 392 110.04
+  stack scale 1,1 | 1,0.6856556851851854 | 1,0 | 1,0
+t=1500
+  draw offsets 0.0 0.0 510.6 510.6
+  flow dots - - - 351 370
+  camera viewBox 44 14 132 132
+  morph b translate(220,154.4222752); edges a>b:M 151.21 108 L 221.48 146.42 | b>c:M 331.21 150.42 L 401.48 112
+  stack scale 1,1 | 1,1 | 1,0.9953695 | 1,0
+t=2300
+  draw offsets 0.0 0.0 55.1 55.1
+  flow dots - - - 353 372
+  camera viewBox 263.85818937500005 74.650535 132 132
+  morph b translate(220,68.46270198518519); edges a>b:M 164 84.43 L 212 87.75 | b>c:M 344 88.03 L 392 84.71
+  stack scale 1,1 | 1,1 | 1,1 | 1,1
+t=3000
+  draw offsets 0.0 0.0 0.0 0.0
+  flow dots - - - - -
+  camera viewBox 334 94 132 132
+  morph b translate(220,56); edges a>b:M 164 80 L 212 80 | b>c:M 344 80 L 392 80
+  stack scale 1,1 | 1,1 | 1,1 | 1,1
+t=4200
+  draw offsets 0.0 0.0 0.0 0.0
+  flow dots 179 192 205 - -
+  camera viewBox 45.16041214814811 12.709816592592588 467.53820385185185 225.397232
+  morph b translate(220,64.28853665185186); edges a>b:M 164 82.95 L 212 85.16 | b>c:M 344 85.34 L 392 83.13
+  stack scale 1,0.8749765 | 1,0 | 1,0 | 1,0
+t=4800
+  draw offsets 452.0 452.0 520.2 520.2
+  flow dots 195 169 182 - -
+  camera viewBox 0 0 520 240
+  morph b translate(220,141.8849792); edges a>b:M 158.68 108 L 212.93 133.88 | b>c:M 338.68 137.88 L 392.93 112
+  stack scale 1,1 | 1,0.8689279999999999 | 1,0 | 1,0
+# 판정: 동사 다섯 모두 비트 순서대로 값이 바뀐다 — draw fast 106→0 뒤 slow 513→0, flow 첫 비트 입자만 보이다 둘째 비트 입자만, 3000 뒤 모두 숨김, camera mc-a 상자(44 14 132 132)→mc-b(334 94 132 132)→전체(0 0 520 240), morph 노드 b가 아래로 갔다 올라오며 엣지 끝점이 같이 움직임, stack 막대가 차례로 scale 0→1, 주기 재시작 뒤 p=0 쪽으로 돌아감.

@@ -1,0 +1,18 @@
+# run 2d467cf453771b95 손 변이: 한 번에 하나, seed.py backup → 주입 → node --test tests/motion-verbs.test.mjs → seed.py restore. 선택 이유: 테스트 작성자 위험 모델의 결함 부류 중 동사·비트 노출·오류·대상 해석·S-1을 하나씩 대표(10개).
+HM-1 flow eased: fail 4 :: VO-1 BVA ms=a+1 ; VO-1 BVA ms=b-1 ; VO-2 V3 flow position and spacing: count 4, laps 2, f_k = ; VO-3 C-2 flow on diagram edge 'a>b'
+HM-2 camera chains from V0: fail 2 :: VO-2 V8 camera chaining: the second camera beat starts from the first  ; VO-3 C-4 camera [0,0,100,50] then camera on a diagram node id: 500ms V
+HM-3 stack windows overlap: fail 2 :: VO-2 V12 stack bottom: bar i grows in its own window [i/n, ; VO-2 V13 stack left: from 'left' scales along x about the left edge in
+HM-4 loop exposure uses b: fail 2 :: VO-4 beat exposure
+HM-5 default period max b: fail 3 :: VO-2 V12 stack bottom: bar i grows in its own window [i/n, ; VO-2 V13 stack left: from 'left' scales along x about the left edge in ; VO-4 default period = largest b + 1000
+HM-6 bad beat aborts play: fail 1 :: VO-5 E1 reverse / out-of-range / non-array t: warn with 장면 2: and the 
+HM-7 flow visible outside beat: fail 4 :: VO-1 BVA ms=a-1 ; VO-1 BVA ms=b+1 ; VO-1 BVA right after cycle restart: u back at 0 returns every verb to  ; VO-2 V4 flow outside its beat: no particle and no tail before a or aft
+HM-8 diagram edges not redrawn: fail 1 :: VO-2 V11 morph diagram node + edges: node a moves to the new centre an
+HM-9 selector on document: fail 20 :: VO-1 ; VO-1 BVA right after leave -> return: the first tick of the new visit  ; VO-2 V12 stack bottom: bar i grows in its own window [i/n, ; VO-2 V13 stack left: from 'left' scales along x about the left edge in ; VO-2 V3 flow position and spacing: count 4, laps 2, f_k = ; VO-2 V4 flow outside its beat: no particle and no tail before a or aft
+HM-10 beforeAfter ms 140*m: fail 3 :: VO-6 after has more markers than before: ms = 700 + 140 ; VO-6 before 3 / after 2 markers: ms = 700 + 140 ; VO-6 one marker: ms = 700
+# 재실행(테스트 batch 2·3 뒤): HM-6 다시, v3 새 항목용 HM-11..HM-15
+HM-6 bad beat aborts play: fail 1 :: VO-5 E1 reverse / out-of-range / non-array t: warn with 장면 2: and the 
+HM-11 handle.stop no-op: fail 1 :: VO-4 handle: stop
+HM-12 opts.el ignored: fail 1 :: VO-4 el: a second play with the same opts.el ends the first; default e
+HM-13 wrapper Element not searched: fail 1 :: VO-3 T9 root is an Element wrapping one <svg>: the verbs act inside th
+HM-14 chained morph from play-time value: fail 1 :: VO-2 V14 same-property chaining: two morph beats on one attribute; the
+HM-15 API.md play entry removed: fail 1 :: VO-9 FR-11: the LTT.motion rows of kit/API.md mention play

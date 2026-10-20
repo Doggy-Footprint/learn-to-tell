@@ -13,9 +13,12 @@ const API_DIR = join(KIT, "api");
 const PKG = join(ROOT, "packages/ltt-kit");
 
 const PART_DOCS = ["base", "ui", "mock", "diagram", "sequence", "map", "controls", "charts"];
-const API_FILES = [...PART_DOCS, "deck-contracts", "internals"].map((f) => `${f}.md`);
+const API_FILES = [...PART_DOCS, "deck-contracts", "internals", "rules"].map((f) => `${f}.md`);
 const P2_PARTS = ["ui", "mock", "diagram", "sequence", "map", "controls", "charts"];
-const CORE_LIMIT = 8500;
+// Plan b71ddee49f77ac06 §3: what a generating agent reads before writing (SKILL.md + API.md) stays near 30K bytes.
+// API.md carries the authoring rules and syntax snippets; the snippets shrink once scene specs become declarative.
+const CORE_LIMIT = 11500;
+const SKILL_LIMIT = 9500;
 const P2_LIMIT = 18000;
 const ROW_LIMIT = 300;
 
@@ -170,6 +173,7 @@ function realDocs() {
 
 const apiText = () => readReal(join(KIT, "API.md"), "kit/API.md");
 const apiDoc = (f) => readReal(join(API_DIR, f), `kit/api/${f}`);
+const rulesText = () => apiDoc("rules.md");
 const skillText = () => readReal(join(SKILL, "SKILL.md"), "SKILL.md");
 
 // ---------- VO-1 definition checker (synthetic) ----------
@@ -241,7 +245,7 @@ test("VO-1 C-6: an undocumented runtime name newThing is reported", () => {
 });
 
 const BASE_DEFINITIONS = {
-  "kit/API.md": "theme, themes, palette, mark, marks, icon, icons, expect, record, lintDeck, math, MOTION_MS, deck",
+  "kit/API.md": "theme, themes, palette, mark, marks, icon, icons, expect, record, lintDeck, math, MOTION_MS, deck, motion",
   "kit/api/base.md": "themeTokens, summaryCards, linkTerms, warn",
   "kit/api/ui.md": "narration, annotate, beforeAfter, facts, chips, badge, callout, swatches, takeaway, chartFrame, inspector, redline, h, fill, contrast",
   "kit/api/mock.md": "mock",
@@ -254,20 +258,21 @@ const BASE_DEFINITIONS = {
 };
 
 // Spec 74cb05d7da21907e v1 FR-3: the base 74 public names plus placement (defined by ltt-deck.js, documented in internals.md) = 75.
-test("VO-2 oracle table lists 75 distinct names: the base 74 plus placement", () => {
+// Spec 6cc24f891a69c407 v1 Signatures/FR-18: plus motion (LTT.motion, defined in kit/API.md) = 76.
+test("VO-2 oracle table lists 76 distinct names: the base 74 plus placement and motion", () => {
   const all = Object.values(BASE_DEFINITIONS).flatMap((s) => s.split(", "));
-  assert.equal(new Set(all).size, 75);
-  assert.equal(all.length, 75);
-  assert.equal(all.filter((n) => n !== "placement").length, 74);
+  assert.equal(new Set(all).size, 76);
+  assert.equal(all.length, 76);
+  assert.equal(all.filter((n) => n !== "placement" && n !== "motion").length, 74);
 });
 
-test("VO-2 FR-3 QR-2: the runtime LTT public names are exactly the 75 oracle names", () => {
+test("VO-2 FR-3 QR-2: the runtime LTT public names are exactly the 76 oracle names", () => {
   const expected = Object.values(BASE_DEFINITIONS).flatMap((s) => s.split(", ")).sort();
   const names = Object.keys(loadLTT()).sort();
   const missing = expected.filter((n) => !names.includes(n));
   const extra = names.filter((n) => !expected.includes(n));
   assert.deepEqual({ missing, extra }, { missing: [], extra: [] }, `runtime LTT differs from the oracle: missing [${missing.join(", ")}], extra [${extra.join(", ")}]`);
-  assert.equal(names.length, 75);
+  assert.equal(names.length, 76);
 });
 
 for (const [file, list] of Object.entries(BASE_DEFINITIONS)) {
@@ -292,20 +297,25 @@ test("VO-2 FR-2: kit/api/deck-contracts.md defines no name", () => {
 
 const pad = (n) => "😀".repeat(100) + "가".repeat(4000) + "a".repeat(n - 4100);
 
-test("VO-3 C-2: 8,500 code points pass the core size check", () => {
-  const text = pad(8500);
-  assert.equal(cp(text), 8500);
+test("VO-3 C-2: 11,500 code points pass the core size check", () => {
+  const text = pad(11500);
+  assert.equal(cp(text), 11500);
   assert.equal(sizeError(text, CORE_LIMIT, "kit/API.md"), null);
 });
 
-test("VO-3 C-2: 8,501 code points fail with the actual count and the limit", () => {
-  const err = sizeError(pad(8501), CORE_LIMIT, "kit/API.md");
-  assert.ok(err, "8,501 code points passed");
-  assert.ok(err.includes("8501") && err.includes("8500"), err);
+test("VO-3 C-2: 11,501 code points fail with the actual count and the limit", () => {
+  const err = sizeError(pad(11501), CORE_LIMIT, "kit/API.md");
+  assert.ok(err, "11,501 code points passed");
+  assert.ok(err.includes("11501") && err.includes("11500"), err);
 });
 
-test("VO-3 FR-3 QR-P1: real kit/API.md is at most 8,500 code points", () => {
+test("VO-3 FR-3 QR-P1: real kit/API.md is at most 11,500 code points", () => {
   const err = sizeError(apiText(), CORE_LIMIT, "kit/API.md");
+  assert.equal(err, null, err);
+});
+
+test("plan b71ddee49f77ac06 §3: real SKILL.md is at most 8,500 code points", () => {
+  const err = sizeError(skillText(), SKILL_LIMIT, "SKILL.md");
   assert.equal(err, null, err);
 });
 
@@ -364,11 +374,11 @@ test("VO-4 themes: every LTT.themes name is a first-cell code span", () => {
 });
 
 const LINT_IDS = ["unknown-term", "used-before-defined", "predict-new-term", "no-reading-guide", "no-title", "overview-missing", "overview-order", "overview-no-visual", "keywords-last", "unused-term", "term-no-visual", "summary-no-recall", "card-monotony", "no-signature", "no-theme", "unknown-theme", "filler-content"];
-const AUDIT_IDS = ["overflow", "shrunk", "small-visual", "loose-figure", "empty-stage", "many-sizes", "hscroll", "graph-overlap", "panel-overlap", "goal-unreachable", "goal-narrow", "goal-at-start"];
+const AUDIT_IDS = ["overflow", "shrunk", "small-visual", "loose-figure", "empty-stage", "many-sizes", "hscroll", "graph-overlap", "panel-overlap", "goal-unreachable", "goal-narrow", "goal-at-start", "still-visual"];
 
 for (const [label, ids] of [["lint", LINT_IDS], ["audit", AUDIT_IDS]]) {
-  test(`VO-4 ${label} rules: all ${ids.length} ids are first-cell code spans`, () => {
-    const spans = firstCellSpans(apiText());
+  test(`VO-4 ${label} rules: all ${ids.length} ids are first-cell code spans of kit/api/rules.md`, () => {
+    const spans = firstCellSpans(rulesText());
     const missing = ids.filter((id) => !spans.has(id));
     assert.deepEqual(missing, [], `${label} rule rows missing: ${missing.join(", ")}`);
   });
@@ -495,10 +505,11 @@ test("VO-6 FR-7 §3 read line: one line holds kit/API.md, kit/api/<part>.md and 
 const REF_HEADER = "| 보여 줄 것 | 부품 | 참조 |";
 const REF_PATHS = [...["diagram", "sequence", "map", "controls", "charts", "ui", "mock"].map((x) => `\`kit/api/${x}.md\``), "`kit/API.md`"];
 
-test("VO-6 FR-7 §3 reference column: every row of the 보여 줄 것 | 부품 | 참조 table points at a doc", () => {
-  const ls = lines(section(skillText(), 3));
+// Plan b71ddee49f77ac06 §3 moved the part-picking table from SKILL.md §3 into kit/API.md.
+test("VO-6 FR-7 API.md reference column: every row of the 보여 줄 것 | 부품 | 참조 table points at a doc", () => {
+  const ls = lines(apiText());
   const at = ls.findIndex((l) => l.trim() === REF_HEADER);
-  assert.ok(at >= 0, `FR-7: §3 has no table header ${REF_HEADER}`);
+  assert.ok(at >= 0, `FR-7: kit/API.md has no table header ${REF_HEADER}`);
   const rows = [];
   for (let i = at + 1; i < ls.length && ls[i].trimStart().startsWith("|"); i++) {
     const row = ls[i].trimStart();
@@ -513,7 +524,7 @@ test("VO-6 FR-7 no-internals: SKILL.md never mentions internals.md", () => {
   assert.equal(skillText().includes("internals.md"), false, "FR-7: SKILL.md mentions internals.md");
 });
 
-const COST_TOKENS = ["읽은 문서", "바이트", "lesson.html", "장면 수", "결정 변수 수", "기대값", "주장 검토", "독자 검토", "눈 검토", "audit", "스크린샷", "시작", "공개", "토큰"];
+const COST_TOKENS = ["lesson.html", "바이트", "장면 수", "결정 변수 수", "검토 서브에이전트", "audit", "남은 권고", "시작", "공개", "토큰"];
 const isCostLine = (l) => l.trimStart().startsWith("- 생성 비용:");
 
 function costTemplate() {
@@ -523,7 +534,7 @@ function costTemplate() {
   return { s5, block };
 }
 
-test("VO-6 FR-9 §5 template: a - 생성 비용: line followed by all 14 sub-value tokens before the block end", () => {
+test("VO-6 FR-9 §5 template: a - 생성 비용: line followed by all 10 sub-value tokens before the block end", () => {
   const { block } = costTemplate();
   const at = block.body.findIndex(isCostLine);
   assert.ok(at >= 0, "FR-9: §5 template has no line starting with - 생성 비용:");
@@ -716,8 +727,8 @@ test("VO-5 checker: a first cell holding several ids counts for each of them", (
 });
 
 for (const { id, rule, tokens } of DOC_ROWS) {
-  test(`VO-5 ${id} FR-2 C-15: kit/API.md has a row with \`${rule}\` in the first cell containing ${tokens.join(" and ")}`, () => {
-    const err = auditRowError(apiText(), rule, tokens);
+  test(`VO-5 ${id} FR-2 C-15: kit/api/rules.md has a row with \`${rule}\` in the first cell containing ${tokens.join(" and ")}`, () => {
+    const err = auditRowError(rulesText(), rule, tokens);
     assert.equal(err, null, err ?? "");
   });
 }
@@ -728,7 +739,7 @@ for (const { id, rule, tokens } of DOC_ROWS) {
 const hasThreshold = (row, t) => new RegExp(`(?<![\\d.])${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(row);
 
 const THRESHOLD_ROWS = [
-  { rule: "shrunk", tokens: ["78%", "88%"], what: "the overflow · shrunk · hscroll row" },
+  { rule: "shrunk", tokens: ["78%", "88%"], what: "the shrunk row" },
   { rule: "small-visual", tokens: ["10%", "22%"], what: "the small-visual row" },
   { rule: "empty-stage", tokens: ["35%", "60%"], what: "the loose-figure · empty-stage row" },
   { rule: "many-sizes", tokens: ["7단계"], what: "the many-sizes row" },
@@ -759,8 +770,163 @@ test("VO-5 DOC-5 checker: digit-extended numbers (188%, 17단계, 0.88%) do not 
 });
 
 for (const { rule, tokens, what } of THRESHOLD_ROWS) {
-  test(`VO-5 DOC-5 FR-2(c): kit/API.md ${what} (first cell holds \`${rule}\`) keeps ${tokens.join(" and ")}`, () => {
-    const err = auditRowError(apiText(), rule, tokens, hasThreshold);
+  test(`VO-5 DOC-5 FR-2(c): kit/api/rules.md ${what} (first cell holds \`${rule}\`) keeps ${tokens.join(" and ")}`, () => {
+    const err = auditRowError(rulesText(), rule, tokens, hasThreshold);
     assert.equal(err, null, err ?? "");
+  });
+}
+
+// ---------- plan b71ddee49f77ac06 §1–3: flow docs stay consistent ----------
+
+test("plan §2: the 권고 ids named in SKILL.md §3 are exactly the rules.md rows graded 권고", () => {
+  const graded = lines(rulesText()).filter(isRow).filter((r) => (cells(r)[1] ?? "").trim() === "권고").flatMap((r) => codeSpans(firstCell(r)));
+  const line = lines(section(skillText(), 3)).find((l) => l.includes("**권고**"));
+  assert.ok(line, "SKILL.md §3 has no line naming **권고**");
+  const named = codeSpans(line.slice(line.indexOf("**권고**"), line.indexOf("**고침**")));
+  assert.deepEqual([...named].sort(), [...graded].sort());
+});
+
+test("plan §2: every rules.md row is graded 고침 or 권고", () => {
+  const bad = lines(rulesText()).filter(isRow).filter((r) => firstCell(r).trim() !== "rule" && !["고침", "권고"].includes((cells(r)[1] ?? "").trim()));
+  assert.deepEqual(bad, []);
+});
+
+test("plan §3: the kit/API.md lesson example is valid JavaScript", () => {
+  const block = apiText().match(/^```js\n([\s\S]*?)^```/m);
+  assert.ok(block, "kit/API.md has no ```js example");
+  assert.doesNotThrow(() => new vm.Script(block[1]));
+});
+
+// ---------- spec 6cc24f891a69c407 v1 VO-13 (FR-18, QR-6): motion documentation (syntax) ----------
+
+const rowsWithFirstSpan = (text, pred) => lines(text).filter(isRow).filter((r) => codeSpans(firstCell(r)).some(pred));
+
+test("VO-13 D1: kit/API.md has a table row whose first cell holds LTT.motion", () => {
+  const rows = rowsWithFirstSpan(apiText(), (s) => /LTT\.motion\b/.test(s));
+  assert.ok(rows.length >= 1, "no first-cell LTT.motion row in kit/API.md");
+});
+
+test("VO-13 D2: kit/API.md's motion rule line says pictures move by default (기본), names once and still", () => {
+  const ok = lines(apiText()).some((l) => /모션|움직/.test(l) && l.includes("기본") && l.includes("once") && l.includes("still"));
+  assert.ok(ok, "no single kit/API.md line holds 모션/움직, 기본, once and still");
+});
+
+for (const [id, tokens] of [["D3 loop", ["loop"]], ["D4 bind", ["bind"]], ["D5 autoplay", ["autoplay"]], ["D6 attract", ["attract"]], ["D7 beats", ["data-ltt-beats", "beats"]]]) {
+  test(`VO-13 ${id}: kit/api/deck-contracts.md documents ${tokens.join(" and ")}`, () => {
+    const text = apiDoc("deck-contracts.md");
+    const missing = tokens.filter((t) => !text.includes(t));
+    assert.deepEqual(missing, [], `deck-contracts.md lacks ${missing.join(", ")}`);
+  });
+}
+
+test("VO-13 D8: kit/api/rules.md has a still-visual row graded 권고, and lists 13 audit ids", () => {
+  const rows = rowsWithFirstSpan(rulesText(), (s) => s === "still-visual");
+  assert.equal(rows.length, 1, "expected exactly one rules.md row with `still-visual` in the first cell");
+  assert.equal((cells(rows[0])[1] ?? "").trim(), "권고");
+  assert.equal(AUDIT_IDS.length, 13);
+});
+
+test("VO-13 D9: kit/api/charts.md documents axisPlot set(id, points) point format", () => {
+  const ok = lines(apiDoc("charts.md")).some((l) => l.includes("set(") && l.includes("points"));
+  assert.ok(ok, "charts.md has no line with set( and points");
+});
+
+test("VO-13 D10: kit/api/charts.md documents hbars ticks and tickFormat", () => {
+  const ok = lines(apiDoc("charts.md")).some((l) => l.includes("hbars") && l.includes("ticks") && l.includes("tickFormat"))
+    || rowsWithFirstSpan(apiDoc("charts.md"), (s) => s.includes("hbars")).some((r) => r.includes("ticks") && r.includes("tickFormat"));
+  assert.ok(ok, "charts.md has no hbars line naming ticks and tickFormat");
+});
+
+test("VO-13 D11: compare form \"table\" head and cols format is documented in kit/API.md or deck-contracts.md", () => {
+  const ok = [apiText(), apiDoc("deck-contracts.md")].some((t) => lines(t).some((l) => l.includes("table") && l.includes("head") && l.includes("cols")));
+  assert.ok(ok, "no line names table, head and cols");
+});
+
+test("VO-13 D12: kit/CHANGELOG.md mentions LTT.motion", () => {
+  assert.ok(readReal(join(KIT, "CHANGELOG.md"), "kit/CHANGELOG.md").includes("LTT.motion"));
+});
+
+// catalog anchors get their id from group(title, "<id>") and demo("<id>", ...) at runtime, so a static id="motion" and the demo call both count.
+test("VO-13 D13: catalog.html defines the #motion demo anchor exactly once", () => {
+  const html = readReal(join(ROOT, "site/gallery/catalog.html"), "site/gallery/catalog.html");
+  const n = (html.match(/demo\(\s*["']motion["']/g) ?? []).length + (html.match(/id=["']motion["']/g) ?? []).length
+    + (html.match(/group\([^()]*,\s*["']motion["']\s*\)/g) ?? []).length;
+  assert.equal(n, 1, `#motion anchor defined ${n} times`);
+});
+
+// ---------- spec 2d467cf453771b95 VO-9: motion verbs documentation (syntax checks on document strings) ----------
+
+const MOTION_VERBS = ["draw", "flow", "camera", "morph", "stack"];
+const verbMentioned = (text, verb) => new RegExp(`(^|[^A-Za-z])${verb}([^A-Za-z]|$)`).test(text);
+const motionRows = () => lines(apiText()).filter((l) => isRow(l) && firstCell(l).includes("LTT.motion"));
+
+test("VO-9 FR-11: the LTT.motion rows of kit/API.md mention play", () => {
+  const rows = motionRows();
+  assert.ok(rows.length >= 1, "no LTT.motion row in kit/API.md");
+  // The pre-existing loop row already says {stop, play, running}, so require the new call form with its beats argument.
+  assert.ok(rows.some((r) => /play\([^)]*(t:\s*\[|beats)/.test(r)), "no LTT.motion row shows a play( call with a beats argument");
+});
+
+test("VO-9 FR-11: the motion rule line of kit/API.md names the five verbs draw, flow, camera, morph, stack", () => {
+  const rule = lines(apiText()).filter((l) => l.includes("기본으로 움직인다"));
+  assert.equal(rule.length, 1, `lines holding "기본으로 움직인다": ${rule.length}`);
+  const missing = MOTION_VERBS.filter((v) => !verbMentioned(rule[0], v));
+  assert.deepEqual(missing, [], `verbs missing on the motion rule line: ${missing}`);
+});
+
+test("VO-9 UI-5: kit/API.md restores the knob sandbox sentence", () => {
+  assert.ok(apiText().includes("결정 변수끼리 영향을 주면 summary 앞에 손잡이를 함께 여는 샌드박스를 둘 수 있다"));
+});
+
+// Clauses are checked inside the play subsection only: the file already had a 비트 노출 heading and loop text before play existed.
+const playSection = () => {
+  const ls = lines(apiDoc("deck-contracts.md")), i = ls.findIndex((l) => /^###\s+`play`/.test(l));
+  assert.ok(i >= 0, "no ### `play` subsection in deck-contracts.md");
+  let j = i + 1;
+  while (j < ls.length && !/^#{1,3}\s/.test(ls[j])) j++;
+  return ls.slice(i, j).join("\n");
+};
+
+test("VO-9 FR-11: the deck-contracts play subsection documents LTT.motion.play and the five verbs", () => {
+  const t = playSection();
+  assert.ok(t.includes("LTT.motion.play"), "no LTT.motion.play");
+  const missing = MOTION_VERBS.filter((v) => !verbMentioned(t, v));
+  assert.deepEqual(missing, [], `verbs missing: ${missing}`);
+});
+
+test("VO-9 FR-11: the play subsection has the target-resolution clause (diagram ids, \"from>to\", axisPlot series, CSS selector)", () => {
+  const t = playSection();
+  for (const needle of ["from>to", "LTT.axisPlot", "CSS 선택자"]) assert.ok(t.includes(needle), `no "${needle}"`);
+});
+
+test("VO-9 FR-11: the play subsection has the state-rule clause (period restart, p = 0 before a beat, p = 1 after)", () => {
+  const t = playSection();
+  assert.ok(/p\s*=\s*0/.test(t) && /p\s*=\s*1/.test(t), "no p = 0 / p = 1 state statement");
+  assert.ok(/주기가 다시 시작/.test(t), "no statement about the period restarting");
+});
+
+test("VO-9 FR-11: the play subsection has the beat-exposure clause (data-ltt-beats, period − 1)", () => {
+  const t = playSection();
+  assert.ok(t.includes("비트 노출") && t.includes("data-ltt-beats") && /period\s*[-−]\s*1/.test(t), "no beat exposure with data-ltt-beats and period − 1");
+});
+
+test("VO-9 FR-10: the beforeAfter row of kit/api/ui.md documents ms", () => {
+  const row = lines(apiDoc("ui.md")).find((l) => isRow(l) && firstCell(l).includes("LTT.beforeAfter"));
+  assert.ok(row, "no LTT.beforeAfter row in kit/api/ui.md");
+  assert.ok(/(^|[^A-Za-z])ms([^A-Za-z]|$)/.test(row), "the beforeAfter row does not mention ms");
+  assert.ok(/없으면\s*0/.test(row), "the row does not state 0 for no markers");
+  assert.ok(row.includes("700") && row.includes("140"), "the row does not state the constants 700 and 140");
+});
+
+test("VO-9 FR-11: kit/CHANGELOG.md mentions LTT.motion.play", () => {
+  assert.ok(readReal(join(KIT, "CHANGELOG.md"), "kit/CHANGELOG.md").includes("LTT.motion.play"));
+});
+
+for (const id of ["motion-draw", "motion-flow", "motion-camera", "motion-morph", "motion-stack"]) {
+  test(`VO-9 FR-11: catalog.html defines the ${id} verb demo exactly once`, () => {
+    const html = readReal(join(ROOT, "site/gallery/catalog.html"), "site/gallery/catalog.html");
+    const n = (html.match(new RegExp(`demo\\(\\s*["']${id}["']`, "g")) ?? []).length + (html.match(new RegExp(`id=["']${id}["']`, "g")) ?? []).length
+      + (html.match(new RegExp(`group\\([^()]*,\\s*["']${id}["']\\s*\\)`, "g")) ?? []).length;
+    assert.equal(n, 1, `${id} defined ${n} times`);
   });
 }

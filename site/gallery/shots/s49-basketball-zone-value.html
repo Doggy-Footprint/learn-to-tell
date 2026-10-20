@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구역별 기대 득점</title>
+<script type="application/json" id="ltt-meta">{"topic":"농구 구역별 기대 득점","audience":"농구 분석 입문자","theme":"sketch","medium":"전술 화이트보드","decision":"어느 구역의 슛을 늘릴까","domain":"스포츠 분석","pattern":["predict"],"mode":"카탈로그용: 장면 하나짜리 본보기. 공간 구조를 \"강조가 훑음\" 움직임과 중앙 주인공 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>.ct{width:640px;max-width:100%;height:auto;display:block;margin:0 auto}.ct text{font-family:inherit}</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const el = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+const txt = (s, attrs, str) => { const t = el("text", attrs, s); t.textContent = str; return t; };
+// predict 시각 칸에는 leave가 없어서, 노드가 문서에서 빠지면 스스로 멈춘다
+function loop(node, period, draw) {
+  let id = 0, t0 = 0; const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return { enter() { clearTimeout(id); if (reduced) { draw(0.999); return; } t0 = Date.now();
+      const f = () => { if (!node.isConnected) return; draw(((Date.now() - t0) / period) % 1); id = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(id); } };
+}
+// NBA.com 2023-24 리그 구역별 야투율(대략). 기대 득점 = 야투율 × 슛 점수
+const Z = [
+  { id: "ra", name: "림 앞", fg: 0.66, pts: 2, at: [25, 2.2] },
+  { id: "paint", name: "페인트", fg: 0.44, pts: 2, at: [25, 12] },
+  { id: "mid", name: "미드레인지", fg: 0.42, pts: 2, at: [10.5, 15.5] },
+  { id: "corner", name: "코너 3점", fg: 0.39, pts: 3, at: [1.5, 4] },
+  { id: "above", name: "윙·탑 3점", fg: 0.36, pts: 3, at: [25, 28.5] }];
+const eps = (z) => z.fg * z.pts;
+LTT.expect("미드레인지 기대 득점", eps(Z[2]), 0.84, { tol: 1e-9 });
+LTT.expect("코너 3점 기대 득점", eps(Z[3]), 1.17, { tol: 1e-9 });
+
+function court(host, showEps) {
+  const S = 12, W = 50 * S, D = 32, H = D * S + 64;
+  const X = (x) => x * S, Y = (y) => 10 + (D - y) * S; // 엔드라인이 아래
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "ct", "data-annotate": "" }, host);
+  const bx = 25, by = 5.25, R3 = 23.75, yc = by + Math.sqrt(R3 * R3 - 22 * 22);
+  const arc = `M${X(3)},${Y(0)} L${X(3)},${Y(yc)} A${R3 * S},${R3 * S} 0 0 1 ${X(47)},${Y(yc)} L${X(47)},${Y(0)} Z`;
+  const base = "stroke:var(--ltt-ink-2);stroke-width:2;transition:fill .35s";
+  const shapes = {
+    above: el("rect", { x: 0, y: Y(D), width: W, height: D * S, style: base + ";fill:var(--ltt-card)" }, s),
+    corner: el("path", { d: `M0,${Y(0)}V${Y(yc)}H${X(3)}V${Y(0)}Z M${X(47)},${Y(0)}V${Y(yc)}H${W}V${Y(0)}Z`, style: base + ";fill:var(--ltt-card)" }, s),
+    mid: el("path", { d: arc, style: base + ";fill:var(--ltt-card)" }, s),
+    paint: el("rect", { x: X(17), y: Y(19), width: 16 * S, height: 19 * S, style: base + ";fill:var(--ltt-card)" }, s),
+    ra: el("path", { d: `M${X(21)},${Y(0)} V${Y(by)} A${4 * S},${4 * S} 0 0 1 ${X(29)},${Y(by)} V${Y(0)} Z`, style: base + ";fill:var(--ltt-card)" }, s) };
+  el("circle", { cx: X(bx), cy: Y(by), r: 9, style: "fill:none;stroke:var(--ltt-ink);stroke-width:3" }, s);
+  el("line", { x1: X(22), x2: X(28), y1: Y(4), y2: Y(4), style: "stroke:var(--ltt-ink);stroke-width:4" }, s);
+  const labs = {};
+  Z.forEach((z) => { const g = el("g", {}, s); const x = X(z.at[0]), y = Y(z.at[1]);
+    const below = z.id === "corner" || z.id === "ra", anchor = "middle", dx = 0;
+    const a = txt(g, { x: x + dx, y: below ? Y(0) + 24 : y - 6, "text-anchor": anchor, style: "font-size:17px;font-weight:700;fill:var(--ltt-ink)" }, z.name);
+    const b = txt(g, { x: x + dx, y: below ? Y(0) + 44 : y + 18, "text-anchor": anchor, style: "font-size:15px;fill:var(--ltt-ink-2)" },
+      showEps ? `${eps(z).toFixed(2)}점` : `성공률 ${Math.round(z.fg * 100)}% · ${z.pts}점슛`);
+    if (z.id === "corner") [a, b].forEach((t) => { t.setAttribute("x", X(1.5)); t.setAttribute("text-anchor", "start"); });
+    labs[z.id] = [a, b]; });
+  const scan = el("circle", { r: 0, style: "fill:none;stroke:var(--ltt-accent);stroke-width:3;opacity:0" }, s);
+  function draw(u) { // 다섯 구역을 차례로 훑고 마지막에 잠시 쉰다
+    const k = Math.floor(u * 6), local = (u * 6) % 1;
+    Z.forEach((z, i) => { const on = i === k; shapes[z.id].style.fill = on ? "var(--ltt-accent-soft)" : "var(--ltt-card)";
+      labs[z.id].forEach((t) => t.style.fill = on ? "var(--ltt-accent)" : (k === 5 ? "var(--ltt-ink)" : "var(--ltt-muted)")); });
+    if (k < 5) { const z = Z[k], c = z.id === "corner" ? [1.5, 3] : z.id === "ra" ? [25, 3] : z.at;
+      scan.setAttribute("cx", X(c[0])); scan.setAttribute("cy", Y(c[1])); scan.setAttribute("r", 70 + 40 * ease(clamp(local / .6)));
+      scan.style.opacity = 1 - clamp((local - .3) / .6); } else scan.style.opacity = 0;
+  }
+  return { el: s, draw };
+}
+
+LTT.deck({ title: "구역별 기대 득점", theme: "sketch",
+  glossary: { "기대 득점": "슛 한 번에 평균으로 얻는 점수. 성공률 × 그 슛의 점수" },
+  scenes: [{ type: "predict", kicker: "슛 선택", title: "슛 한 번의 값은 어디가 가장 낮을까",
+    sub: "구역을 훑으며 리그 평균 성공률과 점수를 본다. {{기대 득점}}은 둘을 곱한 값이다.",
+    question: "{{기대 득점}}이 가장 낮은 구역은?",
+    visual: (node) => { const f = court(node, false); f.draw(0); setTimeout(() => loop(f.el, 8000, f.draw).enter(), 0); },
+    choices: [{ id: "ra", text: "림 앞" }, { id: "mid", text: "미드레인지" }, { id: "above", text: "윙·탑 3점" }], answer: "mid",
+    answerVisual: (node) => { court(node, true).draw(0.99); },
+    why: "미드레인지는 0.42 × 2 = 0.84점, 성공률이 더 낮은 3점은 0.36 × 3 = 1.08점이다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    basis: "NBA.com 2023-24 리그 구역별 야투율을 반올림한 값(불확실). 자유투·파울 유도는 뺐다." }] });
+</script>
+</body>
+</html>

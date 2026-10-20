@@ -1,0 +1,69 @@
+# run a96c8781ab82e025 R-1 / R-2 (main, 2026-10-20, spec v3, after correction batch 1)
+
+command: node skills/learn-to-tell/server/audit.mjs site/gallery/gpu/single-gpu-dataflow.html site/gallery/knowledge-graph/ontology-triples.html site/gallery/shots/s47-power-mix-sweep.html --sheet --json
+
+## gpu/single-gpu-dataflow.html  size 1280x800  files 2  cells 14  failed 0  error null
+- scene 1 hook cells 1 file sheet.jpg warn []
+- scene 2 terms cells 1 file sheet.jpg warn []
+- scene 3 figure cells 1 file sheet.jpg warn [still-visual]
+- scene 4 (none) cells 1 file sheet.jpg warn [still-visual]
+- scene 5 predict cells 1 file sheet.jpg warn []
+- scene 6 compare cells 1 file sheet.jpg warn []
+- scene 7 statement cells 1 file sheet.jpg warn [still-visual]
+- scene 8 figure cells 1 file sheet.jpg warn [still-visual]
+- scene 9 compare cells 1 file sheet.jpg warn []
+- scene 10 explain cells 1 file sheet.jpg warn []
+- scene 11 summary cells 1 file sheet.jpg warn []
+- scene 12 overview cells 1 file sheet.jpg warn [still-visual]
+- scene 13 keywords cells 1 file sheet-2.jpg warn []
+- scene 14 map-related cells 1 file sheet-2.jpg warn []
+## knowledge-graph/ontology-triples.html  size 1280x800  files 3  cells 31  failed 0  error null
+- scene 1 hook cells 1 file sheet.jpg warn []
+- scene 2 terms cells 1 file sheet.jpg warn []
+- scene 3 compare cells 1 file sheet.jpg warn []
+- scene 4 figure cells 1 file sheet.jpg warn [still-visual]
+- scene 5 (none) cells 1 file sheet.jpg warn [still-visual]
+- scene 6 figure cells 1 file sheet.jpg warn []
+- scene 7 compare cells 1 file sheet.jpg warn []
+- scene 8 figure cells 1 file sheet.jpg warn [still-visual]
+- scene 9 (none) cells 1 file sheet.jpg warn []
+- scene 10 figure cells 4 file sheet-2.jpg warn [] t 1440,3240,5040,6840
+- scene 11 predict cells 1 file sheet-2.jpg warn []
+- scene 12 figure cells 4 file sheet-2.jpg warn [] t 1440,3240,6840,8640
+- scene 13 compare cells 1 file sheet-2.jpg warn []
+- scene 14 statement cells 1 file sheet-2.jpg warn []
+- scene 15 compare cells 1 file sheet-2.jpg warn []
+- scene 16 contrast cells 1 file sheet-3.jpg warn [] t 730
+- scene 17 explain cells 1 file sheet-3.jpg warn []
+- scene 18 compare cells 1 file sheet-3.jpg warn []
+- scene 19 explain cells 1 file sheet-3.jpg warn []
+- scene 20 explain cells 1 file sheet-3.jpg warn []
+- scene 21 predict cells 1 file sheet-3.jpg warn []
+- scene 22 summary cells 1 file sheet-3.jpg warn []
+- scene 23 summary cells 1 file sheet-3.jpg warn []
+- scene 24 overview cells 1 file sheet-3.jpg warn [still-visual]
+- scene 25 keywords cells 1 file sheet-3.jpg warn []
+## shots/s47-power-mix-sweep.html  size 1280x800  files 1  cells 4  failed 0  error null
+- scene 1 (none) cells 4 file sheet.jpg warn [shrunk] t 600,1800,5400,8900
+
+## eye check (main read sheet images; copies a96c8781ab82e025-r1-gpu-1.jpg, -r1-ontology-2.jpg, -r1-s47.jpg)
+| check | gpu (14) | ontology (25) | s47 (1, beats) |
+| --- | --- | --- | --- |
+| cell count per scene = JSON | yes (1 each) | yes (10 and 12: 4 beat cells, 16: 1 beat cell) | yes (4 of 5 texted beats, indices 0,1,3,4) |
+| scene order, scene never split | yes, 12 + 2 | yes, 9 / 12 / 4 cells over 3 sheets (scene 10 opens sheet 2) | yes |
+| badge = warn ids | still-visual on 3,4,7,8,12 | still-visual on 4,5,8 (sheet 1), 24 | shrunk on all 4 |
+| beat label | — | 2 lines, cut with … at 60 chars (after R1-1) | 2 lines |
+| composition recognisable at 320 px | yes: hero, card grid, bar chart, diagram positions readable; body text not readable (audit measures text) | yes: code + steps, graph diagram changes between beats | yes: bar heights and year label change per beat |
+| size | 1320×800 max, ≤1.06 MP | same | 1320×~294 |
+
+before R1-1 the beat label was a single clipped line (~22 chars), fixed in correction batch 1.
+
+## R-2 process spawn grep (QR-3)
+1:import { spawn } from "node:child_process";
+100:    const child = spawn(chrome, args, { stdio: ["ignore", "pipe", "ignore"] });
+→ only spawn is inside runChrome (Chrome).
+
+## R-2 rerun (verifier F-8): grep -n -E 'spawn|spawnSync|exec\(|execFile|execSync|fork\(|Worker|child_process' skills/learn-to-tell/server/audit.mjs
+1:import { spawn } from "node:child_process";
+100:    const child = spawn(chrome, args, { stdio: ["ignore", "pipe", "ignore"] });
+→ one import of spawn from node:child_process, one call inside runChrome (Chrome). No other process launches.

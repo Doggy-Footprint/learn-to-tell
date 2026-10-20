@@ -141,6 +141,10 @@ When the task completes, remove its entry from `index.md` and move the file to `
 
 # Task Guide
 
+## Generated Lesson Defects
+
+A defect found in a lesson the skill generated (test runs, gallery, user lessons) is evidence about the generator, not a task on that lesson. Trace it to what produced it (`SKILL.md`, `kit/API.md` and `kit/api/`, kit code, audit and lint rules) and fix it there so future generations do not repeat it. Patch the lesson itself only when the user asks for that lesson to be fixed.
+
 ## User Decision
 
 Never decide unspecified task details silently. Resolve what the project, code, and conversation can answer. For the rest, either ask, or state a default (what you chose, why, and how to change it later) so the user can veto it before it takes effect. Ask instead when the choice is expensive or risky to reverse, or contradicts what the user or project has stated.
