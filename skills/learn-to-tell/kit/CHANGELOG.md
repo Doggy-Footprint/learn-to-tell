@@ -2,24 +2,6 @@
 
 버전을 올릴 때 작가 계약(수업 spec이 지켜야 하거나 수업에서 보이는 동작)과 kit 개발자용 변경을 한 줄씩 적는다.
 
-## 1.0.0
-
-작가 계약
-- 그림은 기본으로 움직인다. `LTT.motion.loop`·`bind`·`reduced`가 장면에 묶인 반복 움직임을 주고, 장면을 떠나면 멈춘다. 예외(읽는 글, 공개 전 답, `still: "이유"`)도 가능하면 `once`로 한 번 재생 후 멈춘다.
-- `LTT.motion.play(svg, beats, opts)`가 비트 타임라인(`t: [a, b]`, `text`)에 동사 `draw`·`flow`·`camera`·`morph`·`stack`을 붙인다. 대상은 diagram 노드·엣지 id, axisPlot 계열 id, CSS 선택자, Element이고 diagram 노드 `morph`는 엣지를 따라 그린다.
-- `LTT.beforeAfter().ms`는 표식이 없으면 0, 있으면 700 + 140 × (m − 1)이다.
-- figure `steps`는 기본으로 자동 재생된다(`autoplay`: `true`·`"once"`·`false`). 단계 `hold`가 덱 figure에서도 쓰인다.
-- `LTT.sweep`은 기본으로 손대기 전까지 손잡이를 혼자 훑는다(`attract`, 끄려면 `false`).
-- 장면 공통 필드 `still`과 audit 권고 `still-visual`이 생겼다.
-- predict `question`이 제목과 다르면 선택지 위에 보이고, 공통 `takeaway`는 정답 공개 전에는 가려진다.
-- `LTT.expect`는 기대값이 숫자가 아니면(boolean·문자열) `===`로 판정한다.
-- lint `icon-not-string`(고침): hook `art`, explain `steps[].icon`, terms 항목 `icon`이 문자열이 아니면(falsy 제외) 경고한다.
-
-kit 개발자용
-- 장면 요소 `data-ltt-beats`와 audit JSON `beats`가 장면마다 비트 시각을 내보낸다.
-- 같은 시각 비트가 여러 번 오면 글 있는 비트가 글 없는 비트를 대신한다(글이 둘이면 먼저 온 글). audit JSON에 장면 type 목록 `types`가 더해졌다.
-- 움직임 시간은 `setTimeout` + `Date.now()`로 재므로 헤드리스 가상 시간에서도 돈다(`requestAnimationFrame`을 쓰지 않는다).
-
 ## 0.2.0
 
 작가 계약

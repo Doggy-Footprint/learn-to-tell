@@ -395,7 +395,7 @@
   }
 
   function expect(label, actual, expected, opts) {
-    var r = typeof expected === "number" ? compare(actual, expected, opts && opts.tol) : { ok: actual === expected, tol: null };
+    var r = compare(actual, expected, opts && opts.tol);
     if (typeof document !== "undefined") {
       var row = document.createElement("div");
       row.className = r.ok ? "ok" : "fail";
@@ -562,20 +562,6 @@
       var filler = FILLER.exec(stripMarks(sceneText(s)));
       return filler ? [[i, "filler-content", "채움 글 '" + filler[0] + "' (실제 사례·값으로 바꿀 것)"]] : [];
     } },
-    { id: "icon-not-string", scene: function (s, i) {
-      var out = [];
-      function check(v, path) {
-        if (v && typeof v !== "string") out.push([i, "icon-not-string", path + "에 문자열이 아닌 값(" + (Array.isArray(v) ? "array" : typeof v) + ")이 있다 (아이콘 이름이나 HTML 문자열만)"]);
-      }
-      function each(list, name) {
-        if (!Array.isArray(list)) return;
-        list.forEach(function (e, k) { if (e && typeof e === "object") check(e.icon, name + "[" + k + "].icon"); });
-      }
-      if (s.type === "hook") check(s.art, "art");
-      else if (s.type === "explain") each(s.steps, "steps");
-      else if (s.type === "terms") each(s.terms, "terms");
-      return out;
-    } },
     { id: "card-monotony", deck: function (c) {
       var out = [], run = 0, cards = 0, body = 0;
       c.scenes.forEach(function (s, i) {
@@ -630,8 +616,6 @@
   // below them a figure read as a thumbnail or the scene needed the zoom floor; kit parts alone already use about 7 text sizes.
   // Narrow windows (compact, ≤1000px) shrink by design, so zoom and visual-size ratios are not judged there.
   // hero repeats the deck mount's full-layout rule (ltt-deck.js) so a scene is judged by the layout it is actually drawn in.
-  // Reading scenes stay still by design: their content is text to read, not a mechanism to watch.
-  var STILL_TYPES = ["terms", "summary", "keywords", "hook", "map-related"];
   function auditScene(m) {
     var out = [], hero = sceneMeta(m.type, "auditHero") || (m.layout ? m.layout === "full" : !!sceneMeta(m.type, "fullByDefault"));
     function add(rule, msg) { out.push({ rule: rule, msg: msg }); }
@@ -650,8 +634,6 @@
     if (!m.compact && sceneMeta(m.type, "auditLooseFigure") && m.figRatio != null && m.figRatio < 0.35)
       add("loose-figure", "그림이 figure 무대의 " + Math.round(m.figRatio * 100) + "%만 채운다. 그림 폭·높이를 키우거나 가로로 배치할 것");
     if (hero && m.fill != null && m.fill < 0.6) add("empty-stage", "장면이 화면 높이의 " + Math.round(m.fill * 100) + "%만 쓴다. 그림을 키울 것");
-    if (!m.compact && m.drawing && !m.beats && !m.still && STILL_TYPES.indexOf(m.type) < 0)
-      add("still-visual", "그림이 움직이지 않는다. LTT.motion.loop로 움직이거나 figure steps로 단계를 두고, 멈춰 둘 이유가 있으면 still: \"이유\"를 적을 것");
     if (m.fontSizes > 7) add("many-sizes", "본문 글자 크기가 " + m.fontSizes + "단계다 (kit 부품 포함 7단계 이하). 페이지 CSS의 font-size를 kit 크기에 맞출 것");
     return out;
   }

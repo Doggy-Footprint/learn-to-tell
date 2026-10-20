@@ -1,4 +1,4 @@
-언제: audit·lint 출력만으로 무엇을 고칠지 모를 때만 읽는다. 등급 "고침"은 공개 전에 0건이어야 하고, "권고"는 audit 5회 안에서 고치고 남으면 `result.md`에 적는다(SKILL.md §3).
+언제: audit·lint 출력만으로 무엇을 고칠지 모를 때만 읽는다. 등급 "고침"은 공개 전에 0건이어야 하고, "권고"는 audit 3회 안에서 고치고 남으면 `result.md`에 적는다(SKILL.md §3).
 
 # lint·audit 규칙
 
@@ -18,7 +18,6 @@ lint는 장면 데이터만 본다(`LTT.lintDeck`). audit은 URL에 `?audit`을 
 | `summary-no-recall` | 고침 | summary가 모으는 takeaway에 `recall`이 없다 |
 | `no-theme`, `unknown-theme` | 고침 | `theme`이 없거나 없는 이름이다 |
 | `filler-content` | 고침 | "항목 1", "샘플 텍스트", lorem, TODO 같은 채움 글 |
-| `icon-not-string` | 고침 | hook `art`, explain `steps[].icon`, terms 항목 `icon`에 문자열이 아닌 값이 있다. 아이콘 이름이나 HTML 문자열만 쓴다(함수·객체·숫자는 글자로 찍힌다) |
 | `unused-term` | 권고 | glossary 용어를 어디에도 표시하지 않았다 |
 | `card-monotony` | 권고 | 카드 격자 장면(explain `cards`, compare, terms, `recall` 없는 summary)이 3장 연속이거나, hook·keywords를 뺀 장면의 절반 초과 |
 | `no-signature` | 권고 | 그림이 주인공인 장면(`figure`, `contrast`, `layout: "full"`, 타입 없는 `mount`)이 없다 |
@@ -35,7 +34,6 @@ lint는 장면 데이터만 본다(`LTT.lintDeck`). audit은 URL에 `?audit`을 
 | `graph-overlap` | 고침 | diagram의 라벨·노드·엣지가 겹친다(`LTT.graphOverlaps`) |
 | `panel-overlap` | 고침 | figure 단계 자막 칸이나 펼친 predict 정답이 글 줄·컨트롤·그림(diagram은 노드·라벨 상자)과 겹친다 |
 | `goal-unreachable`, `goal-at-start` | 고침 | `sweep` 목표가 어느 손잡이 자리에서도 안 맞는다 / 시작 위치에서 이미 맞는다 |
-| `still-visual` | 권고 | 움직임 없는 그림이다: 좁은 창이 아니고, 본문에 목업이 아닌 그림이 있고, 노출 비트(`LTT.motion.loop`, figure `steps` 자동 재생, sweep `attract`, contrast 재생)가 없고, `still: "이유"`가 없다. terms·summary·keywords·hook·map-related는 판정하지 않는다 |
 | `goal-narrow` | 권고 | `sweep` 목표가 손잡이 한 자리에서만 맞는다 |
 
 `LTT.expect` 불일치도 고침이다.
