@@ -8,7 +8,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
 import { findChrome } from "../skills/learn-to-tell/server/audit.mjs";
+
+const HOLD_CASES = createRequire(import.meta.url)("./fixtures/motion/hold-cases.js");
+const REV_CASES = createRequire(import.meta.url)("./fixtures/motion/rev-cases.js");
 
 const PAGE = pathToFileURL(fileURLToPath(new URL("./fixtures/motion/page.html", import.meta.url))).href;
 const chrome = findChrome();
@@ -84,7 +88,20 @@ const PAGES = {
   errors: ["errors", { budget: 8500 }],
   reduced: ["reduced", { budget: 8500, flags: ["--force-prefers-reduced-motion"] }],
   measure: ["measure", { budget: 7000 }],
-  autoplay: ["autoplay", { budget: 26000 }],
+  autoplay: ["autoplay", { budget: 45000 }],
+  autoclick: ["autoclick", { budget: 66000 }],
+  hold: ["hold", { budget: 110000 }],
+  holdAudit: ["hold", { audit: true, budget: 20000 }],
+  holdErr: ["hold-err", { budget: 10000 }],
+  holdErrAudit: ["hold-err", { audit: true, budget: 20000 }],
+  playersSolo: ["players-solo", { budget: 14000 }],
+  playersSoloReduced: ["players-solo", { budget: 14000, flags: ["--force-prefers-reduced-motion"] }],
+  playersDeck: ["players-deck", { budget: 58000 }],
+  playersDeckReduced: ["players-deck", { budget: 58000, flags: ["--force-prefers-reduced-motion"] }],
+  revDeck: ["rev-deck", { budget: 40000 }],
+  revPlayer: ["rev-player", { budget: 40000 }],
+  revOff: ["rev-off", { budget: 3000 }],
+  size: ["size", { budget: 9000 }],
   sweepA: ["sweep-a", { budget: 11500 }],
   sweepB: ["sweep-b", { budget: 5500 }],
   sweepC: ["sweep-c", { budget: 5500 }],
@@ -346,9 +363,12 @@ test("VO-14 T1 (characterization): mount's returned {enter, leave} still gets on
   assert.equal(R.cnt["M:leave"], 2);
 });
 
-test("VO-14 T2 (characterization): LTT.stepper outside a deck does not auto-play", { skip }, async () => {
+// Rewritten for spec 5ad829b7137b4d19 (C-8, FR-2): this characterization asserted that a standalone stepper never plays; it now starts when made.
+// The steps carry hold 300, so the 1800ms floor sets the pace.
+test("VO-14 T2 (rewritten, was characterization) C-8 FR-4: LTT.stepper outside a deck auto-plays from creation, hold 300 floored to 1800ms", { skip }, async () => {
   const R = await get("nodeck");
-  for (const t of [500, 1500, 2900]) assert.equal(stepAt(R, "ST", t), 0, `step at ${t}ms`);
+  assert.deepEqual([500, 1500].map((t) => stepAt(R, "ST", t)), [0, 0], "moved before the 1800ms floor");
+  assert.deepEqual([2300, 2900].map((t) => stepAt(R, "ST", t)), [1, 1]);
 });
 
 test("VO-14 T3 (characterization): LTT.sweep still returns render, values and controls", { skip }, async () => {
@@ -474,8 +494,9 @@ test("VO-4 period 0 falls back to 4000: default beats [1333, 2667, 3999] (C-20)"
 });
 
 test("VO-4 steps beats: start + round(0.8 × hold), caption text without markup and {{x|y}} marks", { skip }, async () => {
-  assert.deepEqual((await beatsOf(9)).map((x) => [x.t, (x.text ?? "").trim()]), [[800, "첫 단계"], [1800, "만료 시간 둘"], [2800, "셋 TTL"]]);
-  assert.deepEqual((await beatsOf(10)).map((x) => [x.t, (x.text ?? "").trim()]), [[400, "가"], [1300, "나"], [3100, "다"]]);
+  // Re-timed for spec 5ad829b7137b4d19 FR-4: holds are floored (1000 -> 1800; 500, 1000 -> 1800, 2000 stays), t = sum of previous holds + round(0.8 x hold).
+  assert.deepEqual((await beatsOf(9)).map((x) => [x.t, (x.text ?? "").trim()]), [[1440, "첫 단계"], [3240, "만료 시간 둘"], [5040, "셋 TTL"]]);
+  assert.deepEqual((await beatsOf(10)).map((x) => [x.t, (x.text ?? "").trim()]), [[1440, "가"], [3240, "나"], [5200, "다"]]);
 });
 
 test("VO-4 contrast beat: one beat at t = max(550 + 90 × (n − 1), ms) (FR-11 v4)", { skip }, async () => {
@@ -507,75 +528,323 @@ test("VO-4 E3 (VO-10): out-of-range and non-numeric beats warn", { skip }, async
   assert.ok(R.warns.length >= 1, "no LTT.warn for invalid beats or period 0");
 });
 
-// ---------- VO-5 figure steps auto-play (state transition) ----------
+// ---------- spec 5ad829b7137b4d19 v1 (steps autoplay build) ----------
+// Replaces the old VO-5 block (hold 1000, "once" stopping at the end, `autoplay: false` not starting). Spec expectations only:
+// holdOf = max(step.hold || opts.interval || 0, max(1800, 1000 + 100 n)); every player with 2+ steps loops by itself; reduced motion never plays.
+// Transition times are read in headless virtual time, so a transition is accepted in [expected, expected + 300] (QR-1 tolerance); a transition
+// earlier than the expected hold is a floor violation.
 
-test("VO-5 auto→next: steps advance every hold (C-10: 0.5s step 0, 1.5s step 1, 2.5s step 2)", { skip }, async () => {
+const TOL = 300;
+// Consecutive duplicates collapse to the first occurrence: a step entered twice in a row (entry redraw) is one transition.
+const trans = (rows) => rows.filter((r, i) => i === 0 || r[1] !== rows[i - 1][1]).map(([, k, t]) => [k, t]);
+// Entering a deck scene runs the measurement pre-draw, which enters every step within a few ms of the first (timer-starting) enter; only the
+// first row and the rows after 60ms are play-back transitions.
+const play = (R, label, from, to = Infinity) => {
+  const all = rowsOf(R, label, from - 5, to);
+  return trans(all.length ? [all[0], ...all.filter(([, , t]) => t >= from + 60)] : []);
+};
+// Errors thrown inside an H.at callback carry "at <scheduled ms>:"; the rest (kit timers, parse) have no window and always count.
+const errorsIn = (R, a, b) => R.errors.filter((m) => { const w = /^at (\d+):/.exec(m); return !w || (+w[1] >= a - 5 && +w[1] < b); });
+const rowsOf = (R, label, from = -Infinity, to = Infinity) => R.steps.filter(([l, , t]) => l === label && t >= from && t < to);
+const gaps = (tr) => tr.slice(1).map((x, i) => x[1] - tr[i][1]);
+const within = (g, lo, hi, what) => assert.ok(g >= lo && g <= hi, `${what}: ${g}ms not in [${lo}, ${hi}]`);
+const ks = (tr) => tr.map((x) => x[0]);
+const quiet = (R) => { noErrors(R); assert.deepEqual(R.consoleErrors, [], "console.error calls"); assert.deepEqual(R.warns, [], "LTT.warn calls"); };
+
+// VO-AUTO + VO-COMP: deck figure, `autoplay` ∈ {absent, true, "once", false} must all loop identically (C-1, C-5, FR-1, FR-2).
+const VARIANTS = [["S1", "absent", "e1", 1], ["S2", "true", "e2", 2], ["S3", '"once"', "e3", 3], ["S4", "false", "e4", 4]];
+for (const [label, name, mark, idx] of VARIANTS) {
+  test(`VO-AUTO/VO-COMP C-1 C-5: deck figure steps with autoplay ${name} play from step 0 and loop 0,1,2,0 on the 1800ms floor (author hold 1000)`, { skip }, async () => {
+    const R = await get("autoplay");
+    quiet(R);
+    const e = at(R, mark);
+    assert.deepEqual([900, 2700, 4500, 6300].map((d) => stepAt(R, label, e + d)), [0, 1, 2, 0]);
+    const tr = play(R, label, e, e + 6400);
+    assert.deepEqual(ks(tr), [0, 1, 2, 0]);
+    for (const g of gaps(tr)) within(g, 1800, 1800 + TOL, `${label} hold`);
+  });
+  test(`VO-COMP C-5 FR-4: autoplay ${name} records data-ltt-beats t = [1440, 3240, 5040] (floored holds 1800)`, { skip }, async () => {
+    const R = await get("autoplay");
+    assert.ok(R.samples["beats" + idx], "scene has no data-ltt-beats");
+    assert.deepEqual(ts(JSON.parse(R.samples["beats" + idx])), [1440, 3240, 5040]);
+  });
+}
+
+test("VO-HOLD C-4 FR-4: the 'first step plain text' captions ('첫 단계', '{{만료 시간|TTL}} 둘', '셋 {{TTL}}') have n = 4, 5, 6 and give no more than the floor", { skip }, async () => {
   const R = await get("autoplay");
-  noErrors(R);
-  const e = at(R, "e1");
-  assert.deepEqual([500, 1500, 2500].map((d) => stepAt(R, "S1", e + d)), [0, 1, 2]);
+  const tr = play(R, "S1", at(R, "e1"), at(R, "e1") + 6400);
+  for (const g of gaps(tr)) within(g, 1800, 1800 + TOL, "hold of a short caption");
 });
 
-test("VO-5 last→0: autoplay true wraps to step 0 (C-10 3.5s)", { skip }, async () => {
+test("VO-HOLD FR-4: per-step author holds [2500, 4000, 1000] are kept when above the floor and floored when below", { skip }, async () => {
   const R = await get("autoplay");
-  assert.equal(stepAt(R, "S1", at(R, "e1") + 3500), 0);
+  const e = at(R, "e6");
+  assert.deepEqual([2000, 2900, 6000, 6900].map((d) => stepAt(R, "S6", e + d)), [0, 1, 1, 2]);
+  const tr = play(R, "S6", e, e + 8200);
+  within(gaps(tr)[0], 2500, 2500 + TOL, "step 0 hold 2500");
+  within(gaps(tr)[1], 4000, 4000 + TOL, "step 1 hold 4000");
 });
 
-test("VO-5 C-10 beats on the scene element: t = [800, 1800, 2800]", { skip }, async () => {
-  const R = await get("autoplay");
-  assert.ok(R.samples.beats1, "scene has no data-ltt-beats");
-  assert.deepEqual(ts(JSON.parse(R.samples.beats1)), [800, 1800, 2800]);
-});
-
-test("VO-5 click→manual: pressing next stops auto-play for the visit (C-12)", { skip }, async () => {
-  const R = await get("autoplay");
-  const c = at(R, "click");
-  assert.equal(stepAt(R, "S1", c + 50), 1);
-  assert.equal(stepAt(R, "S1", c + 2100), 1);
-  assert.equal(stepAt(R, "S1", at(R, "away") - 10), 1);
-});
-
-test("VO-5 manual→leave→return: auto-play restarts from step 0 (C-12)", { skip }, async () => {
-  const R = await get("autoplay");
-  const e = at(R, "e2");
-  assert.deepEqual([300, 1300].map((d) => stepAt(R, "S1", e + d)), [0, 1]);
-});
-
-test("VO-5 measurement pre-draw (resize with a changed innerWidth) keeps auto-play going from the current step", { skip }, async () => {
-  const R = await get("autoplay");
-  const e = at(R, "e2"), rs = at(R, "resize");
-  // Proof the pre-draw ran: every step's enter (incl. non-current steps 0 and 2) in the resize tick.
-  // Autoplay alone enters no step in [rs, rs + 450) (step 2 is due at rs + 500), so enters of steps 0 and 2 there come from the pre-draw.
-  const tick = R.steps.filter(([l, , t]) => l === "S1" && t >= rs && t < rs + 450).map(([, k]) => k);
-  assert.ok([0, 1, 2].every((k) => tick.includes(k)), `step enters after the resize: ${tick}`);
-  assert.equal(stepAt(R, "S1", rs + 450), 1, "pre-draw did not restore the current step");
-  assert.deepEqual([1900, 2500].map((d) => stepAt(R, "S1", e + d)), [1, 2]);
-});
-
-test("VO-5 once: autoplay \"once\" stops on the last step (C-11)", { skip }, async () => {
-  const R = await get("autoplay");
-  const e = at(R, "e3");
-  assert.deepEqual([500, 1500, 2500, 3500, 4900].map((d) => stepAt(R, "S2", e + d)), [0, 1, 2, 2, 2]);
-});
-
-test("VO-5 autoplay false: steps do not start; no data-ltt-beats", { skip }, async () => {
-  const R = await get("autoplay");
-  const e = at(R, "e4");
-  assert.deepEqual([1500, 2500].map((d) => stepAt(R, "S3", e + d)), [0, 0]);
-  assert.equal(R.samples.beats3, null);
-});
-
-test("VO-5 single step (C-27): one step does not auto-play and exposes no beats", { skip }, async () => {
+test("VO-ONE C-11 FR-6: one step does not auto-play and exposes no beats", { skip }, async () => {
   const R = await get("autoplay");
   const e = at(R, "e5");
   assert.equal(stepAt(R, "S5", e + 1300), 0);
-  assert.equal(R.samples.beats5, null);
+  assert.equal(stepAt(R, "S5", e + 2400), 0);
+  assert.deepEqual(ks(play(R, "S5", e, e + 2500)), [0]);
+  assert.equal(R.samples.beats6, null);
 });
 
-test("VO-5 per-step hold: holds [500, 1500, 1000] move at 500ms and 2000ms", { skip }, async () => {
+test("VO-ONE FR-6 BVA: two steps do play (0 → 1 → 0) and expose beats [1440, 3240]", { skip }, async () => {
   const R = await get("autoplay");
-  const e = at(R, "e6");
-  assert.deepEqual([300, 700, 1800, 2200, 2900].map((d) => stepAt(R, "S6", e + d)), [0, 1, 1, 2, 2]);
+  const e = at(R, "e7");
+  assert.deepEqual([900, 2700, 4500].map((d) => stepAt(R, "S7", e + d)), [0, 1, 0]);
+  assert.deepEqual(ts(JSON.parse(R.samples.beats8)), [1440, 3240]);
+});
+
+// VO-AUTO state transitions on the deck figure (autoclick fixture): every visit exercises one transition.
+const visitsAfter = [["prev", "next"], ["next", "keyl"], ["keyl", "key"], ["key", "re"], ["re", "loop"], ["loop", "q1"], ["q1", "q2"], ["q2", "q3"], ["q3", "q4"], ["q4", "rs"]];
+const manual = [["prev", "prev:c", 0, 1, "previous"], ["next", "next:c", 1, 0, "next"], ["key", "key:c", 1, 0, "the → key"], ["keyl", "keyl:c", 0, 1, "the ← key"]];
+for (const [v, click, want, was, what] of manual) {
+  test(`VO-AUTO C-6 FR-3: clicking ${what} stops auto-play for the visit (step stays ${want} past two holds)`, { skip }, async () => {
+    const R = await get("autoclick");
+    noErrors(R);
+    const c = at(R, click);
+    assert.equal(stepAt(R, "I", c - 50), was, "precondition: the player was running and on the expected step");
+    assert.equal(stepAt(R, "I", c + 50), want);
+    assert.equal(stepAt(R, "I", at(R, v + "x") - 10), want);
+    assert.deepEqual(rowsOf(R, "I", c + 100, at(R, v + "x")), [], "a step change after the click");
+  });
+}
+
+test("VO-AUTO C-6: manual stop → leave → return restarts at step 0 and plays (re-entry transition)", { skip }, async () => {
+  const R = await get("autoclick");
+  const e = at(R, "re");
+  assert.equal(stepAt(R, "I", e + 300), 0, "the manual stop (step 1, the → key visit just before) leaked into the next visit");
+  assert.equal(stepAt(R, "I", e + 500), 0);
+  assert.equal(stepAt(R, "I", e + 2300), 1);
+});
+
+test("VO-AUTO FR-2: leaving the scene stops the player in every visit (no step change between leave and the next entry)", { skip }, async () => {
+  const R = await get("autoclick");
+  for (const [v, next] of visitsAfter) assert.deepEqual(rowsOf(R, "I", at(R, v + "x") + 50, at(R, next)), [], `after leaving ${v}`);
+});
+
+test("VO-AUTO C-7 FR-3: the loop button stops a playing visit, then restarts a stopped one into a cyclic 1800ms+ loop", { skip }, async () => {
+  const R = await get("autoclick");
+  noErrors(R);
+  const s = at(R, "loop:s"), p = at(R, "loop:p");
+  assert.deepEqual(rowsOf(R, "I", s + 100, p), [], "a step change while stopped by the loop button");
+  // FR-3 v2: the restart resumes at the current step and the first transition comes after that step's hold (floor 1800).
+  const cur = stepAt(R, "I", p - 10), first = rowsOf(R, "I", p + 100)[0];
+  assert.ok(first, "no step change after restart");
+  assert.equal(first[1], (cur + 1) % 3, `restart did not resume from step ${cur}`);
+  within(first[2] - p, 1800, 1800 + TOL, "first hold after restart");
+  const tr = trans(rowsOf(R, "I", p + 100, at(R, "loopx")));
+  assert.ok(tr.length >= 3, `only ${tr.length} transitions in 8.9s after restarting: ${JSON.stringify(tr)}`);
+  tr.slice(1).forEach(([k], i) => assert.equal(k, (tr[i][0] + 1) % 3, `not cyclic: ${ks(tr)}`));
+  for (const g of gaps(tr)) within(g, 1800, 1800 + TOL, "hold after restart");
+});
+
+test("VO-AUTO QR-4: after three enter/leave rounds of the same scene a hold interval has exactly one transition (no stacked timers)", { skip }, async () => {
+  const R = await get("autoclick");
+  const e = at(R, "q4");
+  assert.deepEqual(ks(trans(rowsOf(R, "I", e + 200, e + 2300))), [1]);
+  assert.deepEqual(ks(trans(rowsOf(R, "I", e + 2300, e + 4300))), [2]);
+  assert.deepEqual(ks(trans(rowsOf(R, "I", e + 4300, e + 6100))), [0]);
+  assert.equal(rowsOf(R, "I", e + 200, e + 2300).length, 1, "a step was entered more than once in one hold interval");
+});
+
+test("VO-AUTO FR-2 pre-draw: a measurement re-draw (resize) keeps the current step and the running schedule", { skip }, async () => {
+  const R = await get("autoclick");
+  const e = at(R, "rs"), rs = at(R, "rs:resize");
+  const tick = R.steps.filter(([l, , t]) => l === "I" && t >= rs && t < rs + 450).map(([, k]) => k);
+  assert.ok([0, 1, 2].every((k) => tick.includes(k)), `step enters after the resize: ${tick}`);
+  assert.equal(stepAt(R, "I", rs + 450), 1, "pre-draw did not restore the current step");
+  assert.equal(stepAt(R, "I", e + 3400), 1);
+  assert.equal(stepAt(R, "I", e + 4000), 2);
+});
+
+// VO-AUTO / VO-RM: the four player kinds. Deck-hosted (entry → play, last → 0, leave → stop, re-entry → step 0) and standalone (start when made).
+const DECK_PLAYERS = [["F", "F", "figure steps"], ["SS", "poll:SS", "LTT.stepper in a deck"], ["DPS", "poll:DPS", "diagram.player in a deck"], ["SQS", "poll:SQS", "sequence.player in a deck"]];
+for (const [L, label, what] of DECK_PLAYERS) {
+  test(`VO-AUTO FR-1 FR-2: ${what} waits for scene entry, plays 0 → 1 → 2, stops on leave, restarts at 0 on return and wraps to 0`, { skip }, async () => {
+    const R = await get("playersDeck");
+    noErrors(R);
+    const e1 = at(R, L + ":e1"), l1 = at(R, L + ":l1"), e2 = at(R, L + ":e2"), l2 = at(R, L + ":l2");
+    assert.ok(rowsOf(R, label, 0, e1).every(([, k]) => k === 0), `${label} advanced before its scene was entered`);
+    assert.deepEqual([900, 2700, 4500].map((d) => stepAt(R, label, e1 + d)), [0, 1, 2]);
+    assert.deepEqual(rowsOf(R, label, l1 + 100, e2), [], "step change after leaving");
+    assert.deepEqual([900, 2700, 4500, 6300].map((d) => stepAt(R, label, e2 + d)), [0, 1, 2, 0], "re-entry must restart at step 0 and wrap");
+    const tr = play(R, label, e2, l2);
+    assert.deepEqual(ks(tr), [0, 1, 2, 0]);
+    for (const g of gaps(tr)) within(g, 1750, 1800 + TOL + 50, `${label} hold (50ms DOM poll)`);
+  });
+}
+
+const SOLO_PLAYERS = [["ST", "poll:ST", true, "LTT.stepper"], ["DP", "poll:DP", true, "diagram.player"], ["SQ", "poll:SQ", false, "sequence.player"]];
+for (const [L, label, hasHook, what] of SOLO_PLAYERS) {
+  test(`VO-AUTO C-8 C-9 FR-1: standalone ${what} starts when made and loops 0,1,2,0,1 on the 1800ms floor`, { skip }, async () => {
+    const R = await get("playersSolo");
+    noErrors(R);
+    const tr = play(R, label, 0).slice(0, 5);
+    assert.deepEqual(ks(tr), [0, 1, 2, 0, 1]);
+    assert.ok(tr[0][1] < 300, `first step shown at ${tr[0][1]}ms`);
+    for (const g of gaps(tr)) within(g, 1750, 1800 + TOL + 50, `${what} hold (50ms DOM poll)`);
+    if (hasHook) {
+      const ex = play(R, L, 0).slice(0, 5);
+      assert.deepEqual(ks(ex), [0, 1, 2, 0, 1]);
+      for (const g of gaps(ex)) within(g, 1800, 1800 + TOL, `${what} enter-hook hold`);
+    }
+  });
+}
+
+test("VO-AUTO FR-13: play(true) no longer stops on the last step (2 → 0 happens)", { skip }, async () => {
+  const R = await get("playersSolo");
+  const tr = trans(rowsOf(R, "SP", 1000));
+  const i = tr.findIndex(([k], j) => k === 2 && tr[j + 1] && tr[j + 1][0] === 0);
+  assert.ok(i >= 0, `no 2 → 0 transition after play(true): ${ks(tr)}`);
+});
+
+// VO-ONE on a standalone stepper
+test("VO-ONE FR-6: a standalone stepper with one step does not play; with two steps it plays and loops 0,1,0,1", { skip }, async () => {
+  const R = await get("playersSolo");
+  assert.deepEqual(ks(play(R, "ST1", 0)), [0]);
+  assert.deepEqual(ks(play(R, "poll:ST2", 0).slice(0, 4)), [0, 1, 0, 1]);
+});
+
+// VO-HOLD on a standalone stepper: step.hold || opts.interval, floored.
+test("VO-HOLD FR-4: opts.interval 4000 holds 4000; interval 1000 is floored to 1800; step.hold 2500 wins over interval 4000 for that step only", { skip }, async () => {
+  const R = await get("playersSolo");
+  const g = (label) => gaps(play(R, label, 0));
+  for (const x of g("SI4").slice(0, 2)) within(x, 4000, 4000 + TOL, "interval 4000");
+  for (const x of g("SI1").slice(0, 4)) within(x, 1800, 1800 + TOL, "interval 1000 floored");
+  within(g("SM")[0], 2500, 2500 + TOL, "step hold 2500 over interval 4000");
+  within(g("SM")[1], 4000, 4000 + TOL, "interval 4000 on a step without hold");
+});
+
+test("VO-ERR Errors: a container removed from the document during playback stops the timer and does not restart when re-attached", { skip }, async () => {
+  const R = await get("playersSolo");
+  noErrors(R);
+  assert.deepEqual(rowsOf(R, "DET", 3000), [], "steps kept changing after the container was detached");
+  assert.deepEqual(rowsOf(R, "DET", 7000), [], "re-attaching restarted the player");
+});
+
+// VO-RM
+for (const [L, label, hasHook, what] of SOLO_PLAYERS) {
+  test(`VO-RM C-10 FR-5: reduced motion, standalone ${what} stays on step 0 for the whole 12s page`, { skip }, async () => {
+    const R = await get("playersSoloReduced");
+    noErrors(R);
+    assert.equal(R.samples.reduced, true, "LTT.motion.reduced() is not true under --force-prefers-reduced-motion");
+    const rows = rowsOf(R, label);
+    assert.ok(rows.length >= 1, "the DOM poll never saw a caption: the observation is blind");
+    assert.deepEqual(rows.filter(([, k]) => k !== 0), []);
+    if (hasHook) assert.deepEqual(rowsOf(R, L).filter(([, k]) => k !== 0), []);
+  });
+}
+for (const [L, label, what] of DECK_PLAYERS) {
+  test(`VO-RM C-10 FR-5: reduced motion, ${what} stays on step 0 for 5.3s of the first visit and the whole second visit`, { skip }, async () => {
+    const R = await get("playersDeckReduced");
+    noErrors(R);
+    assert.equal(R.samples.reduced, true);
+    for (const [a, b] of [[L + ":e1", L + ":l1"], [L + ":e2", L + ":l2"]]) {
+      assert.equal(stepAt(R, label, at(R, a) + 300), 0, "no step shown after entry");
+      assert.deepEqual(rowsOf(R, label, at(R, a) + 100, at(R, b)).filter(([, k]) => k !== 0), [], `step change in ${a}..${b}`);
+    }
+    assert.ok(at(R, L + ":l1") - at(R, L + ":e1") >= 5000, "the first visit is shorter than 5s");
+  });
+}
+
+// VO-HOLD (BVA n and hold, EP caption classes) + VO-ERR (non-string / missing caption)
+for (const c of HOLD_CASES) {
+  test(`VO-HOLD ${c.group} ${c.id}: step 0 → 1 after ${c.exp}ms (±${TOL}, never below)`, { skip }, async () => {
+    const R = await get(c.id === "nonstring" ? "holdErr" : "hold");
+    const e = at(R, "c:" + c.id), label = "h:" + c.id;
+    assert.deepEqual(errorsIn(R, e, e + c.exp + 700), [], "page errors in this scene's visit");
+    assert.deepEqual(R.consoleErrors, []);
+    const tr = play(R, label, e, e + c.exp + 700);
+    assert.deepEqual(ks(tr), [0, 1], `steps seen: ${JSON.stringify(tr)}`);
+    within(tr[1][1] - tr[0][1], c.exp, c.exp + TOL, `hold of ${c.id}`);
+  });
+  test(`VO-HOLD ${c.group} ${c.id} C-22: audit beats t = [round(0.8 × ${c.exp}), ${c.exp} + round(0.8 × 1800)]`, { skip }, async () => {
+    const err = c.id === "nonstring";
+    const R = await get(err ? "holdErrAudit" : "holdAudit");
+    assert.ok(R.audit, "no #ltt-audit JSON");
+    const idx = err ? 1 : HOLD_CASES.filter((x) => x.id !== "nonstring").indexOf(c) + 1;
+    assert.deepEqual(ts(R.audit.beats[idx]), [Math.round(0.8 * c.exp), c.exp + Math.round(0.8 * 1800)]);
+  });
+}
+
+// VO-REV: C-12..C-19, C-21 in a deck figure (enter → f.dg.highlight) and through diagram.player hot lists.
+const names = (s) => [...s];
+const onEdge = (list, id) => { const [f, t] = id.split(">"); return list.includes(id) || (list.includes(f) && list.includes(t)); };
+for (const [mode, pageName] of [["deck figure steps", "revDeck"], ["diagram.player hot", "revPlayer"]]) {
+  for (const c of REV_CASES.filter((x) => pageName === "revDeck" || !x.deckOnly)) {
+    test(`VO-REV ${c.id} (${mode}): computed visibility of nodes, edges and edge labels follows the cumulative-reveal table; dim/hot follow the step list`, { skip }, async () => {
+      const R = await get(pageName);
+      noErrors(R);
+      assert.deepEqual(R.consoleErrors, []);
+      const snaps = R.samples[c.id];
+      assert.equal(snaps.length, c.path.length, "snapshots missing");
+      for (const s of snaps) {
+        const where = `${c.id} step ${s.k} (path ${c.path.join(">")})`;
+        assert.equal(s.shown, s.k, `${where}: the player showed step ${s.shown}`);
+        const want = c.want[s.k], list = c.steps[s.k] ?? [];
+        for (const id of c.nodes) {
+          const vis = want.n.includes(id);
+          assert.equal(s.n[id].v, vis ? "visible" : "hidden", `${where}: node ${id}`);
+          if (vis && list.length) assert.deepEqual([s.n[id].hot, s.n[id].dim], list.includes(id) ? [true, false] : [false, true], `${where}: node ${id} hot/dim`);
+          if (vis && !list.length) assert.equal(s.n[id].dim, false, `${where}: node ${id} dimmed under highlight(null/[])`);
+        }
+        for (const id of c.edges) {
+          const vis = want.e.includes(id);
+          assert.equal(s.e[id].v, vis ? "visible" : "hidden", `${where}: edge ${id}`);
+          assert.equal(s.e[id].lv, vis ? "visible" : "hidden", `${where}: label of edge ${id}`);
+          if (vis && list.length) assert.equal(s.e[id].dim, !onEdge(list, id), `${where}: edge ${id} dim`);
+          if (vis && !list.length) assert.equal(s.e[id].dim, false, `${where}: edge ${id} dimmed under highlight(null/[])`);
+        }
+      }
+    });
+  }
+  test(`VO-REV C-21 (${mode}): ids that do not exist are ignored without a warning`, { skip }, async () => {
+    const R = await get(pageName);
+    const a = at(R, "C21:e"), b = at(R, "OUT:e");
+    assert.deepEqual(R.warns.filter(([t]) => t >= a && t < b), []);
+  });
+}
+
+test("VO-REV C-19 C-21 FR-9: highlight called directly outside a deck hides nothing (nodes, edges, labels) and only dims", { skip }, async () => {
+  const R = await get("revOff");
+  noErrors(R);
+  const S = R.samples, c = { nodes: "abcd", edges: ["a>b", "b>c", "c>d"] };
+  for (const name of ["plain", "a", "null", "unknown", "pair", "late"]) {
+    for (const id of c.nodes) assert.equal(S[name].n[id].v, "visible", `${name}: node ${id}`);
+    for (const id of c.edges) assert.deepEqual([S[name].e[id].v, S[name].e[id].lv], ["visible", "visible"], `${name}: edge ${id}`);
+  }
+  for (const name of ["a", "unknown"]) {
+    assert.deepEqual(names("abcd").map((id) => [S[name].n[id].hot, S[name].n[id].dim]), [[true, false], [false, true], [false, true], [false, true]], name);
+  }
+  assert.deepEqual(names("abcd").map((id) => S.null.n[id].dim), [false, false, false, false]);
+  assert.deepEqual(names("abcd").map((id) => S.pair.n[id].dim), [true, false, false, true]);
+  assert.deepEqual(names("abcd").map((id) => S.late.n[id].dim), [true, true, true, false]);
+});
+
+// VO-SIZE
+for (const title of ["plain", "tall"]) {
+  test(`VO-SIZE C-17 QR-6: ${title} cumulative-reveal scene keeps scene zoom and figure height at steps 0, 1, 2, 3`, { skip }, async () => {
+    const R = await get("size");
+    noErrors(R);
+    const s = R.samples[title];
+    assert.deepEqual(s.map((x) => x.shown), [0, 1, 2, 3]);
+    for (const x of s.slice(1)) {
+      assert.ok(Math.abs(x.zoomIn - s[0].zoomIn) < 0.0005, `.dk-in zoom ${x.zoomIn} vs ${s[0].zoomIn} at step ${x.k}`);
+      assert.ok(Math.abs(x.zoomScene - s[0].zoomScene) < 0.0005, `scene zoom ${x.zoomScene} vs ${s[0].zoomScene} at step ${x.k}`);
+      for (const key of ["host", "stage", "svg"]) assert.ok(Math.abs(x[key] - s[0][key]) <= 0.5, `${key} height ${x[key]} vs ${s[0][key]} at step ${x.k}`);
+    }
+  });
+}
+test("VO-SIZE precondition: the tall scene is zoomed (overflows), so equal zoom is not trivially 1", { skip }, async () => {
+  const R = await get("size");
+  assert.ok(R.samples.tall[0].zoomIn < 0.999, `.dk-in zoom ${R.samples.tall[0].zoomIn}`);
 });
 
 // ---------- VO-6 sweep attract (state transition + EP) ----------
@@ -680,6 +949,9 @@ test("VO-7 still-visual message names LTT.motion.loop, steps and still", { skip 
   const R = await get("still");
   for (const w of R.audit.audit.filter((x) => x.rule === "still-visual")) {
     for (const k of ["LTT.motion.loop", "steps", "still"]) assert.ok(w.msg.includes(k), `message lacks ${k}: ${w.msg}`);
+    // FR-15
+    assert.ok(w.msg.includes("figure steps(단계 둘 이상)"), `message lacks "figure steps(단계 둘 이상)": ${w.msg}`);
+    assert.ok(!w.msg.includes("자동 재생"), `message still says 자동 재생: ${w.msg}`);
   }
 });
 

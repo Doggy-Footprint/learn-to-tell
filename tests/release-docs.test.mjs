@@ -502,3 +502,19 @@ test("VO-13 rules.md overflow row keeps 78% and no longer says only '78%로 줄�
   assert.ok(row.includes("하한"), `no mention of the 78% floor (하한): ${row}`);
   assert.ok(/상태|zoomBy/.test(row), `no mention of a zoom fitted to another state: ${row}`);
 });
+
+// ---------- spec 5ad829b7137b4d19 v1 VO-DOCS (FR-15, FR-17) ----------
+
+test("VO-DOCS FR-17: the CHANGELOG unreleased section records autoplay removal, the hold floor, cumulative reveal and standalone stepper auto-play", () => {
+  const section = unreleasedSection(readReal(CHANGELOG, "kit/CHANGELOG.md"));
+  const need = [["autoplay removed", /autoplay/], ["hold floor 1800", /1800/], ["floor formula 100", /1000\s*\+\s*100/], ["cumulative reveal 누적 공개", /누적 공개/], ["standalone LTT.stepper", /단독\s*`?LTT\.stepper/], ["auto-play 자동", /자동/]];
+  const missing = need.filter(([, re]) => !re.test(section)).map(([n]) => n);
+  assert.deepEqual(missing, [], `unreleased section lacks: ${missing.join("; ")}`);
+});
+
+test("VO-DOCS FR-15: the rules.md still-visual row counts figure steps with two or more steps as an exposure beat and no longer says 자동 재생", () => {
+  const hit = rows(readReal(RULES, "kit/api/rules.md")).filter((r) => codeSpans(firstCell(r)).includes("still-visual"));
+  assert.equal(hit.length, 1);
+  assert.ok(/steps`?\(단계 둘 이상\)/.test(hit[0]), `row lacks figure steps(단계 둘 이상): ${hit[0]}`);
+  assert.equal(/steps`?\s*자동 재생/.test(hit[0]), false, "row still says 'figure steps 자동 재생'");
+});

@@ -2,9 +2,22 @@
 // page-relative virtual time, drives the page with setTimeout, and writes the result as JSON into <pre id="R">.
 (function () {
   const T0 = Date.now();
-  const H = (window.H = { log: [], steps: [], warns: [], rec: [], marks: {}, cnt: {}, samples: {}, watch: [], created: [], errors: [] });
+  const H = (window.H = { log: [], steps: [], warns: [], rec: [], marks: {}, cnt: {}, samples: {}, watch: [], created: [], errors: [], consoleErrors: [] });
   H.now = () => Date.now() - T0;
   window.addEventListener("error", (e) => H.errors.push(String(e.message)));
+  const consoleError = console.error;
+  console.error = function (...a) { H.consoleErrors.push(a.map(String).join(" ")); return consoleError.apply(this, a); };
+  // Player captions carry "#k#" so the DOM, not a kit hook, tells which step is on screen (works for players without an enter hook).
+  H.poll = (label, el, every = 50) => {
+    let last = null;
+    const tick = () => {
+      const c = el.querySelector(".ltt-caption"), m = c && /#(\d+)#/.exec(c.textContent), k = m ? +m[1] : null;
+      if (k !== null && k !== last) { last = k; H.steps.push(["poll:" + label, k, H.now()]); }
+    };
+    setInterval(tick, every);
+    tick();
+  };
+  H.vis = (el) => (el ? getComputedStyle(el).visibility : "missing");
   H.draw = (label) => {
     H.created.push([label, H.now()]);
     return (u) => { H.log.push([label, typeof u === "number" ? Math.round(u * 1e4) / 1e4 : String(u), H.now()]); };
@@ -39,7 +52,7 @@
   H.done = (ms) => H.at(ms, () => {
     const p = document.createElement("pre");
     p.id = "R";
-    p.textContent = JSON.stringify({ log: H.log, steps: H.steps, warns: H.warns, rec: H.rec, marks: H.marks, cnt: H.cnt, samples: H.samples, watch: H.watch, created: H.created, errors: H.errors, end: H.now() });
+    p.textContent = JSON.stringify({ log: H.log, steps: H.steps, warns: H.warns, rec: H.rec, marks: H.marks, cnt: H.cnt, samples: H.samples, watch: H.watch, created: H.created, errors: H.errors, consoleErrors: H.consoleErrors, end: H.now() });
     document.body.appendChild(p);
   });
 })();

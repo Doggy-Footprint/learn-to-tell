@@ -722,13 +722,22 @@ test("VO-13 D1: kit/API.md has a table row whose first cell holds LTT.motion", (
   assert.ok(rows.length >= 1, "no first-cell LTT.motion row in kit/API.md");
 });
 
-for (const [id, tokens] of [["D3 loop", ["loop"]], ["D4 bind", ["bind"]], ["D5 autoplay", ["autoplay"]], ["D6 attract", ["attract"]], ["D7 beats", ["data-ltt-beats", "beats"]]]) {
+for (const [id, tokens] of [["D3 loop", ["loop"]], ["D4 bind", ["bind"]], ["D6 attract", ["attract"]], ["D7 beats", ["data-ltt-beats", "beats"]]]) {
   test(`VO-13 ${id}: kit/api/deck-contracts.md documents ${tokens.join(" and ")}`, () => {
     const text = apiDoc("deck-contracts.md");
     const missing = tokens.filter((t) => !text.includes(t));
     assert.deepEqual(missing, [], `deck-contracts.md lacks ${missing.join(", ")}`);
   });
 }
+
+// Rewritten for spec 5ad829b7137b4d19 (FR-11, C-23): D5 used to require the token `autoplay`; the field is gone and the contract is the auto-play
+// and hold rule, so the token is now forbidden and the rule's own words are required.
+test("VO-13 D5 (rewritten): kit/api/deck-contracts.md documents steps auto-play and the 1800ms hold floor, and no longer names autoplay", () => {
+  const text = apiDoc("deck-contracts.md");
+  assert.equal(text.includes("autoplay"), false, "deck-contracts.md still names autoplay");
+  const missing = ["자동", "1800", "hold"].filter((t) => !text.includes(t));
+  assert.deepEqual(missing, [], `deck-contracts.md lacks ${missing.join(", ")}`);
+});
 
 test("VO-13 D8: kit/api/rules.md has a still-visual row graded 권고, and lists 13 audit ids", () => {
   const rows = rowsWithFirstSpan(rulesText(), (s) => s === "still-visual");
@@ -894,4 +903,176 @@ test("VO-8 QR-7 the severity the kit emits (audit and lint triggers) gives the s
   assert.deepEqual([...kitAdvise].sort(), [...want].sort());
   assert.deepEqual([...adviseFromRules()].filter((id) => id !== "still-visual").sort(), [...kitAdvise].sort());
   for (const id of [...AUDIT_IDS, ...LINT_IDS].filter((i) => i !== "still-visual")) assert.ok(emitted.has(id), `no trigger emitted ${id}`);
+});
+
+// ---------- spec 5ad829b7137b4d19 v1 VO-DOCS (syntax testing; FR-10..FR-12, FR-14, FR-15, C-23, QR-7) ----------
+
+const allAuthorDocs = () => {
+  const docs = { "kit/API.md": apiText(), "SKILL.md": skillText(), "look/look.md": readReal(join(SKILL, "look/look.md"), "look/look.md") };
+  for (const f of readdirSync(API_DIR).filter((x) => x.endsWith(".md")).sort()) docs[`kit/api/${f}`] = apiDoc(f);
+  return docs;
+};
+const hits = (needle) => Object.entries(allAuthorDocs()).filter(([, t]) => (typeof needle === "string" ? t.includes(needle) : needle.test(t))).map(([f]) => f);
+
+// Forbidden tokens: every author doc, a superset of the declared files (API.md, deck-contracts, controls, diagram, sequence, rules, SKILL.md).
+for (const [id, needle] of [
+  ["autoplay field name", "autoplay"],
+  ["'한 번 재생 후 멈춤' (the once exception sentence)", "한 번 재생 후 멈춤"],
+  ["'한 번 재생하고 멈…' (stop after one play)", /한 번 재생하고 멈/],
+  ["'되도록 `once`로' (recommending once)", /되도록\s*`?once`?로/],
+  ["'가능하면 `once`' (recommending once)", /가능하면\s*(한 번\s*)?`?once`?/],
+  ["'단독으로는 자동 재생하지 않는다'", "단독으로는 자동 재생하지 않는다"],
+  ["play(true) (stop at the last step)", "play(true)"],
+]) {
+  test(`VO-DOCS C-23 forbidden: no author doc contains ${id}`, () => {
+    assert.deepEqual(hits(needle), [], `${id} still in: ${hits(needle).join(", ")}`);
+  });
+}
+
+test('VO-DOCS C-23 forbidden: the quoted step mode "once" is in none of API.md, deck-contracts.md, controls.md, diagram.md, sequence.md', () => {
+  const bad = ["kit/API.md", "kit/api/deck-contracts.md", "kit/api/controls.md", "kit/api/diagram.md", "kit/api/sequence.md"].filter((f) => allAuthorDocs()[f].includes('"once"'));
+  assert.deepEqual(bad, []);
+});
+
+test("VO-DOCS FR-10: the API.md scene-field row for figure lists no autoplay and the 'figure moves by default' paragraph has no once exception", () => {
+  const api = apiText();
+  const row = lines(api).filter(isRow).find((r) => codeSpans(firstCell(r)).includes("figure"));
+  assert.ok(row, "no scene field row for figure");
+  assert.equal(row.includes("autoplay"), false);
+  const para = lines(api).find((l) => l.includes("기본으로 움직인다"));
+  assert.ok(para, 'no line saying "기본으로 움직인다"');
+  assert.equal(/once|멈춤/.test(para), false, `the paragraph still carries the stop-after-one-play exception: ${para}`);
+});
+
+// API.md composition snippet figure example: the steps array of the scene whose `steps:` follows `figure:`.
+function figureExampleSteps(text) {
+  const block = text.match(/^```js\n([\s\S]*?)^```/m);
+  assert.ok(block, "kit/API.md has no ```js example");
+  const src = block[1];
+  const at = src.search(/figure:\s*\w+,\s*\n?\s*steps:\s*\[/);
+  assert.ok(at >= 0, "the example has no figure scene with steps");
+  const open = src.indexOf("[", src.indexOf("steps:", at));
+  let depth = 0, end = open;
+  for (; end < src.length; end++) { if (src[end] === "[") depth++; else if (src[end] === "]" && --depth === 0) break; }
+  const body = src.slice(open + 1, end);
+  const nodeIds = [...src.matchAll(/\{\s*id:\s*"([^"]+)",\s*c:/g)].map((m) => m[1]);
+  const steps = body.split(/(?=\{\s*caption:)/).filter((c) => /caption:/.test(c)).map((c) => ({
+    text: c, ids: [...(c.match(/highlight\(\s*\[([^\]]*)\]/)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]) }));
+  return { steps, nodeIds };
+}
+
+test("VO-DOCS FR-10 C-23: the API.md composition figure example has at least three steps", () => {
+  assert.ok(figureExampleSteps(apiText()).steps.length >= 3);
+});
+
+test("VO-DOCS FR-10: each API.md example step highlights a node no earlier step highlighted, and the lists do not repeat earlier nodes", () => {
+  const { steps, nodeIds } = figureExampleSteps(apiText());
+  const seen = new Set();
+  steps.forEach((st, i) => {
+    assert.ok(st.ids.length >= 1, `step ${i + 1} calls no highlight([...])`);
+    for (const id of st.ids) {
+      assert.ok(nodeIds.includes(id), `step ${i + 1} highlights ${id}, which the example diagram does not define (${nodeIds})`);
+      assert.equal(seen.has(id), false, `step ${i + 1} lists ${id} again: the earlier node should stay out of the list`);
+      seen.add(id);
+    }
+  });
+});
+
+test("VO-DOCS FR-12 v3: the controls.md LTT.stepper row states auto-play, cycling back, stopping, the repeat button, and points to deck-contracts.md for the formula and reduced motion", () => {
+  const row = lines(apiDoc("controls.md")).filter(isRow).find((r) => codeSpans(firstCell(r)).some((s) => s.startsWith("LTT.stepper")));
+  assert.ok(row, "no LTT.stepper row");
+  const need = [["자동 재생", /자동 재생/], ["cycles back to the first step", /(처음|0)(으)?로 돌아/], ["stops when previous/next is pressed", /멈/], ["반복 재생 button", /반복 재생/],
+    ["hold and interval", /hold[\s\S]*interval|interval[\s\S]*hold|hold/], ["reference to deck-contracts.md", /deck-contracts\.md/], ["reduced motion", /reduced-motion|동작 줄이기/]];
+  const missing = need.filter(([, re]) => !re.test(row)).map(([n]) => n);
+  assert.deepEqual(missing, [], `LTT.stepper row lacks: ${missing.join("; ")}`);
+});
+
+// The formula lives only in deck-contracts.md (FR-12 v3).
+const FORMULA = /1000\s*\+\s*100|100\s*[×x*]\s*n|max\(\s*1800/;
+for (const [file, pick] of [["controls.md", (r) => codeSpans(firstCell(r)).some((s) => s.startsWith("LTT.stepper"))], ["diagram.md", (r) => /\.player\(/.test(r)], ["sequence.md", (r) => /\.player\(/.test(r)]]) {
+  test(`VO-DOCS FR-12 v3: the ${file} stepper/player row does not repeat the hold formula`, () => {
+    const row = lines(apiDoc(file)).filter(isRow).find(pick);
+    assert.ok(row, `no row in ${file}`);
+    assert.equal(FORMULA.test(row), false, `formula in ${file} row: ${row}`);
+  });
+}
+
+test("VO-DOCS FR-4 A-6: deck-contracts.md states the hold is a lower bound for hold/interval and counts code points", () => {
+  const text = apiDoc("deck-contracts.md");
+  assert.ok(/하한보다 길 때만/.test(text) || /max\(\s*hold[^)]*,/.test(text), "no 'only when longer than the floor' / max(hold …, …) form");
+  assert.ok(/code point/.test(text), "no 'code point'");
+});
+
+for (const [file, withAccum] of [["diagram.md", true], ["sequence.md", false]]) {
+  test(`VO-DOCS FR-12: the ${file} player row mentions auto-play${withAccum ? " and cumulative reveal (누적 공개)" : " and no cumulative reveal"}`, () => {
+    // sequence.md has no row of its own for player (it sits in the LTT.sequence row), so any row that shows `.player(` counts.
+    const row = lines(apiDoc(file)).filter(isRow).find((r) => /\.player\(/.test(r));
+    assert.ok(row, `no row showing .player( in ${file}`);
+    assert.ok(row.includes("자동 재생"), "no 자동 재생");
+    assert.equal(row.includes("누적 공개"), withAccum);
+  });
+}
+
+test("VO-DOCS FR-11 C-23: deck-contracts.md has the hold formula, cumulative reveal, reduced motion and still, and the old '### figure autoplay' heading is gone", () => {
+  const text = apiDoc("deck-contracts.md");
+  assert.equal(/^#{2,4}\s.*autoplay/m.test(text), false);
+  const need = [["1800", /1800/], ["1000 + 100", /1000\s*\+\s*100/], ["누적 공개", /누적 공개/], ["reduced-motion", /prefers-reduced-motion/], ["still", /`still`/], ["반복 재생", /반복 재생/]];
+  const missing = need.filter(([, re]) => !re.test(text)).map(([n]) => n);
+  assert.deepEqual(missing, [], `deck-contracts.md lacks: ${missing.join("; ")}`);
+});
+
+test("VO-DOCS FR-11: the deck-contracts.md first line (언제:) no longer lists autoplay but still names figure steps", () => {
+  const first = lines(apiDoc("deck-contracts.md")).find((l) => l.trim() !== "") ?? "";
+  assert.ok(first.startsWith("언제:"), first);
+  assert.equal(first.includes("autoplay"), false);
+  assert.ok(first.includes("steps"));
+});
+
+// The six checklist lines (FR-11): (1) order follows time/causality (2) one event per step, earlier steps stay (3) what is made shows where it goes
+// (4) what recurs is drawn as a loop (5) the caption names what moves now (6) what does not change over time does not move (still).
+const CHECKLIST = [[/시간/, /인과/], [/사건 하나/, /앞 단계/], [/어디로/], [/고리/], [/자막/, /이름/], [/변하지 않/, /still/]];
+test("VO-DOCS FR-11 C-23: deck-contracts.md steps section carries the 6-line 움직이는 그림 체크리스트 with each item's key words, in order", () => {
+  const ls = lines(apiDoc("deck-contracts.md"));
+  const head = ls.findIndex((l) => l.includes("움직이는 그림 체크리스트"));
+  assert.ok(head >= 0, "no 움직이는 그림 체크리스트");
+  const items = [];
+  for (let i = head + 1; i < ls.length; i++) {
+    if (/^#{1,6}\s/.test(ls[i])) break;
+    if (ls[i].trim() === "") { if (items.length) break; else continue; }
+    items.push(ls[i]);
+  }
+  assert.equal(items.length, 6, `checklist items:\n${items.join("\n")}`);
+  items.forEach((it, i) => CHECKLIST[i].forEach((re) => assert.ok(re.test(it), `item ${i + 1} lacks ${re}: ${it}`)));
+  const steps = ls.map((l, i) => [l, i]).filter(([l]) => /^###\s.*steps/.test(l)).map(([, i]) => i);
+  assert.ok(steps.length >= 1, "no ### steps heading");
+  const nextHead = ls.findIndex((l, i) => i > steps[0] && /^#{1,3}\s/.test(l));
+  assert.ok(head > steps[0] && (nextHead < 0 || head < nextHead), "the checklist is not inside the ### steps section");
+});
+
+test("VO-DOCS FR-14 C-23: SKILL.md §3 step 2 asks for a 흐름 line per steps scene, and review request (1) checks the step flow and where made things go", () => {
+  const s3 = section(skillText(), 3);
+  const outline = lines(s3).find((l) => l.includes("outline.md") && l.includes("기대 화면"));
+  assert.ok(outline, "no outline step line");
+  for (const t of ["`steps`", "흐름:", "①", "→", "처음 나오는 것", "어디로 가는지"]) assert.ok(outline.includes(t), `outline line lacks ${t}`);
+  const review = lines(skillText()).find((l) => l.includes("검토 서브에이전트") && l.includes("(1)"));
+  assert.ok(review, "no review request line");
+  const one = review.slice(review.indexOf("(1)"), review.indexOf("(2)"));
+  assert.ok(one.length > 0, "no (1)…(2) clause");
+  for (const t of ["단계 흐름", "절차·인과", "만들어진 것", "어디로 가는지"]) assert.ok(one.includes(t), `review request (1) lacks ${t}`);
+});
+
+// ---------- spec 5ad829b7137b4d19 v1 VO-GAL (FR-16, C-24): the catalog demo ----------
+
+test("VO-GAL FR-16: catalog.html keeps the figure-autoplay demo id and has no autoplay variants", () => {
+  const html = readReal(join(ROOT, "site/gallery/catalog.html"), "site/gallery/catalog.html");
+  assert.equal((html.match(/demo\(\s*"figure-autoplay"/g) ?? []).length, 1, 'expected exactly one demo("figure-autoplay", ...)');
+  assert.equal(/autoplay\s*:/.test(html), false, "catalog.html still has an `autoplay:` variant");
+});
+
+test("VO-GAL UI-2: no gallery page sets an autoplay field", () => {
+  const pagesDir = join(ROOT, "site/gallery");
+  const files = readdirSync(pagesDir, { recursive: true }).map((f) => String(f).split("\\").join("/")).filter((f) => f.endsWith(".html") && !f.startsWith("stale"));
+  assert.ok(files.length >= 14, `only ${files.length} gallery pages found`);
+  const bad = files.filter((f) => /autoplay\s*:/.test(readFileSync(join(pagesDir, f), "utf8")));
+  assert.deepEqual(bad, []);
 });

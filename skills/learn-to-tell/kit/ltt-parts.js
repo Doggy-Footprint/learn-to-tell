@@ -645,19 +645,17 @@
     container.append(caption, bar);
     var timer = null;
     function stop() { clearTimeout(timer); timer = null; loop.textContent = "▶ 반복 재생"; loop.setAttribute("aria-pressed", "false"); }
-    function hold(k) { return steps[k].hold || opts.interval || 1800; }
-    function tick(once) {
+    function tick() {
       timer = setTimeout(function () {
         if (!container.isConnected) return stop();
         go(i === steps.length - 1 ? 0 : i + 1, 1);
-        if (once && i === steps.length - 1) return stop();
-        tick(once);
-      }, hold(i));
+        tick();
+      }, holdOf(steps[i], opts));
     }
-    function play(once) {
+    function play() {
       stop();
       loop.textContent = "■ 정지"; loop.setAttribute("aria-pressed", "true");
-      tick(once === true);
+      tick();
     }
     loop.onclick = function () { if (timer) stop(); else play(); };
     function go(k, dir) {
@@ -674,7 +672,27 @@
     prev.onclick = function () { stop(); go(i - 1, -1); };
     next.onclick = function () { stop(); go(i + 1, 1); };
     go(0, 1);
+    // Inside a deck bind() waits for the scene's entry (and leave stops it); outside one it runs the enter at once.
+    if (steps.length > 1) LTT.motion.bind({
+      enter: function () {
+        if (i !== 0) go(0, 1);
+        if (!LTT.motion.reduced()) play();
+      },
+      leave: stop
+    });
     return { go: go, play: play, stop: stop, get index() { return i; } };
+  }
+
+  // The reading floor follows Korean subtitle pace (12 characters/s) plus time to look at the picture; an author's hold
+  // or interval only lengthens it.
+  function captionLength(caption) {
+    if (typeof caption !== "string") return 0;
+    var d = document.createElement("div");
+    d.innerHTML = caption.replace(/\{\{([^}|]+)(?:\|([^}]*))?\}\}/g, function (m, term, alias) { return alias != null ? alias : term; });
+    return Array.from(d.textContent.replace(/\s+/g, " ").trim()).length;
+  }
+  function holdOf(step, opts) {
+    return Math.max(step.hold || (opts && opts.interval) || 0, Math.max(1800, 1000 + 100 * captionLength(step.caption)));
   }
 
   // A step's packet flow repeats while the step stays current, so a viewer who looks late still sees which leg is slow.
@@ -923,6 +941,10 @@
     return { width: width, height: height, nodes: nodes, edges: edges, zones: zones };
   }
 
+  // The deck sets this around a figure step's enter so a diagram's highlight there is recorded for cumulative reveal;
+  // highlights made anywhere else (figure(), direct calls) never are.
+  var stepScope = null;
+
   // Box-and-arrow diagram from a grid spec (see diagramLayout); `player` turns it into a captioned step replay.
   function diagram(svgEl, spec) {
     var L = diagramLayout(spec), uid = "dg" + Math.random().toString(36).slice(2, 8);
@@ -1017,12 +1039,35 @@
       var a = L.nodes[from], b = L.nodes[to];
       return function (t) { return [a.cx + (b.cx - a.cx) * t, a.cy + (b.cy - a.cy) * t]; };
     }
+    // Cumulative reveal: an element stays hidden until the first step that lights it. `plan[k]` is what step k lights
+    // (null = everything); an element no recorded step lights is background and always shows. Hiding is `visibility`, so
+    // layout and the scene's zoom never change between steps.
+    var plan = {};
+    function lights(on, id) { return !on || on.indexOf(id) >= 0; }
+    function reveal(k) {
+      var ks = Object.keys(plan).map(Number);
+      function shows(lit) { return !ks.some(lit) || ks.some(function (s) { return s <= k && lit(s); }); }
+      var seen = {};
+      Object.keys(nodeSel).forEach(function (id) {
+        seen[id] = shows(function (s) { return lights(plan[s], id); });
+        nodeSel[id].style("visibility", seen[id] ? null : "hidden");
+      });
+      Object.keys(edgeSel).forEach(function (id) {
+        var e = edgeSel[id], g = e.geo;
+        var on = seen[g.f] && seen[g.t] && shows(function (s) { var p = plan[s]; return !p || p.indexOf(id) >= 0 || (p.indexOf(g.f) >= 0 && p.indexOf(g.t) >= 0); });
+        var v = on ? null : "hidden";
+        e.line.style("visibility", v);
+        if (e.rk) e.rk.style("visibility", v);
+        if (e.label) e.label.style("visibility", v);
+      });
+    }
     var api = {
       svg: svg,
       layout: L,
       node: function (id) { return nodeSel[id]; },
       edge: function (id) { return edgeSel[id] && edgeSel[id].line; },
       // Ids may name nodes or edges ("from>to" or the edge's id); everything else dims. No ids clears the focus.
+      // Called from a deck figure step's enter, it also records what that step lights (see reveal).
       highlight: function (ids) {
         var on = ids && ids.length ? ids : null;
         Object.keys(nodeSel).forEach(function (id) {
@@ -1034,6 +1079,7 @@
           if (e.rk) e.rk.classed("dim", !lit);
           if (e.label) e.label.classed("dim", !lit);
         });
+        if (stepScope && stepScope.k != null) { plan[stepScope.k] = on; reveal(stepScope.k); }
         // In a sideways-scrolling box (phones) the box scrolls to the highlighted part so each step shows what it names.
         var box = svg.node().parentElement;
         if (on && box && box.classList.contains("dk-wide")) {
@@ -1078,12 +1124,13 @@
       // steps: [{caption, hot, flow, send: [[from, to, opts], ...], enter(diagram, i)}]; sends run one after another.
       player: function (container, steps, opts) {
         var run = 0;
+        steps.forEach(function (st, k) { plan[k] = st.hot && st.hot.length ? st.hot : null; });
         return stepper(container, steps.map(function (st) {
           return {
             caption: st.caption, hold: st.hold,
             enter: function (i) {
               var id = ++run;
-              api.clear(); api.highlight(st.hot || null); api.flow(st.flow || []);
+              api.clear(); api.highlight(st.hot || null); reveal(i); api.flow(st.flow || []);
               loopSends(st.send, function () { return id === run && el(container).getClientRects().length > 0; }, api.send);
               if (st.enter) st.enter(api, i);
             }
@@ -2426,7 +2473,13 @@
   LTT.sweep = sweep;
   LTT.drag = drag;
   LTT.stepper = stepper;
+  stepper.holdOf = holdOf;
   LTT.diagram = diagram;
+  Object.defineProperty(diagram, "_step", { enumerable: false, value: function (k, fn) {
+    var prev = stepScope;
+    stepScope = { k: k };
+    try { return fn(); } finally { stepScope = prev; }
+  } });
   LTT.diagramLayout = diagramLayout;
   LTT.autoLayout = autoLayout;
   LTT.stateSpec = stateSpec;

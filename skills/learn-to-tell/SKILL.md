@@ -52,7 +52,7 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 - **한 장 정리**: `overview`는 summary 다음, 회상을 마친 뒤 보는 한 장 인포그래픽이다. 주 그림을 다시 쓰고, 각 takeaway를 그림 안의 자리(구역·화살표·번호)에 놓는다. 새 내용은 넣지 않는다.
 
 1. `<skill>/kit/API.md`, `<skill>/kit/api/deck-contracts.md`, `<skill>/look/look.md`, `<skill>/look/board.jpg`, 그 부품 표에서 고른 `<skill>/kit/api/<part>.md`만 읽는다(한 응답에서 함께 Read). 작성 기준·원칙·조합 조각은 API.md, 화면 기준과 shot 색인은 look.md에 있다. 이어서 색인에서 고른 shot 카드 2–3장을 읽는다.
-2. `<home>/lessons/<id>/outline.md`를 쓴다(3,000자 안팎): 매체·테마·주 그림, 장면마다 `type · 주장 제목 · 핵심 내용 · 부품 · 기대 화면` 한 줄(기대 화면은 쓰기 전에 정하는 평가 기준이고 움직임은 비트로 적는다, look.md), 결정 변수에 관한 주장(공식·범위·비교 판정과 근거), 수치 모델의 공식과 계산 지점.
+2. `<home>/lessons/<id>/outline.md`를 쓴다(3,000자 안팎): 매체·테마·주 그림, 장면마다 `type · 주장 제목 · 핵심 내용 · 부품 · 기대 화면` 한 줄(기대 화면은 쓰기 전에 정하는 평가 기준이고 움직임은 비트로 적는다, look.md; 단계(`steps`) 장면은 `흐름: ①a→b ②…` 한 줄을 더한다: 단계마다 처음 나오는 것과 그것이 어디로 가는지), 결정 변수에 관한 주장(공식·범위·비교 판정과 근거), 수치 모델의 공식과 계산 지점.
 3. 같은 응답에서 검토 서브에이전트를 background로 띄운다(아래 검증).
 4. `lesson.html`을 한 번에 Write한다. `LTT.expect`의 기대값 자리는 비워 둔다.
 5. `node <skill>/server/audit.mjs <home>/lessons/<id>/lesson.html`을 실행한다.
@@ -71,7 +71,7 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 ### 검증
 
-- **검토 서브에이전트** 1개(모델은 지정하지 않는다)에게 `outline.md`와 `background.md` 경로만 준다. `lesson.html`과 모델 코드는 주지 않는다. 받는 것: (1) 틀린 주장·빠진 조건·출처 오류와 고친 문장 (2) 계산 지점마다 직접 구한 기대값 (3) 그 배경의 독자가 막힐 곳(정의 전에 쓴 용어·기호, 빠진 선행 개념, 뒤 predict의 답을 미리 말하는 제목).
+- **검토 서브에이전트** 1개(모델은 지정하지 않는다)에게 `outline.md`와 `background.md` 경로만 준다. `lesson.html`과 모델 코드는 주지 않는다. 받는 것: (1) 틀린 주장·빠진 조건·출처 오류와 고친 문장, 단계 흐름이 실제 절차·인과와 맞는지, 만들어진 것이 어디로 가는지 (2) 계산 지점마다 직접 구한 기대값 (3) 그 배경의 독자가 막힐 곳(정의 전에 쓴 용어·기호, 빠진 선행 개념, 뒤 predict의 답을 미리 말하는 제목).
 - 기대값은 `LTT.expect(label, actual, expected, { tol })`로 넣는다. 불일치가 나면 먼저 손으로 다시 계산하고, 모델에 맞춰 기대값을 고치지 않는다. 한 번 고친 뒤에도 남으면 그 부분을 빼거나 "검증 실패"로 표시하고 사용자에게 알린다.
 - 서브에이전트를 쓸 수 없으면 기대값을 모델 코드보다 먼저 직접 적고, 결정 변수에 관한 주장에 "미검증" 태그를 단다. 자기 확언만으로 정확성을 인정하지 않는다.
 - audit은 헤드리스 Chrome으로 `lesson.html?audit`을 1440×900과 1280×800에서 열어 lint와 장면별 경고를 낸다. **권고**는 `shrunk`, `small-visual`, `loose-figure`, `empty-stage`, `many-sizes`, `goal-narrow`, `still-visual`, `card-monotony`, `no-signature`, `unused-term`이고, 나머지 경고는 **고침**이다. Chrome이 없으면(종료 코드 2) 브라우저에서 `lesson.html?audit`을 두 크기로 열어 패널 경고를 본다.

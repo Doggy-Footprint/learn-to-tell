@@ -9,7 +9,7 @@ if (W === "steps" || W === "plain") {
   // "plain": every step fits at ratio 1 (extras up to 40px against about 150px of free height), so nothing may be absorbed or written.
   const EXTRAS = absorbing ? [0, 60, 330, 120] : [0, 20, 40, 10];
   let extra, fig;
-  scene = { type: "figure", title: "S", caption: "c", autoplay: false,
+  scene = { type: "figure", title: "S", caption: "c",
     figure(st) { extra = A.spacer(0); fig = A.svg("fig", 480, null); st.appendChild(A.col(fig, extra)); },
     steps: EXTRAS.map((px, k) => ({ caption: "단계 " + (k + 1), hold: 600000, enter() { hit("enter" + k); extra.style.height = px + "px"; } })) };
 } else {

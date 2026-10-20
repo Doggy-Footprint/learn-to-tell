@@ -664,7 +664,7 @@
       add("loose-figure", "그림이 figure 무대의 " + Math.round(m.figRatio * 100) + "%만 채운다. 그림 폭·높이를 키우거나 가로로 배치할 것");
     if (hero && m.fill != null && m.fill < 0.6) add("empty-stage", "장면이 화면 높이의 " + Math.round(m.fill * 100) + "%만 쓴다. 그림을 키울 것");
     if (!m.compact && m.drawing && !m.beats && !m.still && STILL_TYPES.indexOf(m.type) < 0)
-      add("still-visual", "그림이 움직이지 않는다. LTT.motion.loop로 움직이거나 figure steps로 단계를 두고, 멈춰 둘 이유가 있으면 still: \"이유\"를 적을 것");
+      add("still-visual", "그림이 움직이지 않는다. LTT.motion.loop로 움직이거나 figure steps(단계 둘 이상)를 쓰고, 멈춰 둘 이유가 있으면 still: \"이유\"를 적을 것");
     if (m.fontSizes > 7) add("many-sizes", "본문 글자 크기가 " + m.fontSizes + "단계다 (kit 부품 포함 7단계 이하). 페이지 CSS의 font-size를 kit 크기에 맞출 것");
     return out;
   }

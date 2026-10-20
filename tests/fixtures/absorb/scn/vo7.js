@@ -7,7 +7,7 @@ H.deck = LTT.deck({ title: "vo7", theme: "paper", scenes: [
   { type: "hook", text: "시작" },
   { type: "predict", title: "정답이 정한다", question: "Q?", choices: [{ id: "a", text: "가" }, { id: "b", text: "나" }], answer: "b",
     answerVisual(node, id) { node.appendChild(A.spacer(id === "b" ? 700 : 0)); }, why: "이유" },
-  { type: "figure", title: "단계가 정한다", caption: "c", autoplay: false,
+  { type: "figure", title: "단계가 정한다", caption: "c",
     figure(st) { extra = A.spacer(0); st.appendChild(A.col(A.svg("fig", 480, null), extra)); },
     steps: HEIGHTS.map((px, k) => ({ caption: "단계 " + (k + 1), hold: 600000, enter() { extra.style.height = px + "px"; } })) },
   { type: "predict", title: "질문이 정한다", question: "Q?", choices: [{ id: "a", text: "가" }, { id: "b", text: "나" }], answer: "a",

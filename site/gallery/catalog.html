@@ -501,16 +501,16 @@
     svg.innerHTML = `<line x1="30" y1="170" x2="490" y2="170" stroke="var(--ltt-line-2)" stroke-width="2"/><g id="ms-bars" fill="var(--ltt-accent)">${[0, 1, 2, 3].map((i) => `<rect x="${60 + i * 110}" y="${110 - i * 20}" width="70" height="${60 + i * 20}" rx="6"/>`).join("")}</g>`;
     LTT.motion.play(svg, [{ t: [0, 2400], stack: "#ms-bars rect", text: "막대가 하나씩 쌓인다" }], { period: 4000, el: svg });
   });
-  demo("figure-autoplay", "figure steps · autoplay: true | \"once\" | false", "<b>figure <code>steps</code>는 장면에 들어오면 혼자 넘어간다.</b> 단계마다 <code>hold</code>ms 머물고 끝에서 처음으로 돈다(<code>\"once\"</code>는 끝에서 멈춤). 이전·다음·반복 단추를 누르면 그 방문 동안 멈추고, 다시 들어오면 단계 0부터 재생한다. 덱이 필요해 iframe 안에 띄웠다.", (el) => {
+  demo("figure-autoplay", "figure steps · 자동 재생 + 누적 공개", "<b>figure <code>steps</code>는 장면에 들어오면 혼자 넘어가고, 도식은 처음 강조되는 단계에 나타난다.</b> 단계는 자막을 읽을 시간만큼 머물고 끝에서 처음으로 돈다. 이전·다음·반복 단추를 누르면 그 방문 동안 멈추고, 다시 들어오면 단계 0부터 재생한다. 앞 단계 노드는 흐리게 남는다. 덱이 필요해 iframe 안에 띄웠다.", (el) => {
     const deck = `
       LTT.deck({ title: "자동 재생", theme: "studio", scenes: [{ type: "figure", title: "요청은 캐시를 먼저 본다", caption: "단계가 혼자 넘어간다",
         figure: (el) => { el.innerHTML = '<svg class="ltt-svg" viewBox="0 0 520 140"></svg>'; return { el: el.firstChild, dg: LTT.diagram(el.firstChild, {
           cols: 3, rows: 1, cell: [170, 120], node: [130, 56],
           nodes: [{ id: "u", c: 0, r: 0, l: "요청", icon: "user" }, { id: "c", c: 1, r: 0, l: "캐시", icon: "cache" }, { id: "d", c: 2, r: 0, l: "DB", icon: "db" }],
           edges: [{ f: "u", t: "c" }, { f: "c", t: "d" }] }) }; },
-        steps: [{ caption: "① 요청이 들어온다", hold: 1500, enter: (k, f) => f.dg.highlight(["u"]) },
-                { caption: "② 캐시에 있으면 바로 돌려준다", hold: 1500, enter: (k, f) => f.dg.highlight(["u", "c"]) },
-                { caption: "③ 없으면 DB까지 간다", hold: 1500, enter: (k, f) => f.dg.highlight(["c", "d"]) }] },
+        steps: [{ caption: "① 요청이 들어온다", enter: (k, f) => f.dg.highlight(["u"]) },
+                { caption: "② 캐시에 있으면 바로 돌려준다", enter: (k, f) => f.dg.highlight(["c"]) },
+                { caption: "③ 없으면 DB까지 간다", enter: (k, f) => f.dg.highlight(["d"]) }] },
         { type: "keywords", title: "다음에 비슷한 걸 만나면", terms: [{ ko: "캐시", en: "cache" }] }] });`;
     const kit = ["vendor/d3.min.js", "ltt.js", "ltt-parts.js", "ltt-ui.js", "ltt-deck.js"].map((f) => `<script src="/kit/${f}"><\/script>`).join("");
     const f = Object.assign(document.createElement("iframe"), { className: "deck", title: "figure 자동 재생 데모" });

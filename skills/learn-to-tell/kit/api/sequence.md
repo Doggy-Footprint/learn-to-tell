@@ -4,5 +4,5 @@
 
 | 이름 | 설명 |
 | --- | --- |
-| `LTT.sequence(svg, {actors, items, spans, col, row})` | 시퀀스 다이어그램. 배우 `{id, l, s, icon, k}`, `items`는 시간순으로 메시지 `{f, t, l, kind: "sync"\|"async"\|"reply", k, flaw, id}`와 메모 `{note, over: [ids]}`. sync는 받는 쪽 활성 막대를 열고, 그 배우의 다음 reply가 닫는다. f = t면 자기 호출 고리. `spans: [{from, to, l, k}]`는 두 메시지 id 사이 시간 구간(왼쪽 괄호). `.show(n)`, `.highlight(ids)`, `.send(id)`, `.player(el, [{caption, upto, hot}])`(upto 기본 = 단계 번호 + 1, 마지막 메시지에 패킷). 재시도·인증·타임아웃 순서 수업. |
+| `LTT.sequence(svg, {actors, items, spans, col, row})` | 시퀀스 다이어그램. 배우 `{id, l, s, icon, k}`, `items`는 시간순으로 메시지 `{f, t, l, kind: "sync"\|"async"\|"reply", k, flaw, id}`와 메모 `{note, over: [ids]}`. sync는 받는 쪽 활성 막대를 열고, 그 배우의 다음 reply가 닫는다. f = t면 자기 호출 고리. `spans: [{from, to, l, k}]`는 두 메시지 id 사이 시간 구간(왼쪽 괄호). `.show(n)`, `.highlight(ids)`, `.send(id)`, `.player(el, [{caption, upto, hot}])`(자동 재생되어 마지막 뒤 단계 0으로 돌아간다, `upto` 기본 = 단계 번호 + 1, 마지막 메시지에 패킷). 재시도·인증·타임아웃 순서 수업. |
 | `LTT.sequenceLayout(spec)` | 좌표만 계산(테스트용). |

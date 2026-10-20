@@ -35,7 +35,9 @@ lint는 장면 데이터만 본다(`LTT.lintDeck`). audit은 URL에 `?audit`을 
 | `graph-overlap` | 고침 | diagram의 라벨·노드·엣지가 겹친다(`LTT.graphOverlaps`). 메시지가 겹침 수와 앞 3곳의 `종류 a/b` id를 말한다 |
 | `panel-overlap` | 고침 | figure 단계 자막 칸이나 펼친 predict 정답이 글 줄·컨트롤·그림(diagram은 노드·라벨 상자)과 겹친다 |
 | `goal-unreachable`, `goal-at-start` | 고침 | `sweep` 목표가 어느 손잡이 자리에서도 안 맞는다 / 시작 위치에서 이미 맞는다 |
-| `still-visual` | 권고 | 움직임 없는 그림이다: 좁은 창이 아니고, 본문에 목업이 아닌 그림이 있고, 노출 비트(`LTT.motion.loop`, figure `steps` 자동 재생, sweep `attract`, contrast 재생)가 없고, `still: "이유"`가 없다. terms·summary·keywords·hook·map-related는 판정하지 않는다 |
+| `still-visual` | 권고 | 움직임 없는 그림이다: 좁은 창이 아니고, 본문에 목업이 아닌 그림이 있고, 노출 비트(`LTT.motion.loop`, figure `steps`(단계 둘 이상), sweep `attract`, contrast 재생)가 없고, `still: "이유"`가 없다. terms·summary·keywords·hook·map-related는 판정하지 않는다 |
 | `goal-narrow` | 권고 | `sweep` 목표가 손잡이 한 자리에서만 맞는다 |
+
+`goal-unreachable`·`goal-narrow`·`goal-at-start`의 자리는 손잡이마다 최대 201곳(dial은 최대 360곳, pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다.
 
 `LTT.expect` 불일치도 고침이다.

@@ -84,7 +84,7 @@ head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "th
 | `hook` | `art`(아이콘·HTML), `pre`, `text`, `sub`. 첫 장면 |
 | `terms` | `terms: [{key, word, en, icon, visual, plain, example}]`. key는 glossary에 등록. `visual`은 그 말이 가리키는 것을 보이는 작은 그림 |
 | `explain` | `steps: [{icon, title, text, visual}]`, `form`: `"cards"`(독립 요소), `"strip"`(한 줄 흐름), `"stack"`(세로 타임라인, 단계마다 그림), `arrows` |
-| `figure` | `figure`(노드·HTML·함수), `caption`, `label`, `steps`, `autoplay`(`true`·`"once"`·`false`). 그림 하나가 화면을 차지한다 |
+| `figure` | `figure`(노드·HTML·함수), `caption`, `label`, `steps`. 그림 하나가 화면을 차지한다 |
 | `overview` | `figure`, `caption`, `label`. summary 뒤 한 장 인포그래픽: 주 그림에 앞 takeaway를 구역·번호로 놓는다 |
 | `statement` | `title`(큰 주장, `<em>` 강조), `sub`, `visual`. 리듬을 바꾼다 |
 | `contrast` | `before`, `after`(`LTT.beforeAfter`의 각 쪽) |
@@ -103,7 +103,7 @@ head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "th
 - `statement`는 직관과 반대인 결론을 못 박을 때, `contrast`는 같은 대상의 BEFORE/AFTER, `compare`는 실제 사례 2–4개를 같은 질문으로(속성 차이면 `table`, 판정을 미리 말하는 설명은 `noteAfter`).
 - `predict`는 퀴즈가 아니다. 결정 변수를 조작하는 장면 바로 앞에 두고, 질문 용어는 앞 장면에서 푼다. 세계·시스템을 짐작할 때만 쓴다(자기 편향은 `compare`로).
 - 조작(`mount` 안의 `LTT.sweep`)은 조작 자체가 배움일 때만, 실사용 범위만. `goal`은 손잡이 두 자리 이상에서 맞고, 시작 위치는 목표 밖에 둔다. 결정 변수끼리 영향을 주면 summary 앞에 손잡이를 함께 여는 샌드박스를 둘 수 있다.
-- 그림은 기본으로 움직인다(`LTT.motion.play`의 `draw` 선 그리기·`flow` 입자 흐름·`camera` 확대·`morph` 모양 바꾸기·`stack` 쌓기, 그 밖은 `loop`, figure `steps` 자동 재생). 장면마다 움직임 하나. 예외는 셋: 읽는 글(코드·터미널 목업, 표, terms, summary·recall), 답 가림(공개 전 predict), `still: "이유"`. 예외도 가능하면 한 번 재생 후 멈춤(`once`). 이탈·reduced-motion은 kit이 처리한다.
+- 그림은 기본으로 움직인다(`LTT.motion.play`의 `draw`·`flow`·`camera`·`morph`·`stack`, 그 밖은 `loop`, 단계가 둘 이상인 stepper 자동 재생). 장면마다 움직임 하나. 예외는 셋: 읽는 글(코드·터미널 목업, 표, terms, summary·recall), 답 가림(공개 전 predict), `still: "이유"`. 이탈·reduced-motion은 kit이 처리한다.
 
 ### 부품 고르기
 
@@ -158,7 +158,9 @@ const hub = (el) => { const s = el.appendChild(document.createElementNS(SVG, "sv
       { id: "out", c: 2, r: 0, l: "출고", icon: "route" }, { id: "cut", c: 1, r: 1, l: "마감", s: "18시", icon: "clock", k: "warn" }],
     edges: [{ f: "in", t: "sort", l: "12,000상자" }, { f: "sort", t: "out", l: "라인당 시간당 1,500" }, { f: "cut", t: "sort", dash: true }] }) }; };
 const figureScene = { type: "figure", title: "상자는 분류 라인을 지나야 출고된다", sub: "위는 상자의 길, 아래는 지켜야 할 마감", figure: hub,
-  steps: [{ caption: "① 입고된 상자가 분류 라인 앞에 쌓인다", enter: (k, f) => f.dg.highlight(["in", "sort"]) }],
+  steps: [{ caption: "① 입고된 상자가 분류 라인 앞에 쌓인다", enter: (k, f) => f.dg.highlight(["in"]) },
+    { caption: "② 분류 라인이 처리한다", enter: (k, f) => f.dg.highlight(["sort"]) },
+    { caption: "③ 출고로 나간다", enter: (k, f) => f.dg.highlight(["out"]) }],
   takeaway: "분류 시간은 물량 ÷ (라인 수 × 라인 처리량)이다.", recall: "라인을 두 배로 늘리면 분류 시간은?" };
 const predictScene = { type: "predict", title: "라인 4개면 몇 시간 걸릴까?", question: "12,000상자, 라인 하나가 시간당 1,500상자",
   visual: () => LTT.facts([{ icon: "package", value: "12,000", label: "상자" }, { icon: "gauge", value: "1,500/시간", label: "라인당" }]),

@@ -12,7 +12,7 @@ H.deck = LTT.deck({ title: "vo12", theme: "paper", scenes: [
       if (A.q.get("noquery")) return;
       for (const m of ["querySelectorAll", "querySelector", "getElementsByTagName", "getElementsByClassName"]) body[m] = () => { H.inc("bodyQuery"); boom("boom-" + m); };
     } },
-  { type: "figure", title: "enter throws", caption: "c", autoplay: false,
+  { type: "figure", title: "enter throws", caption: "c",
     figure(st) { st.appendChild(A.col(A.svg("fig", 480, null), A.spacer(500))); },
     steps: [0, 1, 2].map((k) => ({ caption: "단계 " + (k + 1), hold: 600000, enter() { if (k === 1) boom("boom-enter"); } })) },
   { type: "figure", title: "normal", caption: "c", figure(st) { st.appendChild(A.col(A.svg("fig", 480, null), A.spacer(500))); } },

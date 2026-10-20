@@ -630,37 +630,30 @@
         } else fill(pic, s.figure, ctx);
         var api = ret && ret.el ? ret : pic;
         var ctl = row.appendChild(h("div", "ctl"));
+        function run(k, dir) { var x = s.steps[k]; if (x.enter) LTT.diagram._step(k, function () { x.enter(k, api, dir); }); }
         var sp, fp = placement.steps(ctx, { count: s.steps.length, pic: pic, ctl: ctl, row: row,
-          draw: function (k) { var x = s.steps[k]; if (x.enter) x.enter(k, api, 1); },
+          draw: function (k) { run(k, 1); },
           current: function () { return sp.index; } });
         sp = LTT.stepper(ctl, s.steps.map(function (x) {
-          return { caption: x.caption, hold: x.hold, enter: function (k, dir) { if (x.enter) x.enter(k, api, dir); } };
+          return { caption: x.caption, hold: x.hold, enter: function (k, dir) { run(k, dir); } };
         }), { onStep: fp.stepped });
         // Every caption sits in one grid cell beneath the shown one, so the column is as tall as the longest caption.
         var capEl = ctl.querySelector(".ltt-caption"), capStack = h("div", "dk-capstack");
         ctl.insertBefore(capStack, capEl);
         capStack.appendChild(capEl);
         s.steps.forEach(function (x) {
-          var g = capStack.appendChild(h("p", "ltt-caption ghost", (x.caption || "").replace(/\{\{([^}|]+)(\|[^}]*)?\}\}/g, "$1")));
+          var g = capStack.appendChild(h("p", "ltt-caption ghost", String(x.caption == null ? "" : x.caption).replace(/\{\{([^}|]+)(\|[^}]*)?\}\}/g, "$1")));
           g.setAttribute("aria-hidden", "true");
         });
         ctl.__lttPlace = { scope: pic, keepFaded: true };
-        var auto = s.autoplay == null ? true : s.autoplay;
-        if (auto !== false && s.steps.length > 1) {
+        if (s.steps.length > 1) {
           var at = 0;
           LTT.motion._deck.beats(s.steps.map(function (x) {
-            var hd = x.hold || 1800, b = { t: at + Math.round(0.8 * hd) }, tx = plainCaption(x.caption);
+            var hd = LTT.stepper.holdOf(x), b = { t: at + Math.round(0.8 * hd) }, tx = plainCaption(x.caption);
             if (tx) b.text = tx;
             at += hd;
             return b;
           }));
-          LTT.motion.bind({
-            enter: function () {
-              if (sp.index !== 0) sp.go(0, 1);
-              if (!LTT.motion.reduced()) sp.play(auto === "once");
-            },
-            leave: sp.stop
-          });
         }
         ctx.place = fp.place;
         ctx.unplace = fp.unplace;
