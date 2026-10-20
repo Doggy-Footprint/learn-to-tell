@@ -1,115 +1,54 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>세포 주기</title>
-<script type="application/json" id="ltt-meta">{"topic":"세포 주기","audience":"생물 입문자","theme":"paper","medium":"교과서 figure","decision":"세포 주기 단계 구분","domain":"생물","pattern":["hook"],"mode":"카탈로그용: 장면 하나짜리 본보기. 순환 구조를 \"모양이 바뀜\" 움직임과 중앙 주인공 구도로 보인다"}</script>
-<script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/ltt.js"></script>
-<script src="/kit/ltt-parts.js"></script>
-<script src="/kit/ltt-ui.js"></script>
-<script src="/kit/ltt-deck.js"></script>
-<style>
-.cc-wrap{display:flex;justify-content:center}
-.cc{width:760px;height:500px!important;max-width:100%;height:auto;display:block}
-.cc text{font-family:inherit}
-</style>
-<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
-</head>
-<body>
-<script>
-const SVG = "http://www.w3.org/2000/svg";
-// 사람 배양세포 약 24시간 기준(Alberts, Molecular Biology of the Cell): G1 11, S 8, G2 4, M 1시간
-const PH = [{ id: "G1", h: 11, d: "세포가 자란다", t: 0.30 }, { id: "S", h: 8, d: "DNA를 복제한다", t: 0.25 },
-  { id: "G2", h: 4, d: "분열을 준비한다", t: 0.17 }, { id: "M", h: 1, d: "둘로 나뉜다", t: 0.28 }];
-const TOTAL = PH.reduce((a, p) => a + p.h, 0);
-const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-const clamp = (x) => Math.max(0, Math.min(1, x));
-const el = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
-
-function cellCycle(host) {
-  const W = 760, H = 560, cx = 380, cy = 272, R = 200;
-  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "cc", "data-annotate": "" }, host);
-  const arcPath = (a0, a1, r) => { const p = (a) => [cx + r * Math.sin(a), cy - r * Math.cos(a)];
-    const [x0, y0] = p(a0), [x1, y1] = p(a1); return `M${x0},${y0} A${r},${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1},${y1}`; };
-  let acc = 0; const arcs = [];
-  PH.forEach((p, i) => {
-    const a0 = acc / TOTAL * 2 * Math.PI + 0.025, a1 = (acc + p.h) / TOTAL * 2 * Math.PI - 0.025; acc += p.h;
-    el("path", { d: arcPath(a0, a1, R), style: "fill:none;stroke:var(--ltt-line);stroke-width:14;stroke-linecap:butt" }, s);
-    const hi = el("path", { d: arcPath(a0, a1, R), style: "fill:none;stroke:var(--ltt-accent);stroke-width:14;opacity:0;transition:opacity .4s" }, s);
-    const am = (a0 + a1) / 2, lr = R + 34;
-    const lx = cx + lr * Math.sin(am), ly = cy - lr * Math.cos(am);
-    const anchor = Math.sin(am) > 0.3 ? "start" : Math.sin(am) < -0.3 ? "end" : "middle";
-    const lab = el("text", { x: lx, y: ly, "text-anchor": anchor, style: "font-size:28px;font-weight:700;fill:var(--ltt-ink-2)" }, s);
-    lab.textContent = p.id;
-    const sub = el("text", { x: lx, y: ly + 24, "text-anchor": anchor, style: "font-size:18px;fill:var(--ltt-muted)" }, s);
-    sub.textContent = `${p.h}시간 · ${p.d}`;
-    arcs.push({ hi, lab, a0, a1 });
-  });
-  // M기는 고리에서 1시간뿐이라 화면에서는 느리게 재생한다
-  const note = el("text", { x: cx, y: H - 6, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-muted)" }, s);
-  note.textContent = "고리 길이는 실제 시간 비율 · M기는 느리게 재생";
-  const dot = el("circle", { r: 10, style: "fill:var(--ltt-accent);stroke:var(--ltt-bg);stroke-width:3" }, s);
-  const cell = el("path", { style: "fill:var(--ltt-accent-soft);stroke:var(--ltt-ink);stroke-width:2.5" }, s);
-  const furrow = el("line", { style: "stroke:var(--ltt-ink-2);stroke-width:1.5;stroke-dasharray:4 4" }, s);
-  const chroms = []; for (let i = 0; i < 8; i++) chroms.push(el("rect", { width: 6, height: 26, rx: 3, style: "fill:var(--ltt-ink)" }, s));
-  const dna = el("text", { x: cx, y: cy + 150, "text-anchor": "middle", style: "font-size:20px;fill:var(--ltt-ink-2);font-weight:600" }, s);
-
-  const cellPath = (a, b, pinch, ox) => { let d = ""; for (let k = 0; k <= 72; k++) { const th = k / 72 * 2 * Math.PI;
-      const sn = Math.sin(th); const x = ox + a * Math.cos(th), y = cy + b * sn * (1 - pinch * sn * sn);
-      d += (k ? "L" : "M") + x.toFixed(1) + "," + y.toFixed(1); } return d + "Z"; };
-
-  function draw(u) {
-    let start = 0, k = 0; while (k < 3 && u > start + PH[k].t) { start += PH[k].t; k++; }
-    const local = clamp((u - start) / PH[k].t);
-    const hrs = PH.slice(0, k).reduce((a, p) => a + p.h, 0) + PH[k].h * local;
-    const ang = hrs / TOTAL * 2 * Math.PI;
-    dot.setAttribute("cx", cx + R * Math.sin(ang)); dot.setAttribute("cy", cy - R * Math.cos(ang));
-    arcs.forEach((a, i) => { a.hi.style.opacity = i === k ? 1 : 0; a.lab.style.fill = i === k ? "var(--ltt-accent)" : "var(--ltt-ink-2)"; });
-    let rad = 70, b = 70, pinch = 0, dup = 0, align = 0, split = 0;
-    if (k === 0) { rad = 62 + 26 * ease(local); b = rad; }
-    else if (k === 1) { rad = b = 88; dup = ease(local); }
-    else if (k === 2) { rad = 88 + 8 * ease(local); b = rad; dup = 1; }
-    else { dup = 1; const e1 = ease(clamp(local / .35)), e2 = ease(clamp((local - .35) / .45)), e3 = ease(clamp((local - .85) / .15));
-      align = e1; split = e2; rad = 96 + 34 * e2; b = 96 - 20 * e2; pinch = 0.92 * e2;
-      if (e3 > 0) { rad = 130 - 68 * e3; b = 76 - 14 * e3; pinch = 0.92 * (1 - e3); } }
-    cell.setAttribute("d", cellPath(rad, b, pinch, cx));
-    furrow.setAttribute("x1", cx); furrow.setAttribute("x2", cx); furrow.setAttribute("y1", cy - b - 6); furrow.setAttribute("y2", cy + b + 6);
-    furrow.style.opacity = k === 3 && split > .1 && split < 1 ? split : 0;
-    const base = [[-28, -22], [-8, 14], [14, -18], [30, 10]];
-    chroms.forEach((c, i) => { const j = i % 4, sister = i >= 4;
-      let [x, y] = base[j]; x = x * (1 - align) + (j % 2 ? 2 : -2) * 0; y = y * (1 - align) + (j - 1.5) * 30 * align;
-      const sep = sister ? 1 : -1;
-      x += sep * (dup * 4 + split * 52);
-      const show = sister ? dup : 1;
-      c.setAttribute("x", cx + x - 3); c.setAttribute("y", cy + y - 13);
-            c.style.opacity = show; c.style.fill = sister ? "var(--ltt-accent)" : "var(--ltt-ink)"; });
-    if (k === 3 && local > .85) { const e3 = ease(clamp((local - .85) / .15)); chroms.forEach((c, i) => { if (i >= 4) c.style.opacity = 1 - e3; }); }
-    dna.textContent = k === 0 ? "DNA 1배 (2n)" : k === 1 ? `DNA ${(1 + dup).toFixed(1)}배 복제 중` : k === 2 ? "DNA 2배 (4n)" : (local < .85 ? "염색체가 두 극으로 나뉜다" : "딸세포 하나, 다시 G1");
-  }
-  return { el: s, draw };
-}
-
-function loop(period, draw) {
-  let raf = 0, t0 = 0;
-  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  return { enter() { clearTimeout(raf); if (reduced) { draw(0.999); return; }
-      t0 = Date.now(); const f = () => { draw(((Date.now() - t0) / period) % 1); raf = setTimeout(f, 16); }; f(); },
-    leave() { clearTimeout(raf); } };
-}
-
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>세포 주기</title><script src="/kit/ltt.js"></script></head><body><script>
+// 사람 배양세포 약 24시간 기준(Alberts): 고리 둘레는 실제 시간 비율, 재생 시간은 M기만 늘린다
+const PH = [["G1", 11], ["S", 8], ["G2", 4], ["M", 1]];
+const CX = 500, CY = 400, R = 270, pt = (a, r) => [CX + r * Math.sin(a), CY - r * Math.cos(a)];
+const sector = (a0, a1) => { const [x0, y0] = pt(a0, R + 14), [x1, y1] = pt(a1, R + 14), [x2, y2] = pt(a1, R - 14), [x3, y3] = pt(a0, R - 14), big = a1 - a0 > Math.PI ? 1 : 0;
+  const q = (x, y) => `${x / 10} ${y / 8}`, rr = (r) => `${r / 10} ${r / 8}`;
+  return `M${q(x0, y0)} A${rr(R + 14)} 0 ${big} 1 ${q(x1, y1)} L${q(x2, y2)} A${rr(R - 14)} 0 ${big} 0 ${q(x3, y3)} Z`; };
+const shapes = {}, states = { G1: {}, S: {}, G2: {}, Ma: {}, Mb: {}, back: {} };
+let acc = 0;
+PH.forEach(([id, h], i) => {
+  const a0 = acc / 24 * 2 * Math.PI + 0.03, a1 = (acc + h) / 24 * 2 * Math.PI - 0.03, am = (a0 + a1) / 2; acc += h;
+  const [lx, ly] = pt(am, R + 40), anchor = Math.sin(am) > 0.3 ? "l" : Math.sin(am) < -0.3 ? "r" : "b";
+  shapes["arc" + i] = { kind: "path", d: sector(a0, a1), fill: "--ltt-line" };
+  shapes["hi" + i] = { kind: "path", d: sector(a0, a1), fill: "--ltt-accent", opacity: 0 };
+  shapes["ph" + i] = { kind: "label", x: lx / 10, y: ly / 8, text: `${id} ${h}시간`, anchor, cls: "strong" };
+});
+Object.assign(states.G1, { hi0: { opacity: 1 } }); Object.assign(states.S, { hi0: { opacity: 0 }, hi1: { opacity: 1 } });
+Object.assign(states.G2, { hi1: { opacity: 0 }, hi2: { opacity: 1 } }); Object.assign(states.Ma, { hi2: { opacity: 0 }, hi3: { opacity: 1 } });
+Object.assign(states.back, { hi3: { opacity: 0 } });
+shapes.cell = { kind: "circle", cx: 50, cy: 50, r: 8, fill: "--ltt-accent-soft" };
+shapes.cell2 = { kind: "circle", cx: 50, cy: 50, r: 8, fill: "--ltt-accent-soft", opacity: 0 };
+Object.assign(states.G1, { cell: { r: 11 } }); Object.assign(states.G2, { cell: { r: 12 } });
+Object.assign(states.Ma, { cell2: { r: 12, opacity: 1 } });
+Object.assign(states.Mb, { cell: { cx: 42.5, r: 9 }, cell2: { cx: 57.5, r: 9 } });
+Object.assign(states.back, { cell: { cx: 50, r: 8 }, cell2: { cx: 50, r: 8, opacity: 0 } });
+[[-3, -3], [-1, 2], [1.4, -2.6], [3, 1.4]].forEach(([dx, dy], j) => {
+  const base = { x: 49.5 + dx, y: 47.5 + dy * 1.25 };
+  shapes["c" + j] = { kind: "rect", ...base, width: 1, height: 5, fill: "--ltt-ink" };
+  shapes["k" + j] = { kind: "rect", ...base, width: 1, height: 5, fill: "--ltt-accent", opacity: 0 };
+  Object.assign(states.S, { ["k" + j]: { x: base.x + 1.4, opacity: 1 } });
+  Object.assign(states.Ma, { ["c" + j]: { x: 48.6, y: 38 + j * 6 }, ["k" + j]: { x: 50.4, y: 38 + j * 6 } });
+  Object.assign(states.Mb, { ["c" + j]: { x: 42 }, ["k" + j]: { x: 57 } });
+  Object.assign(states.back, { ["c" + j]: base, ["k" + j]: { ...base, opacity: 0 } });
+});
+["G1 · 세포가 자란다", "S · DNA를 2배로 복제", "G2 · 분열을 준비한다", "M · 둘로 나뉜다"].forEach((text, i) => {
+  shapes["dna" + i] = { kind: "label", x: 50, y: 70, text, cls: "strong", opacity: i ? 0 : 1 };
+});
+Object.assign(states.S, { dna0: { opacity: 0 }, dna1: { opacity: 1 } }); Object.assign(states.G2, { dna1: { opacity: 0 }, dna2: { opacity: 1 } });
+Object.assign(states.Ma, { dna2: { opacity: 0 }, dna3: { opacity: 1 } }); Object.assign(states.back, { dna3: { opacity: 0 }, dna0: { opacity: 1 } });
+const cycle = LTT.morph({ aspect: 1.25, shapes, states });
 LTT.deck({
-  title: "세포 주기", theme: "paper",
+  title: "세포 주기", theme: "paper", exemplar: true,
   glossary: { "세포 주기": "세포가 자라고 DNA를 복제한 뒤 둘로 나뉘기까지 되풀이하는 네 단계(G1, S, G2, M)" },
   scenes: [{
     type: "hook", pre: "세포 주기", text: "23시간 준비, 1시간 분열",
-    sub: "{{세포 주기}}의 점이 고리를 돌 때마다 가운데 세포의 모양이 바뀐다.",
-    basis: "사람 배양세포 약 24시간 주기 기준(Alberts, Molecular Biology of the Cell). 세포 종류마다 다르다.",
-    mount(body) { const w = body.appendChild(document.createElement("div")); w.className = "cc-wrap";
-      const f = cellCycle(w); f.draw(0); return loop(9000, f.draw); }
+    sub: "{{세포 주기}} 고리의 길이는 실제 시간 비율이다. 진해진 단계마다 가운데 세포의 모양이 바뀐다. M기만 느리게 재생한다.",
+    visual: cycle,
+    motion: [["to", { state: "G1", dur: 2.6 }], ["to", { state: "S", dur: 2.2 }], ["to", { state: "G2", dur: 1.4 }],
+      ["to", { state: "Ma", dur: 1.1 }], ["to", { state: "Mb", dur: 1.3 }], ["wait", 0.4], ["to", { state: "back", dur: 0.6 }]],
+    basis: "사람 배양세포 약 24시간 주기 기준(Alberts, Molecular Biology of the Cell). 세포 종류마다 다르다."
   }]
 });
-</script>
-</body>
-</html>
+</script></body></html>

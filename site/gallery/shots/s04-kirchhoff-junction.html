@@ -1,135 +1,39 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>키르히호프 전류 법칙</title>
-<script type="application/json" id="ltt-meta">{"topic":"키르히호프 전류 법칙","audience":"회로 입문자","theme":"blueprint","medium":"회로 도면","decision":"분기점에서 전류가 어떻게 나뉘나","domain":"전기 회로","pattern":["figure"],"mode":"카탈로그용: 장면 하나짜리 본보기. 연결 구조를 \"점이 궤적을 그림\" 움직임과 좌우 분할 구도로 보인다"}</script>
-<script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/ltt.js"></script>
-<script src="/kit/ltt-parts.js"></script>
-<script src="/kit/ltt-ui.js"></script>
-<script src="/kit/ltt-deck.js"></script>
-<style>
-.kcl{width:1080px;max-width:100%;height:auto;display:block;margin:0 auto}
-.kcl text{font-family:inherit}
-</style>
-<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
-</head>
-<body>
-<script>
-const SVG = "http://www.w3.org/2000/svg";
-const el = (tag, attrs, parent, txt) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (txt != null) n.textContent = txt; parent && parent.appendChild(n); return n; };
-// 12 V, R2 = 6 Ω, R3 = 3 Ω 병렬: I2 = 2 A, I3 = 4 A, I1 = 6 A
-const V = 12, R2 = 6, R3 = 3, I2 = V / R2, I3 = V / R3, I1 = I2 + I3;
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>키르히호프 전류 법칙</title><script src="/kit/ltt.js"></script></head><body><script>
+const V = 12, I2 = V / 6, I3 = V / 3, I1 = I2 + I3;
 LTT.expect("I1", I1, 6, { tol: 1e-9 });
-
-// 점 하나 = 같은 양의 전하. 셋 중 하나는 R2, 둘은 R3로 간다(2 A : 4 A).
-// R2 갈래는 R3 갈래보다 480px(=간격 40 × 12) 길어서, 합류한 뒤에도 점 간격이 고르게 유지된다.
-const GAP = 40, SPEED = 120;
-const A = [300, 90], B = [300, 430];
-const pre = [[80, 430], [80, 90], A];
-const br2 = [A, [540, 90], [540, 430], B];
-const br3 = [A, B];
-const post = [B, [80, 430]];
-const segLen = (p) => p.slice(1).reduce((s, q, i) => s + Math.hypot(q[0] - p[i][0], q[1] - p[i][1]), 0);
-const along = (p, s) => { for (let i = 1; i < p.length; i++) { const L = Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]);
-  if (s <= L) { const u = s / L; return [p[i - 1][0] + (p[i][0] - p[i - 1][0]) * u, p[i - 1][1] + (p[i][1] - p[i - 1][1]) * u]; } s -= L; } return p[p.length - 1]; };
-const Lpre = segLen(pre), Lpost = segLen(post);
-
-function resistor(g, x, y0, y1, label, sub) {
-  const mid = (y0 + y1) / 2, h = 80, top = mid - h / 2;
-  el("line", { x1: x, y1: y0, x2: x, y2: top, class: "w" }, g);
-  let d = `M${x},${top}`; for (let i = 1; i <= 8; i++) d += ` L${x + (i % 2 ? 14 : -14)},${top + i * h / 8 - (i === 8 ? 0 : 0)}`;
-  d += ` L${x},${top + h}`;
-  el("path", { d, class: "w" }, g);
-  el("line", { x1: x, y1: top + h, x2: x, y2: y1, class: "w" }, g);
-  el("text", { x: x + 28, y: mid - 4, style: "font-size:20px;font-weight:700;fill:var(--ltt-ink)" }, g, label);
-  el("text", { x: x + 28, y: mid + 20, style: "font-size:16px;fill:var(--ltt-muted)" }, g, sub);
-}
-
-function junction(host) {
-  const s = el("svg", { viewBox: "0 0 1080 520", class: "kcl", "data-annotate": "" }, host);
-  el("style", {}, s, ".w{fill:none;stroke:var(--ltt-ink-2);stroke-width:3;stroke-linejoin:round}");
-  const g = el("g", {}, s);
-  el("polyline", { points: "80,250 80,90 540,90 540,180", class: "w" }, g);
-  el("polyline", { points: "540,340 540,430 80,430 80,290", class: "w" }, g);
-  // 전지: 긴 선이 +극
-  el("line", { x1: 50, y1: 262, x2: 110, y2: 262, style: "stroke:var(--ltt-ink);stroke-width:4" }, g);
-  el("line", { x1: 64, y1: 280, x2: 96, y2: 280, style: "stroke:var(--ltt-ink);stroke-width:8" }, g);
-  el("line", { x1: 80, y1: 250, x2: 80, y2: 262, class: "w" }, g);
-  el("line", { x1: 80, y1: 280, x2: 80, y2: 290, class: "w" }, g);
-  el("text", { x: 126, y: 270, style: "font-size:20px;font-weight:700;fill:var(--ltt-ink)" }, g, `${V} V`);
-  resistor(g, 300, 90, 430, "R₃ = 3 Ω", "I₃ = 4 A");
-  resistor(g, 540, 180 - 50, 340 + 50, "R₂ = 6 Ω", "I₂ = 2 A");
-  el("text", { x: 170, y: 76, "text-anchor": "middle", style: "font-size:16px;fill:var(--ltt-muted)" }, g, "I₁ = 6 A →");
-  const nodeA = el("circle", { cx: A[0], cy: A[1], r: 8, style: "fill:var(--ltt-ink)" }, g);
-  el("circle", { cx: B[0], cy: B[1], r: 8, style: "fill:var(--ltt-ink)" }, g);
-  el("text", { x: A[0], y: A[1] - 22, "text-anchor": "middle", style: "font-size:18px;font-weight:700;fill:var(--ltt-ink)" }, g, "분기점 A");
-  el("text", { x: B[0], y: B[1] + 34, "text-anchor": "middle", style: "font-size:18px;font-weight:700;fill:var(--ltt-ink)" }, g, "합류점 B");
-  const ring = el("circle", { cx: A[0], cy: A[1], r: 8, style: "fill:none;stroke:var(--ltt-accent);stroke-width:2" }, g);
-  const dots = []; for (let i = 0; i < 70; i++) dots.push(el("circle", { r: 6, style: "fill:var(--ltt-accent)" }, g));
-
-  // 오른쪽: 분기점 A의 장부
-  const R = el("g", { transform: "translate(660,0)" }, s);
-  el("line", { x1: 0, y1: 60, x2: 0, y2: 460, style: "stroke:var(--ltt-line);stroke-width:1.5" }, R);
-  el("text", { x: 40, y: 100, style: "font-size:16px;fill:var(--ltt-muted);letter-spacing:.04em" }, R, "분기점 A에서 센 점");
-  const rows = [["들어온 점", "I₁", 0], ["R₂로 나간 점", "I₂", 1], ["R₃로 나간 점", "I₃", 2]];
-  const cnt = [], bars = [];
-  rows.forEach(([l, sym], i) => { const y = 150 + i * 70;
-    el("text", { x: 40, y, style: "font-size:18px;fill:var(--ltt-ink-2)" }, R, l);
-    cnt.push(el("text", { x: 380, y, "text-anchor": "end", style: "font-size:30px;font-weight:700;fill:var(--ltt-ink);font-variant-numeric:tabular-nums" }, R, "0"));
-    el("rect", { x: 40, y: y + 12, width: 340, height: 8, rx: 4, style: "fill:var(--ltt-line)" }, R);
-    bars.push(el("rect", { x: 40, y: y + 12, width: 0, height: 8, rx: 4, style: `fill:${i ? "var(--ltt-accent)" : "var(--ltt-ink)"}` }, R)); });
-  el("line", { x1: 40, y1: 360, x2: 380, y2: 360, style: "stroke:var(--ltt-ink-2);stroke-width:1.5" }, R);
-  const eq = el("text", { x: 40, y: 410, style: "font-size:32px;font-weight:700;fill:var(--ltt-ink);font-variant-numeric:tabular-nums" }, R, "");
-  el("text", { x: 40, y: 448, style: "font-size:18px;fill:var(--ltt-accent);font-weight:600" }, R, "I₁ = I₂ + I₃  ·  6 A = 2 A + 4 A");
-
-  const CYCLE = 8; // 장부는 8초마다 0부터 다시 센다
-  function draw(t) {
-    const head = SPEED * t, nMax = Math.floor(head / GAP);
-    let k = 0;
-    for (let n = nMax; n >= 0 && k < dots.length; n--) {
-      const s0 = head - n * GAP, path = n % 3 === 1 ? br2 : br3, Lb = segLen(path);
-      if (s0 > Lpre + Lb + Lpost) break;
-      const p = s0 < Lpre ? along(pre, s0) : s0 < Lpre + Lb ? along(path, s0 - Lpre) : along(post, s0 - Lpre - Lb);
-      dots[k].setAttribute("cx", p[0]); dots[k].setAttribute("cy", p[1]); dots[k].style.opacity = 1; k++;
-    }
-    for (; k < dots.length; k++) dots[k].style.opacity = 0;
-    const tc = t % CYCLE, base = Math.floor(t / CYCLE) * CYCLE;
-    const passed = (tt) => Math.max(0, Math.floor((SPEED * tt - Lpre) / GAP) + 1);
-    const total = passed(base + tc) - passed(base);
-    const first = passed(base); let c2 = 0; for (let n = first; n < first + total; n++) if (n % 3 === 1) c2++;
-    const c3 = total - c2, v = [total, c2, c3];
-    v.forEach((x, i) => { cnt[i].textContent = x; bars[i].setAttribute("width", Math.min(340, x * 340 / 24)); });
-    eq.textContent = `${total} = ${c2} + ${c3}`;
-    const ph = ((SPEED * t - Lpre) / GAP) % 1; const pulse = ph < 0 ? 0 : 1 - ph;
-    ring.setAttribute("r", 8 + 14 * (1 - pulse)); ring.style.opacity = pulse;
-  }
-  return { el: s, draw };
-}
-
-function loop(node, draw) {
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { draw(7.99); return; }
-  const t0 = Date.now();
-  let seen = false;
-  const f = () => { if (node.isConnected) seen = true; else if (seen) return; draw((Date.now() - t0) / 1000); setTimeout(f, 16); };
-  f();
-}
-
+const circuit = LTT.graph({
+  layout: "manual", aspect: 1.6,
+  nodes: [
+    { id: "bat", label: "전지 12 V", sub: "I₁ = 6 A", icon: "bolt", at: [12, 50] }, { id: "A", label: "분기점 A", shape: "round", at: [40, 12] },
+    { id: "R3", label: "R₃ = 3 Ω", sub: "I₃ = 4 A", at: [40, 50] }, { id: "R2", label: "R₂ = 6 Ω", sub: "I₂ = 2 A", at: [84, 50] },
+    { id: "B", label: "합류점 B", shape: "round", at: [40, 88] }
+  ],
+  edges: [{ from: "bat", to: "A" }, { from: "A", to: "R3" }, { from: "A", to: "R2" },
+    { from: "R3", to: "B" }, { from: "R2", to: "B" }, { from: "B", to: "bat" }]
+});
+const book = LTT.ledger([
+  { id: "in", label: "A로 들어온 점", value: 0 }, { id: "r2", label: "R₂로 나간 점", value: 0, tone: "accent" },
+  { id: "r3", label: "R₃로 나간 점", value: 0, tone: "accent" }, { id: "out", label: "나간 점의 합", value: 0, total: true }
+]);
+const flowAll = (n, dur) => [["flow", { edges: ["bat>A"], n: 3 * n, dur }], ["flow", { edges: ["A>R2", "R2>B"], n, dur }],
+  ["flow", { edges: ["A>R3", "R3>B"], n: 2 * n, dur }], ["flow", { edges: ["B>bat"], n: 3 * n, dur }]];
 LTT.deck({
-  title: "키르히호프 전류 법칙", theme: "blueprint",
+  title: "키르히호프 전류 법칙", theme: "blueprint", exemplar: true,
   glossary: { "분기점": "도선 셋 이상이 만나는 점. 전하는 여기서 쌓이지 않고 갈래로 나뉜다" },
   scenes: [{
-    type: "figure",
-    title: "분기점에 들어온 전하는 갈래로 나뉠 뿐, 하나도 사라지지 않는다",
+    type: "figure", title: "분기점에 들어온 전하는 갈래로 나뉠 뿐, 하나도 사라지지 않는다",
     sub: "점 하나가 같은 양의 전하다. 왼쪽은 회로, 오른쪽은 {{분기점}} A를 지난 점을 센 장부다.",
-    figure: (host) => { const f = junction(host); loop(f.el, f.draw); return f; },
-    caption: "저항이 작은 R₃ 쪽으로 두 배 많은 점이 간다. 그래도 들어온 수 = 나간 수의 합.",
-    basis: "옴의 법칙 I = V/R로 계산: 12 V/6 Ω = 2 A, 12 V/3 Ω = 4 A. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
-    takeaway: "분기점에서 들어온 전류의 합은 나간 전류의 합과 같다.", recall: "6 A가 들어와 한 갈래로 2 A가 나가면 다른 갈래는?"
+    visual: circuit, side: book,
+    motion: [
+      { par: [...flowAll(2, 2), ["pulse", { node: "A", dur: 2 }]] },
+      { par: [...flowAll(2, 5), ["count", { id: "in", to: 24, digits: 0, dur: 5 }], ["count", { id: "r2", to: 8, digits: 0, dur: 5 }],
+        ["count", { id: "r3", to: 16, digits: 0, dur: 5 }], ["count", { id: "out", to: 24, digits: 0, dur: 5 }]] },
+      { par: flowAll(2, 1.2) }
+    ],
+    takeaway: "분기점에서 들어온 전류의 합은 나간 전류의 합과 같다.",
+    recall: { q: "6 A가 들어와 한 갈래로 2 A가 나가면 다른 갈래는?", a: "4 A. 들어온 6 A = 나간 2 A + 4 A" },
+    basis: "옴의 법칙 I = V/R: 12 V/6 Ω = 2 A, 12 V/3 Ω = 4 A. 모델로 계산한 예시."
   }]
 });
-</script>
-</body>
-</html>
+</script></body></html>

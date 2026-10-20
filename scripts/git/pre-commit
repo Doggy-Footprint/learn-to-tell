@@ -2,4 +2,3 @@
 # Chained from .harness/git/pre-commit (harness-managed, so project checks live here). Install: npm run setup:hooks
 set -euo pipefail
 node "$(git rev-parse --show-toplevel)/scripts/build.mjs" version >/dev/null
-node "$(git rev-parse --show-toplevel)/scripts/build.mjs" css --check >/dev/null

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>알림이 울리면 진짜 장애일까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"운영·모니터링","topic":"기저율과 알림 정밀도","audience":"탐지율과 오탐률은 안다","pattern":["hook","explain","predict","compare","sweep","explain","keywords"],"mode":"체험형: 세 숫자의 뜻을 먼저 보이고, 정밀도를 짐작한 뒤 건수 흐름 막대로 답을 보여 준다","decision":"알림 임계 (탐지율과 오탐률 사이)"}</script>
+<link rel="stylesheet" href="/legacy/kit-v1/vendor/katex/katex.min.css">
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/vendor/katex/katex.min.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+<style>
+  :root { --ltt-on: #d6455d; --ltt-alt: #c3c9da; }
+  .fl { display: grid; gap: 8px; } .fl .ltt-bar { transition: none; } .fl .ltt-bar > span { transition: flex-grow .9s cubic-bezier(.2,.7,.2,1); } .fl.reset .ltt-bar > span { transition: none; }
+  .fl .lb { font-size: 14px; font-weight: 700; } .fl .ar { text-align: center; color: var(--ltt-accent); font-weight: 800; }
+  .mini .ltt-units { max-width: 130px; gap: 2px; } .mini .ltt-unit { border-radius: 2px; }
+  .row { display: flex; gap: clamp(16px, 4vw, 48px); align-items: center; flex-wrap: wrap; }
+  .row .ltt-units { width: min(260px, 60vw); }
+  .num { text-align: center; font-size: 13px; color: var(--ltt-muted); } .num b { font-size: 24px; color: var(--ltt-ink); }
+</style>
+</head>
+<body>
+<script>
+  // Hand-derived before the model below was written; the model must match these, not the reverse.
+  const EXPECTED_BY_HAND = [
+    { label: "p=1%, s=95%, f=5%", p: 0.01, s: 0.95, f: 0.05, ppv: 0.161017, units: 16 },
+    { label: "p=10%, s=95%, f=5%", p: 0.10, s: 0.95, f: 0.05, ppv: 0.678571, units: 68 },
+    { label: "p=1%, s=80%, f=0.5%", p: 0.01, s: 0.80, f: 0.005, ppv: 0.617761, units: 62 },
+  ];
+  const EXPECTED_FLOW_BY_HAND = { fail: 100, ok: 9900, truePos: 95, falsePos: 495, alerts: 590 };
+
+  const ppv = (p, s, f) => (s * p) / (s * p + f * (1 - p));
+  const unitsOf = (p, s, f) => Math.round(ppv(p, s, f) * 100);
+  const flow = (p, s, f, n = 10000) => {
+    const fail = n * p, ok = n - fail, truePos = fail * s, falsePos = ok * f;
+    return { fail, ok, truePos, falsePos, alerts: truePos + falsePos };
+  };
+
+  for (const c of EXPECTED_BY_HAND) {
+    LTT.expect(c.label, ppv(c.p, c.s, c.f), c.ppv, { tol: 1e-5 });
+    LTT.expect(c.label + " 알림 100건 중 진짜", unitsOf(c.p, c.s, c.f), c.units, { tol: 0 });
+  }
+  const f0 = flow(0.01, 0.95, 0.05);
+  for (const k of Object.keys(EXPECTED_FLOW_BY_HAND)) {
+    LTT.expect("10,000회 흐름 " + k, f0[k], EXPECTED_FLOW_BY_HAND[k], { tol: 1e-6 });
+  }
+
+  const int = d3.format(",.0f");
+  const KEY = `<span class="ltt-key"><i style="background:var(--ltt-on)"></i>진짜 장애</span><span class="ltt-key"><i style="background:var(--ltt-alt)"></i>오탐</span>`;
+  const caseVis = (p, s, f) => (node) => {
+    const box = node.appendChild(document.createElement("div")), n = unitsOf(p, s, f);
+    box.className = "mini";
+    LTT.units(box.appendChild(document.createElement("div")), 100).paint(n, "on", 100 - n);
+    box.insertAdjacentHTML("beforeend", `<p class="num"><b>${n}</b> / 100 진짜</p>`);
+  };
+
+  LTT.deck({
+    title: "알림이 울리면 진짜 장애일까?",
+    scenes: [
+      { type: "hook", art: "🚨",
+        text: "탐지율 95%짜리 알림이 울렸다.<br>진짜 장애일 확률은 <u>95%가 아니다</u>.",
+        sub: "알림 임계를 정하기 전에, 장애가 원래 얼마나 드문지(기저율)를 함께 봐야 한다." },
+
+      { type: "explain", kicker: "용어", title: "알림 하나를 정하는 세 숫자", arrows: false,
+        steps: [
+          { icon: "🎯", title: "기저율 1%", text: "확인할 때 실제로 장애인 비율. 100번 중 1번만 진짜 장애다." },
+          { icon: "📡", title: "탐지율 95%", text: "진짜 장애 중 알림이 울리는 비율. 장애 100건 중 95건을 잡는다." },
+          { icon: "🔔", title: "오탐률 5%", text: "정상인데 알림이 울리는 비율. 정상 100번 중 5번 울린다." },
+        ] },
+
+      { type: "predict", kicker: "짐작해 보기", title: "알림 100건이 울렸다. 진짜 장애는 몇 건?",
+        sub: "기저율 1% · 탐지율 95% · 오탐률 5%",
+        question: "알림 100건 중 진짜 장애 건수 (기저율 1%, 탐지율 95%, 오탐률 5%)",
+        choices: [{ id: "95", text: "95건쯤" }, { id: "50", text: "50건쯤" }, { id: "16", text: "16건쯤" }, { id: "5", text: "5건쯤" }],
+        answer: "16",
+        answerVisual(node) {
+          const f = flow(0.01, 0.95, 0.05);
+          node.innerHTML = `<div class="fl"><span class="lb">확인 10,000회</span><div class="ltt-bar"></div>
+            <div class="ar">↓ 알림이 울린 것만</div><span class="lb">울린 알림 ${int(f.alerts)}건</span><div class="ltt-bar"></div><p>${KEY}</p></div>`;
+          const [ea, eb] = node.querySelectorAll(".ltt-bar");
+          const a = LTT.bar(ea, [{ color: "var(--ltt-on)" }, { color: "#8fa0c8" }]);
+          const b = LTT.bar(eb, [{ color: "var(--ltt-on)" }, { color: "var(--ltt-alt)" }]);
+          setTimeout(() => a.set([f.fail, f.ok], [`장애 ${int(f.fail)}`, `정상 ${int(f.ok)}`]), 100);
+          setTimeout(() => b.set([f.truePos, f.falsePos], [`탐지 ${int(f.truePos)}`, `오탐 ${int(f.falsePos)}`]), 1100);
+        },
+        why: "약 16건(95 ÷ 590). 드문 장애의 95%(95건)보다 흔한 정상의 5%(495건)가 더 많다. <span class=\"ltt-tag\">모델로 계산한 예시</span>" },
+
+      { type: "compare", kicker: "사례", title: "같은 알림 규칙, 다른 시점과 임계",
+        sub: "칸 그림은 울린 알림 100건(모델로 계산한 예시). 붉은 칸이 진짜 장애.", cols: 3,
+        items: [
+          { label: "배포 직후 · 기저율 10% · 95%/5%", visual: caseVis(0.10, 0.95, 0.05), tone: "good", verdict: "바로 사람에게 보내도 된다",
+            noteAfter: true, note: "장애가 흔한 시점에는 같은 알림도 대부분 의미가 있다." },
+          { label: "평상시 · 기저율 1% · 95%/5%", visual: caseVis(0.01, 0.95, 0.05), tone: "bad", verdict: "알림 피로",
+            noteAfter: true, note: "6건 중 5건이 오탐이면 사람은 알림을 무시하기 시작한다." },
+          { label: "오탐률 낮춘 임계 · 기저율 1% · 80%/0.5%", visual: caseVis(0.01, 0.80, 0.005), tone: "warn", verdict: "정밀도↑ 대신 놓침",
+            noteAfter: true, note: "오탐률을 낮추면 정밀도가 크게 오른다. 대신 장애 5건 중 1건을 놓친다." },
+        ] },
+
+      { kicker: "직접 바꿔 보기", title: "기저율과 오탐률을 움직여 본다",
+        sub: "탐지율 95% 고정. 칸 그림은 울린 알림 100건. 범위는 예시용 가정.",
+        mount(body) {
+          body.innerHTML = `<div class="row"><div id="su"></div><div style="flex:1;min-width:220px">
+            <label class="ltt-param">기저율 p <b id="p-v"></b><input type="range" id="p" min="0.1" max="20" step="0.1" value="1" aria-label="기저율"></label>
+            <label class="ltt-param">오탐률 f <b id="f-v"></b><input type="range" id="f" min="0.1" max="20" step="0.1" value="5" aria-label="오탐률"></label>
+            <div class="ltt-stat"><span id="sn">16</span><small>/ 100건 진짜</small></div><p>${KEY}</p></div></div>`;
+          const u = LTT.units("su", 100);
+          LTT.sweep({ params: { p: { fmt: (v) => v + "%" }, f: { fmt: (v) => v + "%" } }, render({ p, f }) {
+            const n = unitsOf(p / 100, 0.95, f / 100);
+            u.paint(n, "on", 100 - n);
+            LTT.tween("sn", n);
+          } });
+          return {};
+        },
+        basis: "모델로 계산한 예시. 기저율은 서비스와 확인 주기마다 다르다." },
+
+      { type: "explain", kicker: "임계를 정할 때", title: "숫자 하나보다 순서", arrows: true,
+        steps: [
+          { icon: "📊", title: "기저율부터", text: "확인 주기마다 실제 장애가 얼마나 드문가? 드물수록 정밀도가 무너진다." },
+          { icon: "🎚️", title: "오탐률을 깎는다", text: "기저율이 낮으면 오탐률을 낮추는 것이 정밀도에 가장 크게 듣는다." },
+          { icon: "⚖️", title: "놓침을 받아들일지", text: "대신 탐지율이 줄어든다. 놓쳐도 되는 장애인지 함께 정한다." },
+        ] },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [{ ko: "기저율 무시", en: "base rate fallacy" }, { ko: "정밀도 · 양성 예측도", en: "precision · PPV" }, { ko: "알림 피로", en: "alert fatigue" }],
+        signals: ["\"탐지율 95%니까 믿을 만하다\"는 말을 들을 때", "온콜이 알림을 습관적으로 무시할 때", "드문 사건을 잡는 분류기·탐지기를 평가할 때"],
+        queries: ["base rate fallacy alerting", "precision vs recall alert threshold", "positive predictive value prevalence", "alert fatigue SRE symptom-based alerting"],
+        neighbors: [
+          { term: "탐지율 (recall)", diff: "장애 중 몇 %를 잡나. 알림이 진짜일 확률은 정밀도가 말한다." },
+          { term: "오탐률 (FPR)", diff: "정상 중 몇 %에서 울리나. 기저율과 곱해져야 알림 속 비중이 된다." },
+        ] },
+    ],
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>캐시 TTL</title>
+<script src="/kit/ltt.js"></script>
+</head><body><script>
+const hitRate = (ttl, gap) => ttl / (ttl + gap);
+LTT.expect("TTL 60초, 간격 20초 hit 비율", hitRate(60, 20), 0.75);
+
+const flow = LTT.graph({
+  layout: "chain",
+  nodes: [
+    { id: "user", label: "사용자", icon: "user" },
+    { id: "cache", label: "캐시", icon: "cache", sub: "TTL 60초" },
+    { id: "db", label: "원본 DB", icon: "db" }
+  ],
+  edges: [{ from: "user", to: "cache", label: "요청" }, { from: "cache", to: "db", label: "miss일 때만" }]
+});
+
+LTT.deck({
+  lesson: "v2-all", title: "캐시 TTL을 늘리면 무엇을 잃나", theme: "terminal",
+  goal: ["TTL이 원본 부하와 오래된 응답을 함께 바꾸는 이유를 설명한다", "주어진 변경 주기에서 TTL 후보를 고른다"],
+  budget: { scenes: 16, why: "kit 시험용 fixture" },
+  glossary: { "TTL": "캐시에 넣은 값을 다시 확인하지 않고 쓰는 시간", "hit": "캐시에 값이 있어 원본에 가지 않은 요청", "stale": "원본이 바뀐 뒤에도 캐시가 돌려주는 옛 값" },
+  scenes: [
+    { type: "hook", pre: "백엔드 · 캐시", text: "{{TTL}}을 두 배로 늘려도 원본 요청은 절반이 되지 않는다", sub: "100번의 요청 중 원본까지 가는 것은 몇 번일까.",
+      visual: LTT.units({ n: 100, groups: [{ k: 25, label: "원본 요청", tone: "bad" }, { k: 75, label: "캐시 적중", tone: "good" }] }), motion: [["fill", { dur: 2.4 }]] },
+    { type: "terms", title: "세 단어로 캐시를 읽는다",
+      visual: flow,
+      terms: [{ term: "TTL", plain: "값을 넣은 뒤 다시 확인하지 않는 시간", on: "cache" }, { term: "hit", plain: "캐시에서 바로 답한 요청", on: "user>cache" }, { term: "miss", plain: "원본 DB까지 다녀온 요청", on: "cache>db" }] },
+    { type: "figure", kicker: "흐름", title: "{{hit}}면 원본까지 가지 않는다", sub: "점 하나가 요청 하나다. 캐시에 값이 있으면 그 자리에서 돌아간다.",
+      visual: flow, side: LTT.ledger([{ id: "req", label: "요청", value: 0 }, { id: "orig", label: "원본 요청", value: 0, tone: "bad" }]),
+      points: [{ on: "cache", text: "{{TTL}} 동안은 원본을 다시 묻지 않는다" }, { on: "db", text: "miss일 때만 원본 부하가 생긴다" }],
+      motion: [{ par: [["travel", { along: "user>cache>db", dur: 2 }], ["count", { id: "req", to: 1 }], ["note", { n: 1, dur: 2 }]] }, ["count", { id: "orig", to: 1 }], ["pulse", { node: "db" }], { par: [["flow", { edges: ["user>cache"], dur: 3 }], ["count", { id: "req", from: 1, to: 9, dur: 3 }], ["note", { n: 2, dur: 3 }]] }],
+      takeaway: "hit 비율이 원본 부하를 정한다", basis: "단순 모델: 요청 간격 일정, 원본 변경 없음" },
+    { type: "figure", title: "값 하나의 일생은 네 단계다",
+      visual: LTT.pipeline({ steps: [{ title: "miss", text: "원본에서 값을 가져와 넣는다", icon: "db" }, { title: "hit", text: "TTL 동안 캐시가 답한다", icon: "cache" }, { title: "만료", text: "TTL이 끝나면 버린다", icon: "timer" }, { title: "다시 miss", text: "다음 요청이 원본을 부른다", icon: "refresh" }] }),
+      steps: [{ caption: "처음 요청은 캐시에 값이 없어 원본에 간다", motion: [["step", { to: 0 }]] }, { caption: "TTL 동안은 캐시가 답한다", motion: [["step", { to: 1 }]] }, { caption: "TTL이 끝나면 값을 버린다", motion: [["step", { to: 2 }]] }, { caption: "그 다음 요청이 다시 원본을 부른다", motion: [["step", { to: 3 }]] }] },
+    { type: "predict", title: "TTL을 두 배로 늘리면?", q: "TTL을 60초에서 120초로 늘리면 원본 요청 수는?", choices: ["절반이 된다", "절반보다 덜 줄어든다", "그대로다"], answer: 1,
+      why: "hit 비율은 TTL/(TTL+간격)이라 TTL을 늘릴수록 효과가 줄어든다. 25%였던 원본 비율은 14%가 된다.",
+      visual: LTT.chart({ x: { label: "TTL(초)", domain: [0, 300] }, y: { label: "원본 비율", domain: [0, 1], fmt: v => Math.round(v * 100) + "%" },
+        series: [{ id: "orig", label: "원본 비율", points: Array.from({ length: 31 }, (_, i) => [i * 10, 20 / (i * 10 + 20)]) }], refs: [{ x: 60, label: "지금 60초" }, { x: 120, label: "120초" }] }),
+      motion: [["draw", { id: "orig", dur: 0.01 }], ["show", { id: "ref0" }], ["mark", "ask"], ["point", { id: "orig", from: 60, to: 120, dur: 1.6 }], ["show", { id: "ref1" }]], recall: { q: "TTL을 두 배로 늘려도 원본 요청이 절반이 되지 않는 이유는?", a: "hit 비율이 TTL/(TTL+간격)으로 포화되기 때문이다." } },
+    { type: "play", title: "TTL과 변경 주기를 함께 움직여 본다",
+      knobs: [{ id: "ttl", label: "TTL", min: 10, max: 300, step: 10, value: 60, unit: "초" }, { id: "gap", label: "요청 간격", min: 5, max: 60, step: 5, value: 20, unit: "초" }],
+      visual: p => LTT.chart({ x: { label: "TTL(초)", domain: [0, 300] }, y: { label: "원본 비율", domain: [0, 1], fmt: v => Math.round(v * 100) + "%" },
+        series: [{ id: "c", points: Array.from({ length: 31 }, (_, i) => [i * 10, p.gap / (i * 10 + p.gap)]) }], refs: [{ x: p.ttl, label: "TTL " + p.ttl + "초" }] }),
+      readout: p => [{ label: "원본 비율", value: Math.round(p.gap / (p.ttl + p.gap) * 100), unit: "%", tone: "bad" }, { label: "hit 비율", value: Math.round(p.ttl / (p.ttl + p.gap) * 100), unit: "%", tone: "good" }],
+      goal: { text: "원본 비율을 10% 아래로", check: p => p.gap / (p.ttl + p.gap) < 0.1 } },
+    { type: "compare", title: "짧은 TTL과 긴 TTL은 잃는 것이 다르다",
+      left: { label: "TTL 10초", tag: "부하↑", tone: "bad", visual: LTT.units({ n: 100, groups: [{ k: 67, label: "원본", tone: "bad" }, { k: 33, label: "hit", tone: "good" }] }), text: "원본 요청이 많지만 옛 값은 거의 없다" },
+      right: { label: "TTL 300초", tag: "{{stale}}↑", tone: "good", visual: LTT.units({ n: 100, groups: [{ k: 6, label: "원본", tone: "bad" }, { k: 94, label: "hit", tone: "good" }] }), text: "원본은 한가하지만 바뀐 값을 늦게 안다" } },
+    { type: "figure", title: "만료 직전에 바뀐 값은 TTL만큼 늦게 보인다",
+      visual: LTT.sequence({ actors: ["사용자", "캐시", "원본"], messages: [{ from: "사용자", to: "캐시", label: "GET /price" }, { from: "캐시", to: "원본", label: "miss → 조회" }, { from: "원본", to: "캐시", label: "9,900원", reply: true }, { from: "원본", to: "원본", label: "가격 변경", tone: "bad" }, { from: "캐시", to: "사용자", label: "9,900원 (stale)", reply: true, tone: "bad" }] }),
+      motion: [["send", { to: 4, dur: 5 }]], narration: "원본이 바뀌어도 캐시는 TTL이 끝날 때까지 옛 값을 돌려준다." },
+    { type: "figure", title: "요청 간격은 고르게 오지 않는다", visual: LTT.dist({ bins: { min: 0, max: 60, n: 15 }, n: 180, sample: { mean: 22, sd: 9 }, label: "요청 간격(초)", seed: 3 }), motion: [["drop", { dur: 3.5 }], ["curve"]], sub: "간격의 분포가 넓으면 같은 TTL에서도 hit 비율이 흔들린다." },
+    { type: "figure", title: "숫자로 보면", visual: LTT.facts([{ value: 75, unit: "%", label: "TTL 60초의 hit 비율", tone: "good" }, { value: 86, unit: "%", label: "TTL 120초의 hit 비율", tone: "accent" }, { value: 11, unit: "%p", label: "두 배로 늘려 얻은 차이" }]),
+      motion: [{ par: [["count", { i: 0, to: 75 }], ["count", { i: 1, to: 86 }], ["count", { i: 2, to: 11 }]] }] },
+    { type: "figure", title: "로그로 보면 miss는 주기적으로 온다", visual: LTT.terminal({ title: "cache-access.log", lines: ["12:00:00 MISS GET /items/42 → DB 9,900원 저장", { text: "12:00:20 HIT  GET /items/42", tone: "ok" }, { text: "12:00:40 HIT  GET /items/42", tone: "ok" }, { text: "12:01:00 MISS GET /items/42 → TTL 만료", tone: "warn" }, { text: "12:01:20 HIT  GET /items/42", tone: "ok" }] }), motion: [["type", { dur: 3 }]] },
+    { type: "figure", title: "만료 시계는 값마다 따로 돈다",
+      visual: LTT.draw({ aspect: 16 / 9, dur: 6, setup(h) {
+        const ring = h.el("circle", { cx: 500, cy: 280, r: 200, class: "e" });
+        const dot = h.el("circle", { r: 14, class: "dot" });
+        h.label(500, 280, "TTL 60초", { cls: "big" });
+        h.anchor("ring", 500, 80);
+        return { dot };
+      }, draw(t, h, s) { const a = -Math.PI / 2 + (t / 6) * Math.PI * 2; s.dot.setAttribute("cx", 500 + 200 * Math.cos(a)); s.dot.setAttribute("cy", 280 + 200 * Math.sin(a)); } }) },
+    { type: "summary", title: "떠올려 보기", items: [{ q: "hit 비율을 정하는 두 값은?", a: "TTL과 요청 간격(또는 변경 주기)이다." }] },
+    { type: "overview", title: "한 장 정리", visual: flow, points: [{ on: "user", text: "요청 간격" }, { on: "cache", text: "TTL이 hit 비율을 정한다" }, { on: "db", text: "원본 부하 = miss 수" }], sub: "TTL은 원본 부하와 오래된 응답을 맞바꾼다." },
+    { type: "keywords", remember: ["원본 비율 = 간격/(TTL+간격)", "TTL을 늘리면 효과가 줄어든다"], signals: ["원본 DB CPU가 TTL을 늘려도 안 떨어진다", "가격 변경 문의가 늘었다"], queries: ["cache stampede", "stale-while-revalidate"] }
+  ]
+});
+</script></body></html>

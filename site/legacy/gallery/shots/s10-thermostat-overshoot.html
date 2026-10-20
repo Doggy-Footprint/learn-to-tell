@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>온도조절기 오버슈트</title>
+<script type="application/json" id="ltt-meta">{"topic":"온도조절기 되먹임 루프와 오버슈트","audience":"제어 입문자","theme":"lab","medium":"실험 노트 플롯","decision":"히스테리시스 폭과 난방 지연","domain":"제어","pattern":["hook"],"mode":"카탈로그용: 장면 하나짜리 본보기. 되먹임 구조를 \"입자가 흐름\" 움직임과 겹쳐 놓기 구도로 보인다"}</script>
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-ui.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+<style>
+.th-wrap{display:flex;justify-content:center}
+.th{width:1040px;max-width:100%;height:auto;display:block}
+.th text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+// 1차 지연 두 개(라디에이터, 방)와 on/off 히스테리시스. 상수는 단독주택 거실 규모로 맞춘 모델값
+const SET = 22, BAND = 0.5, TOUT = 5, A = 0.03, B = 0.01, TAU = 12, HMAX = 40, DT = 0.25, MIN = 90;
+function simulate() {
+  let T = 17, H = 17, u = 1; const r = [];
+  for (let t = 0; t <= MIN + 1e-9; t += DT) {
+    if (T >= SET + BAND) u = 0; if (T <= SET - BAND) u = 1;
+    r.push({ t, T, H, u });
+    H += ((u ? HMAX : T) - H) / TAU * DT; T += (A * (H - T) - B * (T - TOUT)) * DT;
+  }
+  return r;
+}
+const RUN = simulate();
+const PEAK = RUN.reduce((m, p) => p.T > m.T ? p : m, RUN[0]);
+const OFF = RUN.find((p, i) => i && RUN[i - 1].u === 1 && p.u === 0);
+
+function thermo(host) {
+  const W = 1040, H = 560, L = 80, R = 1000, TOP = 40, BOT = 500;
+  const x = (t) => L + (R - L) * t / MIN, y = (T) => BOT - (BOT - TOP) * (T - 16) / (28 - 16);
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "th", "data-annotate": "" }, host);
+  for (let T = 16; T <= 28; T += 2) {
+    el("line", { x1: L, x2: R, y1: y(T), y2: y(T), style: "stroke:var(--ltt-line);stroke-width:1" }, s);
+    const tx = el("text", { x: L - 12, y: y(T) + 5, "text-anchor": "end", style: "font-size:15px;fill:var(--ltt-muted)" }, s); tx.textContent = T + "°";
+  }
+  for (let t = 0; t <= MIN; t += 15) { const tx = el("text", { x: x(t), y: BOT + 26, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-muted)" }, s); tx.textContent = t + "분"; }
+  el("rect", { x: L, width: R - L, y: y(SET + BAND), height: y(SET - BAND) - y(SET + BAND), style: "fill:var(--ltt-good-soft)" }, s);
+  el("line", { x1: L, x2: R, y1: y(SET), y2: y(SET), style: "stroke:var(--ltt-good);stroke-width:2;stroke-dasharray:8 6" }, s);
+  const sl = el("text", { x: R, y: y(SET - BAND) + 22, "text-anchor": "end", style: "font-size:16px;fill:var(--ltt-good);font-weight:600" }, s); sl.textContent = "목표 22° ± 0.5";
+
+  // 되먹임 루프: 플롯 왼쪽 위 빈 자리에 겹쳐 놓는다(초반 온도는 아래쪽에 있다)
+  const LX = 200, LY = 62, LW = 640, LH = 96;
+  const loopD = `M${LX + 30},${LY} H${LX + LW - 30} Q${LX + LW},${LY} ${LX + LW},${LY + 30} V${LY + LH - 30} Q${LX + LW},${LY + LH} ${LX + LW - 30},${LY + LH} H${LX + 30} Q${LX},${LY + LH} ${LX},${LY + LH - 30} V${LY + 30} Q${LX},${LY} ${LX + 30},${LY}Z`;
+  el("path", { d: loopD, style: "fill:var(--ltt-bg);fill-opacity:.82;stroke:var(--ltt-line-2);stroke-width:2" }, s);
+  const loopPath = el("path", { d: loopD, style: "fill:none;stroke:none" }, s);
+  const len = loopPath.getTotalLength();
+  const nodes = [[LX, LY, "온도조절기", "비교·켜기/끄기"], [LX + LW, LY, "보일러", "40° 온수"], [LX + LW, LY + LH, "라디에이터", "천천히 데워짐"], [LX, LY + LH, "방 공기", "센서가 잰다"]];
+  const boxes = nodes.map(([nx, ny, a, b], i) => {
+    const g = el("g", {}, s);
+    const r = el("rect", { x: nx - 64, y: ny - 24, width: 128, height: 48, rx: 6, style: "fill:var(--ltt-card);stroke:var(--ltt-ink-2);stroke-width:1.5" }, g);
+    const t1 = el("text", { x: nx, y: ny - 3, "text-anchor": "middle", style: "font-size:16px;font-weight:700;fill:var(--ltt-ink)" }, g); t1.textContent = a;
+    const t2 = el("text", { x: nx, y: ny + 15, "text-anchor": "middle", style: "font-size:12px;fill:var(--ltt-muted)" }, g); t2.textContent = b;
+    return r;
+  });
+  const state = el("text", { x: LX + LW / 2, y: LY + LH / 2 + 7, "text-anchor": "middle", style: "font-size:20px;font-weight:700" }, s);
+  const parts = []; for (let i = 0; i < 26; i++) parts.push(el("circle", { r: 5, style: "fill:var(--ltt-accent)" }, s));
+
+  const trace = el("path", { style: "fill:none;stroke:var(--ltt-accent);stroke-width:3.5;stroke-linejoin:round" }, s);
+  const head = el("circle", { r: 7, style: "fill:var(--ltt-accent);stroke:var(--ltt-bg);stroke-width:3" }, s);
+  const offMark = el("g", { style: "opacity:0;transition:opacity .4s" }, s);
+  el("line", { x1: x(OFF.t), x2: x(OFF.t), y1: y(OFF.T) - 10, y2: BOT, style: "stroke:var(--ltt-ink-2);stroke-width:1.5;stroke-dasharray:3 4" }, offMark);
+  const ot = el("text", { x: x(OFF.t) - 10, y: BOT - 12, "text-anchor": "end", style: "font-size:15px;fill:var(--ltt-ink-2)" }, offMark); ot.textContent = `${OFF.t.toFixed(0)}분 보일러 끔`;
+  const pkMark = el("g", { style: "opacity:0;transition:opacity .4s" }, s);
+  el("line", { x1: x(PEAK.t), x2: x(PEAK.t), y1: y(SET + BAND), y2: y(PEAK.T), style: "stroke:var(--ltt-warn);stroke-width:3" }, pkMark);
+  const pt = el("text", { x: x(PEAK.t) + 14, y: y(PEAK.T) - 12, style: "font-size:18px;font-weight:700;fill:var(--ltt-warn)" }, pkMark);
+  pt.textContent = `끈 뒤에도 ${PEAK.T.toFixed(1)}°까지 오른다`;
+
+  let phase = 0;
+  function draw(u) {
+    const n = Math.max(1, Math.round(Math.min(1, u / 0.88) * (RUN.length - 1)));
+    const p = RUN[n];
+    trace.setAttribute("d", RUN.slice(0, n + 1).map((q, i) => (i ? "L" : "M") + x(q.t).toFixed(1) + "," + y(q.T).toFixed(1)).join(""));
+    head.setAttribute("cx", x(p.t)); head.setAttribute("cy", y(p.T));
+    offMark.style.opacity = p.t >= OFF.t ? 1 : 0; pkMark.style.opacity = p.t >= PEAK.t ? 1 : 0;
+    state.textContent = p.u ? "켜짐 · 열이 돈다" : "꺼짐 · 남은 열이 돈다";
+    state.style.fill = p.u ? "var(--ltt-accent)" : "var(--ltt-ink-2)";
+    boxes[1].style.stroke = p.u ? "var(--ltt-accent)" : "var(--ltt-ink-2)";
+    // 입자 수와 속도는 라디에이터에 남은 열(H - T)에 비례: 끈 뒤에도 흐름이 바로 멈추지 않는다
+    const heat = Math.max(0, Math.min(1, (p.H - p.T) / (HMAX - 17)));
+    phase += 0.004 + 0.012 * heat;
+    parts.forEach((c, i) => { const on = i / parts.length < 0.15 + 0.85 * heat;
+      const pt2 = loopPath.getPointAtLength(((i / parts.length + phase) % 1) * len);
+      c.setAttribute("cx", pt2.x); c.setAttribute("cy", pt2.y); c.style.opacity = on ? 0.35 + 0.65 * heat : 0; });
+  }
+  return { el: s, draw };
+}
+
+function loop(period, draw) {
+  let raf = 0, t0 = 0;
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return { enter() { clearTimeout(raf); if (reduced) { draw(0.999); return; }
+      t0 = Date.now(); const f = () => { draw(((Date.now() - t0) / period) % 1); raf = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(raf); } };
+}
+
+LTT.deck({
+  title: "온도조절기 되먹임", theme: "lab",
+  glossary: { "오버슈트": "목표값에 닿은 뒤에도 지나쳐 넘어가는 양", "되먹임": "출력을 재서 다시 입력을 고치는 고리" },
+  scenes: [{
+    type: "hook", pre: "되먹임과 지연", text: "22°에서 껐는데 왜 23.5°까지 오를까",
+    sub: "{{되먹임}} 고리를 도는 열 입자와 온도 곡선을 함께 본다. 끈 뒤에도 남은 열이 돌아 {{오버슈트}}가 생긴다.",
+    basis: "라디에이터 지연 12분, 방 열손실 0.01/분, 바깥 5°의 1차 지연 두 개 모델 <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    mount(body) { const w = body.appendChild(document.createElement("div")); w.className = "th-wrap";
+      const f = thermo(w); f.draw(0.01); return loop(9000, f.draw); }
+  }]
+});
+LTT.expect("오버슈트 최고 온도", +PEAK.T.toFixed(1), 23.5, { tol: 0.15 });
+</script>
+</body>
+</html>

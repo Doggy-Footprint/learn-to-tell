@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>처음 본 숫자가 내 추정을 끌어당길까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"인지과학","topic":"앵커링과 조정 부족","audience":"견적이나 일정을 추정해 본 적이 있다","pattern":["hook","terms","figure","figure","compare:table","statement","compare:table","explain:strip","summary","keywords"],"theme":"paper","medium":"논문 결과 figure: 조건별 점 그림(사각형 = 앵커, 점 = 추정)","mode":"설명형: 사용자 자신의 편향을 겨냥하므로 체험시키지 않고 연구 사례를 보여 준다(한 사람의 추정으로는 효과가 드러나지도 않는다)","decision":"견적·일정 추정에서 첫 숫자를 보여 줄 시점과 독립 추정을 먼저 받을지"}</script>
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-ui.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+<style>
+  .fg { width: 100%; max-width: 1100px; }
+  .ltt-svg.pf text { font-family: var(--ltt-font-display); font-size: 14px; }
+  .ltt-svg.pf .ax { font-family: var(--ltt-mono); font-size: 13px; fill: var(--ltt-muted); }
+  .ltt-svg.pf .row { font-weight: 700; fill: var(--ltt-ink-2); }
+  .ltt-svg.pf.mini text { font-size: 12.5px; }
+  .ab { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: clamp(14px, 1.2vw, 16px); line-height: 1.45; color: var(--ltt-ink-2); }
+  .ab .k { font: 600 12px var(--ltt-mono); color: var(--ltt-muted); letter-spacing: .06em; padding-top: 2px; }
+  .ab .an { color: var(--ltt-bad); font-weight: 700; }
+  .tv { width: 100%; max-width: 240px; max-height: 110px; }
+  .tv text { font: 700 12px var(--ltt-font); fill: var(--ltt-ink-2); }
+</style>
+</head>
+<body>
+<script>
+  const EXPECTED_BY_HAND = { gap_2_6: 4, gap_12_6: 6, gap_6_6: 0, study_diff: 20 };
+  const STUDY = { 10: 25, 65: 45 };
+  const gap = (anc, own) => Math.abs(anc - own);
+  LTT.expect("gap 2 vs 6", gap(2, 6), EXPECTED_BY_HAND.gap_2_6, { tol: 0 });
+  LTT.expect("gap 12 vs 6", gap(12, 6), EXPECTED_BY_HAND.gap_12_6, { tol: 0 });
+  LTT.expect("gap equal", gap(6, 6), EXPECTED_BY_HAND.gap_6_6, { tol: 0 });
+  LTT.expect("study median diff", STUDY[65] - STUDY[10], EXPECTED_BY_HAND.study_diff, { tol: 0 });
+
+  // Every figure shares one mark grammar so the reader learns it once: square = anchor heard first, open ring = independent estimate, filled dot = answer given after the anchor.
+  // Shape, not hue, separates the marks because the paper theme's accent and bad colours are both reds.
+  const anchorMark = (g) => g.html(LTT.mark("square", { color: "var(--ltt-bad)" }));
+  const dot = (g, color) => g.html(LTT.mark("dot", { color }));
+  const ring = (g) => g.html(LTT.mark("ring", { color: "var(--ltt-ink)" }));
+  const ms = () => LTT.MOTION_MS;
+
+  // Concept sketch on a 0..12 week line; positions are illustrative, not measured effect sizes.
+  function pullLine(panel) {
+    const W = 900, H = 145, x = d3.scaleLinear([0, 12], [40, W - 40]), y = 116;
+    const svg = d3.select(panel).append("svg").attr("class", "ltt-svg pf").attr("viewBox", `0 40 ${W} ${H}`);
+    svg.append("line").attr("x1", x(0)).attr("x2", x(12)).attr("y1", y).attr("y2", y).style("stroke", "var(--ltt-ink)").style("stroke-width", 1.5);
+    d3.range(0, 13, 2).forEach((t) => {
+      svg.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", y).attr("y2", y + 7).style("stroke", "var(--ltt-ink)");
+      svg.append("text").attr("class", "ax").attr("x", x(t)).attr("y", y + 26).attr("text-anchor", "middle").text(t + "주");
+    });
+    const zone = svg.append("rect").attr("x", x(4.5)).attr("width", x(8) - x(4.5)).attr("y", y - 22).attr("height", 44).attr("rx", 2).style("fill", "var(--ltt-good-soft)").style("stroke", "var(--ltt-good)").style("stroke-dasharray", "4 4");
+    const zoneT = svg.append("text").attr("x", x(6.95)).attr("y", y - 30).attr("text-anchor", "start").text("그럴듯해 보이는 범위").style("fill", "var(--ltt-good)").style("font-weight", 700);
+    const own = svg.append("g").attr("transform", `translate(${x(6)},${y})`);
+    ring(own);
+    own.append("text").attr("y", -44).attr("text-anchor", "middle").text("혼자 추정 6주").style("font-weight", 800).style("fill", "var(--ltt-ink-2)");
+    const anc = svg.append("g").attr("transform", `translate(${x(2)},${y})`);
+    anchorMark(anc);
+    anc.append("text").attr("y", -40).attr("text-anchor", "middle").text("\"2주면 되지?\"").style("font-weight", 800).style("fill", "var(--ltt-bad)");
+    const path = svg.append("path").attr("d", `M${x(2)},${y - 14} C${x(2.8)},${y - 70} ${x(4)},${y - 70} ${x(4.5)},${y - 14}`).style("fill", "none").style("stroke", "var(--ltt-ink)").style("stroke-width", 2).style("stroke-dasharray", "6 6");
+    const fin = svg.append("g").attr("transform", `translate(${x(4.5)},${y})`);
+    dot(fin, "var(--ltt-ink)");
+    fin.append("text").attr("y", 52).attr("text-anchor", "middle").text("최종 답 ≈ 4.5주").style("font-weight", 800);
+    const vis = (s, on) => s.transition().duration(ms() / 2).style("opacity", on ? 1 : 0);
+    // Path length is read lazily: the figure is built before it is attached, and detached paths may report length 0.
+    const set = (o, a, z, p, f) => {
+      vis(own, o); vis(anc, a); vis(zone, z); vis(zoneT, z); vis(fin, f);
+      path.interrupt().style("opacity", p ? 1 : 0);
+      if (p) { const len = path.node().getTotalLength(); path.attr("stroke-dasharray", len + " " + len).attr("stroke-dashoffset", len).transition().duration(ms() * 1.4).attr("stroke-dashoffset", 0); }
+    };
+    return [
+      { caption: "<b>① 혼자 생각하면</b> — 이 작업은 6주쯤 걸린다고 본다(빈 원).", enter: () => set(1, 0, 0, 0, 0) },
+      { caption: "<b>② 숫자를 먼저 듣는다</b> — 회의에서 누군가 \"2주면 되지?\"라고 말한다. 이 숫자가 <b>{{앵커}}</b>가 된다.", enter: () => set(0.25, 1, 0, 0, 0) },
+      { caption: "<b>③ 앵커에서 출발해 조정한다</b> — \"2주는 너무 짧지\" 하며 위로 올라간다. 처음부터 6주를 떠올리지 않는다.", enter: () => set(0.25, 1, 0, 1, 0) },
+      { caption: "<b>④ 그럴듯해지면 멈춘다</b> — 2주에서 올라오다 보니 '말이 된다'고 느끼는 범위의 아래쪽 끝, 4.5주쯤에 닿자마자 멈춘다. 6주까지 가지 못한 이 차이가 <b>조정 부족</b>이다.", enter: () => set(0.25, 1, 1, 0, 1) },
+    ];
+  }
+
+  // Results figure of the wheel study: one row per condition, anchor square and group median dot on a shared 0..100 axis.
+  let wheelReplay = () => {};
+  function wheelDots(node) {
+    const W = 900, H = 290, x = d3.scaleLinear([0, 100], [190, W - 40]), rows = [[10, 90, "바퀴 10을 본 조"], [65, 170, "바퀴 65를 본 조"]], ay = 236;
+    const svg = d3.select(node).append("svg").attr("class", "ltt-svg pf fg").attr("viewBox", `0 0 ${W} ${H}`);
+    svg.append("line").attr("x1", x(0)).attr("x2", x(100)).attr("y1", ay).attr("y2", ay).style("stroke", "var(--ltt-ink)").style("stroke-width", 1.5);
+    d3.range(0, 101, 20).forEach((t) => {
+      svg.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", ay).attr("y2", ay + 7).style("stroke", "var(--ltt-ink)");
+      svg.append("text").attr("class", "ax").attr("x", x(t)).attr("y", ay + 24).attr("text-anchor", "middle").text(t);
+    });
+    svg.append("text").attr("x", x(50)).attr("y", ay + 48).attr("text-anchor", "middle").text("추정한 비율: UN 회원국 중 아프리카 국가 (%)").style("fill", "var(--ltt-ink-2)");
+    const moving = [];
+    rows.forEach(([a, y, label]) => {
+      const m = STUDY[a];
+      svg.append("line").attr("x1", x(0)).attr("x2", x(100)).attr("y1", y).attr("y2", y).style("stroke", "var(--ltt-line-2)").style("stroke-dasharray", "2 4");
+      svg.append("text").attr("class", "row").attr("x", 0).attr("y", y + 5).text(label);
+      svg.append("line").attr("x1", x(m)).attr("x2", x(m)).attr("y1", y + 12).attr("y2", ay).style("stroke", "var(--ltt-line-2)").style("stroke-dasharray", "3 3");
+      const link = svg.append("line").attr("x1", x(a)).attr("x2", x(a)).attr("y1", y).attr("y2", y).style("stroke", "var(--ltt-ink)").style("stroke-width", 2);
+      const ga = svg.append("g").attr("transform", `translate(${x(a)},${y})`);
+      anchorMark(ga);
+      ga.append("text").attr("y", -18).attr("text-anchor", "middle").text(`앵커 ${a}`).style("fill", "var(--ltt-bad)").style("font-weight", 700);
+      const gm = svg.append("g").attr("transform", `translate(${x(m)},${y})`).style("opacity", 0);
+      dot(gm, "var(--ltt-ink)");
+      gm.append("text").attr("y", -18).attr("text-anchor", "middle").text(`중앙값 ${m}%`).style("font-weight", 800);
+      moving.push(() => { link.interrupt().attr("x2", x(a)).transition().duration(ms() * 1.2).attr("x2", x(m)); gm.interrupt().style("opacity", 0).transition().delay(ms() * 0.9).duration(ms() / 2).style("opacity", 1); });
+    });
+    const by = ay - 14, d = STUDY[65] - STUDY[10];
+    svg.append("path").attr("d", `M${x(STUDY[10])},${by + 6}V${by}H${x(STUDY[65])}V${by + 6}`).style("fill", "none").style("stroke", "var(--ltt-accent)").style("stroke-width", 1.5);
+    svg.append("text").attr("x", (x(STUDY[10]) + x(STUDY[65])) / 2).attr("y", by - 6).attr("text-anchor", "middle").text(`차이 ${d}%p`).style("fill", "var(--ltt-accent)").style("font-weight", 800);
+    wheelReplay = () => moving.forEach((f) => f());
+  }
+
+  // Forest-plot style row for the work case: anchor square, own-estimate dot, and the gap the anchor can pull across.
+  function weeks(anc, own) {
+    return (node) => {
+      const W = 520, H = 84, x = d3.scaleLinear([0, 12], [18, W - 18]), y = 40, lo = Math.min(anc, own), g = gap(anc, own);
+      const svg = d3.select(node).append("svg").attr("class", "ltt-svg pf mini").attr("viewBox", `0 0 ${W} ${H}`).style("max-width", W + "px");
+      const side = (v) => (v <= 1 ? "start" : v >= 11 ? "end" : "middle");
+      svg.append("line").attr("x1", x(0)).attr("x2", x(12)).attr("y1", y).attr("y2", y).style("stroke", "var(--ltt-ink)");
+      d3.range(0, 13).forEach((t) => svg.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", y).attr("y2", y + (t % 6 ? 4 : 8)).style("stroke", "var(--ltt-ink)"));
+      svg.append("text").attr("class", "ax").attr("x", x(0)).attr("y", H - 4).attr("text-anchor", "start").text("0");
+      svg.append("text").attr("class", "ax").attr("x", x(12)).attr("y", H - 4).attr("text-anchor", "end").text("12주");
+      if (g) {
+        svg.append("rect").attr("x", x(lo)).attr("width", x(lo + g) - x(lo)).attr("y", y - 11).attr("height", 22).style("fill", "var(--ltt-bad-soft)");
+        svg.append("text").attr("x", x(lo + g / 2)).attr("y", y + 5).attr("text-anchor", "middle").text(`끌림 구간 ${g}주`).style("fill", "var(--ltt-bad)").style("font-weight", 700);
+      }
+      const go = svg.append("g").attr("transform", `translate(${x(own)},${y})`);
+      ring(go);
+      go.append("text").attr("y", 30).attr("text-anchor", side(own)).text(`내 독립 추정 ${own}주`).style("fill", "var(--ltt-ink-2)").style("font-weight", 700);
+      const ga = svg.append("g").attr("transform", `translate(${x(anc)},${y})`);
+      anchorMark(ga);
+      ga.append("text").attr("y", -16).attr("text-anchor", side(anc)).text(`먼저 들은 숫자 ${anc}주`).style("fill", "var(--ltt-bad)").style("font-weight", 700);
+    };
+  }
+
+  // Term pictures reuse the figures' mark grammar (square = anchor, ring = own estimate, dot = answer) on a 0..12 week line, x = 20 + 15·week.
+  const tv = (inner) => `<svg class="tv" viewBox="0 0 220 100" role="img"><line x1="20" x2="200" y1="70" y2="70" style="stroke:var(--ltt-ink)"/>${inner}</svg>`;
+  const sq = (x) => `<rect x="${x - 6}" y="64" width="12" height="12" style="fill:var(--ltt-bad)"/>`;
+  const TERM_ANCHOR = tv(sq(50) + [[58, 61], [64, 76], [71, 66], [79, 73], [88, 62]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="4" style="fill:var(--ltt-ink)"/>`).join("")
+    + `<text x="50" y="50" text-anchor="middle" style="fill:var(--ltt-bad)">먼저 들은 2주</text><text x="140" y="92" text-anchor="middle">추정이 그 근처에 모인다</text>`);
+  const TERM_ADJUST = tv(`<rect x="88" y="60" width="52" height="20" style="fill:var(--ltt-bad-soft)"/>` + sq(50)
+    + `<path d="M50,58 C62,22 80,22 88,58" style="fill:none;stroke:var(--ltt-ink);stroke-width:1.5;stroke-dasharray:4 3"/><circle cx="88" cy="70" r="5" style="fill:var(--ltt-ink)"/>`
+    + `<circle cx="140" cy="70" r="6" style="fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:2"/><text x="140" y="50" text-anchor="middle">혼자면 6주</text>`
+    + `<text x="114" y="94" text-anchor="middle" style="fill:var(--ltt-bad)">못 간 만큼</text>`);
+  const TERM_INDEP = `<svg class="tv" viewBox="0 0 220 100" role="img">` + [[20, 5], [85, 6], [150, 8]].map(([x, v]) =>
+    `<rect x="${x}" y="8" width="50" height="58" rx="5" style="fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:1.5"/><text x="${x + 25}" y="46" text-anchor="middle" style="font-size:24px;fill:var(--ltt-ink)">${v}</text>`).join("")
+    + `<text x="110" y="90" text-anchor="middle">각자 적고, 동시에 뒤집는다</text></svg>`;
+
+  const study = (anchor, judged) => `<div class="ab"><span class="k">앵커</span><span class="an">${anchor}</span><span class="k">판단</span><span>${judged}</span></div>`;
+
+  // Reuses pullLine's week-line geometry so the one-page map reads as the same picture; numbered badges tie each takeaway to its place on it.
+  function overviewMap(node) {
+    const W = 900, H = 350, x = d3.scaleLinear([0, 12], [60, W - 60]), y = 140;
+    const svg = d3.select(node).append("svg").attr("class", "ltt-svg pf fg").attr("viewBox", `0 0 ${W} ${H}`);
+    const badge = (px, py, n) => {
+      const g = svg.append("g").attr("transform", `translate(${px},${py})`);
+      g.append("circle").attr("r", 12).style("fill", "var(--ltt-ink)");
+      g.append("text").attr("text-anchor", "middle").attr("y", 5).text(n).style("fill", "var(--ltt-card)").style("font-weight", 800);
+    };
+    const note = (px, py, n, lines) => {
+      badge(px + 12, py, n);
+      const t = svg.append("text").attr("x", px + 32).attr("y", py - 4).style("fill", "var(--ltt-ink-2)");
+      lines.forEach((l, i) => t.append("tspan").attr("x", px + 32).attr("dy", i ? 20 : 0).text(l));
+    };
+    svg.append("rect").attr("x", x(4.5)).attr("width", x(8) - x(4.5)).attr("y", y - 18).attr("height", 36).attr("rx", 2).style("fill", "var(--ltt-good-soft)").style("stroke", "var(--ltt-good)").style("stroke-dasharray", "4 4");
+    svg.append("line").attr("x1", x(0)).attr("x2", x(12)).attr("y1", y).attr("y2", y).style("stroke", "var(--ltt-ink)").style("stroke-width", 1.5);
+    d3.range(0, 13, 2).forEach((t) => {
+      svg.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", y).attr("y2", y + 7).style("stroke", "var(--ltt-ink)");
+      svg.append("text").attr("class", "ax").attr("x", x(t)).attr("y", y + 26).attr("text-anchor", "middle").text(t + "주");
+    });
+    svg.append("text").attr("x", x(8)).attr("y", y - 30).attr("text-anchor", "end").text("그럴듯해 보이는 범위").style("fill", "var(--ltt-good)").style("font-weight", 700);
+    svg.append("path").attr("d", `M${x(2)},${y - 14} C${x(2.8)},${y - 70} ${x(4)},${y - 70} ${x(4.5)},${y - 14}`).style("fill", "none").style("stroke", "var(--ltt-ink)").style("stroke-width", 2).style("stroke-dasharray", "6 6");
+    const own = svg.append("g").attr("transform", `translate(${x(6)},${y})`);
+    ring(own);
+    own.append("text").attr("y", -50).attr("text-anchor", "middle").text("혼자 추정 6주").style("font-weight", 800).style("fill", "var(--ltt-ink-2)");
+    const anc = svg.append("g").attr("transform", `translate(${x(2)},${y})`);
+    anchorMark(anc);
+    anc.append("text").attr("y", 42).attr("text-anchor", "middle").text("먼저 들은 2주").style("font-weight", 800).style("fill", "var(--ltt-bad)");
+    const fin = svg.append("g").attr("transform", `translate(${x(4.5)},${y})`);
+    dot(fin, "var(--ltt-ink)");
+    svg.append("path").attr("d", `M${x(4.5)},${y + 44}V${y + 50}H${x(6)}V${y + 44}`).style("fill", "none").style("stroke", "var(--ltt-accent)").style("stroke-width", 1.5);
+    svg.append("text").attr("x", (x(4.5) + x(6)) / 2).attr("y", y + 70).attr("text-anchor", "middle").text("최종 답 4.5주 · 못 간 만큼").style("fill", "var(--ltt-accent)").style("font-weight", 800);
+    badge(x(2) - 28, y - 28, 2);
+    badge((x(2.8) + x(4)) / 2 + 8, y - 66, 1);
+    badge(x(6) - 70, y - 55, 3);
+
+    [["독립 추정 먼저 모으기", 330], ["기존 숫자는 그 다음 공개", 590]].forEach(([t, px], i) => {
+      svg.append("rect").attr("x", px).attr("y", 10).attr("width", 220).attr("height", 34).attr("rx", 17).style("fill", "var(--ltt-card)").style("stroke", "var(--ltt-ink)").style("stroke-width", 1.5);
+      svg.append("text").attr("x", px + 110).attr("y", 32).attr("text-anchor", "middle").text(t).style("font-weight", 700).style("fill", "var(--ltt-ink)");
+      if (!i) svg.append("path").attr("d", `M${px + 224},27H${px + 262}`).style("stroke", "var(--ltt-ink)").style("stroke-width", 2);
+    });
+    badge(310, 27, 4);
+
+    note(40, 270, 1, ["먼저 들은 숫자에서 출발하면,", "충분히 가기 전에 멈춘다."]);
+    note(470, 270, 2, ["앵커는 무관한 숫자여도,", "전문가에게도 작동한다."]);
+    note(40, 326, 3, ["끌렸는지 알려면, 숫자를 듣기 전에", "내 추정을 적어 둬야 한다."]);
+    note(470, 326, 4, ["독립 추정을 먼저 모으고,", "기존 숫자는 그 다음에 공개한다."]);
+  }
+
+  LTT.deck({
+    title: "처음 본 숫자가 내 추정을 끌어당길까?",
+    theme: "paper",
+    scenes: [
+      { type: "hook", art: "anchor", kicker: "견적·일정 추정 절차 정하기",
+        pre: "\"2주면 되지?\"",
+        text: "이 한마디가<br>내 견적을 <u>2주 쪽으로</u> 끌어당긴다.",
+        sub: "누가 먼저 숫자를 말했는지가 추정 결과를 바꾼다. 알고 있어도 막기 어려워서, 의지가 아니라 절차로 막는다. 이 수업을 마치면 추정 회의의 순서를 어떻게 짜야 하는지 말할 수 있다." },
+
+      { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
+        terms: [
+          { key: "앵커", en: "anchor", icon: "anchor", visual: TERM_ANCHOR, plain: "추정하기 전에 먼저 보거나 들은 숫자. 질문과 상관없는 숫자여도 출발점이 된다.", example: "\"작년엔 2주 걸렸대요\", 견적서에 미리 적힌 희망가." },
+          { key: "조정 부족", en: "insufficient adjustment", icon: "trend", visual: TERM_ADJUST, plain: "앵커에서 출발해 답을 고쳐 가다가, 충분히 가기 전에 멈추는 것. 그래서 답이 앵커 쪽에 치우친다.", example: "6주짜리 일을 2주에서 출발해 4~5주로 답한다." },
+          { key: "독립 추정", en: "independent estimate", icon: "pencil", visual: TERM_INDEP, plain: "다른 사람의 숫자를 보기 전에 각자 따로 적은 추정값.", example: "플래닝 포커(각자 숫자 카드를 고른 뒤 동시에 뒤집는 추정 방식)가 카드를 동시에 뒤집는 이유." },
+        ] },
+
+      { type: "figure", kicker: "단계별로 보기", title: "출발점에서 덜 움직인다", en: "Anchoring",
+        figure: (node) => { const w = node.appendChild(LTT.h("div", "fg")); LTT.stepper(w, pullLine(w)); },
+        caption: "앵커링과 조정, 한 사람의 머릿속. 가로축은 작업 기간(주). 사각형 = 먼저 들은 숫자, 빈 원 = 혼자 한 추정, 검은 점 = 최종 답. 단계를 넘기며 최종 답이 어디서 멈추는지 보자.",
+        basis: "개념 그림이다. 점의 위치는 설명용이고 실제 효과 크기가 아니다. 설명은 Tversky & Kahneman 1974의 '앵커링과 조정'. 앵커가 관련 정보를 먼저 떠올리게 한다는 설명(선택적 접근성)도 있다.",
+        takeaway: "먼저 들은 숫자에서 출발하면, 충분히 가기 전에 멈춘다.",
+        recall: "혼자서는 6주로 볼 일인데, \"2주면 되지?\"를 먼저 들은 사람의 최종 답은 왜 6주에 못 미칠까?",
+        ask: "\"이 견적, 누가 먼저 숫자를 말했나요?\"" },
+
+      { type: "figure", kicker: "연구 결과", title: "상관없는 숫자에도 판단이 끌려갔다", en: "Results",
+        figure: wheelDots,
+        enter: () => wheelReplay(),
+        caption: "조작된 행운의 바퀴(Tversky & Kahneman 1974). 바퀴는 10 또는 65에만 멈추게 조작했고, 그 뒤 UN 회원국 중 아프리카 국가 비율을 추정하게 했다. 사각형 = 각 조가 본 바퀴 숫자, 점 = 그 조의 추정 중앙값. 질문과 상관없는 숫자였는데도 두 조의 중앙값이 20%p 벌어졌다.",
+        basis: "논문 보고값(집단 중앙값)만 실었다. 한 사람의 값으로는 효과를 확인할 수 없다." },
+
+      { type: "compare", form: "table", kicker: "연구 사례", title: "무관한 숫자에도, 전문가도 끌렸다", layout: "stack", reveal: false,
+        narration: "세 연구 모두 판단 전에 숫자 하나를 먼저 보여 주었다. 바퀴와 주사위는 질문과 상관없는 숫자였고, 중개인의 매도 희망가는 결과를 그만큼 움직일 근거가 없는 숫자였다. 경력 있는 전문가도 끌렸다.",
+        items: [
+          { label: "조작된 행운의 바퀴", visual: study("바퀴 숫자 10 또는 65", "UN 회원국 중 아프리카 국가 비율"), tone: "bad", verdict: "중앙값 20%p 차이 (그림 2)",
+            note: "바퀴는 10 또는 65에만 멈추게 조작했다(Tversky & Kahneman 1974)." },
+          { label: "판사와 주사위", visual: study("형량을 정하기 전 굴린 주사위 눈", "형량"), tone: "bad", verdict: "높은 눈 → 더 긴 형량",
+            note: "조작된 주사위. 경력 판사도 끌렸다(Englich 외 2006)." },
+          { label: "부동산 중개인", visual: study("서류에 적힌 매도 희망가", "같은 집의 감정가"), tone: "bad", verdict: "희망가 따라 감정가 이동",
+            note: "본인들은 희망가를 참고하지 않았다고 답했다(Northcraft & Neale 1987)." },
+        ],
+        basis: "수치는 바퀴 연구의 논문 보고값(집단 중앙값)만 실었다. 나머지 두 연구는 방향만 적었다.",
+        takeaway: "앵커는 무관한 숫자여도, 전문가에게도 작동한다.",
+        recall: "행운의 바퀴·판사·부동산 중개인 연구에서, 판단을 끌어당긴 숫자는 어떤 숫자였고 누구에게 작동했나?" },
+
+      { type: "statement", kicker: "그래서", title: "끌린 사람은 <em>끌렸다는 걸</em> 알아채기 어렵다.",
+        sub: "중개인들은 희망가를 참고하지 않았다고 답했다. 앵커를 들은 뒤에는 원래 몇 주로 생각했는지 본인도 되살릴 수 없다. 그래서 의지가 아니라 순서로 막는다." },
+
+      { type: "compare", form: "table", kicker: "내 작업에서", title: "일정 견적에서 끌림이 생기는 구간", layout: "stack", reveal: false,
+        narration: "혼자 추정하면 6주인 사람이 다른 숫자를 먼저 들은 경우다. 가로축은 주 단위이고, 사각형이 앵커, 빈 원이 내 추정, 색칠된 띠가 앵커 쪽으로 끌려갈 수 있는 구간이다. 그런데 앵커를 들은 뒤에는 원래 몇 주로 생각했는지 본인도 알 수 없다. 그래서 숫자를 듣기 전에 {{독립 추정}}을 적어 둬야 끌렸는지 비교할 수 있다.",
+        items: [
+          { label: "낮은 앵커 \"2주면 되지?\"", visual: weeks(2, 6), tone: "bad", verdict: "낮은 쪽으로 끌림" },
+          { label: "높은 앵커 \"12주는 걸리겠죠\"", visual: weeks(12, 6), tone: "warn", verdict: "높은 쪽으로 끌림" },
+          { label: "같은 값", visual: weeks(6, 6), tone: "good", verdict: "끌림이 있어도 안 보임",
+            note: "앵커와 내 추정이 같으면 끌렸는지조차 보이지 않는다." },
+        ],
+        basis: "끌림의 크기는 사람과 과제마다 달라 싣지 않고 방향과 구간만 보인다.",
+        takeaway: "끌렸는지 알려면, 숫자를 듣기 전에 내 추정을 적어 둬야 한다.",
+        recall: "다른 사람의 견적을 들은 뒤, 내가 그 숫자에 끌렸는지 확인하려면 무엇이 미리 있어야 할까?" },
+
+      { type: "explain", form: "strip", kicker: "실전 절차", title: "의지 대신 순서로 막는다", en: "Procedure",
+        steps: [
+          { icon: "pencil", title: "먼저 적기", text: "숫자를 보기 전에 각자 낙관·보통·비관 세 값을 적는다. 범위로 적어 두면 나중에 들은 숫자가 그 안인지 밖인지 바로 비교된다." },
+          { icon: "eye", title: "숫자 늦게 공개", text: "기존 견적·희망 마감은 독립 추정을 모은 뒤 보여 준다." },
+          { icon: "link", title: "출처를 붙여 공개", text: "첫 숫자를 줄 때는 \"참고값\"이라 부르고 어디서 나왔는지 붙인다. 끌림을 막지는 못하지만, 그 숫자가 맞는지 따져 볼 수 있게 한다." },
+        ],
+        basis: "앵커는 무작위 숫자여도 작동한다. 그럴듯한 근거가 붙은 숫자가 틀렸는지는 따로 확인해야 한다.",
+        takeaway: "독립 추정을 먼저 모으고, 기존 숫자는 그 다음에 공개한다.",
+        recall: "다음 추정 회의에서 팀원들의 추정과 기존 견적·희망 마감은 어떤 순서로 꺼내야 할까?",
+        ask: "\"다른 숫자를 보기 전에 각자 추정을 먼저 적어 주세요\"" },
+
+      { type: "summary", title: "추정 회의 전에 물어볼 것", en: "Recap" },
+
+      { type: "overview", title: "끌림은 막을 수 없어서, 숫자를 듣기 전에 내 추정부터 적는다.",
+        figure: overviewMap,
+        caption: "한 장으로 보는 앵커링. 사각형 = 먼저 들은 숫자, 빈 원 = 혼자 한 추정, 검은 점 = 최종 답. 번호는 앞 장면의 정리와 같다." },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [{ ko: "앵커링 효과", en: "anchoring effect" }, { ko: "조정 부족", en: "insufficient adjustment" }],
+        signals: ["누군가 견적·일정·가격을 먼저 말한 뒤 추정해야 할 때", "회의에서 첫 발언자의 숫자로 수렴할 때", "협상에서 첫 제시가를 정할 때"],
+        queries: ["anchoring and adjustment Tversky Kahneman 1974", "anchoring effect expert judges dice", "planning poker independent estimates", "wideband delphi estimation"],
+        neighbors: [
+          { term: "계획 오류", diff: "자기 일정을 체계적으로 낙관하는 것. 앵커 없이도 생긴다." },
+          { term: "프레이밍 효과", diff: "같은 정보를 다르게 표현해 선택이 바뀌는 것. 숫자 출발점이 아니라 표현 방식." },
+        ] },
+    ],
+  });
+</script>
+</body>
+</html>

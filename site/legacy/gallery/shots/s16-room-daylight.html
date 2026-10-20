@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>방향과 채광</title>
+<script type="application/json" id="ltt-meta">{"topic":"남향 vs 북향 방의 하루 채광","audience":"집을 고르는 비전문가","theme":"sketch","medium":"화이트보드 단면 스케치","decision":"방의 향 선택","domain":"건축","pattern":["contrast"],"mode":"카탈로그용: 장면 하나짜리 본보기. 공간 구조를 \"강조가 훑음\" 움직임과 작은 여러 칸 구도로 보인다"}</script>
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/vendor/rough.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-ui.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+<style>.dl{width:100%}.dl svg{width:100%;height:auto;display:block}.dl text{font-family:inherit}
+/* 작은 여러 칸을 두 줄로 맞대려고 contrast의 좌우 배치를 위아래로 바꾼다 */
+.ltt-ba{grid-template-columns:minmax(0,1fr)!important;gap:12px!important}.ltt-ba-arrow{display:none!important}.ltt-ba-side{grid-template-columns:minmax(0,1fr) 200px!important}</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const el = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const RAD = Math.PI / 180, LAT = 37.57, DEC = -23.44; // 서울, 동지
+function sun(t) { const H = 15 * (t - 12) * RAD, f = LAT * RAD, d = DEC * RAD;
+  const sa = Math.sin(f) * Math.sin(d) + Math.cos(f) * Math.cos(d) * Math.cos(H), alt = Math.asin(sa);
+  const caz = (sa * Math.sin(f) - Math.sin(d)) / (Math.cos(alt) * Math.cos(f));
+  return { alt: alt / RAD, prof: Math.atan(Math.tan(alt) / Math.max(.05, Math.abs(caz))) }; }
+// 창 아래턱 0.9 m, 위턱 2.1 m, 방 깊이 5 m
+function patch(t) { const s = sun(t); if (s.alt <= 0) return null; const tp = Math.tan(s.prof);
+  return { a: Math.min(5, 0.9 / tp), b: Math.min(5, 2.1 / tp), alt: s.alt }; }
+const TIMES = [8, 10, 12, 14, 16, 18];
+const clocks = [];
+function rooms(south) {
+  return (host) => {
+    const w = host.appendChild(document.createElement("div")); w.className = "dl";
+    const s = el("svg", { viewBox: "0 0 1176 176", "data-annotate": "" }, w);
+    const CW = 196, CH = 172, U = 26, M = 5 * U;
+    const cells = TIMES.map((t, i) => {
+      const ox = i * CW, oy = 2;
+      const g = el("g", { transform: `translate(${ox},${oy})` }, s);
+      const fx = 38, fy = 140, wallX = south ? fx : fx + M, top = fy - 2.1 * U, bot = fy - 0.9 * U;
+      const p = patch(t);
+      if (south && p) {
+        el("polygon", { points: `${wallX},${top} ${wallX},${bot} ${fx + p.a * U},${fy} ${fx + p.b * U},${fy}`, style: "fill:var(--ltt-warn);opacity:.22" }, g);
+        el("line", { x1: fx + p.a * U, y1: fy, x2: fx + p.b * U, y2: fy, style: "stroke:var(--ltt-warn);stroke-width:7;stroke-linecap:round" }, g);
+        const r = 30, sx = wallX - r * Math.cos(sun(t).prof) * 0.9, sy = top - r * Math.sin(sun(t).prof);
+        el("circle", { cx: Math.max(8, sx), cy: Math.max(40, sy), r: 7, style: "fill:var(--ltt-warn)" }, g);
+      } else if (!south && p) {
+        el("polygon", { points: `${wallX},${top} ${wallX},${bot} ${wallX - 46},${fy}`, style: "fill:var(--ltt-muted);opacity:.18" }, g);
+        el("circle", { cx: fx - 22, cy: 52, r: 7, style: "fill:none;stroke:var(--ltt-warn);stroke-width:2" }, g);
+      }
+      el("path", { d: `M${fx},${fy} H${fx + M} M${fx},${fy} V${fy - 2.6 * U} H${fx + M} V${fy}`, style: "fill:none;stroke:var(--ltt-ink);stroke-width:2.5" }, g);
+      el("line", { x1: wallX, y1: top, x2: wallX, y2: bot, style: "stroke:var(--ltt-card-2);stroke-width:6" }, g);
+      el("line", { x1: wallX, y1: top, x2: wallX, y2: bot, style: "stroke:var(--ltt-accent);stroke-width:2;stroke-dasharray:3 3" }, g);
+      const lt = el("text", { x: fx, y: 30, style: "font-size:20px;font-weight:700;fill:var(--ltt-ink)" }, g); lt.textContent = t + "시";
+      const v = el("text", { x: fx + M, y: 30, "text-anchor": "end", style: "font-size:16px;fill:var(--ltt-ink-2)" }, g);
+      v.textContent = !p ? "해 짐" : south ? `${(p.b - p.a).toFixed(1)} m` : "0 m";
+      const f = el("text", { x: fx + M / 2, y: fy + 24, "text-anchor": "middle", style: "font-size:13px;fill:var(--ltt-muted)" }, g);
+      f.textContent = south ? "창(남) → 안쪽" : "안쪽 ← 창(북)";
+      return { g, ox, oy };
+    });
+    const hl = el("rect", { width: CW - 6, height: CH - 4, rx: 10, style: "fill:none;stroke:var(--ltt-accent);stroke-width:3" }, s);
+    clocks.push((u) => { const k = u * TIMES.length, i = Math.floor(k), f = k - i, j = (i + 1) % TIMES.length;
+      const m = ease(Math.max(0, (f - .6) / .4)), a = cells[i], b = cells[j];
+      const x = a.ox + (b.ox - a.ox) * m, y = a.oy + (b.oy - a.oy) * m;
+      hl.setAttribute("x", x); hl.setAttribute("y", y);
+      cells.forEach((c, n) => c.g.style.opacity = n === i ? 1 : n === j ? .35 + .65 * m : .35); });
+    return w;
+  };
+}
+function loop(period) { let raf = 0, t0 = 0; const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const draw = (u) => clocks.forEach((c) => c(u));
+  return { enter() { clearTimeout(raf); if (reduced) { draw(2 / TIMES.length); return; }
+      t0 = Date.now(); const f = () => { draw(((Date.now() - t0) / period) % 1); raf = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(raf); } }; }
+const noon = patch(12);
+LTT.deck({
+  title: "방향과 채광", theme: "sketch",
+  glossary: { "직사광": "구름이나 벽에 반사되지 않고 해에서 곧바로 들어오는 빛" },
+  scenes: [{
+    type: "contrast", title: "동짓날 남향 방에는 해가 바닥 깊이 들고, 북향 방에는 하루 내내 들지 않는다",
+    sub: "방 단면을 2시간 간격으로 나란히 놓았다. 칸 위 숫자는 바닥에 닿은 {{직사광}}의 폭, 테두리가 훑는 칸이 지금 시각이다.",
+    before: { label: "북향 방", tone: "bad", visual: rooms(false), foot: { label: "직사광 0시간", caption: "창으로는 하늘빛만 들어온다" } },
+    after: { label: "남향 방", tone: "good", visual: rooms(true), foot: { label: "정오 바닥 빛 " + noon.a.toFixed(1) + "–" + noon.b.toFixed(1) + " m", caption: "해가 낮게 떠 방 안쪽까지 닿는다" } },
+    basis: "서울(북위 37.6°) 동지, 태양시 기준. 창 높이 0.9–2.1 m, 방 깊이 5 m. 주변 건물 그림자는 넣지 않았다. 모델로 계산한 예시",
+    mount() { return loop(8400); }
+  }]
+});
+LTT.expect("동지 정오 태양 고도", sun(12).alt, 90 - 37.57 - 23.44, { tol: 1e-6 });
+</script>
+</body>
+</html>

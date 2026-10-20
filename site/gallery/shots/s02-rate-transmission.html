@@ -1,101 +1,31 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>금리 전달 시차</title>
-<script type="application/json" id="ltt-meta">{"topic":"통화정책 파급 시차","audience":"경제 기사 독자","theme":"ledger","medium":"경제 신문 차트","decision":"금리 인상 효과를 언제 기대할지","domain":"거시경제","pattern":["predict"],"mode":"카탈로그용: 장면 하나짜리 본보기. 순서 구조를 \"입자가 흐름\" 움직임과 전면 구도로 보인다"}</script>
-<script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/ltt.js"></script>
-<script src="/kit/ltt-parts.js"></script>
-<script src="/kit/ltt-ui.js"></script>
-<script src="/kit/ltt-deck.js"></script>
-<style>
-.tx{width:1080px;max-width:100%;height:auto;display:block;margin:0 auto}
-.tx-ans{width:520px;max-width:100%;height:auto;display:block}
-</style>
-<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
-</head>
-<body>
-<script>
-const SVG = "http://www.w3.org/2000/svg";
-const el = (tag, attrs, parent, text) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; parent && parent.appendChild(n); return n; };
-const ease = (x) => x < .5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
-// 한국은행 「통화정책 파급경로」: 시장금리·대출금리는 수주~수개월, 소비·투자는 수분기, 물가는 약 1~2년 뒤 효과가 가장 크다
-const ST = [{ l: "기준금리", s: "0.25%p 인상", x: 90 }, { l: "대출금리", s: "은행 가산", x: 390 }, { l: "소비·투자", s: "가계·기업 지출", x: 690 }, { l: "물가", s: "소비자물가 상승률", x: 990 }];
-const LAG = [{ t: "수주~1개월", w: 0.12 }, { t: "2~4분기", w: 0.33 }, { t: "4~8분기", w: 0.55 }];
-
-function pipeline(host) {
-  const W = 1080, H = 300, Y = 150;
-  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "tx", "data-annotate": "" }, host);
-  el("line", { x1: ST[0].x, x2: ST[3].x, y1: Y, y2: Y, style: "stroke:var(--ltt-line-2);stroke-width:2" }, s);
-  // 구간 길이는 같게 두고, 입자 속도로 시차를 보인다
-  LAG.forEach((g, i) => { const mx = (ST[i].x + ST[i + 1].x) / 2;
-    el("text", { x: mx, y: Y - 30, "text-anchor": "middle", style: "font-size:20px;font-weight:700;fill:var(--ltt-ink)" }, s, g.t);
-    el("text", { x: mx, y: Y - 56, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-muted)" }, s, "시차");
-    el("path", { d: `M${mx + 60},${Y} l-10,-6 v12 z`, style: "fill:var(--ltt-line-2)" }, s); });
-  const rings = ST.map((st) => { const g = el("g", {}, s);
-    const r = el("circle", { cx: st.x, cy: Y, r: 22, style: "fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:2.5" }, g);
-    const pulse = el("circle", { cx: st.x, cy: Y, r: 22, style: "fill:none;stroke:var(--ltt-accent);stroke-width:2;opacity:0" }, g);
-    el("text", { x: st.x, y: Y + 58, "text-anchor": "middle", style: "font-size:22px;font-weight:700;fill:var(--ltt-ink)" }, g, st.l);
-    el("text", { x: st.x, y: Y + 82, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-muted)" }, g, st.s);
-    return { r, pulse }; });
-  const N = 9; const parts = [];
-  for (let i = 0; i < N; i++) parts.push(el("circle", { r: 6, style: "fill:var(--ltt-accent)" }, s));
-  const clock = el("text", { x: W - 10, y: 30, "text-anchor": "end", style: "font-size:16px;fill:var(--ltt-muted);font-variant-numeric:tabular-nums" }, s);
-  const posAt = (u) => { let acc = 0; for (let i = 0; i < 3; i++) { if (u <= acc + LAG[i].w) { const f = (u - acc) / LAG[i].w; return ST[i].x + (ST[i + 1].x - ST[i].x) * ease(f); } acc += LAG[i].w; } return ST[3].x; };
-  function draw(u) {
-    // 0~0.85 흐름, 나머지는 도착 상태로 잠깐 멈춤
-    const flow = Math.min(u / 0.85, 1);
-    parts.forEach((p, i) => { const v = Math.max(0, Math.min(1, flow * 1.25 - i * 0.03));
-      p.setAttribute("cx", posAt(v)); p.setAttribute("cy", 150 + (i % 3 - 1) * 7);
-      p.style.opacity = v <= 0 || u > 0.97 ? 0 : (v >= 1 ? 0.35 : 1); });
-    const lead = Math.min(1, flow * 1.25); let reached = 0, acc = 0;
-    for (let i = 0; i < 3; i++) { acc += LAG[i].w; if (lead >= acc - 1e-6) reached = i + 1; }
-    rings.forEach((r, i) => { const on = i <= reached; r.r.style.stroke = on ? "var(--ltt-accent)" : "var(--ltt-ink)";
-      r.r.style.fill = on ? "var(--ltt-accent-soft)" : "var(--ltt-card)"; });
-    const q = Math.round(lead * 8); clock.textContent = `인상 후 ${q}분기`;
-  }
-  return { el: s, draw };
-}
-
-function loop(period, draw) {
-  let t = 0, t0 = 0; const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  return { enter() { clearTimeout(t); if (reduced) { draw(0.9); return; } t0 = Date.now();
-      const f = () => { draw(((Date.now() - t0) / period) % 1); t = setTimeout(f, 16); }; f(); },
-    leave() { clearTimeout(t); } };
-}
-
-// 모델로 계산한 예시: 0.25%p 인상에 대한 반응(감마 모양 곡선), 최대 시점만 위 시차에 맞춤
-const resp = (q, peak, amp) => amp * Math.pow(q / peak, 2) * Math.exp(2 * (1 - q / peak));
-function answer(node) {
-  const W = 520, H = 220, L = 46, B = 180, T = 20, R = 500;
-  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "tx-ans" }, node);
-  const X = (q) => L + (R - L) * q / 12, Yv = (v) => T + (B - T) * (1 - v);
-  el("line", { x1: L, x2: R, y1: B, y2: B, style: "stroke:var(--ltt-line-2)" }, s);
-  [0, 4, 8, 12].forEach((q) => el("text", { x: X(q), y: B + 20, "text-anchor": "middle", style: "font-size:13px;fill:var(--ltt-muted)" }, s, q + "분기"));
-  const series = [{ l: "대출금리", p: 1, c: "var(--ltt-c2)" }, { l: "소비", p: 3, c: "var(--ltt-c3)" }, { l: "물가", p: 6, c: "var(--ltt-accent)" }];
-  series.forEach((sr) => { let d = ""; for (let q = 0; q <= 12; q += 0.1) d += (q ? "L" : "M") + X(q).toFixed(1) + "," + Yv(resp(q, sr.p, 0.9)).toFixed(1);
-    el("path", { d, style: `fill:none;stroke:${sr.c};stroke-width:${sr.l === "물가" ? 3.5 : 2}` }, s);
-    el("text", { x: X(sr.p), y: Yv(0.9) - 8, "text-anchor": "middle", style: `font-size:14px;font-weight:700;fill:${sr.c}` }, s, sr.l); });
-  el("line", { x1: X(4), x2: X(8), y1: B - 4, y2: B - 4, style: "stroke:var(--ltt-accent);stroke-width:6;opacity:.35" }, s);
-}
-
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>금리 전달 시차</title><script src="/kit/ltt.js"></script></head><body><script>
+const chain = LTT.graph({
+  layout: "chain", track: true, aspect: 3.4,
+  nodes: [
+    { id: "base", label: "기준금리", sub: "0.25%p 인상" }, { id: "loan", label: "대출금리", sub: "은행 가산" },
+    { id: "spend", label: "소비·투자", sub: "가계·기업 지출" }, { id: "price", label: "물가", sub: "소비자물가 상승률" }
+  ],
+  edges: [{ from: "base", to: "loan" }, { from: "loan", to: "spend" }, { from: "spend", to: "price" }]
+});
 LTT.deck({
-  title: "금리 전달 시차", theme: "ledger",
+  title: "금리 전달 시차", theme: "ledger", exemplar: true,
   glossary: { "기준금리": "중앙은행이 정하는 정책 금리. 은행 간 단기 금리의 기준이 된다", "시차": "정책을 바꾼 때부터 효과가 나타나기까지 걸리는 시간" },
   scenes: [{
-    type: "predict", title: "기준금리를 올린 효과는 물가에 언제 가장 크게 닿을까",
-    question: "한국은행이 기준금리를 0.25%p 올렸다. 소비자물가 상승률이 가장 크게 내려가는 때는?",
-    visual: (n) => { pipeline(n).draw(0); },
-    choices: [{ id: "now", text: "한 달 안" }, { id: "half", text: "6개월쯤 뒤" }, { id: "late", text: "1~2년 뒤" }], answer: "late",
-    answerVisual: (n) => answer(n),
-    why: "대출금리는 금방 따라오지만 가계·기업이 지출을 줄이고 그것이 가격에 번지기까지 단계마다 {{시차}}가 쌓인다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
-    basis: "한국은행, 「통화정책 파급경로」: 물가에 대한 효과는 대략 1~2년 뒤 가장 크다. 시기·경제 상황에 따라 다르다.",
-    mount(body) { const s = body.querySelector("svg.tx"); if (!s) return {};
-      const f = pipeline(document.createElement("div")); s.replaceWith(f.el); return loop(7000, f.draw); }
+    type: "predict", layout: "stack", title: "기준금리를 올린 효과는 물가에 언제 가장 크게 닿을까",
+    sub: "{{기준금리}} 인상이 대출금리 → 소비 → 물가로 번진다. 점이 느리게 갈수록 그 구간의 {{시차}}가 길다.",
+    visual: chain,
+    q: "기준금리를 0.25%p 올렸다. 물가 상승률이 가장 크게 내려가는 때는?",
+    choices: ["한 달 안", "6개월쯤 뒤", "1~2년 뒤"], answer: 2,
+    why: "대출금리는 금방 따라오지만 가계·기업이 지출을 줄이고 그것이 가격에 번지기까지 단계마다 시차가 쌓인다. 물가는 4~8분기 뒤에 가장 크게 움직인다.",
+    motion: [
+      { par: [["travel", { along: "base>loan", dots: 3, dur: 0.7 }], ["set", { node: "loan", sub: "인상 후 1개월 안", tone: "accent", dur: 0.7 }]] },
+      ["wait", 0.6], ["mark", "ask"],
+      { par: [["travel", { along: "loan>spend", dots: 3, dur: 2.2 }], ["set", { node: "spend", sub: "인상 후 2~4분기", tone: "accent", dur: 2.2 }]] },
+      { par: [["travel", { along: "spend>price", dots: 3, dur: 3.6 }], ["set", { node: "price", sub: "인상 후 4~8분기", tone: "accent", dur: 3.6 }]] },
+      ["pulse", { node: "price", dur: 1.2 }]
+    ],
+    basis: "한국은행, 「통화정책 파급경로」: 물가에 대한 효과는 대략 1~2년 뒤 가장 크다. 시기·경제 상황에 따라 다르다."
   }]
 });
-</script>
-</body>
-</html>
+</script></body></html>

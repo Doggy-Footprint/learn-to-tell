@@ -1,0 +1,46 @@
+#!/bin/bash
+# usage: scripts/measure/run.sh <set-dir> <commit|WORKTREE> <topic> <variant> <rep>
+set -u
+[ $# -eq 5 ] || { sed -n 2p "$0"; exit 2; }
+SET=$(mkdir -p "$1" && cd "$1" && pwd); COMMIT=$2; T=$3; V=$4; N=$5
+HERE=$(cd "$(dirname "$0")" && pwd); REPO=$(cd "$HERE/../.." && pwd)
+[ -f "$HERE/prompts/$T.md" ] || { echo "unknown topic: $T" >&2; exit 2; }
+SNAP=$SET/snap-$V
+if [ ! -d "$SNAP" ]; then
+  mkdir -p "$SNAP"
+  if [ "$COMMIT" = WORKTREE ]; then
+    (cd "$REPO" && git ls-files -co --exclude-standard -z | grep -zv '^site/' | xargs -0 tar -cf -) | tar -x -C "$SNAP" || exit 2
+    echo WORKTREE > "$SNAP/.commit"
+  else
+    git -C "$REPO" archive "$COMMIT" | tar -x -C "$SNAP" || exit 2
+    git -C "$REPO" rev-parse "$COMMIT" > "$SNAP/.commit"
+  fi
+fi
+WANT=$([ "$COMMIT" = WORKTREE ] && echo WORKTREE || git -C "$REPO" rev-parse "$COMMIT")
+[ "$(cat "$SNAP/.commit")" = "$WANT" ] || { echo "$SNAP holds another commit" >&2; exit 2; }
+R=$SET/runs/$T-$V-$N
+rm -rf "$R"; mkdir -p "$R/work" "$R/home"
+cp "$HERE/backgrounds/$T.md" "$R/home/background.md"
+cat "$HERE/prompts/common.md" "$HERE/prompts/$T.md" > "$R/prompt.md"
+cd "$R/work" || exit 2
+date +%s > "$R/start"
+# CLAUDE_CONFIG_DIR isolation logs out on macOS, so the real config is used with project-only settings and no MCP.
+env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT -u CLAUDE_CODE_MESSAGING_SOCKET -u CLAUDE_CODE_MESSAGING_TOKEN -u CLAUDE_CODE_BRIDGE_SESSION_ID -u CLAUDE_CODE_CHILD_SESSION -u CLAUDE_CODE_SESSION_ATTENDED -u CLAUDE_PID -u CLAUDE_EFFORT \
+  LTT_HOME="$R/home" claude -p --model claude-sonnet-5-5 --effort medium --setting-sources project --strict-mcp-config --mcp-config "$HERE/empty-mcp.json" \
+  --plugin-dir "$SNAP" --allowedTools "Read Write Edit Glob Grep Bash Agent Skill TaskOutput" \
+  --output-format stream-json --verbose < "$R/prompt.md" > "$R/out.jsonl" 2> "$R/err.txt"
+echo $? > "$R/exit"
+date +%s > "$R/end"
+SID=$(head -1 "$R/out.jsonl" | sed -n 's/.*"session_id":"\([^"]*\)".*/\1/p')
+SRC=$(find "$HOME/.claude/projects" -maxdepth 2 -name "$SID.jsonl" 2>/dev/null | head -1)
+if [ -n "$SRC" ]; then
+  mkdir -p "$SET/transcripts/$T-$V-$N"
+  cp "$SRC" "$SET/transcripts/$T-$V-$N/"
+  [ -d "${SRC%.jsonl}" ] && cp -R "${SRC%.jsonl}" "$SET/transcripts/$T-$V-$N/"
+fi
+LESSON=$(ls -d "$R"/home/lessons/*/ 2>/dev/null | head -1)
+if [ -n "$LESSON" ]; then
+  if [ -f "$SNAP/skills/learn-to-tell/server/check.mjs" ]; then node "$SNAP/skills/learn-to-tell/server/check.mjs" --home "$R/home" --json --no-sheets "$(basename "$LESSON")" > "$R/final-check.json" 2>/dev/null
+  else node "$SNAP/skills/learn-to-tell/server/audit.mjs" --home "$R/home" --json "$LESSON" > "$R/final-audit.json" 2>/dev/null; fi
+fi
+cat "$R/exit"

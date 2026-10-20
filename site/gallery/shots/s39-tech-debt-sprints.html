@@ -1,74 +1,17 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>쌓이는 기술 부채</title>
-<script type="application/json" id="ltt-meta">{"topic":"스프린트마다 쌓이는 기술 부채","audience":"제품 팀 리드","theme":"sketch","medium":"화이트보드","decision":"스프린트마다 부채 상환에 용량을 얼마나 떼어 둘까","domain":"제품","pattern":["hook"],"mode":"카탈로그용: 장면 하나짜리 본보기. 시간 구조를 \"모양이 바뀜\" 움직임과 작은 여러 칸 구도로 보인다"}</script>
-<script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/vendor/rough.js"></script>
-<script src="/kit/ltt.js"></script>
-<script src="/kit/ltt-parts.js"></script>
-<script src="/kit/ltt-ui.js"></script>
-<script src="/kit/ltt-deck.js"></script>
-<style>
-.td{width:100%;max-width:1040px;height:auto;display:block;margin:0 auto}
-.td text{font-family:inherit}
-</style>
-<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
-</head>
-<body>
-<script>
-const SVG = "http://www.w3.org/2000/svg";
-const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
-const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-const clamp = (x) => Math.max(0, Math.min(1, x));
-// 모델: 팀 용량 40점, 상환 없이 스프린트마다 부채 6점 추가, 쌓인 부채의 25%가 다음 스프린트 용량을 갉아먹음(버그·우회 작업)
-const CAP = 40, N = 6;
-const sprints = (() => { let debt = 0; const r = []; for (let i = 0; i < N; i++) { const tax = Math.min(CAP, debt * 0.25); r.push({ debt, tax, feat: CAP - tax }); debt += 6; } return r; })();
-function board(host) {
-  const s = mk("svg", { viewBox: "0 0 1040 470", class: "td", "data-annotate": "" }, host);
-  const PW = 150, GAP = 20, X0 = 30, TOP = 70, H = 300, u = H / CAP;
-  const cells = sprints.map((sp, i) => { const x = X0 + i * (PW + GAP);
-    mk("rect", { x, y: TOP - 40, width: PW, height: H + 90, rx: 6, style: "fill:none;stroke:var(--ltt-line);stroke-width:1.5" }, s);
-    const t = mk("text", { x: x + PW / 2, y: TOP - 14, "text-anchor": "middle", style: "font-size:18px;font-weight:700;fill:var(--ltt-ink)" }, s); t.textContent = `스프린트 ${i + 1}`;
-    mk("rect", { x: x + 20, y: TOP, width: 110, height: H, style: "fill:none;stroke:var(--ltt-ink-2);stroke-width:2" }, s);
-    const feat = mk("rect", { x: x + 20, width: 110, style: "fill:var(--ltt-c1);fill-opacity:.35" }, s);
-    const tax = mk("path", { style: "fill:var(--ltt-c2);fill-opacity:.45;stroke:var(--ltt-c2);stroke-width:2" }, s);
-    const fv = mk("text", { x: x + 75, "text-anchor": "middle", style: "font-size:20px;font-weight:700;fill:var(--ltt-ink)" }, s);
-    const tv = mk("text", { x: x + 75, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-c2)" }, s);
-    return { x, feat, tax, fv, tv, sp }; });
-  const key = mk("text", { x: 520, y: TOP + H + 82, "text-anchor": "middle", style: "font-size:17px;fill:var(--ltt-ink-2)" }, s);
-  key.textContent = "칸 높이 = 팀 용량 40점 · 위 물결 = 부채 이자(버그·우회 작업) · 아래 = 기능 개발";
-  function draw(t) {
-    const out = ease(clamp((t - .93) / .07));
-    cells.forEach((c, i) => { const k = ease(clamp((t - .05 - i * .12) / .12)) * (1 - out);
-      const taxH = c.sp.tax * u * k, yTop = TOP, yb = TOP + taxH;
-      const amp = Math.min(6, taxH / 3); let d = `M${c.x + 20},${yTop} L${c.x + 130},${yTop} L${c.x + 130},${yb}`;
-      for (let j = 0; j <= 10; j++) { const xx = c.x + 130 - j * 11; d += ` L${xx},${yb + (j % 2 ? amp : -amp) * (taxH > 2 ? 1 : 0)}`; }
-      c.tax.setAttribute("d", d + "Z"); c.tax.style.opacity = taxH > .5 ? 1 : 0;
-      c.feat.setAttribute("y", yb + amp); c.feat.setAttribute("height", Math.max(0, TOP + H - yb - amp));
-      const fe = CAP - c.sp.tax * k; c.fv.setAttribute("y", Math.min(TOP + H - 14, (yb + TOP + H) / 2 + 8)); c.fv.textContent = `기능 ${fe.toFixed(1)}`;
-      c.tv.setAttribute("y", TOP + H + 26); c.tv.textContent = c.sp.tax * k > .2 ? `이자 −${(c.sp.tax * k).toFixed(1)}` : "이자 0"; });
-  }
-  return { el: s, draw };
-}
-function loop(period, draw) {
-  let id = 0; const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  return { enter() { clearTimeout(id); if (reduced) { draw(.9); return; } const t0 = Date.now();
-      const f = () => { draw(((Date.now() - t0) / period) % 1); id = setTimeout(f, 16); }; f(); },
-    leave() { clearTimeout(id); } };
-}
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>쌓이는 기술 부채</title><script src="/kit/ltt.js"></script></head><body><script>
+const TAX = [0, 1, 2, 3, 4, 5].map((i) => i * 6 * 0.25);
+const upTo = (k) => TAX.map((v, i) => (i < k ? v : 0));
 LTT.deck({
-  title: "쌓이는 기술 부채", theme: "sketch",
+  title: "쌓이는 기술 부채", theme: "sketch", exemplar: true,
   glossary: { "기술 부채": "지금 빨리 가려고 미룬 설계·정리 작업. 갚기 전까지 이후 작업마다 이자(추가 시간)를 낸다" },
   scenes: [{
     type: "hook", pre: "기술 부채", text: "여섯 스프린트 만에 기능이 19% 줄었다",
-    sub: "{{기술 부채}}를 갚지 않으면 칸마다 위에서 이자가 내려와 기능 개발 자리를 먹는다.",
-    basis: "부채가 이자처럼 이후 작업을 늦춘다는 비유는 Ward Cunningham(1992). 용량·적립률·이자율은 모델로 계산한 예시.",
-    mount(body) { const f = board(body); f.draw(0); return loop(9000, f.draw); }
+    sub: "{{기술 부채}}를 갚지 않으면 스프린트마다 이자(버그·우회 작업)가 팀 용량 40점의 위쪽부터 기능 개발 자리를 먹는다.",
+    visual: LTT.chart({ aspect: 1.2, x: { cats: ["S1", "S2", "S3", "S4", "S5", "S6"] }, y: { label: "용량(점)", domain: [0, 40] },
+      series: [{ id: "feat", label: "기능 개발에 쓴 용량", type: "bar", values: upTo(0).map((t) => 40 - t), tone: "accent" }] }),
+    motion: [["wait", 0.6], ...[2, 3, 4, 5, 6].map((k) => (["to", { id: "feat", values: upTo(k).map((t) => 40 - t), dur: 1.1 }])), ["wait", 1.5]],
+    basis: "부채가 이자처럼 이후 작업을 늦춘다는 비유는 Ward Cunningham(1992). 용량·적립률·이자율은 모델로 계산한 예시."
   }]
 });
-</script>
-</body>
-</html>
+</script></body></html>

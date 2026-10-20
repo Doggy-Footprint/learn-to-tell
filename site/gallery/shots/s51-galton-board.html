@@ -1,89 +1,24 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>갈톤 보드</title>
-<script type="application/json" id="ltt-meta">{"topic":"갈톤 보드와 정규분포","audience":"물리·통계 입문자","theme":"lab","medium":"실험 장치 도면","decision":"이항분포가 정규분포로 가는 이유","domain":"물리","pattern":["predict"],"mode":"카탈로그용: 장면 하나짜리 본보기. 분포 구조를 \"입자가 흐름\" 움직임과 중앙 주인공 구도로 보인다"}</script>
-<script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/ltt.js"></script>
-<script src="/kit/ltt-parts.js"></script>
-<script src="/kit/ltt-ui.js"></script>
-<script src="/kit/ltt-deck.js"></script>
-<style>.gb{width:620px;max-width:100%;height:auto;display:block;margin:0 auto}.gb text{font-family:inherit}</style>
-<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
-</head>
-<body>
-<script>
-const SVG = "http://www.w3.org/2000/svg";
-const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-const clamp = (x) => Math.max(0, Math.min(1, x));
-const el = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
-const txt = (s, attrs, str) => { const t = el("text", attrs, s); t.textContent = str; return t; };
-// predict 시각 칸에는 leave가 없어서, 노드가 문서에서 빠지면 스스로 멈춘다
-function loop(node, period, draw) {
-  let id = 0, t0 = 0; const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  return { enter() { clearTimeout(id); if (reduced) { draw(0.999); return; } t0 = Date.now();
-      const f = () => { if (!node.isConnected) return; draw(((Date.now() - t0) / period) % 1); id = setTimeout(f, 16); }; f(); },
-    leave() { clearTimeout(id); } };
-}
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>갈톤 보드</title><script src="/kit/ltt.js"></script></head><body><script>
 const ROWS = 12, BALLS = 160;
 const choose = (n, k) => { let r = 1; for (let i = 1; i <= k; i++) r = r * (n - k + i) / i; return r; };
-const pBin = (k) => choose(ROWS, k) / 2 ** ROWS;
-LTT.expect("가운데 칸 확률", pBin(6), 924 / 4096, { tol: 1e-12 });
+LTT.expect("가운데 칸 확률", choose(ROWS, 6) / 2 ** ROWS, 924 / 4096, { tol: 1e-12 });
+// 공마다 못 12줄에서 오른쪽(1)·왼쪽(0)을 반반으로 고른다. 칸 번호 = 오른쪽으로 튄 횟수
 let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-const PATHS = Array.from({ length: BALLS }, () => Array.from({ length: ROWS }, () => rnd() < 0.5 ? 0 : 1));
-function board(host) {
-  const W = 620, H = 500, cx = 310, dx = 40, dy = 22, top = 40, br = 5, binTop = top + ROWS * dy + 24, floor = H - 30;
-  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "gb", "data-annotate": "" }, host);
-  el("path", { d: `M${cx - 30},6 L${cx - 8},28 M${cx + 30},6 L${cx + 8},28`, style: "stroke:var(--ltt-ink-2);stroke-width:2;fill:none" }, s);
-  for (let r = 0; r < ROWS; r++) for (let j = 0; j <= r; j++)
-    el("circle", { cx: cx + (j - r / 2) * dx, cy: top + r * dy + 10, r: 3.5, style: "fill:var(--ltt-ink-2)" }, s);
-  for (let b = 0; b <= ROWS + 1; b++) { const x = cx + (b - 0.5 - ROWS / 2) * dx;
-    el("line", { x1: x, x2: x, y1: binTop, y2: floor, style: "stroke:var(--ltt-line-2);stroke-width:1.5" }, s); }
-  el("line", { x1: cx - (ROWS / 2 + 0.5) * dx, x2: cx + (ROWS / 2 + 0.5) * dx, y1: floor, y2: floor, style: "stroke:var(--ltt-ink);stroke-width:2" }, s);
-  for (let b = 0; b <= ROWS; b++) txt(s, { x: cx + (b - ROWS / 2) * dx, y: floor + 20, "text-anchor": "middle", style: "font-size:13px;fill:var(--ltt-muted)" }, b);
-  // 이항분포 기대 곡선: 공 BALLS개가 다 떨어졌을 때의 높이
-  const per = 4, step = 2 * br + 1, hOf = (n) => n / per * step;
-  let d = ""; for (let i = 0; i <= 120; i++) { const k = i / 10, x = cx + (k - ROWS / 2) * dx;
-    const g = Math.exp(-((k - 6) ** 2) / (2 * 3)) / Math.sqrt(2 * Math.PI * 3);
-    d += (i ? "L" : "M") + x.toFixed(1) + "," + (floor - hOf(g * BALLS) * 1).toFixed(1); }
-  const curve = el("path", { d, style: "fill:none;stroke:var(--ltt-accent);stroke-width:2.5;stroke-dasharray:7 5" }, s);
-  const cl = txt(s, { x: cx + 3.2 * dx, y: floor - 120, style: "font-size:15px;fill:var(--ltt-accent);font-weight:600" }, "정규분포 곡선");
-  const count = txt(s, { x: 24, y: 40, style: "font-size:15px;fill:var(--ltt-ink-2)" }, "");
-  const SPAWN = 0.028, FALL = 0.075; // 초
-  const land = PATHS.map((p) => p.reduce((a, b) => a + b, 0));
-  const slot = []; const seen = new Array(ROWS + 1).fill(0); land.forEach((b) => slot.push(seen[b]++));
-  const dots = PATHS.map(() => el("circle", { r: br, style: "fill:var(--ltt-c1);opacity:0" }, s));
-  const TOTAL = BALLS * SPAWN + ROWS * FALL + 0.6;
-  function draw(u) {
-    const t = u * 9.5; let landed = 0;
-    PATHS.forEach((p, i) => { const c = dots[i], lt = t - i * SPAWN;
-      if (lt < 0 || t > TOTAL + 1.2) { c.style.opacity = 0; return; }
-      c.style.opacity = 1; const q = lt / FALL;
-      if (q < ROWS) { const k = Math.floor(q), f = q - k, sBefore = p.slice(0, k).reduce((a, b) => a + b, 0);
-        const x0 = cx + (sBefore - k / 2) * dx, x1 = x0 + (p[k] - 0.5) * dx;
-        c.setAttribute("cx", x0 + (x1 - x0) * ease(f)); c.setAttribute("cy", top + k * dy + f * dy - 2 * Math.sin(Math.PI * f) * 6); return; }
-      const b = land[i], n = slot[i], yEnd = floor - br - 1 - Math.floor(n / per) * step;
-      const drop = clamp((q - ROWS) / 3), y0 = top + ROWS * dy;
-      c.setAttribute("cx", cx + (b - ROWS / 2) * dx + ((n % per) - 1) * step);
-      c.setAttribute("cy", y0 + (yEnd - y0) * drop * drop);
-      if (drop >= 1) landed++; });
-    const show = clamp((t - TOTAL + 0.4) / 0.6); curve.style.opacity = show; cl.style.opacity = show;
-    count.textContent = `떨어진 공 ${landed} / ${BALLS}`;
-  }
-  return { el: s, draw };
-}
-LTT.deck({ title: "갈톤 보드", theme: "lab",
+const landed = Array.from({ length: BALLS }, () => Array.from({ length: ROWS }, () => (rnd() < 0.5 ? 1 : 0)).reduce((a, b) => a + b, 0));
+LTT.deck({
+  title: "갈톤 보드", theme: "lab", exemplar: true,
   glossary: { "갈톤 보드": "못이 삼각형으로 박힌 판. 공이 못마다 왼쪽이나 오른쪽으로 반반 튕긴다" },
-  scenes: [{ type: "predict", kicker: "확률 실험", title: "못 12줄을 지난 공은 가운데에 얼마나 모일까",
+  scenes: [{
+    type: "predict", kicker: "확률 실험", title: "못 12줄을 지난 공은 가운데에 얼마나 모일까",
     sub: "{{갈톤 보드}}에서 공은 못을 만날 때마다 반반으로 갈린다. 칸 번호는 오른쪽으로 튄 횟수다.",
-    question: "공이 가운데 칸(6번)에 들어갈 확률은?",
-    visual: (node) => { const f = board(node); f.draw(0.95); setTimeout(() => loop(f.el, 9500, f.draw).enter(), 0); },
-    choices: [{ id: "8", text: "약 8%" }, { id: "23", text: "약 23%" }, { id: "50", text: "약 50%" }], answer: "23",
-    why: "12번 중 6번 오른쪽인 길은 ₁₂C₆ = 924가지, 전체 길은 2¹² = 4,096가지라 924 ÷ 4,096 ≈ 22.6%다. 가장 많이 모여도 넷 중 하나가 안 된다.",
-    basis: "공 160개 경로는 고정 시드로 만든 모의 실험이다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
-    takeaway: "반반 선택이 쌓이면 이항분포가 되고, 줄이 많을수록 정규분포 곡선에 가까워진다." }] });
-</script>
-</body>
-</html>
+    visual: LTT.dist({ bins: { min: -0.5, max: 12.5, n: 13 }, n: BALLS, sample: landed, unit: "번" }),
+    q: "공이 가운데 칸(6번)에 들어갈 확률은?",
+    choices: ["약 8%", "약 23%", "약 50%"], answer: 1,
+    motion: [["drop", { dur: 5 }], ["mark", "ask"], ["curve", { dur: 1.5 }], ["wait", 2]],
+    why: "12번 중 6번 오른쪽인 길은 ₁₂C₆ = 924가지, 전체 2¹² = 4,096가지라 924 ÷ 4,096 ≈ 22.6%다. 가장 많이 모여도 넷 중 하나가 안 된다.",
+    takeaway: "반반 선택이 쌓이면 이항분포가 되고, 줄이 많을수록 정규분포 곡선에 가까워진다.",
+    basis: "공 160개 경로는 고정 시드로 만든 모의 실험이다. 모델로 계산한 예시."
+  }]
+});
+</script></body></html>

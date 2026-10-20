@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>백신 콜드체인</title>
+<script type="application/json" id="ltt-meta">{"topic":"백신 콜드체인","audience":"물류 입문자","theme":"atlas","medium":"물류 지도","decision":"구간별 보관 온도와 허용 시간","domain":"콜드체인","pattern":["figure"],"mode":"카탈로그용: 장면 하나짜리 본보기. 순서 구조를 \"확대·축소\" 움직임과 중앙 주인공 구도로 보인다"}</script>
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/vendor/topojson-client.min.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-ui.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+<style>
+.cz{position:relative;overflow:hidden;width:1000px;max-width:100%;margin:0 auto}
+.cz svg{display:block;overflow:hidden;width:100%;height:auto}
+.cz .ov{position:absolute;inset:0}
+.cz .ltt-map path{vector-effect:non-scaling-stroke}
+.cz text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const W = 1000, H = 520;
+// 2021년 국내 화이자 백신 경로: 벨기에 푸어스 공장 → 인천공항 → 전용 물류센터 → 예방접종센터(초도 물량은 국립중앙의료원 중앙접종센터)
+const PL = { puurs: [4.29, 51.07], icn: [126.45, 37.46], hub: [127.44, 37.27], ctr: [126.99, 37.57] };
+const stages = [
+  { box: [[-5, 15], [140, 62]], from: "puurs", to: "icn", n: "①", head: "국가 간 · 항공", t: "−90~−60 °C", d: "드라이아이스 열 차단 상자 · 약 11시간 비행" },
+  { box: [[124.4, 34.2], [130.0, 38.9]], from: "icn", to: "hub", n: "②", head: "도시 간 · 냉동 트럭", t: "−90~−60 °C", d: "공항에서 초저온 냉동고가 있는 물류센터로" },
+  { box: [[126.1, 36.7], [128.0, 38.0]], from: "hub", to: "ctr", n: "③", head: "창고 → 접종센터", t: "2~8 °C", d: "해동 뒤 냉장으로 옮김 · 냉장 보관은 날짜 제한" }];
+const names = { puurs: "푸어스(벨기에) 공장", icn: "인천공항", hub: "물류센터(이천 일대)", ctr: "중앙접종센터(서울)" };
+LTT.expect("단계 수", stages.length, 3, { tol: 0 });
+
+function coldChain(host) {
+  const wrap = host.appendChild(document.createElement("div")); wrap.className = "cz live"; wrap.setAttribute("data-annotate", "");
+  const base = mk("svg", {}, wrap), ov = mk("svg", { class: "ov", viewBox: `0 0 ${W} ${H}` }, wrap);
+  const st = { m: null, vbs: null };
+  LTT.map(base, { width: W, height: H, extent: stages[0].box, graticule: false, maxWidth: false,
+    countries: { Belgium: "accent", "South Korea": "accent" } }).then((m) => {
+    st.m = m;
+    // 각 단계의 viewBox: 그 단계의 경로 상자에 맞춘 사각형(가로세로비는 무대에 맞춤)
+    st.vbs = stages.map((s) => { const a = m.project(s.box[0][0], s.box[1][1]), b = m.project(s.box[1][0], s.box[0][1]);
+      let w = b[0] - a[0], h = b[1] - a[1], cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2;
+      if (w / h > W / H) h = w * H / W; else w = h * W / H; return [cx - w / 2, cy - h / 2, w, h]; });
+    wrap._st = st;
+  });
+  // 덮개 층: 확대해도 글자 크기가 변하지 않게 지점·라벨은 화면 좌표로 다시 그린다
+  stages.forEach((s, i) => mk("path", { class: `rt${i}`, style: "fill:none;stroke:var(--ltt-accent);stroke-width:3;stroke-linecap:round" }, ov));
+  Object.keys(PL).forEach((id) => {
+    mk("circle", { class: `p-${id}`, r: 7, style: "fill:var(--ltt-bg);stroke:var(--ltt-ink);stroke-width:2.5" }, ov);
+    mk("text", { class: `l-${id}`, style: "font-size:17px;font-weight:600;fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-bg);stroke-width:4px" }, ov).textContent = names[id];
+  });
+  mk("circle", { class: "pk", r: 9, style: "fill:var(--ltt-accent);stroke:var(--ltt-bg);stroke-width:3" }, ov);
+  const card = mk("g", { class: "card" }, ov);
+  mk("rect", { x: 24, y: H - 132, width: 330, height: 108, rx: 8, style: "fill:var(--ltt-card);stroke:var(--ltt-line)" }, card);
+  mk("text", { class: "c-h", x: 44, y: H - 96, style: "font-size:22px;font-weight:700;fill:var(--ltt-ink)" }, card);
+  mk("text", { class: "c-t", x: 44, y: H - 64, style: "font-size:20px;font-weight:700;fill:var(--ltt-accent)" }, card);
+  mk("text", { class: "c-d", x: 44, y: H - 38, style: "font-size:14px;fill:var(--ltt-muted)" }, card);
+  const steps = mk("g", {}, ov);
+  stages.forEach((s, i) => { mk("text", { class: `sb${i}`, x: W - 24, y: H - 24 - (2 - i) * 26, "text-anchor": "end", style: "font-size:15px;font-weight:600" }, steps).textContent = `${s.n} ${s.head}`; });
+  return wrap;
+}
+// 한 주기: 단계마다 [확대 0.30 → 경로 그림 0.45 → 머묾 0.25]
+function draw(wrap, u) {
+  const st = wrap._st; if (!st) return;
+  const k = Math.min(2, Math.floor(u * 3)), l = u * 3 - k;
+  const z = ease(clamp(l / 0.30)), r = ease(clamp((l - 0.30) / 0.45));
+  const a = st.vbs[k === 0 ? 2 : k - 1], b = st.vbs[k], zz = k === 0 ? 1 : z; // 처음은 세계에서 시작(마지막에서 되돌아오는 컷)
+  const vb = a.map((v, j) => v + (b[j] - v) * zz);
+  wrap.querySelector("svg").setAttribute("viewBox", vb.join(" "));
+  const toS = (lon, lat) => { const p = st.m.project(lon, lat); return [(p[0] - vb[0]) * W / vb[2], (p[1] - vb[1]) * H / vb[3]]; };
+  stages.forEach((s, i) => {
+    const f = i < k ? 1 : i === k ? r : 0, gi = d3.geoInterpolate(PL[s.from], PL[s.to]);
+    let d = ""; for (let j = 0; j <= 48; j++) { const [x, y] = toS(...gi(f * j / 48)); d += (j ? "L" : "M") + x.toFixed(1) + "," + y.toFixed(1); }
+    wrap.querySelector(`.rt${i}`).setAttribute("d", f > 0 ? d : "");
+    const sb = wrap.querySelector(`.sb${i}`); sb.style.fill = i === k ? "var(--ltt-accent)" : i < k ? "var(--ltt-ink-2)" : "var(--ltt-muted)";
+  });
+  const show = new Set(stages.slice(0, k + 1).flatMap((s) => [s.from, s.to]));
+  Object.keys(PL).forEach((id) => {
+    const [x, y] = toS(...PL[id]), c = wrap.querySelector(`.p-${id}`), t = wrap.querySelector(`.l-${id}`);
+    const on = show.has(id) && x > -20 && x < W + 20 && y > -20 && y < H + 20;
+    c.setAttribute("cx", x); c.setAttribute("cy", y); c.style.opacity = on ? 1 : 0;
+    const left = id === "icn" || id === "ctr", dy = id === "icn" ? 26 : id === "ctr" ? -14 : 6;
+    t.setAttribute("x", x + (left ? -14 : 14)); t.setAttribute("y", y + dy); t.setAttribute("text-anchor", left ? "end" : "start"); t.style.opacity = on ? 1 : 0;
+  });
+  const s = stages[k], p0 = st.m.project(...PL[s.from]), p1 = st.m.project(...PL[s.to]);
+  const [px, py] = toS(...d3.geoInterpolate(PL[s.from], PL[s.to])(r));
+  const pk = wrap.querySelector(".pk"); pk.setAttribute("cx", px); pk.setAttribute("cy", py); pk.style.opacity = r > 0 && r < 1 ? 1 : 0;
+  wrap.querySelector(".c-h").textContent = `${s.n} ${s.head}`;
+  wrap.querySelector(".c-t").textContent = s.t;
+  wrap.querySelector(".c-d").textContent = s.d;
+}
+let ticker = 0;
+function play() {
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches, t0 = Date.now(), period = 10500;
+  if (ticker) return;
+  const f = () => { const live = document.querySelectorAll(".cz.live"); if (!live.length) { ticker = 0; return; }
+    live.forEach((w) => draw(w, reduced ? 0.999 : ((Date.now() - t0) / period + 0.2) % 1)); ticker = setTimeout(f, reduced ? 200 : 16); };
+  ticker = setTimeout(f, 16);
+}
+
+LTT.deck({
+  title: "백신 콜드체인", theme: "atlas",
+  glossary: { "콜드체인": "생산부터 접종까지 정해진 온도를 끊기지 않고 지키는 보관·운송 사슬" },
+  scenes: [{
+    type: "figure", label: "경로",
+    title: "백신은 국가 → 도시 → 창고로 내려가며 온도 구간이 바뀐다",
+    sub: "지도가 한 구간씩 확대된다. 왼쪽 아래 상자가 그 구간의 보관 온도다.",
+    figure: (el) => { const w = coldChain(el); play(); return { el: w }; },
+    caption: "{{콜드체인}}의 끊김은 대개 구간이 바뀌는 인수인계 지점에서 생긴다.",
+    basis: "화이자-바이오엔텍 코미나티 보관 조건(−90~−60 °C, 해동 뒤 2~8 °C), 질병관리청 2021년 초도 물량 수송 보도. 물류센터 위치는 불확실(이천 일대로 표시).",
+    takeaway: "콜드체인은 구간마다 온도 기준이 다르고, 위험은 구간 사이의 인수인계에 몰린다."
+  }]
+});
+</script>
+</body>
+</html>

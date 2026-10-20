@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>표본 크기와 검정력</title>
+<script type="application/json" id="ltt-meta">{"topic":"A/B 테스트 표본 크기와 검정력","audience":"실험을 처음 설계하는 PM","theme":"studio","medium":"실험 분석 대시보드","decision":"그룹당 표본 크기","domain":"실험","pattern":["mount"],"mode":"카탈로그용: 장면 하나짜리 본보기. 분포 구조를 \"쪼개지고 합쳐짐\" 움직임과 전면 구도로 보인다"}</script>
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-ui.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+<style>.pw svg{width:100%;height:auto;display:block}.pw text{font-family:inherit}.pw-row{display:flex;gap:28px;align-items:center;margin-top:10px}.pw-row .ltt-param{flex:1}</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const el = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const cl = (x) => Math.max(0, Math.min(1, x));
+const PA = 0.10, PB = 0.11, D = PB - PA; // 전환율 10% → 11%
+const se = (n) => Math.sqrt((PA * (1 - PA) + PB * (1 - PB)) / n);
+const Phi = (z) => { const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; };
+const power = (n) => 1 - Phi(1.96 - D / se(n));
+const W = 1100, H = 400, L = 40, R = 1060, BASE = 330;
+const xd = d3.scaleLinear([-0.02, 0.03], [L, R]);
+let N = 2000, split = 1;
+function mount(body) {
+  body.innerHTML = `<div class="pw"></div><div class="pw-row"><div class="ltt-param">그룹당 사용자 <b id="n-v"></b><input id="n" type="range"></div>
+    <div class="ltt-stat"><b id="pw"></b><small> 검정력</small></div><div id="g"></div></div>`;
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, "data-annotate": "" }, body.querySelector(".pw"));
+  el("line", { x1: L, y1: BASE, x2: R, y2: BASE, style: "stroke:var(--ltt-ink-2);stroke-width:1.5" }, s);
+  [-0.02, -0.01, 0, 0.01, 0.02, 0.03].forEach((v) => { const t = el("text", { x: xd(v), y: BASE + 24, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, s); t.textContent = (v > 0 ? "+" : "") + (v * 100).toFixed(0) + "%p"; });
+  const ax = el("text", { x: R, y: BASE + 50, "text-anchor": "end", style: "font-size:14px;fill:var(--ltt-ink-2)" }, s); ax.textContent = "관측한 전환율 차이 (B − A)";
+  const pw = el("path", { style: "fill:var(--ltt-accent-soft)" }, s);
+  const beta = el("path", { style: "fill:var(--ltt-line);opacity:.6" }, s);
+  const h0 = el("path", { style: "fill:none;stroke:var(--ltt-ink-2);stroke-width:2.5" }, s);
+  const h1 = el("path", { style: "fill:none;stroke:var(--ltt-accent);stroke-width:3" }, s);
+  const crit = el("line", { y1: 40, y2: BASE, style: "stroke:var(--ltt-bad);stroke-width:2;stroke-dasharray:6 5" }, s);
+  const t = (st) => el("text", { style: st }, s);
+  const l0 = t("font-size:15px;font-weight:700;fill:var(--ltt-ink-2)"), l1 = t("font-size:15px;font-weight:700;fill:var(--ltt-accent)");
+  const lc = t("font-size:14px;fill:var(--ltt-bad)"), lp = t("font-size:16px;font-weight:700;fill:var(--ltt-accent)"), lb = t("font-size:14px;fill:var(--ltt-ink-2)");
+  const pos = (n, x, y, a) => { n.setAttribute("x", x); n.setAttribute("y", y); n.setAttribute("text-anchor", a || "middle"); };
+  const xsamp = d3.range(0, 401).map((i) => -0.02 + i * 0.05 / 400);
+  function draw() {
+    const sd = se(N), c = 1.96 * sd, mu1 = D * split, peak = 0.3989 / sd, ys = d3.scaleLinear([0, peak], [BASE, 70]);
+    const pdf = (x, m) => Math.exp(-((x - m) ** 2) / (2 * sd * sd)) / (sd * 2.5066);
+    const curve = (m) => "M" + xsamp.map((x) => xd(x).toFixed(1) + "," + ys(pdf(x, m)).toFixed(1)).join("L");
+    const area = (m, a, b) => { const pts = xsamp.filter((x) => x >= a && x <= b); if (!pts.length) return "";
+      return `M${xd(pts[0])},${BASE}L` + pts.map((x) => xd(x).toFixed(1) + "," + ys(pdf(x, m)).toFixed(1)).join("L") + `L${xd(pts[pts.length - 1])},${BASE}Z`; };
+    h0.setAttribute("d", curve(0)); h1.setAttribute("d", curve(mu1));
+    const sh = cl((split - .7) / .3);
+    pw.setAttribute("d", area(mu1, c, 0.03)); beta.setAttribute("d", area(mu1, -0.02, c));
+    pw.style.opacity = sh; beta.style.opacity = .6 * sh;
+    crit.setAttribute("x1", xd(c)); crit.setAttribute("x2", xd(c)); crit.style.opacity = sh;
+    pos(l0, xd(0) - 12, ys(peak) - 14, "end"); l0.textContent = "차이 없음 (H0)";
+    pos(l1, xd(mu1) + 12, ys(peak) - 14, "start"); l1.textContent = "B가 +1%p (H1)"; l1.style.opacity = cl(split * 3);
+    pos(lc, xd(c) + 8, 56, "start"); lc.textContent = "유의 기준선 ±1.96 SE"; lc.style.opacity = sh;
+    const pv = power(N);
+    pos(lp, Math.min(R - 60, xd(Math.max(c, mu1)) + 60), BASE - 24, "start"); lp.textContent = "검정력 " + Math.round(pv * 100) + "%"; lp.style.opacity = sh;
+    pos(lb, xd(Math.min(c, mu1)) - 50, BASE - 24, "end"); lb.textContent = "놓침 " + Math.round((1 - pv) * 100) + "%"; lb.style.opacity = sh;
+  }
+  LTT.sweep({ params: { n: { kind: "log", min: 500, max: 50000, value: 2000, fmt: (v) => Math.round(v).toLocaleString("ko-KR") + "명" } },
+    render: ({ n }) => { N = n; document.getElementById("pw").textContent = Math.round(power(n) * 100) + "%"; draw(); },
+    goal: { el: "g", text: "검정력 80%를 넘기는 표본을 찾는다", check: ({ n }) => power(n) >= 0.8 } });
+  let raf = 0, t0 = 0; const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // 7초 주기: 한 봉우리가 둘로 갈라지고(0–25%), 머문 뒤(–75%), 다시 합쳐진다
+  const phase = (u) => u < .25 ? ease(u / .25) : u < .75 ? 1 : 1 - ease((u - .75) / .2);
+  return { enter() { clearTimeout(raf); if (reduced) { split = 1; draw(); return; }
+      t0 = Date.now(); const f = () => { split = phase(((Date.now() - t0) / 7000) % 1); draw(); raf = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(raf); split = 1; draw(); } };
+}
+LTT.deck({
+  title: "표본 크기와 검정력", theme: "studio",
+  glossary: { "검정력": "실제로 차이가 있을 때 실험이 그 차이를 유의하다고 잡아낼 확률. 보통 80%를 목표로 한다" },
+  scenes: [{
+    title: "표본이 작으면 두 분포가 겹쳐, 진짜 1%p 개선도 대부분 놓친다",
+    sub: "전환율 10%인 A와 11%인 B. 실제 차이를 잡아낼 확률이 {{검정력}}이다. 손잡이로 그룹당 사용자를 늘리면 두 봉우리가 좁아지며 갈라진다.",
+    layout: "full",
+    basis: "양측 α=0.05, 정규 근사, SE = √(pA(1−pA)/n + pB(1−pB)/n). 80%에 필요한 n ≈ 14,700명. 모델로 계산한 예시",
+    mount
+  }]
+});
+LTT.expect("n=14,732 검정력", power(14732), 0.80, { tol: 0.005 });
+</script>
+</body>
+</html>

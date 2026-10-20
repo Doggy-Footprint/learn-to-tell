@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>일관성과 지연</title>
+<script type="application/json" id="ltt-meta">{"topic":"PACELC 일관성 수준과 지연","audience":"백엔드 개발자","theme":"sketch","medium":"화이트보드","decision":"읽기 일관성 수준 선택","domain":"분산 시스템","pattern":["figure"],"mode":"카탈로그용: 장면 하나짜리 본보기. 트레이드오프 구조를 \"선이 그려짐\" 움직임과 겹쳐 놓기 구도로 보인다"}</script>
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/vendor/rough.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-ui.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+<style>
+.pl-wrap{display:flex;justify-content:center;width:100%}
+.pl{width:100%;max-width:980px;height:min(64vh,560px);display:block}
+.pl text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+// 복제본 3개(RF=3) 중 k개의 응답을 기다리면 지연은 k번째로 빠른 복제본의 왕복 시간이다
+const LEVELS = [{ id: "ONE", k: 1 }, { id: "QUORUM", k: 2 }, { id: "ALL", k: 3 }];
+const RTT = { one: [1, 2, 3], multi: [1, 70, 140] }; // 같은 리전 안 / 서울·도쿄·오레곤 대략 왕복 ms
+const lat = (rtts, k) => [...rtts].sort((a, b) => a - b)[k - 1];
+LTT.expect("여러 리전 QUORUM", lat(RTT.multi, 2), 70);
+
+function pacelc(host) {
+  const W = 960, H = 560, X0 = 150, X1 = 820, Y0 = 470, Y1 = 70, YMAX = 150;
+  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "pl", "data-annotate": "" }, host);
+  const xs = (i) => X0 + i * (X1 - X0) / 2, ys = (v) => Y0 - v / YMAX * (Y0 - Y1);
+  mk("path", { d: `M${X0 - 30},${Y1 - 20} L${X0 - 30},${Y0} L${X1 + 50},${Y0}`, style: "fill:none;stroke:var(--ltt-ink);stroke-width:2.5;stroke-linecap:round" }, s);
+  [0, 50, 100, 150].forEach((v) => { const t = mk("text", { x: X0 - 42, y: ys(v) + 6, "text-anchor": "end", style: "font-size:17px;fill:var(--ltt-muted)" }, s); t.textContent = v;
+    if (v) mk("line", { x1: X0 - 30, x2: X1 + 50, y1: ys(v), y2: ys(v), style: "stroke:var(--ltt-line);stroke-dasharray:3 6" }, s); });
+  const yl = mk("text", { x: X0 - 30, y: Y1 - 34, "text-anchor": "middle", style: "font-size:17px;fill:var(--ltt-ink-2)" }, s); yl.textContent = "읽기 지연 (ms)";
+  LEVELS.forEach((L, i) => { const t = mk("text", { x: xs(i), y: Y0 + 32, "text-anchor": "middle", style: "font-size:20px;font-weight:700;fill:var(--ltt-ink)" }, s); t.textContent = L.id;
+    const t2 = mk("text", { x: xs(i), y: Y0 + 54, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-muted)" }, s); t2.textContent = `복제본 ${L.k}/3 응답 대기`; });
+  const xl = mk("text", { x: X1 + 50, y: Y0 + 80, "text-anchor": "end", style: "font-size:16px;fill:var(--ltt-ink-2)" }, s); xl.textContent = "일관성 강해짐 →";
+
+  const series = [{ key: "one", color: "var(--ltt-c1)", label: "한 리전 (복제본 왕복 1–3ms)", mark: "dot" },
+                  { key: "multi", color: "var(--ltt-c2)", label: "세 리전 (서울·도쿄·오레곤)", mark: "sq" }].map((sr) => {
+    const pts = LEVELS.map((L, i) => [xs(i), ys(lat(RTT[sr.key], L.k))]);
+    const path = mk("path", { d: "M" + pts.map((p) => p.join(",")).join(" L"), style: `fill:none;stroke:${sr.color};stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round` }, s);
+    const len = path.getTotalLength ? path.getTotalLength() || 900 : 900;
+    path.style.strokeDasharray = len;
+    const marks = pts.map((p) => sr.mark === "dot" ? mk("circle", { cx: p[0], cy: p[1], r: 8, style: `fill:${sr.color}` }, s)
+      : mk("rect", { x: p[0] - 8, y: p[1] - 8, width: 16, height: 16, style: `fill:${sr.color}` }, s));
+    const vals = pts.map((p, i) => { const t = mk("text", { x: p[0] + 14, y: p[1] - 12, style: `font-size:17px;font-weight:700;fill:var(--ltt-ink)` }, s); t.textContent = lat(RTT[sr.key], LEVELS[i].k) + "ms"; return t; });
+    const last = pts[2];
+    const lab = mk("text", { x: last[0] - 10, y: last[1] + (sr.key === "one" ? -24 : 34), "text-anchor": "end", style: `font-size:18px;font-weight:700;fill:var(--ltt-ink-2)` }, s); lab.textContent = sr.label;
+    return { path, len, marks, vals, lab };
+  });
+  const bx = xs(1) + 46;
+  const brace = mk("path", { d: `M${bx},${ys(2)} C${bx + 26},${ys(2)} ${bx},${ys(36)} ${bx + 22},${ys(36)} C${bx},${ys(36)} ${bx + 26},${ys(70)} ${bx},${ys(70)}`, style: "fill:none;stroke:var(--ltt-bad);stroke-width:3;stroke-linecap:round" }, s);
+  const bt = mk("text", { x: bx + 32, y: ys(36) + 6, style: "font-size:20px;font-weight:800;fill:var(--ltt-bad)" }, s); bt.textContent = "+68ms: 바다 건너 한 번 더 왕복";
+  const tag = mk("text", { x: W - 14, y: 22, "text-anchor": "end", style: "font-size:13px;fill:var(--ltt-muted)" }, s); tag.textContent = "모델로 계산한 예시 · 지연 = k번째로 빠른 복제본의 왕복 시간";
+
+  // 9초 한 바퀴: 한 리전 선 → 세 리전 선이 그 위에 겹쳐 그려짐 → 차이 괄호 → 멈춤 → 지움
+  function draw(u) {
+    const T = u * 9, out = clamp((T - 8.3) / .7);
+    const ph = [clamp((T - .3) / 1.6), clamp((T - 2.6) / 2.0)];
+    series.forEach((sr, j) => { const e = ease(ph[j]);
+      sr.path.style.strokeDashoffset = sr.len * (1 - e); sr.path.style.opacity = 1 - out;
+      sr.marks.forEach((m, i) => { const on = clamp((e - i / 2.05) * 8); m.style.opacity = on * (1 - out); sr.vals[i].style.opacity = on * (1 - out); });
+      sr.lab.style.opacity = clamp((ph[j] - .85) * 7) * (1 - out); });
+    const b = ease(clamp((T - 5.0) / .8)) * (1 - out);
+    brace.style.opacity = b; bt.style.opacity = b;
+  }
+  return { el: s, draw };
+}
+
+function loop(node, period, draw) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { draw(0.85); return { leave() {} }; }
+  let id = 0; const t0 = Date.now();
+  const f = () => { if (!node.isConnected) return; draw(((Date.now() - t0) / period) % 1); id = setTimeout(f, 16); };
+  f(); return { leave() { clearTimeout(id); } };
+}
+
+let run = null;
+LTT.deck({
+  title: "일관성 수준과 지연", theme: "sketch",
+  glossary: { "PACELC": "분할(P)이 나면 가용성(A)과 일관성(C) 중 하나, 평소(E)에는 지연(L)과 일관성(C) 중 하나를 고른다는 분산 DB 원칙", "일관성 수준": "읽기·쓰기 한 번에 몇 개 복제본의 응답을 기다릴지 정하는 값(Cassandra의 ONE·QUORUM·ALL)" },
+  scenes: [{
+    type: "figure", title: "평소에도 일관성을 높이면 지연을 낸다",
+    sub: "{{PACELC}}의 E(평소)·L·C. {{일관성 수준}}이 같아도 복제본이 멀면 값이 크게 뛴다.",
+    figure: '<div class="pl-wrap"></div>',
+    enter: () => { const w = document.querySelector(".pl-wrap"); if (!w) return; w.innerHTML = "";
+      const f = pacelc(w); run && run.leave(); run = loop(f.el, 9000, f.draw); },
+    caption: "같은 QUORUM 읽기: 한 리전에서는 2ms, 세 리전에 걸치면 70ms.",
+    basis: "리전 간 왕복: 서울–도쿄 약 30–40ms, 서울–오레곤 약 120–140ms(클라우드 리전 간 ping 공개 측정치, 불확실). 계산 지점은 코디네이터가 서울 복제본 옆에 있다고 가정.",
+    takeaway: "분할이 없어도 일관성 수준은 지연과 맞바꾸는 손잡이다.",
+    leave: () => run && run.leave()
+  }]
+});
+</script>
+</body>
+</html>
