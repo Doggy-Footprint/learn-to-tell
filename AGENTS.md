@@ -10,7 +10,7 @@ Intent(우선순위 순):
 3. skill을 쓰는 agent를 기준으로 관리한다. 문서는 생성 agent가 읽을 것만 두고, 상한과 오류 메시지가 사용법을 가르친다.
 4. 생성 비용이 싸다. 측정 방법과 기준선은 `scripts/measure/README.md`.
 
-<!-- harness:begin 0.25.0 -->
+<!-- harness:begin 0.27.0 -->
 # Documentation Guide
 
 "Documentation" refers to standalone docs, inline comments, and docstrings.
@@ -125,7 +125,7 @@ Write when a workflow-approach task exhausts its verifier budget, cannot make pr
 Required file structure:
 
 - `#` Title
-- `## Goal` (user's original words)
+- `## User Query` (user's original words)
 - `## State` (branch, commit, changed files)
 - `## Failed Attempts` (table `| attempt | failure evidence | cause |`, cause marked `verified` or `hypothesis`)
 - `## Next Step`
@@ -140,16 +140,13 @@ failed attempts without requiring telemetry to reconstruct them.
 Handoffs created before harness 0.7.0 may retain `## Contract Snapshot` instead
 of `## Spec` and `## Execution Ledger`; do not rewrite historical records solely
 to change their format.
+Handoffs created before harness 0.27.0 may retain `## Goal` instead of `## User Query`.
 
 When resuming, never delete or edit existing Failed Attempts rows; only append.
 
 When the task completes, remove its entry from `index.md` and move the file to `stale/`.
 
 # Task Guide
-
-## Generated Lesson Defects
-
-A defect found in a lesson the skill generated (test runs, gallery, user lessons) is evidence about the generator, not a task on that lesson. Trace it to what produced it (`SKILL.md`, `kit/API.md` and `kit/api/`, kit code, schema caps, check and lint rules) and fix it there so future generations do not repeat it. Patch the lesson itself only when the user asks for that lesson to be fixed.
 
 ## User Decision
 
