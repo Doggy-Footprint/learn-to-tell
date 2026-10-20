@@ -20,3 +20,8 @@ File: 20187af899089f43-confirm-scope-with-user.md
 Summary: 수업 범위를 사용자에게 확인받는 단계를 기각하고, agent가 정해 알리기만 하게 했다
 Related Files: skills/learn-to-tell/SKILL.md, learn-to-tell-PROJECT.md
 Related Symbols: 없음
+---
+File: 1d250c5adce868bf-versioned-json-contracts.md
+Summary: 버전이 붙은 엄격한 JSON 계약(lesson v1–v4, diagnostic v1–v2)을 기각하고, 버전 필드 없는 result.md frontmatter와 ltt-map check를 택했다
+Related Files: skills/learn-to-tell/SKILL.md, skills/learn-to-tell/map/lib/check.mjs, agent-docs/adr/06a89373c78aaf85-rewrite-v0-with-minimal-design.md
+Related Symbols: check

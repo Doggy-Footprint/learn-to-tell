@@ -16,4 +16,4 @@ kit 다섯 모듈(`ltt.js`, `ltt-parts.js`, `ltt-ui.js`, `ltt-mock.js`, `ltt-dec
 kit에 빌드 단계가 생기거나 standalone이 jsDelivr 스크립트 로딩을 버릴 때, 또는 artifact CSP가 외부 스타일시트를 허용함이 확인될 때.
 
 ## Chosen Instead
-scripts/build.mjs (`css` 하위 명령: `kit/*.css`를 JS 안 문자열로 생성), tests/kit-css.test.mjs
+skills/learn-to-tell/kit/ltt.js (v2: CSS를 JS 문자열로 직접 둔다. 빌드 단계 없음)

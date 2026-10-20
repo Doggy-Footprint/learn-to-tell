@@ -34,7 +34,7 @@ description: 작업의 핵심 결정 변수 중 사용자가 모르는 것을 �
 
 ## 3. 수업
 
-자료는 사용자가 혼자 읽고 이해할 수 있어야 하고, 장면마다 그림 하나가 메커니즘을 움직여 보인다. 아래 순서를 한 번 지나가고 되돌아가지 않는다.
+자료는 사용자가 혼자 읽고 이해할 수 있어야 하고, 장면마다 그림 하나가 메커니즘을 움직여 보인다. 실제 활용 예와 실패 예를 함께 둔다. 아래 순서를 한 번 지나가고 되돌아가지 않는다.
 
 1. 한 응답에서 함께 Read: `<skill>/kit/API.md`, `<skill>/look/look.md`, `<skill>/look/board.jpg`. look.md 색인에서 개념 구조와 움직임이 맞는 shot 카드 2장(`<skill>/look/shots/sNN.jpg`)도 같이 읽는다. `LTT.draw`를 쓸 장면이 있을 때만 `<skill>/kit/api/draw.md`.
 2. `<home>/lessons/<id>/outline.md`(2,500자 안팎)를 쓴다:

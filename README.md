@@ -52,7 +52,7 @@ Claude Code skill(`/learn-to-tell <주제>`)로 동작한다. 작업 세션을 `
 | 화면이 깨짐 | 정적 부품은 상한(schema)과 칸 맞춤으로 넘침·겹침을 막는다. 모든 글을 상한까지 채운 fuzz 덱이 데스크톱 1280×800·폰 390×844에서 0건이어야 테스트가 통과한다 |
 | 움직이는 그림이 의도와 다름 | `check.mjs`가 움직이는 장면만 beat 시각 프레임을 한 장(sheet)에 모으고 agent가 그 장만 본다 |
 | 핵심 주장·수치가 틀림 | outline의 주장·모델 절만 받은 Sonnet 서브에이전트가 HTML 작성과 병렬로 검토. 기대값은 `LTT.expect`로 페이지가 열릴 때 대조. 검토하지 못한 주장에는 "미검증" |
-| 생성 비용 | 수업 = `LTT.deck` 호출 하나(선언형 장면·부품·움직임 동사). 문서 10KB, check 한 번에 데스크톱·폰 모두, 장면 12개 상한 |
+| 생성 비용 | 수업 = `LTT.deck` 호출 하나(선언형 장면·부품·움직임 동사). API 문서 12KB, check 한 번에 데스크톱·폰 모두, 장면 12개 상한 |
 
 agent의 자기 확언만으로는 정확성을 인정하지 않는 것이 원칙이다.
 
@@ -69,7 +69,7 @@ skills/learn-to-tell/
 ├── look/         # 화면 기준과 본보기 shot 카드
 ├── server/       # 로컬 서버(127.0.0.1:47823, / = 지난 수업 grid), check.mjs(CDP 화면 점검)
 ├── standalone.md # claude.ai(웹·모바일)용 artifact 수업 절차
-└── hooks/        # background.md 크기 관리 (Claude Code 전용)
+└── hooks/        # background.md 크기 관리, kit 소스 읽기 차단 (Claude Code 전용)
 site/gallery/     # kit v2 본보기 (Vercel 배포)
 site/legacy/      # kit v1과 그 수업·비교 실험 (보관)
 packages/ltt-kit/ # kit npm 패키지 (artifact 수업이 jsDelivr로 불러옴)

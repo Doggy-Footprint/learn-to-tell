@@ -15,4 +15,4 @@ v0 수업에는 15분 하한과 한 수업의 결정 변수 수·개념 수 상�
 - 한 수업에 담은 결정 변수가 너무 많음(상한 검토)
 
 ## Chosen Instead
-skills/learn-to-tell/SKILL.md (§2 범위: 기본 예산은 상한이 아니라 기본값), learn-to-tell-PROJECT.md (3장 범위)
+skills/learn-to-tell/SKILL.md (§2 범위: 기본 8–10장면, 12장면은 `budget`으로 넘길 수 있는 lint 기본값)
