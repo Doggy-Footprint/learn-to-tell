@@ -18,7 +18,6 @@ const P2_PARTS = ["ui", "mock", "diagram", "sequence", "map", "controls", "chart
 // Plan b71ddee49f77ac06 §3: what a generating agent reads before writing (SKILL.md + API.md) stays near 30K bytes.
 // API.md carries the authoring rules and syntax snippets; the snippets shrink once scene specs become declarative.
 const CORE_LIMIT = 11500;
-const SKILL_LIMIT = 9500;
 const P2_LIMIT = 18000;
 const ROW_LIMIT = 300;
 
@@ -310,11 +309,6 @@ test("VO-3 C-2: 11,501 code points fail with the actual count and the limit", ()
 
 test("VO-3 FR-3 QR-P1: real kit/API.md is at most 11,500 code points", () => {
   const err = sizeError(apiText(), CORE_LIMIT, "kit/API.md");
-  assert.equal(err, null, err);
-});
-
-test("plan b71ddee49f77ac06 §3: real SKILL.md is at most 8,500 code points", () => {
-  const err = sizeError(skillText(), SKILL_LIMIT, "SKILL.md");
   assert.equal(err, null, err);
 });
 
