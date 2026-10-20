@@ -373,7 +373,7 @@ test("VO-4 themes: every LTT.themes name is a first-cell code span", () => {
   assert.deepEqual(missing, [], `theme rows missing: ${missing.join(", ")}`);
 });
 
-const LINT_IDS = ["unknown-term", "used-before-defined", "predict-new-term", "no-reading-guide", "no-title", "overview-missing", "overview-order", "overview-no-visual", "keywords-last", "unused-term", "term-no-visual", "summary-no-recall", "card-monotony", "no-signature", "no-theme", "unknown-theme", "filler-content"];
+const LINT_IDS = ["unknown-term", "used-before-defined", "predict-new-term", "no-reading-guide", "no-title", "overview-missing", "overview-order", "overview-no-visual", "keywords-last", "unused-term", "term-no-visual", "summary-no-recall", "card-monotony", "no-signature", "no-theme", "unknown-theme", "filler-content", "icon-not-string"];
 const AUDIT_IDS = ["overflow", "shrunk", "small-visual", "loose-figure", "empty-stage", "many-sizes", "hscroll", "graph-overlap", "panel-overlap", "goal-unreachable", "goal-narrow", "goal-at-start", "still-visual"];
 
 for (const [label, ids] of [["lint", LINT_IDS], ["audit", AUDIT_IDS]]) {
@@ -500,6 +500,61 @@ test("VO-6 FR-8 no-scene-budget: SKILL.md §2 has no scene-budget", () => {
 test("VO-6 FR-7 §3 read line: one line holds kit/API.md, kit/api/<part>.md and 만 읽는다", () => {
   const err = tokenLineError(section(skillText(), 3), "FR-7 §3 read line", ["kit/API.md", "kit/api/<part>.md", "만 읽는다"]);
   assert.equal(err, null, err);
+});
+
+// The §3 fix loop (audit → sheet review → Edit → audit) lives only in SKILL.md prose, so these tests read the
+// limits from the text and replay a worst-case agent that finds something to fix every time.
+function auditLoopRules(s3) {
+  const ls = lines(s3);
+  const capLine = ls.find((l) => l.includes("Edit 뒤") && /최대 \d+회/.test(l)) ?? "";
+  const cap = Number(capLine.match(/최대 (\d+)회/)?.[1] ?? Infinity);
+  return {
+    cap,
+    auditAfterEdit: capLine.includes("늘 audit"),
+    stopAtCap: ls.some((l) => l.includes(`${cap}회째 뒤`) && l.includes("고치지 않")),
+    reviews: 1 + (ls.some((l) => l.includes("다시 보기는 한 번까지")) ? 1 : Infinity),
+  };
+}
+
+function replayAuditLoop({ cap, auditAfterEdit, stopAtCap, reviews }, guard = 50) {
+  const trace = ["audit"];
+  let audits = 1, views = 0;
+  const edit = () => {
+    if (stopAtCap && audits >= cap) return false;
+    trace.push("edit");
+    if (auditAfterEdit && audits < cap) { trace.push("audit"); audits++; }
+    return true;
+  };
+  edit();
+  while (trace.length < guard) {
+    if (views < reviews) { trace.push("view"); views++; }
+    if (!edit()) break;
+  }
+  return trace;
+}
+
+test("SKILL §3 audit loop: the cap, the audit after every Edit, the stop at the cap and the single re-view are stated", () => {
+  const s3 = section(skillText(), 3);
+  for (const [id, tokens] of [["cap", ["Edit 뒤에는 늘 audit", "최대 5회"]], ["stop", ["5회째 뒤", "고치지 않"]], ["re-view", ["다시 보기는 한 번까지"]]]) {
+    const err = tokenLineError(s3, `audit loop ${id}`, tokens);
+    assert.equal(err, null, err);
+  }
+});
+
+test("SKILL §3 audit loop: a worst-case agent stops within the cap and never publishes an unaudited Edit", () => {
+  const rules = auditLoopRules(section(skillText(), 3));
+  const trace = replayAuditLoop(rules);
+  assert.ok(trace.length < 50, `the loop did not end: ${trace.slice(0, 12).join(" → ")} …`);
+  assert.ok(trace.filter((a) => a === "audit").length <= 5, `more than 5 audits: ${trace.join(" → ")}`);
+  assert.equal(trace.at(-1), "audit", `the last Edit has no audit after it: ${trace.join(" → ")}`);
+});
+
+test("SKILL §3 audit loop replay: a missing re-view limit or a missing stop is caught", () => {
+  const ok = { cap: 5, auditAfterEdit: true, stopAtCap: true, reviews: 2 };
+  assert.deepEqual(replayAuditLoop(ok), ["audit", "edit", "audit", "view", "edit", "audit", "view", "edit", "audit", "edit", "audit"]);
+  assert.equal(replayAuditLoop({ ...ok, cap: Infinity, reviews: Infinity }).length >= 50, true);
+  assert.equal(replayAuditLoop({ ...ok, stopAtCap: false }).at(-1), "edit");
+  assert.equal(replayAuditLoop({ ...ok, auditAfterEdit: false }).at(-1), "edit");
 });
 
 const REF_HEADER = "| 보여 줄 것 | 부품 | 참조 |";
@@ -930,3 +985,23 @@ for (const id of ["motion-draw", "motion-flow", "motion-camera", "motion-morph",
     assert.equal(n, 1, `${id} defined ${n} times`);
   });
 }
+
+// ---------- spec 84c07bf1dc6566cb v1 VO-6 (FR-8, FR-9, QR-4): icon-not-string documentation ----------
+
+test("84c0 VO-6 D-1: kit/api/rules.md has exactly one icon-not-string row graded 고침 whose meaning names art and icon", () => {
+  const rows = rowsWithFirstSpan(rulesText(), (s) => s === "icon-not-string");
+  assert.equal(rows.length, 1, "expected exactly one rules.md row with `icon-not-string` in the first cell");
+  const c = cells(rows[0]);
+  assert.equal((c[1] ?? "").trim(), "고침");
+  const meaning = c.slice(2).join(" | ");
+  assert.ok(meaning.includes("art") && meaning.includes("icon"), `meaning lacks art/icon: ${meaning}`);
+});
+
+test("84c0 VO-6 D-2: kit/CHANGELOG.md ## 1.0.0 section has a line naming icon-not-string", () => {
+  const s = section(readReal(join(KIT, "CHANGELOG.md"), "kit/CHANGELOG.md"), "1\\.0\\.0");
+  assert.ok(lines(s).some((l) => l.includes("icon-not-string")), "no icon-not-string line under ## 1.0.0");
+});
+
+test("84c0 VO-6 D-3: LINT_IDS lists icon-not-string", () => {
+  assert.ok(LINT_IDS.includes("icon-not-string"));
+});

@@ -2,7 +2,7 @@
 
 버전을 올릴 때 작가 계약(수업 spec이 지켜야 하거나 수업에서 보이는 동작)과 kit 개발자용 변경을 한 줄씩 적는다.
 
-## 다음 버전 (미배포)
+## 1.0.0
 
 작가 계약
 - 그림은 기본으로 움직인다. `LTT.motion.loop`·`bind`·`reduced`가 장면에 묶인 반복 움직임을 주고, 장면을 떠나면 멈춘다. 예외(읽는 글, 공개 전 답, `still: "이유"`)도 가능하면 `once`로 한 번 재생 후 멈춘다.
@@ -13,6 +13,7 @@
 - 장면 공통 필드 `still`과 audit 권고 `still-visual`이 생겼다.
 - predict `question`이 제목과 다르면 선택지 위에 보이고, 공통 `takeaway`는 정답 공개 전에는 가려진다.
 - `LTT.expect`는 기대값이 숫자가 아니면(boolean·문자열) `===`로 판정한다.
+- lint `icon-not-string`(고침): hook `art`, explain `steps[].icon`, terms 항목 `icon`이 문자열이 아니면(falsy 제외) 경고한다.
 
 kit 개발자용
 - 장면 요소 `data-ltt-beats`와 audit JSON `beats`가 장면마다 비트 시각을 내보낸다.

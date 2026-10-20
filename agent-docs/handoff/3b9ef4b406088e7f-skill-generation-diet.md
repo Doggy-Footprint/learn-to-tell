@@ -59,6 +59,11 @@
   - 비용 가중 토큰 515k/497k/555k → 639k/629k/796k(평균 +32%), 벽시계 341–386s → 426–551s. 모두 목표 130만 안.
   - 눈 검토: HEAD 3회 모두 8단계에서 sheet를 Read하고 Edit했다. 실제 결함을 잡은 것은 projectile 1회(hook `art`에 함수를 넘겨 소스가 글로 찍힘, y축 0 시작으로 최적각 이동이 안 보임). 그 수정 뒤 audit 3회 상한이라 마지막 Edit은 audit 없이 끝났다. 남은 audit은 6편 모두 권고뿐(shrunk, 기준 쪽 still-visual).
   - 기준과 HEAD 사이에 M1·M2 kit 움직임 변경도 들어 있어, 점수 차를 눈 검토만의 효과로 볼 수 없다.
+- 2026-10-20 아홉 번째 세션(브랜치 `perform/diet`, 기준 `0fb63ae`): 마무리 측정 후보 둘을 처리했다.
+  - SKILL.md 8단계(사용자 결정 A안, 총 5회): 7단계는 "Edit 뒤에는 늘 audit을 돌리되 최대 5회, 5회째 뒤 남은 지적은 고치지 않고 `result.md`에", 8단계는 "고친 뒤 7단계로, 다시 보기는 한 번까지"로 바꿨다. SKILL.md 9,497자(상한 9,500). README·PROJECT.md 검증 문구도 맞췄다.
+  - 테스트(엄밀한 검증 없이, 사용자 지시): `tests/api-docs.test.mjs` "SKILL §3 audit loop" 3개. 문구 검사, §3에서 읽은 상한으로 매번 고칠 것을 찾는 agent를 흉내 내 끝남·audit ≤ 5·마지막이 audit임을 확인, 흉내기 자체 검사. 손 변이 4개(5→3회, 다시 보기 한도 삭제, "고치지 않고" 삭제, "늘 audit" 삭제) 모두 잡힘.
+  - lint `art` 후보는 handoff `d422e4de167b576d`로 넘겼고, 같은 날 run `84c07bf1dc6566cb`(complete)로 `icon-not-string` 규칙을 넣었다. 버전 1.0.0(`77c3ece`).
+- 2026-10-20 열 번째 세션: `0fb63ae` 대 `7788139` 12회 측정(3주제 × 2회). 비용 +11%, 시간 +13%, 검증 안 된 마지막 Edit 3/6→1/6, 블라인드 합 123→124. 결과와 외부 시각 브레인스토밍 후속은 handoff `3efa8e848f8b9795`.
 
 ## Failed Attempts
 
@@ -78,7 +83,7 @@
 ## Next Step
 
 재개 지점(2026-10-20 여덟 번째 세션 뒤): 계획 3까지 끝났다. 남은 일은 사용자 결정 대기.
-1. 측정에서 나온 생성기 후보(Open Questions 맨 아래) 처리 여부.
+1. 측정에서 나온 생성기 후보(Open Questions 맨 아래) 처리 여부. 마무리 측정 후보 둘은 아홉 번째 세션에서 처리했다(8단계는 반영, lint `art`는 handoff `d422e4de…`). "생성기 수정 제안" 다섯 개가 남았다.
 2. 마무리(아래): `git rm -r agent-docs/plans`, handoff 3b9ef4b4·b41cd6ae를 stale로(418133af는 2026-10-20에 옮김).
 재개 지점(2026-10-20 여섯 번째 세션 뒤): 계획 `~/.claude/plans/vast-baking-lark.md` 3(run S: audit `--sheet`, SKILL.md §3 8단계·standalone·PROJECT.md, 마무리 측정)부터 한다. sheet 필름스트립은 장면 `data-ltt-beats`(글 있는 비트 우선, M2 형식 `{t, text}`)를 찍는다. 아래 kit 후보 중 1(같은 시각 비트 합치기)은 sheet가 비트 글을 읽으므로 run S에 함께 넣는 것을 기본값으로 제안한다.
 M2 kit 후보(shot 4편을 다시 쓰며 나온 것):
@@ -119,8 +124,8 @@ M1 입력(1 실사용 확인에서 나온 것):
 - predict 장면에 그림이 없는 경우(projectile 2회)와 `shrunk` 78–86%는 6편 중 5편에 남았다.
 
 마무리 측정 후보(2026-10-20 여덟 번째 세션, 사용자 결정 대기):
-- lint: hook `art`(아이콘 이름·HTML 문자열)에 문자열이 아닌 값이 오면 "고침". 함수를 넘기면 kit이 소스를 글로 찍는다.
-- SKILL.md 8단계: sheet 다시 보기 뒤 Edit이 audit 상한(3회) 밖에서 검증 없이 끝난다. 다시 보기 뒤 Edit을 하면 audit 1회를 더 허용할지, 다시 보기를 audit 3회 안에 두게 할지.
+- lint: hook `art`(아이콘 이름·HTML 문자열)에 문자열이 아닌 값이 오면 "고침". 함수를 넘기면 kit이 소스를 글로 찍는다. → handoff `d422e4de167b576d`로 넘김(2026-10-20).
+- SKILL.md 8단계: sheet 다시 보기 뒤 Edit이 audit 상한(3회) 밖에서 검증 없이 끝난다. 다시 보기 뒤 Edit을 하면 audit 1회를 더 허용할지, 다시 보기를 audit 3회 안에 두게 할지. → 해결(2026-10-20): 앞의 안, 상한 5회. State 아홉 번째 세션.
 
 생성기 수정 제안(사용자 결정 대기, AGENTS.md "Generated Lesson Defects"):
 - lint: 장면 타입에 없는 필드(예: 타입 없는 장면의 `figure`)를 "고침"으로 잡는다.
