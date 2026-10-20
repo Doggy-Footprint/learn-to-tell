@@ -489,7 +489,8 @@ async function main() {
     process.exit(2);
   }
   console.log(opts.json ? JSON.stringify(results, null, 2) : formatReport(results));
-  process.exit(exitCode(results));
+  // process.exit would cut a piped stdout short once the JSON passes the pipe buffer.
+  process.exitCode = exitCode(results);
 }
 
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
