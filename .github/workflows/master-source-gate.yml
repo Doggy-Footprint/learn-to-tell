@@ -1,0 +1,23 @@
+name: master source gate
+
+on:
+  # pull_request_target runs the base-branch copy of this file, so a PR cannot edit the gate to pass itself.
+  pull_request_target:
+    branches: [master]
+    types: [opened, reopened, synchronize, edited]
+
+permissions: {}
+
+jobs:
+  require-dev-head:
+    name: require-dev-head
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          if [ "$HEAD_REF" != dev ] || [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]; then
+            echo "::error::master accepts merges only from $GITHUB_REPOSITORY:dev (got $HEAD_REPO:$HEAD_REF)"
+            exit 1
+          fi
