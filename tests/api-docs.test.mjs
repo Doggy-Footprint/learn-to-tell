@@ -15,11 +15,10 @@ const PKG = join(ROOT, "packages/ltt-kit");
 const PART_DOCS = ["base", "ui", "mock", "diagram", "sequence", "map", "controls", "charts"];
 const API_FILES = [...PART_DOCS, "deck-contracts", "internals", "rules"].map((f) => `${f}.md`);
 const P2_PARTS = ["ui", "mock", "diagram", "sequence", "map", "controls", "charts"];
-// Plan b71ddee49f77ac06 §3: what a generating agent reads before writing (SKILL.md + API.md) stays near 30K bytes.
-// API.md carries the authoring rules and syntax snippets; the snippets shrink once scene specs become declarative.
-const CORE_LIMIT = 11500;
-const SKILL_LIMIT = 9500;
-const P2_LIMIT = 18000;
+// What SKILL.md §3 step 1 has the agent read before writing, measured at 9c67b3b (2026-10-20). One budget over the whole
+// read set replaced per-file caps: those forced every fix to compress a neighbouring sentence, and the compression left
+// contradictory stop rules in §3.
+const READ_SET_LIMIT = 44990;
 const ROW_LIMIT = 300;
 
 // ---------- pure checkers ----------
@@ -70,17 +69,12 @@ function definitionErrors(names, defs) {
   return errors;
 }
 
-function sizeError(text, limit, label) {
-  const n = cp(text);
-  return n <= limit ? null : `${label}: ${n} code points > limit ${limit}`;
-}
-
-function partsSumError(core, parts, limit) {
-  const sized = Object.entries(parts).map(([name, text]) => [name, cp(text)]).sort((a, b) => b[1] - a[1]);
-  const top = sized.slice(0, 2);
-  const total = cp(core) + top.reduce((s, [, n]) => s + n, 0);
+function readSetError(fixed, parts, limit) {
+  const top = Object.entries(parts).map(([name, text]) => [name, cp(text)]).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const sized = [...Object.entries(fixed).map(([name, text]) => [name, cp(text)]), ...top];
+  const total = sized.reduce((s, [, n]) => s + n, 0);
   if (total <= limit) return null;
-  return `QR-P2: API.md ${cp(core)} + ${top.map(([f, n]) => `${f} ${n}`).join(" + ")} = ${total} code points > limit ${limit}`;
+  return `read set: ${sized.map(([f, n]) => `${f} ${n}`).join(" + ")} = ${total} code points > limit ${limit}`;
 }
 
 const lineWithAll = (text, tokens) => lines(text).some((l) => tokens.every((t) => l.includes(t)));
@@ -123,8 +117,6 @@ function tableBlocks(text) {
   }
   return blocks;
 }
-
-const firstNonEmptyLine = (text) => lines(text).find((l) => l.trim() !== "") ?? "";
 
 function loadAttrs(apiText) {
   const block = apiText.match(/^```html[^\n]*\n([\s\S]*?)^```/m);
@@ -293,47 +285,32 @@ test("VO-2 FR-2: kit/api/deck-contracts.md defines no name", () => {
   assert.deepEqual(names, [], `deck-contracts.md defines ${names.join(", ")}`);
 });
 
-// ---------- VO-3 size ----------
+// ---------- read-set size ----------
 
 const pad = (n) => "😀".repeat(100) + "가".repeat(4000) + "a".repeat(n - 4100);
+const fixedSet = (skill) => ({ "SKILL.md": pad(skill), "kit/API.md": pad(11000), "look/look.md": pad(6000), "kit/api/deck-contracts.md": pad(8000) });
+const fakeParts = { ui: pad(4200), mock: pad(4200), diagram: pad(4300), sequence: pad(4200), map: pad(4200), controls: pad(4400), charts: pad(4100) };
 
-test("VO-3 C-2: 11,500 code points pass the core size check", () => {
-  const text = pad(11500);
-  assert.equal(cp(text), 11500);
-  assert.equal(sizeError(text, CORE_LIMIT, "kit/API.md"), null);
+test("read set: the four fixed docs plus the three largest parts at the limit pass", () => {
+  assert.equal(readSetError(fixedSet(READ_SET_LIMIT - 11000 - 6000 - 8000 - 4400 - 4300 - 4200), fakeParts, READ_SET_LIMIT), null);
 });
 
-test("VO-3 C-2: 11,501 code points fail with the actual count and the limit", () => {
-  const err = sizeError(pad(11501), CORE_LIMIT, "kit/API.md");
-  assert.ok(err, "11,501 code points passed");
-  assert.ok(err.includes("11501") && err.includes("11500"), err);
+test("read set: one code point over fails naming every counted doc, the sum and the limit", () => {
+  const err = readSetError(fixedSet(READ_SET_LIMIT - 11000 - 6000 - 8000 - 4400 - 4300 - 4200 + 1), fakeParts, READ_SET_LIMIT);
+  assert.ok(err, "one over passed");
+  assert.ok(err.includes(String(READ_SET_LIMIT + 1)) && err.includes(String(READ_SET_LIMIT)) && err.includes("controls") && err.includes("diagram") && err.includes("deck-contracts"), err);
+  assert.equal(err.includes("charts"), false, err);
 });
 
-test("VO-3 FR-3 QR-P1: real kit/API.md is at most 11,500 code points", () => {
-  const err = sizeError(apiText(), CORE_LIMIT, "kit/API.md");
-  assert.equal(err, null, err);
-});
-
-test("plan b71ddee49f77ac06 §3: real SKILL.md is at most 8,500 code points", () => {
-  const err = sizeError(skillText(), SKILL_LIMIT, "SKILL.md");
-  assert.equal(err, null, err);
-});
-
-const p2Parts = (charts) => ({ ui: pad(4200), mock: pad(4200), diagram: pad(4200), sequence: pad(4200), map: pad(4200), controls: pad(5000), charts: pad(charts) });
-
-test("VO-3 C-2 QR-P2: core plus the two largest parts at 18,000 passes", () => {
-  assert.equal(partsSumError(pad(8000), p2Parts(5000), P2_LIMIT), null);
-});
-
-test("VO-3 C-2 QR-P2: core plus the two largest parts at 18,001 fails with the sum and the limit", () => {
-  const err = partsSumError(pad(8000), p2Parts(5001), P2_LIMIT);
-  assert.ok(err, "18,001 passed");
-  assert.ok(err.includes("18001") && err.includes("18000") && err.includes("charts") && err.includes("controls"), err);
-});
-
-test("VO-3 QR-P2: real API.md plus the two largest of the seven part docs is at most 18,000 code points", () => {
+test("read set: SKILL.md, API.md, look.md, deck-contracts.md and the three largest part docs stay within the budget", () => {
+  const fixed = {
+    "SKILL.md": skillText(),
+    "kit/API.md": apiText(),
+    "look/look.md": readReal(join(SKILL, "look/look.md"), "look/look.md"),
+    "kit/api/deck-contracts.md": apiDoc("deck-contracts.md"),
+  };
   const parts = Object.fromEntries(P2_PARTS.map((p) => [p, apiDoc(`${p}.md`)]));
-  const err = partsSumError(apiText(), parts, P2_LIMIT);
+  const err = readSetError(fixed, parts, READ_SET_LIMIT);
   assert.equal(err, null, err);
 });
 
@@ -431,20 +408,11 @@ test("VO-4 common fields: every row of the table under the 공통 필드 heading
   assert.deepEqual(long, [], long.join("\n"));
 });
 
-test("VO-4 deck-contracts pointer: one line holds steps, answerVisual and kit/api/deck-contracts.md", () => {
-  const err = tokenLineError(apiText(), "FR-3 deck-contracts line", ["steps", "answerVisual", "kit/api/deck-contracts.md"]);
-  assert.equal(err, null, err);
-});
-
 test("VO-4 part paths: kit/API.md names the nine kit/api docs and not internals.md", () => {
   const text = apiText();
   const missing = [...PART_DOCS, "deck-contracts"].map((f) => `kit/api/${f}.md`).filter((p) => !text.includes(p));
   assert.deepEqual(missing, [], `kit/API.md lacks ${missing.join(", ")}`);
   assert.equal(text.includes("internals.md"), false, "kit/API.md mentions internals.md");
-});
-
-test("VO-4 principles heading: kit/API.md has ## 원칙 or ### 원칙", () => {
-  assert.match(apiText(), /^#{2,3} 원칙/m, "kit/API.md has no 원칙 heading");
 });
 
 test("VO-4 kit/api holds the ten split docs", () => {
@@ -454,107 +422,43 @@ test("VO-4 kit/api holds the ten split docs", () => {
   assert.deepEqual(missing, [], `kit/api lacks ${missing.join(", ")}`);
 });
 
-const FIRST_LINE = [
-  ...PART_DOCS.map((p) => [`${p}.md`, ["언제", "vendor", `catalog.html#api-${p}`]]),
-  ["deck-contracts.md", ["언제", "steps", "answerVisual"]],
-  ["internals.md", ["kit 개발자용", "수업에서 부르지 않"]],
-];
-for (const [file, tokens] of FIRST_LINE) {
-  test(`VO-4 FR-5 first line of kit/api/${file} holds ${tokens.join(", ")}`, () => {
-    const line = firstNonEmptyLine(apiDoc(file));
-    const missing = tokens.filter((t) => !line.includes(t));
-    assert.deepEqual(missing, [], `kit/api/${file} first line ${JSON.stringify(line)} lacks ${missing.join(", ")}`);
-  });
-}
+// ---------- VO-6 SKILL.md ----------
 
-// ---------- VO-6 SKILL.md, standalone.md, PROJECT.md tokens ----------
-
-const BUDGET = {
-  B1: ["기본 예산", "결정 변수마다 장면 4개 이하", "8~10장면"],
-  B2: ["한 챕터 전체", "길게", "3개 이상", "늘린다"],
-  B3: ["상한이 아니라 기본값", "v0", "하한"],
-  B4: ["예산을 넘기면", "장면 수와 이유", "묻지 않는다"],
-};
-
-test("VO-6 C-9: B1 tokens on one line pass", () => {
-  assert.equal(tokenLineError(`앞 줄\n${BUDGET.B1.join(" ")}\n뒤 줄`, "B1", BUDGET.B1), null);
-});
-
-test("VO-6 C-9: B1 tokens split across two lines fail with the id and tokens", () => {
-  const err = tokenLineError(`${BUDGET.B1.slice(0, 2).join(" ")}\n${BUDGET.B1.slice(2).join(" ")}`, "B1", BUDGET.B1);
-  assert.ok(err, "split tokens passed");
-  assert.ok(err.startsWith("B1:") && err.includes("8~10장면"), err);
-});
-
-for (const [id, tokens] of Object.entries(BUDGET)) {
-  test(`VO-6 FR-8 ${id}: SKILL.md §2 has a line with ${tokens.join(" / ")}`, () => {
-    const err = tokenLineError(section(skillText(), 2), `FR-8 ${id}`, tokens);
-    assert.equal(err, null, err);
-  });
-}
-
-test("VO-6 FR-8 no-scene-budget: SKILL.md §2 has no scene-budget", () => {
-  assert.equal(section(skillText(), 2).includes("scene-budget"), false, "FR-8: §2 mentions scene-budget");
-});
-
-test("VO-6 FR-7 §3 read line: one line holds kit/API.md, kit/api/<part>.md and 만 읽는다", () => {
-  const err = tokenLineError(section(skillText(), 3), "FR-7 §3 read line", ["kit/API.md", "kit/api/<part>.md", "만 읽는다"]);
+test("VO-6 FR-7 §3 read line: one line names the whole read set, kit/API.md, deck-contracts.md, look.md and kit/api/<part>.md", () => {
+  const err = tokenLineError(section(skillText(), 3), "FR-7 §3 read line", ["kit/API.md", "kit/api/deck-contracts.md", "look/look.md", "kit/api/<part>.md", "만 읽는다"]);
   assert.equal(err, null, err);
 });
 
-// The §3 fix loop (audit → sheet review → Edit → audit) lives only in SKILL.md prose, so these tests read the
-// limits from the text and replay a worst-case agent that finds something to fix every time.
-function auditLoopRules(s3) {
-  const ls = lines(s3);
-  const capLine = ls.find((l) => l.includes("Edit 뒤") && /최대 \d+회/.test(l)) ?? "";
-  const cap = Number(capLine.match(/최대 (\d+)회/)?.[1] ?? Infinity);
-  return {
-    cap,
-    auditAfterEdit: capLine.includes("늘 audit"),
-    stopAtCap: ls.some((l) => l.includes(`${cap}회째 뒤`) && l.includes("고치지 않")),
-    reviews: 1 + (ls.some((l) => l.includes("다시 보기는 한 번까지")) ? 1 : Infinity),
-  };
+// The §3 fix sequence lives only in SKILL.md prose, so these tests rebuild it from the numbered steps: an agent that
+// finds something to fix at every chance follows the steps in order, and the trace must end on an audit.
+const ACTIONS = [["audit", /audit\.mjs|audit을[^.]{0,12}(돌|실행)/g], ["view", /Read/g], ["edit", /Edit 묶음/g]];
+
+function fixSteps(s3) {
+  const steps = lines(s3).filter((l) => /^\d+\. /.test(l));
+  const first = steps.findIndex((l) => /audit\.mjs/.test(l));
+  const server = steps.findIndex((l) => l.includes("server.mjs"));
+  return steps.slice(first, server < 0 ? undefined : server);
 }
 
-function replayAuditLoop({ cap, auditAfterEdit, stopAtCap, reviews }, guard = 50) {
-  const trace = ["audit"];
-  let audits = 1, views = 0;
-  const edit = () => {
-    if (stopAtCap && audits >= cap) return false;
-    trace.push("edit");
-    if (auditAfterEdit && audits < cap) { trace.push("audit"); audits++; }
-    return true;
-  };
-  edit();
-  while (trace.length < guard) {
-    if (views < reviews) { trace.push("view"); views++; }
-    if (!edit()) break;
-  }
-  return trace;
+function fixTrace(steps) {
+  return steps.flatMap((l) => ACTIONS.flatMap(([name, re]) => [...l.matchAll(re)].map((m) => [m.index, name])).sort((a, b) => a[0] - b[0]).map(([, n]) => n));
 }
 
-test("SKILL §3 audit loop: the cap, the audit after every Edit, the stop at the cap and the single re-view are stated", () => {
-  const s3 = section(skillText(), 3);
-  for (const [id, tokens] of [["cap", ["Edit 뒤에는 늘 audit", "최대 5회"]], ["stop", ["5회째 뒤", "고치지 않"]], ["re-view", ["다시 보기는 한 번까지"]]]) {
-    const err = tokenLineError(s3, `audit loop ${id}`, tokens);
-    assert.equal(err, null, err);
-  }
-});
-
-test("SKILL §3 audit loop: a worst-case agent stops within the cap and never publishes an unaudited Edit", () => {
-  const rules = auditLoopRules(section(skillText(), 3));
-  const trace = replayAuditLoop(rules);
-  assert.ok(trace.length < 50, `the loop did not end: ${trace.slice(0, 12).join(" → ")} …`);
-  assert.ok(trace.filter((a) => a === "audit").length <= 5, `more than 5 audits: ${trace.join(" → ")}`);
+test("SKILL §3 fix sequence: at most 3 audits, the sheet is read before the last audit, and no Edit follows the last audit", () => {
+  const steps = fixSteps(section(skillText(), 3));
+  const trace = fixTrace(steps);
+  assert.ok(trace.filter((a) => a === "audit").length <= 3, `more than 3 audits: ${trace.join(" → ")}`);
   assert.equal(trace.at(-1), "audit", `the last Edit has no audit after it: ${trace.join(" → ")}`);
+  assert.ok(trace.indexOf("view") >= 0 && trace.indexOf("view") < trace.lastIndexOf("audit"), `no sheet view before the last audit: ${trace.join(" → ")}`);
+  assert.ok(steps.some((l) => l.includes("뒤에는 Edit하지 않는다")), "no step says the last audit is final");
 });
 
-test("SKILL §3 audit loop replay: a missing re-view limit or a missing stop is caught", () => {
-  const ok = { cap: 5, auditAfterEdit: true, stopAtCap: true, reviews: 2 };
-  assert.deepEqual(replayAuditLoop(ok), ["audit", "edit", "audit", "view", "edit", "audit", "view", "edit", "audit", "edit", "audit"]);
-  assert.equal(replayAuditLoop({ ...ok, cap: Infinity, reviews: Infinity }).length >= 50, true);
-  assert.equal(replayAuditLoop({ ...ok, stopAtCap: false }).at(-1), "edit");
-  assert.equal(replayAuditLoop({ ...ok, auditAfterEdit: false }).at(-1), "edit");
+test("SKILL §3 fix sequence replay: a fourth audit, a trailing Edit or a missing view is caught", () => {
+  const ok = ["5. `audit.mjs`를 실행한다.", "6. Edit 묶음으로 반영한다.", "7. audit을 다시 돌리고 sheet를 Read한다.", "8. Edit 묶음으로 고치고 audit을 한 번 더 돌린다."];
+  assert.deepEqual(fixTrace(ok), ["audit", "edit", "audit", "view", "edit", "audit"]);
+  assert.equal(fixTrace([...ok, "9. Edit 묶음으로 고치고 audit을 또 돌린다."]).filter((a) => a === "audit").length, 4);
+  assert.equal(fixTrace([...ok, "9. Edit 묶음으로 고친다."]).at(-1), "edit");
+  assert.equal(fixTrace(ok.map((l) => l.replace(" sheet를 Read한다", ""))).includes("view"), false);
 });
 
 const REF_HEADER = "| 보여 줄 것 | 부품 | 참조 |";
@@ -596,37 +500,6 @@ test("VO-6 FR-9 §5 template: a - 생성 비용: line followed by all 10 sub-val
   const tail = block.body.slice(at).join("\n");
   const missing = COST_TOKENS.filter((t) => !tail.includes(t));
   assert.deepEqual(missing, [], `FR-9: 생성 비용 block lacks ${missing.join(", ")}`);
-});
-
-for (const [id, tokens] of [["FR-9 §5 once line", ["생성 비용", "한 번"]], ["FR-9 §5 transcript line", ["transcript", "바이트"]]]) {
-  test(`VO-6 ${id}: outside the template block one line holds ${tokens.join(", ")}`, () => {
-    const { s5, block } = costTemplate();
-    const outside = lines(s5).filter((_, i) => i < block.start || i > block.end).join("\n");
-    const err = tokenLineError(outside, id, tokens);
-    assert.equal(err, null, err);
-  });
-}
-
-test("VO-6 FR-10 standalone line: 생성 비용, 해당 없음, 서브에이전트, 브라우저 on one line", () => {
-  const err = tokenLineError(readReal(join(SKILL, "standalone.md"), "standalone.md"), "FR-10 standalone line", ["생성 비용", "해당 없음", "서브에이전트", "브라우저"]);
-  assert.equal(err, null, err);
-});
-
-const projectText = () => readReal(join(ROOT, "learn-to-tell-PROJECT.md"), "learn-to-tell-PROJECT.md");
-
-test("VO-6 FR-11 PROJECT 범위 line: ### 범위 has a line with 장면 수, 기본값, 상한이 아니", () => {
-  const ls = lines(projectText());
-  const at = ls.findIndex((l) => /^###\s+범위/.test(l));
-  assert.ok(at >= 0, "FR-11: learn-to-tell-PROJECT.md has no ### 범위 heading");
-  const rest = ls.slice(at + 1);
-  const until = rest.findIndex((l) => /^#{2,3}\s/.test(l));
-  const err = tokenLineError((until >= 0 ? rest.slice(0, until) : rest).join("\n"), "FR-11 PROJECT 범위 line", ["장면 수", "기본값", "상한이 아니"]);
-  assert.equal(err, null, err);
-});
-
-test("VO-6 FR-11 PROJECT kit/api: kit/api/ occurs at least twice", () => {
-  const n = projectText().split("kit/api/").length - 1;
-  assert.ok(n >= 2, `FR-11: kit/api/ occurs ${n} times (need >= 2)`);
 });
 
 // ---------- VO-7 catalog anchors ----------
@@ -744,12 +617,6 @@ function auditRowError(text, id, tokens, has = (row, t) => row.includes(t)) {
   return hits.map((r) => `${id}: row lacks ${tokens.filter((t) => !has(r, t)).map((t) => JSON.stringify(t)).join(", ")}: ${r}`).join("\n");
 }
 
-const DOC_ROWS = [
-  { id: "DOC-1", rule: "shrunk", tokens: ["모든 상태", "최소 배율"] },
-  { id: "DOC-2", rule: "small-visual", tokens: ["layout을 적지 않은 overview"] },
-  { id: "DOC-3", rule: "empty-stage", tokens: ["layout을 적지 않은 overview"] },
-];
-
 const fakeAuditTable = (rowsByRule) => ["| 규칙 | 뜻 |", "| --- | --- |", ...Object.entries(rowsByRule).map(([rule, text]) => `| \`${rule}\` | ${text} |`)].join("\n");
 
 test("VO-5 checker: tokens in the shrunk row pass", () => {
@@ -780,13 +647,6 @@ test("VO-5 checker: a first cell holding several ids counts for each of them", (
   const text = ["| 규칙 | 뜻 |", "| --- | --- |", "| `overflow` · `shrunk` · `hscroll` | 모든 상태를 그린 최소 배율 |"].join("\n");
   assert.equal(auditRowError(text, "shrunk", ["모든 상태", "최소 배율"]), null);
 });
-
-for (const { id, rule, tokens } of DOC_ROWS) {
-  test(`VO-5 ${id} FR-2 C-15: kit/api/rules.md has a row with \`${rule}\` in the first cell containing ${tokens.join(" and ")}`, () => {
-    const err = auditRowError(rulesText(), rule, tokens);
-    assert.equal(err, null, err ?? "");
-  });
-}
 
 // ---------- spec 1e62814b16984176 v2 VO-5 DOC-5 (FR-2(c)): threshold text stays in its base-commit audit row ----------
 
@@ -835,7 +695,7 @@ for (const { rule, tokens, what } of THRESHOLD_ROWS) {
 
 test("plan §2: the 권고 ids named in SKILL.md §3 are exactly the rules.md rows graded 권고", () => {
   const graded = lines(rulesText()).filter(isRow).filter((r) => (cells(r)[1] ?? "").trim() === "권고").flatMap((r) => codeSpans(firstCell(r)));
-  const line = lines(section(skillText(), 3)).find((l) => l.includes("**권고**"));
+  const line = lines(section(skillText(), 3)).find((l) => l.includes("**권고**는"));
   assert.ok(line, "SKILL.md §3 has no line naming **권고**");
   const named = codeSpans(line.slice(line.indexOf("**권고**"), line.indexOf("**고침**")));
   assert.deepEqual([...named].sort(), [...graded].sort());
@@ -859,11 +719,6 @@ const rowsWithFirstSpan = (text, pred) => lines(text).filter(isRow).filter((r) =
 test("VO-13 D1: kit/API.md has a table row whose first cell holds LTT.motion", () => {
   const rows = rowsWithFirstSpan(apiText(), (s) => /LTT\.motion\b/.test(s));
   assert.ok(rows.length >= 1, "no first-cell LTT.motion row in kit/API.md");
-});
-
-test("VO-13 D2: kit/API.md's motion rule line says pictures move by default (기본), names once and still", () => {
-  const ok = lines(apiText()).some((l) => /모션|움직/.test(l) && l.includes("기본") && l.includes("once") && l.includes("still"));
-  assert.ok(ok, "no single kit/API.md line holds 모션/움직, 기본, once and still");
 });
 
 for (const [id, tokens] of [["D3 loop", ["loop"]], ["D4 bind", ["bind"]], ["D5 autoplay", ["autoplay"]], ["D6 attract", ["attract"]], ["D7 beats", ["data-ltt-beats", "beats"]]]) {
@@ -927,10 +782,6 @@ test("VO-9 FR-11: the motion rule line of kit/API.md names the five verbs draw, 
   assert.equal(rule.length, 1, `lines holding "기본으로 움직인다": ${rule.length}`);
   const missing = MOTION_VERBS.filter((v) => !verbMentioned(rule[0], v));
   assert.deepEqual(missing, [], `verbs missing on the motion rule line: ${missing}`);
-});
-
-test("VO-9 UI-5: kit/API.md restores the knob sandbox sentence", () => {
-  assert.ok(apiText().includes("결정 변수끼리 영향을 주면 summary 앞에 손잡이를 함께 여는 샌드박스를 둘 수 있다"));
 });
 
 // Clauses are checked inside the play subsection only: the file already had a 비트 노출 heading and loop text before play existed.

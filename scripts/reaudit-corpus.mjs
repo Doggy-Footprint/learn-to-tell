@@ -26,7 +26,7 @@ if (!sets.length || !["first", "final"].includes(stage)) {
 
 function advisoryIds() {
   const skill = readFileSync(join(REPO, "skills", "learn-to-tell", "SKILL.md"), "utf8");
-  const line = skill.split("\n").find((l) => l.includes("**권고**"));
+  const line = skill.split("\n").find((l) => l.includes("**권고**는"));
   return new Set([...(line ?? "").split("**고침**")[0].matchAll(/`([a-z-]+)`/g)].map((m) => m[1]));
 }
 

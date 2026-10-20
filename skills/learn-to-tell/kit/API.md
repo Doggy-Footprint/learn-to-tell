@@ -2,7 +2,7 @@
 
 수업 작성 참조. 빈 `lesson.html`에서 아래 부품을 조합해 짠다. 이 문서와 고른 부품 문서에 없는 것은 있는 부품으로 대신한다.
 
-부품 문서는 아래 "부품 고르기" 표의 참조 열에서 고른 것만 읽는다. `LTT.motion`·figure `steps`·predict `answerVisual`을 쓸 때만 `kit/api/deck-contracts.md`, 규칙 뜻을 출력만으로 모를 때만 `kit/api/rules.md`, 글꼴·모양 토큰과 드문 ltt.js 이름은 `kit/api/base.md`.
+부품 문서는 아래 "부품 고르기" 표의 참조 열에서 고른 것만 읽는다. 움직임·figure `steps`·predict `answerVisual`의 계약은 `kit/api/deck-contracts.md`, 규칙 뜻을 출력만으로 모를 때만 `kit/api/rules.md`, 글꼴·모양 토큰과 드문 ltt.js 이름은 `kit/api/base.md`.
 
 ## 불러오기
 
