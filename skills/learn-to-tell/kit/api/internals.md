@@ -61,7 +61,7 @@ kit 개발자용 · 수업에서 부르지 않는 kit 내부 이름이다. kit �
 | `ctx.refit()` | 그리는 동안 | 현재 `ctx.zmax` 아래에서 배율을 맞추고 그 배율을 돌려준다. |
 | `ctx.float(panel, host, skip, keepFaded)` | 그리는 동안 | `panel`을 장면의 빈자리에 띄우면 `true`, 빈자리가 없으면 흐름에 붙이고 배율을 다시 맞춘 뒤 `false`. |
 | `ctx.fit()` | 그린 뒤 | render·`mount`가 돌아온 뒤에 붙으므로 render 안에서 바로 부르지 않고 이벤트·비동기 콜백에서 부른다. 데스크톱에서는 `ctx.place`가 있으면 그것을, 없으면 기본 배율 맞춤을 하고, 폰에서는 `ctx.unplace`(있으면) 후 폰 재배치를 한다. |
-| `ctx.gate` | 건다 | `{btn, alt?, word}`. 공개 전 첫 다음 이동(다음 버튼·스와이프, 그리고 화면 속 stepper가 받지 않은 →·PageDown 키)은 넘어가지 않고 `btn`(꺼져 있고 `alt`가 있으면 `alt`)을 가리키며 `word`로 안내한다. 같은 장면에서 한 번 더 이동하면 넘어간다. `alt`가 있고 `btn`이 켜져 있으면 다음 이동이 대신 `btn`을 누른다. `btn`이 꺼져 있고 `alt` 안에 눌린 선택지(`aria-pressed=true`)가 있으면 그 이동은 무시된다. 마지막 장면에서는 막기와 누르기가 없다. 공개하면 `null`로 둔다. |
+| `ctx.gate` | 건다 | `{open}` 또는 `{nudge, busy?}`. 다음 이동(다음 버튼·스와이프, 그리고 화면 속 stepper가 받지 않은 →·PageDown 키)이 `busy()`가 참이면 무시되고, `open`이 있으면 넘어가지 않고 `open()`을 부른다. 그 밖의 첫 이동은 넘어가지 않고 `nudge`를 가리킨다. 같은 장면에서 한 번 더 이동하면 넘어간다. 마지막 장면에서는 가리키기가 없다. 공개하면 `null`로 둔다. |
 | `ctx.place()` | 건다 | 데스크톱 배치·배율을 스스로 맡는다. 데스크톱에서 진입·창 크기·글꼴 로드·`?audit`, 그리고 장면이 `ctx.fit()`을 부를 때마다 반복해 불린다. |
 | `ctx.unplace()` | 건다 | 폰으로 갈 때 `place`가 남긴 인라인 상태를 되돌린다. |
 | `ctx.back` | 건다 | 함수. ←·PageUp 키가 이전 장면으로 가는 대신 이것을 부른다. |
@@ -99,6 +99,8 @@ render는 `{enter}`(또는 `{}`)를 돌려준다. `enter`는 방문할 때마다
 | `longest` | `{field, chars}`: 장면 객체 최상위 필드 중 읽는 글(`LTT.sceneText`와 같은 기준)이 가장 긴 것 |
 | `wide` | 가로로 가장 많이 넘친 요소 `태그.첫클래스`(없으면 `태그#id`)와 폭 px. `hscroll`일 때만 |
 | `graphIds` | `["<kind> <a>/<b>", ...]`: `LTT.graphOverlaps`가 돌려준 겹침. 있을 때만 |
+| `textOverlaps` | `["'<글 머리>' / '<글 머리>'", ...]`: 서로 겹친 보이는 글 줄 쌍(SVG 안, 펼친 패널, 단계 자막 칸 제외). 가로 4px, 세로로 낮은 줄 높이의 30%를 넘게 겹쳐야 센다. 있을 때만 |
+| `unknownIcons` | `span.ltt-ic`로 글자가 된 아이콘 이름 중 `^[a-z][a-z0-9-]*$`인 것. 있을 때만 |
 
 `visualRatio`·`figRatio`는 흡수 전 그림 크기로 잰다(측정 중 kit 제한을 잠시 풀었다 되돌린다). `audit[]`·`lint[]` 항목은 `{scene, rule, msg, severity}`다. `audit()` 결과 항목에는 `bytes`(파일 대상일 때)와 `measures`가 더해진다.
 

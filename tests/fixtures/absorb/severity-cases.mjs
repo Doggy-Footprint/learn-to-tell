@@ -20,6 +20,8 @@ export const AUDIT_TRIGGERS = {
   "goal-unreachable": { goals: [{ hits: 0, samples: 10, start: false }] },
   "goal-narrow": { goals: [{ hits: 1, samples: 10, start: false }] },
   "goal-at-start": { goals: [{ hits: 3, samples: 10, start: true }] },
+  "text-overlap": { textOverlaps: ["'a' / 'b'"] },
+  "unknown-icon": { unknownIcons: ["databse"] },
 };
 
 const THEME = "paper";

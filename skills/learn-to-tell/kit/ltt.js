@@ -278,8 +278,11 @@
     workflow: "<rect width='8' height='8' x='3' y='3' rx='2'/><path d='M7 11v4a2 2 0 0 0 2 2h4'/><rect width='8' height='8' x='13' y='13' rx='2'/>"
   };
 
+  // Names authors reach for that the kit spells differently; not listed in LTT.icons.
+  var ICON_ALIAS = { database: "db" };
+
   function icon(name, opts) {
-    var body = ICONS[name];
+    var body = ICONS[name] || ICONS[ICON_ALIAS[name]];
     var o = opts || {};
     // Unknown names render as text so an emoji shows instead of an empty slot; escaped because callers pass the result to innerHTML.
     if (!body) return name ? "<span class='ltt-ic" + (o.cls ? " " + o.cls : "") + "' aria-hidden='true'>" +
@@ -665,8 +668,24 @@
     if (hero && m.fill != null && m.fill < 0.6) add("empty-stage", "장면이 화면 높이의 " + Math.round(m.fill * 100) + "%만 쓴다. 그림을 키울 것");
     if (!m.compact && m.drawing && !m.beats && !m.still && STILL_TYPES.indexOf(m.type) < 0)
       add("still-visual", "그림이 움직이지 않는다. LTT.motion.loop로 움직이거나 figure steps(단계 둘 이상)를 쓰고, 멈춰 둘 이유가 있으면 still: \"이유\"를 적을 것");
+    if (m.textOverlaps && m.textOverlaps.length) add("text-overlap", "글이 다른 글 위에 겹친다 " + m.textOverlaps.length + "곳 (" + m.textOverlaps.slice(0, 2).join(", ") +
+      (m.textOverlaps.length > 2 ? " 외" : "") + "). 고정 폭·nowrap·절대 위치를 풀거나, 넓은 내용은 아이콘 칸(hook art 등)이 아닌 본문 그림으로 옮길 것");
+    (m.unknownIcons || []).forEach(function (n) {
+      var near = [];
+      Object.keys(ICONS).concat(Object.keys(ICON_ALIAS)).forEach(function (k) {
+        var hit = (k.length > 2 && (k.indexOf(n) >= 0 || n.indexOf(k) >= 0)) || editDistance(k, n) <= 2, to = ICON_ALIAS[k] || k;
+        if (hit && near.indexOf(to) < 0) near.push(to);
+      });
+      add("unknown-icon", "없는 아이콘 이름 '" + n + "'이 글자로 찍혔다" + (near.length ? " (비슷한 이름: " + near.slice(0, 3).join(", ") + ")" : "") + ". LTT.icons의 이름이나 이모지를 쓸 것");
+    });
     if (m.fontSizes > 7) add("many-sizes", "본문 글자 크기가 " + m.fontSizes + "단계다 (kit 부품 포함 7단계 이하). 페이지 CSS의 font-size를 kit 크기에 맞출 것");
     return out;
+  }
+
+  function editDistance(a, b) {
+    var d = [];
+    for (var i = 0; i <= a.length; i++) { d[i] = [i]; for (var j = 1; j <= b.length; j++) d[i][j] = i ? Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)) : j; }
+    return d[a.length][b.length];
   }
 
   function rectHit(a, b) { return Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5; }

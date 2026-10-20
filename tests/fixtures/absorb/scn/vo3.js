@@ -23,7 +23,7 @@ const SUMMARY = 3 + 14;
   const snap = (name) => { H.samples[name] = A.snap(); };
   await A.wait(150); H.deck.go(1); await A.wait(500); snap("pred.entry");
   H.click(H.cur().querySelector('[data-choice="b"]')); await A.wait(300); snap("pred.chosen");
-  H.click(btn("정답 보기")); await A.wait(600); snap("pred.revealed");
+  await A.wait(600); snap("pred.revealed");
   H.click(btn("초기화")); await A.wait(600); snap("pred.reset");
 
   await A.wait(150); H.deck.go(2); await A.wait(500); snap("steps.1"); H.samples["steps.1"].extraH = extra.style.height;

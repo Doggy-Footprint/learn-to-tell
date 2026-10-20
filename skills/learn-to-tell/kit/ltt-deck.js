@@ -143,7 +143,7 @@
     ".dk-pred .ltt-choices button.unsure.wrong{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
     ".dk-hint2{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ltt-muted);margin:0}",
     ".dk-pred{position:relative}",
-    ".dk-pred.done .dk-hint2,.dk-pred.done>.dk-actions{visibility:hidden}",
+    ".dk-pred.done .dk-hint2{visibility:hidden}",
     ".dk-float{position:absolute;z-index:1;background:var(--ltt-bg)}",
     ".dk-probe{visibility:hidden}",
     ".dk-still,.dk-still *{transition:none!important}",
@@ -270,8 +270,9 @@
     "@media (max-width:1000px){.dk-main.split{grid-template-columns:minmax(0,1fr)}.dk-kw{grid-template-columns:1fr 1fr}.dk-kw section:first-child{grid-column:1/-1}.dk-sum{--c:2!important}.dk-ans{grid-template-columns:1fr}}"
   ].join("")/* css:end */;
 
+  // A bare lowercase word is meant as an icon name, so LTT.icon resolves aliases and marks a mistyped one for audit.
   function iconOr(v) {
-    if (v && LTT.icons.indexOf(v) >= 0) return LTT.icon(v);
+    if (typeof v === "string" && /^[a-z][a-z0-9-]*$/.test(v)) return LTT.icon(v);
     return v || "";
   }
 
@@ -594,7 +595,7 @@
       if (s.reveal === false) w.classList.add("shown");
       else {
         var b = h("button", null, s.revealLabel || "판정 보기"), rs = h("button", "ghost dk-off", "초기화");
-        var gate = { btn: b, word: "판정" };
+        var gate = { open: function () { b.click(); } };
         ctx.gate = gate;
         b.onclick = function () {
           ctx.gate = null;
@@ -702,7 +703,6 @@
         b.dataset.choice = c.id;
         box.appendChild(b);
       });
-      var lock = h("button", "accent", s.button || "정답 보기");
       var ans = h("div", "dk-ans ltt-hidden" + (s.answerVisual ? "" : " solo"));
       var av = h("div", "dk-avis");
       var why = h("div", "dk-why", LTT.badge("accent", "정답과 이유") + "<p></p>");
@@ -714,8 +714,7 @@
       var ask = s.question && s.question !== s.title ? s.question : null;
       // Without an author hint the question takes the default hint's row, so showing it adds no line (zoom stays as before).
       if (ask && s.hint) w.appendChild(h("p", "dk-sub dk-pq", ask));
-      w.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || ask || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, h("div", "dk-actions"), ans);
-      w.querySelector(".dk-actions").appendChild(lock);
+      w.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || ask || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, ans);
       // Only hidden choices free their space; dim and dot choices are meant to stay visible, so the answer avoids them.
       var faded = rest === "hide" ? ".ltt-choices button:not(.right):not([aria-pressed=true])" : null;
       ans.__lttPlace = { scope: ctx.el.firstChild, skip: faded, keepFaded: !faded };
@@ -732,9 +731,9 @@
       ctx.place = pp.place;
       ctx.unplace = pp.unplace;
       body.appendChild(w);
-      var gate = { btn: lock, alt: box, word: "정답" };
+      var gate = { nudge: box, busy: function () { return pr.locked; } };
       ctx.gate = gate;
-      var pr = LTT.predict({ question: s.question || s.title, choices: box, button: lock, answer: s.answer, show: [ans],
+      var pr = LTT.predict({ question: s.question || s.title, choices: box, instant: true, answer: s.answer, show: [ans],
         onReset: function () {
           w.classList.remove("done");
           showTake(ctx, false);
@@ -1132,6 +1131,62 @@
     return n;
   }
 
+  // Text drawn over other text: pairs of visible text lines from different text nodes whose boxes cross by more than a
+  // sliver (line boxes of tight-leading titles touch by a few px). Diagram text is judged by graph-overlap and placed
+  // panels by panel-overlap. Text clipped by a scrolling or overflow-hidden box counts only where it is still shown.
+  function textOverlap(body) {
+    var runs = [], walk = document.createTreeWalker(body, NodeFilter.SHOW_TEXT), t, range = document.createRange(), pairs = [];
+    // Dimmed text still shows, so only near-transparent parts drop out; an entry rise ends opaque, so its start does not count.
+    function gone(e) {
+      if (getComputedStyle(e).visibility === "hidden") return true;
+      for (var o = 1; e && e !== body; e = e.parentElement) {
+        if (e.matches(".dk-float")) return true;
+        if (!e.classList.contains("ltt-rise")) o *= +getComputedStyle(e).opacity;
+      }
+      return o < 0.1;
+    }
+    function clip(e, b) {
+      for (; e && e !== body; e = e.parentElement) {
+        var cs = getComputedStyle(e);
+        if (cs.overflowX === "visible" && cs.overflowY === "visible") continue;
+        var r = e.getBoundingClientRect();
+        b = { x0: Math.max(b.x0, r.left), y0: Math.max(b.y0, r.top), x1: Math.min(b.x1, r.right), y1: Math.min(b.y1, r.bottom) };
+      }
+      return b;
+    }
+    while ((t = walk.nextNode())) {
+      var e = t.parentElement;
+      if (!t.nodeValue.trim() || e.closest("svg,.dk-figsteps>.ctl") || gone(e)) continue;
+      range.selectNodeContents(t);
+      [].forEach.call(range.getClientRects(), function (r) {
+        var b = clip(e, { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom });
+        if (b.x1 - b.x0 > 1 && b.y1 - b.y0 > 1) runs.push({ t: t, b: b, h: r.height });
+      });
+    }
+    runs.forEach(function (a, i) {
+      for (var j = i + 1; j < runs.length; j++) {
+        var c = runs[j];
+        if (c.t === a.t) continue;
+        var ix = Math.min(a.b.x1, c.b.x1) - Math.max(a.b.x0, c.b.x0), iy = Math.min(a.b.y1, c.b.y1) - Math.max(a.b.y0, c.b.y0);
+        if (ix <= 4 || iy <= 0.3 * Math.min(a.h, c.h)) continue;
+        if (!pairs.some(function (p) { return (p[0] === a.t && p[1] === c.t) || (p[0] === c.t && p[1] === a.t); })) pairs.push([a.t, c.t]);
+      }
+    });
+    return pairs.map(function (p) {
+      return p.map(function (n) { var s = n.nodeValue.trim().replace(/\s+/g, " "); return "'" + (s.length > 16 ? s.slice(0, 16) + "…" : s) + "'"; }).join(" / ");
+    });
+  }
+
+  // Unknown icon names render as their own text (so emoji work); a plain lowercase word there is a mistyped kit name.
+  function unknownIcons(body) {
+    var seen = {};
+    [].forEach.call(body.querySelectorAll("span.ltt-ic"), function (e) {
+      var s = e.textContent.trim();
+      if (/^[a-z][a-z0-9-]*$/.test(s)) seen[s] = 1;
+    });
+    return Object.keys(seen);
+  }
+
   var MOCKS = ".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code";
   var VISUALS = "svg.ltt-svg,svg.ltt-dg,.ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code,canvas,img,.ltt-ba,.dk-fig-stage>*,[data-visual]";
 
@@ -1216,6 +1271,7 @@
     [].forEach.call(body.querySelectorAll("svg.ltt-dg"), function (g) {
       if (g.__lttDiagram) LTT.graphOverlaps(g.__lttDiagram).forEach(function (o) { graphIds.push(o.kind + " " + o.a + "/" + o.b); });
     });
+    var texts = textOverlap(body), icons = unknownIcons(body);
     var m = {
       type: s.type || "", layout: s.layout || "", zoom: zoom, compact: innerWidth <= 1000,
       drawing: hasDrawing(body), beats: el.hasAttribute("data-ltt-beats") ? JSON.parse(el.getAttribute("data-ltt-beats")).length : 0,
@@ -1234,6 +1290,8 @@
       absorb: ctx && ctx.ab ? ctx.ab.f : 1
     };
     if (graphIds.length) m.graphIds = graphIds;
+    if (texts.length) m.textOverlaps = texts;
+    if (icons.length) m.unknownIcons = icons;
     if (hscroll) { var wide = widestPast(inner, zoom); if (wide) m.wide = wide; }
     var by = zoom < 1 && ctx ? ctx.zoomBy : null;
     if (!by && zoom < 1 && s.type === "summary" && recallSetsZoom(el, inner)) by = "회상 답";
@@ -1390,8 +1448,8 @@
 
     prev.onclick = function () { go(cur - 1); };
     next.onclick = function () { forward("button"); };
-    // Moving on before the compare verdict or predict answer is revealed skips the scene's point, so the first
-    // forward press only points at the reveal button and a second press in the same scene goes through.
+    // Moving on before a predict guess skips the scene's point, so the first forward press only points at the choices
+    // and a second press in the same scene goes through. An unrevealed compare verdict opens instead of being skipped.
     var armed = -1, nudged = null, bubble = h("div", "dk-bubble"), bubbleTimer = 0;
     root_.appendChild(bubble);
     function clearNudge() {
@@ -1402,25 +1460,24 @@
     }
     function forward(via) {
       var m = mounted[cur], gate = m && m.ctx.gate;
-      // The reveal lands 350ms after the click; a press in that gap would otherwise nudge at a locked question.
-      if (gate && gate.alt && gate.btn.disabled && gate.alt.querySelector("[aria-pressed=true]")) return;
-      // A picked choice means the viewer has guessed, so forward reveals the answer even after a nudge armed the skip.
-      if (gate && gate.alt && !gate.btn.disabled && cur < scenes.length - 1) {
+      // The answer lands 350ms after the pick; a press in that gap would otherwise nudge at a locked question.
+      if (gate && gate.busy && gate.busy()) return;
+      if (gate && gate.open) {
         LTT.record("auto-reveal", { scene: cur + 1, via: via });
-        return gate.btn.click();
+        return gate.open();
       }
       if (!gate || armed === cur || cur === scenes.length - 1) {
         if (gate && armed === cur) LTT.record("skip-reveal", { scene: cur + 1, via: via });
         return go(cur + 1);
       }
       armed = cur;
-      nudged = gate.btn.disabled && gate.alt ? gate.alt : gate.btn;
+      nudged = gate.nudge;
       nudged.classList.remove("ltt-nudge");
       void nudged.offsetWidth;
       nudged.classList.add("ltt-nudge");
       nudged.scrollIntoView({ block: "nearest", behavior: "smooth" });
       var key = via !== "button";
-      bubble.innerHTML = "아직 " + gate.word + "을 안 봤어요.<br>" +
+      bubble.innerHTML = "아직 고르지 않았어요.<br>" +
         (via === "key" ? "<kbd>→</kbd> 키를 한 번 더 누르면" : via === "swipe" ? "한 번 더 넘기면" : "한 번 더 누르면") + " 넘어갑니다.";
       bubble.classList.toggle("center", key);
       if (!key) {

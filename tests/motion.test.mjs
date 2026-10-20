@@ -110,6 +110,8 @@ const PAGES = {
   still: ["still", { audit: true, budget: 20000 }],
   stillCompact: ["still", { audit: true, budget: 20000, size: "900,800" }],
   predict: ["predict", { budget: 5500 }],
+  gate: ["gate", { budget: 9000 }],
+  overlap: ["overlap", { audit: true, budget: 8000 }],
 };
 const get = (name) => page(...PAGES[name]);
 if (!skip) for (const name of Object.keys(PAGES)) get(name).catch(() => {});
@@ -1048,4 +1050,57 @@ test("VO-10 E4: a throwing bind hook warns; the other bind and scene moves conti
 test("VO-10 E6: a non-string still counts as no still (still-visual fires on scene 5)", { skip }, async () => {
   const R = await get("still");
   assert.ok(stillScenes(R).includes(5));
+});
+
+// ---------- predict reveal on pick, compare verdict on forward (scenario) ----------
+
+test("predict has no reveal button and shows the answer once a choice is picked", { skip }, async () => {
+  const R = await get("gate");
+  noErrors(R);
+  const e = R.samples["p1.entry"], p = R.samples["p1.picked"];
+  assert.ok(!e.buttons.some((b) => b.includes("정답 보기")), `buttons: ${e.buttons}`);
+  assert.equal(e.whyShown, false);
+  assert.equal(p.whyShown, true);
+  assert.ok(R.rec.some(([, r]) => r.includes('"predict"') && r.includes('"guess":"b"')), "predict guess not recorded");
+});
+
+test("forward on an unrevealed compare opens the verdict and stays; the next forward moves on", { skip }, async () => {
+  const R = await get("gate");
+  const e = R.samples["c.entry"], k1 = R.samples["c.key1"], k2 = R.samples["c.key2"], n1 = R.samples["c2.next1"];
+  assert.deepEqual([e.index, e.verdictShown], [2, false]);
+  assert.deepEqual([k1.index, k1.verdictShown], [2, true]);
+  assert.equal(k2.index, 3);
+  assert.deepEqual([n1.index, n1.verdictShown], [3, true]);
+  assert.ok(R.rec.some(([, r]) => r.includes("auto-reveal")), "auto-reveal not recorded");
+});
+
+test("forward on an unpicked predict nudges at the choices first, then moves on", { skip }, async () => {
+  const R = await get("gate");
+  const k1 = R.samples["p2.key1"], k2 = R.samples["p2.key2"];
+  assert.deepEqual([k1.index, k1.nudged, k1.whyShown], [4, true, false]);
+  assert.equal(k2.index, 5);
+});
+
+// ---------- text-overlap and unknown-icon on rendered scenes (decision table) ----------
+
+const rulesAt = (R, scene, rule) => R.audit.audit.filter((w) => w.scene === scene && w.rule === rule);
+
+test("text-overlap fires on a hook art wider than its tile and stays quiet on an icon art and a two-line title", { skip }, async () => {
+  const R = await get("overlap");
+  noErrors(R);
+  assert.ok(R.audit, "no #ltt-audit JSON");
+  const hit = rulesAt(R, 1, "text-overlap");
+  assert.equal(hit.length, 1, JSON.stringify(R.audit.audit));
+  assert.equal(hit[0].severity, "fix");
+  assert.match(hit[0].msg, /30번 샘플링/);
+  for (const sc of [2, 3, 4]) assert.deepEqual(rulesAt(R, sc, "text-overlap"), [], `scene ${sc}`);
+});
+
+test("unknown-icon names only the mistyped lowercase icon; kit names, the database alias and emoji pass", { skip }, async () => {
+  const R = await get("overlap");
+  const hit = rulesAt(R, 3, "unknown-icon");
+  assert.equal(hit.length, 1, JSON.stringify(R.audit.audit));
+  assert.match(hit[0].msg, /'databse'/);
+  assert.match(hit[0].msg, /\bdb\b|database-zap/);
+  assert.ok(!R.audit.audit.some((w) => w.rule === "unknown-icon" && w.scene !== 3));
 });

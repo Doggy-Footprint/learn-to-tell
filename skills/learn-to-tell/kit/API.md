@@ -81,7 +81,7 @@ head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "th
 
 | type | 필드 |
 | --- | --- |
-| `hook` | `art`(아이콘·HTML), `pre`, `text`, `sub`. 첫 장면 |
+| `hook` | `art`(아이콘·이모지·작은 그림, 정사각형 칸), `pre`, `text`, `sub`. 첫 장면 |
 | `terms` | `terms: [{key, word, en, icon, visual, plain, example}]`. key는 glossary에 등록. `visual`은 그 말이 가리키는 것을 보이는 작은 그림 |
 | `explain` | `steps: [{icon, title, text, visual}]`, `form`: `"cards"`(독립 요소), `"strip"`(한 줄 흐름), `"stack"`(세로 타임라인, 단계마다 그림), `arrows` |
 | `figure` | `figure`(노드·HTML·함수), `caption`, `label`, `steps`. 그림 하나가 화면을 차지한다 |

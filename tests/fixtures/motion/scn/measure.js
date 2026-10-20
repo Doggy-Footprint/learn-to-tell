@@ -15,6 +15,6 @@ H.at(1300, () => H.go("stepsBack", 1));
 H.at(1800, () => H.go("predIn", 2));
 H.at(2800, () => H.go("predOut", 3));
 H.at(3000, () => H.go("predBack", 2));
-H.at(3500, () => { H.mark("reveal"); H.click(H.cur().querySelector('[data-choice="b"]')); H.click(H.button(H.cur(), "정답 보기")); });
+H.at(3500, () => { H.mark("reveal"); H.click(H.cur().querySelector('[data-choice="b"]')); });
 H.at(4500, () => H.go("predLeave", 3));
 H.done(4800);

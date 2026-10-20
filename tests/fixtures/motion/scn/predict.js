@@ -32,7 +32,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
   await wait(100); H.go("in", 1);
   await wait(500); snap("before");
-  await wait(100); H.act("reveal", () => { H.click(H.cur().querySelector('[data-choice="b"]')); H.click(H.button(H.cur(), "정답 보기")); });
+  await wait(100); H.act("reveal", () => { H.click(H.cur().querySelector('[data-choice="b"]')); });
   await wait(600); snap("after");
   await wait(100); H.act("reset", () => { H.click(H.button(H.cur(), "초기화")); });
   await wait(600); snap("reset");

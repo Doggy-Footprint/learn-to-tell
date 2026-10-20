@@ -352,7 +352,7 @@ test("VO-4 themes: every LTT.themes name is a first-cell code span", () => {
 });
 
 const LINT_IDS = ["unknown-term", "used-before-defined", "predict-new-term", "no-reading-guide", "no-title", "overview-missing", "overview-order", "overview-no-visual", "keywords-last", "unused-term", "term-no-visual", "summary-no-recall", "card-monotony", "no-signature", "no-theme", "unknown-theme", "filler-content", "icon-not-string"];
-const AUDIT_IDS = ["overflow", "shrunk", "small-visual", "loose-figure", "empty-stage", "many-sizes", "hscroll", "graph-overlap", "panel-overlap", "goal-unreachable", "goal-narrow", "goal-at-start", "still-visual"];
+const AUDIT_IDS = ["overflow", "shrunk", "small-visual", "loose-figure", "empty-stage", "many-sizes", "hscroll", "graph-overlap", "panel-overlap", "goal-unreachable", "goal-narrow", "goal-at-start", "still-visual", "text-overlap", "unknown-icon"];
 
 for (const [label, ids] of [["lint", LINT_IDS], ["audit", AUDIT_IDS]]) {
   test(`VO-4 ${label} rules: all ${ids.length} ids are first-cell code spans of kit/api/rules.md`, () => {
@@ -739,11 +739,11 @@ test("VO-13 D5 (rewritten): kit/api/deck-contracts.md documents steps auto-play 
   assert.deepEqual(missing, [], `deck-contracts.md lacks ${missing.join(", ")}`);
 });
 
-test("VO-13 D8: kit/api/rules.md has a still-visual row graded 권고, and lists 13 audit ids", () => {
+test("VO-13 D8: kit/api/rules.md has a still-visual row graded 권고, and lists 15 audit ids", () => {
   const rows = rowsWithFirstSpan(rulesText(), (s) => s === "still-visual");
   assert.equal(rows.length, 1, "expected exactly one rules.md row with `still-visual` in the first cell");
   assert.equal((cells(rows[0])[1] ?? "").trim(), "권고");
-  assert.equal(AUDIT_IDS.length, 13);
+  assert.equal(AUDIT_IDS.length, 15);
 });
 
 test("VO-13 D9: kit/api/charts.md documents axisPlot set(id, points) point format", () => {

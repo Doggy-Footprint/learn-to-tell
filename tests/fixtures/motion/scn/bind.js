@@ -30,7 +30,6 @@ for (const [label, i] of SITES) {
   if (label === "B2") H.at(t + 150, () => { H.act("B2:act", () => { H.armB2 = true; H.click(H.cur().querySelectorAll(".ltt-stepper button")[1]); }); });
   if (label === "B8") H.at(t + 150, () => H.act("B8:act", () => {
     H.click(H.cur().querySelector('[data-choice="a"]'));
-    H.click(H.button(H.cur(), "정답 보기"));
   }));
   H.at(t + 800, () => H.go(label + ":out", 0));
   H.at(t + 1300, () => H.go(label + ":back", i));

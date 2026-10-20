@@ -250,23 +250,25 @@
   }
 
   // The first prediction is locked and recorded once; later slider moves are exploration, not prediction.
+  // With `instant`, picking a choice is the lock, so there is no separate button.
   function predict(opts) {
     var locked = false, tries = 0;
     var input = el(opts.input);
     var choices = opts.choices ? el(opts.choices) : null;
-    var button = el(opts.button);
+    var button = opts.button ? el(opts.button) : null;
     var value = null;
     if (choices) {
       choices.classList.add("ltt-choices");
-      button.disabled = true;
+      if (button) button.disabled = true;
       choices.querySelectorAll("button").forEach(function (b) {
         b.setAttribute("aria-pressed", "false");
         b.addEventListener("click", function () {
           if (locked) return;
           choices.querySelectorAll("button").forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
           value = b.dataset.choice;
-          button.disabled = false;
+          if (button) button.disabled = false;
           if (opts.preview) opts.preview(value);
+          if (opts.instant) lock();
         });
       });
     }
@@ -275,10 +277,11 @@
       input.addEventListener("input", function () { if (!locked) onInput(); });
       onInput();
     }
-    button.addEventListener("click", function () {
+    if (button) button.addEventListener("click", lock);
+    function lock() {
       if (locked || value == null) return;
       locked = true;
-      button.disabled = true;
+      if (button) button.disabled = true;
       if (input) input.disabled = true;
       LTT.record("predict", tries ? { question: opts.question, guess: value, retry: true } : { question: opts.question, guess: value });
       tries++;
@@ -298,7 +301,7 @@
         });
         if (opts.reveal) opts.reveal(value);
       }, MOTION_MS ? 350 : 0);
-    });
+    }
     // The first guess stays in the record; a reset only opens the question again, logged as its own event.
     function reset() {
       if (!locked) return;
@@ -306,9 +309,9 @@
       if (input) { input.disabled = false; onInput(); }
       if (choices) {
         value = null;
-        button.disabled = true;
+        if (button) button.disabled = true;
         choices.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", "false"); b.classList.remove("right", "wrong"); });
-      } else button.disabled = false;
+      } else if (button) button.disabled = false;
       (opts.show || []).forEach(function (x) { var n = el(x); n.classList.add("ltt-hidden"); n.classList.remove("ltt-rise"); });
       (opts.hide || []).forEach(function (x) { el(x).classList.remove("ltt-hidden"); });
       LTT.record("predict-reset", { question: opts.question });

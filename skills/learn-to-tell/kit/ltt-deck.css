@@ -815,7 +815,7 @@ body {
 .dk-pred {
   position: relative;
 }
-.dk-pred.done .dk-hint2,.dk-pred.done>.dk-actions {
+.dk-pred.done .dk-hint2 {
   visibility: hidden;
 }
 .dk-float {
