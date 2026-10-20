@@ -1,43 +1,92 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>로드 시간 예산</title><script src="/kit/ltt.js"></script></head><body><script>
-const SEG = [["DNS", 100, "--ltt-c1"], ["TCP", 100, "--ltt-c1"], ["TLS", 200, "--ltt-c1"], ["TTFB", 400, "--ltt-c2"], ["HTML", 200, "--ltt-c3"], ["CSS·JS·렌더", 900, "--ltt-c3"]];
-const BUDGET = 2500, TOTAL = SEG.reduce((a, s) => a + s[1], 0);
-LTT.expect("합계", TOTAL, 1900, { tol: 0 });
-const X = (ms) => 3 + 80 * ms / 2500, rowY = (i) => 10 + i * 11, BAR = 80;
-const shapes = {}, grow = {}, fold = {};
-let acc = 0;
-SEG.forEach(([k, ms, fill], i) => {
-  const x = X(acc), w = X(acc + ms) - x; acc += ms;
-  shapes["g" + i] = { kind: "rect", x, y: rowY(i), width: w, height: 8, fill: "--ltt-line", opacity: 0.6 };
-  shapes["b" + i] = { kind: "rect", x, y: rowY(i), width: 0, height: 8, fill };
-  shapes["t" + i] = { kind: "label", x: x + w + 1, y: rowY(i) + 4, text: `${k} ${ms}ms`, anchor: "l", opacity: 0 };
-  grow["b" + i] = { width: w }; grow["t" + i] = { opacity: 1 };
-  fold["b" + i] = { y: BAR }; fold["t" + i] = { opacity: 0 };
-});
-shapes.lcp = { kind: "line", x1: X(BUDGET), y1: 4, x2: X(BUDGET), y2: BAR + 12, stroke: "--ltt-bad" };
-shapes.lcpT = { kind: "label", x: X(BUDGET) - 1, y: 4, text: "LCP 예산 2.5초", anchor: "r", tone: "bad" };
-shapes.left = { kind: "rect", x: X(TOTAL), y: BAR, width: X(BUDGET) - X(TOTAL), height: 8, fill: "--ltt-good", opacity: 0 };
-shapes.leftT = { kind: "label", x: X(BUDGET), y: BAR + 14, text: `남은 ${BUDGET - TOTAL}ms`, anchor: "r", tone: "good", opacity: 0 };
-shapes.sum = { kind: "label", x: X(0), y: BAR + 14, text: `합계 ${TOTAL.toLocaleString()}ms`, anchor: "l", cls: "strong", opacity: 0 };
-const states = { done: { left: { opacity: 1 }, leftT: { opacity: 1 }, sum: { opacity: 1 } } };
-SEG.forEach((_, i) => { states["w" + i] = {}; for (let j = 0; j <= i; j++) Object.assign(states["w" + i], { ["b" + j]: grow["b" + j], ["t" + j]: grow["t" + j] }); });
-states.fold = Object.assign({}, states.w5, fold);
-Object.assign(states.done, states.fold);
-const budget = LTT.morph({ aspect: 1.8, shapes, states });
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>로드 시간 예산</title>
+<script type="application/json" id="ltt-meta">{"topic":"페이지 로드 시간 예산","audience":"프런트엔드 개발자","theme":"sketch","medium":"화이트보드","decision":"어느 구간을 줄일지","domain":"웹 성능","pattern":["overview"],"mode":"카탈로그용: 장면 하나짜리 본보기. 부분-전체 구조를 \"값이 쌓임\" 움직임과 겹쳐 놓기 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.pb{width:1080px;max-width:100%;height:auto;display:block;margin:0 auto}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent, text) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; parent && parent.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+// 모바일 4G, 왕복(RTT) 약 100ms 가정. TLS 1.2는 2왕복. LCP 목표 2.5초는 web.dev Core Web Vitals 기준
+const SEG = [
+  { k: "DNS", ms: 100, g: 0, c: "var(--ltt-c1)" }, { k: "TCP", ms: 100, g: 0, c: "var(--ltt-c1)" }, { k: "TLS", ms: 200, g: 0, c: "var(--ltt-c1)" },
+  { k: "TTFB", ms: 400, g: 1, c: "var(--ltt-c2)" }, { k: "HTML", ms: 200, g: 2, c: "var(--ltt-c3)" }, { k: "CSS·JS·렌더", ms: 900, g: 2, c: "var(--ltt-c3)" }];
+const BUDGET = 2500, TOTAL = SEG.reduce((a, s) => a + s.ms, 0);
+const ZONES = [{ n: "①", t: "왕복 횟수가 시간을 정한다", g: 0 }, { n: "②", t: "서버가 첫 바이트를 늦게 준다", g: 1 }, { n: "③", t: "렌더를 막는 파일이 가장 길다", g: 2 }];
+
+function budget(host) {
+  const W = 1080, H = 470, L = 60, R = 1020, T = 40, BAR = 360, RH = 34;
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "pb", "data-annotate": "" }, host);
+  const X = (ms) => L + (R - L) * ms / 2800;
+  [0, 500, 1000, 1500, 2000, 2500].forEach((m) => { el("line", { x1: X(m), x2: X(m), y1: T, y2: BAR + 46, style: "stroke:var(--ltt-line);stroke-dasharray:2 6" }, s);
+    el("text", { x: X(m), y: BAR + 70, "text-anchor": "middle", style: "font-size:16px;fill:var(--ltt-muted)" }, s, (m / 1000) + "초"); });
+  el("line", { x1: X(BUDGET), x2: X(BUDGET), y1: T - 14, y2: BAR + 46, style: "stroke:var(--ltt-bad);stroke-width:2.5" }, s);
+  el("text", { x: X(BUDGET) - 8, y: T - 20, "text-anchor": "end", style: "font-size:17px;font-weight:700;fill:var(--ltt-bad)" }, s, "LCP 예산 2.5초");
+  let acc = 0;
+  const rows = SEG.map((sg, i) => { const g = el("g", {}, s); const x0 = X(acc), w = X(acc + sg.ms) - x0; acc += sg.ms; const y0 = T + 10 + i * 46;
+    el("rect", { x: x0, y: y0, width: w, height: RH, rx: 4, style: "fill:none;stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:4 4" }, g);
+    const rect = el("rect", { x: x0, y: 0, height: RH, rx: 4, style: `fill:${sg.c};stroke:var(--ltt-ink);stroke-width:2` }, g);
+    const lab = el("text", { x: x0 + w / 2, y: 0, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, g, w > 70 ? sg.k : "");
+    const ms = el("text", { x: x0 + w + 10, y: y0 + 23, style: "font-size:16px;fill:var(--ltt-ink-2)" }, g, (w > 70 ? "" : sg.k + " ") + sg.ms + "ms");
+    return { rect, lab, ms, x0, w, y0 }; });
+  const total = el("text", { x: L, y: BAR + 110, style: "font-size:24px;font-weight:700;fill:var(--ltt-ink);font-variant-numeric:tabular-nums" }, s);
+  const left = el("g", {}, s);
+  el("rect", { x: X(TOTAL), y: BAR, width: X(BUDGET) - X(TOTAL), height: RH, rx: 4, style: "fill:none;stroke:var(--ltt-good);stroke-width:2;stroke-dasharray:6 5" }, left);
+  el("text", { x: (X(TOTAL) + X(BUDGET)) / 2, y: BAR + 23, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-good)" }, left, "남은 " + (BUDGET - TOTAL) + "ms");
+  // 정리 문구는 각 묶음의 마지막 줄 오른쪽, 그 줄의 ms 라벨이 사라진 자리에 놓는다
+  const zg = ZONES.map((z) => { const idx = SEG.map((sg, i) => sg.g === z.g ? i : -1).filter((i) => i >= 0); const r = rows[idx[idx.length - 1]];
+    return el("text", { x: r.x0 + r.w + 10, y: r.y0 + 23, style: "font-size:18px;font-weight:700;fill:var(--ltt-ink)" }, s, z.n + " " + z.t); });
+  function draw(u) {
+    // 0~.5 폭포처럼 구간마다 줄을 그린다, .55~.75 한 막대로 내려 쌓는다, 그 뒤 정리 문구
+    let sum = 0;
+    rows.forEach((r, i) => { const grow = ease(clamp((u - i * 0.075) / 0.07)), drop = ease(clamp((u - 0.55 - i * 0.02) / 0.15));
+      const y = r.y0 + (BAR - r.y0) * drop;
+      r.rect.setAttribute("y", y); r.rect.setAttribute("width", Math.max(0.01, r.w * grow));
+      r.lab.setAttribute("y", y + 23);
+      r.lab.style.opacity = grow > 0.9 ? 1 : 0;
+      r.ms.style.opacity = clamp((grow - 0.8) / 0.2) * (1 - clamp(drop * 3));
+      r.rect.style.opacity = u > 0.98 ? 0 : 1;
+      sum += SEG[i].ms * grow; });
+    zg.forEach((g, i) => g.style.opacity = clamp((u - 0.74 - i * 0.04) / 0.05) * (u > 0.98 ? 0 : 1));
+    left.style.opacity = clamp((u - 0.7) / 0.05) * (u > 0.98 ? 0 : 1);
+    total.textContent = `합계 ${Math.round(sum).toLocaleString()}ms · 예산까지 ${Math.round(BUDGET - sum)}ms`;
+  }
+  return { el: s, draw };
+}
+
+function loop(period, draw) {
+  let t = 0, t0 = 0; const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return { enter() { clearTimeout(t); if (reduced) { draw(0.95); return; } t0 = Date.now();
+      const f = () => { draw(((Date.now() - t0) / period) % 1); t = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(t); } };
+}
+
 LTT.deck({
-  title: "로드 시간 예산", theme: "sketch", exemplar: true,
+  title: "로드 시간 예산", theme: "sketch",
   glossary: { "TTFB": "요청을 보낸 뒤 서버의 첫 바이트가 도착하기까지 걸린 시간", "LCP": "화면에서 가장 큰 콘텐츠가 그려진 시점. 2.5초 안이면 '좋음'" },
   scenes: [{
     type: "overview", title: "2.5초 예산은 연결·서버·렌더가 차례로 쌓여 채운다",
-    sub: "구간마다 한 줄씩 그려진 뒤 한 막대로 내려 쌓인다. 흐린 줄은 각 구간이 시작하는 자리다.",
-    visual: budget,
-    points: [{ on: "g2", text: "왕복 횟수가 연결 시간을 정한다" }, { on: "g3", text: "서버가 첫 바이트를 늦게 준다" }, { on: "g5", text: "렌더를 막는 파일이 가장 길다" }],
-    motion: [
-      ...SEG.map((_, i) => ["to", { state: "w" + i, dur: 0.6 }]), ["wait", 0.8],
-      ["to", { state: "fold", dur: 1.4 }], ["to", { state: "done", dur: 0.6 }],
-      ["note", { n: 1, dur: 0.5 }], ["note", { n: 2, dur: 0.5 }], ["note", { n: 3, dur: 0.5 }]
-    ],
-    basis: "모바일 4G 왕복 약 100ms, TLS 1.2(2왕복) 가정. {{LCP}} 목표는 web.dev Core Web Vitals, {{TTFB}} 400ms는 예시."
+    caption: "구간마다 한 줄씩 그려진 뒤 한 막대로 내려 쌓인다. 점선 줄은 각 구간이 시작하는 자리, 번호는 앞에서 정리한 세 가지다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    figure: (n) => { budget(n).draw(0.95); },
+    basis: "모바일 4G 왕복 약 100ms 가정, TLS 1.2(2왕복). {{LCP}} 목표는 web.dev Core Web Vitals, {{TTFB}} 400ms는 '좋음'(0.8초) 안의 예시.",
+    mount(body) { const s = body.querySelector("svg.pb"); if (!s) return {};
+      const f = budget(document.createElement("div")); s.replaceWith(f.el); return loop(9000, f.draw); }
   }]
 });
-</script></body></html>
+</script>
+</body>
+</html>

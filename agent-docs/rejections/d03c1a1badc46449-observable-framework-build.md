@@ -14,4 +14,4 @@ v0 계획 단계에서 표현 엔진으로 Observable Framework 1.13.4를 채택
 kit 수업에 수업별 빌드 단계가 생길 때. 또는 Observable Framework가 수업별 빌드 없이 단일 HTML 파일로 동작하게 될 때.
 
 ## Chosen Instead
-skills/learn-to-tell/kit/ (빌드 없는 ltt.js 한 파일, 수업 = HTML 파일 하나), skills/learn-to-tell/server/server.mjs
+skills/learn-to-tell/kit/ (빌드 없는 JS 모듈 + vendor한 Observable Plot 0.6.17·d3 7.9.0, 수업 = HTML 파일 하나), skills/learn-to-tell/server/server.mjs

@@ -6,7 +6,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createLttServer } from "../skills/learn-to-tell/server/server.mjs";
+import { compareUrls, createLttServer } from "../skills/learn-to-tell/server/server.mjs";
 
 const SERVER_PATH = fileURLToPath(new URL("../skills/learn-to-tell/server/server.mjs", import.meta.url));
 
@@ -67,17 +67,15 @@ test("health identifies the server", async () => {
   assert.deepEqual(await res.json(), { app: "learn-to-tell" });
 });
 
-test("serves kit and vendor files from the skill directory, legacy pages from site/legacy", async () => {
-  for (const path of ["/kit/ltt.js", "/kit/vendor/d3.min.js"]) {
+test("serves kit, vendor and gallery files from the skill directory", async () => {
+  for (const path of ["/kit/ltt.js", "/kit/ltt-ui.js", "/kit/ltt-mock.js", "/kit/vendor/plot.umd.min.js", "/kit/vendor/d3.min.js"]) {
     const res = await fetch(base + path);
     assert.equal(res.status, 200, path);
     assert.match(res.headers.get("content-type"), /text\/javascript/);
   }
-  for (const path of ["/legacy/gallery/cache-ttl.html", "/legacy/kit-v1/ltt.js", "/legacy/compare1/index.html"]) {
-    const res = await fetch(base + path);
-    assert.equal(res.status, 200, path);
-  }
-  assert.equal((await fetch(base + "/legacy/%2e%2e%2fgallery%2findex.html")).status, 403);
+  const gallery = await fetch(base + "/gallery/cache-ttl.html");
+  assert.equal(gallery.status, 200);
+  assert.match(gallery.headers.get("content-type"), /text\/html/);
 });
 
 test("redirects gallery requests to the public site when the gallery is not installed", async () => {
@@ -89,6 +87,48 @@ test("redirects gallery requests to the public site when the gallery is not inst
     assert.equal(res.headers.get("location"), "https://learn-to-tell.vercel.app/gallery/catalog.html");
   } finally {
     await new Promise((r) => bare.close(r));
+  }
+});
+
+test("serves site/compareN pages and lists them for the startup notice", async () => {
+  const site = join(home, "site");
+  await mkdir(join(site, "compare2", "a"), { recursive: true });
+  await writeFile(join(site, "compare2", "index.html"), "<h1>c2</h1>");
+  await writeFile(join(site, "compare2", "a", "skill.html"), "<h1>a</h1>");
+  await mkdir(join(site, "compare10"), { recursive: true });
+  await writeFile(join(site, "compare10", "index.html"), "<h1>c10</h1>");
+  await mkdir(join(site, "compare3"), { recursive: true });
+  await mkdir(join(site, "notes"), { recursive: true });
+  await writeFile(join(site, "notes", "index.html"), "x");
+  const local = createLttServer({ home, siteDir: site });
+  await new Promise((r) => local.listen(0, "127.0.0.1", r));
+  const at = `http://127.0.0.1:${local.address().port}`;
+  try {
+    assert.equal(await (await fetch(at + "/compare2/index.html")).text(), "<h1>c2</h1>");
+    assert.equal((await fetch(at + "/compare2/a/skill.html")).status, 200);
+    assert.equal((await fetch(at + "/compare2/missing.html")).status, 404);
+    assert.equal((await fetch(at + "/notes/index.html")).status, 404);
+    assert.equal((await fetch(at + "/compare2/%2e%2e%2fnotes%2findex.html")).status, 403);
+  } finally {
+    await new Promise((r) => local.close(r));
+  }
+  assert.deepEqual(compareUrls(4000, site), [
+    "http://127.0.0.1:4000/compare2/index.html",
+    "http://127.0.0.1:4000/compare10/index.html",
+  ]);
+  assert.deepEqual(compareUrls(4000, join(home, "no-site")), []);
+});
+
+test("the repo's compare1 page is served and announced at startup", async () => {
+  const res = await fetch(base + "/compare1/index.html");
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type"), /text\/html/);
+  const port = await freePort();
+  const run = runMain(port, { waitFor: "compare1/index.html" });
+  try {
+    assert.match(await run.ready, new RegExp(`compare: http://127\\.0\\.0\\.1:${port}/compare1/index\\.html`));
+  } finally {
+    run.child.kill();
   }
 });
 
@@ -163,22 +203,4 @@ test("main exits 1 when the port belongs to another program", async () => {
   } finally {
     await new Promise((r) => other.close(r));
   }
-});
-
-test("the home page lists lessons newest first with their cover, goal and decision from result.md", async () => {
-  const dir = join(home, "lessons", "20261020-cache-ttl");
-  await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, "lesson.html"), "<title>캐시 TTL</title>");
-  await writeFile(join(dir, "cover.jpg"), "jpg");
-  await writeFile(join(dir, "result.md"), '---\nlesson: 20261020-cache-ttl\ndate: 2026-10-20\ntitle: "캐시 TTL을 늘리면 무엇을 잃나"\ngoal: TTL과 원본 부하의 관계를 설명한다\ndecision: TTL 60초 유지  # 변경 주기 5분\nconcepts:\n  - id: ttl\n---\n# 본문\n');
-  const res = await fetch(base + "/");
-  assert.equal(res.status, 200);
-  const html = await res.text();
-  assert.ok(html.indexOf("캐시 TTL을 늘리면 무엇을 잃나") < html.indexOf("20261013-demo"), "newest first");
-  assert.match(html, /src="\/lessons\/20261020-cache-ttl\/cover\.jpg"/);
-  assert.match(html, /TTL 60초 유지</);
-  assert.match(html, /TTL과 원본 부하의 관계를 설명한다/);
-  assert.match(html, /진행 중/, "lesson without result.md is marked in progress");
-  assert.match(html, /href="\/legacy\/gallery\/index\.html"/);
-  assert.equal((await fetch(base + "/lessons/20261020-cache-ttl/cover.jpg")).headers.get("content-type"), "image/jpeg");
 });

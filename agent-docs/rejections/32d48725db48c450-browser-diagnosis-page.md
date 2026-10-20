@@ -13,4 +13,4 @@ v0(2026-10-03 ~ 10-08)는 진단을 브라우저 페이지에서 했다. 페이�
 대화 없이 진단해야 하는 호스트를 지원 범위에 넣을 때. 또는 브라우저 페이지에서 사용자가 카드마다 질문을 보내고, agent의 답을 받은 뒤 같은 카드에 응답할 수 있게 될 때.
 
 ## Chosen Instead
-skills/learn-to-tell/SKILL.md (§1 진단: 대화, 브라우저 아님)
+skills/learn-to-tell/SKILL.md (§1 진단: 대화, 브라우저 아님), learn-to-tell-PROJECT.md (3장 진단)

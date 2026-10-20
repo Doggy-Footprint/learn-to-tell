@@ -1,43 +1,95 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>냉매 부족 진단</title><script src="/kit/ltt.js"></script></head><body><script>
-// boil·cond = 증발기·응축기 안에서 상이 다 바뀌는 자리(0–1). 과열 구간 = boil 뒤, 과냉 구간 = cond 뒤.
-const cycle = (boil, cond, sh, sc) => LTT.graph({
-  layout: "manual", aspect: 1.25,
-  nodes: [
-    { id: "comp", label: "압축기", at: [80, 50], shape: "round" },
-    { id: "cin", label: "응축기", sub: "고압", at: [80, 10] },
-    { id: "cdone", label: "다 응축", at: [78 - cond * 62, 10], m: [Math.min(78 - cond * 62, 54), 10], ghost: true },
-    { id: "valve", label: "팽창밸브", at: [14, 50] },
-    { id: "ein", label: "증발기", sub: "저압", at: [10, 90] },
-    { id: "edone", label: "다 끓음", at: [20 + boil * 60, 90], ghost: true }
-  ],
-  edges: [
-    { from: "comp", to: "cin", tone: "warn" }, { from: "cin", to: "cdone", tone: "muted" },
-    { from: "cdone", to: "valve", tone: "accent", label: sc }, { from: "valve", to: "ein", tone: "accent" },
-    { from: "ein", to: "edone", tone: "muted" }, { from: "edone", to: "comp", tone: "warn", label: sh }
-  ]
-});
-const flowAll = (side) => ({ par: [
-  ["flow", { side, edges: ["valve>ein", "ein>edone", "cdone>valve"], tone: "accent", n: 3, dur: 5 }],
-  ["flow", { side, edges: ["edone>comp", "comp>cin", "cin>cdone"], tone: "warn", n: 5, dur: 5 }]
-] });
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>냉매 부족 진단</title>
+<script type="application/json" id="ltt-meta">{"topic":"냉동 사이클 정상 vs 냉매 부족","audience":"설비 입문자","theme":"blueprint","medium":"냉동 사이클 도면","decision":"과열도·과냉도로 냉매량 진단","domain":"냉동 사이클","pattern":["contrast"],"mode":"카탈로그용: 장면 하나짜리 본보기. 순환 구조를 \"쪼개지고 합쳐짐\" 움직임과 좌우 분할 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.rc{width:100%;max-width:560px;height:auto;display:block;margin:0 auto}
+.ltt-ba-side{display:flex;flex-direction:column}.ltt-ba-stage{width:100%}
+.rc text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+// 고정 오리피스·팽창밸브 계통의 흔한 진단 범위(제조사 충전 가이드): 정상 과열도 5–8K·과냉도 8–12K, 냉매 부족이면 과열도↑ 과냉도↓
+const CASES = {
+  normal: { n: 12, split: 0.78, merge: 0.30, sh: "과열도 6K", sc: "과냉도 10K" },
+  low:    { n: 6,  split: 0.22, merge: 0.92, sh: "과열도 22K", sc: "과냉도 1K" }
+};
+const x0 = 70, x1 = 470, y0 = 80, y1 = 340;
+const segs = [[x0, 210, x0, y1], [x0, y1, x1, y1], [x1, y1, x1, y0], [x1, y0, x0, y0], [x0, y0, x0, 210]];
+const lens = segs.map(([a, b, c, d]) => Math.hypot(c - a, d - b)), PER = lens.reduce((a, b) => a + b, 0);
+const at = (u) => { let d = ((u % 1) + 1) % 1 * PER; for (let i = 0; i < segs.length; i++) { if (d <= lens[i]) { const [a, b, c, e] = segs[i], t = d / lens[i]; return [a + (c - a) * t, b + (e - b) * t, i, t]; } d -= lens[i]; } return [x0, 210, 0, 0]; };
+const loops = {};
+
+function cycle(kind) {
+  return (el) => {
+    const C = CASES[kind], s = mk("svg", { viewBox: "0 0 540 430", class: "rc", "data-kind": kind, "data-annotate": "" }, el);
+    const evX = (f) => 110 + f * 320, cdX = (f) => 430 - f * 320;
+    mk("rect", { x: x0, y: y0, width: x1 - x0, height: y1 - y0, style: "fill:none;stroke:var(--ltt-line-2);stroke-width:3" }, s);
+    const box = (x, y, w, h, l, sub) => { mk("rect", { x, y, width: w, height: h, style: "fill:none;stroke:var(--ltt-ink);stroke-width:2" }, s);
+      const t = mk("text", { x: x + w / 2, y: y + h / 2 + 6, "text-anchor": "middle", style: "font-size:17px;font-weight:700;fill:var(--ltt-ink)" }, s); t.textContent = l;
+      if (sub) { const t2 = mk("text", { x: x + w / 2, y: y < 200 ? y - 10 : y + h + 22, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, s); t2.textContent = sub; } };
+    // 관 위에 상(相) 구간을 깔아 액체가 쪼개지고 기체가 합쳐지는 자리를 보인다
+    mk("line", { x1: evX(C.split), x2: 430, y1: y1, y2: y1, style: "stroke:var(--ltt-warn);stroke-width:16;opacity:.35" }, s);
+    mk("line", { x1: cdX(C.merge), x2: 110, y1: y0, y2: y0, style: "stroke:var(--ltt-accent);stroke-width:16;opacity:.35" }, s);
+    box(150, y1 - 22, 240, 44, "증발기 · 저압");
+    box(150, y0 - 22, 240, 44, "응축기 · 고압");
+    mk("circle", { cx: x1, cy: 210, r: 32, style: "fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:2" }, s);
+    const ct = mk("text", { x: x1, y: 216, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, s); ct.textContent = "압축기";
+    mk("path", { d: `M${x0 - 16},196 L${x0 + 16},224 L${x0 + 16},196 L${x0 - 16},224 Z`, style: "fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:2" }, s);
+    const vt = mk("text", { x: x0 + 26, y: 215, style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, s); vt.textContent = "팽창밸브";
+    const sh = mk("text", { x: (evX(C.split) + 430) / 2, y: y1 + 52, "text-anchor": "middle", style: "font-size:19px;font-weight:800;fill:var(--ltt-ink)" }, s); sh.textContent = C.sh;
+    const sc = mk("text", { x: (cdX(C.merge) + 110) / 2, y: y0 - 36, "text-anchor": "middle", style: "font-size:19px;font-weight:800;fill:var(--ltt-ink)" }, s); sc.textContent = C.sc;
+    return s;
+  };
+}
+function animate(s) {
+    const C = CASES[s.dataset.kind], kind = s.dataset.kind, evX = (f) => 110 + f * 320, cdX = (f) => 430 - f * 320;
+    const parts = Array.from({ length: C.n }, (_, i) => { const g = mk("g", {}, s);
+      const big = mk("circle", { r: 8, style: "fill:var(--ltt-accent)" }, g);
+      const sm = [0, 1, 2].map(() => mk("circle", { r: 3.6, style: "fill:var(--ltt-warn)" }, g));
+      return { g, big, sm, o: i / C.n }; });
+    // spread 0 = 액체 한 덩어리, 1 = 기체 세 알갱이
+    const spreadAt = (seg, t, x) => {
+      if (seg === 1) return clamp((x - evX(C.split)) / 26);
+      if (seg === 2) return 1;
+      if (seg === 3) return 1 - clamp((cdX(C.merge) - x) / 26);
+      return 0; };
+    function draw(u) { parts.forEach((p) => { const [x, y, seg, t] = at(u + p.o), sp = spreadAt(seg, t, x);
+      p.g.setAttribute("transform", `translate(${x},${y})`);
+      p.big.setAttribute("r", 8 * (1 - sp)); p.big.style.opacity = 1 - sp;
+      p.sm.forEach((c, k) => { const a = k * 2.094 + 0.5; c.setAttribute("cx", Math.cos(a) * 13 * sp); c.setAttribute("cy", Math.sin(a) * 13 * sp); c.style.opacity = sp; }); }); }
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) draw(0.1);
+    else { clearTimeout(loops[kind]); const t0 = Date.now(); const f = () => { if (!s.isConnected) return; draw(((Date.now() - t0) / 7000) % 1); loops[kind] = setTimeout(f, 16); }; f(); }
+}
+const legend = `<span class="ltt-key">${LTT.mark("dot", { inline: true, color: "var(--ltt-accent)" })} 액체 덩어리 ${LTT.mark("dot", { inline: true, size: 7, color: "var(--ltt-warn)" })} 쪼개진 기체</span>`;
+
 LTT.deck({
-  title: "냉매 부족 진단", theme: "blueprint", exemplar: true,
-  glossary: {
-    "과열도": "증발기 출구 기체 온도가 끓는점보다 몇 K 높은가. 액체가 일찍 다 끓으면 커진다",
-    "과냉도": "응축기 출구 액체 온도가 응축점보다 몇 K 낮은가. 액체가 덜 모이면 작아진다"
-  },
+  title: "냉매 부족 진단", theme: "blueprint",
+  glossary: { "과열도": "증발기 출구 기체 온도가 끓는점보다 몇 K 높은가. 액체가 일찍 다 끓으면 커진다", "과냉도": "응축기 출구 액체 온도가 응축점보다 몇 K 낮은가. 액체가 덜 모이면 작아진다" },
   scenes: [{
-    type: "compare", title: "냉매가 모자라면 증발기 앞쪽에서 다 끓어 버린다",
-    sub: "파란 점은 액체, 주황 점은 기체다. 다 끓은 뒤 남은 길이 {{과열도}}, 다 응축된 뒤 남은 길이 {{과냉도}}다.",
-    left: { label: "정상 충전", tone: "good", visual: cycle(0.78, 0.3, "과열도 6K", "과냉도 10K"), text: "증발기 끝 가까이에서 다 끓고, 응축기 앞쪽에서 액체로 모인다." },
-    right: { label: "냉매 부족(약 −40%)", tone: "bad", visual: cycle(0.22, 0.92, "과열도 22K", "과냉도 1K"), text: "증발기 앞쪽에서 이미 다 끓어 과열 구간이 길고, 응축기 끝에서야 액체가 된다." },
-    motion: [
-      { par: [flowAll("left"), flowAll("right")] },
-      { par: [["highlight", { side: "left", id: "edone>comp", dur: 1.5 }], ["highlight", { side: "right", id: "edone>comp", dur: 1.5 }]] }
-    ],
+    type: "contrast", title: "냉매가 모자라면 증발기 앞쪽에서 다 끓어 버린다",
+    sub: `액체(큰 점)는 증발기에서 기체로 쪼개지고 응축기에서 다시 합쳐진다. 쪼개지는 자리가 {{과열도}}, 합쳐진 뒤 남은 길이 {{과냉도}}다. ${legend}`,
+    before: { label: "정상 충전", tone: "good", visual: cycle("normal") },
+    after: { label: "냉매 부족 (약 −40%)", tone: "bad", visual: cycle("low") },
+    basis: "R-410A 가정용 에어컨 기준 흔한 진단 범위(제조사 충전 가이드). 화면 숫자는 모델로 계산한 예시.",
     takeaway: "과열도가 크고 과냉도가 작으면 냉매 부족을 의심한다.",
-    basis: "R-410A 가정용 에어컨 기준 흔한 진단 범위(제조사 충전 가이드). 화면 숫자는 모델로 계산한 예시."
+    enter: () => document.querySelectorAll("svg.rc").forEach(animate),
+    leave: () => { Object.values(loops).forEach(clearTimeout); }
   }]
 });
-</script></body></html>
+</script>
+</body>
+</html>

@@ -1,33 +1,109 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>심슨의 역설</title><script src="/kit/ltt.js"></script></head><body><script>
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>심슨의 역설</title>
+<script type="application/json" id="ltt-meta">{"topic":"심슨의 역설","audience":"통계 입문자","theme":"paper","medium":"논문 figure","decision":"집단을 나눠 볼지 합쳐 볼지","domain":"통계","pattern":["contrast"],"mode":"카탈로그용: 장면 하나짜리 본보기. 부분-전체 구조를 \"선이 그려짐\" 움직임과 작은 여러 칸 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.sp{width:100%;max-width:560px;height:auto;display:block;margin:0 auto}
+.sp text{font-family:inherit}
+.ltt-ba-side{grid-template-columns:minmax(0,1fr)}
+.ltt-ba-rail{order:-1;padding:0}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const seg = (u, a, b) => ease(clamp((u - a) / (b - a)));
+const el = (tag, attrs, parent, text) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; parent && parent.appendChild(n); return n; };
+// 헤드리스 캡처의 virtual time은 setTimeout·Date.now를 따라가므로 rAF 대신 쓴다
+function loop(period, draw, finalU) {
+  let id = 0, t0 = 0;
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return { enter() { clearTimeout(id); if (reduced) { draw(finalU); return; }
+      t0 = Date.now(); const f = () => { draw(((Date.now() - t0) / period) % 1); id = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(id); } };
+}
+
+// 모델로 계산한 예시: 나이대가 높을수록 운동을 더 하고 콜레스테롤도 높다. 나이대 안에서는 운동 1시간당 6 mg/dL 낮다.
 const OFF = [-1.5, -1, -0.5, 0, 0.5, 1, 1.5], NOISE = [4, -6, 2, -3, 5, -2, 3];
-const GROUPS = [["20대", 2, 180, "accent"], ["40대", 4, 205, "warn"], ["60대", 6, 230, "good"]].map(([label, cx, b, tone], gi) =>
-  ({ label, tone, pts: OFF.map((o, i) => [cx + o, b - 6 * o + NOISE[(i + gi * 2) % 7]]) }));
+const GROUPS = [{ l: "20대", cx: 2, b: 180 }, { l: "40대", cx: 4, b: 205 }, { l: "60대", cx: 6, b: 230 }].map((g, gi) => ({
+  ...g, c: `var(--ltt-c${gi + 1})`, mk: ["dot", "square", "diamond"][gi],
+  pts: OFF.map((o, i) => [g.cx + o, g.b - 6 * o + NOISE[(i + gi * 2) % 7]]) }));
 const fit = (pts) => { const n = pts.length, mx = pts.reduce((a, p) => a + p[0], 0) / n, my = pts.reduce((a, p) => a + p[1], 0) / n;
-  const m = pts.reduce((a, p) => a + (p[0] - mx) * (p[1] - my), 0) / pts.reduce((a, p) => a + (p[0] - mx) ** 2, 0);
-  const x0 = Math.min(...pts.map((p) => p[0])) - 0.3, x1 = Math.max(...pts.map((p) => p[0])) + 0.3;
-  return { m, line: [[x0, my + m * (x0 - mx)], [x1, my + m * (x1 - mx)]] }; };
-const ALL = GROUPS.flatMap((g) => g.pts), POOLED = fit(ALL);
+  const sxy = pts.reduce((a, p) => a + (p[0] - mx) * (p[1] - my), 0), sxx = pts.reduce((a, p) => a + (p[0] - mx) ** 2, 0);
+  const m = sxy / sxx; return { m, b: my - m * mx }; };
+const ALL = GROUPS.flatMap((g) => g.pts);
+const POOLED = fit(ALL);
 LTT.expect("합친 기울기", POOLED.m, 7.27, { tol: 0.01 });
-const axes = { x: { domain: [0, 8], fmt: (v) => (v % 2 ? "" : v) }, y: { domain: [150, 260] } };
-const slope = (m) => `기울기 ${m > 0 ? "+" : "−"}${Math.abs(m).toFixed(1)}`;
+
+
+function marker(kind, x, y, color, parent) {
+  const st = `fill:${color}`;
+  if (kind === "square") return el("rect", { x: x - 5, y: y - 5, width: 10, height: 10, style: st }, parent);
+  if (kind === "diamond") return el("path", { d: `M${x},${y - 7}L${x + 7},${y}L${x},${y + 7}L${x - 7},${y}Z`, style: st }, parent);
+  return el("circle", { cx: x, cy: y, r: 5.5, style: st }, parent);
+}
+function panel(parent, ox, oy, w, h, groups, opts) {
+  const g = el("g", { transform: `translate(${ox},${oy})` }, parent);
+  const sx = (x) => x / 8 * w, sy = (y) => h - (y - 150) / 110 * h;
+  el("line", { x1: 0, y1: h, x2: w, y2: h, style: "stroke:var(--ltt-ink-2);stroke-width:1.2" }, g);
+  el("line", { x1: 0, y1: 0, x2: 0, y2: h, style: "stroke:var(--ltt-ink-2);stroke-width:1.2" }, g);
+  if (opts.axis) {
+    [0, 4, 8].forEach((v) => el("text", { x: sx(v), y: h + 20, "text-anchor": "middle", style: "font-size:13px;fill:var(--ltt-muted)" }, g, v));
+    [160, 200, 240].forEach((v) => el("text", { x: -8, y: sy(v) + 4, "text-anchor": "end", style: "font-size:13px;fill:var(--ltt-muted)" }, g, v));
+  }
+  if (opts.title) el("text", { x: 0, y: -12, style: "font-size:16px;font-weight:700;fill:var(--ltt-ink)" }, g, opts.title);
+  groups.forEach((gr) => gr.pts.forEach(([x, y]) => marker(gr.mk, sx(x), sy(y), opts.mono ? "var(--ltt-ink-2)" : gr.c, g)));
+  const f = fit(groups.flatMap((gr) => gr.pts));
+  const xs = groups.length > 1 ? [0.3, 7.7] : [groups[0].cx - 1.8, groups[0].cx + 1.8];
+  const line = el("line", { x1: sx(xs[0]), y1: sy(f.m * xs[0] + f.b), x2: sx(xs[1]), y2: sy(f.m * xs[1] + f.b), style: `stroke:${opts.lineColor};stroke-width:3.5;stroke-linecap:round` }, g);
+  const len = Math.hypot(sx(xs[1]) - sx(xs[0]), sy(f.m * xs[1] + f.b) - sy(f.m * xs[0] + f.b));
+  line.style.strokeDasharray = len;
+  const tag = el("text", { x: sx(xs[1]) + (opts.tagDx || 0), y: sy(f.m * xs[1] + f.b) + (opts.tagDy || -10), "text-anchor": "end", style: `font-size:15px;font-weight:700;fill:${opts.lineColor}` }, g,
+    `기울기 ${f.m > 0 ? "+" : "−"}${Math.abs(f.m).toFixed(1)}`);
+  return { set(k) { line.style.strokeDashoffset = len * (1 - k); tag.style.opacity = clamp(k * 3 - 2); } };
+}
+
+const D = { pooled: [], groups: [] };
+function pooled(host) {
+  const s = el("svg", { viewBox: "0 0 520 400", class: "sp" }, host);
+  const p = panel(s, 64, 40, 420, 300, GROUPS, { axis: true, mono: true, lineColor: "var(--ltt-bad)", title: "세 나이대를 합친 21명" });
+  el("text", { x: 274, y: 384, "text-anchor": "middle", style: "font-size:13px;fill:var(--ltt-muted)" }, s, "주당 운동 시간 → · 세로: LDL 콜레스테롤(mg/dL)");
+  D.pooled.push(p); return s;
+}
+function split(host) {
+  const s = el("svg", { viewBox: "0 0 520 400", class: "sp" }, host);
+  D.groups.push(...GROUPS.map((gr, i) => panel(s, 40 + i * 166, 40, 140, 300, [gr], { axis: false, lineColor: gr.c, title: gr.l, tagDx: 6, tagDy: 26 })));
+  el("text", { x: 260, y: 384, "text-anchor": "middle", style: "font-size:13px;fill:var(--ltt-muted)" }, s, "같은 21명을 나이대별 칸으로 · 축 범위는 왼쪽과 같다");
+  return s;
+}
+
 LTT.deck({
-  title: "심슨의 역설", theme: "paper", exemplar: true,
+  title: "심슨의 역설", theme: "paper",
   glossary: { "심슨의 역설": "집단마다 같은 방향인 관계가 집단을 합치면 반대 방향으로 보이는 현상", "교란 변수": "원인과 결과 양쪽에 함께 영향을 주어 관계를 왜곡하는 변수(여기서는 나이)" },
   scenes: [{
-    type: "figure", kicker: "심슨의 역설", title: "합치면 오르는 선이, 나누면 셋 다 내려간다",
-    sub: "같은 21명, 같은 축(가로 주당 운동 시간, 세로 LDL mg/dL)이다. {{교란 변수}}인 나이로 나누면 {{심슨의 역설}}이 드러난다.",
-    takeaway: "나이대 안에서는 셋 다 내려간다. 나이가 운동과 콜레스테롤을 함께 올렸다",
-    visual: LTT.multiples({ cols: 4, panels: [
-      { title: "합친 21명", part: LTT.chart({ ...axes, legend: false, aspect: 0.75,
-        series: [{ id: "all", type: "dot", points: ALL, tone: "ink" }, { id: "pooled", label: slope(POOLED.m), type: "line", points: POOLED.line, tone: "bad" }] }) },
-      ...GROUPS.map((g) => ({ title: g.label, part: LTT.chart({ ...axes, legend: false, aspect: 0.75,
-        series: [{ id: "pts", type: "dot", points: g.pts, tone: g.tone }, { id: "fit", label: slope(fit(g.pts).m), type: "line", points: fit(g.pts).line, tone: g.tone }] }) }))] }),
-    motion: [
-      ["draw", { id: "pooled", dur: 2 }], ["wait", 0.6],
-      ["draw", { id: "fit", panel: 1, dur: 1 }], ["draw", { id: "fit", panel: 2, dur: 1 }], ["draw", { id: "fit", panel: 3, dur: 1 }]
-    ],
-    basis: "점은 모델 예시. 구도는 Pearl·Glymour·Jewell, Causal Inference in Statistics: A Primer(2016)의 예시"
+    type: "contrast", kicker: "심슨의 역설", title: "합치면 오르는 선이, 나누면 셋 다 내려간다",
+    sub: "같은 21명의 점이다. {{교란 변수}}인 나이를 칸으로 나누면 {{심슨의 역설}}이 드러난다.",
+    before: { label: "합쳐서 본 기울기", visual: pooled },
+    after: { label: "나이대별 기울기", visual: split },
+    basis: "점은 모델로 계산한 예시. 운동·콜레스테롤·나이 구도는 심슨의 역설 교재 예시(예: Pearl, Glymour & Jewell, Causal Inference in Statistics: A Primer, 2016)를 따른다.",
+    mount() { return loop(8000, (u) => {
+      const out = 1 - seg(u, 0.9, 0.98);
+      D.pooled.forEach((p) => p.set(seg(u, 0.04, 0.3) * out));
+      D.groups.forEach((g, j) => { const i = j % 3; g.set(seg(u, 0.34 + i * 0.1, 0.52 + i * 0.1) * out); });
+    }, 0.85); }
   }]
 });
-</script></body></html>
+</script>
+</body>
+</html>

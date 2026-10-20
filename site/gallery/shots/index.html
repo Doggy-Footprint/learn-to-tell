@@ -23,33 +23,426 @@ header{display:flex;gap:8px;align-items:baseline;padding:8px 12px 0}header b{fon
 .note{margin:6px 12px 0;font-size:12.5px;color:var(--muted)}.note i{font-style:normal;color:var(--ink);margin-right:4px}.note.gap i{color:var(--ltt-warn)}
 .card>:last-child{margin-bottom:12px}
 </style></head><body>
-<div class="top"><a href="../index.html">← gallery</a><h1>움직이는 장면 본보기</h1><output id="count">0개 선택</output><input type="text" id="picked" readonly placeholder="고른 번호가 여기 나온다"><button id="copy" type="button">번호 복사</button><a href="/legacy/gallery/shots/index.html">이전 버전</a></div>
-<p class="lead">개념 구조·움직임·장면 역할·구도를 겹치지 않게 조합해 kit v2로 만든 장면 하나짜리 본보기다. 카드마다 무엇이 움직이는지와 옮길 원리를 적었다. 체크한 번호는 위에 모인다.</p>
-<main class="grid" id="grid"></main>
+<div class="top"><a href="../index.html">← gallery</a><h1>움직이는 장면 본보기 51</h1><output id="count">0개 선택</output><input type="text" id="picked" readonly placeholder="고른 번호가 여기 나온다"><button id="copy" type="button">번호 복사</button></div>
+<p class="lead">개념 구조·테마·움직임·장면 역할·구도를 겹치지 않게 조합해 kit으로 만든 장면 하나짜리 본보기다. 카드마다 무엇이 움직이는지, 옮길 원리, kit에 없어 손으로 그린 것을 적었다. 체크한 번호는 위에 모인다.</p>
+<main class="grid"><article class="card" data-n="01">
+  <div class="frame"><iframe data-src="s01-cell-cycle.html" loading="lazy" tabindex="-1" title="생물 · 세포 주기(G1→S→G2→M), 원 위 단계마다 세포 모양이 바뀜"></iframe><a class="open" href="s01-cell-cycle.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-01" value="01"> <b>01</b></label><span>생물 · 세포 주기(G1→S→G2→M), 원 위 단계마다 세포 모양이 바뀜</span></header>
+  <ul class="axes"><li>순환</li><li>paper</li><li>모양이 바뀜</li><li>hook</li><li>중앙 주인공</li></ul>
+  <p class="note"><i>움직임</i> 점이 고리를 돌며 단계 호를 강조하고, 가운데 세포가 커지고 복제되고 둘로 갈라진다(9초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 고리 둘레는 실제 시간 비율로 두고, 짧지만 중요한 단계는 재생만 늘린 뒤 '느리게 재생'이라고 밝힌다</p>
+  <p class="note gap"><i>kit 공백</i> 순환 그림, 경로를 따라 모양이 바뀌는 부품 없음(SVG 손그림)</p>
+</article>
+<article class="card" data-n="02">
+  <div class="frame"><iframe data-src="s02-rate-transmission.html" loading="lazy" tabindex="-1" title="거시경제 · 기준금리 인상이 대출금리→소비→물가로 전달되는 시차"></iframe><a class="open" href="s02-rate-transmission.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-02" value="02"> <b>02</b></label><span>거시경제 · 기준금리 인상이 대출금리→소비→물가로 전달되는 시차</span></header>
+  <ul class="axes"><li>순서</li><li>ledger</li><li>입자가 흐름</li><li>predict</li><li>전면</li></ul>
+  <p class="note"><i>움직임</i> 입자 무리가 기준금리→대출금리→소비→물가 줄을 흐르고, 시차는 속도로, 시계는 분기 수로(7초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 순서의 시차는 같은 거리를 지나는 속도로 보이고 시계로 숫자도 읽게 한다</p>
+  <p class="note gap"><i>kit 공백</i> 계속 흐르는 입자 줄, 반응 곡선 손그림. predict에 반복용 enter·leave 문서 없음</p>
+</article>
+<article class="card" data-n="03">
+  <div class="frame"><iframe data-src="s03-page-load-budget.html" loading="lazy" tabindex="-1" title="웹 성능 · 페이지 로드 시간 예산(DNS, TLS, TTFB, 렌더)이 쌓인 한 장 정리"></iframe><a class="open" href="s03-page-load-budget.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-03" value="03"> <b>03</b></label><span>웹 성능 · 페이지 로드 시간 예산(DNS, TLS, TTFB, 렌더)이 쌓인 한 장 정리</span></header>
+  <ul class="axes"><li>부분-전체</li><li>sketch</li><li>값이 쌓임</li><li>overview</li><li>겹쳐 놓기</li></ul>
+  <p class="note"><i>움직임</i> 폭포 차트가 한 줄씩 자란 뒤 한 막대로 접혀 쌓이고, LCP 예산선 앞 남은 칸과 정리 번호가 놓인다(9초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 펼친 상태에서 접힌 상태로 가는 과정을 보이고, 펼친 윤곽을 남겨 그 자리에 정리 번호를 얹는다</p>
+  <p class="note gap"><i>kit 공백</i> 두 상태 사이를 옮겨 가는 모션(lanes→bar) 없음</p>
+</article>
+<article class="card" data-n="04">
+  <div class="frame"><iframe data-src="s04-kirchhoff-junction.html" loading="lazy" tabindex="-1" title="전기 회로 · 키르히호프 전류 법칙, 분기점에서 전하가 나뉘는 경로"></iframe><a class="open" href="s04-kirchhoff-junction.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-04" value="04"> <b>04</b></label><span>전기 회로 · 키르히호프 전류 법칙, 분기점에서 전하가 나뉘는 경로</span></header>
+  <ul class="axes"><li>연결</li><li>blueprint</li><li>점이 궤적을 그림</li><li>figure</li><li>좌우 분할</li></ul>
+  <p class="note"><i>움직임</i> 전하 점이 도선을 흐르다 분기점에서 1:2로 갈라지고 합류점에서 다시 합쳐지며, 옆 장부가 들어온 수 = 나간 수의 합을 센다(8초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 흐름 그림과 그 흐름을 세는 장부를 나란히 두어 보존 법칙이 매 순간 숫자로 맞아떨어지게 한다</p>
+  <p class="note gap"><i>kit 공백</i> 경로를 따라 흐르는 입자 스트림 손그림. figure에 leave 없음</p>
+</article>
+<article class="card" data-n="05">
+  <div class="frame"><iframe data-src="s05-microscope-na.html" loading="lazy" tabindex="-1" title="광학 · 현미경 배율만 올릴 때 vs 개구수를 올릴 때 해상도"></iframe><a class="open" href="s05-microscope-na.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-05" value="05"> <b>05</b></label><span>광학 · 현미경 배율만 올릴 때 vs 개구수를 올릴 때 해상도</span></header>
+  <ul class="axes"><li>공간</li><li>lab</li><li>확대·축소</li><li>contrast</li><li>작은 여러 칸</li></ul>
+  <p class="note"><i>움직임</i> 배율만 올린 줄과 개구수를 함께 올린 줄의 작은 칸 3개씩이 같은 시계로 확대되고, 밝기 곡선 봉우리가 한쪽만 둘로 갈라진다(7초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 대조할 두 줄을 같은 시계로 똑같이 확대하면 화면에서 달라지는 것은 한 변수의 효과뿐이다</p>
+  <p class="note gap"><i>kit 공백</i> 점상·밝기 곡선 손그림(canvas). contrast 칸이 약 270px 고정이라 오른쪽 절반이 빔(남은 결함)</p>
+</article>
+<article class="card" data-n="06">
+  <div class="frame"><iframe data-src="s06-shipping-leadtime.html" loading="lazy" tabindex="-1" title="해운 물류 · 출항·환적·통관 용어, 지도 위 항로와 리드타임"></iframe><a class="open" href="s06-shipping-leadtime.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-06" value="06"> <b>06</b></label><span>해운 물류 · 출항·환적·통관 용어, 지도 위 항로와 리드타임</span></header>
+  <ul class="axes"><li>시간</li><li>atlas</li><li>선이 그려짐</li><li>terms</li><li>좌우 분할</li></ul>
+  <p class="note"><i>움직임</i> 지도 위 부산→로테르담 항로선이 그려지고 배 점이 따라가며, 환적·통관에서 멈춰 맥박치고 아래 일정표가 D+n일을 센다(8초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 공간 위에 선을 그리는 속도와 시간축 막대가 쌓이는 속도를 맞추고, 움직임과 대기를 다른 동작으로 가른다</p>
+  <p class="note gap"><i>kit 공백</i> 해상 항로·선 그리기 손그림. terms에 주 그림 자리가 없어 카드가 지도보다 큼(남은 결함)</p>
+</article>
+<article class="card" data-n="07">
+  <div class="frame"><iframe data-src="s07-fanout-tail-latency.html" loading="lazy" tabindex="-1" title="백엔드 · fan-out 수에 따라 p99 지연이 커지는 tail latency"></iframe><a class="open" href="s07-fanout-tail-latency.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-07" value="07"> <b>07</b></label><span>백엔드 · fan-out 수에 따라 p99 지연이 커지는 tail latency</span></header>
+  <ul class="axes"><li>분포</li><li>terminal</li><li>쪼개지고 합쳐짐</li><li>sweep</li><li>작은 여러 칸</li></ul>
+  <p class="note"><i>움직임</i> 요청 1개가 선 N개로 쪼개져 작은 칸들이 지연만큼 차오르고, 가장 늦은 칸이 차야 응답으로 합쳐진다. 결과가 집계 칸에 쌓인다(반복)</p>
+  <p class="note"><i>옮길 원리</i> 쪼개고 합치는 구조로 가장 늦은 칸을 기다린다를 칸이 차는 시간 차로 보이고, 확률 공식은 큰 숫자로 옆에 둔다</p>
+  <p class="note gap"><i>kit 공백</i> 작은 여러 칸·쪼개고 합치는 흐름 부품 없음. 핵심 순간이 프레임에 안 잡힘(무작위)</p>
+</article>
+<article class="card" data-n="08">
+  <div class="frame"><iframe data-src="s08-hsl-oklch-lightness.html" loading="lazy" tabindex="-1" title="UI 색 · 색상·채도·명도 용어, HSL과 OKLCH의 명도 차이"></iframe><a class="open" href="s08-hsl-oklch-lightness.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-08" value="08"> <b>08</b></label><span>UI 색 · 색상·채도·명도 용어, HSL과 OKLCH의 명도 차이</span></header>
+  <ul class="axes"><li>변환</li><li>studio</li><li>강조가 훑음</li><li>terms</li><li>중앙 주인공</li></ul>
+  <p class="note"><i>움직임</i> HSL L 50%와 OKLCH L 0.70 두 줄 색 띠 위를 강조 틀이 훑으며 그 열의 명도 값과 문구가 바뀐다(4.8초 훑고 머묾)</p>
+  <p class="note"><i>옮길 원리</i> 같은 축을 두 체계로 나란히 두고 흑백 칸 한 줄로 차이를 직접 보인다</p>
+  <p class="note gap"><i>kit 공백</i> terms 카드 최소 높이 때문에 takeaway가 화면 밖으로 잘림(남은 결함). terms에 주 그림 자리 없음</p>
+</article>
+<article class="card" data-n="09">
+  <div class="frame"><iframe data-src="s09-working-set-hierarchy.html" loading="lazy" tabindex="-1" title="컴퓨터 구조 · 작업 세트 크기에 따라 맞는 메모리 계층(L1→DRAM)"></iframe><a class="open" href="s09-working-set-hierarchy.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-09" value="09"> <b>09</b></label><span>컴퓨터 구조 · 작업 세트 크기에 따라 맞는 메모리 계층(L1→DRAM)</span></header>
+  <ul class="axes"><li>계층</li><li>blueprint</li><li>모양이 바뀜</li><li>sweep</li><li>전면</li></ul>
+  <p class="note"><i>움직임</i> 메모리 계층 피라미드에서 작업 세트 상자가 커지며 맞는 층으로 내려가고, 오른쪽 지연 곡선 위를 점이 따라 오른다(8.8초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 같은 log 눈금을 공간(피라미드)과 그래프(계단) 두 곳에 써서 넘치는 순간이 함께 보이게 한다</p>
+  <p class="note gap"><i>kit 공백</i> 피라미드·모양 바뀌는 상자 손그림. sweep 자동 재생 없음, 자동 재생 중 손잡이가 안 움직임</p>
+</article>
+<article class="card" data-n="10">
+  <div class="frame"><iframe data-src="s10-thermostat-overshoot.html" loading="lazy" tabindex="-1" title="제어 · 온도조절기 되먹임 루프와 오버슈트"></iframe><a class="open" href="s10-thermostat-overshoot.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-10" value="10"> <b>10</b></label><span>제어 · 온도조절기 되먹임 루프와 오버슈트</span></header>
+  <ul class="axes"><li>되먹임</li><li>lab</li><li>입자가 흐름</li><li>hook</li><li>겹쳐 놓기</li></ul>
+  <p class="note"><i>움직임</i> 플롯 위에 온도 곡선이 그려지고, 겹친 되먹임 고리를 열 입자가 돈다. 보일러를 끈 뒤에도 입자 흐름이 서서히 줄며 곡선이 23.5°까지 넘어간다(9초)</p>
+  <p class="note"><i>옮길 원리</i> 원인(고리 흐름)과 결과(곡선)를 한 좌표계에 겹치고, 입자 밀도를 실제 상태량에 묶어 끈 뒤에도 남는 것을 보인다</p>
+  <p class="note gap"><i>kit 공백</i> 상태량 따라 흐르는 입자 고리, 진행 따라 그려지는 시계열 곡선 없음</p>
+</article>
+<article class="card" data-n="11">
+  <div class="frame"><iframe data-src="s11-region-tradeoff.html" loading="lazy" tabindex="-1" title="클라우드 · 리전을 늘릴수록 지연은 줄고 비용은 쌓임"></iframe><a class="open" href="s11-region-tradeoff.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-11" value="11"> <b>11</b></label><span>클라우드 · 리전을 늘릴수록 지연은 줄고 비용은 쌓임</span></header>
+  <ul class="axes"><li>트레이드오프</li><li>atlas</li><li>값이 쌓임</li><li>predict</li><li>전면</li></ul>
+  <p class="note"><i>움직임</i> 리전을 하나씩 더할 때마다 비용 막대가 쌓이고 같은 칸의 p95 지연 선은 내려간다. 남은 칸은 점선 ?로 비우고 정답에서 이어 그린다(9초)</p>
+  <p class="note"><i>옮길 원리</i> 축을 처음부터 최종 범위로 고정하고 빈 칸을 ?로 남겨 예측 자리를 그림 안에 둔다. 막대와 선을 한 칸에 겹쳐 X자로</p>
+  <p class="note gap"><i>kit 공백</i> 쌓이는 막대+꺾은선 애니메이션 차트 없음. predict question이 화면에 안 나옴(sub로 옮김)</p>
+</article>
+<article class="card" data-n="12">
+  <div class="frame"><iframe data-src="s12-node-event-loop.html" loading="lazy" tabindex="-1" title="런타임 · Node.js 이벤트 루프 단계 한 장 정리"></iframe><a class="open" href="s12-node-event-loop.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-12" value="12"> <b>12</b></label><span>런타임 · Node.js 이벤트 루프 단계 한 장 정리</span></header>
+  <ul class="axes"><li>순환</li><li>terminal</li><li>점이 궤적을 그림</li><li>overview</li><li>겹쳐 놓기</li></ul>
+  <p class="note"><i>움직임</i> libuv 6단계 고리를 점이 꼬리 궤적을 남기며 돌고, poll에서 오래 머물며, 원 안 터미널 로그에 콜백 줄이 찍힌다(10초)</p>
+  <p class="note"><i>옮길 원리</i> 순환은 원으로, 점이 머무는 시간으로 비중을 보이고, 단계 사이 틈 자체를 표식으로 만든다</p>
+  <p class="note gap"><i>kit 공백</i> 꼬리 궤적 도는 점·겹친 로그 손그림. overview figure에 leave 없음</p>
+</article>
+<article class="card" data-n="13">
+  <div class="frame"><iframe data-src="s13-checkout-funnel-zoom.html" loading="lazy" tabindex="-1" title="UX · 결제 퍼널 단계, 이탈 지점으로 확대"></iframe><a class="open" href="s13-checkout-funnel-zoom.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-13" value="13"> <b>13</b></label><span>UX · 결제 퍼널 단계, 이탈 지점으로 확대</span></header>
+  <ul class="axes"><li>순서</li><li>studio</li><li>확대·축소</li><li>figure</li><li>좌우 분할</li></ul>
+  <p class="note"><i>움직임</i> 퍼널 막대가 차례로 자라고, 가장 큰 낙폭에 렌즈가 떠 오른쪽 패널로 커지며 사유별 막대가 차오른다(9초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 확대 패널이 원본의 정확한 자리에서 커져 나오고 연결선이 둘을 계속 잇는다</p>
+  <p class="note gap"><i>kit 공백</i> 부분 확대 인셋 부품 없음. 넓은 화면에서 그림이 칸 폭에 맞춰 줄어 여백이 큼</p>
+</article>
+<article class="card" data-n="14">
+  <div class="frame"><iframe data-src="s14-simpson-paradox-slopes.html" loading="lazy" tabindex="-1" title="통계 · 심슨의 역설, 집단별 기울기 vs 합친 기울기"></iframe><a class="open" href="s14-simpson-paradox-slopes.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-14" value="14"> <b>14</b></label><span>통계 · 심슨의 역설, 집단별 기울기 vs 합친 기울기</span></header>
+  <ul class="axes"><li>부분-전체</li><li>paper</li><li>선이 그려짐</li><li>contrast</li><li>작은 여러 칸</li></ul>
+  <p class="note"><i>움직임</i> 왼쪽 합친 산점도에 오르는 회귀선이 그려지고, 오른쪽 나이대 3칸에 내려가는 선이 차례로 그려진다(8초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 선을 하나씩 그려 같은 점, 반대 방향을 순서대로 보이고, 칸마다 축 범위를 같게 둔다</p>
+  <p class="note gap"><i>kit 공백</i> 산점도·선 그리기 손그림. beforeAfter 라벨 칸이 그림을 줄임. visual 함수가 여러 번 불림(문서 없음). expect에 boolean 넣으면 불일치(버그 후보)</p>
+</article>
+<article class="card" data-n="15">
+  <div class="frame"><iframe data-src="s15-securitization-tranches.html" loading="lazy" tabindex="-1" title="금융 · 증권화, 대출을 묶어 트랜치로 나눔"></iframe><a class="open" href="s15-securitization-tranches.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-15" value="15"> <b>15</b></label><span>금융 · 증권화, 대출을 묶어 트랜치로 나눔</span></header>
+  <ul class="axes"><li>연결</li><li>ledger</li><li>쪼개지고 합쳐짐</li><li>figure</li><li>중앙 주인공</li></ul>
+  <p class="note"><i>움직임</i> 대출 16칸이 가운데로 날아가 풀 하나로 합쳐지고, 세 트랜치로 갈라진 뒤 손실이 아래층부터 차오른다(9초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 주인공은 가운데 자리에 둔 채 모이고 갈라지고, 떠난 대출의 빈자리를 점선으로 남긴다</p>
+  <p class="note gap"><i>kit 공백</i> 합치고 비율대로 나누는 부품 없음. 중순위 손실 4px이라 라벨에 의존</p>
+</article>
+<article class="card" data-n="16">
+  <div class="frame"><iframe data-src="s16-room-daylight.html" loading="lazy" tabindex="-1" title="건축 · 남향 vs 북향 방의 하루 채광"></iframe><a class="open" href="s16-room-daylight.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-16" value="16"> <b>16</b></label><span>건축 · 남향 vs 북향 방의 하루 채광</span></header>
+  <ul class="axes"><li>공간</li><li>sketch</li><li>강조가 훑음</li><li>contrast</li><li>작은 여러 칸</li></ul>
+  <p class="note"><i>움직임</i> 북향(위)·남향(아래) 방 단면 6칸씩, 테두리가 같은 시각 칸을 위아래로 함께 훑고 남향 빛줄기가 강조된다(8.4초 주기)</p>
+  <p class="note"><i>옮길 원리</i> 대비는 같은 축으로 정렬한 작은 칸 두 줄로, 훑는 강조가 같은 시각을 위아래로 동시에 비춘다</p>
+  <p class="note gap"><i>kit 공백</i> 단면 칸·훑는 테두리 손그림. contrast의 위아래 배치 없음(CSS로 바꿈)</p>
+</article>
+<article class="card" data-n="17">
+  <div class="frame"><iframe data-src="s17-wal-checkpoint.html" loading="lazy" tabindex="-1" title="DB · WAL, 체크포인트, 복구 용어와 로그 타임라인"></iframe><a class="open" href="s17-wal-checkpoint.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-17" value="17"> <b>17</b></label><span>DB · WAL, 체크포인트, 복구 용어와 로그 타임라인</span></header>
+  <ul class="axes"><li>시간</li><li>terminal</li><li>선이 그려짐</li><li>terms</li><li>중앙 주인공</li></ul>
+  <p class="note"><i>움직임</i> WAL 선이 LSN 순서로 그려지고, 체크포인트에서 페이지가 데이터 파일로 내려가고, 전원 끊김 뒤 REDO 화살표가 체크포인트부터 다시 그려진다(9초)</p>
+  <p class="note"><i>옮길 원리</i> 용어 여러 개를 한 타임라인 위 사건 자리로 묶고, 선이 그려지는 순서가 인과 순서가 된다</p>
+  <p class="note gap"><i>kit 공백</i> terms에 중앙 그림 자리 없음(mount로 끼움). 그려지는 로그 레인 부품 없음</p>
+</article>
+<article class="card" data-n="18">
+  <div class="frame"><iframe data-src="s18-ab-power.html" loading="lazy" tabindex="-1" title="실험 · A/B 테스트 표본 크기와 두 분포의 겹침(검정력)"></iframe><a class="open" href="s18-ab-power.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-18" value="18"> <b>18</b></label><span>실험 · A/B 테스트 표본 크기와 두 분포의 겹침(검정력)</span></header>
+  <ul class="axes"><li>분포</li><li>studio</li><li>쪼개지고 합쳐짐</li><li>sweep</li><li>전면</li></ul>
+  <p class="note"><i>움직임</i> H0 분포 하나가 둘로 갈라져 H1이 미끄러져 나가고, 유의 기준선과 검정력 음영이 나타났다가 다시 합쳐진다. 표본 크기 손잡이(log)로 폭이 좁아진다(7초)</p>
+  <p class="note"><i>옮길 원리</i> 매 주기 같은 것을 합쳤다 갈라 보여 겹침이 무엇의 겹침인지 먼저 보이고, 손잡이는 그 폭만 바꾼다</p>
+  <p class="note gap"><i>kit 공백</i> 분포·밀도 곡선 부품, axisPlot 곡선 전환 없음</p>
+</article>
+<article class="card" data-n="19">
+  <div class="frame"><iframe data-src="s19-fourier-sweep.html" loading="lazy" tabindex="-1" title="신호처리 · 푸리에 변환, 파형이 주파수 막대로"></iframe><a class="open" href="s19-fourier-sweep.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-19" value="19"> <b>19</b></label><span>신호처리 · 푸리에 변환, 파형이 주파수 막대로</span></header>
+  <ul class="axes"><li>변환</li><li>paper</li><li>강조가 훑음</li><li>hook</li><li>겹쳐 놓기</li></ul>
+  <p class="note"><i>움직임</i> 훑는 막대가 150→400Hz로 지나가며 위 파형에 그 주파수의 기준 사인파를 겹치고, 지나간 자리에 실제 스펙트럼이 드러나 A3·C4·E4 봉우리에 라벨이 켜진다(8초)</p>
+  <p class="note"><i>옮길 원리</i> 변환은 연산 자체를 움직여 보인다. 입력과 출력을 한 판에 겹치고 훑는 막대가 지나간 만큼만 출력이 생긴다</p>
+  <p class="note gap"><i>kit 공백</i> 시간 신호와 변환을 같은 축에 겹치는 부품 없음</p>
+</article>
+<article class="card" data-n="20">
+  <div class="frame"><iframe data-src="s20-equity-consolidation.html" loading="lazy" tabindex="-1" title="회계 · 지분율 트리가 연결 범위로 바뀜"></iframe><a class="open" href="s20-equity-consolidation.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-20" value="20"> <b>20</b></label><span>회계 · 지분율 트리가 연결 범위로 바뀜</span></header>
+  <ul class="axes"><li>계층</li><li>ledger</li><li>모양이 바뀜</li><li>predict</li><li>좌우 분할</li></ul>
+  <p class="note"><i>움직임</i> 왼쪽 지분율 트리는 고정하고, 오른쪽 같은 트리의 선이 사라지며 노드가 연결 범위 상자로 모이고 30% 회사는 지분법 자리로 내려간다(8초)</p>
+  <p class="note"><i>옮길 원리</i> 위계 구조는 같은 노드를 그대로 둔 채 자리만 옮겨 다른 관점의 같은 대상으로 바꾸고, 원본을 비교 기준으로 고정한다</p>
+  <p class="note gap"><i>kit 공백</i> diagram 노드를 다른 배치로 옮기는 기능 없음. visual·figure 함수의 leave가 불리지 않고 사본이 화면에 쓰임</p>
+</article>
+<article class="card" data-n="21">
+  <div class="frame"><iframe data-src="s21-predator-prey-cycle.html" loading="lazy" tabindex="-1" title="생태 · 포식자-피식자 순환 한 장 정리"></iframe><a class="open" href="s21-predator-prey-cycle.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-21" value="21"> <b>21</b></label><span>생태 · 포식자-피식자 순환 한 장 정리</span></header>
+  <ul class="axes"><li>되먹임</li><li>sketch</li><li>입자가 흐름</li><li>overview</li><li>겹쳐 놓기</li></ul>
+  <p class="note"><i>움직임</i> 로트카-볼테라 궤도 위를 점 16개가 모델 시간대로 흐르고, 큰 점이 든 사분면의 설명 ①~④가 차례로 밝아진다(9초)</p>
+  <p class="note"><i>옮길 원리</i> 되먹임은 닫힌 고리 위를 계속 흐르는 입자로, 평형선이 나눈 네 구역 자리에 정리 문장을 붙인다</p>
+  <p class="note gap"><i>kit 공백</i> 상평면 궤도·경로 입자 흐름 부품 없음. s20과 같은 leave·사본 문제</p>
+</article>
+<article class="card" data-n="22">
+  <div class="frame"><iframe data-src="s22-clock-power.html" loading="lazy" tabindex="-1" title="칩 설계 · 클럭을 올리면 동적 전력(∝ fV²)이 쌓임"></iframe><a class="open" href="s22-clock-power.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-22" value="22"> <b>22</b></label><span>칩 설계 · 클럭을 올리면 동적 전력(∝ fV²)이 쌓임</span></header>
+  <ul class="axes"><li>트레이드오프</li><li>blueprint</li><li>값이 쌓임</li><li>predict</li><li>좌우 분할</li></ul>
+  <p class="note"><i>움직임</i> 같은 6ns 동안 클럭 파형 위로 커서가 내려가고, 클럭마다 높이가 V²인 블록이 떨어져 쌓인다(6개×0.64 대 9개×1.00, 7초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 곱으로 된 공식은 두 인수를 다른 시각 채널로 나눈다. 개수는 f, 블록 크기는 V², 차이는 높이로</p>
+  <p class="note gap"><i>kit 공백</i> 쌓이는 블록·클럭 파형 손그림. visual이 복제·재측정돼 전역 ticker로 우회</p>
+</article>
+<article class="card" data-n="23">
+  <div class="frame"><iframe data-src="s23-carnot-cycle.html" loading="lazy" tabindex="-1" title="열역학 · 카르노 사이클 P-V 궤적 한 장 정리"></iframe><a class="open" href="s23-carnot-cycle.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-23" value="23"> <b>23</b></label><span>열역학 · 카르노 사이클 P-V 궤적 한 장 정리</span></header>
+  <ul class="axes"><li>순환</li><li>lab</li><li>점이 궤적을 그림</li><li>overview</li><li>작은 여러 칸</li></ul>
+  <p class="note"><i>움직임</i> 같은 크기의 P-V 칸 4개에서 점이 차례로 자기 구간을 그리고, 끝나면 고리 넓이가 칠해지며 Q_in·Q_out·W 막대와 효율이 나타난다(8초)</p>
+  <p class="note"><i>옮길 원리</i> 순환을 같은 축의 작은 칸으로 단계를 나누고 지난 경로를 남긴 채 넘긴다. 한 바퀴 결과는 맨 끝에만</p>
+  <p class="note gap"><i>kit 공백</i> 점진적으로 그리는 경로·넓이 채움 손그림</p>
+</article>
+<article class="card" data-n="24">
+  <div class="frame"><iframe data-src="s24-vaccine-cold-chain.html" loading="lazy" tabindex="-1" title="콜드체인 · 백신이 국가→도시→창고로 가는 순서, 지도 확대"></iframe><a class="open" href="s24-vaccine-cold-chain.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-24" value="24"> <b>24</b></label><span>콜드체인 · 백신이 국가→도시→창고로 가는 순서, 지도 확대</span></header>
+  <ul class="axes"><li>순서</li><li>atlas</li><li>확대·축소</li><li>figure</li><li>중앙 주인공</li></ul>
+  <p class="note"><i>움직임</i> 지도 위 viewBox가 유라시아→한반도→수도권으로 확대되며 단계마다 경로가 그려지고 점이 이동하고 온도 상자가 바뀐다(10.5초)</p>
+  <p class="note"><i>옮길 원리</i> 순서를 보일 때 축척 자체를 단계로 쓴다. 확대→경로 그리기→머묾을 한 박자로, 글자는 같은 크기 유지</p>
+  <p class="note gap"><i>kit 공백</i> LTT.map 확대 애니메이션 없음, 덮개 SVG로 재투영. 수도권 축척에서 해안선이 각짐</p>
+</article>
+<article class="card" data-n="25">
+  <div class="frame"><iframe data-src="s25-cpi-basket-weights.html" loading="lazy" tabindex="-1" title="물가 · CPI 바스켓 가중치가 바뀌면 같은 가격 변화도 다른 물가"></iframe><a class="open" href="s25-cpi-basket-weights.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-25" value="25"> <b>25</b></label><span>물가 · CPI 바스켓 가중치가 바뀌면 같은 가격 변화도 다른 물가</span></header>
+  <ul class="axes"><li>부분-전체</li><li>ledger</li><li>선이 그려짐</li><li>contrast</li><li>전면</li></ul>
+  <p class="note"><i>움직임</i> 양쪽 칸에서 품목군 가격선 4개가 그려진 뒤 굵은 CPI 선이 그려지고 위 숫자가 4.18%·2.86%로 오른다(8초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 같은 입력을 양쪽에 똑같이 두고 가중치만 다르게 하면 굵은 선 기울기 차이 하나가 메시지가 된다</p>
+  <p class="note gap"><i>kit 공백</i> contrast 그림 칸이 약 270px로 좁음. visual이 svg를 돌려주면 fill이 칸 밖으로 붙임(문서 없음). contrast에 leave 없음</p>
+</article>
+<article class="card" data-n="26">
+  <div class="frame"><iframe data-src="s26-git-branch-terms.html" loading="lazy" tabindex="-1" title="git · 브랜치, 머지, 리베이스 용어"></iframe><a class="open" href="s26-git-branch-terms.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-26" value="26"> <b>26</b></label><span>git · 브랜치, 머지, 리베이스 용어</span></header>
+  <ul class="axes"><li>연결</li><li>sketch</li><li>쪼개지고 합쳐짐</li><li>terms</li><li>중앙 주인공</li></ul>
+  <p class="note"><i>움직임</i> 용어 카드 3장의 같은 커밋 그래프에서 각각 갈라짐·머지·리베이스 동작만 재생된다(6초, 카드마다 시작 어긋남)</p>
+  <p class="note"><i>옮길 원리</i> 용어마다 같은 그래프를 쓰고 동작 하나만 다르게 하면 용어 차이가 그림 차이로 보인다</p>
+  <p class="note gap"><i>kit 공백</i> terms에 중앙 주인공 자리 없음. rough.js 미사용. terms에 leave 없음</p>
+</article>
+<article class="card" data-n="27">
+  <div class="frame"><iframe data-src="s27-wifi-router-floorplan.html" loading="lazy" tabindex="-1" title="무선 · 평면도 위 공유기 위치와 Wi-Fi 신호 세기"></iframe><a class="open" href="s27-wifi-router-floorplan.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-27" value="27"> <b>27</b></label><span>무선 · 평면도 위 공유기 위치와 Wi-Fi 신호 세기</span></header>
+  <ul class="axes"><li>공간</li><li>blueprint</li><li>강조가 훑음</li><li>sweep</li><li>전면</li></ul>
+  <p class="note"><i>움직임</i> 12×8m 평면도 신호 지도 위를 세로 띠가 훑으며 밝히고, 공유기를 끌면 벽 감쇠를 따라 지도가 다시 칠해진다(5초)</p>
+  <p class="note"><i>옮길 원리</i> 정적인 히트맵 위를 띠 하나로 훑으면 어디까지 닿나를 읽는 순서가 생긴다</p>
+  <p class="note gap"><i>kit 공백</i> 평면도·칸 히트맵·훑는 띠 부품 없음</p>
+</article>
+<article class="card" data-n="28">
+  <div class="frame"><iframe data-src="s28-dosing-interval.html" loading="lazy" tabindex="-1" title="약리 · 투약 간격에 따른 혈중 농도 곡선과 반감기"></iframe><a class="open" href="s28-dosing-interval.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-28" value="28"> <b>28</b></label><span>약리 · 투약 간격에 따른 혈중 농도 곡선과 반감기</span></header>
+  <ul class="axes"><li>시간</li><li>lab</li><li>모양이 바뀜</li><li>hook</li><li>겹쳐 놓기</li></ul>
+  <p class="note"><i>움직임</i> 투약 간격이 16h→8h→4h로 바뀌며, 흐린 회당 감쇠 곡선 위의 굵은 합 곡선 톱니와 정상 상태 선이 함께 바뀐다(9초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 회당 기여분을 흐리게 겹치고 합을 굵게 그린 뒤, 변수 하나를 연속으로 바꿔 모양 변화로 메커니즘을 보인다</p>
+  <p class="note gap"><i>kit 공백</i> 중첩 곡선의 연속 모핑·반복 재생(axisPlot에 없음) 손그림</p>
+</article>
+<article class="card" data-n="29">
+  <div class="frame"><iframe data-src="s29-transit-access.html" loading="lazy" tabindex="-1" title="도시 · 노선 수에 따른 출근 인구의 대중교통 접근성"></iframe><a class="open" href="s29-transit-access.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-29" value="29"> <b>29</b></label><span>도시 · 노선 수에 따른 출근 인구의 대중교통 접근성</span></header>
+  <ul class="axes"><li>분포</li><li>atlas</li><li>입자가 흐름</li><li>sweep</li><li>좌우 분할</li></ul>
+  <p class="note"><i>움직임</i> 원형 도시의 출근자 점 중 노선 800m 띠 안이 강조되고, 입자가 노선을 따라 도심으로 흐른다. 오른쪽은 비율 숫자와 노선 수 손잡이(5초 주기)</p>
+  <p class="note"><i>옮길 원리</i> 왼쪽은 메커니즘(누가 띠 안에서 흐르나), 오른쪽은 집계(몇 %). 손잡이 하나가 두 쪽을 함께 바꾼다</p>
+  <p class="note gap"><i>kit 공백</i> 도시 단위 지도·노선 위 입자 흐름 없음. 입자가 흰 점이라 잘 안 보이는 약점이 남음</p>
+</article>
+<article class="card" data-n="30">
+  <div class="frame"><iframe data-src="s30-compile-pipeline.html" loading="lazy" tabindex="-1" title="컴파일러 · 소스→토큰→AST→바이트코드"></iframe><a class="open" href="s30-compile-pipeline.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-30" value="30"> <b>30</b></label><span>컴파일러 · 소스→토큰→AST→바이트코드</span></header>
+  <ul class="axes"><li>변환</li><li>terminal</li><li>값이 쌓임</li><li>hook</li><li>작은 여러 칸</li></ul>
+  <p class="note"><i>움직임</i> 소스/토큰/AST/바이트코드 네 칸이 차례로 채워지고, 지금 만드는 항목의 출처가 소스 칸에서 강조된다(10초 반복, 실제 python3.12 출력)</p>
+  <p class="note"><i>옮길 원리</i> 같은 입력을 단계별 작은 칸에 나란히 두고, 항목을 쌓으며 출처 강조로 칸 사이 대응을 잇는다</p>
+  <p class="note gap"><i>kit 공백</i> mock.terminal·code에 줄 단위 쌓기와 칸 간 대응 표시 없음</p>
+</article>
+<article class="card" data-n="31">
+  <div class="frame"><iframe data-src="s31-visual-hierarchy-gaze.html" loading="lazy" tabindex="-1" title="디자인 · 시각적 위계와 시선이 지나는 길"></iframe><a class="open" href="s31-visual-hierarchy-gaze.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-31" value="31"> <b>31</b></label><span>디자인 · 시각적 위계와 시선이 지나는 길</span></header>
+  <ul class="axes"><li>계층</li><li>studio</li><li>점이 궤적을 그림</li><li>predict</li><li>좌우 분할</li></ul>
+  <p class="note"><i>움직임</i> 같은 크기 줄뿐인 시안 A 위를 점이 F 패턴으로 훑고, 정답에서 시안 B 위를 헤드라인→사진→설명→버튼 순으로 내려간다(6초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 예측 장면에서는 비교 대상만 움직이고, 답이 될 궤적은 공개 그림으로 미룬다</p>
+  <p class="note gap"><i>kit 공백</i> 경로를 따라 점이 지나가는 부품 없음</p>
+</article>
+<article class="card" data-n="32">
+  <div class="frame"><iframe data-src="s32-ice-albedo-overview.html" loading="lazy" tabindex="-1" title="기후 · 얼음-알베도 되먹임 한 장 정리"></iframe><a class="open" href="s32-ice-albedo-overview.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-32" value="32"> <b>32</b></label><span>기후 · 얼음-알베도 되먹임 한 장 정리</span></header>
+  <ul class="axes"><li>되먹임</li><li>paper</li><li>확대·축소</li><li>overview</li><li>작은 여러 칸</li></ul>
+  <p class="note"><i>움직임</i> 2×2 칸을 순환 화살표로 잇고, 카메라(viewBox)가 전체→각 칸 확대→다시 전체로 옮겨 간다(10초)</p>
+  <p class="note"><i>옮길 원리</i> 전체를 먼저 보이고 카메라가 고리 순서대로 칸을 들여다본다. 확대 순서가 곧 인과 순서</p>
+  <p class="note gap"><i>kit 공백</i> small multiples 격자·카메라 확대 이동 부품 없음. 이동 중 칸 가장자리가 잘림</p>
+</article>
+<article class="card" data-n="33">
+  <div class="frame"><iframe data-src="s33-bias-variance-error.html" loading="lazy" tabindex="-1" title="ML · 편향-분산, 모델 복잡도별 오차"></iframe><a class="open" href="s33-bias-variance-error.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-33" value="33"> <b>33</b></label><span>ML · 편향-분산, 모델 복잡도별 오차</span></header>
+  <ul class="axes"><li>트레이드오프</li><li>lab</li><li>값이 쌓임</li><li>figure</li><li>중앙 주인공</li></ul>
+  <p class="note"><i>움직임</i> 차수 1~12마다 잡음·편향²·분산 막대가 쌓이며 자라고, 합계 선이 따라가다 최저점 차수 6에서 멈춘다(9초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 두 성분을 한 막대에 쌓고 합계 곡선을 같이 그려, 교차점에서 멈추고 최적점은 끝에 나타낸다</p>
+  <p class="note gap"><i>kit 공백</i> 쌓이며 자라는 stacked bar 없음. figure·overview·predict에서 mount/leave를 함께 쓰는 법이 문서에 없음</p>
+</article>
+<article class="card" data-n="34">
+  <div class="frame"><iframe data-src="s34-amoc-weakening.html" loading="lazy" tabindex="-1" title="해양 · 열염순환 정상 vs 약화"></iframe><a class="open" href="s34-amoc-weakening.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-34" value="34"> <b>34</b></label><span>해양 · 열염순환 정상 vs 약화</span></header>
+  <ul class="axes"><li>순환</li><li>atlas</li><li>점이 궤적을 그림</li><li>contrast</li><li>전면</li></ul>
+  <p class="note"><i>움직임</i> 대서양 남북 단면 정상·약화를 나란히 두고, 혜성꼬리 궤적이 표층→침강→심층→용승으로 돈다. 약화 쪽은 0.7배 속도로 더 남쪽·얕은 곳에서 돈다</p>
+  <p class="note"><i>옮길 원리</i> 대조 장면에서는 같은 시간 동안 움직인 거리 차이로 속도와 규모를 보이고, 숫자는 그림 아래 크게 하나만</p>
+  <p class="note gap"><i>kit 공백</i> 경로 따라 꼬리 달린 점 손그림. beforeAfter가 그림을 절반 폭으로 줄여 CSS로 폄</p>
+</article>
+<article class="card" data-n="35">
+  <div class="frame"><iframe data-src="s35-packet-layers.html" loading="lazy" tabindex="-1" title="네트워크 · DNS·TCP·TLS·HTTP 용어, 패킷 캡처 확대"></iframe><a class="open" href="s35-packet-layers.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-35" value="35"> <b>35</b></label><span>네트워크 · DNS·TCP·TLS·HTTP 용어, 패킷 캡처 확대</span></header>
+  <ul class="axes"><li>순서</li><li>terminal</li><li>확대·축소</li><li>terms</li><li>겹쳐 놓기</li></ul>
+  <p class="note"><i>움직임</i> 상자 안 상자로 겹친 패킷 층(Ethernet→HTTP)을 카메라가 DNS·SYN·ClientHello·GET 순으로 확대했다 축소하고, 옆 용어 목록이 따라 강조된다(9.6초)</p>
+  <p class="note"><i>옮길 원리</i> 용어 장면도 카드로 나누지 않고, 용어들이 함께 사는 그림 하나를 확대·축소해 각 용어의 자리를 가리킨다</p>
+  <p class="note gap"><i>kit 공백</i> terms에 주 그림 칸 없음(CSS로 2열 개조). 카메라 확대 부품 없음</p>
+</article>
+<article class="card" data-n="36">
+  <div class="frame"><iframe data-src="s36-code-splitting.html" loading="lazy" tabindex="-1" title="프런트엔드 · 앱 번들 구성, 코드 분할 전후"></iframe><a class="open" href="s36-code-splitting.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-36" value="36"> <b>36</b></label><span>프런트엔드 · 앱 번들 구성, 코드 분할 전후</span></header>
+  <ul class="axes"><li>부분-전체</li><li>studio</li><li>선이 그려짐</li><li>contrast</li><li>전면</li></ul>
+  <p class="note"><i>움직임</i> 모듈 6개에서 파일 막대로 선이 하나씩 그려지고, 닿으면 그 모듈 몫의 칸이 차오른다. 분할 전 main.js 하나, 분할 후 셋으로(8초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 부분과 전체는 넓이로, 무엇이 어디로 가는지는 그려지는 선으로. 앞뒤가 같은 좌표계라 바뀐 것은 선이 가는 곳뿐</p>
+  <p class="note gap"><i>kit 공백</i> 선이 그려지며 칸이 차는 흐름 손그림(sankey에 모션 없음)</p>
+</article>
+<article class="card" data-n="37">
+  <div class="frame"><iframe data-src="s37-dependency-parse.html" loading="lazy" tabindex="-1" title="언어학 · 의존 구문 분석의 핵심어·의존어·관계"></iframe><a class="open" href="s37-dependency-parse.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-37" value="37"> <b>37</b></label><span>언어학 · 의존 구문 분석의 핵심어·의존어·관계</span></header>
+  <ul class="axes"><li>연결</li><li>paper</li><li>쪼개지고 합쳐짐</li><li>terms</li><li>겹쳐 놓기</li></ul>
+  <p class="note"><i>움직임</i> 붙은 문장이 어절로 쪼개지고, 핵심어→의존어 호가 하나씩 그려지며 UD 관계 이름이 얹히고, 묶음으로 합쳐진다(9초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 관계 이름은 표가 아니라 그 관계를 잇는 선 위에 얹는다. 쪼개짐→연결→합쳐짐을 한 문장 위에서 차례로</p>
+  <p class="note gap"><i>kit 공백</i> 의존 호 손그림. terms 장면이 그림 하나를 주인공으로 받지 못해 CSS로 카드 높이를 눌렀다</p>
+</article>
+<article class="card" data-n="38">
+  <div class="frame"><iframe data-src="s38-station-radius.html" loading="lazy" tabindex="-1" title="부동산 · 역에서의 거리 반경과 가격 띠"></iframe><a class="open" href="s38-station-radius.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-38" value="38"> <b>38</b></label><span>부동산 · 역에서의 거리 반경과 가격 띠</span></header>
+  <ul class="axes"><li>공간</li><li>ledger</li><li>강조가 훑음</li><li>sweep</li><li>좌우 분할</li></ul>
+  <p class="note"><i>움직임</i> 지도 위 역 반경 원이 넓어지고, 오른쪽 가격 꺾은선에서 강조 띠·점·라벨이 같은 거리를 따라 훑는다(7초, 손잡이를 누르면 직접 조작)</p>
+  <p class="note"><i>옮길 원리</i> 공간 변수 하나를 지도와 차트 두 표현에 같은 강조로 동시에 걸어 한 값이 두 그림을 잇게 한다</p>
+  <p class="note gap"><i>kit 공백</i> 동심원 지도·강조 띠 차트 손그림. sweep 자동 훑기(attract loop) 없음</p>
+</article>
+<article class="card" data-n="39">
+  <div class="frame"><iframe data-src="s39-tech-debt-sprints.html" loading="lazy" tabindex="-1" title="제품 · 스프린트마다 쌓이는 기술 부채"></iframe><a class="open" href="s39-tech-debt-sprints.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-39" value="39"> <b>39</b></label><span>제품 · 스프린트마다 쌓이는 기술 부채</span></header>
+  <ul class="axes"><li>시간</li><li>sketch</li><li>모양이 바뀜</li><li>hook</li><li>작은 여러 칸</li></ul>
+  <p class="note"><i>움직임</i> 스프린트 여섯 칸에서 톱니 모양 부채 이자 층이 내려와 기능 영역을 줄이고 숫자가 40→32.5로 바뀐다(9초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 같은 축의 작은 칸을 나란히 두고 한 칸씩 같은 변형을 재생해 누적 변화를 칸 사이 차이로 보인다</p>
+  <p class="note gap"><i>kit 공백</i> small multiples 손그림. sketch인데 rough.js를 안 써 화이트보드 느낌이 약함</p>
+</article>
+<article class="card" data-n="40">
+  <div class="frame"><iframe data-src="s40-wafer-yield.html" loading="lazy" tabindex="-1" title="반도체 · 웨이퍼 결함 분포와 칩 크기별 수율"></iframe><a class="open" href="s40-wafer-yield.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-40" value="40"> <b>40</b></label><span>반도체 · 웨이퍼 결함 분포와 칩 크기별 수율</span></header>
+  <ul class="axes"><li>분포</li><li>blueprint</li><li>입자가 흐름</li><li>predict</li><li>중앙 주인공</li></ul>
+  <p class="note"><i>움직임</i> 결함 점 71개가 웨이퍼로 떨어져 맞은 다이를 결함으로 바꾸고, 옆 판독 칸의 수율 %와 막대가 실시간으로 바뀐다(8초 반복). 정답은 같은 결함 배치에 큰 다이 격자</p>
+  <p class="note"><i>옮길 원리</i> 질문과 정답이 같은 그림·같은 입력을 쓰고 결정 변수 하나만 바뀐다</p>
+  <p class="note gap"><i>kit 공백</i> 웨이퍼 맵·입자 낙하 손그림. predict visual에 leave 없음. question 문구가 화면에 안 보였다(확인 필요)</p>
+</article>
+<article class="card" data-n="41">
+  <div class="frame"><iframe data-src="s41-jpeg-pipeline.html" loading="lazy" tabindex="-1" title="이미지 · JPEG 압축 단계(YCbCr→DCT→양자화) 한 장 정리"></iframe><a class="open" href="s41-jpeg-pipeline.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-41" value="41"> <b>41</b></label><span>이미지 · JPEG 압축 단계(YCbCr→DCT→양자화) 한 장 정리</span></header>
+  <ul class="axes"><li>변환</li><li>studio</li><li>값이 쌓임</li><li>overview</li><li>작은 여러 칸</li></ul>
+  <p class="note"><i>움직임</i> RGB→YCbCr→DCT→양자화 네 칸이 셀 단위(지그재그)로 채워지고, 공유 축 막대가 192→96→64→16으로 줄어든다(9초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 작은 칸들이 같은 축의 막대를 공유하면 단계마다 무엇이 줄어드는지가 길이로 바로 비교된다</p>
+  <p class="note gap"><i>kit 공백</i> 8×8 격자 칸·지그재그 채우기 손그림. overview에 leave 없음. ① 칸 라벨이 빽빽함</p>
+</article>
+<article class="card" data-n="42">
+  <div class="frame"><iframe data-src="s42-bst-search-path.html" loading="lazy" tabindex="-1" title="알고리즘 · 이진 탐색 트리 탐색 경로"></iframe><a class="open" href="s42-bst-search-path.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-42" value="42"> <b>42</b></label><span>알고리즘 · 이진 탐색 트리 탐색 경로</span></header>
+  <ul class="axes"><li>계층</li><li>paper</li><li>점이 궤적을 그림</li><li>figure</li><li>중앙 주인공</li></ul>
+  <p class="note"><i>움직임</i> 점이 루트에서 내려가며 지나온 경로를 선으로 남기고, 노드마다 비교 라벨이 붙고 비교 횟수가 차오른다. 찾는 경우와 빈자리 경우를 번갈아(10초)</p>
+  <p class="note"><i>옮길 원리</i> 움직이는 점 하나와 그것이 남기는 궤적이 알고리즘의 실행 경로 그 자체다</p>
+  <p class="note gap"><i>kit 공백</i> 경로를 따라 궤적을 남기는 모션 없음(highlight·send로 불가)</p>
+</article>
+<article class="card" data-n="43">
+  <div class="frame"><iframe data-src="s43-bank-run-loop.html" loading="lazy" tabindex="-1" title="금융 안정 · 뱅크런 되먹임 한 장 정리"></iframe><a class="open" href="s43-bank-run-loop.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-43" value="43"> <b>43</b></label><span>금융 안정 · 뱅크런 되먹임 한 장 정리</span></header>
+  <ul class="axes"><li>되먹임</li><li>ledger</li><li>확대·축소</li><li>overview</li><li>전면</li></ul>
+  <p class="note"><i>움직임</i> SVB 5칸 뱅크런 고리를 보인 뒤 카메라가 칸마다 확대하며 빨간 점과 함께 실제 수치를 드러내고, 다시 전체로 축소한다(10초)</p>
+  <p class="note"><i>옮길 원리</i> 축소한 화면은 고리 구조만, 확대하면 각 칸의 근거 수치. 확대·축소가 구조와 세부를 오간다</p>
+  <p class="note gap"><i>kit 공백</i> 고리·카메라(viewBox) 손그림. 확대 중 이웃 칸이 가장자리에서 잘림</p>
+</article>
+<article class="card" data-n="44">
+  <div class="frame"><iframe data-src="s44-pacelc-latency.html" loading="lazy" tabindex="-1" title="분산 시스템 · 일관성 수준과 지연(PACELC)"></iframe><a class="open" href="s44-pacelc-latency.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-44" value="44"> <b>44</b></label><span>분산 시스템 · 일관성 수준과 지연(PACELC)</span></header>
+  <ul class="axes"><li>트레이드오프</li><li>sketch</li><li>선이 그려짐</li><li>figure</li><li>겹쳐 놓기</li></ul>
+  <p class="note"><i>움직임</i> ONE/QUORUM/ALL 축 위에 한 리전 선이 먼저, 세 리전 선이 겹쳐 그려지고 QUORUM에 +68ms 괄호가 나타난다(9초)</p>
+  <p class="note"><i>옮길 원리</i> 같은 축에 조건 두 개를 차례로 겹쳐 그리면 손잡이는 같은데 값 차이만 눈에 남는다</p>
+  <p class="note gap"><i>kit 공백</i> 선 그리기 손그림. rough.js가 diagram에만 적용돼 sketch 차트가 매끈함</p>
+</article>
+<article class="card" data-n="45">
+  <div class="frame"><iframe data-src="s45-refrigerant-undercharge.html" loading="lazy" tabindex="-1" title="냉동 사이클 · 정상 vs 냉매 부족"></iframe><a class="open" href="s45-refrigerant-undercharge.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-45" value="45"> <b>45</b></label><span>냉동 사이클 · 정상 vs 냉매 부족</span></header>
+  <ul class="axes"><li>순환</li><li>blueprint</li><li>쪼개지고 합쳐짐</li><li>contrast</li><li>좌우 분할</li></ul>
+  <p class="note"><i>움직임</i> 정상·냉매 부족 냉동 사이클 도면에서 액체 큰 점이 증발기에서 기체 알갱이로 쪼개지고 응축기에서 합쳐진다. 부족 쪽은 쪼개지는 자리가 앞당겨진다(7초)</p>
+  <p class="note"><i>옮길 원리</i> 같은 회로를 나란히 두고 상이 바뀌는 자리만 달리 보이면 진단 지표가 그 자리의 길이로 읽힌다</p>
+  <p class="note gap"><i>kit 공백</i> 사이클 도면·입자 손그림. beforeAfter 세로 배치 CSS. visual 노드가 복제돼 애니메이션이 원본에서 도는 문제</p>
+</article>
+<article class="card" data-n="46">
+  <div class="frame"><iframe data-src="s46-titration-terms.html" loading="lazy" tabindex="-1" title="화학 · 적정 곡선의 당량점, 지시약, 완충 구간"></iframe><a class="open" href="s46-titration-terms.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-46" value="46"> <b>46</b></label><span>화학 · 적정 곡선의 당량점, 지시약, 완충 구간</span></header>
+  <ul class="axes"><li>순서</li><li>lab</li><li>강조가 훑음</li><li>terms</li><li>겹쳐 놓기</li></ul>
+  <p class="note"><i>움직임</i> 같은 적정 곡선 3장 위를 점이 함께 훑고, 각 용어 구간에 닿으면 그 구간이 칠해진다(8초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 같은 곡선을 용어 수만큼 겹쳐 두고 강조만 바꾸면 용어 사이 관계가 위치로 보인다</p>
+  <p class="note gap"><i>kit 공백</i> axisPlot 구간 강조 모션, 카드 간 동기 루프 없음. 카드 격자 느낌이 남음</p>
+</article>
+<article class="card" data-n="47">
+  <div class="frame"><iframe data-src="s47-power-mix-sweep.html" loading="lazy" tabindex="-1" title="에너지 · 연도별 지역 전력 믹스"></iframe><a class="open" href="s47-power-mix-sweep.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-47" value="47"> <b>47</b></label><span>에너지 · 연도별 지역 전력 믹스</span></header>
+  <ul class="axes"><li>부분-전체</li><li>atlas</li><li>모양이 바뀜</li><li>sweep</li><li>좌우 분할</li></ul>
+  <p class="note"><i>움직임</i> 독일·한국 100% 누적 막대 칸이 연도별로 바뀌고, 가운데 띠가 같은 전원끼리 잇는다(9초 반복, 연도 단추로 멈춤)</p>
+  <p class="note"><i>옮길 원리</i> 비율은 넓이, 시간은 모양 변화로. 두 쪽을 같은 범주 띠로 이으면 비교가 눈으로 된다</p>
+  <p class="note gap"><i>kit 공백</i> 모양이 바뀌는 누적 막대·이음 띠 손그림. sweep 자동 재생·값 설정 API 없음</p>
+</article>
+<article class="card" data-n="48">
+  <div class="frame"><iframe data-src="s48-ransomware-lateral.html" loading="lazy" tabindex="-1" title="보안 · 랜섬웨어의 측면 이동"></iframe><a class="open" href="s48-ransomware-lateral.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-48" value="48"> <b>48</b></label><span>보안 · 랜섬웨어의 측면 이동</span></header>
+  <ul class="axes"><li>연결</li><li>terminal</li><li>입자가 흐름</li><li>hook</li><li>작은 여러 칸</li></ul>
+  <p class="note"><i>움직임</i> 같은 사내망 그래프 4칸에서 공격 입자가 흐르고 감염 노드가 차례로 빨개진다(4초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 작은 여러 칸이 같은 그래프를 공유하면 칸마다 달라지는 것만 눈에 들어온다</p>
+  <p class="note gap"><i>kit 공백</i> 간선 위 흐르는 입자, 같은 그래프 여러 칸 반복 기능 없음</p>
+</article>
+<article class="card" data-n="49">
+  <div class="frame"><iframe data-src="s49-basketball-zone-value.html" loading="lazy" tabindex="-1" title="스포츠 분석 · 농구 구역별 기대 득점"></iframe><a class="open" href="s49-basketball-zone-value.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-49" value="49"> <b>49</b></label><span>스포츠 분석 · 농구 구역별 기대 득점</span></header>
+  <ul class="axes"><li>공간</li><li>sketch</li><li>강조가 훑음</li><li>predict</li><li>중앙 주인공</li></ul>
+  <p class="note"><i>움직임</i> 하프코트 다섯 구역을 강조와 퍼지는 고리가 차례로 지나며 성공률을 밝히고, 정답에서는 같은 코트 라벨이 기대 득점으로 바뀐다(8초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 강조를 구역에서 구역으로 옮기며 숫자를 하나씩 쌓고, 정답 화면은 같은 그림에서 라벨만 바꾼다</p>
+  <p class="note gap"><i>kit 공백</i> 코트 도면·구역 훑기 손그림. predict visual에 leave 없음. predict takeaway가 공개 전에 보임(생성기 결함 후보)</p>
+</article>
+<article class="card" data-n="50">
+  <div class="frame"><iframe data-src="s50-moon-phase-orbit.html" loading="lazy" tabindex="-1" title="천문 · 공전 위치에 따른 달의 위상"></iframe><a class="open" href="s50-moon-phase-orbit.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-50" value="50"> <b>50</b></label><span>천문 · 공전 위치에 따른 달의 위상</span></header>
+  <ul class="axes"><li>시간</li><li>blueprint</li><li>모양이 바뀜</li><li>hook</li><li>전면</li></ul>
+  <p class="note"><i>움직임</i> 왼쪽 궤도에서 달이 지구를 돌고, 오른쪽 큰 달 원판의 터미네이터가 바뀌며 위상·일수·밝은 면 %가 함께 바뀐다(10초, 주요 위상에서 멈춤)</p>
+  <p class="note"><i>옮길 원리</i> 원인(위에서 본 궤도)과 결과(지구에서 본 모양)를 나란히 두고 같은 시계로 움직인다</p>
+  <p class="note gap"><i>kit 공백</i> 궤도 도면과 위상 모양 바꾸기 손그림</p>
+</article>
+<article class="card" data-n="51">
+  <div class="frame"><iframe data-src="s51-galton-board.html" loading="lazy" tabindex="-1" title="물리 · 갈톤 보드와 정규분포"></iframe><a class="open" href="s51-galton-board.html" target="_blank">크게 열기</a></div>
+  <header><label><input type="checkbox" id="pick-51" value="51"> <b>51</b></label><span>물리 · 갈톤 보드와 정규분포</span></header>
+  <ul class="axes"><li>분포</li><li>lab</li><li>입자가 흐름</li><li>predict</li><li>중앙 주인공</li></ul>
+  <p class="note"><i>움직임</i> 공 160개가 못판을 튀며 내려와 칸에 쌓이고, 다 쌓이면 정규분포 곡선이 겹쳐 오른다(9.5초 반복)</p>
+  <p class="note"><i>옮길 원리</i> 입자 하나하나의 무작위 경로를 보인 뒤 쌓인 결과로 분포가 생겨나게 하고, 이론 곡선은 마지막에 겹친다</p>
+  <p class="note gap"><i>kit 공백</i> 입자 흐름·쌓이는 히스토그램 부품 없음. predict visual 루프 정지 문제</p>
+</article></main>
 <script>
-const KEY = "ltt-shot-picks"; let picks = new Set();
-try { picks = new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch {}
-const out = document.getElementById("picked"), count = document.getElementById("count"), grid = document.getElementById("grid");
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-function sync() {
-  const l = [...picks].sort(); out.value = l.join(", "); count.textContent = l.length + "개 선택";
-  document.querySelectorAll(".card").forEach((c) => { const on = picks.has(c.dataset.n); c.classList.toggle("picked", on); c.querySelector("input").checked = on; });
-  try { localStorage.setItem(KEY, JSON.stringify(l)); } catch {}
-}
-function scale() { document.querySelectorAll(".frame iframe").forEach((f) => { f.style.transform = "scale(" + f.parentElement.clientWidth / 1280 + ")"; }); }
-fetch("axes.json").then((r) => r.json()).then((axes) => {
-  grid.innerHTML = Object.keys(axes).sort().filter((n) => !axes[n].skip).map((n) => { const a = axes[n]; return `<article class="card" data-n="${n}">
-  <div class="frame"><iframe data-src="${esc(a.file)}" loading="lazy" tabindex="-1" title="${esc(a.topic)}"></iframe><a class="open" href="${esc(a.file)}" target="_blank">크게 열기</a></div>
-  <header><label><input type="checkbox" value="${n}"> <b>${n}</b></label><span>${esc(a.topic)}</span></header>
-  <ul class="axes"><li>${esc(a.structure)}</li><li>${esc(a.theme)}</li><li>${esc(a.motion)}</li><li>${esc(a.role)}</li><li>${esc(a.composition)}</li></ul>
-  <p class="note"><i>움직임</i>${esc(a.moves)}</p>
-  <p class="note"><i>옮길 원리</i>${esc(a.principle)}</p>
-</article>`; }).join("");
-  const io = new IntersectionObserver((es) => es.forEach((e) => { const f = e.target; if (e.isIntersecting) { if (!f.src) f.src = f.dataset.src; } else if (f.src) f.removeAttribute("src"); }), { rootMargin: "200px" });
-  document.querySelectorAll(".frame iframe").forEach((f) => io.observe(f));
-  scale(); sync();
-});
-document.addEventListener("change", (e) => { if (e.target.matches("header input")) { e.target.checked ? picks.add(e.target.value) : picks.delete(e.target.value); sync(); } });
-document.getElementById("copy").addEventListener("click", () => { navigator.clipboard?.writeText(out.value).catch(() => out.select()); });
-addEventListener("resize", scale);
+const KEY="ltt-shot-picks";let picks=new Set();try{picks=new Set(JSON.parse(localStorage.getItem(KEY)||"[]"))}catch{}
+const out=document.getElementById("picked"),count=document.getElementById("count");
+function sync(){const l=[...picks].sort();out.value=l.join(", ");count.textContent=l.length+"개 선택";
+  document.querySelectorAll(".card").forEach(c=>{const on=picks.has(c.dataset.n);c.classList.toggle("picked",on);c.querySelector("input").checked=on});
+  try{localStorage.setItem(KEY,JSON.stringify(l))}catch{}}
+document.addEventListener("change",e=>{if(e.target.matches("header input")){e.target.checked?picks.add(e.target.value):picks.delete(e.target.value);sync()}});
+document.getElementById("copy").addEventListener("click",()=>{navigator.clipboard?.writeText(out.value).catch(()=>out.select())});
+function scale(){document.querySelectorAll(".frame iframe").forEach(f=>{f.style.transform="scale("+f.parentElement.clientWidth/1280+")"})}
+addEventListener("resize",scale);
+const io=new IntersectionObserver(es=>es.forEach(e=>{const f=e.target;if(e.isIntersecting){if(!f.src)f.src=f.dataset.src}else if(f.src){f.removeAttribute("src")}}),{rootMargin:"200px"});
+document.querySelectorAll(".frame iframe").forEach(f=>{io.observe(f);f.addEventListener("load",()=>{try{const s=f.contentDocument.createElement("style");s.textContent="#ltt-expect{display:none!important}";f.contentDocument.head.appendChild(s)}catch{}})});scale();sync();
 </script></body></html>

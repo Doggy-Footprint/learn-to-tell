@@ -17,7 +17,8 @@ Learn to Tell은 그 사이를 노린다. 목표는 숙련이 아니라, 사용�
 
 1. agent에게 **적절한 질문**을 하고,
 2. agent의 도움으로 **결정 변수를 고르고**,
-3. 그 선택의 **의미를 설명**할 수 있게 하는 것이다.
+3. 그 선택의 **의미를 설명**하고,
+4. 지난 학습을 **map에서 찾아 복습**할 수 있게 하는 것이다.
 
 ## 어떻게 동작하나
 
@@ -25,58 +26,85 @@ Claude Code skill(`/learn-to-tell <주제>`)로 동작한다. 작업 세션을 `
 
 ```
 작업 세션 ──/fork──▶ 학습 세션
-                     1. 진단       대화로 quick survey (최대 5문항)
-                     2. 목표 확인  agent가 학습 목표 1–3줄을 제안하고 사용자가 한 번 확인
-                     3. 수업       움직이는 인포그래픽 장면 덱 (브라우저, 데스크톱·폰)
-                     4. 이해 확인  서술 퀴즈 (pass / fail / skipped)
-                     5. 작업 복귀  결정·조건·질문을 result.md로 원래 세션에 전달
+                     1. 진단     대화로 quick survey (최대 5문항)
+                     2. 범위     결정 변수와 필요한 선행 개념을 agent가 정해서 알림
+                     3. 자료     교과서 한 챕터 분량의 시각 자료·시뮬레이션 (브라우저)
+                     4. 이해 확인 서술 퀴즈 (pass / fail / skipped)
+                     5. 작업 복귀 결정·조건·질문을 result.md로 원래 세션에 전달
+                     6. 지식 map ~/.learn-to-tell/map.md 갱신
 작업 세션 ◀──────────┘
 ```
 
-### 1–2. 진단과 목표
+### 1. 진단: 개념 사다리
 
-낯선 용어부터 묻지 않는다. 상황에 필요한 개념을 낮은 수준부터 3–5단으로 세우고 중간 단부터 "알고 있음 / 애매함 / 아예 모름"을 묻는다. 답에 따라 위아래로 이동해 **아는 개념 바로 위의 모르는 개념**을 학습 수준으로 정한다. 그다음 agent가 "이 수업을 마치면 …를 설명하고 고를 수 있다"는 학습 목표를 제안하고, 사용자가 한 번 확인한 뒤에만 수업을 만든다.
+낯선 용어부터 묻지 않는다. 상황에 필요한 개념을 낮은 수준부터 3–5단으로 세우고 중간 단부터 "알고 있음 / 애매함 / 아예 모름"을 묻는다. 답에 따라 위아래로 이동해, **아는 개념 바로 위의 모르는 개념**을 이번 학습 수준으로 정한다. 자기 보고는 실제보다 높게 나오기 쉬우므로 핵심 결정 변수는 짧은 퀴즈로 확인한다. 진단 결과는 판정이 아니라 가설로 다룬다.
 
-### 3. 수업
+### 2–3. 범위와 자료
 
-결정 변수마다 **예측 → 조작 → 회상**으로 진행한다. 장면마다 그림 하나가 화면을 차지하고, 움직임이 메커니즘을 보인다(요청 점이 캐시를 지나 원본까지 가는지, 막대가 어떻게 쌓이는지). 글은 그림 위 라벨·번호 핀·단계 자막에 얹는다. 손잡이는 실사용 범위만 움직이고 범위와 상수에는 근거를 단다.
+범위는 결정 변수를 이해하는 데 필요한 교과서 기본기다(대략 교과서 한 챕터). 결정 변수마다 예측 → 조작 → 확인 파트로 나눈다. 개념 이름이 아니라 **선택지 · 영향 · 필요 정보 · 실패 조건**으로 결정 변수를 다룬다. 조작해서 관찰할 필요가 없으면 대화만으로 끝내고, 필요할 때만 시뮬레이션 수업을 생성한다.
 
-### 4–5. 확인과 복귀
+수업은 "선생님 없이 혼자 읽어도 이해되는 자료"를 기준으로 한다.
 
-서술 퀴즈로 질문을 만들 수 있는지, 선택과 그 의미를 설명할 수 있는지 확인한다. 결과(이번 결정, 선택을 바꾸는 조건, agent에게 할 질문)는 `result.md`로 원래 작업 세션에 보낸다. 지난 수업은 로컬 서버 첫 화면(`http://127.0.0.1:47823/`)에서 대표 이미지 grid로 다시 연다.
+- 설명은 글 문단보다 그림 위 주석·라벨·단계 재생으로 한다.
+- 직관이 틀리기 쉬운 곳에서 먼저 **예측**을 받고 결과를 공개한다.
+- 조작은 목표를 준다("오래된 응답을 5% 아래로"). 손잡이는 실사용 범위만 움직이고, 범위와 상수에는 근거를 달며 근거가 약하면 "불확실"로 표시한다.
+- 끝에는 그림을 다시 보여 주는 대신 **떠올려 보는 질문**(retrieval practice)으로 정리한다.
 
-## 싸고 믿을 수 있게 만드는 장치
+### 4–6. 확인, 복귀, 기록
+
+서술 퀴즈로 "질문을 만들 수 있는지", "선택과 그 의미를 설명할 수 있는지"를 확인한다. 평가 기준은 답을 받기 전에 정해 둔다. 결과(이번 결정, 선택을 바꾸는 조건, agent에게 할 질문)는 `result.md`로 원래 작업 세션에 보내고, 약한 개념과 미룬 범위는 `~/.learn-to-tell/map.md`의 다음 학습 후보가 된다. 개인 데이터는 저장소 밖에만 남는다.
+
+## 생성된 자료를 믿을 수 있게 만드는 장치
+
+agent가 즉석에서 만드는 교재는 틀린 수치나 그럴듯한 오개념을 담기 쉽다. 그래서 공개 전에 여러 겹으로 검증한다.
 
 | 위험 | 장치 |
 | --- | --- |
-| 화면이 깨짐 | 정적 부품은 상한(schema)과 칸 맞춤으로 넘침·겹침을 막는다. 모든 글을 상한까지 채운 fuzz 덱이 데스크톱 1280×800·폰 390×844에서 0건이어야 테스트가 통과한다 |
-| 움직이는 그림이 의도와 다름 | `check.mjs`가 움직이는 장면만 beat 시각 프레임을 한 장(sheet)에 모으고 agent가 그 장만 본다 |
-| 핵심 주장·수치가 틀림 | outline의 주장·모델 절만 받은 Sonnet 서브에이전트가 HTML 작성과 병렬로 검토. 기대값은 `LTT.expect`로 페이지가 열릴 때 대조. 검토하지 못한 주장에는 "미검증" |
-| 생성 비용 | 수업 = `LTT.deck` 호출 하나(선언형 장면·부품·움직임 동사). API 문서 12KB, check 한 번에 데스크톱·폰 모두, 장면 12개 상한 |
+| 시뮬레이션 수치가 틀림 | 모델 코드를 보지 않는 검토 서브에이전트가 수업 outline의 공식만 보고 기대값을 구함 → 페이지가 열릴 때 모델 값과 자동 대조. 불일치 시 기대값을 모델에 맞추지 않고 손계산으로 원인을 찾음 |
+| 핵심 주장(공식, 범위, 비교 판정)이 틀림 | 같은 검토 서브에이전트가 outline의 주장 목록만 검토. 검토하지 못한 주장에는 "미검증" 표시 |
+| 혼자 읽으면 이해가 안 됨 | 검토 서브에이전트가 사용자 배경(`background.md`)으로 outline을 읽고 정의 전 용어·빠진 선행 개념을 지적, lint가 용어 순서·밀도를 점검 |
+| 화면이 깨지거나 단조로움 | 자동 lint(카드 남용, 채움 글, 용어 밀도)와 두 화면 크기의 레이아웃 감사("고침" 0건, "권고"는 3회 안에서 고치고 남으면 기록) |
 
 agent의 자기 확언만으로는 정확성을 인정하지 않는 것이 원칙이다.
 
 ## 예시
 
-https://learn-to-tell.vercel.app 에서 kit v2로 만든 움직이는 장면 본보기를 볼 수 있다. kit v1 시절의 수업 13편(캐시 TTL, GPU 데이터 흐름, 색 대비, 분산 투자 등)은 "이전 버전"에 그대로 보관했다.
+https://learn-to-tell.vercel.app 에서 실제 생성 형식의 수업을 볼 수 있다. 분야마다 실무자가 실제로 보는 매체(터미널 로그, 회로 도면, 논문 figure, 신문 차트 등)의 모양을 따른다.
+
+| 수업 | 분야 | 다루는 결정 |
+| --- | --- | --- |
+| [캐시 TTL](https://learn-to-tell.vercel.app/gallery/cache-ttl.html) | 백엔드 | 응답 신선도와 부하 사이의 TTL 선택 |
+| [단일 GPU 데이터 흐름](https://learn-to-tell.vercel.app/gallery/gpu/single-gpu-dataflow.html) | 시스템 | HBM → L2 → SM 중 어디가 병목인가 |
+| [색 대비](https://learn-to-tell.vercel.app/gallery/uiux/color-contrast.html) | UI/UX | 읽히는 대비 기준 |
+| [시각 위계와 간격](https://learn-to-tell.vercel.app/gallery/uiux/visual-hierarchy-spacing.html) | UI/UX | 간격으로 묶음 표현하기 |
+| [공기 저항이 있는 포물선](https://learn-to-tell.vercel.app/gallery/physics/projectile-drag.html) | 물리 | 저항을 모델에 넣어야 하는 조건 |
+| [분산 투자](https://learn-to-tell.vercel.app/gallery/finance/diversification.html) | 금융 | 변동성과 상관관계 |
+| [행렬 = 변환](https://learn-to-tell.vercel.app/gallery/linear-algebra/matrix-as-transform.html) | 선형대수 | 행렬을 격자 변형으로 읽기 |
+| [앵커링](https://learn-to-tell.vercel.app/gallery/cognition/anchoring.html) | 인지심리 | 첫 숫자가 판단에 남기는 영향 |
+| [인출 연습](https://learn-to-tell.vercel.app/gallery/pedagogy/retrieval-practice.html) | 교육학 | 다시 읽기 vs 떠올리기 |
+| [온톨로지 기초](https://learn-to-tell.vercel.app/gallery/knowledge-graph/ontology-triples.html) | 지식 표현 | 테이블 스키마로 충분한가, 온톨로지·SHACL을 얹어야 하는가 |
+
+수업은 폭 1280px 이상의 데스크톱 브라우저를 기준으로 만들고 점검한다. 폰(폭 760px 미만)에서는 kit가 같은 장면을 한 열로 다시 배치해 세로 스크롤로 읽을 수 있게 하는 열람만 보장하며, 폰 화면은 점검하지 않는다.
 
 ## 구성
 
 ```
 skills/learn-to-tell/
-├── SKILL.md      # agent가 따르는 절차: 진단 → 목표 확인 → 수업 → 확인 → 복귀
-├── kit/          # 수업 라이브러리 ltt.js 한 파일 + API.md + 글꼴·KaTeX
-├── look/         # 화면 기준과 본보기 shot 카드
-├── server/       # 로컬 서버(127.0.0.1:47823, / = 지난 수업 grid), check.mjs(CDP 화면 점검)
+├── SKILL.md      # agent가 따르는 절차: 진단 → 범위 → 자료 → 검증 → 확인 → 복귀 → map
+├── kit/          # 수업 생성용 부품 라이브러리 (장면 덱, 도식, 차트, lint, 기대값 대조)
+├── map/          # 지식 map CLI(ltt-map)와 뷰어, standalone 수업 import
+├── server/       # 로컬 수업 서버 + 학습 이벤트 기록 (127.0.0.1:47823), 헤드리스 화면 점검 (audit.mjs)
 ├── standalone.md # claude.ai(웹·모바일)용 artifact 수업 절차
-└── hooks/        # background.md 크기 관리, kit 소스 읽기 차단 (Claude Code 전용)
-site/gallery/     # kit v2 본보기 (Vercel 배포)
-site/legacy/      # kit v1과 그 수업·비교 실험 (보관)
+└── hooks/        # background.md 크기 관리 (Claude Code 전용)
+site/gallery/     # 예시 수업 (Vercel 배포 대상, skill 패키지에는 포함되지 않음)
+site/compareN/    # skill 유무 비교 실험 결과 (로컬 서버 전용, Vercel 배포 안 함)
 packages/ltt-kit/ # kit npm 패키지 (artifact 수업이 jsDelivr로 불러옴)
-scripts/          # build(zip·kit), shots(look 카드), measure(생성 비용 측정)
-tests/            # node --test: kit 단위·fuzz·check·서버
-agent-docs/       # 설계 결정과 기각한 대안
+.claude-plugin/   # Claude Code plugin manifest
+tests/            # node --test 기반 kit·서버·gallery 테스트
+agent-docs/adr/   # 주요 설계 결정과 기각한 대안
 ```
+
+설계 결정은 `agent-docs/adr/`에 기각한 대안과 함께 남겨 두었다. 예를 들어 v0를 폐기하고 최소 설계로 다시 쓴 이유, 정리 장면을 "그림 요약"이 아니라 "회상 질문 → 답 공개"로 둔 이유, 수업 하나의 피드백을 그 수업이 아니라 생성기(skill·kit)에서 고친다는 규칙 등이다.
 
 ## 설치
 
@@ -108,9 +136,13 @@ marketplace는 이 repo의 `master`를 가리키지만, 설치본은 `plugin.jso
 
 **자동 업데이트되지 않는다.** 대신 skill이 시작할 때 GitHub 최신 릴리스와 자기 버전을 비교해, 새 버전이 있으면 대화 첫머리에 한 줄로 알려 준다(웹 fetch가 막혀 있으면 알림 없이 넘어감). 업데이트하려면 PC 웹에서 기존 skill을 지우고 위 링크의 새 zip을 다시 올린다. 이전에 만든 수업 artifact는 kit을 버전 고정 CDN 주소로 불러오므로 skill을 업데이트하지 않아도 계속 열린다.
 
-claude.ai에는 로컬 서버와 `~/.learn-to-tell`이 없으므로 수업은 **standalone artifact**(제목 `LTT · <주제>`)로 만들어지고, 이해 확인이 끝나면 결과(`result.md`)가 artifact 안에 담긴다. 화면 점검(check)과 사실 검토 서브에이전트가 없으므로 결정 변수에 관한 주장에는 "미검증"이 붙는다.
+claude.ai에는 로컬 서버와 `~/.learn-to-tell`이 없으므로 수업은 **standalone artifact**(제목 `LTT · <주제>`)로 만들어지고, 이해 확인이 끝나면 결과(`result.md`)가 artifact 안에 담긴다. 나중에 Claude Code에서
 
+```
+/learn-to-tell import
+```
 
+를 실행하면 `LTT · ` artifact를 찾아 `~/.learn-to-tell/lessons/`로 가져오고 지식 map을 갱신한다. 목록에서 찾지 못하면 artifact 링크나 결과 텍스트를 붙여 넣으면 된다(`node <skill>/map/ltt-map.mjs import <html|md>`).
 
 ## 사용
 
@@ -120,28 +152,32 @@ claude.ai에는 로컬 서버와 `~/.learn-to-tell`이 없으므로 수업은 **
 # fork된 세션에서
 /learn-to-tell <주제>
 
-# 테스트 (Chrome이 있으면 fuzz·check 테스트도 돈다)
+# 테스트
 npm test
 
-# 수업 하나 점검: 데스크톱·폰 지적 + 움직이는 장면 sheet
-node skills/learn-to-tell/server/check.mjs <lesson id | lesson.html | site/... 경로>
-
-# 본보기 shot 카드와 무드보드 다시 만들기 (look/)
-node scripts/shots.mjs && node scripts/shots.mjs --board
+# 갤러리 수업을 헤드리스 Chrome으로 화면 점검 (1440×900 · 1280×800) / 기준선 갱신
+npm run audit
+npm run audit:baseline
 
 # claude.ai용 zip (dist/learn-to-tell.zip) / kit npm 패키지 내용 채우기
 npm run build:zip
 npm run build:kit
 
-# 지난 수업 grid → http://127.0.0.1:47823/ , 본보기 → /gallery/index.html
+# kit/*.css를 고친 뒤 kit JS 안 CSS 문자열 다시 만들기
+npm run build:css
+
+# 갤러리를 로컬에서 보기 → http://127.0.0.1:47823/gallery/index.html
+# 비교 실험 결과 → http://127.0.0.1:47823/compare1/index.html (시작 안내에 site/compareN 목록이 함께 나온다)
 node skills/learn-to-tell/server/server.mjs
 ```
 
-서버는 127.0.0.1에만 열리고 40분 동안 요청이 없으면 스스로 종료된다. 포트는 `LTT_PORT`, 종료 대기 시간은 `LTT_IDLE_MINUTES`로 바꾼다. 같은 포트에 이미 learn-to-tell 서버가 떠 있으면 새로 띄우지 않고 종료하므로, 다른 worktree의 파일을 보려면 포트를 바꿔 띄운다.
+서버는 127.0.0.1에만 열리고 40분 동안 요청이 없으면 스스로 종료된다. 포트는 `LTT_PORT`, 종료 대기 시간은 `LTT_IDLE_MINUTES`로 바꾼다. 같은 포트에 이미 learn-to-tell 서버가 떠 있으면 새로 띄우지 않고 그대로 종료하므로, 다른 worktree의 파일을 보려면 포트를 바꿔 띄운다.
+
+`npm run audit`은 `skills/learn-to-tell/server/audit.mjs`로 갤러리 수업마다 `?audit`을 헤드리스 Chrome에서 열어 장면별 경고를 표로 보여 준다(수업 하나는 `node skills/learn-to-tell/server/audit.mjs <lesson.html 경로>`). `tests/gallery-audit.baseline.json`은 페이지·크기별로 허용하는 경고 수의 상한이고, 테스트는 실제 건수가 그 이하인지만 본다. 갤러리 경고를 줄이면 `npm run audit:baseline`으로 상한을 내린다. 크기는 창 크기라 실제 화면은 Chrome 툴바만큼 낮고(1440×900 → 1440×813), 요약 줄에 실제 화면 크기가 찍힌다. 이 테스트는 Chrome이 없거나 `CI`가 설정된 환경에서는 건너뛴다(`LTT_AUDIT=1`로 강제, `LTT_AUDIT=0`으로 끔).
 
 ### 릴리스
 
-`master`에 push하면 `.github/workflows/release.yml`이 테스트 후, `.claude-plugin/plugin.json`의 `version`에 해당하는 태그 `v<version>`이 아직 없을 때만 릴리스한다: kit을 npm(`@doggy-footprint/ltt-kit`)에 publish하고, `learn-to-tell.zip`을 첨부한 GitHub Release를 만든다. 릴리스하려면 `.claude-plugin/plugin.json`과 `packages/ltt-kit/package.json`의 `version`을 함께 올린다(다르면 커밋과 CI가 실패한다. 커밋 검사는 `npm run setup:hooks`로 한 번 설치). npm publish에는 저장소 secret `NPM_TOKEN`이 필요하다. 
+`master`에 push하면 `.github/workflows/release.yml`이 테스트 후, `.claude-plugin/plugin.json`의 `version`에 해당하는 태그 `v<version>`이 아직 없을 때만 릴리스한다: kit을 npm(`@doggy-footprint/ltt-kit`)에 publish하고, `learn-to-tell.zip`을 첨부한 GitHub Release를 만든다. 릴리스하려면 `.claude-plugin/plugin.json`과 `packages/ltt-kit/package.json`의 `version`을 함께 올린다(다르면 커밋과 CI가 실패한다. 커밋 검사는 `npm run setup:hooks`로 한 번 설치). npm publish에는 저장소 secret `NPM_TOKEN`이 필요하다. 버전을 올릴 때 작가 계약 변경은 `skills/learn-to-tell/kit/CHANGELOG.md`에 한 줄씩 적는다(npm 패키지에도 들어간다).
 
 개인 학습 기록은 `~/.learn-to-tell/`(또는 `$LTT_HOME`)에 저장된다.
 

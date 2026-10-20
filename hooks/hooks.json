@@ -10,17 +10,6 @@
           }
         ]
       }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Read|Grep|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/learn-to-tell/hooks/kit_guard.py\""
-          }
-        ]
-      }
     ]
   }
 }

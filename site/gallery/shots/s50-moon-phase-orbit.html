@@ -1,58 +1,85 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>달의 위상</title><script src="/kit/ltt.js"></script></head><body><script>
-const SYN = 29.53;
-const NAMES = [[0.03, "삭"], [0.22, "초승달"], [0.28, "상현"], [0.47, "차가는 볼록달"], [0.53, "보름"], [0.72, "기우는 볼록달"], [0.78, "하현"], [0.97, "그믐달"], [1.01, "삭"]];
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>달의 위상</title>
+<script type="application/json" id="ltt-meta">{"topic":"공전 위치에 따른 달의 위상","audience":"천문 입문자","theme":"blueprint","medium":"궤도 도면","decision":"위상이 생기는 원인","domain":"천문","pattern":["hook"],"mode":"카탈로그용: 장면 하나짜리 본보기. 시간 구조를 \"모양이 바뀜\" 움직임과 전면 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>.mo-wrap{display:flex;justify-content:center}.mo{width:1040px;max-width:100%;height:auto;display:block}.mo text{font-family:inherit}</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const el = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+const txt = (s, attrs, str) => { const t = el("text", attrs, s); t.textContent = str; return t; };
+// predict 시각 칸에는 leave가 없어서, 노드가 문서에서 빠지면 스스로 멈춘다
+function loop(node, period, draw) {
+  let id = 0, t0 = 0; const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return { enter() { clearTimeout(id); if (reduced) { draw(0.999); return; } t0 = Date.now();
+      const f = () => { if (!node.isConnected) return; draw(((Date.now() - t0) / period) % 1); id = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(id); } };
+}
+const SYN = 29.53; // 삭망월(일)
+const NAMES = [[0.03, "삭"], [0.22, "초승달"], [0.28, "상현"], [0.47, "차가는 볼록달"], [0.53, "보름"], [0.72, "기우는 볼록달"], [0.78, "하현"], [0.97, "그믐달"], [1, "삭"]];
 const litFrac = (th) => (1 - Math.cos(th)) / 2;
 LTT.expect("상현의 밝은 비율", litFrac(Math.PI / 2), 0.5, { tol: 1e-9 });
 // 위상각 th(0=삭, π=보름)에서 지구에서 본 밝은 부분. 북반구 기준 차는 달은 오른쪽이 밝다
-const litPath = (cx, cy, r, th) => {
-  const c = Math.cos(th), rx = Math.abs(c) * r, wax = Math.sin(th) >= 0, top = `${cx},${cy - r}`, bot = `${cx},${cy + r}`;
+function litPath(cx, cy, r, th) {
+  const c = Math.cos(th), rx = Math.abs(c) * r, wax = Math.sin(th) >= 0;
+  const top = `${cx},${cy - r}`, bot = `${cx},${cy + r}`;
   return wax ? `M${top} A${r},${r} 0 0 1 ${bot} A${rx},${r} 0 0 ${c > 0 ? 0 : 1} ${top}Z`
              : `M${top} A${r},${r} 0 0 0 ${bot} A${rx},${r} 0 0 ${c > 0 ? 1 : 0} ${top}Z`;
-};
-const fill = (h, tone) => `fill:${h.color(tone)}`;
-const moon = LTT.draw({
-  aspect: 1.4, mobileAspect: 4 / 5, dur: 10, beats: [1.4, 2.5, 5, 7.5],
-  setup(h) {
-    const m = h.mobile, E = m ? [440, 330] : [280, 380], R = m ? 230 : 210, M = m ? [500, 870] : [810, 330], MR = m ? 150 : 160;
-    h.el("circle", { cx: E[0], cy: E[1], r: R, class: "e", style: "fill:none;stroke-dasharray:6 8" });
-    const sx = m ? 880 : 540;
-    [-2, -1, 0, 1, 2].forEach((i) => h.el("line", { x1: sx + 50, x2: sx, y1: E[1] + i * 80, y2: E[1] + i * 80, class: "ref", style: `stroke:${h.color("warn")}` }));
-    h.el("circle", { cx: E[0], cy: E[1], r: 30, class: "e", style: fill(h, "muted") });
-    h.label(E[0], E[1] + 42, "지구", { anchor: "t", cls: "muted" });
-    h.label(sx + 50, E[1] - 200, "← 햇빛", { anchor: "r", tone: "warn", cls: "strong" });
-    const sight = h.el("line", { class: "ref" });
-    const orb = h.g();
-    h.el("circle", { r: 20, class: "e", style: fill(h, "bg") }, orb);
-    h.el("path", { d: "M0,-20 A20,20 0 0 1 0,20Z", style: fill(h, "ink") }, orb);
-    h.el("circle", { cx: M[0], cy: M[1], r: MR, class: "e", style: fill(h, "bg") });
-    const lit = h.el("path", { style: fill(h, "ink") });
-    const ang = h.label(0, 0, "", { tone: "accent", cls: "strong" });
-    const name = h.label(M[0], M[1] + MR + 18, "", { anchor: "t", cls: "big" });
-    const day = h.label(M[0], M[1] + MR + (m ? 130 : 80), "", { anchor: "t", cls: "muted" });
-    h.anchor("orbit", E[0], E[1] - R); h.anchor("disk", M[0], M[1]);
-    return { E, R, M, MR, sight, orb, lit, ang, name, day };
-  },
-  draw(t, h, s) {
-    const q = (t / 10) * 4, k = Math.floor(q), u = ((k + h.ease.inOut(h.clamp((q - k - 0.12) / 0.76))) / 4) % 1;
-    const th = 2 * Math.PI * u, x = s.E[0] + s.R * Math.cos(th), y = s.E[1] - s.R * Math.sin(th);
-    s.orb.setAttribute("transform", `translate(${x},${y})`);
-    Object.entries({ x1: s.E[0], y1: s.E[1], x2: x, y2: y }).forEach(([a, v]) => s.sight.setAttribute(a, v));
-    h.pos(s.ang, s.E[0] + (s.R + 46) * Math.cos(th), s.E[1] - (s.R + 46) * Math.sin(th));
-    s.ang.textContent = Math.round(th * 180 / Math.PI) + "°";
-    s.lit.setAttribute("d", litPath(s.M[0], s.M[1], s.MR, th));
-    s.name.textContent = NAMES.find((n) => u < n[0])[1];
-    s.day.textContent = `${(u * SYN).toFixed(1)}일째 · 밝은 면 ${Math.round(litFrac(th) * 100)}%`;
+}
+function moonFigure(host) {
+  const W = 1040, H = 520, ex = 300, ey = 260, R = 190, mcx = 800, mcy = 250, MR = 140;
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "mo", "data-annotate": "" }, host);
+  for (let i = 0; i < 5; i++) { const y = 90 + i * 85; el("line", { x1: 590, x2: 545, y1: y, y2: y, style: "stroke:var(--ltt-warn);stroke-width:2" }, s);
+    el("path", { d: `M553,${y - 6} L545,${y} L553,${y + 6}`, style: "fill:none;stroke:var(--ltt-warn);stroke-width:2" }, s); }
+  txt(s, { x: 590, y: 60, "text-anchor": "end", style: "font-size:16px;fill:var(--ltt-warn);font-weight:600" }, "← 햇빛");
+  el("circle", { cx: ex, cy: ey, r: R, style: "fill:none;stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:6 6" }, s);
+  el("circle", { cx: ex, cy: ey, r: 30, style: "fill:var(--ltt-card-2);stroke:var(--ltt-ink);stroke-width:2" }, s);
+  el("path", { d: `M${ex},${ey - 30} A30,30 0 0 0 ${ex},${ey + 30}Z`, style: "fill:var(--ltt-dark);opacity:.55" }, s);
+  txt(s, { x: ex, y: ey + 56, "text-anchor": "middle", style: "font-size:16px;fill:var(--ltt-ink-2)" }, "지구");
+  txt(s, { x: ex, y: 36, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-muted)" }, "북쪽 위에서 본 공전 궤도");
+  const sight = el("line", { style: "stroke:var(--ltt-accent);stroke-width:1.5;stroke-dasharray:3 5" }, s);
+  const orb = el("g", {}, s);
+  el("circle", { cx: 0, cy: 0, r: 18, style: "fill:var(--ltt-dark);stroke:var(--ltt-ink);stroke-width:1.5" }, orb);
+  el("path", { d: "M0,-18 A18,18 0 0 1 0,18Z", style: "fill:var(--ltt-ink)" }, orb);
+  const angLab = txt(s, { "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-accent);font-weight:600" }, "");
+  txt(s, { x: mcx, y: 52, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-muted)" }, "지구에서 올려다본 달");
+  el("circle", { cx: mcx, cy: mcy, r: MR, style: "fill:var(--ltt-dark);stroke:var(--ltt-line-2);stroke-width:1.5" }, s);
+  const lit = el("path", { style: "fill:var(--ltt-ink)" }, s);
+  const name = txt(s, { x: mcx, y: mcy + MR + 48, "text-anchor": "middle", style: "font-size:26px;font-weight:700;fill:var(--ltt-ink)" }, "");
+  const day = txt(s, { x: mcx, y: mcy + MR + 76, "text-anchor": "middle", style: "font-size:16px;fill:var(--ltt-ink-2)" }, "");
+  function draw(u) {
+    const th = 2 * Math.PI * u, mx = ex + R * Math.cos(th), my = ey - R * Math.sin(th);
+    orb.setAttribute("transform", `translate(${mx},${my})`);
+    sight.setAttribute("x1", ex); sight.setAttribute("y1", ey); sight.setAttribute("x2", mx); sight.setAttribute("y2", my);
+    angLab.setAttribute("x", ex + (R + 44) * Math.cos(th)); angLab.setAttribute("y", ey - (R + 44) * Math.sin(th) + 5);
+    angLab.textContent = Math.round(th * 180 / Math.PI) + "°";
+    lit.setAttribute("d", litPath(mcx, mcy, MR, th));
+    name.textContent = NAMES.find((n) => u < n[0])[1];
+    day.textContent = `${(u * SYN).toFixed(1)}일째 · 밝은 면 ${Math.round(litFrac(th) * 100)}%`;
   }
-});
-LTT.deck({
-  title: "달의 위상", theme: "blueprint", exemplar: true,
+  return { el: s, draw };
+}
+// 위상 이름이 바뀌는 자리(0, 90, 180, 270°)에서 잠깐 머문다
+const dwell = (u) => { const q = u * 4, k = Math.floor(q), f = q - k; return (k + ease(clamp((f - 0.12) / 0.76))) / 4; };
+LTT.deck({ title: "달의 위상", theme: "blueprint",
   glossary: { "위상": "지구에서 볼 때 달의 밝은 부분이 보이는 모양" },
-  scenes: [{
-    type: "hook", pre: "달의 위상", text: "달은 늘 반만 밝다",
+  scenes: [{ type: "hook", layout: "full", pre: "달의 위상", text: "달은 늘 반만 밝다",
     sub: "햇빛을 받는 반쪽은 그대로이고, 지구에서 그 반쪽을 보는 각도만 돈다. 그 각도가 {{위상}}이다.",
-    visual: moon,
-    basis: "삭망월 29.53일. 궤도 크기와 달 크기는 축척이 아니다."
-  }]
-});
-</script></body></html>
+    basis: "삭망월 29.53일. 궤도 크기와 달 크기는 축척이 아니다.",
+    mount(body) { const w = body.appendChild(document.createElement("div")); w.className = "mo-wrap";
+      const f = moonFigure(w); const draw = (u) => f.draw(dwell(u) % 1); draw(0.5); return loop(f.el, 10000, draw); } }] });
+</script>
+</body>
+</html>

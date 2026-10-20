@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결제 요청이 타임아웃되면 다시 보내도 될까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"백엔드·결제","topic":"타임아웃 재시도와 멱등성 키","audience":"HTTP 요청·응답과 타임아웃은 안다","pattern":["hook","explain","predict","motion","compare","motion","compare","explain","keywords"],"mode":"체험형: 결제가 지나가는 길과 멱등성 키를 먼저 보이고, 청구 횟수를 짐작한 뒤 사건 흐름 칩과 단계 흐름으로 보여 준다","decision":"재시도와 멱등성 키 정책"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  svg.ltt-svg { max-height: 34vh; }
+  .count { font-size: 15px; color: var(--ltt-muted); } .count b { font-size: 28px; color: var(--ltt-ink); }
+  .count b.dup { color: var(--ltt-bad); }
+  .cards { font-size: 34px; letter-spacing: 4px; text-align: center; }
+  pre.c { font-size: 11.5px; background: #f4f6fb; border-radius: 8px; padding: 8px; margin: 0; white-space: pre-wrap; text-align: left; width: 100%; }
+  @media (max-width: 720px) { pre.c { font-size: 10px; padding: 6px; } .cards { font-size: 24px; } }
+  pre.c mark { background: #fdf4e3; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .chips span { padding: 5px 9px; border-radius: 8px; background: var(--ltt-card); border: 1px solid var(--ltt-line); font-size: 13px; }
+  .chips span.bad { color: var(--ltt-bad); font-weight: 700; } .chips i { color: var(--ltt-muted); font-style: normal; }
+</style>
+</head>
+<body>
+<script>
+  // Hand-derived by an independent subagent from the retry rules only; the model must match these, not the reverse.
+  const EXPECTED_CHARGES_BY_HAND = {
+    F1: { K0: 1, K1: 1, K2: 1 },
+    F2: { K0: 2, K1: 1, K2: 2 },
+    none: { K0: 1, K1: 1, K2: 1 },
+  };
+  const EXPECTED_CLIENT_SUCCESS_BY_HAND = {
+    F1: { K0: 1, K1: 1, K2: 1 },
+    F2: { K0: 1, K1: 1, K2: 1 },
+  };
+
+  const FAIL_NAME = { F1: "요청 유실", F2: "응답 유실", none: "실패 없음" };
+  const KEY_NAME = { K0: "키 없음", K1: "같은 키로 재시도", K2: "시도마다 새 키" };
+  const FAIL_NOTE = {
+    F1: "요청이 서버에 닿기 전에 유실되면 키가 없어도 재시도가 중복 결제를 만들지 않는다.",
+    F2: "응답만 유실되면, 다른 중복 방지 장치가 없는 한 키 없는 재시도는 중복 결제를 만든다.",
+  };
+  const KEYS = ["7f3a", "c91e"];
+
+  function keyFor(policy, attempt) {
+    if (policy === "K0") return null;
+    return policy === "K1" ? KEYS[0] : KEYS[attempt - 1];
+  }
+
+  function simulate(fail, policy) {
+    const ledger = [], store = new Map(), events = [];
+    let clientSuccess = false;
+    const attempts = fail === "none" ? 1 : 2;
+    for (let attempt = 1; attempt <= attempts && !clientSuccess; attempt++) {
+      const key = keyFor(policy, attempt);
+      const requestLost = fail === "F1" && attempt === 1;
+      events.push({ type: "req", attempt, key, lost: requestLost });
+      if (requestLost) { events.push({ type: "timeout", attempt }); continue; }
+      let replay = false;
+      if (key && store.has(key)) {
+        replay = true;
+        events.push({ type: "replay", attempt, key, result: store.get(key) });
+      } else {
+        const charge = { n: ledger.length + 1, attempt, key, dup: ledger.length > 0 };
+        ledger.push(charge);
+        if (key) store.set(key, `청구 #${charge.n} 성공`);
+        events.push({ type: "charge", attempt, key, charge, stored: !!key });
+      }
+      const responseLost = fail === "F2" && attempt === 1;
+      events.push({ type: "res", attempt, lost: responseLost, replay });
+      if (responseLost) { events.push({ type: "timeout", attempt }); continue; }
+      clientSuccess = true;
+    }
+    return { events, ledger, store, clientSuccess };
+  }
+
+  for (const fail of ["F1", "F2", "none"]) {
+    for (const k of ["K0", "K1", "K2"]) {
+      const sim = simulate(fail, k);
+      const label = `${FAIL_NAME[fail]} · ${KEY_NAME[k]}`;
+      LTT.expect(label + ": 청구 횟수", sim.ledger.length, EXPECTED_CHARGES_BY_HAND[fail][k], { tol: 0 });
+      if (fail !== "none") {
+        LTT.expect(label + ": 앱 성공 응답", sim.clientSuccess ? 1 : 0, EXPECTED_CLIENT_SUCCESS_BY_HAND[fail][k], { tol: 0 });
+      }
+    }
+  }
+
+  function captions(events, policy) {
+    let charges = 0;
+    return events.map((ev) => {
+      switch (ev.type) {
+        case "req":
+          if (ev.attempt === 1) {
+            return ev.lost ? "요청이 서버에 닿기 전에 사라졌다. 서버는 이 요청을 모른다."
+              : `앱이 10,000원 결제를 요청한다${ev.key ? ` (키 ${ev.key})` : " (멱등성 키 없음)"}.`;
+          }
+          if (policy === "K1") return `앱이 같은 키 ${ev.key}로 다시 보낸다.`;
+          if (policy === "K2") return `앱이 새 키 ${ev.key}로 다시 보낸다. 서버에게는 처음 보는 키다.`;
+          return "앱이 같은 요청을 다시 보낸다. 키가 없어 서버는 새 요청과 구별하지 못한다.";
+        case "timeout":
+          return "응답이 오지 않아 타임아웃. 앱은 서버가 처리했는지 알 수 없다 — 결과 모름.";
+        case "charge":
+          charges++;
+          if (ev.charge.dup) return "서버가 카드를 또 청구한다. 같은 결제가 두 번 — 중복 결제.";
+          return `서버가 카드를 청구하고 기록한다${ev.stored ? `. 키 ${ev.key}와 결과를 저장한다` : ""}.`;
+        case "replay":
+          return `키 ${ev.key}는 이미 처리했다. 다시 청구하지 않고 저장된 결과를 돌려준다.`;
+        case "res":
+          if (ev.lost) return "성공 응답이 앱으로 가는 도중에 사라졌다. 서버는 이미 청구했다.";
+          if (ev.replay) return "앱이 저장된 성공 응답을 받는다. 청구는 한 번뿐이다.";
+          return charges > 1 ? "앱은 성공 응답을 받는다. 화면은 정상이지만 카드는 두 번 청구됐다." : "앱이 성공 응답을 받는다.";
+      }
+      return "";
+    });
+  }
+
+  const SPEC = { viewBox: "0 0 880 170",
+    nodes: { app: { x: 10, y: 50, w: 170, h: 70, label: "📱 앱" }, server: { x: 355, y: 50, w: 170, h: 70, label: "결제 서버", sub: "키 저장소" },
+      ledger: { x: 700, y: 50, w: 170, h: 70, label: "💳 결제 기록" } },
+    links: [{ from: "app", to: "server" }, { from: "server", to: "ledger" }] };
+  // Lost messages send no packet: a dot reaching the other side would contradict "it never arrived".
+  function seqScene(fail, policy) {
+    return (body) => {
+      const sim = simulate(fail, policy), caps = captions(sim.events, policy);
+      body.innerHTML = `<p class="count">카드 청구 <b>0</b>회</p><svg class="seq"></svg><div></div>`;
+      const f = LTT.flow(body.querySelector("svg"), SPEC), n = body.querySelector(".count b");
+      const steps = sim.events.map((ev, k) => ({ caption: caps[k], enter() {
+        f.clear();
+        const charged = sim.events.slice(0, k + 1).filter((e) => e.type === "charge").length;
+        n.textContent = charged;
+        n.classList.toggle("dup", charged > 1);
+        const bad = ev.lost || (ev.type === "charge" && ev.charge.dup);
+        f.highlight({ req: ["app"], timeout: ["app"], charge: ["server", "ledger"], replay: ["server"], res: ev.lost ? ["server"] : ["app"] }[ev.type]);
+        if (ev.lost || ev.type === "timeout") return;
+        const route = { req: ["app", "server"], charge: ["server", "ledger"], replay: ["server", "server"], res: ["server", "app"] }[ev.type];
+        f.send(route[0], route[1], { count: 1, r: 8, color: bad ? "var(--ltt-bad)" : ev.type === "replay" ? "var(--ltt-good)" : "var(--ltt-accent)" });
+      } }));
+      let st;
+      return { enter() { if (!st) st = LTT.stepper(body.lastChild, steps); else st.go(0); } };
+    };
+  }
+  const CHIP = { req: (e) => `📤 요청 ${e.attempt}`, timeout: () => "⏱ 타임아웃", charge: (e) => `💳 청구 ${e.charge.n}`, replay: () => "↩ 저장된 결과", res: (e) => e.lost ? "✕ 응답 유실" : "✓ 성공 응답" };
+  const chips = (f, k) => `<div class="chips">${simulate(f, k).events.map((e, i) => `${i ? "<i>→</i>" : ""}<span class="ltt-rise ${e.lost || e.charge?.dup ? "bad" : ""}" style="--i:${i}">${CHIP[e.type](e)}</span>`).join("")}</div>`;
+  const cards = (f, k) => { const c = simulate(f, k).ledger.length; return `<div class="cards">${"💳".repeat(c)}</div>`; };
+
+  LTT.deck({
+    title: "결제 요청이 타임아웃되면 다시 보내도 될까?",
+    scenes: [
+      { type: "hook", art: "💳",
+        text: "타임아웃은 '실패'가 아니라<br><u>'결과 모름'</u>이다.",
+        sub: "결제 API 클라이언트에 재시도를 붙이기 전에, 서버가 같은 결제를 알아볼 수 있는지부터 정해야 한다." },
+
+      { type: "explain", kicker: "상황", title: "결제 한 번이 지나가는 길", arrows: true,
+        steps: [
+          { icon: "📱", title: "앱이 요청", text: "결제 API에 POST를 보내고 응답을 기다린다." },
+          { icon: "💳", title: "서버가 청구", text: "카드사에 청구하고 장부에 적은 뒤 성공 응답을 보낸다." },
+          { icon: "⏱️", title: "응답이 안 오면", text: "앱은 정해진 시간 뒤 타임아웃으로 보고 같은 요청을 다시 보낸다." },
+          { icon: "🔑", title: "멱등성 키", text: "요청에 붙이는 고유 ID. 서버가 같은 결제의 재시도인지 알아보는 표시다." },
+        ] },
+
+      { type: "predict", kicker: "짐작해 보기", title: "고객 카드는 몇 번 청구될까?",
+        sub: "서버는 결제를 처리했지만 성공 응답이 도중에 사라졌다. 앱은 타임아웃 후 같은 요청을 한 번 다시 보낸다(멱등성 키 없음).",
+        question: "응답 유실 + 키 없는 재시도 1회: 카드 청구 횟수",
+        choices: [{ id: "0", text: "0회" }, { id: "1", text: "1회" }, { id: "2", text: "2회" }],
+        answer: "2",
+        answerVisual: chips("F2", "K0"),
+        why: "2회. 키가 없으면 서버는 재시도를 새 결제로 본다. 앱 화면은 성공으로 끝나서 중복을 알아채기도 어렵다. <span class=\"ltt-tag\">모델로 계산한 예시</span>" },
+
+      { kicker: "키 없음 · 응답 유실", title: "한 단계씩: 화면은 정상, 카드는 두 번",
+        mount: seqScene("F2", "K0"),
+        basis: "모델: 재시도 1회, 재시도와 그 응답은 성공, 서버는 키가 없으면 받은 요청마다 청구한다." },
+
+      { type: "compare", kicker: "왜 '결과 모름'인가", title: "앱이 보기에는 두 경우가 똑같다",
+        revealLabel: "서버에서 일어난 일 보기",
+        items: [
+          { label: "요청이 가는 길에 유실", visual: `<span class="ltt-tag warn">? 타임아웃</span>`, tone: "good", verdict: "서버는 처리 안 함 → 재시도해도 1회",
+            noteAfter: true, note: cards("F1", "K0") },
+          { label: "응답이 오는 길에 유실", visual: `<span class="ltt-tag warn">? 타임아웃</span>`, tone: "bad", verdict: "서버는 이미 청구 → 재시도하면 2회",
+            noteAfter: true, note: cards("F2", "K0") },
+        ],
+        basis: "응답을 받지 못한 클라이언트는 서버가 처리했는지 알 수 없다. 출처: Stripe 블로그 'Designing robust and predictable APIs with idempotency'." },
+
+      { kicker: "같은 키로 재시도 · 응답 유실", title: "키가 같으면 서버가 저장된 결과를 돌려준다",
+        mount: seqScene("F2", "K1"),
+        basis: "서버는 키와 첫 처리 결과를 저장한다(Stripe API v1 방식. IETF Idempotency-Key 헤더 초안도 같은 개념이며 아직 표준이 아니다)." },
+
+      { type: "compare", kicker: "키를 어디서 만드나", title: "응답이 유실됐을 때 세 가지 코드",
+        sub: "retry(타임아웃이면 한 번 더), post는 예시용 함수. 결과는 모델로 계산한 예시.",
+        items: [
+          { label: "키 없음", visual: `<pre class="c">retry(() =>
+  post("/charges", body))</pre>`, tone: "bad", verdict: "2회 청구", noteAfter: true, note: cards("F2", "K0") },
+          { label: "시도마다 새 키", visual: `<pre class="c">retry(() =>
+  post("/charges", body, {
+    "Idempotency-Key": <mark>crypto.randomUUID()</mark> }))</pre>`, tone: "bad", verdict: "2회 청구 — 키 없는 것과 같다", noteAfter: true, note: cards("F2", "K2") },
+          { label: "결제 의도마다 키 하나", visual: `<pre class="c"><mark>const key = crypto.randomUUID();</mark>
+retry(() =>
+  post("/charges", body, {
+    "Idempotency-Key": key }))</pre>`, tone: "good", verdict: "1회 청구", noteAfter: true, note: cards("F2", "K1") },
+        ] },
+
+      { type: "explain", kicker: "운영에서 걸리는 것", title: "키를 붙여도 남는 함정", arrows: false,
+        steps: [
+          { icon: "⏱️", title: "처리 중에 같은 키", text: "결과 저장 전 같은 키가 또 오면 두 번 처리될 수 있다. IETF 초안: 409 Conflict(SHOULD)." },
+          { icon: "🗓️", title: "키에도 수명", text: "Stripe v1은 24시간 지난 키를 정리할 수 있다(v2는 30일). 그 뒤 재시도는 새 요청." },
+          { icon: "🧾", title: "같은 키, 다른 내용", text: "Stripe v1은 같은 키에 다른 파라미터면 오류." },
+        ],
+        basis: "RFC 9110 §9.2.2: GET·PUT·DELETE는 멱등, POST는 아니다. 출처: docs.stripe.com/api/idempotent_requests · docs.stripe.com/api-v2-overview · draft-ietf-httpapi-idempotency-key-header-07 · RFC 9110 §9.2.2" },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [{ ko: "멱등성", en: "idempotency" }, { ko: "멱등성 키", en: "Idempotency-Key" }, { ko: "최소 한 번 전달", en: "at-least-once delivery" }],
+        signals: ["두 번 일어나면 안 되는 요청(결제·발송)에 재시도를 붙일 때", "타임아웃을 '실패'로 처리하는 코드를 볼 때"],
+        queries: ["idempotency key payment retry", "Stripe idempotent requests", "draft-ietf-httpapi-idempotency-key-header", "RFC 9110 idempotent methods"],
+        neighbors: [
+          { term: "중복 제거 (dedup)", diff: "받는 쪽에서 같은 메시지를 걸러내는 일반 기법. 멱등성 키는 그 한 구현." },
+          { term: "재시도 backoff", diff: "언제 다시 보낼지. 다시 보내도 안전한지는 멱등성이 정한다." },
+        ] },
+    ],
+  });
+</script>
+</body>
+</html>

@@ -38,7 +38,7 @@ function parse(file) {
         else if (block.type === "tool_use") {
           msg.chars += JSON.stringify(block.input ?? {}).length;
           tools.set(block.id, { name: block.name, start: ts, end: NaN });
-          if (block.name === "Bash" && /node\s+\S*(audit|check)\.mjs/.test(block.input?.command ?? "")) audits += 1;
+          if (block.name === "Bash" && /node\s+\S*audit\.mjs/.test(block.input?.command ?? "")) audits += 1;
         }
       }
       messages.set(id, msg);

@@ -2,20 +2,6 @@
 
 버전을 올릴 때 작가 계약(수업 spec이 지켜야 하거나 수업에서 보이는 동작)과 kit 개발자용 변경을 한 줄씩 적는다.
 
-## 1.0.0
-
-kit v2로 다시 만들었다. 0.x로 만든 수업은 CDN의 0.x 주소에 고정되어 그대로 동작하고, 1.0.0과는 호환되지 않는다.
-
-작가 계약
-- `ltt.js` 한 파일(CSS 포함)만 불러온다. `ltt-ui.js`·`ltt-parts.js`·`ltt-mock.js`·`ltt-deck.js`와 `.css` 파일은 없다.
-- 장면 9종(hook terms figure predict play compare summary overview keywords)과 부품은 `API.md`가 정한다. 상한을 넘으면 그리기 전에 SchemaError가 난다.
-- 움직임은 `motion` 동사 목록이고 화면은 시간 t의 함수다(`LTT.seek(i, t)`). 동사는 그 id를 가진 부품으로 간다.
-- 폰(폭 700px 이하)에서는 장면을 세로로 쌓고 부품이 폰 배치로 바뀐다.
-- 빠진 것: elk 자동 배치, sankey, lanes, 지리 map, rough.js, `annotate` % 주석, 지식 map 장면.
-
-kit 개발자
-- 점검은 `server/check.mjs`(CDP, 데스크톱·폰, 움직이는 장면만 sheet)가 맡고 `audit.mjs`와 CSS 빌드 단계는 없앴다.
-
 ## 0.2.0
 
 작가 계약

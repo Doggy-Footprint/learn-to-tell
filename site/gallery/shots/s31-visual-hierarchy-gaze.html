@@ -1,47 +1,102 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>시선이 지나는 길</title><script src="/kit/ltt.js"></script></head><body><script>
-// 예시 궤적: NN/g 시선 추적 연구(F 패턴, 2006·2017)가 보고한 훑기 모양을 단순화한 것.
-const R = (x, y, width, height, fill) => ({ kind: "rect", x, y, width, height, fill });
-const shapes = {
-  pa: R(2, 4, 46, 92, "--ltt-card"), ta: { kind: "label", x: 25, y: 12, text: "시안 A · 모두 같은 크기" },
-  ...Object.fromEntries([40, 37, 41, 36, 38, 15].map((w, i) => ["a" + i, R(5, 24 + i * 11, w, 4, i === 5 ? "--ltt-muted" : "--ltt-line")])),
-  pb: R(52, 4, 46, 92, "--ltt-card"), tb: { kind: "label", x: 75, y: 12, text: "시안 B · 크기·대비로 순서" },
-  hd: R(60, 22, 30, 9, "--ltt-ink"), ph: R(66, 36, 18, 20, "--ltt-line"), ds: R(63, 61, 24, 3, "--ltt-line"),
-  bt: R(68, 70, 14, 9, "--ltt-accent"), btl: { kind: "label", x: 75, y: 74.5, text: "체험 시작" },
-  r0: R(5, 25.5, 0, 1, "--ltt-accent"), r1: R(5, 36.5, 0, 1, "--ltt-accent"), r2: R(5, 47.5, 0, 1, "--ltt-accent"), v: R(4.5, 47.5, 1, 0, "--ltt-accent"),
-  vb: R(74.5, 26, 1, 0, "--ltt-accent"),
-  ...Object.fromEntries([0, 1, 2, 3].map((i) => ["f" + i, { kind: "label", x: 93, y: [26, 46, 62.5, 74.5][i], text: "①②③④"[i], opacity: 0 }])),
-  dot: { kind: "circle", cx: 5, cy: 26, r: 1.8, fill: "--ltt-accent" }
-};
-// 상태는 앞 상태 위에 쌓아 만든다(궤적이 남아야 한다). circle은 x·y가 아니라 cx·cy로 놓인다(API.md와 다름).
-const states = {}, seq = [];
-let acc = {};
-const add = (name, change) => { acc = { ...acc, ...change }; states[name] = acc; seq.push(name); };
-add("a1", { dot: { cx: 45, cy: 26 }, r0: { width: 40 } });
-add("a2", { dot: { cx: 5, cy: 37 } });
-add("a3", { dot: { cx: 37, cy: 37 }, r1: { width: 32 } });
-add("a4", { dot: { cx: 5, cy: 48 } });
-add("a5", { dot: { cx: 22, cy: 48 }, r2: { width: 17 } });
-add("a6", { dot: { cx: 5, cy: 80 }, v: { height: 32 } });
-const nA = seq.length;
-["hd", "ph", "ds", "bt"].forEach((id, i) => add("b" + i, { dot: { cx: 75, cy: [26, 46, 62.5, 74.5][i] }, vb: { height: [0, 20, 36.5, 48.5][i] }, ["f" + i]: { opacity: 1 } }));
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시선이 지나는 길</title>
+<script type="application/json" id="ltt-meta">{"topic":"시각적 위계와 시선 경로","audience":"랜딩 페이지를 만드는 개발자","theme":"studio","medium":"디자인 툴 시안 화면","decision":"헤드라인·CTA 크기와 대비","domain":"디자인","pattern":["predict"],"mode":"카탈로그용: 장면 하나짜리 본보기. 계층 구조를 \"점이 궤적을 그림\" 움직임과 좌우 분할 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.gz-row{display:flex;gap:28px;justify-content:center;align-items:flex-start}
+.gz{width:460px;max-width:100%;height:auto;display:block}
+.gz text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// 예시 궤적: NN/g 시선 추적 연구(F 패턴, 2006·2017)가 보고한 훑기 모양을 단순화한 것
+const PATH_A = [[40, 92], [330, 92], [40, 128], [250, 128], [40, 164], [170, 164], [40, 200], [40, 236], [110, 236], [40, 272]];
+const PATH_B = [[200, 104], [200, 178], [200, 238], [200, 280]];
+const FIX_B = [{ i: 0, t: "① 헤드라인" }, { i: 1, t: "② 제품 사진" }, { i: 2, t: "③ 한 줄 설명" }, { i: 3, t: "④ 체험 시작" }];
+
+function page(host, kind) {
+  const s = mk("svg", { viewBox: "0 0 400 330", class: "gz", "data-annotate": "" }, host);
+  mk("rect", { x: 1, y: 1, width: 398, height: 316, rx: 10, style: "fill:var(--ltt-card);stroke:var(--ltt-line);stroke-width:1.5" }, s);
+  mk("rect", { x: 20, y: 18, width: 46, height: 12, rx: 3, style: "fill:var(--ltt-ink-2)" }, s);
+  [250, 296, 342].forEach((x) => mk("rect", { x, y: 21, width: 36, height: 7, rx: 3, style: "fill:var(--ltt-line-2)" }, s));
+  const tag = mk("text", { x: 380, y: 52, "text-anchor": "end", style: "font-size:14px;font-weight:700;fill:var(--ltt-muted)" }, s);
+  if (kind === "A") {
+    tag.textContent = "시안 A · 모두 같은 크기";
+    [92, 128, 164, 200, 236, 272].forEach((y, i) => mk("rect", { x: 30, y: y - 6, width: [320, 300, 330, 290, 310, 120][i], height: 12, rx: 3,
+      style: `fill:${i === 5 ? "var(--ltt-ink-2)" : "var(--ltt-line-2)"}` }, s));
+  } else {
+    tag.textContent = "시안 B · 크기·대비로 순서";
+    mk("rect", { x: 70, y: 86, width: 260, height: 26, rx: 5, style: "fill:var(--ltt-ink)" }, s);
+    mk("rect", { x: 120, y: 132, width: 160, height: 86, rx: 8, style: "fill:var(--ltt-card-2);stroke:var(--ltt-line-2)" }, s);
+    mk("path", { d: "M140 204 L175 168 L200 190 L225 160 L262 204 Z", style: "fill:var(--ltt-line-2)" }, s);
+    mk("rect", { x: 110, y: 232, width: 180, height: 10, rx: 3, style: "fill:var(--ltt-line-2)" }, s);
+    mk("rect", { x: 140, y: 264, width: 120, height: 32, rx: 16, style: "fill:var(--ltt-accent)" }, s);
+    const c = mk("text", { x: 200, y: 285, "text-anchor": "middle", style: "font-size:14px;font-weight:700;fill:var(--ltt-on-dark)" }, s); c.textContent = "체험 시작";
+  }
+  return s;
+}
+
+function trace(s, pts, fix, period) {
+  const g = mk("g", {}, s);
+  const segs = []; let L = 0;
+  for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push(d); L += d; }
+  const line = mk("polyline", { points: pts.join(" "), style: `fill:none;stroke:var(--ltt-accent);stroke-width:3;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:${L};opacity:.85` }, g);
+  const dot = mk("circle", { r: 9, style: "fill:var(--ltt-accent);stroke:var(--ltt-card);stroke-width:3" }, g);
+  const labels = (fix || []).map((f) => { const t = mk("text", { x: pts[f.i][0] + 112, y: pts[f.i][1] + 5, "text-anchor": "start",
+      style: "font-size:14px;font-weight:700;fill:var(--ltt-accent);opacity:0" }, g); t.textContent = f.t; return { t, at: f.i }; });
+  const cum = [0]; segs.forEach((d) => cum.push(cum[cum.length - 1] + d));
+  const draw = (u) => {
+    const p = Math.min(1, u / 0.8), e = ease(p) * L;   // 앞 80%는 그리고, 끝 20%는 다 그린 상태로 멈춘다
+    line.style.strokeDashoffset = L - e;
+    let k = 0; while (k < segs.length - 1 && cum[k + 1] < e) k++;
+    const f = segs[k] ? (e - cum[k]) / segs[k] : 0;
+    dot.setAttribute("cx", pts[k][0] + (pts[k + 1][0] - pts[k][0]) * f); dot.setAttribute("cy", pts[k][1] + (pts[k + 1][1] - pts[k][1]) * f);
+    labels.forEach((l) => l.t.style.opacity = cum[l.at] <= e + 1 ? 1 : 0);
+  };
+  if (reduced) { draw(1); return; }
+  const t0 = Date.now(); const tick = () => { if (!s.isConnected && Date.now() - t0 > 500) return; draw(((Date.now() - t0) / period) % 1); setTimeout(tick, 16); }; tick();
+}
+
+function both(el) {
+  const row = el.appendChild(document.createElement("div")); row.className = "gz-row";
+  const a = page(row, "A"); trace(a, PATH_A, null, 6000);
+  page(row, "B");
+}
+
 LTT.deck({
-  title: "시선이 지나는 길", theme: "studio", exemplar: true,
+  title: "시선이 지나는 길", theme: "studio",
   glossary: { "시각적 위계": "크기·굵기·대비·위치로 요소의 중요도 순서를 정해, 보는 사람이 그 순서로 읽게 만드는 것",
     "F 패턴": "위계가 약한 글 화면에서 시선이 위쪽 두 줄을 가로로 훑고 왼쪽 가장자리를 따라 내려가는 모양" },
   scenes: [{
-    type: "predict", title: "위계를 주면 시선은 어디부터 멈출까?",
+    type: "predict",
+    title: "위계를 주면 시선은 어디부터 멈출까?",
     sub: "왼쪽 시안 A에서는 점이 {{F 패턴}}으로 줄을 훑는다. 오른쪽 시안 B는 같은 내용에 {{시각적 위계}}를 줬다.",
-    visual: LTT.morph({ aspect: 2, shapes, states }),
-    q: "시안 B에서 시선이 가장 먼저 멈추는 곳은?",
-    choices: ["왼쪽 위 로고", "가장 크고 진한 헤드라인", "색이 있는 체험 시작 버튼"], answer: 1,
-    why: "가장 크고 대비가 센 요소가 첫 시선을 받고, 시선은 크기 순서대로 내려가 버튼에서 끝난다. 색 버튼은 마지막 도착점이다.",
-    motion: [
-      ...seq.slice(0, nA).map((state, i) => ["to", { state, dur: i % 2 ? 0.35 : 0.9 }]), ["wait", 0.8], ["mark", "ask"],
-      ...seq.slice(nA).map((state) => ["to", { state, dur: 0.7 }]), ["wait", 1.5]
-    ],
-    takeaway: "위계를 정하는 것은 읽는 순서를 정하는 일이다.",
-    basis: "NN/g 시선 추적 연구 F-Shaped Pattern(2006, 2017 재확인). 궤적은 보고된 모양을 단순화한 예시다."
+    question: "시안 B에서 시선이 가장 먼저 멈추는 곳은?",
+    visual: both,
+    choices: [{ id: "logo", text: "왼쪽 위 로고" }, { id: "head", text: "가장 크고 진한 헤드라인" }, { id: "cta", text: "색이 있는 체험 시작 버튼" }],
+    answer: "head",
+    answerVisual: (node) => { const w = node.appendChild(document.createElement("div")); w.className = "gz-row";
+      trace(page(w, "B"), PATH_B, FIX_B, 5000); },
+    why: "가장 크고 대비가 센 요소가 첫 시선을 받고, 시선은 크기 순서대로 내려가 버튼에서 끝난다. 색 버튼은 마지막 도착점이다. <span class=\"ltt-tag\">예시 궤적</span>",
+    basis: "NN/g 시선 추적 연구: F-Shaped Pattern for Reading Web Content(2006, 2017 재확인). 궤적은 연구가 보고한 모양을 단순화한 예시다.",
+    takeaway: "시선은 크기·대비의 순서를 따라 움직이므로, 위계를 정하는 것은 읽는 순서를 정하는 일이다."
   }]
 });
-</script></body></html>
+</script>
+</body>
+</html>

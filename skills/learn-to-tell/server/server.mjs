@@ -1,10 +1,9 @@
 import { createServer } from "node:http";
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { homePage } from "./home.mjs";
 
 const SKILL_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const HOST = "127.0.0.1";
@@ -13,6 +12,9 @@ const DEFAULT_PORT = 47823;
 const GALLERY_SITE = "https://learn-to-tell.vercel.app";
 const MAX_BODY = 64 * 1024;
 const LESSON_ID = /^[a-z0-9][a-z0-9-]*$/;
+// site/compareN holds local-only comparison pages; vercel.json copies only site/gallery, so they are never deployed.
+const COMPARE_DIR = /^compare\d+$/;
+const SITE_DIR = join(SKILL_DIR, "..", "..", "site");
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -21,9 +23,6 @@ const TYPES = {
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".woff": "font/woff",
-  ".ttf": "font/ttf",
   ".woff2": "font/woff2",
 };
 
@@ -91,18 +90,17 @@ export function createLttServer({ home = lttHome(), skillDir = SKILL_DIR, galler
       if (req.method === "GET" && pathname === "/api/health") {
         return send(res, 200, { app: "learn-to-tell" });
       }
-      if ((req.method === "GET" || req.method === "HEAD") && (pathname === "/" || pathname === "/index.html")) {
-        return send(res, 200, homePage(home), TYPES[".html"]);
+      if ((req.method === "GET" || req.method === "HEAD") && pathname === "/") {
+        res.writeHead(302, { Location: "/gallery/index.html" });
+        return res.end();
       }
       if (req.method === "GET" && parts[0] === "gallery" && parts.length > 1) {
         if (hasGallery) return await serveFile(res, galleryDir, parts.slice(1).join("/"));
         res.writeHead(302, { Location: GALLERY_SITE + pathname });
         return res.end();
       }
-      if (req.method === "GET" && parts[0] === "legacy" && parts.length > 1) {
-        if (existsSync(join(siteDir, "legacy"))) return await serveFile(res, join(siteDir, "legacy"), parts.slice(1).join("/"));
-        res.writeHead(302, { Location: GALLERY_SITE + pathname });
-        return res.end();
+      if (req.method === "GET" && COMPARE_DIR.test(parts[0] ?? "") && parts.length > 1) {
+        return await serveFile(res, join(siteDir, parts[0]), parts.slice(1).join("/"));
       }
       if (req.method === "POST" && parts[0] === "api" && parts[1] === "lessons" && parts[3] === "events" && parts.length === 4) {
         if (!LESSON_ID.test(parts[2])) return send(res, 400, { error: "invalid lesson id" });
@@ -110,6 +108,17 @@ export function createLttServer({ home = lttHome(), skillDir = SKILL_DIR, galler
       }
       if (req.method === "GET" && parts[0] === "kit" && parts.length > 1) {
         return await serveFile(res, join(skillDir, parts[0]), parts.slice(1).join("/"));
+      }
+      if (req.method === "GET" && parts[0] === "map" && parts.length > 1) {
+        if (parts.length === 2 && parts[1] === "data.json") {
+          const file = join(home, "map-data.json");
+          try {
+            return send(res, 200, await readFile(file), TYPES[".json"]);
+          } catch {
+            return send(res, 404, { error: "run ltt-map rebuild" });
+          }
+        }
+        return await serveFile(res, join(skillDir, "map"), parts.slice(1).join("/"));
       }
       if (req.method === "GET" && parts[0] === "lessons" && parts.length > 2) {
         if (!LESSON_ID.test(parts[1])) return send(res, 400, { error: "invalid lesson id" });
@@ -122,6 +131,18 @@ export function createLttServer({ home = lttHome(), skillDir = SKILL_DIR, galler
       send(res, 500, { error: String(err?.message ?? err) });
     }
   });
+}
+
+export function compareUrls(port, siteDir = SITE_DIR) {
+  if (!existsSync(siteDir)) return [];
+  return readdirSync(siteDir)
+    .filter((name) => COMPARE_DIR.test(name) && existsSync(join(siteDir, name, "index.html")))
+    .sort((a, b) => Number(a.slice(7)) - Number(b.slice(7)))
+    .map((name) => `http://${HOST}:${port}/${name}/index.html`);
+}
+
+function announceCompare(port) {
+  for (const url of compareUrls(port)) console.log(`  compare: ${url}`);
 }
 
 async function isLttServer(port) {
@@ -147,7 +168,8 @@ async function main() {
   const server = createLttServer({ onRequest: touch });
   server.on("error", async (err) => {
     if (err.code === "EADDRINUSE" && (await isLttServer(port))) {
-      console.log(`learn-to-tell server already running at http://${HOST}:${port}/`);
+      console.log(`learn-to-tell server already running at http://${HOST}:${port}/gallery/index.html`);
+      announceCompare(port);
       process.exit(0);
     }
     console.error(`learn-to-tell server: ${err.message}`);
@@ -155,7 +177,8 @@ async function main() {
   });
   server.listen(port, HOST, () => {
     touch();
-    console.log(`learn-to-tell server running at http://${HOST}:${port}/ (home: ${lttHome()})`);
+    console.log(`learn-to-tell server running at http://${HOST}:${port}/gallery/index.html (home: ${lttHome()})`);
+    announceCompare(port);
   });
 }
 

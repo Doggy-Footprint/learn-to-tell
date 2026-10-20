@@ -1,41 +1,121 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>해상 운송 리드타임</title><script src="/kit/ltt.js"></script></head><body><script>
-// 부산 → 싱가포르 환적 → 수에즈 → 로테르담. 일수는 선사 공표 스케줄의 흔한 범위에서 고른 대표값, 1일 = 0.2초로 재생
-const DAY = 0.2;
-LTT.expect("총 리드타임", 6 + 3 + 24 + 2, 35, { tol: 0 });
-const route = LTT.graph({
-  layout: "manual", aspect: 1.5, mobileAspect: 1.1,
-  nodes: [
-    { id: "pus", label: "부산", sub: "출항", icon: "package", at: [80, 20], m: [82, 16] }, { id: "sin", label: "싱가포르", sub: "환적", icon: "refresh", at: [62, 80], m: [68, 84] },
-    { id: "suez", label: "수에즈", sub: "운하 통과", ghost: true, at: [36, 46], m: [40, 50] }, { id: "rtm", label: "로테르담", sub: "통관", icon: "shield-check", at: [12, 14], m: [18, 14] }
-  ],
-  edges: [{ from: "pus", to: "sin", label: "6일" }, { from: "sin", to: "suez" }, { from: "suez", to: "rtm" }]
-});
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>해상 운송 리드타임</title>
+<script type="application/json" id="ltt-meta">{"topic":"해상 운송 리드타임","audience":"수출입 실무 입문자","theme":"atlas","medium":"항로 지도·운항 일정표","decision":"부산발 로테르담행 화물의 도착일 잡기","domain":"해운 물류","pattern":["terms"],"mode":"카탈로그용: 장면 하나짜리 본보기. 시간 구조를 \"선이 그려짐\" 움직임과 좌우 분할 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/topojson-client.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.lt-wrap{width:100%;max-width:760px}
+.lt-map{width:100%;height:auto;display:block}
+.lt-map text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent, txt) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (txt != null) n.textContent = txt; parent && parent.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+// 부산 → 싱가포르 환적 → 수에즈 → 로테르담. 일수는 선사 공표 스케줄의 흔한 범위에서 고른 대표값.
+const LEGS = [
+  { key: "출항", d: 6, l: "부산 출항 → 싱가포르", k: "sea" },
+  { key: "환적", d: 3, l: "싱가포르 환적 대기", k: "dwell" },
+  { key: "sea2", d: 24, l: "싱가포르 → 로테르담", k: "sea" },
+  { key: "통관", d: 2, l: "로테르담 통관", k: "dwell" }];
+const TOTAL = LEGS.reduce((a, b) => a + b.d, 0);
+LTT.expect("총 리드타임", TOTAL, 35, { tol: 0 });
+const W1 = [[129.04, 35.1], [127, 32.5], [122.5, 27.5], [119.5, 22.5], [113, 15], [108, 8], [103.85, 1.26]];
+const W2 = [[103.85, 1.26], [100, 4], [96, 6.2], [86, 5.8], [79.5, 5.5], [65, 11], [52, 12.8], [43.4, 12.6], [38.5, 19.5], [34.5, 27], [32.5, 30.5], [28, 33.2], [18, 35], [10, 37.5], [0, 37], [-5.6, 35.95], [-10, 38], [-9.6, 43.5], [-5, 48.5], [-1, 50.2], [2.5, 51.4], [4.0, 51.95]];
+
+function shipMap(host) {
+  const wrap = host.appendChild(document.createElement("div")); wrap.className = "lt-wrap";
+  const s = el("svg", { class: "lt-map", "data-annotate": "" }, wrap);
+  const ready = LTT.map(s, { projection: "mercator", extent: [[-14, -6], [134, 58]], width: 760, height: 470,
+    places: [{ id: "pus", lon: 129.04, lat: 35.1, l: "부산", lo: "r" }, { id: "sin", lon: 103.85, lat: 1.26, l: "싱가포르", lo: "b" },
+      { id: "rtm", lon: 4.0, lat: 51.95, l: "로테르담", lo: "t" }, { id: "suez", lon: 32.5, lat: 30.5, l: "수에즈", lo: "r", k: "muted" }] });
+  const state = { draw: () => {} };
+  ready.then((m) => {
+    const vb = (s.getAttribute("viewBox") || "0 0 760 470").split(/\s+/).map(Number);
+    const g = el("g", {}, s);
+    const pts = (w) => w.map(([lo, la]) => m.project(lo, la));
+    const line = d3.line().curve(d3.curveCatmullRom.alpha(.5));
+    const mk = (w) => { el("path", { d: line(pts(w)), style: "fill:none;stroke:var(--ltt-line-2);stroke-width:2;stroke-dasharray:3 5" }, g);
+      const p = el("path", { d: line(pts(w)), style: "fill:none;stroke:var(--ltt-accent);stroke-width:3.5;stroke-linecap:round" }, g);
+      const L = p.getTotalLength(); p.style.strokeDasharray = `${L} ${L}`; return { p, L }; };
+    const r1 = mk(W1), r2 = mk(W2);
+    const ship = el("circle", { r: 7, style: "fill:var(--ltt-accent);stroke:var(--ltt-bg);stroke-width:3" }, g);
+    const halo = el("circle", { r: 7, style: "fill:none;stroke:var(--ltt-warn);stroke-width:2.5" }, g);
+    // 아래 일정표: 구간 길이 = 일수
+    const tx = 40, tw = vb[2] - 80, ty = vb[3] - 70, sc = tw / TOTAL;
+    const tl = el("g", {}, s);
+    el("rect", { x: tx - 16, y: ty - 44, width: tw + 32, height: 92, rx: 8, style: "fill:var(--ltt-card);stroke:var(--ltt-line);opacity:.94" }, tl);
+    let acc = 0; const segs = LEGS.map((lg) => { const x = tx + acc * sc, w = lg.d * sc; acc += lg.d;
+      el("rect", { x, y: ty, width: w - 2, height: 12, rx: 3, style: "fill:var(--ltt-line)" }, tl);
+      const f = el("rect", { x, y: ty, width: 0, height: 12, rx: 3, style: `fill:${lg.k === "sea" ? "var(--ltt-accent)" : "var(--ltt-warn)"}` }, tl);
+      const lb = el("text", { x: x + 2, y: ty + 32, style: "font-size:13px;fill:var(--ltt-muted)" }, tl, `${lg.key === "sea2" ? "본선 운항" : lg.key} ${lg.d}일`);
+      return { x, w, f, lb }; });
+    const day = el("text", { x: tx, y: ty - 16, style: "font-size:20px;font-weight:700;fill:var(--ltt-ink);font-variant-numeric:tabular-nums" }, tl, "");
+    const what = el("text", { x: tx + tw, y: ty - 16, "text-anchor": "end", style: "font-size:15px;fill:var(--ltt-ink-2)" }, tl, "");
+    const at = (r, u) => r.p.getPointAtLength(r.L * u);
+    state.draw = (u) => { // u: 0..1 전체 일정
+      const dNow = u * TOTAL; let a = 0, cur = 0;
+      LEGS.forEach((lg, i) => { const lu = clamp((dNow - a) / lg.d); segs[i].f.setAttribute("width", Math.max(0, segs[i].w * lu - 2));
+        segs[i].lb.style.fill = lu > 0 && lu < 1 ? "var(--ltt-ink)" : "var(--ltt-muted)"; if (dNow >= a) cur = i; a += lg.d; });
+      const u1 = clamp(dNow / 6), u2 = clamp((dNow - 9) / 24);
+      r1.p.style.strokeDashoffset = r1.L * (1 - ease(u1)); r2.p.style.strokeDashoffset = r2.L * (1 - u2);
+      const pos = dNow < 6 ? at(r1, ease(u1)) : dNow < 9 ? at(r1, 1) : at(r2, Math.min(1, u2));
+      ship.setAttribute("cx", pos.x); ship.setAttribute("cy", pos.y); halo.setAttribute("cx", pos.x); halo.setAttribute("cy", pos.y);
+      const dwell = LEGS[cur].k === "dwell" && u < 1;
+      const ph = (dNow * 2) % 1; halo.setAttribute("r", 7 + 12 * ph); halo.style.opacity = dwell ? 1 - ph : 0;
+      day.textContent = `D+${Math.min(TOTAL, Math.round(dNow))}일`;
+      what.textContent = u >= 1 ? `도착·통관 완료 · 총 ${TOTAL}일` : LEGS[cur].l;
+    };
+    state.draw(0);
+  });
+  return { el: s, state, ready };
+}
+
+function loop(node, state) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { state.draw(1); return; }
+  // 8초 반복: 일정 진행 6.5초 → 도착 멈춤 1.5초
+  const t0 = Date.now(), P = 8000;
+  const f = () => { if (!node.isConnected) return; const u = ((Date.now() - t0) % P) / P; state.draw(Math.min(1, u / .8)); setTimeout(f, 33); };
+  f();
+}
+
+const mini = (kind) => `<svg viewBox="0 0 120 28" width="120" height="28" aria-hidden="true">
+  <line x1="4" y1="14" x2="116" y2="14" style="stroke:var(--ltt-line);stroke-width:6;stroke-linecap:round"/>
+  ${kind === 0 ? '<line x1="4" y1="14" x2="40" y2="14" style="stroke:var(--ltt-accent);stroke-width:6;stroke-linecap:round"/><circle cx="4" cy="14" r="5" style="fill:var(--ltt-ink)"/>'
+  : kind === 1 ? '<line x1="22" y1="14" x2="40" y2="14" style="stroke:var(--ltt-warn);stroke-width:6"/><circle cx="31" cy="14" r="8" style="fill:none;stroke:var(--ltt-warn);stroke-width:2"/>'
+  : '<line x1="104" y1="14" x2="116" y2="14" style="stroke:var(--ltt-warn);stroke-width:6;stroke-linecap:round"/><circle cx="116" cy="14" r="5" style="fill:var(--ltt-ink)"/>'}</svg>`;
+
 LTT.deck({
-  title: "해상 운송 리드타임", theme: "studio", exemplar: true,
+  title: "해상 운송 리드타임", theme: "atlas",
   glossary: { "출항": "ETD. 배가 선적항을 떠나는 시점. 리드타임의 출발점",
     "환적": "Transshipment. 중간 항구에서 컨테이너를 다른 배로 옮겨 싣는 일. 다음 배를 기다리는 날이 붙는다",
     "통관": "Customs clearance. 도착국 세관이 신고를 받아 물건을 내주는 절차" },
   scenes: [{
-    type: "terms", title: "도착일은 배가 달린 날에 기다린 날을 더해 정해진다",
-    sub: "점이 항로를 가면 배가 달린 날, 항구에서 맥박치면 기다린 날이다. 1일 = 0.2초로 재생하고 항구 아래에 D+일을 적는다.",
-    visual: route,
+    type: "terms", layout: "split",
+    title: "도착일은 배가 달린 날에 기다린 날을 더해 정해진다",
+    sub: "부산에서 로테르담까지, 선이 그려지는 동안 아래 일정표가 날짜를 쌓는다.",
+    narration: "선이 그려지면 배가 달린 날, 점이 멈춰 맥박치면 기다린 날이다.",
+    aside: (node) => { const f = shipMap(node); f.ready.then(() => loop(f.el, f.state)); return node; },
     terms: [
-      { term: "출항", plain: "배가 선적항을 떠나는 날. 리드타임은 여기서 센다.", on: "pus" },
-      { term: "환적", plain: "중간 항구에서 다른 배로 옮겨 싣는다. 연결 배를 기다리는 날이 붙는다.", on: "sin" },
-      { term: "통관", plain: "도착국 세관이 물건을 내줘야 창고로 간다.", on: "rtm" }
-    ],
-    motion: [
-      ["set", { node: "pus", sub: "D+0 출항", tone: "accent", dur: 0.4 }],
-      ["travel", { along: "pus>sin", dur: 6 * DAY, stay: true }], ["set", { node: "sin", sub: "D+6 입항", dur: 0.1 }],
-      { par: [["pulse", { node: "sin", tone: "warn", dur: 3 * DAY }], ["set", { node: "sin", sub: "D+9 환적 출발", tone: "warn", dur: 3 * DAY }]] },
-      ["travel", { along: "sin>suez>rtm", dur: 24 * DAY, stay: true }], ["set", { node: "rtm", sub: "D+33 입항", dur: 0.1 }],
-      { par: [["pulse", { node: "rtm", tone: "warn", dur: 2 * DAY }], ["set", { node: "rtm", sub: "D+35 통관 완료", tone: "warn", dur: 2 * DAY }]] },
-      ["wait", 1]
-    ],
-    takeaway: "리드타임 = 운항일 + 환적 대기 + 통관.",
-    recall: { q: "환적이 한 번 더 붙으면 도착일은 어떻게 바뀌나?", a: "환적 항구에서 연결 배를 기다리는 날과 그 구간 운항일만큼 늦어진다." },
-    basis: "부산–싱가포르 약 6일, 싱가포르–로테르담(수에즈 경유) 약 24일은 아시아–북유럽 정기선 스케줄의 흔한 범위. 환적 대기·통관은 화물·시기마다 크게 다르다."
+      { key: "출항", word: "출항", en: "ETD", icon: "anchor", visual: mini(0), plain: "배가 선적항을 떠나는 날. 리드타임은 여기서 센다." },
+      { key: "환적", word: "환적", en: "Transshipment", icon: "refresh", visual: mini(1), plain: "중간 항구에서 다른 배로 옮겨 싣는다. 연결 배를 기다리는 날이 붙는다." },
+      { key: "통관", word: "통관", en: "Customs clearance", icon: "shield-check", visual: mini(2), plain: "도착국 세관이 물건을 내줘야 창고로 간다." }],
+    basis: "부산–싱가포르 약 6일, 싱가포르–로테르담(수에즈 경유) 약 24일은 아시아–북유럽 정기선 공표 스케줄의 흔한 범위에서 고른 값. 환적 대기와 통관은 화물·시기마다 크게 다르다(불확실). <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    takeaway: "리드타임 = 운항일 + 환적 대기 + 통관.", recall: "환적이 한 번 더 붙으면 도착일은 어떻게 바뀌나?"
   }]
 });
-</script></body></html>
+</script>
+</body>
+</html>

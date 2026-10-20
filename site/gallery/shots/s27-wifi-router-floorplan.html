@@ -1,38 +1,96 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>공유기 위치와 신호</title><script src="/kit/ltt.js"></script></head><body><script>
-// 12m × 8m 아파트(m). 외벽·내력벽 콘크리트(c: 1), 방 칸막이 석고보드
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>공유기 위치와 신호</title>
+<script type="application/json" id="ltt-meta">{"topic":"공유기 위치와 Wi-Fi 신호 세기","audience":"집 네트워크를 꾸리는 사람","theme":"blueprint","medium":"평면도","decision":"공유기를 어디에 둘지","domain":"무선","pattern":["mount"],"mode":"카탈로그용: 장면 하나짜리 본보기. 공간 구조를 \"강조가 훑음\" 움직임과 전면 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.fp-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+.fp{height:440px;width:auto;max-width:100%;display:block}
+.fp text{font-family:inherit}
+.fp-key{display:flex;gap:18px;font-size:14px;color:var(--ltt-ink-2);align-items:center}
+.fp-key i{display:inline-block;width:14px;height:14px;margin-right:6px;vertical-align:-2px}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+// 12m × 8m 아파트(m 단위). 외벽·내력벽은 콘크리트, 방 칸막이는 석고보드
+const S = 60, OX = 30, OY = 20, WM = 12, HM = 8;
 const WALLS = [
   { a: [0, 0], b: [12, 0], c: 1 }, { a: [12, 0], b: [12, 8], c: 1 }, { a: [12, 8], b: [0, 8], c: 1 }, { a: [0, 8], b: [0, 0], c: 1 },
-  { a: [4, 0], b: [4, 3.2], c: 1 }, { a: [4, 4.4], b: [4, 8], c: 1 }, { a: [8, 0], b: [8, 2.6], c: 0 }, { a: [8, 3.6], b: [8, 8], c: 0 },
-  { a: [8, 4.5], b: [12, 4.5], c: 0 }, { a: [0, 4.5], b: [2.4, 4.5], c: 0 }, { a: [3.2, 4.5], b: [4, 4.5], c: 0 }];
-// 2.4GHz 실내 경로 손실: 1m에서 -40dBm, 지수 3, 콘크리트 12dB, 석고보드 4dB
-const side = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
-const cross = (p, q, w) => side(p, q, w.a) * side(p, q, w.b) < 0 && side(w.a, w.b, p) * side(w.a, w.b, q) < 0;
-const rssi = (r, p) => -40 - 30 * Math.log10(Math.max(1, Math.hypot(p[0] - r[0], p[1] - r[1]))) - WALLS.reduce((s, w) => s + (cross(r, p, w) ? (w.c ? 12 : 4) : 0), 0);
-const FAR = [10, 2.2], CELLS = [];
-for (let x = 0.25; x < 12; x += 0.5) for (let y = 0.25; y < 8; y += 0.5) CELLS.push([x, y]);
+  { a: [4, 0], b: [4, 3.2], c: 1 }, { a: [4, 4.4], b: [4, 8], c: 1 },
+  { a: [8, 0], b: [8, 2.6], c: 0 }, { a: [8, 3.6], b: [8, 8], c: 0 },
+  { a: [8, 4.5], b: [12, 4.5], c: 0 }, { a: [0, 4.5], b: [2.4, 4.5], c: 0 }, { a: [3.2, 4.5], b: [4, 4.5], c: 0 }
+];
+const ROOMS = [{ n: "침실 1", x: 2, y: 2.2 }, { n: "거실", x: 6, y: 5.8 }, { n: "주방", x: 6, y: 1.4 }, { n: "침실 2", x: 10, y: 2.2 }, { n: "서재", x: 10, y: 6.3 }, { n: "현관", x: 2, y: 6.3 }];
+// 2.4GHz 실내 경로 손실 모델: 1m에서 -40dBm, 지수 n=3, 콘크리트벽 12dB, 석고보드 4dB
+const cross = (p, q, w) => { const d = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  return d(p, q, w.a) * d(p, q, w.b) < 0 && d(w.a, w.b, p) * d(w.a, w.b, q) < 0; };
+function rssi(r, p) { const dist = Math.max(1, Math.hypot(p[0] - r[0], p[1] - r[1]));
+  let loss = 0; WALLS.forEach((w) => { if (cross(r, p, w)) loss += w.c ? 12 : 4; });
+  return -40 - 30 * Math.log10(dist) - loss; }
+const FAR = [10, 2.2];
 LTT.expect("벽 없이 4m 거리 신호", -40 - 30 * Math.log10(4), -58.06, { tol: 0.01 });
-const band = (v) => (v >= -60 ? 0 : v >= -70 ? 1 : 2);
+const tone = (v) => v >= -60 ? "--ltt-good" : v >= -70 ? "--ltt-warn" : "--ltt-bad";
+
 LTT.deck({
-  title: "공유기 위치와 신호", theme: "blueprint", exemplar: true,
+  title: "공유기 위치와 신호", theme: "blueprint",
   glossary: { "dBm": "1mW를 기준으로 한 전력의 로그 단위. -60이 -70보다 10배 강하다", "벽 감쇠": "전파가 벽을 지날 때 잃는 세기. 콘크리트가 석고보드보다 훨씬 크다" },
   scenes: [{
-    type: "play", title: "공유기를 옮기면 신호 지도가 벽을 따라 다시 그려진다",
-    sub: "12m × 8m 평면도. 칸 색이 그 자리의 신호({{dBm}})이고, 벽마다 {{벽 감쇠}}만큼 깎인다. 띠가 훑는 순서로 읽는다.",
-    knobs: [{ id: "x", label: "공유기 가로 위치", min: 0.5, max: 11.5, step: 0.5, value: 1.5, unit: "m" },
-      { id: "y", label: "공유기 세로 위치", min: 0.5, max: 7.5, step: 0.5, value: 6.5, unit: "m" }],
-    visual: (p) => LTT.chart({ x: { label: "가로 (m)", domain: [0, 12] }, y: { label: "세로 (m)", domain: [0, 8] }, aspect: 1.5,
-      series: [
-        ...[["-60 이상 좋음", "good"], ["-70까지 보통", "warn"], ["그 아래 약함", "bad"]].map(([label, tone], b) =>
-          ({ id: "s" + b, label, type: "dot", tone, points: CELLS.filter((c) => band(rssi([p.x, p.y], c)) === b) })),
-        { id: "far", label: "침실 2", type: "dot", tone: "ink", points: [FAR] },
-        { id: "ap", label: "공유기", type: "dot", tone: "accent", points: [[p.x, p.y]] }],
-      refs: [{ id: "w4", x: 4, label: "콘크리트 벽" }, { id: "w8", x: 8, label: "석고 벽" }, { id: "wh", y: 4.5, label: "석고 칸막이" }] }),
-    readout: (p) => { const v = rssi([p.x, p.y], FAR); return [{ label: "침실 2 신호", value: v.toFixed(0), unit: "dBm", tone: ["good", "warn", "bad"][band(v)] }]; },
-    goal: { text: "침실 2에서 -67dBm 이상(영상 통화 권장선)이 나오는 자리를 찾는다", check: (p) => rssi([p.x, p.y], FAR) >= -67 },
-    motion: [["scan", { from: 0, to: 12, width: 1.2, dur: 4.2 }]],
-    hold: 0.8,
-    basis: "실내 경로 손실 지수 3, 벽 감쇠 콘크리트 12dB·석고보드 4dB(ITU-R P.1238 범위). 화면 수치는 모델로 계산한 예시."
+    title: "공유기를 옮기면 신호 지도가 벽을 따라 다시 그려진다",
+    sub: "공유기(점선 원)를 끌어 옮긴다. 신호는 {{dBm}}, 벽마다 {{벽 감쇠}}만큼 깎인다. 훑는 띠가 지나간 칸이 그 자리의 신호 세기다.",
+    basis: "실내 경로 손실 지수 3, 벽 감쇠 콘크리트 12dB·석고보드 4dB(ITU-R P.1238 범위 안의 값). 화면 수치는 모델로 계산한 예시.",
+    mount(body) {
+      body.innerHTML = `<div class="fp-wrap"><div id="goal"></div><div id="hold"></div>
+        <div class="fp-key"><span><i style="background:var(--ltt-good)"></i>-60dBm 이상 좋음</span><span><i style="background:var(--ltt-warn)"></i>-70까지 보통</span><span><i style="background:var(--ltt-bad)"></i>그 아래 약함</span><span>침실 2 <b id="pos-v"></b></span></div></div>`;
+      const s = mk("svg", { viewBox: `0 0 ${WM * S + OX * 2 + 150} ${HM * S + OY * 2}`, class: "fp" }, body.querySelector("#hold"));
+      const cells = []; const G = 0.5;
+      for (let x = 0; x < WM; x += G) for (let y = 0; y < HM; y += G)
+        cells.push({ p: [x + G / 2, y + G / 2], n: mk("rect", { x: OX + x * S, y: OY + y * S, width: G * S - 1, height: G * S - 1, rx: 2 }, s) });
+      WALLS.forEach((w) => mk("line", { x1: OX + w.a[0] * S, y1: OY + w.a[1] * S, x2: OX + w.b[0] * S, y2: OY + w.b[1] * S,
+        style: `stroke:var(--ltt-ink);stroke-width:${w.c ? 7 : 3};stroke-linecap:square` }, s));
+      ROOMS.forEach((r) => mk("text", { x: OX + r.x * S, y: OY + r.y * S, "text-anchor": "middle", style: "font-size:22px;font-weight:700;fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-bg);stroke-width:4" }, s).textContent = r.n);
+      mk("text", { x: OX + WM * S + 10, y: OY + 14, style: "font-size:16px;fill:var(--ltt-muted)" }, s).textContent = "굵은 벽 콘크리트";
+      mk("text", { x: OX + WM * S + 10, y: OY + 32, style: "font-size:16px;fill:var(--ltt-muted)" }, s).textContent = "가는 벽 석고";
+      mk("text", { x: OX + WM * S + 10, y: OY + HM * S, style: "font-size:16px;fill:var(--ltt-muted)" }, s).textContent = "12m × 8m";
+      const scan = mk("rect", { y: OY, width: 36, height: HM * S, style: "fill:var(--ltt-accent);opacity:.18;pointer-events:none" }, s);
+      const scanEdge = mk("line", { y1: OY, y2: OY + HM * S, style: "stroke:var(--ltt-accent);stroke-width:2;pointer-events:none" }, s);
+      const router = mk("g", { style: "pointer-events:none" }, s);
+      mk("circle", { r: 8, style: "fill:var(--ltt-accent)" }, router);
+      const farMark = mk("circle", { cx: OX + FAR[0] * S, cy: OY + FAR[1] * S + 22, r: 5, style: "fill:var(--ltt-ink)" }, s);
+      const readout = mk("text", { "text-anchor": "middle", style: "font-size:20px;font-weight:700;fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-bg);stroke-width:4" }, s);
+      const toSvg = (p) => [OX + p[0] * S, OY + p[1] * S], fromSvg = (q) => [(q[0] - OX) / S, (q[1] - OY) / S];
+      const drag = LTT.drag(s, { value: [1.5, 6.5], toSvg, fromSvg, bounds: [[0.5, 11.5], [0.5, 7.5]], step: 0.5, label: "공유기", r: 18 });
+      let cur = [1.5, 6.5], scanX = -1;
+      const paint = () => cells.forEach((c) => { const v = c.v; const d = scanX < 0 ? 99 : Math.abs(c.p[0] - scanX);
+        c.n.style.fill = `var(${tone(v)})`; c.n.style.opacity = scanX < 0 ? .5 : (c.p[0] <= scanX ? .5 : .08) + (d < 0.8 ? .35 * (1 - d / .8) : 0); });
+      LTT.sweep({ params: { pos: { control: drag, fmt: () => rssi(cur, FAR).toFixed(0) + "dBm" } },
+        render: ({ pos }) => { cur = pos; cells.forEach((c) => c.v = rssi(pos, c.p));
+          const [x, y] = toSvg(pos); router.setAttribute("transform", `translate(${x},${y})`);
+          const v = rssi(pos, FAR); readout.setAttribute("x", OX + FAR[0] * S); readout.setAttribute("y", OY + FAR[1] * S + 46);
+          readout.textContent = v.toFixed(0) + " dBm"; paint(); },
+        goal: { el: "goal", text: "침실 2에서 -67dBm 이상(영상 통화 권장선)이 나오는 자리를 찾는다", check: ({ pos }) => rssi(pos, FAR) >= -67 } });
+      let timer = 0, t0 = 0;
+      const tick = () => { const u = ((Date.now() - t0) / 5000) % 1;
+        scanX = u < .85 ? (u / .85) * (WM + 1) - 0.5 : -1;
+        const px = OX + Math.max(-0.5, Math.min(WM, scanX)) * S;
+        scan.setAttribute("x", px - 36); scanEdge.setAttribute("x1", px); scanEdge.setAttribute("x2", px);
+        scan.style.opacity = scanX < 0 ? 0 : .18; scanEdge.style.opacity = scanX < 0 ? 0 : 1; paint(); timer = setTimeout(tick, 16); };
+      return { enter() { clearTimeout(timer); if (reduced) { scanX = -1; scan.style.opacity = 0; scanEdge.style.opacity = 0; paint(); return; } t0 = Date.now(); tick(); },
+        leave() { clearTimeout(timer); } };
+    }
   }]
 });
-</script></body></html>
+</script>
+</body>
+</html>

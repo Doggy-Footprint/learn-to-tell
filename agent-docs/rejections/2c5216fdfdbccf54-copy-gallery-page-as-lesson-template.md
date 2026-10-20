@@ -18,4 +18,4 @@ gallery 페이지를 템플릿으로 복사해 데이터만 바꾸는 방식.
 
 ## Chosen Instead
 
-skills/learn-to-tell/kit/API.md, skills/learn-to-tell/look/look.md (shot 코드는 읽지 않고 카드의 원리만 옮긴다)
+skills/learn-to-tell/kit/API.md, skills/learn-to-tell/gallery/catalog.html
