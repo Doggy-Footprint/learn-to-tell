@@ -278,11 +278,8 @@
     workflow: "<rect width='8' height='8' x='3' y='3' rx='2'/><path d='M7 11v4a2 2 0 0 0 2 2h4'/><rect width='8' height='8' x='13' y='13' rx='2'/>"
   };
 
-  // Names authors reach for that the kit spells differently; not listed in LTT.icons.
-  var ICON_ALIAS = { database: "db" };
-
   function icon(name, opts) {
-    var body = ICONS[name] || ICONS[ICON_ALIAS[name]];
+    var body = ICONS[name];
     var o = opts || {};
     // Unknown names render as text so an emoji shows instead of an empty slot; escaped because callers pass the result to innerHTML.
     if (!body) return name ? "<span class='ltt-ic" + (o.cls ? " " + o.cls : "") + "' aria-hidden='true'>" +
@@ -398,7 +395,7 @@
   }
 
   function expect(label, actual, expected, opts) {
-    var r = typeof expected === "number" ? compare(actual, expected, opts && opts.tol) : { ok: actual === expected, tol: null };
+    var r = compare(actual, expected, opts && opts.tol);
     if (typeof document !== "undefined") {
       var row = document.createElement("div");
       row.className = r.ok ? "ok" : "fail";
@@ -565,20 +562,6 @@
       var filler = FILLER.exec(stripMarks(sceneText(s)));
       return filler ? [[i, "filler-content", "채움 글 '" + filler[0] + "' (실제 사례·값으로 바꿀 것)"]] : [];
     } },
-    { id: "icon-not-string", scene: function (s, i) {
-      var out = [];
-      function check(v, path) {
-        if (v && typeof v !== "string") out.push([i, "icon-not-string", path + "에 문자열이 아닌 값(" + (Array.isArray(v) ? "array" : typeof v) + ")이 있다 (아이콘 이름이나 HTML 문자열만)"]);
-      }
-      function each(list, name) {
-        if (!Array.isArray(list)) return;
-        list.forEach(function (e, k) { if (e && typeof e === "object") check(e.icon, name + "[" + k + "].icon"); });
-      }
-      if (s.type === "hook") check(s.art, "art");
-      else if (s.type === "explain") each(s.steps, "steps");
-      else if (s.type === "terms") each(s.terms, "terms");
-      return out;
-    } },
     { id: "card-monotony", deck: function (c) {
       var out = [], run = 0, cards = 0, body = 0;
       c.scenes.forEach(function (s, i) {
@@ -615,17 +598,13 @@
     } }
   ];
 
-  // Rules whose warning is a suggestion rather than a defect: a deck with only these still counts as clean (audit.mjs exit code 0).
-  var ADVISE = { "shrunk": 1, "small-visual": 1, "loose-figure": 1, "empty-stage": 1, "many-sizes": 1, "goal-narrow": 1, "still-visual": 1, "card-monotony": 1, "no-signature": 1, "unused-term": 1 };
-  function severityOf(rule) { return ADVISE[rule] ? "advise" : "fix"; }
-
-  // Static checks for self-study readiness; returns [{scene, rule, msg, severity}] (scene is 1-based, 0 for the deck).
+  // Static checks for self-study readiness; returns [{scene, rule, msg}] (scene is 1-based, 0 for the deck).
   function lintDeck(spec) {
     var out = [], glossary = {}, scenes = spec.scenes || [];
     Object.keys(spec.glossary || {}).forEach(function (k) { glossary[k] = spec.glossary[k]; });
     scenes.forEach(function (s) { if (s.type === "terms") (s.terms || []).forEach(function (t) { glossary[t.key] = t.plain; }); });
     var c = { spec: spec, scenes: scenes, glossary: glossary, first: termIndex(spec) };
-    function add(list) { list.forEach(function (w) { out.push({ scene: w[0] + 1, rule: w[1], msg: w[2], severity: severityOf(w[1]) }); }); }
+    function add(list) { list.forEach(function (w) { out.push({ scene: w[0] + 1, rule: w[1], msg: w[2] }); }); }
     scenes.forEach(function (s, i) {
       RULES.forEach(function (r) { if (r.scene) add(r.scene(s, i, c)); });
     });
@@ -637,55 +616,26 @@
   // below them a figure read as a thumbnail or the scene needed the zoom floor; kit parts alone already use about 7 text sizes.
   // Narrow windows (compact, ≤1000px) shrink by design, so zoom and visual-size ratios are not judged there.
   // hero repeats the deck mount's full-layout rule (ltt-deck.js) so a scene is judged by the layout it is actually drawn in.
-  // Reading scenes stay still by design: their content is text to read, not a mechanism to watch.
-  var STILL_TYPES = ["terms", "summary", "keywords", "hook", "map-related"];
   function auditScene(m) {
     var out = [], hero = sceneMeta(m.type, "auditHero") || (m.layout ? m.layout === "full" : !!sceneMeta(m.type, "fullByDefault"));
-    function add(rule, msg) { out.push({ rule: rule, msg: msg, severity: severityOf(rule) }); }
-    var pct = typeof m.zoom === "number" ? Math.round(m.zoom * 100) : null, atFloor = !!m.floor || (typeof m.zoom === "number" && m.zoom <= 0.781);
-    if (m.hscroll) add("hscroll", "가로로 넘친다 (폭 " + m.hscroll + "px 초과" + (m.wide ? ", 가장 넓은 요소 " + m.wide : "") + "). 고정 폭을 max-width:100%로 바꿀 것");
+    function add(rule, msg) { out.push({ rule: rule, msg: msg }); }
+    if (m.hscroll) add("hscroll", "가로로 넘친다 (폭 " + m.hscroll + "px 초과). 고정 폭을 max-width:100%로 바꿀 것");
     if (m.panelOverlap) add("panel-overlap", "자막·정답 패널이 글·그림 " + m.panelOverlap + "곳과 겹친다. 그림을 줄이거나 장면을 나눌 것");
-    var gids = m.graphIds || [];
-    if (m.graphOverlaps) add("graph-overlap", "그래프에서 라벨·노드·엣지가 " + m.graphOverlaps + "곳 겹친다" +
-      (gids.length ? " (" + gids.slice(0, 3).join(", ") + (Math.max(m.graphOverlaps, gids.length) > 3 ? " 외 " + (Math.max(m.graphOverlaps, gids.length) - 3) + "곳" : "") + ")" : "") + ". 좌표를 손으로 정했다면 LTT.autoLayout으로 배치할 것");
+    if (m.graphOverlaps) add("graph-overlap", "그래프에서 라벨·노드·엣지가 " + m.graphOverlaps + "곳 겹친다. 좌표를 손으로 정했다면 LTT.autoLayout으로 배치할 것");
     (m.goals || []).forEach(function (g) {
       if (!g.hits) add("goal-unreachable", "목표를 맞추는 손잡이 위치가 없다 (표본 " + g.samples + "개 중 0개). 기준이나 손잡이 범위를 고칠 것");
       else if (g.hits < 2) add("goal-narrow", "목표가 손잡이 한 자리에서만 맞는다. 기준에 여유를 두어 두 자리 이상에서 맞게 할 것");
       if (g.start) add("goal-at-start", "시작 위치에서 이미 목표가 맞는다. 시작값을 목표 밖으로 옮길 것");
     });
-    if (m.overflow) {
-      var why = pct == null || atFloor ? "78% 하한까지 줄여도 넘친다" :
-        pct + "%까지 줄였는데도 넘친다" + (m.zoomBy ? " (" + m.zoomBy + "에 맞춘 배율이라 더 줄이지 못했다)" : "");
-      add("overflow", "한 화면에 안 들어간다 (" + why + "). 해설·캡션을 줄이거나 장면을 나눌 것");
-    } else if (!m.compact && m.zoom < 0.88) {
-      var cause = (m.zoomBy ? " — " + m.zoomBy + "에 맞춘 배율" : "") + (m.longest ? ", 가장 긴 글 " + m.longest.field + " " + m.longest.chars + "자" : "") + (atFloor ? " (78% 하한)" : "");
-      add("shrunk", "화면에 맞추느라 " + pct + "%로 줄었다" + cause + ". 글을 줄이거나 장면을 나눌 것");
-    }
+    if (m.overflow) add("overflow", "한 화면에 안 들어간다 (78%로 줄여도 넘친다). 해설·캡션을 줄이거나 장면을 나눌 것");
+    else if (!m.compact && m.zoom < 0.88) add("shrunk", "화면에 맞추느라 " + Math.round(m.zoom * 100) + "%로 줄었다. 글을 줄이거나 장면을 나눌 것");
     if (!m.compact && sceneMeta(m.type, "auditSmallVisual") && m.visualRatio != null && m.visualRatio < (hero ? 0.22 : 0.1))
       add("small-visual", "가장 큰 그림이 화면의 " + Math.round(m.visualRatio * 100) + "%뿐이다. 그림을 키우거나 layout: \"full\"");
     if (!m.compact && sceneMeta(m.type, "auditLooseFigure") && m.figRatio != null && m.figRatio < 0.35)
       add("loose-figure", "그림이 figure 무대의 " + Math.round(m.figRatio * 100) + "%만 채운다. 그림 폭·높이를 키우거나 가로로 배치할 것");
     if (hero && m.fill != null && m.fill < 0.6) add("empty-stage", "장면이 화면 높이의 " + Math.round(m.fill * 100) + "%만 쓴다. 그림을 키울 것");
-    if (!m.compact && m.drawing && !m.beats && !m.still && STILL_TYPES.indexOf(m.type) < 0)
-      add("still-visual", "그림이 움직이지 않는다. LTT.motion.loop로 움직이거나 figure steps(단계 둘 이상)를 쓰고, 멈춰 둘 이유가 있으면 still: \"이유\"를 적을 것");
-    if (m.textOverlaps && m.textOverlaps.length) add("text-overlap", "글이 다른 글 위에 겹친다 " + m.textOverlaps.length + "곳 (" + m.textOverlaps.slice(0, 2).join(", ") +
-      (m.textOverlaps.length > 2 ? " 외" : "") + "). 고정 폭·nowrap·절대 위치를 풀거나, 넓은 내용은 아이콘 칸(hook art 등)이 아닌 본문 그림으로 옮길 것");
-    (m.unknownIcons || []).forEach(function (n) {
-      var near = [];
-      Object.keys(ICONS).concat(Object.keys(ICON_ALIAS)).forEach(function (k) {
-        var hit = (k.length > 2 && (k.indexOf(n) >= 0 || n.indexOf(k) >= 0)) || editDistance(k, n) <= 2, to = ICON_ALIAS[k] || k;
-        if (hit && near.indexOf(to) < 0) near.push(to);
-      });
-      add("unknown-icon", "없는 아이콘 이름 '" + n + "'이 글자로 찍혔다" + (near.length ? " (비슷한 이름: " + near.slice(0, 3).join(", ") + ")" : "") + ". LTT.icons의 이름이나 이모지를 쓸 것");
-    });
     if (m.fontSizes > 7) add("many-sizes", "본문 글자 크기가 " + m.fontSizes + "단계다 (kit 부품 포함 7단계 이하). 페이지 CSS의 font-size를 kit 크기에 맞출 것");
     return out;
-  }
-
-  function editDistance(a, b) {
-    var d = [];
-    for (var i = 0; i <= a.length; i++) { d[i] = [i]; for (var j = 1; j <= b.length; j++) d[i][j] = i ? Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)) : j; }
-    return d[a.length][b.length];
   }
 
   function rectHit(a, b) { return Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5; }

@@ -1,9 +1,9 @@
 import { spawn } from "node:child_process";
 import { existsSync, readdirSync, realpathSync, statSync } from "node:fs";
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { createLttServer, lttHome } from "./server.mjs";
 
 const SKILL_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -12,18 +12,6 @@ export const DEFAULT_SIZES = ["1440x900", "1280x800"];
 const DEFAULT_BUDGET = 12000;
 const DEFAULT_JOBS = 4;
 const RUN_TIMEOUT = 60_000;
-const SHEET_SIZE = "1280x800";
-const SHEET_FILE = /^sheet(-\d+)?\.jpg$/;
-const SHEET_MAX_SIDE = 1568;
-const SHEET_MAX_AREA = 1_200_000;
-const SHEET_COLS = 4;
-const CELL_W = 320;
-const CELL_GAP = 8;
-const LABEL_H = 22;
-const FOOT_LINE = 17;
-const FOOT_H = 3 * FOOT_LINE + 5;
-const MAX_CELLS = 4;
-const COMPOSE_BUDGET = 10000;
 const LESSON_ID = /^[a-z0-9][a-z0-9-]*$/;
 // Linked from the gallery index but they run no deck of their own, so `?audit` never fires there.
 const GALLERY_SKIP = new Set(["index.html", "catalog.html"]);
@@ -40,13 +28,12 @@ const USAGE = `사용법: node audit.mjs <대상>... [옵션]
 옵션:
   --size WxH      측정 크기(반복 가능, 기본 ${DEFAULT_SIZES.join(" ")})
   --shots <dir>   장면마다 스크린샷 PNG를 <dir>에 남긴다
-  --sheet         장면 전체를 칸으로 줄여 담은 contact sheet JPEG를 만든다(수업은 <수업>/audit/, 그 밖은 OS 임시 폴더)
   --json          결과를 JSON으로 출력
   --chrome <경로>  Chrome 실행 파일(기본: LTT_CHROME, 설치 경로, PATH)
   --budget <ms>   가상 시간 예산(기본 ${DEFAULT_BUDGET})
   --jobs <n>      동시에 띄울 Chrome 수(기본 ${DEFAULT_JOBS})
   --home <dir>    수업 폴더 루트(기본: LTT_HOME 또는 ~/.learn-to-tell)
-종료 코드: 0 고칠 것 없음(권고만 있어도 0) · 1 고침 경고·고침 lint·expect 불일치 있음 · 2 Chrome 없음/측정 실패`;
+종료 코드: 0 경고 없음 · 1 경고 있음 · 2 Chrome 없음/측정 실패`;
 
 export function findChrome(explicit = process.env.LTT_CHROME) {
   if (explicit) return existsSync(explicit) ? explicit : null;
@@ -77,18 +64,17 @@ function under(base, file) {
 }
 
 function resolveTarget(target, { home, galleryDir }) {
-  if (/^https?:\/\//.test(target)) return { label: target, url: target, bytes: null };
+  if (/^https?:\/\//.test(target)) return { label: target, url: target };
   let file = resolve(target);
   if (existsSync(file) && statSync(file).isDirectory()) file = join(file, "lesson.html");
   if (!existsSync(file) && LESSON_ID.test(target)) file = join(home, "lessons", target, "lesson.html");
   if (!existsSync(file)) throw new Error(`${target}: 파일이 없다 (${file})`);
   file = realpathSync(file);
-  const bytes = statSync(file).size;
   const lessons = realpathIfExists(join(home, "lessons"));
   const gallery = realpathIfExists(galleryDir);
   let rel;
-  if (lessons && (rel = under(lessons, file))) return { label: `lessons/${rel}`, path: `/lessons/${rel}`, bytes };
-  if (gallery && (rel = under(gallery, file))) return { label: rel, path: `/gallery/${rel}`, bytes };
+  if (lessons && (rel = under(lessons, file))) return { label: `lessons/${rel}`, path: `/lessons/${rel}` };
+  if (gallery && (rel = under(gallery, file))) return { label: rel, path: `/gallery/${rel}` };
   throw new Error(`${target}: ${join(home, "lessons")} 또는 ${galleryDir} 아래 파일만 열 수 있다. 수업 폴더에 두거나 URL을 넘긴다.`);
 }
 
@@ -126,7 +112,7 @@ function withQuery(url, q) {
 }
 
 async function runOne(chrome, profile, run, budget, attempt = 1) {
-  const base = { target: run.target, size: run.size, url: run.url, bytes: run.bytes };
+  const base = { target: run.target, size: run.size, url: run.url };
   const { out, error } = await runChrome(chrome, chromeArgs(profile, run.size, `--virtual-time-budget=${budget}`, "--dump-dom", withQuery(run.url, "audit")));
   if (error) return { ...base, error };
   const m = out.match(/<script[^>]*id="ltt-audit"[^>]*>([\s\S]*?)<\/script>/);
@@ -140,7 +126,7 @@ async function runOne(chrome, profile, run, budget, attempt = 1) {
   }
   try {
     const data = JSON.parse(m[1]);
-    return { ...base, scenes: data.scenes, viewport: data.viewport, audit: data.audit, lint: data.lint, expectFails: data.expectFails, measures: data.measures, beats: data.beats, types: data.types };
+    return { ...base, scenes: data.scenes, viewport: data.viewport, audit: data.audit, lint: data.lint, expectFails: data.expectFails };
   } catch {
     return { ...base, error: "#ltt-audit JSON을 읽을 수 없다" };
   }
@@ -157,205 +143,6 @@ async function takeShots(chrome, profile, run, scenes, budget, dir) {
   return files;
 }
 
-function sheetDir(label, home) {
-  const lesson = label.match(/^lessons\/([^/]+)\//);
-  if (lesson) return join(home, "lessons", lesson[1], "audit");
-  const root = join(tmpdir(), "ltt-audit-sheets");
-  // The label can be an arbitrary URL; a slug made only of dots would resolve to the root or above it.
-  let slug = label.replace(/[^\w.-]/g, "-");
-  if (/^\.*$/.test(slug)) slug = slug.replace(/\./g, "-") || "-";
-  return join(root, slug);
-}
-
-function pickBeats(beats) {
-  const texted = beats.filter((b) => b.text);
-  const list = (texted.length ? texted : beats).slice().sort((a, b) => a.t - b.t);
-  if (list.length <= MAX_CELLS) return list;
-  return Array.from({ length: MAX_CELLS }, (_, k) => list[Math.round((k * (list.length - 1)) / (MAX_CELLS - 1))]);
-}
-
-function sheetWarnings(results, target) {
-  const warn = {};
-  for (const r of results) {
-    if (r.target !== target || r.error) continue;
-    for (const w of r.audit) (warn[w.scene] ||= new Set()).add(w.rule);
-    for (const w of r.lint) if (w.scene) (warn[w.scene] ||= new Set()).add(w.rule || "lint");
-  }
-  return (scene) => [...(warn[scene] || [])].sort();
-}
-
-function sheetCells(r, warnOf) {
-  const cells = [];
-  for (let i = 0; i < r.scenes; i++) {
-    const scene = i + 1;
-    const base = { file: null, scene, type: (r.types && r.types[i]) || "", warn: warnOf(scene) };
-    const beats = pickBeats((r.beats && r.beats[i]) || []);
-    if (!beats.length) cells.push({ ...base, t: null, text: null });
-    for (const b of beats) cells.push({ ...base, t: b.t, text: b.text || null });
-  }
-  return cells;
-}
-
-function layoutSheets(cells, viewport) {
-  const capH = Math.round((CELL_W * viewport[1]) / viewport[0]);
-  const pitchX = CELL_W + CELL_GAP;
-  const pitchY = LABEL_H + capH + FOOT_H + CELL_GAP;
-  const width = CELL_GAP + SHEET_COLS * pitchX;
-  const maxH = Math.min(SHEET_MAX_SIDE, Math.floor(SHEET_MAX_AREA / width));
-  const perSheet = SHEET_COLS * Math.max(1, Math.floor((maxH - CELL_GAP) / pitchY));
-  const sheets = [];
-  let start = 0;
-  while (start < cells.length) {
-    let end = start;
-    // A scene's cells never straddle two sheets.
-    while (end < cells.length) {
-      let next = end;
-      while (next < cells.length && cells[next].scene === cells[end].scene) next++;
-      if (next - start > perSheet && end > start) break;
-      end = next;
-    }
-    sheets.push(cells.slice(start, end));
-    start = end;
-  }
-  return sheets.map((list) => {
-    list.forEach((c, k) => {
-      c.x = CELL_GAP + (k % SHEET_COLS) * pitchX;
-      c.y = CELL_GAP + Math.floor(k / SHEET_COLS) * pitchY + LABEL_H;
-      c.w = CELL_W;
-      c.h = capH;
-    });
-    return { cells: list, width, height: CELL_GAP + Math.ceil(list.length / SHEET_COLS) * pitchY };
-  });
-}
-
-function labelText(text, max = 60) {
-  const chars = [...text];
-  return chars.length > max ? chars.slice(0, max).join("") + "…" : text;
-}
-
-const COMPOSE_SCRIPT = `
-const S = JSON.parse(document.getElementById("spec").textContent);
-const cv = document.createElement("canvas");
-cv.width = S.width; cv.height = S.height;
-const g = cv.getContext("2d");
-g.fillStyle = "#fff"; g.fillRect(0, 0, S.width, S.height);
-const font = "14px -apple-system, 'Apple SD Gothic Neo', 'Noto Sans CJK KR', 'Malgun Gothic', sans-serif";
-function wrap(text, w, max) {
-  const lines = [];
-  let rest = text;
-  while (rest && lines.length < max) {
-    let n = rest.length;
-    while (n > 1 && g.measureText(rest.slice(0, n)).width > w) n--;
-    if (n < rest.length) { const sp = rest.lastIndexOf(" ", n); if (sp > 0) n = sp; }
-    lines.push(rest.slice(0, n).trim());
-    rest = rest.slice(n).trim();
-  }
-  if (rest) {
-    let last = lines[max - 1];
-    while (last && g.measureText(last + "…").width > w) last = last.slice(0, -1);
-    lines[max - 1] = last + "…";
-  }
-  return lines;
-}
-function clipped(x, y, w, h, fn) { g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); fn(); g.restore(); }
-Promise.all(S.cells.map((c) => c.src ? new Promise((ok) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = c.src; }) : null)).then((imgs) => {
-  S.cells.forEach((c, i) => {
-    const im = imgs[i];
-    g.font = font; g.textBaseline = "middle";
-    if (im) {
-      g.drawImage(im, 0, 0, Math.min(im.width, S.vw), Math.min(im.height, S.vh), c.x, c.y, c.w, c.h);
-    } else {
-      g.fillStyle = "#bbb"; g.fillRect(c.x, c.y, c.w, c.h);
-      g.fillStyle = "#333"; g.textAlign = "center"; g.fillText("촬영 실패", c.x + c.w / 2, c.y + c.h / 2); g.textAlign = "left";
-    }
-    g.strokeStyle = "#999"; g.lineWidth = 1; g.strokeRect(c.x - 0.5, c.y - 0.5, c.w + 1, c.h + 1);
-    const ty = c.y - S.label, by = c.y + c.h;
-    let left = c.w;
-    if (c.badge) {
-      const bw = Math.min(g.measureText(c.badge).width + 10, c.w / 2);
-      left = c.w - bw - 4;
-      g.fillStyle = "#c62828"; g.fillRect(c.x + c.w - bw, ty + 2, bw, S.label - 4);
-      clipped(c.x + c.w - bw, ty, bw, S.label, () => { g.fillStyle = "#fff"; g.fillText(c.badge, c.x + c.w - bw + 5, ty + S.label / 2); });
-    }
-    clipped(c.x, ty, left, S.label, () => { g.fillStyle = "#111"; g.fillText(c.head, c.x + 2, ty + S.label / 2); });
-    if (c.foot) clipped(c.x, by, c.w, S.foot, () => {
-      g.fillStyle = "#333";
-      wrap(c.foot, c.w - 4, 3).forEach((l, k) => g.fillText(l, c.x + 2, by + 3 + S.line * (k + 0.5)));
-    });
-  });
-  document.getElementById("out").textContent = cv.toDataURL("image/jpeg", 0.8);
-});
-`;
-
-async function composeSheet(chrome, profile, tmp, n, sheet, viewport, srcs) {
-  const spec = {
-    width: sheet.width, height: sheet.height, vw: viewport[0], vh: viewport[1], label: LABEL_H, foot: FOOT_H, line: FOOT_LINE,
-    cells: sheet.cells.map((c, i) => ({
-      x: c.x, y: c.y, w: c.w, h: c.h, src: srcs[i],
-      head: `${c.scene}${c.type ? " · " + c.type : ""}`,
-      badge: c.warn.join(", "),
-      foot: c.t == null ? "" : c.text ? labelText(c.text) : `${c.t / 1000}s`,
-    })),
-  };
-  const page = join(tmp, `compose-${n}.html`);
-  await writeFile(page, `<!doctype html><meta charset="utf-8"><script type="application/json" id="spec">${JSON.stringify(spec).replace(/</g, "\\u003c")}</script><pre id="out"></pre><script>${COMPOSE_SCRIPT}</script>`);
-  const { out, error } = await runChrome(chrome, chromeArgs(profile, "800x600", `--virtual-time-budget=${COMPOSE_BUDGET}`, "--dump-dom", pathToFileURL(page).href));
-  if (error) throw new Error(error);
-  const m = out.match(/data:image\/jpeg;base64,([A-Za-z0-9+/=]+)/);
-  const jpg = m && Buffer.from(m[1], "base64");
-  if (!jpg || jpg[0] !== 0xff || jpg[1] !== 0xd8) throw new Error("Chrome이 JPEG를 만들지 못했다");
-  return jpg;
-}
-
-async function makeSheets(chrome, tmp, results, sizes, jobs, home, budget) {
-  const size = sizes.includes(SHEET_SIZE) ? SHEET_SIZE : sizes[0];
-  const jobsList = results.filter((r) => r.size === size && !r.error).map((r, ti) => {
-    const cells = sheetCells(r, sheetWarnings(results, r.target));
-    r.sheet = { size, dir: sheetDir(r.target, home), files: [], cells, failed: 0, error: null };
-    return { r, ti, sheets: layoutSheets(cells, r.viewport) };
-  });
-  const ready = [];
-  for (const job of jobsList) {
-    try {
-      await mkdir(job.r.sheet.dir, { recursive: true });
-      for (const f of await readdir(job.r.sheet.dir)) if (SHEET_FILE.test(f)) await rm(join(job.r.sheet.dir, f), { force: true });
-      ready.push(job);
-    } catch (err) {
-      job.r.sheet.error = `폴더를 쓸 수 없다 (${job.r.sheet.dir}): ${err.message}`;
-    }
-  }
-  const shots = ready.flatMap((job) => job.r.sheet.cells.map((c, ci) => ({ job, c, ci })));
-  await pool(shots, Math.max(1, jobs), async ({ job, c, ci }) => {
-    const png = join(tmp, `sheet${job.ti}-${ci}.png`);
-    const at = c.t == null ? budget : Math.max(1, c.t);
-    const url = job.r.url.split("#")[0] + "#" + c.scene;
-    const { error } = await runChrome(chrome, chromeArgs(join(tmp, `sp${job.ti}-${ci}`), size, `--virtual-time-budget=${at}`, `--screenshot=${png}`, url));
-    c.src = !error && existsSync(png) ? "data:image/png;base64," + (await readFile(png)).toString("base64") : null;
-    c.failed = !c.src;
-  });
-  await pool(ready, Math.max(1, jobs), async (job) => {
-    const { sheet } = job.r;
-    try {
-      for (let n = 0; n < job.sheets.length; n++) {
-        const file = join(sheet.dir, n ? `sheet-${n + 1}.jpg` : "sheet.jpg");
-        const jpg = await composeSheet(chrome, join(tmp, `sc${job.ti}-${n}`), tmp, `${job.ti}-${n}`, job.sheets[n], job.r.viewport, job.sheets[n].cells.map((c) => c.src));
-        await writeFile(file, jpg);
-        job.sheets[n].cells.forEach((c) => { c.file = file; });
-        sheet.files.push(file);
-      }
-    } catch (err) {
-      sheet.error = err.message;
-    }
-  });
-  for (const job of jobsList) {
-    for (const c of job.r.sheet.cells) {
-      delete c.src;
-      c.failed = !!c.failed;
-    }
-    job.r.sheet.failed = job.r.sheet.cells.filter((c) => c.failed).length;
-  }
-}
-
 async function pool(items, size, fn) {
   const results = new Array(items.length);
   let next = 0;
@@ -368,7 +155,7 @@ async function pool(items, size, fn) {
   return results;
 }
 
-export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrome(), budget = DEFAULT_BUDGET, jobs = DEFAULT_JOBS, home = lttHome(), galleryDir = GALLERY_DIR, shots = null, sheet = false }) {
+export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrome(), budget = DEFAULT_BUDGET, jobs = DEFAULT_JOBS, home = lttHome(), galleryDir = GALLERY_DIR, shots = null }) {
   if (!chrome) throw new Error(NO_CHROME);
   const resolved = targets.map((t) => resolveTarget(t, { home, galleryDir }));
   const server = resolved.some((t) => t.path) ? createLttServer({ home, galleryDir }) : null;
@@ -381,15 +168,13 @@ export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrom
     }
     if (shots) await mkdir(shots, { recursive: true });
     const runs = [];
-    for (const t of resolved) for (const size of sizes) runs.push({ target: t.label, url: t.url || base + t.path, size, bytes: t.bytes });
-    const results = await pool(runs, Math.max(1, jobs), async (run, i) => {
+    for (const t of resolved) for (const size of sizes) runs.push({ target: t.label, url: t.url || base + t.path, size });
+    return await pool(runs, Math.max(1, jobs), async (run, i) => {
       const profile = join(tmp, `p${i}`);
       const r = await runOne(chrome, profile, run, budget);
       if (shots && r.scenes) r.shots = await takeShots(chrome, profile, run, r.scenes, budget, shots);
       return r;
     });
-    if (sheet) await makeSheets(chrome, tmp, results, sizes, jobs, home, budget);
-    return results;
   } finally {
     if (server) {
       server.closeAllConnections();
@@ -399,57 +184,35 @@ export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrom
   }
 }
 
-const GRADE = (w) => (w.severity === "advise" ? "권고" : "고침");
-
 export function formatReport(results) {
   const width = Math.max(...results.map((r) => r.target.length));
   const lines = [];
   const totals = {};
-  const targets = [...new Set(results.map((r) => r.target))];
-  for (const target of targets) {
-    const mine = results.filter((r) => r.target === target);
-    const first = mine.find((r) => !r.error);
-    if (first) lines.push(`${target}  장면 ${first.scenes}${typeof first.bytes === "number" ? ` · ${first.bytes} B` : ""}`);
-    const merged = new Map();
-    for (const r of mine) {
-      if (r.error) {
-        lines.push(`${r.size.padEnd(9)} ${target.padEnd(width)}  오류: ${r.error}`);
-        continue;
-      }
-      const total = totals[r.size] ||= { n: 0, viewport: r.viewport };
-      total.n += r.audit.length;
-      lines.push(`  ${r.size} (화면 ${r.viewport.join("×")}): audit ${r.audit.length}${r.shots ? ` · shots ${r.shots.length}` : ""}`);
-      for (const w of r.audit) {
-        const key = JSON.stringify([w.scene, w.rule, w.msg]);
-        if (!merged.has(key)) merged.set(key, { w, sizes: [] });
-        merged.get(key).sizes.push(r.size);
-      }
+  for (const r of results) {
+    const head = `${r.size.padEnd(9)} ${r.target.padEnd(width)}`;
+    if (r.error) {
+      lines.push(`${head}  오류: ${r.error}`);
+      continue;
     }
-    [...merged.values()].sort((a, b) => a.w.scene - b.w.scene)
-      .forEach(({ w, sizes }) => lines.push(`  장면 ${w.scene} [${w.rule}·${GRADE(w)}] ${sizes.join("·")}: ${w.msg}`));
-    if (first) {
-      first.lint.forEach((w) => lines.push(`  lint ${w.scene ? `장면 ${w.scene}` : "덱"} [${w.rule}·${GRADE(w)}]: ${w.msg}`));
-      first.expectFails.forEach((t) => lines.push(`  expect: ${t}`));
-    }
+    const total = totals[r.size] ||= { n: 0, viewport: r.viewport };
+    total.n += r.audit.length;
+    lines.push(`${head}  audit ${r.audit.length} · lint ${r.lint.length} · expect ${r.expectFails.length}${r.shots ? ` · shots ${r.shots.length}` : ""}`);
+    r.audit.forEach((w) => lines.push(`    장면 ${w.scene} [${w.rule}]: ${w.msg}`));
+    r.lint.forEach((w) => lines.push(`    lint${w.scene ? ` 장면 ${w.scene}` : ""}: ${w.msg}`));
+    r.expectFails.forEach((t) => lines.push(`    ${t}`));
   }
   // Headless `--window-size` is the outer window, so the page sees a shorter viewport; the summary shows what was actually measured.
   lines.push(Object.keys(totals).map((s) => `${s} (화면 ${totals[s].viewport.join("×")}): audit ${totals[s].n}건`).join(" · ") || "측정된 결과 없음");
-  for (const r of results) {
-    if (!r.sheet) continue;
-    const s = r.sheet;
-    lines.push(`sheet ${r.target}: ${s.error ? `오류: ${s.error}` : s.files.join(" ") + (s.failed ? ` (칸 ${s.failed}개 촬영 실패)` : "")}`);
-  }
   return lines.join("\n");
 }
 
 export function exitCode(results) {
-  if (results.some((r) => r.error || (r.sheet && r.sheet.error))) return 2;
-  const fix = (w) => w.severity !== "advise";
-  return results.some((r) => r.audit.some(fix) || r.lint.some(fix) || r.expectFails.length) ? 1 : 0;
+  if (results.some((r) => r.error)) return 2;
+  return results.some((r) => r.audit.length || r.lint.length || r.expectFails.length) ? 1 : 0;
 }
 
 function parseArgs(argv) {
-  const opts = { targets: [], sizes: [], json: false, gallery: false, shots: null, sheet: false, chrome: undefined, budget: DEFAULT_BUDGET, jobs: DEFAULT_JOBS, home: undefined, help: false };
+  const opts = { targets: [], sizes: [], json: false, gallery: false, shots: null, chrome: undefined, budget: DEFAULT_BUDGET, jobs: DEFAULT_JOBS, home: undefined, help: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => {
@@ -459,7 +222,6 @@ function parseArgs(argv) {
     if (a === "--size") opts.sizes.push(next());
     else if (a === "--shots") opts.shots = next();
     else if (a === "--json") opts.json = true;
-    else if (a === "--sheet") opts.sheet = true;
     else if (a === "--gallery") opts.gallery = true;
     else if (a === "--chrome") opts.chrome = next();
     else if (a === "--budget") opts.budget = Number(next());
@@ -500,15 +262,13 @@ async function main() {
       jobs: opts.jobs,
       home: opts.home ? resolve(opts.home) : lttHome(),
       shots: opts.shots ? resolve(opts.shots) : null,
-      sheet: opts.sheet,
     });
   } catch (err) {
     console.error(err.message);
     process.exit(2);
   }
   console.log(opts.json ? JSON.stringify(results, null, 2) : formatReport(results));
-  // process.exit would cut a piped stdout short once the JSON passes the pipe buffer.
-  process.exitCode = exitCode(results);
+  process.exit(exitCode(results));
 }
 
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {

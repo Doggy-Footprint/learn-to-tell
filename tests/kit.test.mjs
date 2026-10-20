@@ -2,7 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
-import { AUDIT_TRIGGERS, BASE_M, LINT_TRIGGERS, expectedSeverity } from "./fixtures/absorb/severity-cases.mjs";
 
 function loadKit() {
   const context = { console: { info() {}, warn() {} } };
@@ -39,28 +38,6 @@ test("expect returns the comparison result outside a browser", () => {
   const { expect } = loadKit();
   assert.equal(expect("match", 2, 2), true);
   assert.equal(expect("mismatch", 2, 3), false);
-});
-
-// Spec 6cc24f891a69c407 v1 VO-8 (FR-15, C-17): equivalence partitions of LTT.expect's expected value.
-for (const [id, actual, expected, want] of [
-  ["same boolean", true, true, true],
-  ["different boolean", false, true, false],
-  ["boolean expected, number actual", 1, true, false],
-  ["same string", "a", "a", true],
-  ["different string", "a", "b", false],
-  ["boolean expected, string actual", "true", true, false],
-]) {
-  test(`VO-8 ${id}: expect(label, ${JSON.stringify(actual)}, ${JSON.stringify(expected)}) is ${want}`, () => {
-    assert.equal(loadKit().expect("b", actual, expected), want);
-  });
-}
-
-test("VO-8 number regression: numeric expect keeps compare semantics (C-17 expect(\"n\", 2, 2))", () => {
-  const { expect } = loadKit();
-  assert.equal(expect("n", 2, 2), true);
-  assert.equal(expect("n", 2, 3), false);
-  assert.equal(expect("n", 2.0005, 2, { tol: 1e-3 }), true);
-  assert.equal(expect("n", 2.01, 2, { tol: 1e-3 }), false);
 });
 
 function loadParts() {
@@ -391,124 +368,4 @@ test("freeSlot returns the first spot below or beside solids and null when the b
   assert.deepEqual([...freeSlot(region, [40, 40], [{ x0: 0, y0: 0, x1: 50, y1: 100 }], 0, 1)], [50, 0]);
   assert.equal(freeSlot(region, [100, 80], [top], 0, 1), null);
   assert.equal(freeSlot(region, [120, 10], [], 0, 1), null);
-});
-
-// ---------- spec 37a2365a466d3e8b v1 VO-6: auditScene message decision tables (inputs per the Signatures; no layout needed) ----------
-
-const FIGM = { type: "figure", zoom: 1, visualRatio: 0.4, figRatio: 0.8, fill: 0.9, fontSizes: 5 };
-const msgOf = (m, rule) => {
-  const hit = Array.from(loadKit().auditScene({ ...FIGM, ...m })).filter((w) => w.rule === rule);
-  assert.equal(hit.length, 1, `${rule}: ${hit.length} warnings for ${JSON.stringify(m)}`);
-  return hit[0].msg;
-};
-const STATE_WORDS = ["정답 ", "단계 ", "회상 답", "질문"];
-const NO_JUNK = /undefined|null|NaN|\[object/;
-
-for (const zoomBy of [undefined, "정답 나"]) {
-  for (const longest of [undefined, { field: "why", chars: 420 }]) {
-    for (const floor of [false, true]) {
-      const id = `zoomBy ${zoomBy ? "yes" : "no"} x longest ${longest ? "yes" : "no"} x floor ${floor ? "yes" : "no"}`;
-      test(`VO-6 shrunk [${id}]: says the zoom percentage, names exactly the given state, field and floor`, () => {
-        const zoom = floor ? 0.78 : 0.83;
-        const msg = msgOf({ zoom, floor, ...(zoomBy && { zoomBy }), ...(longest && { longest }) }, "shrunk");
-        assert.ok(msg.includes(`${Math.round(zoom * 100)}%`), msg);
-        assert.equal(msg.includes("78% 하한"), floor, msg);
-        assert.equal(msg.includes("정답 나"), Boolean(zoomBy), msg);
-        assert.equal(msg.includes("why"), Boolean(longest), msg);
-        assert.equal(msg.includes("420"), Boolean(longest), msg);
-        assert.ok(!NO_JUNK.test(msg), msg);
-        if (!zoomBy) for (const t of STATE_WORDS) assert.ok(!msg.includes(t), `invented state "${t}": ${msg}`);
-        if (!longest) for (const t of ["title", "narration", "caption", "steps", "text"]) assert.ok(!msg.includes(t), `invented field "${t}": ${msg}`);
-      });
-    }
-  }
-}
-
-test("VO-6 overflow [floor]: zoom 0.78 reaches the floor and says '78% 하한' (C-9)", () => {
-  const msg = msgOf({ overflow: true, zoom: 0.78, floor: true }, "overflow");
-  assert.ok(msg.includes("78% 하한"), msg);
-});
-
-test("VO-6 overflow [zoomBy]: zoom 0.83 fitted to another state says 83% and the state, never '78%로 줄여도' (C-10)", () => {
-  const msg = msgOf({ overflow: true, zoom: 0.83, floor: false, zoomBy: "단계 2" }, "overflow");
-  assert.ok(msg.includes("83%") && msg.includes("단계 2"), msg);
-  assert.ok(!msg.includes("78%로 줄여도"), msg);
-  assert.ok(!msg.includes("하한"), msg);
-});
-
-test("VO-6 overflow [neither]: zoom 0.83 with no state says 83%, no floor claim, no state, never '78%로 줄여도' (C-10)", () => {
-  const msg = msgOf({ overflow: true, zoom: 0.83 }, "overflow");
-  assert.ok(msg.includes("83%"), msg);
-  assert.ok(!msg.includes("78%로 줄여도") && !msg.includes("하한") && !NO_JUNK.test(msg), msg);
-  for (const t of STATE_WORDS) assert.ok(!msg.includes(t), `invented state "${t}": ${msg}`);
-});
-
-test("VO-6 overflow: no zoom above 0.781 ever says '78%로 줄여도' (swept over 0.79..0.99)", () => {
-  for (let z = 0.79; z < 1; z += 0.02) {
-    const msg = msgOf({ overflow: true, zoom: z }, "overflow");
-    assert.ok(!msg.includes("78%로 줄여도"), `zoom ${z}: ${msg}`);
-    assert.ok(msg.includes(`${Math.round(z * 100)}%`), `zoom ${z}: ${msg}`);
-  }
-});
-
-test("VO-6 hscroll [wide given]: names the widest element with its width, and the overflow px (C-11)", () => {
-  const msg = msgOf({ hscroll: 320, wide: "div.wide 1600px" }, "hscroll");
-  assert.ok(msg.includes("div.wide 1600px") && msg.includes("320"), msg);
-});
-
-test("VO-6 hscroll [wide absent]: still says the overflow px and invents no element", () => {
-  const msg = msgOf({ hscroll: 320 }, "hscroll");
-  assert.ok(msg.includes("320") && !NO_JUNK.test(msg), msg);
-  assert.ok(!/\b(div|svg|table|img|span)\b/.test(msg), `invented element: ${msg}`);
-});
-
-const IDS = ["edge-label a/b", "node-edge c/d", "label-label e/f", "edge-edge g/h", "node-node i/j"];
-
-test("VO-6 graph-overlap [0 ids]: says the count, no 'ids' list and no '외 n곳'", () => {
-  const msg = msgOf({ graphOverlaps: 4 }, "graph-overlap");
-  assert.ok(msg.includes("4") && !msg.includes("외 ") && !NO_JUNK.test(msg), msg);
-});
-
-test("VO-6 graph-overlap [3 ids]: all three ids, no '외 n곳' (C-12 lower edge)", () => {
-  const msg = msgOf({ graphOverlaps: 3, graphIds: IDS.slice(0, 3) }, "graph-overlap");
-  for (const id of IDS.slice(0, 3)) assert.ok(msg.includes(id), `${id} missing: ${msg}`);
-  assert.ok(msg.includes("3") && !msg.includes("외 "), msg);
-});
-
-test("VO-6 graph-overlap [5 ids]: the first three ids, '외 2곳', and not the 4th and 5th (C-12)", () => {
-  const msg = msgOf({ graphOverlaps: 5, graphIds: IDS }, "graph-overlap");
-  for (const id of IDS.slice(0, 3)) assert.ok(msg.includes(id), `${id} missing: ${msg}`);
-  for (const id of IDS.slice(3)) assert.ok(!msg.includes(id), `${id} should be folded into the count: ${msg}`);
-  assert.ok(msg.includes("외 2곳") && msg.includes("5"), msg);
-});
-
-// ---------- spec 37a2365a466d3e8b v1 VO-8: severity on every audit and lint rule id ----------
-
-for (const [rule, extra] of Object.entries(AUDIT_TRIGGERS)) {
-  test(`VO-8 auditScene ${rule}: severity is ${expectedSeverity(rule)}`, () => {
-    const hits = Array.from(loadKit().auditScene({ ...BASE_M, ...extra })).filter((w) => w.rule === rule);
-    assert.ok(hits.length >= 1, `${rule} not emitted for ${JSON.stringify(extra)}`);
-    for (const w of hits) assert.equal(w.severity, expectedSeverity(rule));
-  });
-}
-
-for (const [rule, build] of Object.entries(LINT_TRIGGERS)) {
-  test(`VO-8 lintDeck ${rule}: severity is ${expectedSeverity(rule)}`, () => {
-    const hits = Array.from(loadKit().lintDeck(build())).filter((w) => w.rule === rule);
-    assert.ok(hits.length >= 1, `${rule} not emitted`);
-    for (const w of hits) assert.equal(w.severity, expectedSeverity(rule));
-  });
-}
-
-test("VO-8 every warning object carries rule, msg and severity fix|advise (lint warnings also carry scene; auditScene's scene is attached by the deck)", () => {
-  const LTT = loadKit();
-  const audit = Object.values(AUDIT_TRIGGERS).flatMap((extra) => Array.from(LTT.auditScene({ ...BASE_M, ...extra })));
-  const lint = Object.values(LINT_TRIGGERS).flatMap((build) => Array.from(LTT.lintDeck(build())));
-  assert.ok(audit.length + lint.length > 30);
-  for (const w of [...audit, ...lint]) {
-    assert.ok(["fix", "advise"].includes(w.severity), `${w.rule}: ${w.severity}`);
-    assert.equal(w.severity, expectedSeverity(w.rule), w.rule);
-    for (const k of ["rule", "msg"]) assert.ok(k in w, `${w.rule}: ${k} missing`);
-  }
-  for (const w of lint) assert.ok("scene" in w, `${w.rule}: scene missing`);
 });

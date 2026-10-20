@@ -1,7 +1,6 @@
 // Builds the shot cards the skill reads at generation time (skills/learn-to-tell/look/) from the gallery shots.
-// Each card is one image: frames captured at the beat times the page exposes (data-ltt-beats with text), else at those in
-// site/gallery/shots/beats/sNN.json, the beat lines under them and the principle. Motion has to be carried this way because the
-// model sees only still images.
+// Each card is one image: frames captured at the beat times in site/gallery/shots/beats/sNN.json, the beat lines under
+// them and the principle. Motion has to be carried this way because the model sees only still images.
 //   node scripts/shots.mjs [NN ...]   cards for the given shots (default: every shot with a beats file)
 //   node scripts/shots.mjs --board    the mood board of every card's last frame, and the index table in look.md
 import { spawn } from "node:child_process";
@@ -38,31 +37,6 @@ function shoot(url, file, size, budget) {
   });
 }
 
-function dumpDom(url, budget) {
-  return new Promise((done) => {
-    const profile = join(tmpdir(), `ltt-shot-${process.pid}-${Math.random().toString(36).slice(2)}`);
-    const p = spawn(chrome, ["--headless=new", "--disable-gpu", "--no-first-run", `--user-data-dir=${profile}`, "--window-size=1280,800",
-      `--virtual-time-budget=${budget}`, "--dump-dom", url], { stdio: ["ignore", "pipe", "ignore"] });
-    let out = "";
-    p.stdout.on("data", (d) => (out += d));
-    p.on("close", () => { rmSync(profile, { recursive: true, force: true }); done(out); });
-  });
-}
-
-// A page that names its beats (LTT.motion.play text) is the source of truth; the beats file then only supplies crop and
-// principle. Beats without text are timing only and do not get a frame.
-const pageBeats = new Map();
-async function beatsFor(n, base) {
-  if (!pageBeats.has(n)) {
-    const dom = await dumpDom(`${base}/gallery/shots/${axes[n].file}`, 400);
-    const m = dom.match(/class="[^"]*dk-scene[^"]*cur[^"]*"[^>]*data-ltt-beats="([^"]*)"|data-ltt-beats="([^"]*)"[^>]*class="[^"]*dk-scene[^"]*cur/);
-    const list = m ? JSON.parse((m[1] || m[2]).replace(/&quot;/g, '"').replace(/&amp;/g, "&")).filter((b) => b.text) : [];
-    pageBeats.set(n, list.length ? list : beatsOf(n).beats ?? []);
-    if (!pageBeats.get(n).length) throw new Error(`s${n}: no beats on the page or in beats/s${n}.json`);
-  }
-  return pageBeats.get(n);
-}
-
 // JPEG keeps the skill package small; sips ships with macOS, elsewhere the PNG stays.
 function toJpeg(png, jpg) {
   return new Promise((done) => {
@@ -91,48 +65,32 @@ function framed(n, f, fw, fh) {
   return `<div style="width:${fw}px;height:${fh}px;overflow:hidden;border-radius:4px;position:relative"><img src="${pathToFileURL(f)}" style="position:absolute;left:${-x * k}px;top:${-y * k}px;width:${1280 * k}px;height:${800 * k}px"></div>`;
 }
 
-// A `failure` in the beats file is a frame from a generated lesson that broke this card's principle; the card shows it
-// under the beats as a contrast pair, since a bad screen alone invites copying it.
-const FAIL_W = 560;
-const failH = (n) => { const f = beatsOf(n).failure; return f ? Math.round(FAIL_W * f.crop[3] / f.crop[2]) + 24 : 0; };
-
-function failureHtml(n) {
-  const f = beatsOf(n).failure;
-  if (!f) return "";
-  const [x, y, cw, ch] = f.crop, k = FAIL_W / cw, src = pathToFileURL(join(SHOTS, f.file));
-  return `<div style="display:flex;gap:16px;align-items:flex-start;margin-top:14px;padding-top:12px;border-top:1px solid #34363b">` +
-    `<div style="width:${FAIL_W}px;height:${Math.round(ch * k)}px;overflow:hidden;border-radius:4px;position:relative;flex:none;outline:2px solid #e0705f">` +
-    `<img src="${src}" style="position:absolute;left:${-x * k}px;top:${-y * k}px;width:${f.size[0] * k}px;height:${f.size[1] * k}px"></div>` +
-    `<div style="font-size:15px;line-height:1.55"><b style="color:#f08a78">흔한 실패</b> ${esc(f.text)}<br><b style="color:#9fb6ff">위 프레임</b> ${esc(f.fix)}</div></div>`;
-}
-
-function cardHtml(n, frames, beats) {
+function cardHtml(n, frames) {
   const a = axes[n], b = beatsOf(n), gap = 10, fw = frameW(frames.length), fh = frameH(n, frames.length);
   const cols = frames.map((f, i) => `<figure style="margin:0;width:${fw}px">${framed(n, f, fw, fh)}` +
-    `<figcaption style="margin-top:8px;font-size:14px;line-height:1.45;color:#d6d6d2"><b style="color:#9fb6ff">${i + 1}</b> ${esc(beats[i].text)}</figcaption></figure>`).join("");
+    `<figcaption style="margin-top:8px;font-size:14px;line-height:1.45;color:#d6d6d2"><b style="color:#9fb6ff">${i + 1}</b> ${esc(b.beats[i].text)}</figcaption></figure>`).join("");
   return `<!doctype html><meta charset="utf-8"><style>${PAGE_CSS}</style><body>
 <div style="padding:14px 16px 16px">
 <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:10px"><b style="font-size:20px">s${n}</b>
 <span style="color:#a9aaa6">${esc([a.structure, a.motion, a.role, a.composition, a.theme].join(" · "))}</span></div>
 <div style="display:flex;gap:${gap}px;align-items:flex-start">${cols}</div>
 <div style="margin-top:12px;font-size:15px"><b style="color:#9fb6ff">옮길 원리</b> ${esc(b.principle)}</div>
-${failureHtml(n)}
 </div></body>`;
 }
 
 async function cards(ids, base, tmp) {
   mkdirSync(OUT, { recursive: true });
   await pool(ids, async (n) => {
-    const beats = await beatsFor(n, base);
+    const b = beatsOf(n);
     const frames = [];
-    for (const [i, beat] of beats.entries()) {
+    for (const [i, beat] of b.beats.entries()) {
       const f = join(tmp, `s${n}-${i + 1}.png`);
       if (!(await shoot(`${base}/gallery/shots/${axes[n].file}`, f, "1280,800", beat.t))) throw new Error(`s${n}: frame ${i + 1} failed`);
       frames.push(f);
     }
     const html = join(tmp, `card-${n}.html`);
-    writeFileSync(html, cardHtml(n, frames, beats));
-    const h = frameH(n, frames.length) + 150 + failH(n);
+    writeFileSync(html, cardHtml(n, frames));
+    const h = frameH(n, frames.length) + 150;
     const png = join(tmp, `card-${n}.png`);
     if (!(await shoot(pathToFileURL(html).href, png, `${W},${h}`, 500))) throw new Error(`s${n}: card failed`);
     rmSync(join(OUT, `s${n}.jpg`), { force: true });
@@ -146,7 +104,7 @@ async function board(base, tmp) {
   const frames = [];
   await pool(ids, async (n) => {
     const f = join(tmp, `rest-${n}.png`);
-    if (!(await shoot(`${base}/gallery/shots/${axes[n].file}`, f, "1280,800", (await beatsFor(n, base)).at(-1).t))) throw new Error(`s${n}: rest frame failed`);
+    if (!(await shoot(`${base}/gallery/shots/${axes[n].file}`, f, "1280,800", beatsOf(n).beats.at(-1).t))) throw new Error(`s${n}: rest frame failed`);
   });
   for (const n of ids) frames.push([n, join(tmp, `rest-${n}.png`)]);
   const cells = frames.map(([n, f]) => `<figure style="margin:0;position:relative"><img src="${pathToFileURL(f)}" style="width:${tw}px;height:${th}px;display:block">` +
@@ -160,7 +118,7 @@ async function board(base, tmp) {
   if (!(await toJpeg(png, join(LOOK, "board.jpg")))) writeFileSync(join(LOOK, "board.png"), readFileSync(png));
 
   const table = ["| shot | 개념 구조 | 움직임 | 장면 역할 | 구도 | 옮길 원리 |", "| --- | --- | --- | --- | --- | --- |",
-    ...ids.map((n) => { const a = axes[n], b = beatsOf(n); return `| s${n} | ${a.structure} | ${a.motion} | ${a.role} | ${a.composition} | ${b.principle}${b.failure ? " (실패 짝)" : ""} |`; })].join("\n");
+    ...ids.map((n) => { const a = axes[n]; return `| s${n} | ${a.structure} | ${a.motion} | ${a.role} | ${a.composition} | ${beatsOf(n).principle} |`; })].join("\n");
   const look = join(LOOK, "look.md"), text = readFileSync(look, "utf8");
   const start = "<!-- shots:start -->", end = "<!-- shots:end -->";
   if (!text.includes(start) || !text.includes(end)) throw new Error(`look.md에 ${start} … ${end} 자리가 없다`);

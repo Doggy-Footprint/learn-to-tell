@@ -250,25 +250,23 @@
   }
 
   // The first prediction is locked and recorded once; later slider moves are exploration, not prediction.
-  // With `instant`, picking a choice is the lock, so there is no separate button.
   function predict(opts) {
     var locked = false, tries = 0;
     var input = el(opts.input);
     var choices = opts.choices ? el(opts.choices) : null;
-    var button = opts.button ? el(opts.button) : null;
+    var button = el(opts.button);
     var value = null;
     if (choices) {
       choices.classList.add("ltt-choices");
-      if (button) button.disabled = true;
+      button.disabled = true;
       choices.querySelectorAll("button").forEach(function (b) {
         b.setAttribute("aria-pressed", "false");
         b.addEventListener("click", function () {
           if (locked) return;
           choices.querySelectorAll("button").forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
           value = b.dataset.choice;
-          if (button) button.disabled = false;
+          button.disabled = false;
           if (opts.preview) opts.preview(value);
-          if (opts.instant) lock();
         });
       });
     }
@@ -277,11 +275,10 @@
       input.addEventListener("input", function () { if (!locked) onInput(); });
       onInput();
     }
-    if (button) button.addEventListener("click", lock);
-    function lock() {
+    button.addEventListener("click", function () {
       if (locked || value == null) return;
       locked = true;
-      if (button) button.disabled = true;
+      button.disabled = true;
       if (input) input.disabled = true;
       LTT.record("predict", tries ? { question: opts.question, guess: value, retry: true } : { question: opts.question, guess: value });
       tries++;
@@ -301,7 +298,7 @@
         });
         if (opts.reveal) opts.reveal(value);
       }, MOTION_MS ? 350 : 0);
-    }
+    });
     // The first guess stays in the record; a reset only opens the question again, logged as its own event.
     function reset() {
       if (!locked) return;
@@ -309,9 +306,9 @@
       if (input) { input.disabled = false; onInput(); }
       if (choices) {
         value = null;
-        if (button) button.disabled = true;
+        button.disabled = true;
         choices.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", "false"); b.classList.remove("right", "wrong"); });
-      } else if (button) button.disabled = false;
+      } else button.disabled = false;
       (opts.show || []).forEach(function (x) { var n = el(x); n.classList.add("ltt-hidden"); n.classList.remove("ltt-rise"); });
       (opts.hide || []).forEach(function (x) { el(x).classList.remove("ltt-hidden"); });
       LTT.record("predict-reset", { question: opts.question });
@@ -336,11 +333,11 @@
       });
       return v;
     }
-    var goal = opts.goal && sweepGoal(opts.goal), reached = false, attracting = false, attract = null;
+    var goal = opts.goal && sweepGoal(opts.goal), reached = false;
     function render() {
       var v = values();
       opts.render(v);
-      if (!goal || attracting) return;
+      if (!goal) return;
       var hit = !!opts.goal.check(v);
       goal.classList.toggle("done", hit);
       if (hit && !reached) {
@@ -349,27 +346,10 @@
       }
       reached = reached || hit;
     }
-    var startRaw = {};
-    ids.forEach(function (id) { startRaw[id] = ctl[id].read(); });
-    // The first touch ends the attract for good and starts from the start values, so the goal is still found by hand.
-    function touched(restore) {
-      if (!attract) return;
-      attract.end();
-      attract = null;
-      if (!restore) return;
-      ids.forEach(function (id) { ctl[id].write(startRaw[id]); });
-      render();
-    }
-    ids.forEach(function (id) {
-      ctl[id].on(function () { if (!attracting) touched(false); });
-      ctl[id].on(render);
-      var node = opts.params[id].control ? null : $(id);
-      if (node) ["pointerdown", "keydown"].forEach(function (t) { node.addEventListener(t, function () { touched(true); }, true); });
-    });
+    ids.forEach(function (id) { ctl[id].on(render); });
     if (opts.presets) {
       document.querySelectorAll(opts.presets).forEach(function (btn) {
         btn.addEventListener("click", function () {
-          touched(true);
           var set = JSON.parse(btn.dataset.preset);
           Object.keys(set).forEach(function (k) { ctl[k].write(set[k]); });
           render();
@@ -388,22 +368,6 @@
       goal.dataset.start = reach.start ? "1" : "0";
     }
     if (opts.immediate !== false) render();
-    var at = opts.attract == null ? true : opts.attract;
-    if (at !== false && !MEASURING && !LTT.motion.reduced()) {
-      var aid = at.param == null ? ids[0] : at.param;
-      if (!ctl.hasOwnProperty(aid)) motionWarn(building || currentScene, "LTT.sweep attract param '" + aid + "'가 params에 없어 자동 훑기를 하지 않는다");
-      else {
-        var period = typeof at.period === "number" && at.period > 0 ? at.period : 6000;
-        attract = makeLoop(function (u) {
-          var raws = ctl[aid].raws(), f = u < 0.5 ? 2 * u : 2 - 2 * u;
-          attracting = true;
-          try {
-            ctl[aid].write(raws[Math.round(f * (raws.length - 1))]);
-            render();
-          } finally { attracting = false; }
-        }, { period: period });
-      }
-    }
     return { render: render, values: values, controls: ctl };
   }
 
@@ -648,12 +612,13 @@
     container.append(caption, bar);
     var timer = null;
     function stop() { clearTimeout(timer); timer = null; loop.textContent = "▶ 반복 재생"; loop.setAttribute("aria-pressed", "false"); }
+    function hold(k) { return steps[k].hold || opts.interval || 1800; }
     function tick() {
       timer = setTimeout(function () {
         if (!container.isConnected) return stop();
         go(i === steps.length - 1 ? 0 : i + 1, 1);
         tick();
-      }, holdOf(steps[i], opts));
+      }, hold(i));
     }
     function play() {
       stop();
@@ -675,27 +640,7 @@
     prev.onclick = function () { stop(); go(i - 1, -1); };
     next.onclick = function () { stop(); go(i + 1, 1); };
     go(0, 1);
-    // Inside a deck bind() waits for the scene's entry (and leave stops it); outside one it runs the enter at once.
-    if (steps.length > 1) LTT.motion.bind({
-      enter: function () {
-        if (i !== 0) go(0, 1);
-        if (!LTT.motion.reduced()) play();
-      },
-      leave: stop
-    });
     return { go: go, play: play, stop: stop, get index() { return i; } };
-  }
-
-  // The reading floor follows Korean subtitle pace (12 characters/s) plus time to look at the picture; an author's hold
-  // or interval only lengthens it.
-  function captionLength(caption) {
-    if (typeof caption !== "string") return 0;
-    var d = document.createElement("div");
-    d.innerHTML = caption.replace(/\{\{([^}|]+)(?:\|([^}]*))?\}\}/g, function (m, term, alias) { return alias != null ? alias : term; });
-    return Array.from(d.textContent.replace(/\s+/g, " ").trim()).length;
-  }
-  function holdOf(step, opts) {
-    return Math.max(step.hold || (opts && opts.interval) || 0, Math.max(1800, 1000 + 100 * captionLength(step.caption)));
   }
 
   // A step's packet flow repeats while the step stays current, so a viewer who looks late still sees which leg is slow.
@@ -944,10 +889,6 @@
     return { width: width, height: height, nodes: nodes, edges: edges, zones: zones };
   }
 
-  // The deck sets this around a figure step's enter so a diagram's highlight there is recorded for cumulative reveal;
-  // highlights made anywhere else (figure(), direct calls) never are.
-  var stepScope = null;
-
   // Box-and-arrow diagram from a grid spec (see diagramLayout); `player` turns it into a captioned step replay.
   function diagram(svgEl, spec) {
     var L = diagramLayout(spec), uid = "dg" + Math.random().toString(36).slice(2, 8);
@@ -987,14 +928,13 @@
     (spec.edges || []).forEach(function (e, i) {
       var g = L.edges[i], k = e.flaw ? "bad" : e.k || "";
       var line = gEdges.append("path").attr("class", "e" + (k ? " k-" + k : "") + (e.dash ? " dash" : "")).attr("d", g.d)
-        .attr("data-ltt-edge", g.id).attr("data-ltt-pair", e.f + ">" + e.t)
         .attr("marker-end", e.arrow === false ? null : "url(#" + uid + "-m" + (/^(accent|good|bad|warn)$/.test(k) ? k : "") + ")");
       if (e.both) line.attr("marker-start", "url(#" + uid + "-m" + (/^(accent|good|bad|warn)$/.test(k) ? k : "") + ")");
       var rk = gen ? scribble(gEdges, rough("path", [g.d]), "e" + (k ? " k-" + k : "") + (e.dash ? " dash" : "")) : null;
       var label = null;
       if (e.l) {
         var lo = e.lo || (e.at ? [0, 0] : [0, -8]);
-        label = gEdges.append("text").attr("class", "el").attr("text-anchor", "middle").attr("data-ltt-edge-label", g.id)
+        label = gEdges.append("text").attr("class", "el").attr("text-anchor", "middle")
           .attr("x", g.lx + lo[0]).attr("y", g.ly + lo[1]).text(e.l);
       }
       edgeSel[g.id] = byPair[e.f + ">" + e.t] = { line: line, rk: rk, label: label, geo: g };
@@ -1003,7 +943,7 @@
     spec.nodes.forEach(function (n) {
       var b = L.nodes[n.id];
       var g = gNodes.append("g").attr("class", "n" + (n.k ? " k-" + n.k : "") + (n.flaw ? " flaw" : ""))
-        .attr("transform", "translate(" + b.x + "," + b.y + ")").attr("data-ltt-node", n.id);
+        .attr("transform", "translate(" + b.x + "," + b.y + ")");
       g.append("rect").attr("class", "box").attr("width", b.w).attr("height", b.h).attr("rx", Math.min(14, b.h / 2));
       if (n.ring) g.append("rect").attr("class", "ring").attr("x", 4).attr("y", 4).attr("width", b.w - 8).attr("height", b.h - 8).attr("rx", Math.max(0, Math.min(14, b.h / 2) - 4));
       if (gen) {
@@ -1042,35 +982,12 @@
       var a = L.nodes[from], b = L.nodes[to];
       return function (t) { return [a.cx + (b.cx - a.cx) * t, a.cy + (b.cy - a.cy) * t]; };
     }
-    // Cumulative reveal: an element stays hidden until the first step that lights it. `plan[k]` is what step k lights
-    // (null = everything); an element no recorded step lights is background and always shows. Hiding is `visibility`, so
-    // layout and the scene's zoom never change between steps.
-    var plan = {};
-    function lights(on, id) { return !on || on.indexOf(id) >= 0; }
-    function reveal(k) {
-      var ks = Object.keys(plan).map(Number);
-      function shows(lit) { return !ks.some(lit) || ks.some(function (s) { return s <= k && lit(s); }); }
-      var seen = {};
-      Object.keys(nodeSel).forEach(function (id) {
-        seen[id] = shows(function (s) { return lights(plan[s], id); });
-        nodeSel[id].style("visibility", seen[id] ? null : "hidden");
-      });
-      Object.keys(edgeSel).forEach(function (id) {
-        var e = edgeSel[id], g = e.geo;
-        var on = seen[g.f] && seen[g.t] && shows(function (s) { var p = plan[s]; return !p || p.indexOf(id) >= 0 || (p.indexOf(g.f) >= 0 && p.indexOf(g.t) >= 0); });
-        var v = on ? null : "hidden";
-        e.line.style("visibility", v);
-        if (e.rk) e.rk.style("visibility", v);
-        if (e.label) e.label.style("visibility", v);
-      });
-    }
     var api = {
       svg: svg,
       layout: L,
       node: function (id) { return nodeSel[id]; },
       edge: function (id) { return edgeSel[id] && edgeSel[id].line; },
       // Ids may name nodes or edges ("from>to" or the edge's id); everything else dims. No ids clears the focus.
-      // Called from a deck figure step's enter, it also records what that step lights (see reveal).
       highlight: function (ids) {
         var on = ids && ids.length ? ids : null;
         Object.keys(nodeSel).forEach(function (id) {
@@ -1082,7 +999,6 @@
           if (e.rk) e.rk.classed("dim", !lit);
           if (e.label) e.label.classed("dim", !lit);
         });
-        if (stepScope && stepScope.k != null) { plan[stepScope.k] = on; reveal(stepScope.k); }
         // In a sideways-scrolling box (phones) the box scrolls to the highlighted part so each step shows what it names.
         var box = svg.node().parentElement;
         if (on && box && box.classList.contains("dk-wide")) {
@@ -1127,13 +1043,12 @@
       // steps: [{caption, hot, flow, send: [[from, to, opts], ...], enter(diagram, i)}]; sends run one after another.
       player: function (container, steps, opts) {
         var run = 0;
-        steps.forEach(function (st, k) { plan[k] = st.hot && st.hot.length ? st.hot : null; });
         return stepper(container, steps.map(function (st) {
           return {
             caption: st.caption, hold: st.hold,
             enter: function (i) {
               var id = ++run;
-              api.clear(); api.highlight(st.hot || null); reveal(i); api.flow(st.flow || []);
+              api.clear(); api.highlight(st.hot || null); api.flow(st.flow || []);
               loopSends(st.send, function () { return id === run && el(container).getClientRects().length > 0; }, api.send);
               if (st.enter) st.enter(api, i);
             }
@@ -1423,7 +1338,7 @@
     var series = {};
     (o.series || []).forEach(function (sr, i) {
       var c = sr.color || (sr.k ? "var(--ltt-" + sr.k + ")" : "var(--ltt-c" + (i % 6 + 1) + ")");
-      var path = svg.append("path").attr("class", "sr").attr("data-ltt-series", sr.id).style("stroke", c).attr("stroke-dasharray", sr.dash ? (sr.dash === true ? "6 5" : sr.dash) : null);
+      var path = svg.append("path").attr("class", "sr").style("stroke", c).attr("stroke-dasharray", sr.dash ? (sr.dash === true ? "6 5" : sr.dash) : null);
       var dot = sr.dot ? svg.append("circle").attr("r", 5).style("fill", c).style("opacity", 0) : null;
       series[sr.id] = { path: path, dot: dot };
     });
@@ -1673,521 +1588,6 @@
     });
   }
 
-  // Scene-bound motion. Ticks use setTimeout + Date.now(), never requestAnimationFrame: headless Chrome's virtual time
-  // (audit, shots, sheets) does not advance rAF, so a rAF loop would stand still there.
-  // A loop or bind made while a scene mounts belongs to that scene; one made while a scene is current belongs to it and
-  // starts at once; one made outside a deck just runs. Mounting is not entering (audit mounts every scene), so mount-time
-  // loops wait for the scene's entry.
-  var motionScenes = {}, building = null, currentScene = null, allLoops = [];
-  function reducedMotion() {
-    try { return !!(root.matchMedia && root.matchMedia("(prefers-reduced-motion: reduce)").matches); } catch (e) { return false; }
-  }
-  function motionScene(i) { return motionScenes[i] || (motionScenes[i] = { index: i, el: null, loops: [], binds: [], beats: [], on: false }); }
-  function motionWarn(sc, msg) { LTT.warn((sc ? "장면 " + (sc.index + 1) + ": " : "") + msg); }
-  function tabHidden() { return typeof document !== "undefined" && !!document.hidden; }
-
-  function sceneBeats(sc, list) {
-    if (!sc || !list.length) return;
-    list.forEach(function (b) {
-      var at = -1;
-      sc.beats.forEach(function (x, i) { if (x.t === b.t) at = i; });
-      if (at < 0) sc.beats.push(b.text ? { t: b.t, text: b.text } : { t: b.t });
-      else if (b.text && !sc.beats[at].text) sc.beats[at] = { t: b.t, text: b.text };
-    });
-    sc.beats.sort(function (a, b) { return a.t - b.t; });
-    if (sc.el) sc.el.setAttribute("data-ltt-beats", JSON.stringify(sc.beats));
-  }
-
-  function loopBeats(list, period, sc) {
-    var out = [];
-    [].concat(list).forEach(function (b) {
-      var t = typeof b === "number" ? b : b && b.t;
-      if (typeof t !== "number" || !isFinite(t) || t <= 0 || t > period) {
-        motionWarn(sc, "LTT.motion.loop beat t=" + t + "가 (0, " + period + "] 밖이라 버린다");
-        return;
-      }
-      out.push(b && typeof b.text === "string" ? { t: Math.round(t), text: b.text } : { t: Math.round(t) });
-    });
-    return out.sort(function (a, b) { return a.t - b.t; });
-  }
-
-  function loopCall(L, u) {
-    try { L.draw(u); } catch (e) {
-      L.ended = true;
-      clearTimeout(L.timer); L.timer = null;
-      motionWarn(L.sc, "LTT.motion.loop draw가 실패해 그 움직임을 멈춘다 (" + (e && e.message) + ")");
-    }
-  }
-  function loopLive(L) { return !L.ended && !L.stopped && !L.done && (!L.sc || L.sc.on); }
-  function loopTick(L) {
-    L.timer = null;
-    if (!loopLive(L)) return;
-    if (tabHidden()) { if (L.hiddenAt == null) L.hiddenAt = Date.now(); return; }
-    // The drawing function runs before its node joins the document, so only a node that was attached and then removed ends it.
-    if (L.el) {
-      if (L.el.isConnected) L.seen = true;
-      else if (L.seen) { L.ended = true; return; }
-    }
-    var e = Date.now() - L.t0;
-    L.u = L.once ? Math.min(1, e / L.period) : (e % L.period) / L.period;
-    loopCall(L, L.u);
-    if (L.ended) return;
-    if (L.once && L.u >= 1) { L.done = true; return; }
-    L.timer = setTimeout(function () { loopTick(L); }, 16);
-  }
-  function loopStart(L) {
-    if (L.ended) return;
-    clearTimeout(L.timer); L.timer = null;
-    L.stopped = false; L.done = false; L.hiddenAt = null; L.t0 = Date.now(); L.u = 0;
-    if (reducedMotion()) { loopCall(L, L.rest); L.done = true; return; }
-    loopTick(L);
-  }
-  function loopPause(L) { clearTimeout(L.timer); L.timer = null; }
-
-  function makeLoop(draw, opts) {
-    opts = opts || {};
-    var sc = building || currentScene;
-    var period = opts.period == null ? 4000 : opts.period;
-    if (!(typeof period === "number" && isFinite(period) && period > 0)) {
-      motionWarn(sc, "LTT.motion.loop period " + period + "는 양수 ms여야 한다. 4000으로 돈다");
-      period = 4000;
-    }
-    var once = !!opts.once, given = opts.beats == null ? [] : loopBeats(opts.beats, period, sc);
-    var rest = typeof opts.rest === "number" ? opts.rest : given.length ? given[given.length - 1].t / period : 1;
-    var L = { draw: draw, period: period, once: once, rest: rest, el: opts.el || null, sc: MEASURING ? null : sc,
-      t0: Date.now(), u: 0, timer: null, stopped: false, ended: false, done: false, seen: false, hiddenAt: null };
-    var handle = {
-      stop: function () { loopPause(L); L.stopped = true; },
-      play: function () {
-        if (!L.stopped || MEASURING) return;
-        L.stopped = false;
-        L.t0 = Date.now() - L.u * L.period;
-        L.hiddenAt = null;
-        if (!reducedMotion()) loopTick(L);
-      },
-      get running() { return loopLive(L) && !L.done && !reducedMotion(); }
-    };
-    var end = function () { L.ended = true; loopPause(L); };
-    // Steps and predict answers are drawn off-screen to be measured; a loop made there shows its rest frame and nothing else.
-    if (MEASURING) { L.ended = true; loopCall(L, rest); return { handle: handle, end: end }; }
-    // A drawing redrawn into the same node replaces its loop instead of stacking a second one on it.
-    if (L.el) allLoops.forEach(function (o) { if (o.el === L.el && !o.ended) { o.ended = true; loopPause(o); } });
-    allLoops = allLoops.filter(function (o) { return !o.ended; });
-    allLoops.push(L);
-    if (sc) {
-      sc.loops.push(L);
-      if (building === sc) {
-        var P = period;
-        sceneBeats(sc, given.length ? given : [P / 3, 2 * P / 3, once ? P : P - 1].map(function (t) { return { t: Math.round(t) }; }));
-      }
-      // Made during a visit (step enter, scene enter, reveal): that code runs again next visit, so this loop ends on leave.
-      if (sc.on && building !== sc) { L.visit = true; loopStart(L); }
-    } else loopStart(L);
-    return { handle: handle, end: end };
-  }
-
-  function bindCall(sc, b, k) {
-    if (typeof b[k] !== "function") return;
-    try { b[k](); } catch (e) { motionWarn(sc, "LTT.motion.bind " + k + "가 실패했다 (" + (e && e.message) + ")"); }
-  }
-
-  if (typeof document !== "undefined") {
-    document.addEventListener("visibilitychange", function () {
-      if (document.hidden) return;
-      allLoops.forEach(function (L) {
-        if (L.hiddenAt == null) return;
-        L.t0 += Date.now() - L.hiddenAt;
-        L.hiddenAt = null;
-        if (!L.timer) loopTick(L);
-      });
-    });
-  }
-
-  // Beat timeline over one motion loop. State is a pure function of the period time: every frame re-applies all beats in
-  // array order from the values captured at play(). A beat before its start only writes when it is the first on its
-  // property, so a later beat does not overwrite an earlier one that is still running or finished.
-  var SVGNS = "http://www.w3.org/2000/svg", EPS = 1e-6;
-  var PLAY_VERBS = ["draw", "flow", "camera", "morph", "stack"];
-  function easeIO(p) { return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; }
-  function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
-  function nodeOf(x) { return x && typeof x.node === "function" && !x.nodeType ? x.node() : x; }
-  function isEl(x) { return !!x && x.nodeType === 1; }
-  function num(v) { return typeof v === "number" && isFinite(v); }
-
-  function pathLen(n) {
-    var key = n.tagName === "path" ? n.getAttribute("d") : "", c = n.__lttLen;
-    if (c && c.k === key) return c.L;
-    var L = 0;
-    try { L = n.getTotalLength(); } catch (e) { L = 0; }
-    if (L > 0) n.__lttLen = { k: key, L: L };
-    return L;
-  }
-  // Matrix taking `from`'s user space into `ref`'s; null when the svg is not rendered (no CTM).
-  function relMatrix(from, ref) {
-    try {
-      var a = ref.getCTM(), b = from.getCTM();
-      return a && b ? a.inverse().multiply(b) : null;
-    } catch (e) { return null; }
-  }
-  function startNum(n, k) {
-    var v = k === "opacity" && n.style.opacity !== "" ? n.style.opacity : n.getAttribute(k);
-    if (v == null || v === "") {
-      if (k === "opacity") return 1;
-      try { return n[k].baseVal.value; } catch (e) { return 0; }
-    }
-    v = parseFloat(v);
-    return isFinite(v) ? v : 0;
-  }
-  function viewBoxOf(svg) {
-    var v = (svg.getAttribute("viewBox") || "").trim().split(/[\s,]+/).map(Number);
-    if (v.length === 4 && v.every(isFinite)) return v;
-    return [0, 0, parseFloat(svg.getAttribute("width")) || 300, parseFloat(svg.getAttribute("height")) || 150];
-  }
-
-  function resolveTargets(svg, target) {
-    var t = nodeOf(target), out = [], k;
-    if (isEl(t)) return [t];
-    if (t && typeof t === "object" && typeof t.length === "number") {
-      for (k = 0; k < t.length; k++) if (isEl(t[k])) out.push(t[k]);
-      return out;
-    }
-    if (typeof t !== "string") return out;
-    function byAttr(attr, v) {
-      var all = svg.querySelectorAll("[" + attr + "]");
-      for (var i = 0; i < all.length; i++) if (all[i].getAttribute(attr) === v) return all[i];
-      return null;
-    }
-    var hit = null;
-    if (svg.__lttDiagram) hit = byAttr("data-ltt-node", t) || byAttr("data-ltt-edge", t) || byAttr("data-ltt-pair", t);
-    else if (svg.classList.contains("ltt-axplot")) hit = byAttr("data-ltt-series", t);
-    if (hit) return [hit];
-    try { out = [].slice.call(svg.querySelectorAll(t)); } catch (e) { out = []; }
-    return out;
-  }
-
-  function inertHandle() { return { stop: function () {}, play: function () {}, get running() { return false; } }; }
-
-  function play(rootArg, beatsArg, opts) {
-    opts = opts || {};
-    var sc = building || currentScene;
-    var holder = null;
-    try { holder = nodeOf(typeof rootArg === "string" ? el(rootArg) : rootArg); } catch (e) { holder = null; }
-    var svg = !isEl(holder) ? null : holder.tagName.toLowerCase() === "svg" ? holder : holder.querySelector("svg");
-    if (!svg) { motionWarn(sc, "LTT.motion.play: <svg>를 찾지 못했다"); return inertHandle(); }
-    var list = Array.isArray(beatsArg) ? beatsArg : [], once = !!opts.once;
-    var period = opts.period;
-    if (period == null) {
-      var mx = 0;
-      list.forEach(function (b) { if (b && Array.isArray(b.t) && num(b.t[1]) && b.t[1] > mx) mx = b.t[1]; });
-      period = mx + 1000;
-    }
-    var vp = num(period) && period > 0 ? period : 4000;
-
-    var ends = {}, tracks = {}, ids = [];
-    var pos = {}, diagram = svg.__lttDiagram || null, dpad = 20, d0 = null, edgeEls = {};
-    var cams = [], camReady = false, V0 = viewBoxOf(svg), layer = null, probe = null;
-    if (diagram) dpad = diagram.pad == null ? 20 : diagram.pad;
-
-    function warn(i, msg) { motionWarn(sc, "LTT.motion.play 비트 " + (i + 1) + " (beats[" + i + "]): " + msg + " 비트를 버린다"); }
-    function eid(n) { var k = ids.indexOf(n); if (k < 0) k = ids.push(n) - 1; return k; }
-    // true once per property: the first beat on it may write its p = 0 state.
-    function first(key) { if (tracks[key]) return false; tracks[key] = true; return true; }
-    function flowLayer() {
-      if (layer) return layer;
-      [].slice.call(svg.querySelectorAll("g.ltt-flow")).forEach(function (g) { g.parentNode.removeChild(g); });
-      layer = document.createElementNS(SVGNS, "g");
-      layer.setAttribute("class", "ltt-flow");
-      svg.appendChild(layer);
-      return layer;
-    }
-    function show(n, on, o) {
-      n.style.display = on ? "" : "none";
-      n.setAttribute("opacity", on ? o : "0");
-    }
-
-    function compile(b, i) {
-      var verbs = PLAY_VERBS.filter(function (v) { return b[v] !== undefined; });
-      if (verbs.length > 1) { warn(i, "동사가 둘 이상(" + verbs.join(", ") + ")이다."); return null; }
-      var a = b.t[0], z = b.t[1], v = verbs[0], item = { a: a, b: z, text: b.text, apply: null };
-      if (!v) return item;
-      var target = b[v], tg = null;
-      if (!(v === "camera" && Array.isArray(target) && target.length === 4 && target.every(num))) {
-        tg = resolveTargets(svg, target);
-        if (!tg.length) { warn(i, v + " 대상 " + (typeof target === "string" ? JSON.stringify(target) : "") + "을 찾지 못했다."); return null; }
-      }
-      if (v === "morph" && !(b.to && typeof b.to === "object" && !Array.isArray(b.to))) { warn(i, "morph의 to가 객체가 아니다."); return null; }
-      if (v === "camera" && tg === null) {
-        var rect = target.slice();
-        cams.push(item);
-        item.rect = rect; item.pad = 0;
-        item.apply = function (ms, c) { camStep(item, ms, c); };
-        return item;
-      }
-      if (v === "camera") {
-        cams.push(item);
-        item.els = tg; item.pad = num(b.pad) ? b.pad : 16;
-        item.apply = function (ms, c) { camStep(item, ms, c); };
-        return item;
-      }
-      if (v === "draw") {
-        var keys = tg.map(function (n) { return first("draw|" + eid(n)); });
-        item.apply = function (ms) {
-          var p = prog(ms, a, z), e = easeIO(p);
-          tg.forEach(function (n, k) {
-            if (p === 0 && !keys[k]) return;
-            var L = pathLen(n);
-            if (!L) return;
-            var da = L + " " + L, off = String(L * (1 - e));
-            n.setAttribute("stroke-dasharray", da); n.setAttribute("stroke-dashoffset", off);
-            n.style.strokeDasharray = da; n.style.strokeDashoffset = off;
-          });
-        };
-        return item;
-      }
-      if (v === "flow") {
-        var count = Math.max(1, Math.floor(num(b.count) ? b.count : 3)), tail = num(b.tail) ? b.tail : 24;
-        var r = num(b.r) ? b.r : 4, laps = num(b.laps) ? b.laps : 1, lay = flowLayer();
-        var parts = tg.map(function (n) {
-          var dots = [], tails = [];
-          for (var k = 0; k < count; k++) {
-            var ln = document.createElementNS(SVGNS, "line"), c = document.createElementNS(SVGNS, "circle");
-            ln.setAttribute("class", "ltt-flow-tail"); c.setAttribute("class", "ltt-flow-dot");
-            ln.style.stroke = "var(--ltt-accent)"; ln.style.strokeWidth = String(r); ln.style.strokeLinecap = "round";
-            c.style.fill = "var(--ltt-accent)"; c.setAttribute("r", String(r));
-            show(ln, false, ".4"); show(c, false, "1");
-            lay.appendChild(ln); lay.appendChild(c);
-            tails.push(ln); dots.push(c);
-          }
-          return { n: n, dots: dots, tails: tails };
-        });
-        item.apply = function (ms) {
-          var on = ms >= a - EPS && ms <= z + EPS, p = prog(ms, a, z);
-          parts.forEach(function (pt) {
-            var L = on ? pathLen(pt.n) : 0, m = on && L ? relMatrix(pt.n, lay) : null;
-            function put(q) { return m ? [m.a * q.x + m.c * q.y + m.e, m.b * q.x + m.d * q.y + m.f] : [q.x, q.y]; }
-            for (var k = 0; k < count; k++) {
-              if (!on || !L) { show(pt.dots[k], false, "1"); show(pt.tails[k], false, ".4"); continue; }
-              var f = (p * laps + k / count) % 1, d = f * L;
-              var h = put(pt.n.getPointAtLength(d)), t = put(pt.n.getPointAtLength(Math.max(0, d - tail)));
-              pt.dots[k].setAttribute("cx", h[0]); pt.dots[k].setAttribute("cy", h[1]);
-              pt.tails[k].setAttribute("x1", t[0]); pt.tails[k].setAttribute("y1", t[1]);
-              pt.tails[k].setAttribute("x2", h[0]); pt.tails[k].setAttribute("y2", h[1]);
-              show(pt.dots[k], true, "1"); show(pt.tails[k], true, ".4");
-            }
-          });
-        };
-        return item;
-      }
-      if (v === "morph") return compileMorph(item, b, tg);
-      var n = tg.length, left = b.from === "left";
-      var st = tg.map(function (t) { return { n: t, t0: t.getAttribute("transform") || "", box: null, first: first("tf-stack|" + eid(t)) }; });
-      item.apply = function (ms) {
-        var p = prog(ms, a, z);
-        st.forEach(function (s, k) {
-          if (p === 0 && !s.first) return;
-          if (!s.box) {
-            try { var bb = s.n.getBBox(); if (bb.width || bb.height) s.box = bb; } catch (e) { s.box = null; }
-          }
-          var q = easeIO(clamp01(p * n - k)), bx = s.box ? (left ? s.box.x : s.box.y + s.box.height) : 0;
-          var tf = left ? "translate(" + bx + ",0) scale(" + q + ",1) translate(" + (-bx) + ",0)" : "translate(0," + bx + ") scale(1," + q + ") translate(0," + (-bx) + ")";
-          s.n.setAttribute("transform", (s.t0 + " " + tf).trim());
-        });
-      };
-      return item;
-    }
-
-    function compileMorph(item, b, tg) {
-      var a = item.a, z = item.b, to = b.to, jobs = [], nodeJobs = [];
-      Object.keys(to).forEach(function (k) {
-        if (k === "translate") return;
-        if (!num(to[k])) return;
-        tg.forEach(function (n) {
-          var isNode = diagram && n.hasAttribute("data-ltt-node") && (k === "x" || k === "y");
-          if (isNode) return;
-          var tk = "morph|" + eid(n) + "|" + k, prev = ends[tk];
-          jobs.push({ n: n, k: k, from: prev != null ? prev : startNum(n, k), to: to[k], first: first(tk) });
-          ends[tk] = to[k];
-        });
-      });
-      if (Array.isArray(to.translate) && num(to.translate[0]) && num(to.translate[1])) {
-        tg.forEach(function (n) {
-          var tk = "tf-translate|" + eid(n), prev = ends[tk];
-          jobs.push({ n: n, k: "@translate", t0: n.getAttribute("transform") || "", from: prev || [0, 0], to: to.translate, first: first(tk) });
-          ends[tk] = to.translate;
-        });
-      }
-      if (diagram && (num(to.x) || num(to.y))) {
-        tg.forEach(function (n) {
-          var id = n.getAttribute("data-ltt-node");
-          if (id == null) return;
-          if (!d0) d0 = LTT.diagramLayout(diagram);
-          var o = d0.nodes[id];
-          if (!o) return;
-          var tk = "node|" + id, prev = ends[tk] || { x: o.cx - dpad, y: o.cy - dpad };
-          var next = { x: num(to.x) ? to.x : prev.x, y: num(to.y) ? to.y : prev.y };
-          nodeJobs.push({ id: id, from: prev, to: next, first: first(tk) });
-          ends[tk] = next;
-        });
-      }
-      item.apply = function (ms, c) {
-        var p = prog(ms, a, z), e = easeIO(p);
-        jobs.forEach(function (j) {
-          if (p === 0 && !j.first) return;
-          if (j.k === "@translate") {
-            var dx = j.from[0] + (j.to[0] - j.from[0]) * e, dy = j.from[1] + (j.to[1] - j.from[1]) * e;
-            j.n.setAttribute("transform", (j.t0 + " translate(" + dx + "," + dy + ")").trim());
-            return;
-          }
-          var val = j.from + (j.to - j.from) * e;
-          j.n.setAttribute(j.k, val);
-          if (j.k === "opacity" && j.n.style.opacity !== "") j.n.style.opacity = val;
-        });
-        nodeJobs.forEach(function (j) {
-          if (p === 0 && !j.first) return;
-          c.pos[j.id] = { x: j.from.x + (j.to.x - j.from.x) * e, y: j.from.y + (j.to.y - j.from.y) * e };
-        });
-      };
-      return item;
-    }
-
-    function flushNodes(c) {
-      var moved = Object.keys(c.pos);
-      if (!moved.length) return;
-      var L2 = LTT.diagramLayout(Object.assign({}, diagram, { nodes: diagram.nodes.map(function (n) {
-        return c.pos[n.id] ? Object.assign({}, n, { x: c.pos[n.id].x, y: c.pos[n.id].y }) : n;
-      }) }));
-      function find(attr, id) {
-        var key = attr + "|" + id;
-        if (edgeEls[key] === undefined) {
-          var all = svg.querySelectorAll("[" + attr + "]");
-          edgeEls[key] = null;
-          for (var i = 0; i < all.length; i++) if (all[i].getAttribute(attr) === id) { edgeEls[key] = all[i]; break; }
-        }
-        return edgeEls[key];
-      }
-      moved.forEach(function (id) {
-        var nb = L2.nodes[id], g = find("data-ltt-node", id);
-        if (g) g.setAttribute("transform", "translate(" + nb.x + "," + nb.y + ")");
-      });
-      L2.edges.forEach(function (eg, i) {
-        if (!c.pos[eg.f] && !c.pos[eg.t]) return;
-        var line = find("data-ltt-edge", eg.id), lab = find("data-ltt-edge-label", eg.id), se = diagram.edges[i];
-        if (line) line.setAttribute("d", eg.d);
-        if (lab) {
-          var lo = se.lo || (se.at ? [0, 0] : [0, -8]);
-          lab.setAttribute("x", eg.lx + lo[0]); lab.setAttribute("y", eg.ly + lo[1]);
-        }
-      });
-    }
-
-    function measureCams() {
-      if (!svg.isConnected) return false;
-      var cur = V0.slice(), ok = true;
-      probe = probe || document.createElementNS(SVGNS, "g");
-      svg.appendChild(probe);
-      cams.forEach(function (c) {
-        c.start = cur;
-        if (c.rect) c.v1 = c.rect;
-        else {
-          var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-          c.els.forEach(function (n) {
-            try {
-              var bb = n.getBBox(), m = relMatrix(n, probe);
-              if (!bb.width && !bb.height) return;
-              [[bb.x, bb.y], [bb.x + bb.width, bb.y], [bb.x, bb.y + bb.height], [bb.x + bb.width, bb.y + bb.height]].forEach(function (q) {
-                var X = m ? m.a * q[0] + m.c * q[1] + m.e : q[0], Y = m ? m.b * q[0] + m.d * q[1] + m.f : q[1];
-                x0 = Math.min(x0, X); y0 = Math.min(y0, Y); x1 = Math.max(x1, X); y1 = Math.max(y1, Y);
-              });
-            } catch (e) { /* unrendered target: retried next frame */ }
-          });
-          c.v1 = x0 === Infinity ? null : [x0 - c.pad, y0 - c.pad, x1 - x0 + 2 * c.pad, y1 - y0 + 2 * c.pad];
-        }
-        if (!c.v1) ok = false; else cur = c.v1;
-      });
-      svg.removeChild(probe);
-      return ok;
-    }
-    function camStep(c, ms, ctx) {
-      if (!camReady) return;
-      var p = prog(ms, c.a, c.b);
-      if (p === 0) return;
-      var e = easeIO(p);
-      ctx.vb = c.start.map(function (s, k) { return s + (c.v1[k] - s) * e; });
-    }
-
-    var kept = [];
-    list.forEach(function (b, i) {
-      var t = b && b.t;
-      if (!b || typeof b !== "object" || !Array.isArray(t) || t.length !== 2 || !num(t[0]) || !num(t[1]) || t[0] < 0 || t[0] >= t[1] || t[1] > vp) {
-        warn(i, "t가 [a, b] (0 ≤ a < b ≤ period " + vp + ")이 아니다.");
-        return;
-      }
-      var it;
-      try { it = compile(b, i); } catch (e) { warn(i, "준비 중 실패했다 (" + (e && e.message) + ")."); return; }
-      if (it) { kept.push(it); }
-    });
-    var endMs = kept.reduce(function (m, k) { return Math.max(m, k.b); }, 0);
-
-    function applyAll(ms) {
-      var ctx = { pos: {}, vb: cams.length && camReady ? V0.slice() : null };
-      kept.forEach(function (k) { if (k.apply) k.apply(ms, ctx); });
-      if (diagram) flushNodes(ctx);
-      if (ctx.vb) svg.setAttribute("viewBox", ctx.vb.join(" "));
-    }
-    function frame(u) {
-      var ms = Math.round(u * vp * 1000) / 1000;
-      // Camera targets are measured in the finished state, since a stacked or moved target has no size at p = 0.
-      if (cams.length && !camReady) { applyAll(endMs); camReady = measureCams(); }
-      applyAll(ms);
-    }
-
-    var lo = { period: num(period) && period > 0 ? vp : period, once: once, el: opts.el || holder };
-    if (kept.length) {
-      lo.rest = endMs / vp;
-      lo.beats = kept.map(function (k) {
-        var t = once ? k.b : Math.min(k.b, vp - 1);
-        return typeof k.text === "string" ? { t: t, text: k.text } : { t: t };
-      });
-    }
-    return makeLoop(frame, lo).handle;
-  }
-
-  function prog(ms, a, b) { return clamp01((ms - a) / (b - a)); }
-
-  var motion = {
-    loop: function (draw, opts) { return makeLoop(draw, opts).handle; },
-    play: play,
-    bind: function (o) {
-      if (MEASURING || !o) return;
-      var sc = building || currentScene;
-      if (!sc) { bindCall(null, o, "enter"); return; }
-      sc.binds.push(o);
-      if (sc.on && building !== sc) { o = { enter: o.enter, leave: o.leave, visit: true }; sc.binds[sc.binds.length - 1] = o; bindCall(sc, o, "enter"); }
-    },
-    reduced: reducedMotion
-  };
-  // The deck tells motion which scene is mounting, entered or left; kept off the enumerable surface authors read.
-  Object.defineProperty(motion, "_deck", { enumerable: false, value: {
-    begin: function (i, sceneEl) { building = motionScene(i); building.el = sceneEl; },
-    end: function () { building = null; },
-    beats: function (list) { if (!MEASURING) sceneBeats(building, list); },
-    enter: function (i) {
-      var sc = motionScene(i);
-      sc.on = true; currentScene = sc;
-      sc.loops.forEach(loopStart);
-      sc.binds.slice().forEach(function (b) { bindCall(sc, b, "enter"); });
-    },
-    leave: function (i) {
-      var sc = motionScene(i);
-      sc.on = false;
-      if (currentScene === sc) currentScene = null;
-      sc.loops.forEach(function (L) { loopPause(L); if (L.visit) L.ended = true; });
-      sc.loops = sc.loops.filter(function (L) { return !L.ended; });
-      sc.binds.slice().forEach(function (b) { bindCall(sc, b, "leave"); });
-      sc.binds = sc.binds.filter(function (b) { return !b.visit; });
-    }
-  } });
-
   if (typeof document !== "undefined") {
     var style = document.createElement("style");
     style.id = "ltt-parts-style";
@@ -2197,7 +1597,6 @@
   }
 
   LTT.MOTION_MS = MOTION_MS;
-  LTT.motion = motion;
   LTT.measure = function (fn) { MEASURING++; try { return fn(); } finally { MEASURING--; } };
   LTT.$ = $;
   // Coordinate-free diagram -> pixel diagram spec via elkjs layered layout. elk rejects arrays/objects built in another
@@ -2476,13 +1875,7 @@
   LTT.sweep = sweep;
   LTT.drag = drag;
   LTT.stepper = stepper;
-  stepper.holdOf = holdOf;
   LTT.diagram = diagram;
-  Object.defineProperty(diagram, "_step", { enumerable: false, value: function (k, fn) {
-    var prev = stepScope;
-    stepScope = { k: k };
-    try { return fn(); } finally { stepScope = prev; }
-  } });
   LTT.diagramLayout = diagramLayout;
   LTT.autoLayout = autoLayout;
   LTT.stateSpec = stateSpec;

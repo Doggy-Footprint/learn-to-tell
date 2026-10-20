@@ -199,12 +199,12 @@ for (const token of ["RULES", "scene", "deck", "등록 순서"]) {
 
 const json = (path, what) => JSON.parse(readReal(path, what));
 
-test("VO-11 C-16: .claude-plugin/plugin.json version is 1.0.0", () => {
-  assert.equal(json(PLUGIN, ".claude-plugin/plugin.json").version, "1.0.0");
+test("VO-11 C-16: .claude-plugin/plugin.json version is 0.2.0", () => {
+  assert.equal(json(PLUGIN, ".claude-plugin/plugin.json").version, "0.2.0");
 });
 
-test("VO-11 C-16: packages/ltt-kit/package.json version is 1.0.0", () => {
-  assert.equal(json(PKG, "packages/ltt-kit/package.json").version, "1.0.0");
+test("VO-11 C-16: packages/ltt-kit/package.json version is 0.2.0", () => {
+  assert.equal(json(PKG, "packages/ltt-kit/package.json").version, "0.2.0");
 });
 
 test("VO-11 C-16: the two manifest versions are equal", () => {
@@ -248,14 +248,14 @@ test("VO-11 C-16 CHANGELOG 0.2.0 item: 빈자리", () => {
   assert.ok(section.includes("빈자리"), "## 0.2.0 lacks 빈자리");
 });
 
-test("VO-11 C-16 FR-10: node scripts/build.mjs version exits 0 and prints 1.0.0", () => {
+test("VO-11 C-16 FR-10: node scripts/build.mjs version exits 0 and prints 0.2.0", () => {
   let out;
   try {
     out = execFileSync(process.execPath, [join(ROOT, "scripts/build.mjs"), "version"], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   } catch (e) {
     assert.fail(`build.mjs version exited ${e.status ?? e.code}: ${e.stderr ?? e.message}`);
   }
-  assert.equal(out.trim(), "1.0.0");
+  assert.equal(out.trim(), "0.2.0");
 });
 
 test("VO-11 C-16 CHANGELOG 0.2.0 item: one line names the lint 레지스트리", () => {
@@ -466,55 +466,4 @@ test("VO-7 FR-7 README ## 사용: a fenced code block holds npm run build:css", 
   const next = hs.find((n) => n.i > h.i && n.level <= 2);
   const section = ls.slice(h.i, next ? next.i : ls.length).join("\n");
   assert.ok(fencedBlocks(section).some((b) => b.some((l) => l.includes("npm run build:css"))), "no fenced code block under ## 사용 holds npm run build:css");
-});
-
-// ---------- spec 37a2365a466d3e8b v1 VO-13 (FR-15): docs follow the absorb / severity / report / exit-code change ----------
-
-const RULES = join(KIT, "api/rules.md");
-
-// "미배포 절": the level-2 section whose heading says 미배포. No fallback to another section.
-function unreleasedSection(text) {
-  const hs = headings(text).filter((h) => h.level === 2);
-  const h = hs.find((x) => x.title.includes("미배포"));
-  assert.ok(h, "kit/CHANGELOG.md has no level-2 section whose heading says 미배포");
-  const next = hs.find((n) => n.i > h.i);
-  return lines(text).slice(h.i, next ? next.i : undefined).join("\n");
-}
-
-for (const token of ["absorb", "severity", "종료 코드"]) {
-  test(`VO-13 CHANGELOG unreleased section mentions ${token}`, () => {
-    const section = unreleasedSection(readReal(CHANGELOG, "kit/CHANGELOG.md"));
-    assert.ok(/^[\w$]+$/.test(token) ? hasToken(section, token) : section.includes(token), `unreleased section lacks ${token}`);
-  });
-}
-
-for (const token of ["measures", "zoom", "absorb", "zoomBy", "floor"]) {
-  test(`VO-13 internals.md documents the measures field ${token}`, () => {
-    assert.ok(hasToken(internals(), token), `internals.md lacks ${token}`);
-  });
-}
-
-test("VO-13 rules.md overflow row keeps 78% and no longer says only '78%로 줄여도 넘친다': it separates the floor from a zoom set by another state", () => {
-  const hits = rows(readReal(RULES, "kit/api/rules.md")).filter((r) => codeSpans(firstCell(r)).includes("overflow"));
-  assert.equal(hits.length, 1, `rows with overflow in the first cell: ${hits.length}`);
-  const row = hits[0];
-  assert.ok(row.includes("78%"), `threshold text 78% missing: ${row}`);
-  assert.ok(row.includes("하한"), `no mention of the 78% floor (하한): ${row}`);
-  assert.ok(/상태|zoomBy/.test(row), `no mention of a zoom fitted to another state: ${row}`);
-});
-
-// ---------- spec 5ad829b7137b4d19 v1 VO-DOCS (FR-15, FR-17) ----------
-
-test("VO-DOCS FR-17: the CHANGELOG unreleased section records autoplay removal, the hold floor, cumulative reveal and standalone stepper auto-play", () => {
-  const section = unreleasedSection(readReal(CHANGELOG, "kit/CHANGELOG.md"));
-  const need = [["autoplay removed", /autoplay/], ["hold floor 1800", /1800/], ["floor formula 100", /1000\s*\+\s*100/], ["cumulative reveal 누적 공개", /누적 공개/], ["standalone LTT.stepper", /단독\s*`?LTT\.stepper/], ["auto-play 자동", /자동/]];
-  const missing = need.filter(([, re]) => !re.test(section)).map(([n]) => n);
-  assert.deepEqual(missing, [], `unreleased section lacks: ${missing.join("; ")}`);
-});
-
-test("VO-DOCS FR-15: the rules.md still-visual row counts figure steps with two or more steps as an exposure beat and no longer says 자동 재생", () => {
-  const hit = rows(readReal(RULES, "kit/api/rules.md")).filter((r) => codeSpans(firstCell(r)).includes("still-visual"));
-  assert.equal(hit.length, 1);
-  assert.ok(/steps`?\(단계 둘 이상\)/.test(hit[0]), `row lacks figure steps(단계 둘 이상): ${hit[0]}`);
-  assert.equal(/steps`?\s*자동 재생/.test(hit[0]), false, "row still says 'figure steps 자동 재생'");
 });

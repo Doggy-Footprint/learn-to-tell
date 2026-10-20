@@ -143,7 +143,7 @@
     ".dk-pred .ltt-choices button.unsure.wrong{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
     ".dk-hint2{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ltt-muted);margin:0}",
     ".dk-pred{position:relative}",
-    ".dk-pred.done .dk-hint2{visibility:hidden}",
+    ".dk-pred.done .dk-hint2,.dk-pred.done>.dk-actions{visibility:hidden}",
     ".dk-float{position:absolute;z-index:1;background:var(--ltt-bg)}",
     ".dk-probe{visibility:hidden}",
     ".dk-still,.dk-still *{transition:none!important}",
@@ -270,24 +270,9 @@
     "@media (max-width:1000px){.dk-main.split{grid-template-columns:minmax(0,1fr)}.dk-kw{grid-template-columns:1fr 1fr}.dk-kw section:first-child{grid-column:1/-1}.dk-sum{--c:2!important}.dk-ans{grid-template-columns:1fr}}"
   ].join("")/* css:end */;
 
-  // A bare lowercase word is meant as an icon name, so LTT.icon resolves aliases and marks a mistyped one for audit.
   function iconOr(v) {
-    if (typeof v === "string" && /^[a-z][a-z0-9-]*$/.test(v)) return LTT.icon(v);
+    if (v && LTT.icons.indexOf(v) >= 0) return LTT.icon(v);
     return v || "";
-  }
-
-  function showTake(ctx, on) {
-    if (!ctx.take) return;
-    // Reduced motion gives every property a 1ms transition (ltt.css); a visibility change would then wait for a frame
-    // that headless virtual time never draws, leaving the takeaway hidden after the reveal.
-    ctx.take.style.setProperty("transition-duration", "0s", "important");
-    ctx.take.style.visibility = on ? "" : "hidden";
-    if (on) ctx.take.removeAttribute("aria-hidden"); else ctx.take.setAttribute("aria-hidden", "true");
-  }
-
-  function plainCaption(html) {
-    var d = h("div", null, String(html || "").replace(/\{\{([^}|]+)(\|[^}]*)?\}\}/g, "$1"));
-    return d.textContent.replace(/\s+/g, " ").trim();
   }
 
   function rise(nodes) {
@@ -345,93 +330,59 @@
     // idempotent already, since looping jumps from the last step to the first) to fix the picture's height and the caption
     // side up front. A step that still grows the picture later (async drawing) re-runs placement through the ratchet.
     steps: function (ctx, o) {
-      var pic = o.pic, ctl = o.ctl, row = o.row, ab = ctx.ab;
-      var tallest = { side: 0, stack: 0 }, widest = { side: -1, stack: -1 }, size = placement.sizeWatch(), stuck = false;
+      var pic = o.pic, ctl = o.ctl, row = o.row;
+      var tallest = { side: 0, stack: 0 }, size = placement.sizeWatch(), stuck = false;
       function layout(mode) {
         row.classList.toggle("stack", mode === "stack");
         pic.style.minHeight = tallest[mode] ? tallest[mode] + "px" : "";
-        return ctx.refit();
+        ctx.refit();
       }
       function under() {
         var c = ctl.getBoundingClientRect(), box = { x0: c.left, y0: c.top, x1: c.right, y1: c.bottom };
         return solidRects(pic, null, null, true).some(function (r) { return LTT.rectHit(box, r); });
       }
-      // One pre-draw per step: each drawn step gives its own absorb ratio and its picture height at ratio 1 and at ABSORB_MIN;
-      // the pinned height is derived at the smallest ratio, so absorb adds no draw (enter must run once per step per pass).
-      function measureMode(mode, onStep) {
-        var f = 1, samples = [];
-        ab.begin();
-        LTT.measure(function () {
-          for (var k = 0; k < o.count; k++) {
-            o.draw(k);
-            var p0 = pic.offsetHeight;
-            f = Math.min(f, ab.need(function () { return pic.offsetHeight; }));
-            samples.push(ab.broken ? { p1: p0, pm: p0 } : ab.samples);
-            if (onStep) onStep();
-          }
-        });
-        ab.set(f);
-        samples.forEach(function (sm, k) {
-          var h = Math.ceil(ab.at(f, sm.p1, sm.pm));
-          if (h > tallest[mode]) { tallest[mode] = h; widest[mode] = k; }
-        });
+      function eachStep(fn) {
+        LTT.measure(function () { for (var k = 0; k < o.count; k++) { o.draw(k); fn(); } });
       }
       function measureAll() {
         tallest = { side: 0, stack: 0 };
-        widest = { side: -1, stack: -1 };
         stuck = innerWidth <= 760;
         if (!stuck) {
           layout("side");
-          measureMode("side", function () { stuck = stuck || under(); });
+          eachStep(function () { tallest.side = Math.max(tallest.side, pic.offsetHeight); stuck = stuck || under(); });
         }
         if (stuck) {
           layout("stack");
-          measureMode("stack");
+          eachStep(function () { tallest.stack = Math.max(tallest.stack, pic.offsetHeight); });
           layout("stack");
         }
       }
       function probe() {
         placement.still(pic, measureAll, function (e) {
           tallest = { side: 0, stack: 0 };
-          ab.off();
           LTT.warn("장면 " + (ctx.index + 1) + ": 단계를 미리 그려 보다 실패해 단계마다 배율이 바뀔 수 있다 (" + e.message + ")");
         }, function () {
           // Outside measuring, so the current step's own sends start again after the probe interrupted them; packets
           // already in flight from the entry would otherwise run twice.
           [].forEach.call(pic.querySelectorAll(".pk"), function (c) { c.remove(); });
           o.draw(o.current());
-          ab.apply();
         });
       }
       return {
         stepped: function () {
-          // A step that redraws its svg drops the caps, so they go back on in the same task, before anything paints.
-          if (!LTT.mobile()) ab.apply();
           requestAnimationFrame(function () {
-            if (LTT.mobile()) return;
-            ab.apply();
             var mode = row.classList.contains("stack") ? "stack" : "side";
-            if (pic.offsetHeight <= tallest[mode] + 1) return;
+            if (LTT.mobile() || pic.offsetHeight <= tallest[mode] + 1) return;
             tallest[mode] = pic.offsetHeight;
             ctx.fit();
           });
         },
         // The captions sit beside the picture only while no text, control or diagram box of the picture runs under them.
         place: function () {
-          var probed = size.changed(), free = null;
-          if (probed) {
-            probe();
-            // The zoom the current step alone would get, to tell whether the tallest step is what lowered it.
-            pic.style.minHeight = "";
-            free = ctx.refit();
-          }
-          var z, mode = "side";
-          if (stuck) { z = layout("stack"); mode = "stack"; }
-          else {
-            z = layout("side");
-            if (under()) { stuck = true; z = layout("stack"); mode = "stack"; }
-          }
-          if (probed) ctx.zoomBy = free != null && z < free - 0.004 && widest[mode] >= 0 ? "단계 " + (widest[mode] + 1) : null;
+          if (size.changed()) probe();
+          if (stuck) return layout("stack");
+          layout("side");
+          if (under()) { stuck = true; layout("stack"); }
         },
         unplace: function () { row.classList.remove("stack"); pic.style.minHeight = ""; size.reset(); }
       };
@@ -445,47 +396,28 @@
       function fail(e) {
         LTT.warn("장면 " + (ctx.index + 1) + ": answerVisual을 미리 그려 보다 실패해 정답을 열 때 배율이 바뀔 수 있다 (" + e.message + ")");
       }
-      function show() { ans.classList.remove("ltt-hidden"); ans.classList.add("dk-probe"); w.classList.add("done"); }
-      function hide() { w.classList.remove("done"); ans.classList.remove("dk-probe"); ans.classList.add("ltt-hidden"); }
       function lock(revealed) {
         var focused = revealed && ans.contains(document.activeElement) ? document.activeElement : null;
         if (revealed) { unfloat(); w.classList.remove("done"); ans.classList.add("ltt-hidden"); }
         ctx.zmax = 1;
-        ctx.ab.begin();
-        var fq = ctx.ab.need(), question = 1, zs = [], z = 1, by = null;
-        show();
+        var question = ctx.refit(), zs = [], z = 1;
+        ans.classList.remove("ltt-hidden");
+        ans.classList.add("dk-probe");
+        w.classList.add("done");
         // A one-parameter answerVisual ignores the choice, so one drawing stands for all of them.
         var drawn = o.perChoice ? o.choices : o.choices.slice(0, 1);
         placement.still(w, function () {
-          // One pre-draw per choice: its zoom at the final ratio is derived from the heights sampled while it was drawn.
           LTT.measure(function () {
-            var f = fq, sm = [];
             drawn.forEach(function (c) {
               o.draw(c.id);
-              f = Math.min(f, ctx.ab.need());
-              sm.push(ctx.ab.broken ? { z: ctx.refit() } : ctx.ab.samples);
-            });
-            ctx.ab.set(f);
-            hide();
-            question = ctx.refit();
-            show();
-            var avail = ctx.el.clientHeight - 8;
-            sm.forEach(function (x) {
-              var hh = x.z ? 0 : ctx.ab.at(f, x.h1, x.hm);
-              zs.push(x.z || (hh <= avail + 1 ? 1 : Math.max(0.78, avail / hh)));
+              zs.push(ctx.refit());
             });
           });
           z = zoomLock(question, zs);
-          var least = question;
-          by = "질문";
-          zs.forEach(function (v, i) {
-            if (v >= least) return;
-            least = v;
-            var c = o.perChoice ? drawn[i] : o.choices.filter(function (x) { return x.id === o.correct; })[0] || drawn[0];
-            by = "정답 " + plainCaption(c.text);
-          });
-        }, function (e) { z = 1; by = null; ctx.ab.off(); fail(e); }, function () {
-          hide();
+        }, function (e) { z = 1; fail(e); }, function () {
+          w.classList.remove("done");
+          ans.classList.remove("dk-probe");
+          ans.classList.add("ltt-hidden");
           av.replaceChildren();
           if (!revealed) return;
           w.classList.add("done");
@@ -493,12 +425,11 @@
           try {
             o.draw(o.chosen());
             LTT.linkTerms(ans, ctx.index);
-          } catch (e) { z = 1; by = null; ctx.ab.off(); fail(e); }
+          } catch (e) { z = 1; fail(e); }
           // Hiding the answer while measuring took focus away from its reason text.
           if (focused) focused.focus({ preventScroll: true });
         });
         ctx.zmax = z;
-        ctx.zoomBy = z < 1 ? by : null;
       }
       return {
         place: function () {
@@ -595,7 +526,7 @@
       if (s.reveal === false) w.classList.add("shown");
       else {
         var b = h("button", null, s.revealLabel || "판정 보기"), rs = h("button", "ghost dk-off", "초기화");
-        var gate = { open: function () { b.click(); } };
+        var gate = { btn: b, word: "판정" };
         ctx.gate = gate;
         b.onclick = function () {
           ctx.gate = null;
@@ -631,31 +562,21 @@
         } else fill(pic, s.figure, ctx);
         var api = ret && ret.el ? ret : pic;
         var ctl = row.appendChild(h("div", "ctl"));
-        function run(k, dir) { var x = s.steps[k]; if (x.enter) LTT.diagram._step(k, function () { x.enter(k, api, dir); }); }
         var sp, fp = placement.steps(ctx, { count: s.steps.length, pic: pic, ctl: ctl, row: row,
-          draw: function (k) { run(k, 1); },
+          draw: function (k) { var x = s.steps[k]; if (x.enter) x.enter(k, api, 1); },
           current: function () { return sp.index; } });
         sp = LTT.stepper(ctl, s.steps.map(function (x) {
-          return { caption: x.caption, hold: x.hold, enter: function (k, dir) { run(k, dir); } };
+          return { caption: x.caption, enter: function (k, dir) { if (x.enter) x.enter(k, api, dir); } };
         }), { onStep: fp.stepped });
         // Every caption sits in one grid cell beneath the shown one, so the column is as tall as the longest caption.
         var capEl = ctl.querySelector(".ltt-caption"), capStack = h("div", "dk-capstack");
         ctl.insertBefore(capStack, capEl);
         capStack.appendChild(capEl);
         s.steps.forEach(function (x) {
-          var g = capStack.appendChild(h("p", "ltt-caption ghost", String(x.caption == null ? "" : x.caption).replace(/\{\{([^}|]+)(\|[^}]*)?\}\}/g, "$1")));
+          var g = capStack.appendChild(h("p", "ltt-caption ghost", (x.caption || "").replace(/\{\{([^}|]+)(\|[^}]*)?\}\}/g, "$1")));
           g.setAttribute("aria-hidden", "true");
         });
         ctl.__lttPlace = { scope: pic, keepFaded: true };
-        if (s.steps.length > 1) {
-          var at = 0;
-          LTT.motion._deck.beats(s.steps.map(function (x) {
-            var hd = LTT.stepper.holdOf(x), b = { t: at + Math.round(0.8 * hd) }, tx = plainCaption(x.caption);
-            if (tx) b.text = tx;
-            at += hd;
-            return b;
-          }));
-        }
         ctx.place = fp.place;
         ctx.unplace = fp.unplace;
       } else fill(st, s.figure, ctx);
@@ -687,8 +608,6 @@
     contrast: function (s, body, ctx) {
       var ba = LTT.beforeAfter({ before: s.before, after: s.after }, ctx);
       body.appendChild(ba.el);
-      // Replay ends when the last side has risen (ltt-rise .55s, 90ms apart) and the last marker has popped.
-      LTT.motion._deck.beats([{ t: Math.max((ba.el.children.length - 1) * 90 + 550, ba.ms) }]);
       return { enter: function () { rise(ba.el.children); ba.replay(); } };
     },
     // A low-stakes guess, not a quiz: "모르겠다" is always offered and the answer arrives as an infographic.
@@ -703,6 +622,7 @@
         b.dataset.choice = c.id;
         box.appendChild(b);
       });
+      var lock = h("button", "accent", s.button || "정답 보기");
       var ans = h("div", "dk-ans ltt-hidden" + (s.answerVisual ? "" : " solo"));
       var av = h("div", "dk-avis");
       var why = h("div", "dk-why", LTT.badge("accent", "정답과 이유") + "<p></p>");
@@ -711,10 +631,8 @@
       why.appendChild(h("div", "dk-actions")).appendChild(rs);
       ans.append(av, why);
       if (s.visual) fill(w.appendChild(h("div", "dk-pvis")), s.visual, ctx);
-      var ask = s.question && s.question !== s.title ? s.question : null;
-      // Without an author hint the question takes the default hint's row, so showing it adds no line (zoom stays as before).
-      if (ask && s.hint) w.appendChild(h("p", "dk-sub dk-pq", ask));
-      w.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || ask || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, ans);
+      w.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, h("div", "dk-actions"), ans);
+      w.querySelector(".dk-actions").appendChild(lock);
       // Only hidden choices free their space; dim and dot choices are meant to stay visible, so the answer avoids them.
       var faded = rest === "hide" ? ".ltt-choices button:not(.right):not([aria-pressed=true])" : null;
       ans.__lttPlace = { scope: ctx.el.firstChild, skip: faded, keepFaded: !faded };
@@ -722,21 +640,19 @@
       function draw(v) {
         if (typeof s.answerVisual === "function") { av.replaceChildren(); s.answerVisual(av, v); }
         else if (s.answerVisual) av.innerHTML = s.answerVisual;
-        ctx.ab.apply();
       }
-      var pp = placement.predict(ctx, { choices: choices, correct: s.answer, perChoice: typeof s.answerVisual === "function" && s.answerVisual.length > 1,
+      var pp = placement.predict(ctx, { choices: choices, perChoice: typeof s.answerVisual === "function" && s.answerVisual.length > 1,
         draw: draw, ans: ans, av: av, w: w,
         revealed: function () { return w.classList.contains("done"); },
         chosen: function () { return chosen; } });
       ctx.place = pp.place;
       ctx.unplace = pp.unplace;
       body.appendChild(w);
-      var gate = { nudge: box, busy: function () { return pr.locked; } };
+      var gate = { btn: lock, alt: box, word: "정답" };
       ctx.gate = gate;
-      var pr = LTT.predict({ question: s.question || s.title, choices: box, instant: true, answer: s.answer, show: [ans],
+      var pr = LTT.predict({ question: s.question || s.title, choices: box, button: lock, answer: s.answer, show: [ans],
         onReset: function () {
           w.classList.remove("done");
-          showTake(ctx, false);
           ctx.gate = gate;
           ctx.back = null;
           av.replaceChildren();
@@ -750,7 +666,6 @@
           why.tabIndex = -1;
           why.focus({ preventScroll: true });
           chosen = v;
-          showTake(ctx, true);
           draw(v);
           LTT.linkTerms(ans, ctx.index);
           if (s.reveal) s.reveal(v);
@@ -928,115 +843,6 @@
     inner.style.width = z < 1 ? z * 100 + "%" : "";
   }
 
-  // Before a scene is zoomed down, its drawings give up part of their height: one ratio for every absorbable drawing
-  // (svg[viewBox] and [data-visual] outside icons, mocks and other absorbable drawings), never below ABSORB_MIN, which the
-  // zoom then takes over. The ratio is decided once per window size from every pre-drawn state (placement), so revealing or
-  // stepping never changes it. Caps go on as inline max-height/max-width; a replaced drawing gets both so its box keeps its
-  // aspect ratio. Whatever the author wrote inline is put back by releasing: the whole `style` string when nothing else
-  // touched it since, otherwise only the two properties (a blanket `style.maxHeight = ""` would wipe an author's own cap).
-  var ABSORB_MIN = 0.65;
-  var ABSORBABLE = "svg[viewBox],[data-visual]";
-
-  function absorber(ctx, el, inner, body) {
-    var recs = [], ab = { f: 1, broken: false };
-
-    function visuals() {
-      return [].filter.call(body.querySelectorAll(ABSORBABLE), function (v) {
-        return !v.closest(".ltt-ic," + MOCKS) && !(v.parentElement && v.parentElement.closest(ABSORBABLE));
-      });
-    }
-    function release() {
-      recs.forEach(function (r) {
-        var e = r.el;
-        if (e.getAttribute("style") === r.kit) {
-          if (r.orig == null) e.removeAttribute("style"); else e.setAttribute("style", r.orig);
-        } else {
-          e.style.setProperty("max-height", r.mh, r.mhp);
-          e.style.setProperty("max-width", r.mw, r.mwp);
-        }
-      });
-      recs = [];
-    }
-    function cap(f) {
-      release();
-      ab.f = f;
-      if (f >= 1 || LTT.mobile()) return;
-      var list = visuals(), size = list.map(function (v) {
-        var cs = getComputedStyle(v);
-        return { h: parseFloat(cs.height), w: parseFloat(cs.width) };
-      });
-      list.forEach(function (v, i) {
-        if (!(size[i].h > 0)) return;
-        var st = v.style, r = { el: v, orig: v.getAttribute("style"),
-          mh: st.getPropertyValue("max-height"), mhp: st.getPropertyPriority("max-height"),
-          mw: st.getPropertyValue("max-width"), mwp: st.getPropertyPriority("max-width") };
-        st.setProperty("max-height", size[i].h * f + "px", r.mhp);
-        if (v.matches("svg,img,canvas") && size[i].w > 0) st.setProperty("max-width", size[i].w * f + "px", r.mwp);
-        r.kit = v.getAttribute("style");
-        recs.push(r);
-      });
-    }
-    function guard(fn) {
-      if (ab.broken) return 1;
-      try { return fn(); } catch (e) {
-        ab.broken = true;
-        ab.f = 1;
-        try { release(); } catch (e2) { recs = []; }
-        LTT.warn("장면 " + (ctx.index + 1) + ": 그림 높이를 맞추다 실패해 배율로만 맞춘다 (" + e.message + ")");
-        return 1;
-      }
-    }
-
-    // The largest ratio in [ABSORB_MIN, 1] at which the scene in its current state fits the stage at zoom 1. Without redrawing
-    // the state it also samples the scene height (and what `probe` reads) at ratio 1 and at ABSORB_MIN into ab.samples, which
-    // is linear in the ratio, so callers can derive the heights at the final ratio from the one pre-draw.
-    ab.need = function (probe) {
-      return guard(function () {
-        release();
-        ab.f = 1;
-        var sm = ab.samples = { h1: 0, hm: 0, p1: 0, pm: 0 };
-        function read() { return probe ? probe() : 0; }
-        function height(f) { cap(f); return inner.getBoundingClientRect().height; }
-        zoomTo(inner, 1);
-        var avail = el.clientHeight - 8, hhi = height(1);
-        sm.h1 = hhi;
-        sm.p1 = read();
-        // A state that fits writes nothing to the drawings: its ratio-1 height stands in for the ABSORB_MIN sample (an upper
-        // bound for the pinned step height, and zoom 1 for a predict answer).
-        if (hhi <= avail + 1 || LTT.mobile() || !visuals().length) { sm.hm = hhi; sm.pm = sm.p1; return 1; }
-        var lo = ABSORB_MIN, hlo = height(lo), hi = 1;
-        sm.hm = hlo;
-        sm.pm = read();
-        if (hlo > avail + 1) { release(); return lo; }
-        // A partial ratio aims 2px under the stage: the pinned step height and `fit`'s 1px tolerance would otherwise tip the
-        // scene into a zoom just below 1.
-        var aim = avail - 2;
-        for (var k = 0; k < 6 && hi - lo > 0.01; k++) {
-          var f = lo + (hi - lo) * Math.min(0.98, Math.max(0.02, (aim - hlo) / (hhi - hlo)));
-          var got = height(f);
-          if (got <= aim) { lo = f; hlo = got; } else { hi = f; hhi = got; }
-        }
-        release();
-        ab.f = 1;
-        return Math.floor(lo * 1000) / 1000;
-      });
-    };
-    // A sampled quantity at ratio f: [at ratio 1, at ABSORB_MIN].
-    ab.at = function (f, v1, vm) { return v1 + (vm - v1) * (1 - f) / (1 - ABSORB_MIN); };
-    ab.set = function (f) { guard(function () { cap(f); }); };
-    ab.apply = function () { guard(function () { cap(ab.f); }); };
-    ab.begin = function () { guard(function () { cap(1); }); };
-    ab.off = function () { ab.begin(); };
-    // Lifts every cap for a measurement and returns the function that puts them back.
-    ab.lift = function () {
-      if (!recs.length) return function () {};
-      var held = recs.map(function (r) { return [r.el, r.kit, r.orig]; });
-      recs.forEach(function (r) { if (r.orig == null) r.el.removeAttribute("style"); else r.el.setAttribute("style", r.orig); });
-      return function () { held.forEach(function (x) { x[0].setAttribute("style", x[1]); }); };
-    };
-    return ab;
-  }
-
   // On phones a scene scrolls instead of shrinking. A drawing whose text would fall below ~10px at column width keeps
   // that minimum scale and scrolls sideways inside its own box, so the page itself never scrolls horizontally.
   function mobileFit(el, inner) {
@@ -1131,174 +937,47 @@
     return n;
   }
 
-  // Text drawn over other text: pairs of visible text lines from different text nodes whose boxes cross by more than a
-  // sliver (line boxes of tight-leading titles touch by a few px). Diagram text is judged by graph-overlap and placed
-  // panels by panel-overlap. Text clipped by a scrolling or overflow-hidden box counts only where it is still shown.
-  function textOverlap(body) {
-    var runs = [], walk = document.createTreeWalker(body, NodeFilter.SHOW_TEXT), t, range = document.createRange(), pairs = [];
-    // Dimmed text still shows, so only near-transparent parts drop out; an entry rise ends opaque, so its start does not count.
-    function gone(e) {
-      if (getComputedStyle(e).visibility === "hidden") return true;
-      for (var o = 1; e && e !== body; e = e.parentElement) {
-        if (e.matches(".dk-float")) return true;
-        if (!e.classList.contains("ltt-rise")) o *= +getComputedStyle(e).opacity;
-      }
-      return o < 0.1;
-    }
-    function clip(e, b) {
-      for (; e && e !== body; e = e.parentElement) {
-        var cs = getComputedStyle(e);
-        if (cs.overflowX === "visible" && cs.overflowY === "visible") continue;
-        var r = e.getBoundingClientRect();
-        b = { x0: Math.max(b.x0, r.left), y0: Math.max(b.y0, r.top), x1: Math.min(b.x1, r.right), y1: Math.min(b.y1, r.bottom) };
-      }
-      return b;
-    }
-    while ((t = walk.nextNode())) {
-      var e = t.parentElement;
-      if (!t.nodeValue.trim() || e.closest("svg,.dk-figsteps>.ctl") || gone(e)) continue;
-      range.selectNodeContents(t);
-      [].forEach.call(range.getClientRects(), function (r) {
-        var b = clip(e, { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom });
-        if (b.x1 - b.x0 > 1 && b.y1 - b.y0 > 1) runs.push({ t: t, b: b, h: r.height });
-      });
-    }
-    runs.forEach(function (a, i) {
-      for (var j = i + 1; j < runs.length; j++) {
-        var c = runs[j];
-        if (c.t === a.t) continue;
-        var ix = Math.min(a.b.x1, c.b.x1) - Math.max(a.b.x0, c.b.x0), iy = Math.min(a.b.y1, c.b.y1) - Math.max(a.b.y0, c.b.y0);
-        if (ix <= 4 || iy <= 0.3 * Math.min(a.h, c.h)) continue;
-        if (!pairs.some(function (p) { return (p[0] === a.t && p[1] === c.t) || (p[0] === c.t && p[1] === a.t); })) pairs.push([a.t, c.t]);
-      }
-    });
-    return pairs.map(function (p) {
-      return p.map(function (n) { var s = n.nodeValue.trim().replace(/\s+/g, " "); return "'" + (s.length > 16 ? s.slice(0, 16) + "…" : s) + "'"; }).join(" / ");
-    });
-  }
-
-  // Unknown icon names render as their own text (so emoji work); a plain lowercase word there is a mistyped kit name.
-  function unknownIcons(body) {
-    var seen = {};
-    [].forEach.call(body.querySelectorAll("span.ltt-ic"), function (e) {
-      var s = e.textContent.trim();
-      if (/^[a-z][a-z0-9-]*$/.test(s)) seen[s] = 1;
-    });
-    return Object.keys(seen);
-  }
-
   var MOCKS = ".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code";
   var VISUALS = "svg.ltt-svg,svg.ltt-dg,.ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code,canvas,img,.ltt-ba,.dk-fig-stage>*,[data-visual]";
 
-  // A mock is text to read, so a scene counts as drawn only through something outside every mock.
-  function hasDrawing(body) {
-    return [].some.call(body.querySelectorAll(VISUALS), function (v) {
-      if (v.closest(MOCKS)) return false;
-      if (!v.querySelector(MOCKS)) return true;
-      return [].some.call(v.querySelectorAll("svg.ltt-svg,svg.ltt-dg,canvas,img,.ltt-ba"), function (d) { return !d.closest(MOCKS); });
-    });
-  }
-
   function area(r) { return Math.max(0, r.width) * Math.max(0, r.height); }
 
-  // The scene object's top-level field with the most reader-facing text, counted with the same prose rules as LTT.sceneText.
-  function longestField(s) {
-    var best = null;
-    Object.keys(s).forEach(function (k) {
-      var o = {};
-      o[k] = s[k];
-      var chars = plainCaption(LTT.sceneText(o)).length;
-      if (chars > 0 && (!best || chars > best.chars)) best = { field: k, chars: chars };
-    });
-    return best;
-  }
-
-  // The element reaching furthest past the right edge of `inner`, named `tag.class` / `tag#id` with its own width.
-  function widestPast(inner, zoom) {
-    var edge = inner.getBoundingClientRect().right, best = null, past = 0;
-    [].forEach.call(inner.querySelectorAll("*"), function (n) {
-      if ((n.parentElement && n.parentElement.closest("svg")) || n.closest(".dk-wide")) return;
-      var r = n.getBoundingClientRect();
-      if (r.width > 0 && r.right - edge > past) { past = r.right - edge; best = n; }
-    });
-    if (!best) return null;
-    var cls = best.classList && best.classList[0];
-    return best.tagName.toLowerCase() + (cls ? "." + cls : best.id ? "#" + best.id : "") + " " + Math.round(best.getBoundingClientRect().width / (zoom || 1)) + "px";
-  }
-
-  // Whether the scene's reserved recall answers are what made it shrink: it would fit at zoom 1 without them.
-  function recallSetsZoom(el, inner) {
-    var pending = [].slice.call(inner.querySelectorAll(".dk-rc .a.pending"));
-    if (!pending.length) return false;
-    var z = inner.style.zoom, w = inner.style.width, ds = pending.map(function (a) { return a.style.display; });
-    zoomTo(inner, 1);
-    pending.forEach(function (a) { a.style.display = "none"; });
-    var fits = inner.getBoundingClientRect().height <= el.clientHeight - 8 + 1;
-    pending.forEach(function (a, i) { a.style.display = ds[i]; });
-    inner.style.zoom = z;
-    inner.style.width = w;
-    return fits;
-  }
-
   // Rendered-layout measurements for LTT.auditScene; hidden scenes still lay out, so this runs without showing them.
-  // visualRatio and figRatio are taken with the kit's absorb caps lifted, so absorbing never creates small-visual/loose-figure.
-  function measure(s, el, ctx) {
+  function measure(s, el) {
     var inner = el.firstChild, body = el.querySelector(".dk-body"), stage = area(el.getBoundingClientRect()) || 1;
     var zoom = parseFloat(inner.style.zoom) || 1, ih = inner.getBoundingClientRect().height;
-    var biggest = 0, put = ctx && ctx.ab ? ctx.ab.lift() : function () {};
+    var biggest = 0;
+    [].forEach.call(body.querySelectorAll(VISUALS), function (v) { biggest = Math.max(biggest, area(v.getBoundingClientRect()) * zoom * zoom); });
+    // Compare rows read as one figure together, so their visuals count as a sum rather than the largest one.
+    if (sceneMeta(s.type, "sumVisualAreas")) {
+      var sum = 0;
+      [].forEach.call(body.querySelectorAll(".dk-item .vis"), function (v) { sum += area(v.getBoundingClientRect()) * zoom * zoom; });
+      biggest = Math.max(biggest, sum);
+    }
     var fig = el.querySelector(".dk-fig-stage"), figRatio = null;
-    try {
-      [].forEach.call(body.querySelectorAll(VISUALS), function (v) { biggest = Math.max(biggest, area(v.getBoundingClientRect()) * zoom * zoom); });
-      // Compare rows read as one figure together, so their visuals count as a sum rather than the largest one.
-      if (sceneMeta(s.type, "sumVisualAreas")) {
-        var sum = 0;
-        [].forEach.call(body.querySelectorAll(".dk-item .vis"), function (v) { sum += area(v.getBoundingClientRect()) * zoom * zoom; });
-        biggest = Math.max(biggest, sum);
-      }
-      if (fig && fig.firstElementChild) {
-        var fr = fig.getBoundingClientRect(), cr = fig.firstElementChild.getBoundingClientRect();
-        figRatio = Math.min(1, area(cr) / (area(fr) || 1));
-      }
-    } finally { put(); }
+    if (fig && fig.firstElementChild) {
+      var fr = fig.getBoundingClientRect(), cr = fig.firstElementChild.getBoundingClientRect();
+      figRatio = Math.min(1, area(cr) / (area(fr) || 1));
+    }
     var sizes = {};
     [].forEach.call(body.querySelectorAll("*"), function (n) {
       if (n.closest(MOCKS) || n.closest("svg") || n.closest(".ltt-mk")) return;
       var own = [].some.call(n.childNodes, function (c) { return c.nodeType === 3 && c.nodeValue.trim(); });
       if (own) sizes[Math.round(parseFloat(getComputedStyle(n).fontSize))] = 1;
     });
-    var hscroll = Math.max(0, Math.round(Math.max(inner.scrollWidth, body.scrollWidth) - inner.clientWidth - 1));
-    var graphIds = [];
-    [].forEach.call(body.querySelectorAll("svg.ltt-dg"), function (g) {
-      if (g.__lttDiagram) LTT.graphOverlaps(g.__lttDiagram).forEach(function (o) { graphIds.push(o.kind + " " + o.a + "/" + o.b); });
-    });
-    var texts = textOverlap(body), icons = unknownIcons(body);
-    var m = {
+    return {
       type: s.type || "", layout: s.layout || "", zoom: zoom, compact: innerWidth <= 1000,
-      drawing: hasDrawing(body), beats: el.hasAttribute("data-ltt-beats") ? JSON.parse(el.getAttribute("data-ltt-beats")).length : 0,
-      still: typeof s.still === "string" && s.still.trim() !== "",
-      hscroll: hscroll,
+      hscroll: Math.max(0, Math.round(Math.max(inner.scrollWidth, body.scrollWidth) - inner.clientWidth - 1)),
       overflow: ih * zoom > el.clientHeight + 2,
       visualRatio: body.querySelector(VISUALS) ? biggest / stage : null,
       figRatio: figRatio, fill: Math.min(1, (ih * zoom) / (el.clientHeight || 1)),
       fontSizes: Object.keys(sizes).length,
       panelOverlap: panelOverlap(body),
-      graphOverlaps: graphIds.length,
+      graphOverlaps: [].reduce.call(body.querySelectorAll("svg.ltt-dg"), function (n, g) { return n + (g.__lttDiagram ? LTT.graphOverlaps(g.__lttDiagram).length : 0); }, 0),
       goals: [].map.call(body.querySelectorAll(".ltt-goal[data-samples]"), function (g) {
         return { hits: +g.dataset.hits, samples: +g.dataset.samples, start: g.dataset.start === "1" };
-      }),
-      floor: zoom <= 0.781,
-      absorb: ctx && ctx.ab ? ctx.ab.f : 1
+      })
     };
-    if (graphIds.length) m.graphIds = graphIds;
-    if (texts.length) m.textOverlaps = texts;
-    if (icons.length) m.unknownIcons = icons;
-    if (hscroll) { var wide = widestPast(inner, zoom); if (wide) m.wide = wide; }
-    var by = zoom < 1 && ctx ? ctx.zoomBy : null;
-    if (!by && zoom < 1 && s.type === "summary" && recallSetsZoom(el, inner)) by = "회상 답";
-    if (by) m.zoomBy = by;
-    var longest = longestField(s);
-    if (longest) m.longest = longest;
-    return m;
   }
 
   // Scenes mount lazily on first visit; `enter` runs on every visit so motion replays when the viewer comes back.
@@ -1340,13 +1019,8 @@
     });
 
     function mount(i) {
-      LTT.motion._deck.begin(i, stage.children[i]);
-      try { build(i); } finally { LTT.motion._deck.end(); }
-    }
-    function build(i) {
       var s = scenes[i], el = stage.children[i], ctx = { el: el, scene: s, index: i, scenes: scenes, predictRest: spec.predictRest };
       var inner = el.appendChild(h("div", "dk-in"));
-      var gsize = placement.sizeWatch();
       ctx.refit = function () { return fit(el, inner, ctx.zmax); };
       ctx.float = function (panel, host, skip, keepFaded) { return floatPanel(el, inner, panel, host, skip, keepFaded, ctx.zmax); };
       if (sceneMeta(s.type, "head")) {
@@ -1364,7 +1038,6 @@
       var split = !full && (s.layout ? s.layout === "split" : !!sceneMeta(s.type, "autoSplit") && !!(s.narration || s.points));
       var main = inner.appendChild(h("div", "dk-main" + (split ? " split" : full ? " full" : "")));
       var body = main.appendChild(h("div", "dk-body" + (s.bare || full ? " bare" : "")));
-      ctx.ab = absorber(ctx, el, inner, body);
       var rail = split ? main.appendChild(h("aside", "dk-rail")) : full ? inner.appendChild(h("div", "dk-capbar")) : null;
       if (!split && !full && s.narration) inner.insertBefore(h("div", "dk-lead"), main).appendChild(LTT.narration(s.narration));
 
@@ -1390,19 +1063,12 @@
         LTT.math(m);
       }
       if (s.basis) (rail || inner).appendChild(h("p", "ltt-basis", s.basis));
-      if (s.takeaway) {
-        ctx.take = inner.appendChild(LTT.takeaway(s.takeaway, s.sources));
-        // The predict answer stays unsaid until the reveal; the takeaway keeps its space so revealing does not rescale.
-        if (s.type === "predict") showTake(ctx, false);
-      }
+      if (s.takeaway) inner.appendChild(LTT.takeaway(s.takeaway, s.sources));
       LTT.linkTerms(el, i);
       ctx.fit = function () {
-        if (LTT.mobile()) { ctx.ab.off(); gsize.reset(); if (ctx.unplace) ctx.unplace(); mobileFit(el, inner); }
+        if (LTT.mobile()) { if (ctx.unplace) ctx.unplace(); mobileFit(el, inner); }
         else if (ctx.place) ctx.place();
-        else {
-          if (gsize.changed()) ctx.ab.set(ctx.ab.need()); else ctx.ab.apply();
-          fit(el, inner, ctx.zmax);
-        }
+        else fit(el, inner, ctx.zmax);
       };
       mounted[i] = { ctx: ctx, fit: ctx.fit, enter: function () {
         if (r && r.enter) r.enter();
@@ -1418,7 +1084,6 @@
       clearNudge();
       if (cur >= 0) {
         if (mounted[cur] && mounted[cur].leave) mounted[cur].leave();
-        LTT.motion._deck.leave(cur);
         stage.children[cur].classList.remove("cur");
         stage.children[cur].classList.toggle("prev", i > cur);
       }
@@ -1434,7 +1099,6 @@
       next.disabled = i === scenes.length - 1;
       try { history.replaceState(null, "", "#" + (i + 1)); } catch (e) { /* file:// or sandboxed */ }
       LTT.record("scene", { index: i, title: scenes[i].title || scenes[i].type });
-      LTT.motion._deck.enter(i);
       mounted[i].enter();
       mounted[i].fit();
     }
@@ -1448,8 +1112,8 @@
 
     prev.onclick = function () { go(cur - 1); };
     next.onclick = function () { forward("button"); };
-    // Moving on before a predict guess skips the scene's point, so the first forward press only points at the choices
-    // and a second press in the same scene goes through. An unrevealed compare verdict opens instead of being skipped.
+    // Moving on before the compare verdict or predict answer is revealed skips the scene's point, so the first
+    // forward press only points at the reveal button and a second press in the same scene goes through.
     var armed = -1, nudged = null, bubble = h("div", "dk-bubble"), bubbleTimer = 0;
     root_.appendChild(bubble);
     function clearNudge() {
@@ -1460,24 +1124,25 @@
     }
     function forward(via) {
       var m = mounted[cur], gate = m && m.ctx.gate;
-      // The answer lands 350ms after the pick; a press in that gap would otherwise nudge at a locked question.
-      if (gate && gate.busy && gate.busy()) return;
-      if (gate && gate.open) {
+      // The reveal lands 350ms after the click; a press in that gap would otherwise nudge at a locked question.
+      if (gate && gate.alt && gate.btn.disabled && gate.alt.querySelector("[aria-pressed=true]")) return;
+      // A picked choice means the viewer has guessed, so forward reveals the answer even after a nudge armed the skip.
+      if (gate && gate.alt && !gate.btn.disabled && cur < scenes.length - 1) {
         LTT.record("auto-reveal", { scene: cur + 1, via: via });
-        return gate.open();
+        return gate.btn.click();
       }
       if (!gate || armed === cur || cur === scenes.length - 1) {
         if (gate && armed === cur) LTT.record("skip-reveal", { scene: cur + 1, via: via });
         return go(cur + 1);
       }
       armed = cur;
-      nudged = gate.nudge;
+      nudged = gate.btn.disabled && gate.alt ? gate.alt : gate.btn;
       nudged.classList.remove("ltt-nudge");
       void nudged.offsetWidth;
       nudged.classList.add("ltt-nudge");
       nudged.scrollIntoView({ block: "nearest", behavior: "smooth" });
       var key = via !== "button";
-      bubble.innerHTML = "아직 고르지 않았어요.<br>" +
+      bubble.innerHTML = "아직 " + gate.word + "을 안 봤어요.<br>" +
         (via === "key" ? "<kbd>→</kbd> 키를 한 번 더 누르면" : via === "swipe" ? "한 번 더 넘기면" : "한 번 더 누르면") + " 넘어갑니다.";
       bubble.classList.toggle("center", key);
       if (!key) {
@@ -1528,13 +1193,11 @@
     }
     // Mounts every scene and checks the rendered layout; `?audit` in the URL runs it on load.
     function audit() {
-      var found = [], measures = [];
+      var found = [];
       scenes.forEach(function (s, i) {
         if (!mounted[i]) mount(i);
         mounted[i].fit();
-        var m = measure(s, stage.children[i], mounted[i].ctx);
-        measures.push({ zoom: m.zoom, absorb: m.absorb, zoomBy: m.zoomBy || null, floor: m.floor });
-        LTT.auditScene(m).forEach(function (w) { found.push({ scene: i + 1, rule: w.rule, msg: w.msg, severity: w.severity }); });
+        LTT.auditScene(measure(s, stage.children[i])).forEach(function (w) { found.push({ scene: i + 1, rule: w.rule, msg: w.msg }); });
       });
       found.forEach(function (w) { LTT.warn("화면 점검 · 장면 " + w.scene + ": " + w.msg); });
       document.documentElement.setAttribute("data-ltt-audit", found.length);
@@ -1542,8 +1205,7 @@
       var out = document.getElementById("ltt-audit");
       if (!out) { out = h("script"); out.id = "ltt-audit"; out.type = "application/json"; document.documentElement.appendChild(out); }
       var fails = [].map.call(document.querySelectorAll("#ltt-expect div.fail"), function (d) { return d.textContent; });
-      var beats = scenes.map(function (s, i) { var b = stage.children[i].getAttribute("data-ltt-beats"); return b ? JSON.parse(b) : []; });
-      out.textContent = JSON.stringify({ viewport: [innerWidth, innerHeight], scenes: scenes.length, audit: found, lint: lint, expectFails: fails, measures: measures, beats: beats, types: scenes.map(function (s) { return s.type || ""; }) }).replace(/</g, "\\u003c");
+      out.textContent = JSON.stringify({ viewport: [innerWidth, innerHeight], scenes: scenes.length, audit: found, lint: lint, expectFails: fails }).replace(/</g, "\\u003c");
       LTT.record("layout-audit", { viewport: [innerWidth, innerHeight], found: found });
       return found;
     }
