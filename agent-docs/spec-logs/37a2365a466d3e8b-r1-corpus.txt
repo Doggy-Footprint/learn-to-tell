@@ -1,0 +1,47 @@
+# R-1 corpus re-audit (spec 37a2365a466d3e8b v5, after correction batches 1–4)
+base kit = worktree a78503e, new kit = working tree after D-1/D-2. Base and new runs interleaved on an idle machine. Sets: 20261020-audit5-check, 20261020-final-check, 20261019-shot-check (22 lessons with a lesson.html Write; 4 first drafts fail to render in both kits: errors 8).
+
+| run | totals | shrunk | wall s |
+| --- | --- | --- | --- |
+| base-first-1 | fix 11 advise 126 lint 132 expect 292 errors 8 | 78 | 22.92 |
+| base-first-2 | fix 11 advise 126 lint 132 expect 292 errors 8 | 78 | 23.50 |
+| base-final-1 | fix 2 advise 83 lint 0 expect 0 errors 0 | 59 | 20.60 |
+| base-final-2 | fix 2 advise 83 lint 0 expect 0 errors 0 | 59 | 20.15 |
+| new-first-1 | fix 5 advise 95 lint 132 expect 292 errors 8 | 47 | 22.97 |
+| new-first-2 | fix 5 advise 95 lint 132 expect 292 errors 8 | 47 | 28.66 |
+| new-final-1 | fix 0 advise 55 lint 0 expect 0 errors 0 | 31 | 19.83 |
+| new-final-2 | fix 0 advise 55 lint 0 expect 0 errors 0 | 31 | 20.17 |
+
+QR-1 47/78 = 0.60 ≤ 0.65 pass. QR-3 final fix 2 → 0 pass. QR-4 first median 25.82 / 23.21 = 1.11, final 20.00 / 20.38 = 0.98, ≤ 1.25 pass. Counts identical between passes.
+Versus the pre-correction run (r1-new, v2): rule counts and all 100 audit messages identical; 51 scene measures differ only in absorb by ≤ 0.006 (the 2px aim margin added in D-1); zoom/floor/zoomBy identical.
+Floor sweep (pre-correction, unchanged conclusion): 0.65 → shrunk 47, 0.55 → 45, 0.50 → 41.
+
+## new kit, first stage, by rule
+  lint:used-before-defined	88
+  shrunk·advise	47
+  still-visual·advise	32
+  lint:unused-term	18
+  lint:no-reading-guide	12
+  small-visual·advise	10
+  lint:summary-no-recall	10
+  many-sizes·advise	4
+  overflow·fix	3
+  loose-figure·advise	2
+  hscroll·fix	2
+  lint:unknown-term	2
+  lint:predict-new-term	2
+
+## base kit, first stage, by rule
+  lint:used-before-defined	88
+  shrunk·advise	78
+  still-visual·advise	32
+  lint:unused-term	18
+  lint:no-reading-guide	12
+  small-visual·advise	10
+  lint:summary-no-recall	10
+  overflow·fix	7
+  many-sizes·advise	4
+  hscroll·fix	4
+  loose-figure·advise	2
+  lint:unknown-term	2
+  lint:predict-new-term	2

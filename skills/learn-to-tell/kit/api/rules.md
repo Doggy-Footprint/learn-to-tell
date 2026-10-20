@@ -27,12 +27,12 @@ lint는 장면 데이터만 본다(`LTT.lintDeck`). audit은 URL에 `?audit`을 
 
 | rule | 등급 | 뜻 |
 | --- | --- | --- |
-| `overflow`, `hscroll` | 고침 | 78%로 줄여도 넘친다 / 가로로 넘친다 |
-| `shrunk` | 권고 | 진입 때 모든 상태(predict 선택지별 정답, figure 단계, summary recall 답)를 그려 잠근 최소 배율이 88% 미만(78%까지는 줄여 넣는다). 글을 줄이거나 장면을 나눈다 |
+| `overflow`, `hscroll` | 고침 | 그림을 줄이고(`absorb`) 배율도 78%까지 줄였는데 한 화면에 안 들어간다. 메시지가 실제 배율을 말하고, 78% 하한인지 다른 상태(질문·정답·단계)에 맞춘 배율인지 구분한다 / 가로로 넘친다(넘친 폭 px와 가장 넓은 요소) |
+| `shrunk` | 권고 | 진입 때 모든 상태(predict 선택지별 정답, figure 단계, summary recall 답)를 그려 잠근 최소 배율이 88% 미만(78%까지는 줄여 넣는다). 그림 높이를 먼저 줄인(`absorb`) 뒤의 배율이며, 메시지가 배율을 정한 상태·가장 긴 글 필드·78% 하한 여부를 말한다. 글을 줄이거나 장면을 나눈다 |
 | `small-visual` | 권고 | 가장 큰 그림(compare는 칸 그림의 합)이 화면 넓이의 10% 미만, figure·실제 full 장면(layout을 적지 않은 overview 포함)은 22% 미만 |
 | `loose-figure`, `empty-stage` | 권고 | figure 그림이 figure 무대의 35% 미만 / figure·실제 full 장면(layout을 적지 않은 overview 포함)이 화면 높이의 60% 미만만 쓴다 |
 | `many-sizes` | 권고 | 장면 본문(목업·SVG·번호 표식 제외)에서 글자를 직접 가진 요소의 글자 크기가 7단계 초과 |
-| `graph-overlap` | 고침 | diagram의 라벨·노드·엣지가 겹친다(`LTT.graphOverlaps`) |
+| `graph-overlap` | 고침 | diagram의 라벨·노드·엣지가 겹친다(`LTT.graphOverlaps`). 메시지가 겹침 수와 앞 3곳의 `종류 a/b` id를 말한다 |
 | `panel-overlap` | 고침 | figure 단계 자막 칸이나 펼친 predict 정답이 글 줄·컨트롤·그림(diagram은 노드·라벨 상자)과 겹친다 |
 | `goal-unreachable`, `goal-at-start` | 고침 | `sweep` 목표가 어느 손잡이 자리에서도 안 맞는다 / 시작 위치에서 이미 맞는다 |
 | `still-visual` | 권고 | 움직임 없는 그림이다: 좁은 창이 아니고, 본문에 목업이 아닌 그림이 있고, 노출 비트(`LTT.motion.loop`, figure `steps` 자동 재생, sweep `attract`, contrast 재생)가 없고, `still: "이유"`가 없다. terms·summary·keywords·hook·map-related는 판정하지 않는다 |

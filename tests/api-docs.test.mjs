@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import { ADVISE, AUDIT_TRIGGERS, BASE_M, LINT_TRIGGERS } from "./fixtures/absorb/severity-cases.mjs";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const SKILL = join(ROOT, "skills/learn-to-tell");
@@ -855,4 +856,42 @@ test("84c0 VO-6 D-2: kit/CHANGELOG.md ## 1.0.0 section has a line naming icon-no
 
 test("84c0 VO-6 D-3: LINT_IDS lists icon-not-string", () => {
   assert.ok(LINT_IDS.includes("icon-not-string"));
+});
+
+// ---------- spec 37a2365a466d3e8b v1 VO-8 / QR-7: the advisory list lives in three places ----------
+
+// The Signature fixes the advisory ids; SKILL.md §3's **권고** line, the 등급 column of kit/api/rules.md and the severity the kit emits must all equal it.
+const adviseFromSkill = () => {
+  const line = lines(skillText()).find((l) => l.includes("**권고**는"));
+  assert.ok(line, "SKILL.md has no line with **권고**는");
+  return new Set(codeSpans(line.split("**권고**는")[1].split("**고침**")[0]));
+};
+const adviseFromRules = () => new Set(lines(rulesText()).filter(isRow).filter((r) => (cells(r)[1] ?? "").trim() === "권고").flatMap((r) => codeSpans(firstCell(r))));
+
+test("VO-8 QR-7 SKILL.md §3 **권고** list equals the spec's ten advisory ids", () => {
+  assert.deepEqual([...adviseFromSkill()].sort(), [...ADVISE].sort());
+});
+
+test("VO-8 QR-7 kit/api/rules.md rows graded 권고 are exactly the same ten ids", () => {
+  assert.deepEqual([...adviseFromRules()].sort(), [...ADVISE].sort());
+});
+
+test("VO-8 QR-7 every other audit and lint id has a rules.md row graded 고침", () => {
+  const graded = new Map();
+  for (const r of lines(rulesText()).filter(isRow)) for (const span of codeSpans(firstCell(r))) graded.set(span, (cells(r)[1] ?? "").trim());
+  const wrong = [...AUDIT_IDS, ...LINT_IDS].filter((id) => !ADVISE.includes(id)).filter((id) => graded.get(id) !== "고침");
+  assert.deepEqual(wrong, [], `ids whose rules.md grade is not 고침: ${wrong.map((id) => `${id}=${graded.get(id)}`).join(", ")}`);
+});
+
+test("VO-8 QR-7 the severity the kit emits (audit and lint triggers) gives the same advisory set as SKILL.md and rules.md", () => {
+  const LTT = loadLTT();
+  const emitted = new Map();
+  for (const extra of Object.values(AUDIT_TRIGGERS)) for (const w of LTT.auditScene({ ...BASE_M, ...extra })) emitted.set(w.rule, w.severity);
+  for (const build of Object.values(LINT_TRIGGERS)) for (const w of LTT.lintDeck(build())) emitted.set(w.rule, w.severity);
+  const kitAdvise = new Set([...emitted].filter(([, sev]) => sev === "advise").map(([rule]) => rule));
+  // still-visual needs a rendered scene (observed in tests/absorb.test.mjs); the other nine are produced by the pure triggers.
+  const want = new Set([...adviseFromSkill()].filter((id) => id !== "still-visual"));
+  assert.deepEqual([...kitAdvise].sort(), [...want].sort());
+  assert.deepEqual([...adviseFromRules()].filter((id) => id !== "still-visual").sort(), [...kitAdvise].sort());
+  for (const id of [...AUDIT_IDS, ...LINT_IDS].filter((i) => i !== "still-visual")) assert.ok(emitted.has(id), `no trigger emitted ${id}`);
 });

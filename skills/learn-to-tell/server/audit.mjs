@@ -46,7 +46,7 @@ const USAGE = `사용법: node audit.mjs <대상>... [옵션]
   --budget <ms>   가상 시간 예산(기본 ${DEFAULT_BUDGET})
   --jobs <n>      동시에 띄울 Chrome 수(기본 ${DEFAULT_JOBS})
   --home <dir>    수업 폴더 루트(기본: LTT_HOME 또는 ~/.learn-to-tell)
-종료 코드: 0 경고 없음 · 1 경고 있음 · 2 Chrome 없음/측정 실패`;
+종료 코드: 0 고칠 것 없음(권고만 있어도 0) · 1 고침 경고·고침 lint·expect 불일치 있음 · 2 Chrome 없음/측정 실패`;
 
 export function findChrome(explicit = process.env.LTT_CHROME) {
   if (explicit) return existsSync(explicit) ? explicit : null;
@@ -77,17 +77,18 @@ function under(base, file) {
 }
 
 function resolveTarget(target, { home, galleryDir }) {
-  if (/^https?:\/\//.test(target)) return { label: target, url: target };
+  if (/^https?:\/\//.test(target)) return { label: target, url: target, bytes: null };
   let file = resolve(target);
   if (existsSync(file) && statSync(file).isDirectory()) file = join(file, "lesson.html");
   if (!existsSync(file) && LESSON_ID.test(target)) file = join(home, "lessons", target, "lesson.html");
   if (!existsSync(file)) throw new Error(`${target}: 파일이 없다 (${file})`);
   file = realpathSync(file);
+  const bytes = statSync(file).size;
   const lessons = realpathIfExists(join(home, "lessons"));
   const gallery = realpathIfExists(galleryDir);
   let rel;
-  if (lessons && (rel = under(lessons, file))) return { label: `lessons/${rel}`, path: `/lessons/${rel}` };
-  if (gallery && (rel = under(gallery, file))) return { label: rel, path: `/gallery/${rel}` };
+  if (lessons && (rel = under(lessons, file))) return { label: `lessons/${rel}`, path: `/lessons/${rel}`, bytes };
+  if (gallery && (rel = under(gallery, file))) return { label: rel, path: `/gallery/${rel}`, bytes };
   throw new Error(`${target}: ${join(home, "lessons")} 또는 ${galleryDir} 아래 파일만 열 수 있다. 수업 폴더에 두거나 URL을 넘긴다.`);
 }
 
@@ -125,7 +126,7 @@ function withQuery(url, q) {
 }
 
 async function runOne(chrome, profile, run, budget, attempt = 1) {
-  const base = { target: run.target, size: run.size, url: run.url };
+  const base = { target: run.target, size: run.size, url: run.url, bytes: run.bytes };
   const { out, error } = await runChrome(chrome, chromeArgs(profile, run.size, `--virtual-time-budget=${budget}`, "--dump-dom", withQuery(run.url, "audit")));
   if (error) return { ...base, error };
   const m = out.match(/<script[^>]*id="ltt-audit"[^>]*>([\s\S]*?)<\/script>/);
@@ -139,7 +140,7 @@ async function runOne(chrome, profile, run, budget, attempt = 1) {
   }
   try {
     const data = JSON.parse(m[1]);
-    return { ...base, scenes: data.scenes, viewport: data.viewport, audit: data.audit, lint: data.lint, expectFails: data.expectFails, beats: data.beats, types: data.types };
+    return { ...base, scenes: data.scenes, viewport: data.viewport, audit: data.audit, lint: data.lint, expectFails: data.expectFails, measures: data.measures, beats: data.beats, types: data.types };
   } catch {
     return { ...base, error: "#ltt-audit JSON을 읽을 수 없다" };
   }
@@ -380,7 +381,7 @@ export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrom
     }
     if (shots) await mkdir(shots, { recursive: true });
     const runs = [];
-    for (const t of resolved) for (const size of sizes) runs.push({ target: t.label, url: t.url || base + t.path, size });
+    for (const t of resolved) for (const size of sizes) runs.push({ target: t.label, url: t.url || base + t.path, size, bytes: t.bytes });
     const results = await pool(runs, Math.max(1, jobs), async (run, i) => {
       const profile = join(tmp, `p${i}`);
       const r = await runOne(chrome, profile, run, budget);
@@ -398,22 +399,38 @@ export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrom
   }
 }
 
+const GRADE = (w) => (w.severity === "advise" ? "권고" : "고침");
+
 export function formatReport(results) {
   const width = Math.max(...results.map((r) => r.target.length));
   const lines = [];
   const totals = {};
-  for (const r of results) {
-    const head = `${r.size.padEnd(9)} ${r.target.padEnd(width)}`;
-    if (r.error) {
-      lines.push(`${head}  오류: ${r.error}`);
-      continue;
+  const targets = [...new Set(results.map((r) => r.target))];
+  for (const target of targets) {
+    const mine = results.filter((r) => r.target === target);
+    const first = mine.find((r) => !r.error);
+    if (first) lines.push(`${target}  장면 ${first.scenes}${typeof first.bytes === "number" ? ` · ${first.bytes} B` : ""}`);
+    const merged = new Map();
+    for (const r of mine) {
+      if (r.error) {
+        lines.push(`${r.size.padEnd(9)} ${target.padEnd(width)}  오류: ${r.error}`);
+        continue;
+      }
+      const total = totals[r.size] ||= { n: 0, viewport: r.viewport };
+      total.n += r.audit.length;
+      lines.push(`  ${r.size} (화면 ${r.viewport.join("×")}): audit ${r.audit.length}${r.shots ? ` · shots ${r.shots.length}` : ""}`);
+      for (const w of r.audit) {
+        const key = JSON.stringify([w.scene, w.rule, w.msg]);
+        if (!merged.has(key)) merged.set(key, { w, sizes: [] });
+        merged.get(key).sizes.push(r.size);
+      }
     }
-    const total = totals[r.size] ||= { n: 0, viewport: r.viewport };
-    total.n += r.audit.length;
-    lines.push(`${head}  audit ${r.audit.length} · lint ${r.lint.length} · expect ${r.expectFails.length}${r.shots ? ` · shots ${r.shots.length}` : ""}`);
-    r.audit.forEach((w) => lines.push(`    장면 ${w.scene} [${w.rule}]: ${w.msg}`));
-    r.lint.forEach((w) => lines.push(`    lint${w.scene ? ` 장면 ${w.scene}` : ""}: ${w.msg}`));
-    r.expectFails.forEach((t) => lines.push(`    ${t}`));
+    [...merged.values()].sort((a, b) => a.w.scene - b.w.scene)
+      .forEach(({ w, sizes }) => lines.push(`  장면 ${w.scene} [${w.rule}·${GRADE(w)}] ${sizes.join("·")}: ${w.msg}`));
+    if (first) {
+      first.lint.forEach((w) => lines.push(`  lint ${w.scene ? `장면 ${w.scene}` : "덱"} [${w.rule}·${GRADE(w)}]: ${w.msg}`));
+      first.expectFails.forEach((t) => lines.push(`  expect: ${t}`));
+    }
   }
   // Headless `--window-size` is the outer window, so the page sees a shorter viewport; the summary shows what was actually measured.
   lines.push(Object.keys(totals).map((s) => `${s} (화면 ${totals[s].viewport.join("×")}): audit ${totals[s].n}건`).join(" · ") || "측정된 결과 없음");
@@ -427,7 +444,8 @@ export function formatReport(results) {
 
 export function exitCode(results) {
   if (results.some((r) => r.error || (r.sheet && r.sheet.error))) return 2;
-  return results.some((r) => r.audit.length || r.lint.length || r.expectFails.length) ? 1 : 0;
+  const fix = (w) => w.severity !== "advise";
+  return results.some((r) => r.audit.some(fix) || r.lint.some(fix) || r.expectFails.length) ? 1 : 0;
 }
 
 function parseArgs(argv) {

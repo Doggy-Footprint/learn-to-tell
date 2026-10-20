@@ -274,6 +274,26 @@ test("VO-1 C-11 order (spec 1e62814b16984176 FR-1): overview layout \"\" with vi
   assert.equal(json(""), json("full"));
 });
 
+// ---------- spec 37a2365a466d3e8b v1 VO-5 (FR-5, C-19): small-visual / loose-figure judge the pre-absorb size ----------
+// visualRatio and figRatio arrive already measured at absorb = 1; the absorb field must not scale them again.
+
+const preAbsorb = [
+  { id: "small-visual: pre-absorb 0.25 is above the 22% hero bar, absorb 0.65 would put it at 0.1625", m: { type: "figure", visualRatio: 0.25, absorb: 0.65 }, out: [] },
+  { id: "small-visual: same ratio, absorb 0.8", m: { type: "figure", visualRatio: 0.25, absorb: 0.8 }, out: [] },
+  { id: "loose-figure: pre-absorb 0.40 is above the 35% bar, absorb 0.65 would put it at 0.26", m: { type: "figure", figRatio: 0.4, absorb: 0.65 }, out: [] },
+  { id: "loose-figure: pre-absorb 0.36 (just above the bar), absorb 0.7", m: { type: "figure", figRatio: 0.36, absorb: 0.7 }, out: [] },
+  { id: "no absorb (absorb 1): small-visual still fires below the bar", m: { type: "figure", visualRatio: 0.15, absorb: 1 }, out: ["small-visual"] },
+  { id: "no absorb (field absent): loose-figure still fires below the bar", m: { type: "figure", figRatio: 0.2 }, out: ["loose-figure"] },
+  { id: "absorbed but pre-absorb already below the bar: still reported", m: { type: "figure", figRatio: 0.3, visualRatio: 0.15, absorb: 0.65 }, out: ["small-visual", "loose-figure"], anyOrder: true },
+];
+
+for (const { id, m, out, anyOrder } of preAbsorb) {
+  test(`VO-5 ${id}`, () => {
+    const got = audit(loadKit(), m);
+    assert.deepEqual(anyOrder ? [...got].sort() : got, anyOrder ? [...out].sort() : out);
+  });
+}
+
 // ---------- VO-7 runtime-added partial entry (C-15) ----------
 
 const KW = { type: "keywords", terms: [] };

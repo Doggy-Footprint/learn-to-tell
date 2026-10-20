@@ -20,9 +20,14 @@
   V.wait = (ms) => new Promise((r) => setTimeout(r, ms));
   // ticks: one timestamp per batch of DOM changes under svg. rows: [time, offset/L] stamped when p's stroke-dashoffset is WRITTEN (instance-level
   // setAttribute wrapper), because MutationObserver callbacks can lag the draw under host load and the formula depends on the write time.
-  V.watch = (svg, p) => {
+  // opts.ignoreRootStyle (opt-in): inline-style writes on the observed root <svg> are layout fitting of the drawing (the kit limits an overflowing
+  // scene's drawings), not draws of the play; only the play's own elements count. Other callers keep counting every mutation.
+  V.watch = (svg, p, opts = {}) => {
     const w = { rows: [], ticks: [] };
-    new MutationObserver(() => { w.ticks.push(H.now()); }).observe(svg, { attributes: true, subtree: true, childList: true });
+    new MutationObserver((list) => {
+      if (opts.ignoreRootStyle && list.every((m) => m.type === "attributes" && m.target === svg && m.attributeName === "style")) return;
+      w.ticks.push(H.now());
+    }).observe(svg, { attributes: true, subtree: true, childList: true });
     if (p) {
       const orig = p.setAttribute;
       p.setAttribute = function (name, value) {

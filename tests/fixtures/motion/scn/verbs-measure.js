@@ -7,7 +7,7 @@ H.deck = LTT.deck({ title: "verbs-measure", theme: "paper", scenes: [
     steps: [0, 1, 2].map((i) => ({ caption: "단계 " + i, enter() {
       const h = V.hand(false);
       ST.appendChild(h.svg);
-      const w = V.watch(h.svg, h.p), created = H.now();
+      const w = V.watch(h.svg, h.p, { ignoreRootStyle: true }), created = H.now();
       LTT.motion.play(h.svg, [{ t: [0, 1000], draw: "#p" }, { t: [500, 1500], morph: "#m", to: { width: 200 } }], { period: 2000 });
       plays.push({ label: "M" + (++n), step: i, created, w, h });
     } })) },

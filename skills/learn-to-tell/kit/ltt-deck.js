@@ -344,59 +344,93 @@
     // idempotent already, since looping jumps from the last step to the first) to fix the picture's height and the caption
     // side up front. A step that still grows the picture later (async drawing) re-runs placement through the ratchet.
     steps: function (ctx, o) {
-      var pic = o.pic, ctl = o.ctl, row = o.row;
-      var tallest = { side: 0, stack: 0 }, size = placement.sizeWatch(), stuck = false;
+      var pic = o.pic, ctl = o.ctl, row = o.row, ab = ctx.ab;
+      var tallest = { side: 0, stack: 0 }, widest = { side: -1, stack: -1 }, size = placement.sizeWatch(), stuck = false;
       function layout(mode) {
         row.classList.toggle("stack", mode === "stack");
         pic.style.minHeight = tallest[mode] ? tallest[mode] + "px" : "";
-        ctx.refit();
+        return ctx.refit();
       }
       function under() {
         var c = ctl.getBoundingClientRect(), box = { x0: c.left, y0: c.top, x1: c.right, y1: c.bottom };
         return solidRects(pic, null, null, true).some(function (r) { return LTT.rectHit(box, r); });
       }
-      function eachStep(fn) {
-        LTT.measure(function () { for (var k = 0; k < o.count; k++) { o.draw(k); fn(); } });
+      // One pre-draw per step: each drawn step gives its own absorb ratio and its picture height at ratio 1 and at ABSORB_MIN;
+      // the pinned height is derived at the smallest ratio, so absorb adds no draw (enter must run once per step per pass).
+      function measureMode(mode, onStep) {
+        var f = 1, samples = [];
+        ab.begin();
+        LTT.measure(function () {
+          for (var k = 0; k < o.count; k++) {
+            o.draw(k);
+            var p0 = pic.offsetHeight;
+            f = Math.min(f, ab.need(function () { return pic.offsetHeight; }));
+            samples.push(ab.broken ? { p1: p0, pm: p0 } : ab.samples);
+            if (onStep) onStep();
+          }
+        });
+        ab.set(f);
+        samples.forEach(function (sm, k) {
+          var h = Math.ceil(ab.at(f, sm.p1, sm.pm));
+          if (h > tallest[mode]) { tallest[mode] = h; widest[mode] = k; }
+        });
       }
       function measureAll() {
         tallest = { side: 0, stack: 0 };
+        widest = { side: -1, stack: -1 };
         stuck = innerWidth <= 760;
         if (!stuck) {
           layout("side");
-          eachStep(function () { tallest.side = Math.max(tallest.side, pic.offsetHeight); stuck = stuck || under(); });
+          measureMode("side", function () { stuck = stuck || under(); });
         }
         if (stuck) {
           layout("stack");
-          eachStep(function () { tallest.stack = Math.max(tallest.stack, pic.offsetHeight); });
+          measureMode("stack");
           layout("stack");
         }
       }
       function probe() {
         placement.still(pic, measureAll, function (e) {
           tallest = { side: 0, stack: 0 };
+          ab.off();
           LTT.warn("장면 " + (ctx.index + 1) + ": 단계를 미리 그려 보다 실패해 단계마다 배율이 바뀔 수 있다 (" + e.message + ")");
         }, function () {
           // Outside measuring, so the current step's own sends start again after the probe interrupted them; packets
           // already in flight from the entry would otherwise run twice.
           [].forEach.call(pic.querySelectorAll(".pk"), function (c) { c.remove(); });
           o.draw(o.current());
+          ab.apply();
         });
       }
       return {
         stepped: function () {
+          // A step that redraws its svg drops the caps, so they go back on in the same task, before anything paints.
+          if (!LTT.mobile()) ab.apply();
           requestAnimationFrame(function () {
+            if (LTT.mobile()) return;
+            ab.apply();
             var mode = row.classList.contains("stack") ? "stack" : "side";
-            if (LTT.mobile() || pic.offsetHeight <= tallest[mode] + 1) return;
+            if (pic.offsetHeight <= tallest[mode] + 1) return;
             tallest[mode] = pic.offsetHeight;
             ctx.fit();
           });
         },
         // The captions sit beside the picture only while no text, control or diagram box of the picture runs under them.
         place: function () {
-          if (size.changed()) probe();
-          if (stuck) return layout("stack");
-          layout("side");
-          if (under()) { stuck = true; layout("stack"); }
+          var probed = size.changed(), free = null;
+          if (probed) {
+            probe();
+            // The zoom the current step alone would get, to tell whether the tallest step is what lowered it.
+            pic.style.minHeight = "";
+            free = ctx.refit();
+          }
+          var z, mode = "side";
+          if (stuck) { z = layout("stack"); mode = "stack"; }
+          else {
+            z = layout("side");
+            if (under()) { stuck = true; z = layout("stack"); mode = "stack"; }
+          }
+          if (probed) ctx.zoomBy = free != null && z < free - 0.004 && widest[mode] >= 0 ? "단계 " + (widest[mode] + 1) : null;
         },
         unplace: function () { row.classList.remove("stack"); pic.style.minHeight = ""; size.reset(); }
       };
@@ -410,28 +444,47 @@
       function fail(e) {
         LTT.warn("장면 " + (ctx.index + 1) + ": answerVisual을 미리 그려 보다 실패해 정답을 열 때 배율이 바뀔 수 있다 (" + e.message + ")");
       }
+      function show() { ans.classList.remove("ltt-hidden"); ans.classList.add("dk-probe"); w.classList.add("done"); }
+      function hide() { w.classList.remove("done"); ans.classList.remove("dk-probe"); ans.classList.add("ltt-hidden"); }
       function lock(revealed) {
         var focused = revealed && ans.contains(document.activeElement) ? document.activeElement : null;
         if (revealed) { unfloat(); w.classList.remove("done"); ans.classList.add("ltt-hidden"); }
         ctx.zmax = 1;
-        var question = ctx.refit(), zs = [], z = 1;
-        ans.classList.remove("ltt-hidden");
-        ans.classList.add("dk-probe");
-        w.classList.add("done");
+        ctx.ab.begin();
+        var fq = ctx.ab.need(), question = 1, zs = [], z = 1, by = null;
+        show();
         // A one-parameter answerVisual ignores the choice, so one drawing stands for all of them.
         var drawn = o.perChoice ? o.choices : o.choices.slice(0, 1);
         placement.still(w, function () {
+          // One pre-draw per choice: its zoom at the final ratio is derived from the heights sampled while it was drawn.
           LTT.measure(function () {
+            var f = fq, sm = [];
             drawn.forEach(function (c) {
               o.draw(c.id);
-              zs.push(ctx.refit());
+              f = Math.min(f, ctx.ab.need());
+              sm.push(ctx.ab.broken ? { z: ctx.refit() } : ctx.ab.samples);
+            });
+            ctx.ab.set(f);
+            hide();
+            question = ctx.refit();
+            show();
+            var avail = ctx.el.clientHeight - 8;
+            sm.forEach(function (x) {
+              var hh = x.z ? 0 : ctx.ab.at(f, x.h1, x.hm);
+              zs.push(x.z || (hh <= avail + 1 ? 1 : Math.max(0.78, avail / hh)));
             });
           });
           z = zoomLock(question, zs);
-        }, function (e) { z = 1; fail(e); }, function () {
-          w.classList.remove("done");
-          ans.classList.remove("dk-probe");
-          ans.classList.add("ltt-hidden");
+          var least = question;
+          by = "질문";
+          zs.forEach(function (v, i) {
+            if (v >= least) return;
+            least = v;
+            var c = o.perChoice ? drawn[i] : o.choices.filter(function (x) { return x.id === o.correct; })[0] || drawn[0];
+            by = "정답 " + plainCaption(c.text);
+          });
+        }, function (e) { z = 1; by = null; ctx.ab.off(); fail(e); }, function () {
+          hide();
           av.replaceChildren();
           if (!revealed) return;
           w.classList.add("done");
@@ -439,11 +492,12 @@
           try {
             o.draw(o.chosen());
             LTT.linkTerms(ans, ctx.index);
-          } catch (e) { z = 1; fail(e); }
+          } catch (e) { z = 1; by = null; ctx.ab.off(); fail(e); }
           // Hiding the answer while measuring took focus away from its reason text.
           if (focused) focused.focus({ preventScroll: true });
         });
         ctx.zmax = z;
+        ctx.zoomBy = z < 1 ? by : null;
       }
       return {
         place: function () {
@@ -676,8 +730,9 @@
       function draw(v) {
         if (typeof s.answerVisual === "function") { av.replaceChildren(); s.answerVisual(av, v); }
         else if (s.answerVisual) av.innerHTML = s.answerVisual;
+        ctx.ab.apply();
       }
-      var pp = placement.predict(ctx, { choices: choices, perChoice: typeof s.answerVisual === "function" && s.answerVisual.length > 1,
+      var pp = placement.predict(ctx, { choices: choices, correct: s.answer, perChoice: typeof s.answerVisual === "function" && s.answerVisual.length > 1,
         draw: draw, ans: ans, av: av, w: w,
         revealed: function () { return w.classList.contains("done"); },
         chosen: function () { return chosen; } });
@@ -881,6 +936,115 @@
     inner.style.width = z < 1 ? z * 100 + "%" : "";
   }
 
+  // Before a scene is zoomed down, its drawings give up part of their height: one ratio for every absorbable drawing
+  // (svg[viewBox] and [data-visual] outside icons, mocks and other absorbable drawings), never below ABSORB_MIN, which the
+  // zoom then takes over. The ratio is decided once per window size from every pre-drawn state (placement), so revealing or
+  // stepping never changes it. Caps go on as inline max-height/max-width; a replaced drawing gets both so its box keeps its
+  // aspect ratio. Whatever the author wrote inline is put back by releasing: the whole `style` string when nothing else
+  // touched it since, otherwise only the two properties (a blanket `style.maxHeight = ""` would wipe an author's own cap).
+  var ABSORB_MIN = 0.65;
+  var ABSORBABLE = "svg[viewBox],[data-visual]";
+
+  function absorber(ctx, el, inner, body) {
+    var recs = [], ab = { f: 1, broken: false };
+
+    function visuals() {
+      return [].filter.call(body.querySelectorAll(ABSORBABLE), function (v) {
+        return !v.closest(".ltt-ic," + MOCKS) && !(v.parentElement && v.parentElement.closest(ABSORBABLE));
+      });
+    }
+    function release() {
+      recs.forEach(function (r) {
+        var e = r.el;
+        if (e.getAttribute("style") === r.kit) {
+          if (r.orig == null) e.removeAttribute("style"); else e.setAttribute("style", r.orig);
+        } else {
+          e.style.setProperty("max-height", r.mh, r.mhp);
+          e.style.setProperty("max-width", r.mw, r.mwp);
+        }
+      });
+      recs = [];
+    }
+    function cap(f) {
+      release();
+      ab.f = f;
+      if (f >= 1 || LTT.mobile()) return;
+      var list = visuals(), size = list.map(function (v) {
+        var cs = getComputedStyle(v);
+        return { h: parseFloat(cs.height), w: parseFloat(cs.width) };
+      });
+      list.forEach(function (v, i) {
+        if (!(size[i].h > 0)) return;
+        var st = v.style, r = { el: v, orig: v.getAttribute("style"),
+          mh: st.getPropertyValue("max-height"), mhp: st.getPropertyPriority("max-height"),
+          mw: st.getPropertyValue("max-width"), mwp: st.getPropertyPriority("max-width") };
+        st.setProperty("max-height", size[i].h * f + "px", r.mhp);
+        if (v.matches("svg,img,canvas") && size[i].w > 0) st.setProperty("max-width", size[i].w * f + "px", r.mwp);
+        r.kit = v.getAttribute("style");
+        recs.push(r);
+      });
+    }
+    function guard(fn) {
+      if (ab.broken) return 1;
+      try { return fn(); } catch (e) {
+        ab.broken = true;
+        ab.f = 1;
+        try { release(); } catch (e2) { recs = []; }
+        LTT.warn("장면 " + (ctx.index + 1) + ": 그림 높이를 맞추다 실패해 배율로만 맞춘다 (" + e.message + ")");
+        return 1;
+      }
+    }
+
+    // The largest ratio in [ABSORB_MIN, 1] at which the scene in its current state fits the stage at zoom 1. Without redrawing
+    // the state it also samples the scene height (and what `probe` reads) at ratio 1 and at ABSORB_MIN into ab.samples, which
+    // is linear in the ratio, so callers can derive the heights at the final ratio from the one pre-draw.
+    ab.need = function (probe) {
+      return guard(function () {
+        release();
+        ab.f = 1;
+        var sm = ab.samples = { h1: 0, hm: 0, p1: 0, pm: 0 };
+        function read() { return probe ? probe() : 0; }
+        function height(f) { cap(f); return inner.getBoundingClientRect().height; }
+        zoomTo(inner, 1);
+        var avail = el.clientHeight - 8, hhi = height(1);
+        sm.h1 = hhi;
+        sm.p1 = read();
+        // A state that fits writes nothing to the drawings: its ratio-1 height stands in for the ABSORB_MIN sample (an upper
+        // bound for the pinned step height, and zoom 1 for a predict answer).
+        if (hhi <= avail + 1 || LTT.mobile() || !visuals().length) { sm.hm = hhi; sm.pm = sm.p1; return 1; }
+        var lo = ABSORB_MIN, hlo = height(lo), hi = 1;
+        sm.hm = hlo;
+        sm.pm = read();
+        if (hlo > avail + 1) { release(); return lo; }
+        // A partial ratio aims 2px under the stage: the pinned step height and `fit`'s 1px tolerance would otherwise tip the
+        // scene into a zoom just below 1.
+        var aim = avail - 2;
+        for (var k = 0; k < 6 && hi - lo > 0.01; k++) {
+          var f = lo + (hi - lo) * Math.min(0.98, Math.max(0.02, (aim - hlo) / (hhi - hlo)));
+          var got = height(f);
+          if (got <= aim) { lo = f; hlo = got; } else { hi = f; hhi = got; }
+        }
+        release();
+        ab.f = 1;
+        return Math.floor(lo * 1000) / 1000;
+      });
+    };
+    // A sampled quantity at ratio f: [at ratio 1, at ABSORB_MIN].
+    ab.at = function (f, v1, vm) { return v1 + (vm - v1) * (1 - f) / (1 - ABSORB_MIN); };
+    ab.set = function (f) { guard(function () { cap(f); }); };
+    ab.apply = function () { guard(function () { cap(ab.f); }); };
+    ab.begin = function () { guard(function () { cap(1); }); };
+    ab.off = function () { ab.begin(); };
+    // Lifts every cap for a measurement and returns the function that puts them back.
+    ab.lift = function () {
+      if (!recs.length) return function () {};
+      var held = recs.map(function (r) { return [r.el, r.kit, r.orig]; });
+      recs.forEach(function (r) { if (r.orig == null) r.el.removeAttribute("style"); else r.el.setAttribute("style", r.orig); });
+      return function () { held.forEach(function (x) { x[0].setAttribute("style", x[1]); }); };
+    };
+    return ab;
+  }
+
   // On phones a scene scrolls instead of shrinking. A drawing whose text would fall below ~10px at column width keeps
   // that minimum scale and scrolls sideways inside its own box, so the page itself never scrolls horizontally.
   function mobileFit(el, inner) {
@@ -989,44 +1153,101 @@
 
   function area(r) { return Math.max(0, r.width) * Math.max(0, r.height); }
 
+  // The scene object's top-level field with the most reader-facing text, counted with the same prose rules as LTT.sceneText.
+  function longestField(s) {
+    var best = null;
+    Object.keys(s).forEach(function (k) {
+      var o = {};
+      o[k] = s[k];
+      var chars = plainCaption(LTT.sceneText(o)).length;
+      if (chars > 0 && (!best || chars > best.chars)) best = { field: k, chars: chars };
+    });
+    return best;
+  }
+
+  // The element reaching furthest past the right edge of `inner`, named `tag.class` / `tag#id` with its own width.
+  function widestPast(inner, zoom) {
+    var edge = inner.getBoundingClientRect().right, best = null, past = 0;
+    [].forEach.call(inner.querySelectorAll("*"), function (n) {
+      if ((n.parentElement && n.parentElement.closest("svg")) || n.closest(".dk-wide")) return;
+      var r = n.getBoundingClientRect();
+      if (r.width > 0 && r.right - edge > past) { past = r.right - edge; best = n; }
+    });
+    if (!best) return null;
+    var cls = best.classList && best.classList[0];
+    return best.tagName.toLowerCase() + (cls ? "." + cls : best.id ? "#" + best.id : "") + " " + Math.round(best.getBoundingClientRect().width / (zoom || 1)) + "px";
+  }
+
+  // Whether the scene's reserved recall answers are what made it shrink: it would fit at zoom 1 without them.
+  function recallSetsZoom(el, inner) {
+    var pending = [].slice.call(inner.querySelectorAll(".dk-rc .a.pending"));
+    if (!pending.length) return false;
+    var z = inner.style.zoom, w = inner.style.width, ds = pending.map(function (a) { return a.style.display; });
+    zoomTo(inner, 1);
+    pending.forEach(function (a) { a.style.display = "none"; });
+    var fits = inner.getBoundingClientRect().height <= el.clientHeight - 8 + 1;
+    pending.forEach(function (a, i) { a.style.display = ds[i]; });
+    inner.style.zoom = z;
+    inner.style.width = w;
+    return fits;
+  }
+
   // Rendered-layout measurements for LTT.auditScene; hidden scenes still lay out, so this runs without showing them.
-  function measure(s, el) {
+  // visualRatio and figRatio are taken with the kit's absorb caps lifted, so absorbing never creates small-visual/loose-figure.
+  function measure(s, el, ctx) {
     var inner = el.firstChild, body = el.querySelector(".dk-body"), stage = area(el.getBoundingClientRect()) || 1;
     var zoom = parseFloat(inner.style.zoom) || 1, ih = inner.getBoundingClientRect().height;
-    var biggest = 0;
-    [].forEach.call(body.querySelectorAll(VISUALS), function (v) { biggest = Math.max(biggest, area(v.getBoundingClientRect()) * zoom * zoom); });
-    // Compare rows read as one figure together, so their visuals count as a sum rather than the largest one.
-    if (sceneMeta(s.type, "sumVisualAreas")) {
-      var sum = 0;
-      [].forEach.call(body.querySelectorAll(".dk-item .vis"), function (v) { sum += area(v.getBoundingClientRect()) * zoom * zoom; });
-      biggest = Math.max(biggest, sum);
-    }
+    var biggest = 0, put = ctx && ctx.ab ? ctx.ab.lift() : function () {};
     var fig = el.querySelector(".dk-fig-stage"), figRatio = null;
-    if (fig && fig.firstElementChild) {
-      var fr = fig.getBoundingClientRect(), cr = fig.firstElementChild.getBoundingClientRect();
-      figRatio = Math.min(1, area(cr) / (area(fr) || 1));
-    }
+    try {
+      [].forEach.call(body.querySelectorAll(VISUALS), function (v) { biggest = Math.max(biggest, area(v.getBoundingClientRect()) * zoom * zoom); });
+      // Compare rows read as one figure together, so their visuals count as a sum rather than the largest one.
+      if (sceneMeta(s.type, "sumVisualAreas")) {
+        var sum = 0;
+        [].forEach.call(body.querySelectorAll(".dk-item .vis"), function (v) { sum += area(v.getBoundingClientRect()) * zoom * zoom; });
+        biggest = Math.max(biggest, sum);
+      }
+      if (fig && fig.firstElementChild) {
+        var fr = fig.getBoundingClientRect(), cr = fig.firstElementChild.getBoundingClientRect();
+        figRatio = Math.min(1, area(cr) / (area(fr) || 1));
+      }
+    } finally { put(); }
     var sizes = {};
     [].forEach.call(body.querySelectorAll("*"), function (n) {
       if (n.closest(MOCKS) || n.closest("svg") || n.closest(".ltt-mk")) return;
       var own = [].some.call(n.childNodes, function (c) { return c.nodeType === 3 && c.nodeValue.trim(); });
       if (own) sizes[Math.round(parseFloat(getComputedStyle(n).fontSize))] = 1;
     });
-    return {
+    var hscroll = Math.max(0, Math.round(Math.max(inner.scrollWidth, body.scrollWidth) - inner.clientWidth - 1));
+    var graphIds = [];
+    [].forEach.call(body.querySelectorAll("svg.ltt-dg"), function (g) {
+      if (g.__lttDiagram) LTT.graphOverlaps(g.__lttDiagram).forEach(function (o) { graphIds.push(o.kind + " " + o.a + "/" + o.b); });
+    });
+    var m = {
       type: s.type || "", layout: s.layout || "", zoom: zoom, compact: innerWidth <= 1000,
       drawing: hasDrawing(body), beats: el.hasAttribute("data-ltt-beats") ? JSON.parse(el.getAttribute("data-ltt-beats")).length : 0,
       still: typeof s.still === "string" && s.still.trim() !== "",
-      hscroll: Math.max(0, Math.round(Math.max(inner.scrollWidth, body.scrollWidth) - inner.clientWidth - 1)),
+      hscroll: hscroll,
       overflow: ih * zoom > el.clientHeight + 2,
       visualRatio: body.querySelector(VISUALS) ? biggest / stage : null,
       figRatio: figRatio, fill: Math.min(1, (ih * zoom) / (el.clientHeight || 1)),
       fontSizes: Object.keys(sizes).length,
       panelOverlap: panelOverlap(body),
-      graphOverlaps: [].reduce.call(body.querySelectorAll("svg.ltt-dg"), function (n, g) { return n + (g.__lttDiagram ? LTT.graphOverlaps(g.__lttDiagram).length : 0); }, 0),
+      graphOverlaps: graphIds.length,
       goals: [].map.call(body.querySelectorAll(".ltt-goal[data-samples]"), function (g) {
         return { hits: +g.dataset.hits, samples: +g.dataset.samples, start: g.dataset.start === "1" };
-      })
+      }),
+      floor: zoom <= 0.781,
+      absorb: ctx && ctx.ab ? ctx.ab.f : 1
     };
+    if (graphIds.length) m.graphIds = graphIds;
+    if (hscroll) { var wide = widestPast(inner, zoom); if (wide) m.wide = wide; }
+    var by = zoom < 1 && ctx ? ctx.zoomBy : null;
+    if (!by && zoom < 1 && s.type === "summary" && recallSetsZoom(el, inner)) by = "회상 답";
+    if (by) m.zoomBy = by;
+    var longest = longestField(s);
+    if (longest) m.longest = longest;
+    return m;
   }
 
   // Scenes mount lazily on first visit; `enter` runs on every visit so motion replays when the viewer comes back.
@@ -1074,6 +1295,7 @@
     function build(i) {
       var s = scenes[i], el = stage.children[i], ctx = { el: el, scene: s, index: i, scenes: scenes, predictRest: spec.predictRest };
       var inner = el.appendChild(h("div", "dk-in"));
+      var gsize = placement.sizeWatch();
       ctx.refit = function () { return fit(el, inner, ctx.zmax); };
       ctx.float = function (panel, host, skip, keepFaded) { return floatPanel(el, inner, panel, host, skip, keepFaded, ctx.zmax); };
       if (sceneMeta(s.type, "head")) {
@@ -1091,6 +1313,7 @@
       var split = !full && (s.layout ? s.layout === "split" : !!sceneMeta(s.type, "autoSplit") && !!(s.narration || s.points));
       var main = inner.appendChild(h("div", "dk-main" + (split ? " split" : full ? " full" : "")));
       var body = main.appendChild(h("div", "dk-body" + (s.bare || full ? " bare" : "")));
+      ctx.ab = absorber(ctx, el, inner, body);
       var rail = split ? main.appendChild(h("aside", "dk-rail")) : full ? inner.appendChild(h("div", "dk-capbar")) : null;
       if (!split && !full && s.narration) inner.insertBefore(h("div", "dk-lead"), main).appendChild(LTT.narration(s.narration));
 
@@ -1123,9 +1346,12 @@
       }
       LTT.linkTerms(el, i);
       ctx.fit = function () {
-        if (LTT.mobile()) { if (ctx.unplace) ctx.unplace(); mobileFit(el, inner); }
+        if (LTT.mobile()) { ctx.ab.off(); gsize.reset(); if (ctx.unplace) ctx.unplace(); mobileFit(el, inner); }
         else if (ctx.place) ctx.place();
-        else fit(el, inner, ctx.zmax);
+        else {
+          if (gsize.changed()) ctx.ab.set(ctx.ab.need()); else ctx.ab.apply();
+          fit(el, inner, ctx.zmax);
+        }
       };
       mounted[i] = { ctx: ctx, fit: ctx.fit, enter: function () {
         if (r && r.enter) r.enter();
@@ -1252,11 +1478,13 @@
     }
     // Mounts every scene and checks the rendered layout; `?audit` in the URL runs it on load.
     function audit() {
-      var found = [];
+      var found = [], measures = [];
       scenes.forEach(function (s, i) {
         if (!mounted[i]) mount(i);
         mounted[i].fit();
-        LTT.auditScene(measure(s, stage.children[i])).forEach(function (w) { found.push({ scene: i + 1, rule: w.rule, msg: w.msg }); });
+        var m = measure(s, stage.children[i], mounted[i].ctx);
+        measures.push({ zoom: m.zoom, absorb: m.absorb, zoomBy: m.zoomBy || null, floor: m.floor });
+        LTT.auditScene(m).forEach(function (w) { found.push({ scene: i + 1, rule: w.rule, msg: w.msg, severity: w.severity }); });
       });
       found.forEach(function (w) { LTT.warn("화면 점검 · 장면 " + w.scene + ": " + w.msg); });
       document.documentElement.setAttribute("data-ltt-audit", found.length);
@@ -1265,7 +1493,7 @@
       if (!out) { out = h("script"); out.id = "ltt-audit"; out.type = "application/json"; document.documentElement.appendChild(out); }
       var fails = [].map.call(document.querySelectorAll("#ltt-expect div.fail"), function (d) { return d.textContent; });
       var beats = scenes.map(function (s, i) { var b = stage.children[i].getAttribute("data-ltt-beats"); return b ? JSON.parse(b) : []; });
-      out.textContent = JSON.stringify({ viewport: [innerWidth, innerHeight], scenes: scenes.length, audit: found, lint: lint, expectFails: fails, beats: beats, types: scenes.map(function (s) { return s.type || ""; }) }).replace(/</g, "\\u003c");
+      out.textContent = JSON.stringify({ viewport: [innerWidth, innerHeight], scenes: scenes.length, audit: found, lint: lint, expectFails: fails, measures: measures, beats: beats, types: scenes.map(function (s) { return s.type || ""; }) }).replace(/</g, "\\u003c");
       LTT.record("layout-audit", { viewport: [innerWidth, innerHeight], found: found });
       return found;
     }

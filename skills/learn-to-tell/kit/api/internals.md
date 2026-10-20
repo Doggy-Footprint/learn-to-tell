@@ -15,7 +15,7 @@ kit 개발자용 · 수업에서 부르지 않는 kit 내부 이름이다. kit �
 | `LTT.stepValues(min, max, step, cap)` | 손잡이가 가질 수 있는 값 목록. 길면 양 끝을 포함해 고르게 `cap`개(기본 201)만. `?audit`의 목표 판정용. |
 | `LTT.goalReach(lists, check, start, limit)` | 손잡이 값 조합마다 `check`를 불러 맞는 자리 수 `{samples, hits, start}`. 조합이 `limit`(기본 20000)를 넘으면 고정 시드로 표본을 뽑는다. |
 | `LTT.setGlossary(defs, first)` | `linkTerms`가 쓸 용어 풀이와 용어별 첫 장면을 정한다. 덱이 시작할 때 부른다. |
-| `LTT.auditScene(m)` | 그려진 장면 하나의 측정값으로 `?audit` 규칙을 판정 → `[{rule, msg}]`. |
+| `LTT.auditScene(m)` | 그려진 장면 하나의 측정값으로 `?audit` 규칙을 판정 → `[{rule, msg, severity}]`. `severity`는 `"fix"`/`"advise"`(`LTT.lintDeck` 경고도 같다). 선택 입력 `zoomBy`·`floor`·`longest`·`wide`·`graphIds`·`absorb`는 아래 "흡수와 측정값"에 있고, 없으면 메시지가 그 정보를 빼고 나온다. |
 | `LTT.mobile()` | `<html data-ltt-mobile>`가 붙어 있는가(폰 재배치 중인가). |
 | `LTT.placement` | `{zoomLock}`. `zoomLock(question, zs)` → 배율. `question`은 질문 상태(정답 숨김)를 상한 1에서 맞춘 배율, `zs`는 선택지별 정답을 흐름 안에 둔 상태를 상한 1에서 맞춘 배율의 배열. `Math.min(question, ...zs)`를 돌려주고 `zs`가 비면 `question`. 잘못된 입력(`question`이나 원소가 number가 아니거나 유한수가 아니거나 0 이하이거나 1 초과, `zs`가 배열이 아님)이면 1. DOM·전역을 읽지 않고 인자를 바꾸지 않는다. predict 배율 잠금이 `ctx.zmax`를 이것으로 정한다. |
 | `LTT.measure(fn)` | `fn`을 측정 모드로 실행한다. 그동안 diagram·sequence·map의 `send` 패킷(단계 반복 포함)은 아무것도 하지 않는다. 덱이 figure 단계·predict 정답을 미리 잴 때 쓴다. |
@@ -77,6 +77,30 @@ render는 `{enter}`(또는 `{}`)를 돌려준다. `enter`는 방문할 때마다
 - predict: 선택지 목록(`잘 모르겠다` 포함), 선택지별 `answerVisual` 그리기, 정답 패널과 host, 공개 상태 여부와 고른 값. 측정은 버튼 표시를 건드리지 않는다.
 - summary recall: 답 요소. 예약은 자리를 남긴 채 숨기고 해제는 보인다.
 - 크기 키는 측정을 시작할 때 기록되므로, 측정이 throw하면 다음 키 변경 때 다시 잰다.
+
+## 흡수와 측정값
+
+데스크톱에서 장면 내용이 무대 높이(`el.clientHeight − 8`)를 넘으면 장면 배율(`fit`)보다 먼저 흡수가 그림 높이를 줄인다.
+
+- 흡수 그림: `.dk-body` 안의 `svg[viewBox]`와 `[data-visual]` 중 아이콘(`.ltt-ic`)·목업·다른 흡수 그림 안이 아닌 것. 비율 `absorb`는 0.65–1이고 모든 흡수 그림에 같은 값이다. 그림마다 자연 높이(걸지 않은 계산 높이) × `absorb`를 inline `max-height`로 걸고, svg·img·canvas는 같은 비율로 `max-width`도 걸어 가로세로 비율을 지킨다. `[data-visual]` 상자는 높이만 건다.
+- 정하는 때: 창 크기 키(창 너비·높이·`document.fonts.status`)가 바뀔 때 한 번. figure `steps`는 모든 단계, predict는 질문과 선택지별 정답을 미리 그려 각 상태가 필요한 값 중 가장 작은 것으로 정한다. 미리 그리기는 상태마다 한 번이라, 상태를 그린 채 비율을 바꿔 가며 잰 높이(비율 1과 0.65)에서 최종 비율의 단계 그림 최대 높이(`pic.style.minHeight`)와 선택지별 배율을 계산한다(높이는 비율에 선형). 공개·초기화·단계 이동은 값을 바꾸지 않고, 새로 그려진 그림에 같은 값만 다시 건다(ADR 40552fcb2a7c3985).
+- 되돌리기: 걸기 전 `style` 속성 문자열을 기억해 두고, 그동안 다른 코드가 속성을 바꾸지 않았으면 그 문자열 그대로, 바꿨으면 `max-height`·`max-width`만 되돌린다. 폰 배치(`LTT.mobile()`)에서는 모두 풀고 걸지 않는다. 계산이 throw하면 그 장면은 `absorb` 1로 두고 `LTT.warn` 한 줄을 남긴다.
+- `LTT.placement`은 `{zoomLock}`만 가진다. 배율을 정한 상태(`zoomBy`)는 `ctx.zoomBy`에 덱이 따로 둔다.
+
+`?audit`의 장면 측정값(`measure`)과 `#ltt-audit` JSON:
+
+| 필드 | 뜻 |
+| --- | --- |
+| `measures` | JSON 최상위. 장면 순서(인덱스 = 장면 번호 − 1)의 `{zoom, absorb, zoomBy, floor}` |
+| `zoom` | 장면 배율 |
+| `absorb` | 그림 높이 비율(0.65–1, 흡수 없으면 1) |
+| `zoomBy` | 배율을 정한 상태: `"질문"`, `"정답 <선택지 글>"`, `"단계 <k>"`(1부터), `"회상 답"`. 장면 자신의 내용이 정했으면 없음(JSON은 `null`) |
+| `floor` | `zoom ≤ 0.781`(78% 하한) |
+| `longest` | `{field, chars}`: 장면 객체 최상위 필드 중 읽는 글(`LTT.sceneText`와 같은 기준)이 가장 긴 것 |
+| `wide` | 가로로 가장 많이 넘친 요소 `태그.첫클래스`(없으면 `태그#id`)와 폭 px. `hscroll`일 때만 |
+| `graphIds` | `["<kind> <a>/<b>", ...]`: `LTT.graphOverlaps`가 돌려준 겹침. 있을 때만 |
+
+`visualRatio`·`figRatio`는 흡수 전 그림 크기로 잰다(측정 중 kit 제한을 잠시 풀었다 되돌린다). `audit[]`·`lint[]` 항목은 `{scene, rule, msg, severity}`다. `audit()` 결과 항목에는 `bytes`(파일 대상일 때)와 `measures`가 더해진다.
 
 ## 측정 모드
 

@@ -612,13 +612,17 @@
     } }
   ];
 
-  // Static checks for self-study readiness; returns [{scene, rule, msg}] (scene is 1-based, 0 for the deck).
+  // Rules whose warning is a suggestion rather than a defect: a deck with only these still counts as clean (audit.mjs exit code 0).
+  var ADVISE = { "shrunk": 1, "small-visual": 1, "loose-figure": 1, "empty-stage": 1, "many-sizes": 1, "goal-narrow": 1, "still-visual": 1, "card-monotony": 1, "no-signature": 1, "unused-term": 1 };
+  function severityOf(rule) { return ADVISE[rule] ? "advise" : "fix"; }
+
+  // Static checks for self-study readiness; returns [{scene, rule, msg, severity}] (scene is 1-based, 0 for the deck).
   function lintDeck(spec) {
     var out = [], glossary = {}, scenes = spec.scenes || [];
     Object.keys(spec.glossary || {}).forEach(function (k) { glossary[k] = spec.glossary[k]; });
     scenes.forEach(function (s) { if (s.type === "terms") (s.terms || []).forEach(function (t) { glossary[t.key] = t.plain; }); });
     var c = { spec: spec, scenes: scenes, glossary: glossary, first: termIndex(spec) };
-    function add(list) { list.forEach(function (w) { out.push({ scene: w[0] + 1, rule: w[1], msg: w[2] }); }); }
+    function add(list) { list.forEach(function (w) { out.push({ scene: w[0] + 1, rule: w[1], msg: w[2], severity: severityOf(w[1]) }); }); }
     scenes.forEach(function (s, i) {
       RULES.forEach(function (r) { if (r.scene) add(r.scene(s, i, c)); });
     });
@@ -634,17 +638,26 @@
   var STILL_TYPES = ["terms", "summary", "keywords", "hook", "map-related"];
   function auditScene(m) {
     var out = [], hero = sceneMeta(m.type, "auditHero") || (m.layout ? m.layout === "full" : !!sceneMeta(m.type, "fullByDefault"));
-    function add(rule, msg) { out.push({ rule: rule, msg: msg }); }
-    if (m.hscroll) add("hscroll", "가로로 넘친다 (폭 " + m.hscroll + "px 초과). 고정 폭을 max-width:100%로 바꿀 것");
+    function add(rule, msg) { out.push({ rule: rule, msg: msg, severity: severityOf(rule) }); }
+    var pct = typeof m.zoom === "number" ? Math.round(m.zoom * 100) : null, atFloor = !!m.floor || (typeof m.zoom === "number" && m.zoom <= 0.781);
+    if (m.hscroll) add("hscroll", "가로로 넘친다 (폭 " + m.hscroll + "px 초과" + (m.wide ? ", 가장 넓은 요소 " + m.wide : "") + "). 고정 폭을 max-width:100%로 바꿀 것");
     if (m.panelOverlap) add("panel-overlap", "자막·정답 패널이 글·그림 " + m.panelOverlap + "곳과 겹친다. 그림을 줄이거나 장면을 나눌 것");
-    if (m.graphOverlaps) add("graph-overlap", "그래프에서 라벨·노드·엣지가 " + m.graphOverlaps + "곳 겹친다. 좌표를 손으로 정했다면 LTT.autoLayout으로 배치할 것");
+    var gids = m.graphIds || [];
+    if (m.graphOverlaps) add("graph-overlap", "그래프에서 라벨·노드·엣지가 " + m.graphOverlaps + "곳 겹친다" +
+      (gids.length ? " (" + gids.slice(0, 3).join(", ") + (Math.max(m.graphOverlaps, gids.length) > 3 ? " 외 " + (Math.max(m.graphOverlaps, gids.length) - 3) + "곳" : "") + ")" : "") + ". 좌표를 손으로 정했다면 LTT.autoLayout으로 배치할 것");
     (m.goals || []).forEach(function (g) {
       if (!g.hits) add("goal-unreachable", "목표를 맞추는 손잡이 위치가 없다 (표본 " + g.samples + "개 중 0개). 기준이나 손잡이 범위를 고칠 것");
       else if (g.hits < 2) add("goal-narrow", "목표가 손잡이 한 자리에서만 맞는다. 기준에 여유를 두어 두 자리 이상에서 맞게 할 것");
       if (g.start) add("goal-at-start", "시작 위치에서 이미 목표가 맞는다. 시작값을 목표 밖으로 옮길 것");
     });
-    if (m.overflow) add("overflow", "한 화면에 안 들어간다 (78%로 줄여도 넘친다). 해설·캡션을 줄이거나 장면을 나눌 것");
-    else if (!m.compact && m.zoom < 0.88) add("shrunk", "화면에 맞추느라 " + Math.round(m.zoom * 100) + "%로 줄었다. 글을 줄이거나 장면을 나눌 것");
+    if (m.overflow) {
+      var why = pct == null || atFloor ? "78% 하한까지 줄여도 넘친다" :
+        pct + "%까지 줄였는데도 넘친다" + (m.zoomBy ? " (" + m.zoomBy + "에 맞춘 배율이라 더 줄이지 못했다)" : "");
+      add("overflow", "한 화면에 안 들어간다 (" + why + "). 해설·캡션을 줄이거나 장면을 나눌 것");
+    } else if (!m.compact && m.zoom < 0.88) {
+      var cause = (m.zoomBy ? " — " + m.zoomBy + "에 맞춘 배율" : "") + (m.longest ? ", 가장 긴 글 " + m.longest.field + " " + m.longest.chars + "자" : "") + (atFloor ? " (78% 하한)" : "");
+      add("shrunk", "화면에 맞추느라 " + pct + "%로 줄었다" + cause + ". 글을 줄이거나 장면을 나눌 것");
+    }
     if (!m.compact && sceneMeta(m.type, "auditSmallVisual") && m.visualRatio != null && m.visualRatio < (hero ? 0.22 : 0.1))
       add("small-visual", "가장 큰 그림이 화면의 " + Math.round(m.visualRatio * 100) + "%뿐이다. 그림을 키우거나 layout: \"full\"");
     if (!m.compact && sceneMeta(m.type, "auditLooseFigure") && m.figRatio != null && m.figRatio < 0.35)
