@@ -562,6 +562,20 @@
       var filler = FILLER.exec(stripMarks(sceneText(s)));
       return filler ? [[i, "filler-content", "채움 글 '" + filler[0] + "' (실제 사례·값으로 바꿀 것)"]] : [];
     } },
+    { id: "icon-not-string", scene: function (s, i) {
+      var out = [];
+      function check(v, path) {
+        if (v && typeof v !== "string") out.push([i, "icon-not-string", path + "에 문자열이 아닌 값(" + (Array.isArray(v) ? "array" : typeof v) + ")이 있다 (아이콘 이름이나 HTML 문자열만)"]);
+      }
+      function each(list, name) {
+        if (!Array.isArray(list)) return;
+        list.forEach(function (e, k) { if (e && typeof e === "object") check(e.icon, name + "[" + k + "].icon"); });
+      }
+      if (s.type === "hook") check(s.art, "art");
+      else if (s.type === "explain") each(s.steps, "steps");
+      else if (s.type === "terms") each(s.terms, "terms");
+      return out;
+    } },
     { id: "card-monotony", deck: function (c) {
       var out = [], run = 0, cards = 0, body = 0;
       c.scenes.forEach(function (s, i) {

@@ -373,7 +373,7 @@ test("VO-4 themes: every LTT.themes name is a first-cell code span", () => {
   assert.deepEqual(missing, [], `theme rows missing: ${missing.join(", ")}`);
 });
 
-const LINT_IDS = ["unknown-term", "used-before-defined", "predict-new-term", "no-reading-guide", "no-title", "overview-missing", "overview-order", "overview-no-visual", "keywords-last", "unused-term", "term-no-visual", "summary-no-recall", "card-monotony", "no-signature", "no-theme", "unknown-theme", "filler-content"];
+const LINT_IDS = ["unknown-term", "used-before-defined", "predict-new-term", "no-reading-guide", "no-title", "overview-missing", "overview-order", "overview-no-visual", "keywords-last", "unused-term", "term-no-visual", "summary-no-recall", "card-monotony", "no-signature", "no-theme", "unknown-theme", "filler-content", "icon-not-string"];
 const AUDIT_IDS = ["overflow", "shrunk", "small-visual", "loose-figure", "empty-stage", "many-sizes", "hscroll", "graph-overlap", "panel-overlap", "goal-unreachable", "goal-narrow", "goal-at-start", "still-visual"];
 
 for (const [label, ids] of [["lint", LINT_IDS], ["audit", AUDIT_IDS]]) {
@@ -985,3 +985,23 @@ for (const id of ["motion-draw", "motion-flow", "motion-camera", "motion-morph",
     assert.equal(n, 1, `${id} defined ${n} times`);
   });
 }
+
+// ---------- spec 84c07bf1dc6566cb v1 VO-6 (FR-8, FR-9, QR-4): icon-not-string documentation ----------
+
+test("84c0 VO-6 D-1: kit/api/rules.md has exactly one icon-not-string row graded 고침 whose meaning names art and icon", () => {
+  const rows = rowsWithFirstSpan(rulesText(), (s) => s === "icon-not-string");
+  assert.equal(rows.length, 1, "expected exactly one rules.md row with `icon-not-string` in the first cell");
+  const c = cells(rows[0]);
+  assert.equal((c[1] ?? "").trim(), "고침");
+  const meaning = c.slice(2).join(" | ");
+  assert.ok(meaning.includes("art") && meaning.includes("icon"), `meaning lacks art/icon: ${meaning}`);
+});
+
+test("84c0 VO-6 D-2: kit/CHANGELOG.md ## 1.0.0 section has a line naming icon-not-string", () => {
+  const s = section(readReal(join(KIT, "CHANGELOG.md"), "kit/CHANGELOG.md"), "1\\.0\\.0");
+  assert.ok(lines(s).some((l) => l.includes("icon-not-string")), "no icon-not-string line under ## 1.0.0");
+});
+
+test("84c0 VO-6 D-3: LINT_IDS lists icon-not-string", () => {
+  assert.ok(LINT_IDS.includes("icon-not-string"));
+});

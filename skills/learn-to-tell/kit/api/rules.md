@@ -18,6 +18,7 @@ lint는 장면 데이터만 본다(`LTT.lintDeck`). audit은 URL에 `?audit`을 
 | `summary-no-recall` | 고침 | summary가 모으는 takeaway에 `recall`이 없다 |
 | `no-theme`, `unknown-theme` | 고침 | `theme`이 없거나 없는 이름이다 |
 | `filler-content` | 고침 | "항목 1", "샘플 텍스트", lorem, TODO 같은 채움 글 |
+| `icon-not-string` | 고침 | hook `art`, explain `steps[].icon`, terms 항목 `icon`에 문자열이 아닌 값이 있다. 아이콘 이름이나 HTML 문자열만 쓴다(함수·객체·숫자는 글자로 찍힌다) |
 | `unused-term` | 권고 | glossary 용어를 어디에도 표시하지 않았다 |
 | `card-monotony` | 권고 | 카드 격자 장면(explain `cards`, compare, terms, `recall` 없는 summary)이 3장 연속이거나, hook·keywords를 뺀 장면의 절반 초과 |
 | `no-signature` | 권고 | 그림이 주인공인 장면(`figure`, `contrast`, `layout: "full"`, 타입 없는 `mount`)이 없다 |

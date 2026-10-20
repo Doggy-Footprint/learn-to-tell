@@ -51,3 +51,7 @@ none — workflow-approach run 없음(착수 전).
 ## Execution Ledger
 
 없음 — 착수 전.
+
+## 완료 (2026-10-20)
+
+workflow-approach run `84c07bf1dc6566cb` complete(`agent-docs/spec-logs/84c07bf1dc6566cb-lint-icon-not-string.md`): lint `icon-not-string`(고침)이 hook `art`, explain `steps[].icon`, terms `icon`의 문자열이 아닌 truthy 값을 잡는다. 사용자 결정으로 그룹 B(부품 인자)와 kit 렌더 변경은 범위 밖. 버전 1.0.0은 별도 커밋 `77c3ece`.

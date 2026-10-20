@@ -13,6 +13,7 @@
 - 장면 공통 필드 `still`과 audit 권고 `still-visual`이 생겼다.
 - predict `question`이 제목과 다르면 선택지 위에 보이고, 공통 `takeaway`는 정답 공개 전에는 가려진다.
 - `LTT.expect`는 기대값이 숫자가 아니면(boolean·문자열) `===`로 판정한다.
+- lint `icon-not-string`(고침): hook `art`, explain `steps[].icon`, terms 항목 `icon`이 문자열이 아니면(falsy 제외) 경고한다.
 
 kit 개발자용
 - 장면 요소 `data-ltt-beats`와 audit JSON `beats`가 장면마다 비트 시각을 내보낸다.

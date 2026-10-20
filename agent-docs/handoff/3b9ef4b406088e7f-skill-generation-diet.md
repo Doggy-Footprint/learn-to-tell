@@ -62,7 +62,7 @@
 - 2026-10-20 아홉 번째 세션(브랜치 `perform/diet`, 기준 `0fb63ae`): 마무리 측정 후보 둘을 처리했다.
   - SKILL.md 8단계(사용자 결정 A안, 총 5회): 7단계는 "Edit 뒤에는 늘 audit을 돌리되 최대 5회, 5회째 뒤 남은 지적은 고치지 않고 `result.md`에", 8단계는 "고친 뒤 7단계로, 다시 보기는 한 번까지"로 바꿨다. SKILL.md 9,497자(상한 9,500). README·PROJECT.md 검증 문구도 맞췄다.
   - 테스트(엄밀한 검증 없이, 사용자 지시): `tests/api-docs.test.mjs` "SKILL §3 audit loop" 3개. 문구 검사, §3에서 읽은 상한으로 매번 고칠 것을 찾는 agent를 흉내 내 끝남·audit ≤ 5·마지막이 audit임을 확인, 흉내기 자체 검사. 손 변이 4개(5→3회, 다시 보기 한도 삭제, "고치지 않고" 삭제, "늘 audit" 삭제) 모두 잡힘.
-  - lint `art` 후보는 handoff `d422e4de167b576d`로 넘겼다.
+  - lint `art` 후보는 handoff `d422e4de167b576d`로 넘겼고, 같은 날 run `84c07bf1dc6566cb`(complete)로 `icon-not-string` 규칙을 넣었다. 버전 1.0.0(`77c3ece`).
 
 ## Failed Attempts
 
