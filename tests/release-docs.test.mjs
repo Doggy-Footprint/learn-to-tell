@@ -199,12 +199,12 @@ for (const token of ["RULES", "scene", "deck", "등록 순서"]) {
 
 const json = (path, what) => JSON.parse(readReal(path, what));
 
-test("VO-11 C-16: .claude-plugin/plugin.json version is 0.2.0", () => {
-  assert.equal(json(PLUGIN, ".claude-plugin/plugin.json").version, "0.2.0");
+test("VO-11 C-16: .claude-plugin/plugin.json version is 1.0.0", () => {
+  assert.equal(json(PLUGIN, ".claude-plugin/plugin.json").version, "1.0.0");
 });
 
-test("VO-11 C-16: packages/ltt-kit/package.json version is 0.2.0", () => {
-  assert.equal(json(PKG, "packages/ltt-kit/package.json").version, "0.2.0");
+test("VO-11 C-16: packages/ltt-kit/package.json version is 1.0.0", () => {
+  assert.equal(json(PKG, "packages/ltt-kit/package.json").version, "1.0.0");
 });
 
 test("VO-11 C-16: the two manifest versions are equal", () => {
@@ -248,14 +248,14 @@ test("VO-11 C-16 CHANGELOG 0.2.0 item: 빈자리", () => {
   assert.ok(section.includes("빈자리"), "## 0.2.0 lacks 빈자리");
 });
 
-test("VO-11 C-16 FR-10: node scripts/build.mjs version exits 0 and prints 0.2.0", () => {
+test("VO-11 C-16 FR-10: node scripts/build.mjs version exits 0 and prints 1.0.0", () => {
   let out;
   try {
     out = execFileSync(process.execPath, [join(ROOT, "scripts/build.mjs"), "version"], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   } catch (e) {
     assert.fail(`build.mjs version exited ${e.status ?? e.code}: ${e.stderr ?? e.message}`);
   }
-  assert.equal(out.trim(), "0.2.0");
+  assert.equal(out.trim(), "1.0.0");
 });
 
 test("VO-11 C-16 CHANGELOG 0.2.0 item: one line names the lint 레지스트리", () => {
