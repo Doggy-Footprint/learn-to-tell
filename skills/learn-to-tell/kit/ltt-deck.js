@@ -275,20 +275,6 @@
     return v || "";
   }
 
-  function showTake(ctx, on) {
-    if (!ctx.take) return;
-    // Reduced motion gives every property a 1ms transition (ltt.css); a visibility change would then wait for a frame
-    // that headless virtual time never draws, leaving the takeaway hidden after the reveal.
-    ctx.take.style.setProperty("transition-duration", "0s", "important");
-    ctx.take.style.visibility = on ? "" : "hidden";
-    if (on) ctx.take.removeAttribute("aria-hidden"); else ctx.take.setAttribute("aria-hidden", "true");
-  }
-
-  function plainCaption(html) {
-    var d = h("div", null, String(html || "").replace(/\{\{([^}|]+)(\|[^}]*)?\}\}/g, "$1"));
-    return d.textContent.replace(/\s+/g, " ").trim();
-  }
-
   function rise(nodes) {
     [].forEach.call(nodes, function (n, i) {
       n.classList.remove("ltt-rise");
@@ -580,7 +566,7 @@
           draw: function (k) { var x = s.steps[k]; if (x.enter) x.enter(k, api, 1); },
           current: function () { return sp.index; } });
         sp = LTT.stepper(ctl, s.steps.map(function (x) {
-          return { caption: x.caption, hold: x.hold, enter: function (k, dir) { if (x.enter) x.enter(k, api, dir); } };
+          return { caption: x.caption, enter: function (k, dir) { if (x.enter) x.enter(k, api, dir); } };
         }), { onStep: fp.stepped });
         // Every caption sits in one grid cell beneath the shown one, so the column is as tall as the longest caption.
         var capEl = ctl.querySelector(".ltt-caption"), capStack = h("div", "dk-capstack");
@@ -591,23 +577,6 @@
           g.setAttribute("aria-hidden", "true");
         });
         ctl.__lttPlace = { scope: pic, keepFaded: true };
-        var auto = s.autoplay == null ? true : s.autoplay;
-        if (auto !== false && s.steps.length > 1) {
-          var at = 0;
-          LTT.motion._deck.beats(s.steps.map(function (x) {
-            var hd = x.hold || 1800, b = { t: at + Math.round(0.8 * hd) }, tx = plainCaption(x.caption);
-            if (tx) b.text = tx;
-            at += hd;
-            return b;
-          }));
-          LTT.motion.bind({
-            enter: function () {
-              if (sp.index !== 0) sp.go(0, 1);
-              if (!LTT.motion.reduced()) sp.play(auto === "once");
-            },
-            leave: sp.stop
-          });
-        }
         ctx.place = fp.place;
         ctx.unplace = fp.unplace;
       } else fill(st, s.figure, ctx);
@@ -639,8 +608,6 @@
     contrast: function (s, body, ctx) {
       var ba = LTT.beforeAfter({ before: s.before, after: s.after }, ctx);
       body.appendChild(ba.el);
-      // Replay ends when the last side has risen (ltt-rise .55s, 90ms apart) and the last marker has popped.
-      LTT.motion._deck.beats([{ t: Math.max((ba.el.children.length - 1) * 90 + 550, ba.ms) }]);
       return { enter: function () { rise(ba.el.children); ba.replay(); } };
     },
     // A low-stakes guess, not a quiz: "모르겠다" is always offered and the answer arrives as an infographic.
@@ -664,10 +631,7 @@
       why.appendChild(h("div", "dk-actions")).appendChild(rs);
       ans.append(av, why);
       if (s.visual) fill(w.appendChild(h("div", "dk-pvis")), s.visual, ctx);
-      var ask = s.question && s.question !== s.title ? s.question : null;
-      // Without an author hint the question takes the default hint's row, so showing it adds no line (zoom stays as before).
-      if (ask && s.hint) w.appendChild(h("p", "dk-sub dk-pq", ask));
-      w.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || ask || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, h("div", "dk-actions"), ans);
+      w.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, h("div", "dk-actions"), ans);
       w.querySelector(".dk-actions").appendChild(lock);
       // Only hidden choices free their space; dim and dot choices are meant to stay visible, so the answer avoids them.
       var faded = rest === "hide" ? ".ltt-choices button:not(.right):not([aria-pressed=true])" : null;
@@ -689,7 +653,6 @@
       var pr = LTT.predict({ question: s.question || s.title, choices: box, button: lock, answer: s.answer, show: [ans],
         onReset: function () {
           w.classList.remove("done");
-          showTake(ctx, false);
           ctx.gate = gate;
           ctx.back = null;
           av.replaceChildren();
@@ -703,7 +666,6 @@
           why.tabIndex = -1;
           why.focus({ preventScroll: true });
           chosen = v;
-          showTake(ctx, true);
           draw(v);
           LTT.linkTerms(ans, ctx.index);
           if (s.reveal) s.reveal(v);
@@ -978,15 +940,6 @@
   var MOCKS = ".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code";
   var VISUALS = "svg.ltt-svg,svg.ltt-dg,.ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code,canvas,img,.ltt-ba,.dk-fig-stage>*,[data-visual]";
 
-  // A mock is text to read, so a scene counts as drawn only through something outside every mock.
-  function hasDrawing(body) {
-    return [].some.call(body.querySelectorAll(VISUALS), function (v) {
-      if (v.closest(MOCKS)) return false;
-      if (!v.querySelector(MOCKS)) return true;
-      return [].some.call(v.querySelectorAll("svg.ltt-svg,svg.ltt-dg,canvas,img,.ltt-ba"), function (d) { return !d.closest(MOCKS); });
-    });
-  }
-
   function area(r) { return Math.max(0, r.width) * Math.max(0, r.height); }
 
   // Rendered-layout measurements for LTT.auditScene; hidden scenes still lay out, so this runs without showing them.
@@ -1014,8 +967,6 @@
     });
     return {
       type: s.type || "", layout: s.layout || "", zoom: zoom, compact: innerWidth <= 1000,
-      drawing: hasDrawing(body), beats: el.hasAttribute("data-ltt-beats") ? JSON.parse(el.getAttribute("data-ltt-beats")).length : 0,
-      still: typeof s.still === "string" && s.still.trim() !== "",
       hscroll: Math.max(0, Math.round(Math.max(inner.scrollWidth, body.scrollWidth) - inner.clientWidth - 1)),
       overflow: ih * zoom > el.clientHeight + 2,
       visualRatio: body.querySelector(VISUALS) ? biggest / stage : null,
@@ -1068,10 +1019,6 @@
     });
 
     function mount(i) {
-      LTT.motion._deck.begin(i, stage.children[i]);
-      try { build(i); } finally { LTT.motion._deck.end(); }
-    }
-    function build(i) {
       var s = scenes[i], el = stage.children[i], ctx = { el: el, scene: s, index: i, scenes: scenes, predictRest: spec.predictRest };
       var inner = el.appendChild(h("div", "dk-in"));
       ctx.refit = function () { return fit(el, inner, ctx.zmax); };
@@ -1116,11 +1063,7 @@
         LTT.math(m);
       }
       if (s.basis) (rail || inner).appendChild(h("p", "ltt-basis", s.basis));
-      if (s.takeaway) {
-        ctx.take = inner.appendChild(LTT.takeaway(s.takeaway, s.sources));
-        // The predict answer stays unsaid until the reveal; the takeaway keeps its space so revealing does not rescale.
-        if (s.type === "predict") showTake(ctx, false);
-      }
+      if (s.takeaway) inner.appendChild(LTT.takeaway(s.takeaway, s.sources));
       LTT.linkTerms(el, i);
       ctx.fit = function () {
         if (LTT.mobile()) { if (ctx.unplace) ctx.unplace(); mobileFit(el, inner); }
@@ -1141,7 +1084,6 @@
       clearNudge();
       if (cur >= 0) {
         if (mounted[cur] && mounted[cur].leave) mounted[cur].leave();
-        LTT.motion._deck.leave(cur);
         stage.children[cur].classList.remove("cur");
         stage.children[cur].classList.toggle("prev", i > cur);
       }
@@ -1157,7 +1099,6 @@
       next.disabled = i === scenes.length - 1;
       try { history.replaceState(null, "", "#" + (i + 1)); } catch (e) { /* file:// or sandboxed */ }
       LTT.record("scene", { index: i, title: scenes[i].title || scenes[i].type });
-      LTT.motion._deck.enter(i);
       mounted[i].enter();
       mounted[i].fit();
     }
@@ -1264,8 +1205,7 @@
       var out = document.getElementById("ltt-audit");
       if (!out) { out = h("script"); out.id = "ltt-audit"; out.type = "application/json"; document.documentElement.appendChild(out); }
       var fails = [].map.call(document.querySelectorAll("#ltt-expect div.fail"), function (d) { return d.textContent; });
-      var beats = scenes.map(function (s, i) { var b = stage.children[i].getAttribute("data-ltt-beats"); return b ? JSON.parse(b) : []; });
-      out.textContent = JSON.stringify({ viewport: [innerWidth, innerHeight], scenes: scenes.length, audit: found, lint: lint, expectFails: fails, beats: beats, types: scenes.map(function (s) { return s.type || ""; }) }).replace(/</g, "\\u003c");
+      out.textContent = JSON.stringify({ viewport: [innerWidth, innerHeight], scenes: scenes.length, audit: found, lint: lint, expectFails: fails }).replace(/</g, "\\u003c");
       LTT.record("layout-audit", { viewport: [innerWidth, innerHeight], found: found });
       return found;
     }
