@@ -587,6 +587,8 @@
         cap.lastChild.innerHTML = s.caption;
       }
       body.appendChild(f);
+      // A finished figure never sits frozen: step figures replay from the first step for as long as the scene is shown.
+      if (sp && LTT.MOTION_MS) return { enter: function () { sp.go(0, 1); sp.play(); } };
       return {};
     },
     // Shown after the recall list, never before it: a finished map seen first would replace the attempt to recall.

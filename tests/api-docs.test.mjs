@@ -517,7 +517,7 @@ test("VO-6 FR-7 no-internals: SKILL.md never mentions internals.md", () => {
   assert.equal(skillText().includes("internals.md"), false, "FR-7: SKILL.md mentions internals.md");
 });
 
-const COST_TOKENS = ["lesson.html", "바이트", "장면 수", "결정 변수 수", "검토 서브에이전트", "audit", "남은 권고", "시작", "공개", "토큰"];
+const COST_TOKENS = ["lesson.html", "바이트", "장면 수", "결정 변수 수", "자체 검토", "audit", "남은 권고", "시작", "공개", "토큰"];
 const isCostLine = (l) => l.trimStart().startsWith("- 생성 비용:");
 
 function costTemplate() {
@@ -545,8 +545,8 @@ for (const [id, tokens] of [["FR-9 §5 once line", ["생성 비용", "한 번"]]
   });
 }
 
-test("VO-6 FR-10 standalone line: 생성 비용, 해당 없음, 서브에이전트, 브라우저 on one line", () => {
-  const err = tokenLineError(readReal(join(SKILL, "standalone.md"), "standalone.md"), "FR-10 standalone line", ["생성 비용", "해당 없음", "서브에이전트", "브라우저"]);
+test("VO-6 FR-10 standalone line: 생성 비용, 해당 없음, 브라우저 on one line", () => {
+  const err = tokenLineError(readReal(join(SKILL, "standalone.md"), "standalone.md"), "FR-10 standalone line", ["생성 비용", "해당 없음", "브라우저"]);
   assert.equal(err, null, err);
 });
 

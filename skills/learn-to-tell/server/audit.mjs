@@ -1,9 +1,9 @@
 import { spawn } from "node:child_process";
 import { existsSync, readdirSync, realpathSync, statSync } from "node:fs";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createLttServer, lttHome } from "./server.mjs";
 
 const SKILL_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -28,6 +28,7 @@ const USAGE = `사용법: node audit.mjs <대상>... [옵션]
 옵션:
   --size WxH      측정 크기(반복 가능, 기본 ${DEFAULT_SIZES.join(" ")})
   --shots <dir>   장면마다 스크린샷 PNG를 <dir>에 남긴다
+  --no-sheet      수업 폴더에 contact-sheet.png(첫 크기, 모든 장면 한 장)를 만들지 않는다
   --json          결과를 JSON으로 출력
   --chrome <경로>  Chrome 실행 파일(기본: LTT_CHROME, 설치 경로, PATH)
   --budget <ms>   가상 시간 예산(기본 ${DEFAULT_BUDGET})
@@ -73,7 +74,7 @@ function resolveTarget(target, { home, galleryDir }) {
   const lessons = realpathIfExists(join(home, "lessons"));
   const gallery = realpathIfExists(galleryDir);
   let rel;
-  if (lessons && (rel = under(lessons, file))) return { label: `lessons/${rel}`, path: `/lessons/${rel}` };
+  if (lessons && (rel = under(lessons, file))) return { label: `lessons/${rel}`, path: `/lessons/${rel}`, file };
   if (gallery && (rel = under(gallery, file))) return { label: rel, path: `/gallery/${rel}` };
   throw new Error(`${target}: ${join(home, "lessons")} 또는 ${galleryDir} 아래 파일만 열 수 있다. 수업 폴더에 두거나 URL을 넘긴다.`);
 }
@@ -143,6 +144,26 @@ async function takeShots(chrome, profile, run, scenes, budget, dir) {
   return files;
 }
 
+const SHEET_COLS = 3;
+const SHEET_THUMB = 480;
+
+// Chrome renders a local grid page of the scene shots and screenshots it, so the sheet needs no image library.
+async function makeSheet(chrome, profile, files, size, dir, out) {
+  const [w, h] = size.split("x").map(Number);
+  const th = Math.round(SHEET_THUMB * h / w), rows = Math.ceil(files.length / SHEET_COLS);
+  const cells = [];
+  for (let i = 0; i < files.length; i++) {
+    const name = `s${i + 1}.png`;
+    await copyFile(files[i], join(dir, name));
+    cells.push(`<figure><img src="${name}"><figcaption>${i + 1}</figcaption></figure>`);
+  }
+  const page = join(dir, "sheet.html");
+  await writeFile(page, `<!doctype html><meta charset="utf-8"><style>body{margin:0;padding:8px;background:#222;display:grid;grid-template-columns:repeat(${SHEET_COLS},${SHEET_THUMB}px);gap:8px}figure{margin:0;position:relative}img{width:${SHEET_THUMB}px;height:${th}px;display:block;background:#fff}figcaption{position:absolute;left:0;top:0;background:#000;color:#fff;font:bold 16px sans-serif;padding:2px 8px}</style>${cells.join("")}`);
+  const sheetW = 16 + SHEET_COLS * SHEET_THUMB + (SHEET_COLS - 1) * 8, sheetH = 16 + rows * th + (rows - 1) * 8;
+  const { error } = await runChrome(chrome, chromeArgs(profile, `${sheetW}x${sheetH + 200}`, "--allow-file-access-from-files", `--screenshot=${out}`, pathToFileURL(page).href));
+  return error ? null : out;
+}
+
 async function pool(items, size, fn) {
   const results = new Array(items.length);
   let next = 0;
@@ -155,7 +176,7 @@ async function pool(items, size, fn) {
   return results;
 }
 
-export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrome(), budget = DEFAULT_BUDGET, jobs = DEFAULT_JOBS, home = lttHome(), galleryDir = GALLERY_DIR, shots = null }) {
+export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrome(), budget = DEFAULT_BUDGET, jobs = DEFAULT_JOBS, home = lttHome(), galleryDir = GALLERY_DIR, shots = null, sheet = false }) {
   if (!chrome) throw new Error(NO_CHROME);
   const resolved = targets.map((t) => resolveTarget(t, { home, galleryDir }));
   const server = resolved.some((t) => t.path) ? createLttServer({ home, galleryDir }) : null;
@@ -168,11 +189,17 @@ export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrom
     }
     if (shots) await mkdir(shots, { recursive: true });
     const runs = [];
-    for (const t of resolved) for (const size of sizes) runs.push({ target: t.label, url: t.url || base + t.path, size });
+    for (const t of resolved) for (const size of sizes) runs.push({ target: t.label, url: t.url || base + t.path, size, sheetDir: sheet && t.file && size === sizes[0] ? dirname(t.file) : null });
     return await pool(runs, Math.max(1, jobs), async (run, i) => {
       const profile = join(tmp, `p${i}`);
       const r = await runOne(chrome, profile, run, budget);
       if (shots && r.scenes) r.shots = await takeShots(chrome, profile, run, r.scenes, budget, shots);
+      if (run.sheetDir && r.scenes) {
+        const dir = join(tmp, `sheet${i}`);
+        await mkdir(dir, { recursive: true });
+        const files = r.shots || await takeShots(chrome, profile, run, r.scenes, budget, dir);
+        r.sheet = await makeSheet(chrome, profile, files, run.size, dir, join(run.sheetDir, "contact-sheet.png"));
+      }
       return r;
     });
   } finally {
@@ -200,6 +227,7 @@ export function formatReport(results) {
     r.audit.forEach((w) => lines.push(`    장면 ${w.scene} [${w.rule}]: ${w.msg}`));
     r.lint.forEach((w) => lines.push(`    lint${w.scene ? ` 장면 ${w.scene}` : ""}: ${w.msg}`));
     r.expectFails.forEach((t) => lines.push(`    ${t}`));
+    if (r.sheet) lines.push(`    contact sheet: ${r.sheet}`);
   }
   // Headless `--window-size` is the outer window, so the page sees a shorter viewport; the summary shows what was actually measured.
   lines.push(Object.keys(totals).map((s) => `${s} (화면 ${totals[s].viewport.join("×")}): audit ${totals[s].n}건`).join(" · ") || "측정된 결과 없음");
@@ -212,7 +240,7 @@ export function exitCode(results) {
 }
 
 function parseArgs(argv) {
-  const opts = { targets: [], sizes: [], json: false, gallery: false, shots: null, chrome: undefined, budget: DEFAULT_BUDGET, jobs: DEFAULT_JOBS, home: undefined, help: false };
+  const opts = { targets: [], sizes: [], json: false, gallery: false, shots: null, sheet: true, chrome: undefined, budget: DEFAULT_BUDGET, jobs: DEFAULT_JOBS, home: undefined, help: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => {
@@ -221,6 +249,7 @@ function parseArgs(argv) {
     };
     if (a === "--size") opts.sizes.push(next());
     else if (a === "--shots") opts.shots = next();
+    else if (a === "--no-sheet") opts.sheet = false;
     else if (a === "--json") opts.json = true;
     else if (a === "--gallery") opts.gallery = true;
     else if (a === "--chrome") opts.chrome = next();
@@ -262,6 +291,7 @@ async function main() {
       jobs: opts.jobs,
       home: opts.home ? resolve(opts.home) : lttHome(),
       shots: opts.shots ? resolve(opts.shots) : null,
+      sheet: opts.sheet,
     });
   } catch (err) {
     console.error(err.message);

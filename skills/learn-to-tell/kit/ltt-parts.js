@@ -615,7 +615,7 @@
     function hold(k) { return steps[k].hold || opts.interval || 1800; }
     function tick() {
       timer = setTimeout(function () {
-        if (!container.isConnected) return stop();
+        if (!container.isConnected || !container.getClientRects().length) return stop();
         go(i === steps.length - 1 ? 0 : i + 1, 1);
         tick();
       }, hold(i));
