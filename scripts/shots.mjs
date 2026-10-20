@@ -91,6 +91,21 @@ function framed(n, f, fw, fh) {
   return `<div style="width:${fw}px;height:${fh}px;overflow:hidden;border-radius:4px;position:relative"><img src="${pathToFileURL(f)}" style="position:absolute;left:${-x * k}px;top:${-y * k}px;width:${1280 * k}px;height:${800 * k}px"></div>`;
 }
 
+// A `failure` in the beats file is a frame from a generated lesson that broke this card's principle; the card shows it
+// under the beats as a contrast pair, since a bad screen alone invites copying it.
+const FAIL_W = 560;
+const failH = (n) => { const f = beatsOf(n).failure; return f ? Math.round(FAIL_W * f.crop[3] / f.crop[2]) + 24 : 0; };
+
+function failureHtml(n) {
+  const f = beatsOf(n).failure;
+  if (!f) return "";
+  const [x, y, cw, ch] = f.crop, k = FAIL_W / cw, src = pathToFileURL(join(SHOTS, f.file));
+  return `<div style="display:flex;gap:16px;align-items:flex-start;margin-top:14px;padding-top:12px;border-top:1px solid #34363b">` +
+    `<div style="width:${FAIL_W}px;height:${Math.round(ch * k)}px;overflow:hidden;border-radius:4px;position:relative;flex:none;outline:2px solid #e0705f">` +
+    `<img src="${src}" style="position:absolute;left:${-x * k}px;top:${-y * k}px;width:${f.size[0] * k}px;height:${f.size[1] * k}px"></div>` +
+    `<div style="font-size:15px;line-height:1.55"><b style="color:#f08a78">흔한 실패</b> ${esc(f.text)}<br><b style="color:#9fb6ff">위 프레임</b> ${esc(f.fix)}</div></div>`;
+}
+
 function cardHtml(n, frames, beats) {
   const a = axes[n], b = beatsOf(n), gap = 10, fw = frameW(frames.length), fh = frameH(n, frames.length);
   const cols = frames.map((f, i) => `<figure style="margin:0;width:${fw}px">${framed(n, f, fw, fh)}` +
@@ -101,6 +116,7 @@ function cardHtml(n, frames, beats) {
 <span style="color:#a9aaa6">${esc([a.structure, a.motion, a.role, a.composition, a.theme].join(" · "))}</span></div>
 <div style="display:flex;gap:${gap}px;align-items:flex-start">${cols}</div>
 <div style="margin-top:12px;font-size:15px"><b style="color:#9fb6ff">옮길 원리</b> ${esc(b.principle)}</div>
+${failureHtml(n)}
 </div></body>`;
 }
 
@@ -116,7 +132,7 @@ async function cards(ids, base, tmp) {
     }
     const html = join(tmp, `card-${n}.html`);
     writeFileSync(html, cardHtml(n, frames, beats));
-    const h = frameH(n, frames.length) + 150;
+    const h = frameH(n, frames.length) + 150 + failH(n);
     const png = join(tmp, `card-${n}.png`);
     if (!(await shoot(pathToFileURL(html).href, png, `${W},${h}`, 500))) throw new Error(`s${n}: card failed`);
     rmSync(join(OUT, `s${n}.jpg`), { force: true });
@@ -144,7 +160,7 @@ async function board(base, tmp) {
   if (!(await toJpeg(png, join(LOOK, "board.jpg")))) writeFileSync(join(LOOK, "board.png"), readFileSync(png));
 
   const table = ["| shot | 개념 구조 | 움직임 | 장면 역할 | 구도 | 옮길 원리 |", "| --- | --- | --- | --- | --- | --- |",
-    ...ids.map((n) => { const a = axes[n]; return `| s${n} | ${a.structure} | ${a.motion} | ${a.role} | ${a.composition} | ${beatsOf(n).principle} |`; })].join("\n");
+    ...ids.map((n) => { const a = axes[n], b = beatsOf(n); return `| s${n} | ${a.structure} | ${a.motion} | ${a.role} | ${a.composition} | ${b.principle}${b.failure ? " (실패 짝)" : ""} |`; })].join("\n");
   const look = join(LOOK, "look.md"), text = readFileSync(look, "utf8");
   const start = "<!-- shots:start -->", end = "<!-- shots:end -->";
   if (!text.includes(start) || !text.includes(end)) throw new Error(`look.md에 ${start} … ${end} 자리가 없다`);
