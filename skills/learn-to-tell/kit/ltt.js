@@ -1,4 +1,3 @@
-/* learn-to-tell kit v2 — one file, no dependencies. API: kit/API.md */
 (function (root) {
   "use strict";
 
@@ -201,7 +200,7 @@ body{background:var(--ltt-pattern),var(--ltt-bg);background-color:var(--ltt-bg);
 .ltt-ic{width:1.1em;height:1.1em;vertical-align:-.18em;flex:none}
 .ltt-mono{font-family:var(--ltt-mono)}
 
-/* deck frame: desktop = one fixed 1280x800 canvas scaled to the window */
+/* desktop is one fixed 1280x800 canvas scaled to the window, so a check at 1280x800 holds for every desktop size */
 body.ltt-deck{height:100vh;overflow:hidden}
 .ltt-stage{position:fixed;inset:0;display:grid;place-items:center;overflow:hidden}
 .ltt-canvas{position:relative;width:${CANVAS.w}px;height:${CANVAS.h}px;flex:none;transform-origin:center center}
@@ -217,7 +216,6 @@ body.ltt-deck{height:100vh;overflow:hidden}
 .ltt-hint{font-size:13px;color:var(--ltt-muted)}
 .ltt-hint kbd{font:600 11px var(--ltt-mono);border:1px solid var(--ltt-line-2);border-radius:4px;padding:1px 5px;margin:0 2px}
 
-/* scene */
 .ltt-scene{position:absolute;left:64px;right:64px;top:66px;bottom:80px;display:none;flex-direction:column;gap:18px;overflow-wrap:anywhere}
 .ltt-scene.on{display:flex}
 .ltt-head{display:flex;gap:22px;align-items:flex-start;flex:none}
@@ -247,7 +245,6 @@ body.ltt-deck{height:100vh;overflow:hidden}
 .ltt-steps button.on{background:var(--ltt-accent)}
 .ltt-error{border:2px dashed var(--ltt-bad);border-radius:var(--ltt-r-md);padding:18px 22px;color:var(--ltt-bad);font:600 15px/1.55 var(--ltt-mono);white-space:pre-wrap;align-self:stretch}
 
-/* hook / statement */
 .t-hook .ltt-head{display:none}
 .ltt-hook{flex:1;display:flex;gap:48px;align-items:stretch;min-height:0}
 .ltt-hook .txt{flex:1.1;display:flex;flex-direction:column;gap:18px;min-width:0;max-height:100%;overflow:hidden;justify-content:safe center}
@@ -265,7 +262,6 @@ body.ltt-deck{height:100vh;overflow:hidden}
 .ltt-statement{flex:1;display:flex;flex-direction:column;justify-content:safe center;gap:16px;max-width:980px}
 .ltt-statement .big{margin:0;font:var(--ltt-display-weight) 44px/1.22 var(--ltt-font-display);letter-spacing:var(--ltt-display-track)}
 
-/* terms */
 .ltt-terms{width:360px;flex:none;display:flex;flex-direction:column;gap:10px;justify-content:safe center}
 .ltt-terms.wide{width:auto;flex:1;display:grid;grid-template-columns:repeat(var(--cols,3),1fr);align-content:safe center}
 html[data-ltt-mobile] .ltt-terms.wide{grid-template-columns:1fr}
@@ -274,7 +270,6 @@ html[data-ltt-mobile] .ltt-terms.wide{grid-template-columns:1fr}
 .ltt-term-card b{display:block;font-size:17px}
 .ltt-term-card span{font-size:15px;line-height:1.5;color:var(--ltt-ink-2)}
 
-/* predict */
 .ltt-ask{display:flex;flex-direction:column;gap:12px}
 .t-predict .ltt-rail{width:400px}
 .ltt-q{margin:0;font-size:18px;font-weight:700;line-height:1.45}
@@ -290,7 +285,6 @@ html[data-ltt-mobile] .ltt-terms.wide{grid-template-columns:1fr}
 .ltt-why{display:none;font-size:15.5px;line-height:1.6;color:var(--ltt-ink-2);border-left:3px solid var(--ltt-good);padding-left:14px;margin:0}
 .ltt-why.on{display:block}
 
-/* play */
 .ltt-knobs{display:flex;flex-direction:column;gap:14px}
 .ltt-knob{display:flex;flex-direction:column;gap:4px}
 .ltt-knob label{display:flex;justify-content:space-between;font-size:14.5px;font-weight:600;color:var(--ltt-ink-2)}
@@ -312,7 +306,6 @@ html[data-ltt-mobile] .ltt-readout{grid-template-columns:1fr 1fr}
 .ltt-goalbox.done{border-style:solid;border-color:var(--ltt-good);background:var(--ltt-good-soft)}
 .ltt-goalbox b{color:var(--ltt-accent)}.ltt-goalbox.done b{color:var(--ltt-good)}
 
-/* compare */
 .ltt-cmp{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:24px;min-height:0}
 .ltt-side{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0}
 .ltt-side>header{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:800}
@@ -321,7 +314,6 @@ html[data-ltt-mobile] .ltt-readout{grid-template-columns:1fr 1fr}
 .ltt-side .ltt-vis{border:1px solid var(--ltt-line);border-radius:var(--ltt-r-md);background:var(--ltt-card);padding:12px}
 .ltt-side>p{margin:0;font-size:15.5px;line-height:1.55;color:var(--ltt-ink-2)}
 
-/* summary / keywords */
 .ltt-recall{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;flex:1;justify-content:safe center}
 .ltt-recall{display:grid!important;grid-template-columns:1fr 1fr;align-content:safe center;max-width:none}
 html[data-ltt-mobile] .ltt-recall{grid-template-columns:1fr}
@@ -337,7 +329,6 @@ html[data-ltt-mobile] .ltt-recall{grid-template-columns:1fr}
 .ltt-kw li{font-size:16px;line-height:1.5}
 .ltt-kw li code{font:600 14.5px var(--ltt-mono);background:var(--ltt-card-2);border:1px solid var(--ltt-line);border-radius:6px;padding:1px 7px}
 
-/* figure frame shared by every visual part */
 .ltt-fig{position:relative;width:min(100cqw,calc(100cqh * var(--ar)));aspect-ratio:var(--ar);container-type:inline-size}
 .ltt-fig>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .ltt-cam{position:absolute;inset:0;transform-origin:0 0}
@@ -384,7 +375,6 @@ html[data-ltt-mobile] .ltt-recall{grid-template-columns:1fr}
 .ltt-node.ghost{border-style:dashed;background:transparent}
 .ltt-elab{font-size:clamp(13px,1.4cqw,16px);line-height:1.25;color:var(--ltt-ink-2);background:var(--ltt-bg);padding:1px 6px;border-radius:4px;transform:translate(-50%,-50%);white-space:nowrap}
 
-/* S parts */
 .ltt-facts{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:18px;width:100%;align-self:center}
 .ltt-fact{border-top:3px solid var(--ltt-ink);padding-top:12px;display:flex;flex-direction:column;gap:4px;min-width:0}
 .ltt-fact b{font:800 clamp(30px,min(calc((100cqw / var(--n) - 24px) / (var(--len) * 0.62)),22cqh),112px)/1.2 var(--ltt-font);white-space:nowrap;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
@@ -461,7 +451,6 @@ html[data-ltt-mobile] .ltt-recall{grid-template-columns:1fr}
 .ltt-ledger .bad b{color:var(--ltt-bad)}.ltt-ledger .good b{color:var(--ltt-good)}.ltt-ledger .accent b{color:var(--ltt-accent)}
 .ltt-ledger div.total{border-bottom:0;border-top:2px solid var(--ltt-ink)}
 
-/* glossary */
 .ltt-term{border-bottom:1.5px dotted var(--ltt-accent);cursor:help}
 .ltt-term.first{font-weight:700;color:var(--ltt-ink)}
 #ltt-pop{position:fixed;z-index:50;max-width:340px;background:var(--ltt-dark);color:var(--ltt-on-dark);border-radius:10px;padding:10px 14px;font-size:14.5px;line-height:1.5;opacity:0;pointer-events:none;transition:opacity .15s}
@@ -470,7 +459,6 @@ html[data-ltt-mobile] .ltt-recall{grid-template-columns:1fr}
 #ltt-expect summary{cursor:pointer;font-weight:700}#ltt-expect .fail{color:var(--ltt-bad)}#ltt-expect .ok{color:var(--ltt-good)}#ltt-expect .warn{color:var(--ltt-warn)}
 #ltt-expect:not([data-fails]):not([data-warns]){opacity:.6}
 
-/* phone: same scenes stacked and scrolled */
 html[data-ltt-mobile] body.ltt-deck{height:auto;overflow:auto}
 html[data-ltt-mobile] .ltt-scene *{overflow-wrap:anywhere;min-width:0}
 html[data-ltt-mobile] .ltt-rail,html[data-ltt-mobile] .ltt-hook .txt{overflow:visible;max-height:none}

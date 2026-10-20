@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""PreToolUse hook: deny reading the installed kit and server source.
-
-Generating agents that read ltt.js or server/*.mjs spend tens of thousands of tokens and
+"""Generating agents that read ltt.js or server/*.mjs spend tens of thousands of tokens and
 then write against internals instead of the documented API; the guard sends them to API.md.
 Only paths under this plugin's own root are blocked, so a development checkout stays readable.
 """

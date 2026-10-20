@@ -7,6 +7,8 @@ scripts/measure/run.sh <set-dir> <commit|WORKTREE> <topic> <variant> <rep>   # t
 node scripts/measure/summary.mjs <set-dir>...
 ```
 
+`WORKTREE`는 커밋 대신 지금 작업 트리(추적·미추적 파일)를 스냅숏한다. 실행 하나가 `<set-dir>/runs/<topic>-<variant>-<rep>/`(out.jsonl, home/, start·end·exit, 최종 점검 `final-check.json`, v1 커밋이면 `final-audit.json`)와 `<set-dir>/transcripts/<topic>-<variant>-<rep>/`(세션·서브에이전트 transcript)를 남긴다.
+
 ## 기준선 (cache-ttl · cpu-cache · projectile, 수업당)
 
 | 판 | 가중 토큰 | 시간 | 비용 | 측정 |

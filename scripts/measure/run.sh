@@ -1,15 +1,11 @@
 #!/bin/bash
 # usage: scripts/measure/run.sh <set-dir> <commit|WORKTREE> <topic> <variant> <rep>
-# One non-interactive lesson generation with the skill at <commit>, the same way as the 20261020-audit5-check baseline.
-# Output: <set-dir>/runs/<topic>-<variant>-<rep>/ (out.jsonl, home/, start, end, exit, final-check.json or final-audit.json for v1 commits)
-#         <set-dir>/transcripts/<topic>-<variant>-<rep>/ (session transcript + subagents, for transcript-cost.mjs)
 set -u
 [ $# -eq 5 ] || { sed -n 2p "$0"; exit 2; }
 SET=$(mkdir -p "$1" && cd "$1" && pwd); COMMIT=$2; T=$3; V=$4; N=$5
 HERE=$(cd "$(dirname "$0")" && pwd); REPO=$(cd "$HERE/../.." && pwd)
 [ -f "$HERE/prompts/$T.md" ] || { echo "unknown topic: $T" >&2; exit 2; }
 SNAP=$SET/snap-$V
-# WORKTREE snapshots the uncommitted working tree (tracked and untracked files) instead of a commit.
 if [ ! -d "$SNAP" ]; then
   mkdir -p "$SNAP"
   if [ "$COMMIT" = WORKTREE ]; then
