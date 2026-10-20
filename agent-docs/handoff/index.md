@@ -12,3 +12,8 @@ File: 3b9ef4b406088e7f-skill-generation-diet.md
 Summary: 수업 생성 경로 다이어트(흐름·검증·문서·audit·kit 선언형 부품) 착수 전 handoff. 승인된 계획은 agent-docs/plans/b71ddee49f77ac06-skill-generation-diet.md, 시작점은 단계 0 transcript-cost.mjs
 Related Files: agent-docs/plans/b71ddee49f77ac06-skill-generation-diet.md, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/server/audit.mjs, skills/learn-to-tell/kit/ltt-deck.js, agent-docs/handoff/b41cd6aec66a2589-refactoring-1-lesson-cost-ledger.md
 Related Symbols: LTT.deck, LTT.auditScene, LTT.lintDeck, fill, fit, zoomLock
+---
+File: d422e4de167b576d-lint-hook-art-non-string.md
+Summary: lint: hook `art`(와 iconOr를 거치는 icon 필드)에 문자열이 아닌 값이 오면 "고침"으로 잡는 작업, 착수 전
+Related Files: skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/api/rules.md, skills/learn-to-tell/kit/API.md, tests/lint-rules.test.mjs
+Related Symbols: RULES, iconOr, LTT.lintDeck

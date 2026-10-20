@@ -502,6 +502,61 @@ test("VO-6 FR-7 §3 read line: one line holds kit/API.md, kit/api/<part>.md and 
   assert.equal(err, null, err);
 });
 
+// The §3 fix loop (audit → sheet review → Edit → audit) lives only in SKILL.md prose, so these tests read the
+// limits from the text and replay a worst-case agent that finds something to fix every time.
+function auditLoopRules(s3) {
+  const ls = lines(s3);
+  const capLine = ls.find((l) => l.includes("Edit 뒤") && /최대 \d+회/.test(l)) ?? "";
+  const cap = Number(capLine.match(/최대 (\d+)회/)?.[1] ?? Infinity);
+  return {
+    cap,
+    auditAfterEdit: capLine.includes("늘 audit"),
+    stopAtCap: ls.some((l) => l.includes(`${cap}회째 뒤`) && l.includes("고치지 않")),
+    reviews: 1 + (ls.some((l) => l.includes("다시 보기는 한 번까지")) ? 1 : Infinity),
+  };
+}
+
+function replayAuditLoop({ cap, auditAfterEdit, stopAtCap, reviews }, guard = 50) {
+  const trace = ["audit"];
+  let audits = 1, views = 0;
+  const edit = () => {
+    if (stopAtCap && audits >= cap) return false;
+    trace.push("edit");
+    if (auditAfterEdit && audits < cap) { trace.push("audit"); audits++; }
+    return true;
+  };
+  edit();
+  while (trace.length < guard) {
+    if (views < reviews) { trace.push("view"); views++; }
+    if (!edit()) break;
+  }
+  return trace;
+}
+
+test("SKILL §3 audit loop: the cap, the audit after every Edit, the stop at the cap and the single re-view are stated", () => {
+  const s3 = section(skillText(), 3);
+  for (const [id, tokens] of [["cap", ["Edit 뒤에는 늘 audit", "최대 5회"]], ["stop", ["5회째 뒤", "고치지 않"]], ["re-view", ["다시 보기는 한 번까지"]]]) {
+    const err = tokenLineError(s3, `audit loop ${id}`, tokens);
+    assert.equal(err, null, err);
+  }
+});
+
+test("SKILL §3 audit loop: a worst-case agent stops within the cap and never publishes an unaudited Edit", () => {
+  const rules = auditLoopRules(section(skillText(), 3));
+  const trace = replayAuditLoop(rules);
+  assert.ok(trace.length < 50, `the loop did not end: ${trace.slice(0, 12).join(" → ")} …`);
+  assert.ok(trace.filter((a) => a === "audit").length <= 5, `more than 5 audits: ${trace.join(" → ")}`);
+  assert.equal(trace.at(-1), "audit", `the last Edit has no audit after it: ${trace.join(" → ")}`);
+});
+
+test("SKILL §3 audit loop replay: a missing re-view limit or a missing stop is caught", () => {
+  const ok = { cap: 5, auditAfterEdit: true, stopAtCap: true, reviews: 2 };
+  assert.deepEqual(replayAuditLoop(ok), ["audit", "edit", "audit", "view", "edit", "audit", "view", "edit", "audit", "edit", "audit"]);
+  assert.equal(replayAuditLoop({ ...ok, cap: Infinity, reviews: Infinity }).length >= 50, true);
+  assert.equal(replayAuditLoop({ ...ok, stopAtCap: false }).at(-1), "edit");
+  assert.equal(replayAuditLoop({ ...ok, auditAfterEdit: false }).at(-1), "edit");
+});
+
 const REF_HEADER = "| 보여 줄 것 | 부품 | 참조 |";
 const REF_PATHS = [...["diagram", "sequence", "map", "controls", "charts", "ui", "mock"].map((x) => `\`kit/api/${x}.md\``), "`kit/API.md`"];
 
