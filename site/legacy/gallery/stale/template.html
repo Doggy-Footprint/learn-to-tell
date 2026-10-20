@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>질문 형태의 제목</title>
+<script type="application/json" id="ltt-meta">{"domain":"","topic":"","audience":"","pattern":["hook","explain","compare","motion","keywords"],"mode":"체험형 | 설명형과 그 이유","decision":""}</script>
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+  const model = (x) => x / 100;
+  LTT.expect("x=30", model(30), 0.3, { tol: 1e-9 });
+
+  LTT.deck({
+    title: "질문 형태의 제목",
+    scenes: [
+      { type: "hook", art: "🧭", text: "이 개념이 내 작업의 어떤 결정을 바꾸는지 한 문장.", sub: "보조 설명 한 줄." },
+
+      { type: "explain", kicker: "원리", title: "원인 → 결과를 세 칸으로",
+        steps: [
+          { icon: "1️⃣", title: "원인", text: "짧게." },
+          { icon: "2️⃣", title: "과정", text: "짧게." },
+          { icon: "3️⃣", title: "결과", text: "짧게." },
+        ] },
+
+      { type: "compare", kicker: "실제 사례", title: "같은 질문, 사례 여러 개를 나란히",
+        items: [
+          { label: "사례 A", visual: "<b>그림·코드·UI</b>", tone: "good", verdict: "판정", note: "공개 후에 보일 근거", noteAfter: true },
+          { label: "사례 B", visual: "<b>그림·코드·UI</b>", tone: "bad", verdict: "판정" },
+        ] },
+
+      { kicker: "움직임", title: "변화가 어떻게 전달되는지", sub: "모션은 인과를 보일 때만.",
+        mount: (body) => {
+          const svg = d3.select(body).append("svg").node();
+          const fl = LTT.flow(svg, {
+            viewBox: "0 0 880 160",
+            nodes: { a: { x: 20, y: 50, w: 160, h: 60, label: "A" }, b: { x: 700, y: 50, w: 160, h: 60, label: "B" } },
+            links: [{ from: "a", to: "b", label: "연결" }],
+          });
+          return { enter: () => { fl.clear(); fl.highlight(["a"]); fl.send("a", "b").then(() => fl.highlight(["a", "b"])); }, leave: () => fl.clear() };
+        } },
+
+      { type: "predict", kicker: "예측", title: "직관과 어긋나는 결과만 예측으로 묻는다",
+        choices: [{ id: "a", text: "선택지 A" }, { id: "b", text: "선택지 B" }], answer: "b",
+        why: "공개되는 설명." },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [{ ko: "개념 이름", en: "english term" }],
+        signals: ["이 개념을 떠올려야 하는 상황"],
+        queries: ["검색어 1", "검색어 2"],
+        neighbors: [{ term: "헷갈리는 개념", diff: "차이 한 줄" }] },
+    ],
+  });
+</script>
+</body>
+</html>

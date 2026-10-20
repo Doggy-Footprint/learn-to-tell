@@ -1,118 +1,33 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>이진 탐색 트리 탐색</title>
-<script type="application/json" id="ltt-meta">{"topic":"이진 탐색 트리 탐색 경로","audience":"자료구조 입문 개발자","theme":"paper","medium":"교과서 figure","decision":"트리 균형 유지 여부","domain":"알고리즘","pattern":["figure"],"mode":"카탈로그용: 장면 하나짜리 본보기. 계층 구조를 \"점이 궤적을 그림\" 움직임과 중앙 주인공 구도로 보인다"}</script>
-<script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/ltt.js"></script>
-<script src="/kit/ltt-parts.js"></script>
-<script src="/kit/ltt-ui.js"></script>
-<script src="/kit/ltt-deck.js"></script>
-<style>
-.bst-wrap{display:flex;justify-content:center}
-.bst{width:980px;max-width:100%;height:auto;display:block}
-.bst text{font-family:inherit}
-</style>
-<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
-</head>
-<body>
-<script>
-const SVG = "http://www.w3.org/2000/svg";
-const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
-const clamp = (x) => Math.max(0, Math.min(1, x));
-const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-
-const KEYS = [50, 30, 70, 20, 40, 60, 80, 10, 25, 35, 45, 55, 65, 75, 90];
-const TREE = (() => { let root = null; const ins = (n, k, d) => { if (!n) return { k, d, l: null, r: null }; if (k < n.k) n.l = ins(n.l, k, d + 1); else n.r = ins(n.r, k, d + 1); return n; };
-  KEYS.forEach((k) => root = ins(root, k, 0)); return root; })();
-function search(k) { const path = []; let n = TREE; while (n) { path.push(n); if (k === n.k) return { path, found: true }; n = k < n.k ? n.l : n.r; } return { path, found: false }; }
-const QUERIES = [45, 62];
-
-function bst(host) {
-  const W = 980, H = 470, TOP = 56, DY = 104, X0 = 40, X1 = 700;
-  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "bst", "data-annotate": "" }, host);
-  const nodes = [];
-  (function place(n, lo, hi) { if (!n) return; n.x = (lo + hi) / 2; n.y = TOP + n.d * DY; nodes.push(n); place(n.l, lo, n.x); place(n.r, n.x, hi); })(TREE, X0, X1);
-  const gE = mk("g", {}, s), gT = mk("g", {}, s), gN = mk("g", {}, s), gC = mk("g", {}, s);
-  nodes.forEach((n) => [n.l, n.r].forEach((c) => c && mk("line", { x1: n.x, y1: n.y, x2: c.x, y2: c.y, style: "stroke:var(--ltt-line-2);stroke-width:1.5" }, gE)));
-  nodes.forEach((n) => { n.c = mk("circle", { cx: n.x, cy: n.y, r: 21, style: "fill:var(--ltt-card);stroke:var(--ltt-ink-2);stroke-width:1.5" }, gN);
-    n.t = mk("text", { x: n.x, y: n.y + 6, "text-anchor": "middle", style: "font-size:17px;font-weight:600;fill:var(--ltt-ink)" }, gN); n.t.textContent = n.k; });
-  const trail = mk("path", { style: "fill:none;stroke:var(--ltt-accent);stroke-width:4;stroke-linecap:round;stroke-linejoin:round" }, gT);
-  const dot = mk("circle", { r: 9, style: "fill:var(--ltt-accent);stroke:var(--ltt-bg);stroke-width:3" }, gC);
-  const cmp = mk("text", { style: "font-size:15px;font-weight:600;fill:var(--ltt-accent)" }, gC);
-  const nullMark = mk("text", { "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-muted)" }, gC);
-  // 오른쪽 판독 칸
-  const RX = 760;
-  mk("line", { x1: RX - 24, y1: 40, x2: RX - 24, y2: 430, style: "stroke:var(--ltt-line);stroke-width:1" }, s);
-  const lab = (y, size, w, fill) => mk("text", { x: RX, y, style: `font-size:${size}px;font-weight:${w};fill:${fill}` }, s);
-  lab(66, 14, 600, "var(--ltt-muted)").textContent = "찾는 값";
-  const qT = lab(112, 44, 700, "var(--ltt-ink)");
-  lab(170, 14, 600, "var(--ltt-muted)").textContent = "비교 횟수";
-  const cT = lab(214, 40, 700, "var(--ltt-ink)");
-  const ticks = [0, 1, 2, 3].map((i) => mk("rect", { x: RX + i * 34, y: 232, width: 28, height: 8, rx: 4, style: "fill:var(--ltt-line)" }, s));
-  const rT = lab(286, 18, 700, "var(--ltt-ink-2)");
-  lab(352, 13, 400, "var(--ltt-muted)").textContent = "키 15개, 높이 4층";
-  lab(374, 13, 400, "var(--ltt-muted)").textContent = "어떤 값이든 비교 4번 안에 끝난다";
-  lab(396, 13, 400, "var(--ltt-muted)").textContent = "⌈log₂(15+1)⌉ = 4";
-
-  const pt = (n) => [n.x, n.y];
-  function draw(u) {
-    const qi = u < .5 ? 0 : 1, lu = (u - qi * .5) / .5, q = QUERIES[qi], { path, found } = search(q);
-    // 마지막 칸에서 빈자리(null)로 한 칸 더 내려가 '없음'을 보인다
-    const pts = path.map(pt); const last = path[path.length - 1];
-    if (!found) pts.push([last.x + (q < last.k ? -22 : 22), last.y + 60]);
-    const segs = pts.length - 1, move = clamp(lu / .72), hold = lu > .72, fade = clamp((lu - .93) / .07);
-    const pos = ease(move) * segs, si = Math.min(segs - 1, Math.floor(pos)), f = segs ? pos - si : 0;
-    const [ax, ay] = pts[si], [bx, by] = pts[si + 1] || pts[si], dx = ax + (bx - ax) * f, dy = ay + (by - ay) * f;
-    let d = `M${pts[0][0]},${pts[0][1]}`; for (let i = 1; i <= si; i++) d += ` L${pts[i][0]},${pts[i][1]}`; d += ` L${dx},${dy}`;
-    trail.setAttribute("d", d); trail.style.opacity = 1 - fade;
-    dot.setAttribute("cx", dx); dot.setAttribute("cy", dy); dot.style.opacity = hold ? 0 : 1 - fade;
-    const visited = Math.min(path.length, Math.floor(pos + .5) + 1);
-    nodes.forEach((n) => { const k = path.indexOf(n), on = k >= 0 && k < visited && fade < 1;
-      const hit = on && found && n === last && hold;
-      n.c.style.fill = hit ? "var(--ltt-accent)" : on ? "var(--ltt-accent-soft)" : "var(--ltt-card)";
-      n.c.style.stroke = on ? "var(--ltt-accent)" : "var(--ltt-ink-2)";
-      n.t.style.fill = hit ? "var(--ltt-bg)" : "var(--ltt-ink)"; });
-    const at = path[Math.min(visited, path.length) - 1];
-    const sym = q === at.k ? "=" : q < at.k ? "<" : ">", dir = q === at.k ? "찾음" : q < at.k ? "왼쪽" : "오른쪽";
-    cmp.textContent = `${q} ${sym} ${at.k} → ${dir}`;
-    cmp.setAttribute("x", at.x + (q < at.k ? -28 : 28)); cmp.setAttribute("y", at.y - 30); cmp.setAttribute("text-anchor", q < at.k ? "end" : "start"); cmp.style.opacity = fade < 1 ? 1 - fade : 0;
-    nullMark.textContent = !found && hold ? "빈자리" : "";
-    nullMark.setAttribute("x", pts[pts.length - 1][0]); nullMark.setAttribute("y", pts[pts.length - 1][1] + 24); nullMark.style.opacity = 1 - fade;
-    qT.textContent = q;
-    cT.textContent = visited;
-    ticks.forEach((t, i) => t.style.fill = i < visited ? "var(--ltt-accent)" : "var(--ltt-line)");
-    rT.textContent = hold ? (found ? `${q}을 찾았다` : `${q}은 트리에 없다`) : "내려가는 중";
-  }
-  return { el: s, draw };
-}
-
-function autoLoop(node, period, draw) {
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { draw(.45); return; }
-  const t0 = Date.now();
-  // figure 함수에는 leave가 없어 노드가 떨어지거나 숨겨지면 스스로 멈춘다
-  const f = () => { if (!node.isConnected) return; if (node.offsetParent) draw(((Date.now() - t0) / period) % 1); setTimeout(f, 16); };
-  draw(.45); setTimeout(f, 16);
-}
-
-LTT.expect("45 탐색 비교 횟수", search(45).path.length, 4, { tol: 0 });
-LTT.expect("62 탐색 비교 횟수", search(62).path.length, 4, { tol: 0 });
-
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>이진 탐색 트리</title><script src="/kit/ltt.js"></script></head><body><script>
+const KEYS = { 50: [50, 8], 30: [25, 30], 70: [75, 30], 20: [12, 52], 40: [38, 52], 60: [62, 52], 80: [88, 52], 45: [44, 74], 65: [69, 74] };
+const PHONE = { 45: [40, 74], 65: [72, 74] };
+const PARENT = { 30: 50, 70: 50, 20: 30, 40: 30, 60: 70, 80: 70, 45: 40, 65: 60 };
+const cmp = (q, k, i) => `${i + 1}번 · ` + (q === k ? `${q} = ${k} 찾음` : `${q} ${q < k ? "<" : ">"} ${k} ${q < k ? "왼쪽" : "오른쪽"}`);
+const search = (q, tone) => {
+  const path = [50]; while (path.at(-1) !== q) { const k = path.at(-1), next = Object.keys(PARENT).map(Number).find((c) => PARENT[c] === k && (q < k) === (c < k)); if (!next) break; path.push(next); }
+  const ids = path.map((k) => "n" + k).concat(path.at(-1) === q ? [] : ["none"]);
+  LTT.expect(`${q} 탐색 비교 횟수`, path.length, 4, { tol: 0 });
+  return [...ids.flatMap((id, i) => [{ par: [
+      ...(i ? [["set", { node: ids[i - 1], sub: "" }]] : []),
+      ["set", { node: id, sub: path[i] ? cmp(q, path[i], i) : `${q} 없음`, tone: path[i] === q ? "good" : path[i] ? tone : "bad" }],
+      ["pulse", { node: id, tone, dur: 1 }]] },
+      ...(ids[i + 1] ? [{ par: [["travel", { along: `${id}>${ids[i + 1]}`, tone, dur: 0.7 }], ["highlight", { id: `${id}>${ids[i + 1]}`, tone, keep: true, dur: 0.7 }]] }] : [])]),
+    ["wait", 1.4], ["set", { node: ids.at(-1), sub: "" }]];
+};
 LTT.deck({
-  title: "이진 탐색 트리", theme: "paper",
+  title: "이진 탐색 트리", theme: "paper", exemplar: true,
   glossary: { "이진 탐색 트리": "모든 칸에서 왼쪽 아래에는 더 작은 값, 오른쪽 아래에는 더 큰 값만 두는 트리" },
   scenes: [{
-    type: "figure",
-    title: "비교 한 번마다 남은 후보가 절반으로 준다",
+    type: "figure", title: "비교 한 번마다 남은 후보가 절반으로 준다",
     sub: "{{이진 탐색 트리}}에서 값을 찾을 때 점은 위에서 한 길로만 내려간다. 작으면 왼쪽, 크면 오른쪽.",
-    figure: (el) => { const w = el.appendChild(document.createElement("div")); w.className = "bst-wrap";
-      const f = bst(w); autoLoop(w, 10000, f.draw); return f; },
-    caption: "45는 50 → 30 → 40 → 45, 62는 50 → 70 → 60 → 65에서 빈자리로 끝난다.",
-    basis: "균형 잡힌 트리에서 탐색 비교 횟수는 높이 ⌈log₂(n+1)⌉ 이하다. 정렬된 순서로 넣어 한쪽으로 기운 트리는 n번까지 간다(Cormen 외, Introduction to Algorithms 12장)."
+    visual: LTT.graph({ layout: "manual", aspect: 1.6, mobileAspect: 1,
+      nodes: [...Object.entries(KEYS).map(([k, at]) => ({ id: "n" + k, label: k, shape: "round", at, ...(PHONE[k] && { m: PHONE[k] }) })), { id: "none", label: "빈자리", ghost: true, at: [62, 94], m: [66, 94] }],
+      edges: [...Object.entries(PARENT).map(([c, p]) => ({ from: "n" + p, to: "n" + c })), { from: "n65", to: "none", dash: true }] }),
+    side: LTT.ledger([{ id: "c45", label: "45 찾기 비교", value: 4, unit: "번" }, { id: "c62", label: "62 찾기 비교", value: 4, unit: "번" }, { id: "h", label: "트리 높이", value: 4, unit: "층" }]),
+    motion: [...search(45, "accent"), ...search(62, "warn")],
+    narration: "45는 50 → 30 → 40 → 45, 62는 50 → 70 → 60 → 65에서 빈자리로 끝난다. 높이 4층이라 어떤 값이든 비교 4번 안에 끝난다.",
+    basis: "균형 트리의 탐색 비교 횟수는 높이 ⌈log₂(n+1)⌉ 이하다. 정렬 순서로 넣어 기운 트리는 n번까지 간다(Cormen 외, CLRS 12장)."
   }]
 });
-</script>
-</body>
-</html>
+</script></body></html>

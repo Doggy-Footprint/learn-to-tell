@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>특이값 몇 개면 행렬을 거의 복원할 수 있는가?</title>
+<script type="application/json" id="ltt-meta">{"domain":"선형대수","topic":"SVD와 rank-k 근사 (Eckart–Young, LoRA)","audience":"행렬 곱, 고유값·직교 행렬(회전)의 뜻을 안다","pattern":["hook","plane","predict","compare","infographic","explain","keywords"],"mode":"체험형: SVD 분해를 움직임으로 보고, 필요한 k를 짐작한 뒤 σ 막대로 답을 보이고 rank별 복원본을 나란히 비교한다","decision":"유지할 rank k(또는 LoRA의 r)를 에너지 비율과 저장 비용으로 고른다"}</script>
+<link rel="stylesheet" href="/legacy/kit-v1/vendor/katex/katex.min.css">
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/vendor/katex/katex.min.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+<style>
+  .pl { display: grid; gap: 12px 28px; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); align-items: center; }
+  .pl svg { max-height: 50vh; }
+  @media (max-width: 720px) { .pl { grid-template-columns: 1fr; justify-items: center; } .pl svg { max-height: 30vh; } .dk-pred .ltt-choices { grid-template-columns: 1fr 1fr; } }
+  .cap { font-size: clamp(15px, 1.6vw, 18px); min-height: 4.5em; }
+  .img { width: 100%; max-width: 360px; height: auto; display: block; margin: 0 auto; image-rendering: pixelated; border-radius: 6px; }
+  .bars rect.on { fill: var(--ltt-accent); } .bars rect { fill: var(--ltt-line); transition: fill .3s; }
+  .bars text { font-size: 10px; fill: var(--ltt-muted); }
+  .lora { display: flex; gap: clamp(16px, 4vw, 48px); align-items: flex-end; justify-content: center; text-align: center; font-size: 14px; }
+  .lora .sq { background: var(--ltt-line); border-radius: 6px; }
+  .lora .st { background: var(--ltt-accent); border-radius: 2px; }
+  @media (max-width: 720px) { .img { max-width: 120px; } }
+</style>
+</head>
+<body>
+<script>
+  // 손계산 기대값: A=[[3,0],[4,5]], AtA=[[25,20],[20,25]] -> 고유값 45, 5
+  const EXPECTED_BY_HAND = {
+    sigma: [Math.sqrt(45), Math.sqrt(5)], frobSq: 50, detAbs: 15,
+    v1: [1 / Math.SQRT2, 1 / Math.SQRT2], u1: [1 / Math.sqrt(10), 3 / Math.sqrt(10)], u2: [-3 / Math.sqrt(10), 1 / Math.sqrt(10)],
+    fullRankErr: 0,
+    lora: { full: 4096 * 4096, lora: 2 * 4096 * 8 },
+  };
+  const T = (M) => M[0].map((_, j) => M.map((r) => r[j]));
+  const mm = (P, Q) => P.map((r) => Q[0].map((_, j) => d3.sum(r, (x, k) => x * Q[k][j])));
+  const frobSq = (M) => d3.sum(M.flat(), (x) => x * x);
+  // 대칭행렬 S의 Jacobi 회전법. 고유값 내림차순, 고유벡터는 V의 열.
+  function jacobiEig(S) {
+    const n = S.length, a = S.map((r) => r.slice());
+    const V = d3.range(n).map((i) => d3.range(n).map((j) => (i === j ? 1 : 0)));
+    for (let sweep = 0; sweep < 60; sweep++) {
+      let off = 0;
+      for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) off += a[p][q] * a[p][q];
+      if (off < 1e-24) break;
+      for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) {
+        if (Math.abs(a[p][q]) < 1e-300) continue;
+        const th = (a[q][q] - a[p][p]) / (2 * a[p][q]);
+        const t = (th >= 0 ? 1 : -1) / (Math.abs(th) + Math.sqrt(th * th + 1));
+        const c = 1 / Math.sqrt(t * t + 1), s = t * c;
+        for (let k = 0; k < n; k++) { const x = a[k][p], y = a[k][q]; a[k][p] = c * x - s * y; a[k][q] = s * x + c * y; }
+        for (let k = 0; k < n; k++) { const x = a[p][k], y = a[q][k]; a[p][k] = c * x - s * y; a[q][k] = s * x + c * y; }
+        for (let k = 0; k < n; k++) { const x = V[k][p], y = V[k][q]; V[k][p] = c * x - s * y; V[k][q] = s * x + c * y; }
+      }
+    }
+    const order = d3.range(n).sort((i, j) => a[j][j] - a[i][i]);
+    return { vals: order.map((i) => a[i][i]), V: V.map((r) => order.map((i) => r[i])) };
+  }
+  // A(m×n) = U diag(s) Vt. m<n이면 전치해서 작은 쪽 Gram 행렬을 쓴다.
+  function svd(A) {
+    const m = A.length, n = A[0].length;
+    if (m < n) { const r = svd(T(A)); return { U: r.V, s: r.s, V: r.U }; }
+    const { vals, V } = jacobiEig(mm(T(A), A));
+    const s = vals.map((l) => Math.sqrt(Math.max(l, 0)));
+    const U = mm(A, V).map((row) => row.map((x, j) => (s[j] > 1e-10 ? x / s[j] : 0)));
+    return { U, s, V };
+  }
+  const rankK = (f, k) => d3.range(f.U.length).map((i) => d3.range(f.V.length).map((j) => d3.sum(d3.range(k), (t) => f.s[t] * f.U[i][t] * f.V[j][t])));
+
+  const A2 = [[3, 0], [4, 5]], f2 = svd(A2);
+  const sgn = Math.sign(f2.V[0][0]) || 1;
+  const v1 = [f2.V[0][0] * sgn, f2.V[1][0] * sgn], u1 = [f2.U[0][0] * sgn, f2.U[1][0] * sgn];
+  LTT.expect("σ1 (2×2)", f2.s[0], EXPECTED_BY_HAND.sigma[0], { tol: 1e-9 });
+  LTT.expect("σ2 (2×2)", f2.s[1], EXPECTED_BY_HAND.sigma[1], { tol: 1e-9 });
+  LTT.expect("Σσ² = ‖A‖F² (2×2)", d3.sum(f2.s, (x) => x * x), EXPECTED_BY_HAND.frobSq, { tol: 1e-9 });
+  LTT.expect("σ1σ2 = |det|", f2.s[0] * f2.s[1], EXPECTED_BY_HAND.detAbs, { tol: 1e-9 });
+  LTT.expect("v1 x", v1[0], EXPECTED_BY_HAND.v1[0], { tol: 1e-9 });
+  LTT.expect("u1 y", u1[1], EXPECTED_BY_HAND.u1[1], { tol: 1e-9 });
+  // det(V)=+1이 되도록 v2 부호를 맞춰 Vᵀ 단계가 반사가 아닌 회전으로 보이게 한다
+  const v2 = [-v1[1], v1[0]], V2 = [[v1[0], v2[0]], [v1[1], v2[1]]];
+  const U2 = mm(A2, V2).map((r) => r.map((x, j) => x / f2.s[j]));
+  LTT.expect("u2 x", U2[0][1], EXPECTED_BY_HAND.u2[0], { tol: 1e-9 });
+  LTT.expect("det U = +1", U2[0][0] * U2[1][1] - U2[0][1] * U2[1][0], 1, { tol: 1e-9 });
+
+  // 24×32 합성 이미지 (시드 고정)
+  const M = 24, N = 32, rnd = d3.randomLcg(7);
+  const IMG = d3.range(M).map((i) => d3.range(N).map((j) => {
+    const x = j / (N - 1), y = i / (M - 1);
+    let v = 0.2 + 0.25 * x + 0.1 * y;
+    if ((x - 0.35) ** 2 + (y - 0.45) ** 2 < 0.04) v += 0.45;
+    if (Math.abs(x + y - 1.1) < 0.06) v += 0.25;
+    return Math.max(0, Math.min(1, v + 0.04 * (rnd() - 0.5)));
+  }));
+  const F = svd(IMG), total = d3.sum(F.s, (x) => x * x);
+  LTT.expect("Σσ² = ‖A‖F² (24×32)", total, frobSq(IMG), { tol: 1e-6 * frobSq(IMG) });
+  LTT.expect("전체 rank 복원 오차", Math.sqrt(frobSq(IMG.map((r, i) => r.map((x, j) => x - rankK(F, M)[i][j])))), EXPECTED_BY_HAND.fullRankErr, { tol: 1e-5 });
+  for (const k of [1, 5, 12]) {
+    const R = rankK(F, k);
+    LTT.expect("Eckart–Young 오차²=Σ_{i>k}σ², k=" + k, frobSq(IMG.map((r, i) => r.map((x, j) => x - R[i][j]))), d3.sum(F.s.slice(k), (x) => x * x), { tol: 1e-6 * total });
+  }
+  LTT.expect("LoRA 파라미터 수", 2 * 4096 * 8, EXPECTED_BY_HAND.lora.lora, { tol: 0 });
+
+  const energy = (k) => d3.sum(F.s.slice(0, k), (x) => x * x) / total;
+  const k99 = d3.range(1, M + 1).find((k) => energy(k) >= 0.99);
+  const kBreak = Math.floor((M * N - 1) / (M + N + 1));
+  const pct = (x) => d3.format(".1f")(x * 100) + "%";
+  const gray = d3.scaleLinear().domain([0, 1]).range(["#101524", "#f5f6fb"]).clamp(true);
+  const drawImg = (R) => (node) => {
+    d3.select(node).append("svg").attr("class", "img").attr("viewBox", `0 0 ${N} ${M}`).selectAll("rect").data(R.flat()).join("rect")
+      .attr("x", (_, i) => i % N).attr("y", (_, i) => Math.floor(i / N)).attr("width", 1.02).attr("height", 1.02).attr("fill", gray);
+  };
+  const store = (k) => k * (M + N + 1);
+  const SYN = "이미지: 24×32, 배경 기울기 + 원 + 대각선 띠 + 시드 고정 잡음. 임의로 만든 합성 데이터다.";
+
+  LTT.deck({
+    title: "특이값 몇 개면 행렬을 거의 복원할 수 있는가?",
+    scenes: [
+      { type: "hook", art: "🗜️",
+        text: "큰 행렬 대부분은<br><u>몇 개의 방향</u>만으로 거의 설명된다.",
+        sub: "이미지·임베딩·LoRA 어댑터를 줄일 때 남길 rank k를 정하는 이야기." },
+
+      { kicker: "SVD = 회전 → 늘리기 → 회전", title: "모든 행렬은 단위원을 타원으로 만든다",
+        mount: (body) => {
+          body.innerHTML = `<div class="pl"><div></div><div><p class="cap"></p><div class="dk-actions"><button>다시 보기</button></div></div></div>`;
+          const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          body.querySelector(".pl > div").appendChild(s);
+          const p = LTT.plane(s, { range: 8, size: 360, shape: d3.range(73).map((i) => [Math.cos(i * Math.PI / 36), Math.sin(i * Math.PI / 36)]),
+            vectors: [{ v: v1, color: "var(--ltt-accent)", label: "v₁" }, { v: v2, color: "var(--ltt-bad)", label: "v₂" }] });
+          const cap = body.querySelector(".cap"), Sig = [[f2.s[0], 0], [0, f2.s[1]]], VT = T(V2);
+          const steps = [
+            [[[1, 0], [0, 1]], "A = [[3,0],[4,5]]. 단위원과 두 방향 v₁, v₂에서 시작한다."],
+            [VT, "① <b>Vᵀ</b>: 회전. 원은 그대로, v₁·v₂가 좌표축에 눕는다."],
+            [mm(Sig, VT), `② <b>Σ</b>: 축마다 σ₁ ≈ ${f2.s[0].toFixed(2)}배, σ₂ ≈ ${f2.s[1].toFixed(2)}배. 원이 타원이 된다.`],
+            [A2, "③ <b>U</b>: 다시 회전. A를 한 번에 적용한 것과 같다. 타원의 반지름이 특이값이다."],
+          ];
+          let run = 0;
+          const play = async () => {
+            const id = ++run; await p.to(steps[0][0], 0); cap.innerHTML = steps[0][1];
+            for (const [m, c] of steps.slice(1)) {
+              await new Promise((r) => setTimeout(r, LTT.MOTION_MS ? 1100 : 0));
+              if (id !== run) return;
+              cap.innerHTML = c; await p.to(m, 1200);
+            }
+          };
+          body.querySelector("button").onclick = play;
+          return { enter: play, leave: () => run++ };
+        },
+        tex: "A=U\\Sigma V^\\top,\\quad A_k=\\sum_{i\\le k}\\sigma_i u_i v_i^\\top,\\quad \\sigma_1=\\sqrt{45},\\ \\sigma_2=\\sqrt5",
+        basis: "σ는 AᵀA = [[25,20],[20,25]]의 고유값 45, 5의 제곱근이다. σ₁σ₂ = 15 = |det A|." },
+
+      { type: "predict", kicker: "짐작해 보기", title: "이 이미지를 99% 복원하려면 방향 몇 개가 필요할까?",
+        sub: "24×32 흑백 이미지(전체 rank 최대 24). '99%'는 σ² 합(에너지) 기준이다.",
+        mount: (body) => { drawImg(IMG)(body.insertBefore(document.createElement("div"), body.firstChild)); body.querySelector(".img").style.maxHeight = "15vh"; return {}; },
+        question: "24×32 합성 이미지의 에너지 99% 이상에 필요한 최소 k",
+        choices: [{ id: "2", text: "1~2개" }, { id: "7", text: "7개 안팎" }, { id: "16", text: "16개 안팎" }, { id: "24", text: "24개 전부" }],
+        answer: String(k99),
+        answerVisual(node) {
+          const svg = d3.select(node).append("svg").attr("class", "bars ltt-svg").attr("viewBox", "0 0 300 170").style("max-height", "15vh");
+          const y = d3.scaleLog().domain([d3.min(F.s) * 0.7, F.s[0]]).range([150, 10]), x = d3.scaleBand().domain(d3.range(M)).range([6, 296]).padding(0.15);
+          svg.selectAll("rect").data(F.s).join("rect").attr("x", (_, i) => x(i)).attr("width", x.bandwidth()).attr("y", 150).attr("height", 0)
+            .transition().delay((_, i) => i * 50).duration(LTT.MOTION_MS).attr("y", (s) => y(s)).attr("height", (s) => 150 - y(s))
+            .on("end", function (_, i) { d3.select(this).classed("on", i < k99); });
+          svg.selectAll("text").data([0, k99 - 1, 23]).join("text").attr("x", (i) => x(i) + x.bandwidth() / 2).attr("y", 164).attr("text-anchor", "middle").text((i) => i + 1);
+        },
+        why: `막대 = σᵢ(로그 축), 파란 막대까지 남기면 99%. k = <b>${k99}</b>. 첫 방향 하나가 이미 ${pct(energy(1))}를 담는다. 픽셀 값이 모두 양수라 평균 밝기가 σ₁에 몰리기 때문이다. <span class="ltt-tag">모델로 계산한 예시</span>`,
+        basis: SYN },
+
+      { type: "compare", kicker: "rank별 복원본", title: "어느 k가 저장 이득과 화질을 함께 챙기나",
+        sub: `원본은 숫자 ${M * N}개. rank k 근사는 k(m+n+1)개를 저장한다.`,
+
+        items: [
+          { label: `k = 1 · 숫자 ${store(1)}개`, visual: drawImg(rankK(F, 1)), tone: "warn", verdict: `에너지 ${pct(energy(1))} · 형태만`, noteAfter: true, note: "밝기 기울기만 남고 원과 띠가 뭉개진다." },
+          { label: `k = ${k99} · 숫자 ${store(k99)}개`, visual: drawImg(rankK(F, k99)), tone: "good", verdict: `에너지 ${pct(energy(k99))} · ${d3.format(".0f")((1 - store(k99) / (M * N)) * 100)}% 절약` },
+          { label: `k = ${kBreak + 1} · 숫자 ${store(kBreak + 1)}개`, visual: drawImg(rankK(F, kBreak + 1)), tone: "bad", verdict: "압축 아님", noteAfter: true, note: `k(m+n+1) > mn. k = ${kBreak}까지만 저장 이득이 있다.` },
+        ],
+        basis: "모델로 계산한 예시. " + SYN },
+
+      { kicker: "LoRA", title: "처음부터 rank r 구조로 학습한다",
+        sub: "가중치 변화 ΔW(d×d)를 B(d×r)·A(r×d) 곱으로 제한한다. d = 4096, r = 8이면:",
+        mount: (body) => {
+          const L = EXPECTED_BY_HAND.lora, side = Math.min(260, innerHeight * 0.32), th = Math.max(2, side * 8 / 4096);
+          body.innerHTML = `<div class="lora"><div><div class="sq" style="width:${side}px;height:${side}px"></div>ΔW 전체 ${L.full.toLocaleString()}개</div>
+            <div><div style="display:flex;gap:6px;align-items:flex-end"><div class="st" style="width:${th}px;height:${side}px"></div><div class="st" style="width:${side}px;height:${th}px"></div></div>BA ${L.lora.toLocaleString()}개 = <b>${(L.lora / L.full * 100).toFixed(2)}%</b></div></div>`;
+          return {};
+        },
+        tex: "\\Delta W=BA,\\quad B\\in\\mathbb R^{d\\times r},\\ A\\in\\mathbb R^{r\\times d},\\quad 2dr\\ \\text{vs}\\ d^2",
+        basis: "모델로 계산한 예시(얇은 막대는 보이도록 최소 2px로 그림). d = 4096은 7B급 LLM(예: LLaMA-7B)의 hidden size로 알고 있는 값이다. Hu et al.(2021)이 작은 r에서도 성능이 유지된다고 보고한 것으로 기억하나 원문은 확인하지 않았다(불확실)." },
+
+      { type: "explain", kicker: "주의", title: "k를 고를 때 걸리는 두 가지", arrows: false,
+        tex: "\\frac{\\sum_{i\\le k}\\sigma_i^2}{\\sum_i\\sigma_i^2}\\ge 0.99\\iff\\frac{\\|A-A_k\\|_F}{\\|A\\|_F}\\le 10\\%,\\qquad \\min_{\\operatorname{rank}B\\le k}\\|A-B\\|_F=\\sqrt{\\textstyle\\sum_{i>k}\\sigma_i^2}",
+        steps: [
+          { icon: "📦", title: "저장 손익분기", text: "k(m+n+1) ≥ mn이면 원 행렬을 그대로 두는 편이 작다." },
+          { icon: "🔎", title: "에너지 ≠ 중요도", text: "작은 특이값 방향에 희귀하지만 중요한 패턴이 있어도 에너지 비율은 작게 나온다." },
+        ],
+        basis: "Eckart–Young: 같은 rank로는 SVD 절단보다 나은 근사가 없다." },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [
+          { ko: "특이값 분해", en: "SVD, singular value decomposition" },
+          { ko: "저랭크 근사", en: "low-rank approximation (Eckart–Young)" },
+          { ko: "저랭크 어댑터", en: "LoRA rank r" },
+        ],
+        signals: [
+          "큰 행렬을 줄이거나 압축해야 할 때",
+          "LoRA의 r을 얼마로 둘지 정할 때",
+          "특이값/고유값 그래프가 급하게 꺾일 때",
+        ],
+        queries: ["truncated SVD energy threshold", "Eckart-Young theorem Frobenius", "low-rank approximation storage k(m+n+1)", "LoRA rank selection", "singular value spectrum decay"],
+        neighbors: [
+          { term: "PCA", diff: "평균을 뺀 데이터에 SVD를 쓴 것. 여기 이미지는 평균을 빼지 않아 σ₁이 컸다." },
+          { term: "양자화", diff: "rank가 아니라 숫자 하나의 비트 수를 줄인다." },
+        ] },
+    ],
+  });
+</script>
+</body>
+</html>

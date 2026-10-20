@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>메뉴 항목이 두 배가 되면 고르는 시간도 두 배가 될까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"Hick 법칙: 선택지 수와 결정 시간","audience":"메뉴·설정 화면을 설계해 본 적 있는 입문자(로그 함수만 알면 됨)","pattern":["hook","explain","predict","compare","keywords"],"mode":"체험형: 메뉴 크기에 따른 결정 시간을 짐작해 본 뒤 인포그래픽 정답으로 확인한다(시스템 동작 예측이라 자기 편향을 겨냥하지 않는다)","decision":"한 화면에 보여 줄 선택지 수 n을 얼마로 제한할지"}</script>
+<link rel="stylesheet" href="/legacy/kit-v1/vendor/katex/katex.min.css">
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/vendor/katex/katex.min.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+<style>
+  :root { --ltt-on: #4f6bed; --ltt-alt: #d6455d; }
+  .menu { display: grid; gap: 3px; width: 100%; }
+  .menu i { height: 9px; border-radius: 3px; background: var(--ltt-on); opacity: .75; }
+  .menu.grp, .menu.wide { grid-template-columns: 1fr 1fr; gap: 3px 10px; }
+  .menu.grp i:nth-child(-n+4) { background: var(--ltt-alt); }
+  .bars { display: grid; gap: 8px; margin-bottom: 14px; }
+  .halve { display: flex; gap: 4px; align-items: center; font-size: 13px; color: var(--ltt-muted); }
+</style>
+</head>
+<body>
+<script>
+  // b=150, log2(n+1) 손계산: log2 9=3.16993, log2 17=4.08746, log2 4=2, log2 16=4, log2 5=2.32193
+  const EXPECTED_BY_HAND = {
+    n8: 150 * 3.16993,
+    n16: 150 * 4.08746,
+    ratio_16_8: 4.08746 / 3.16993,
+    n3: 150 * 2,
+    n15: 150 * 4,
+    grouped_4x4: 2 * 150 * 2.32193,
+  };
+  const b = 150;
+  const rt = (n) => b * Math.log2(n + 1);
+
+  LTT.expect("n=8", rt(8), EXPECTED_BY_HAND.n8, { tol: 0.05 });
+  LTT.expect("n=16", rt(16), EXPECTED_BY_HAND.n16, { tol: 0.05 });
+  LTT.expect("16/8 배율", rt(16) / rt(8), EXPECTED_BY_HAND.ratio_16_8, { tol: 1e-4 });
+  LTT.expect("n=3", rt(3), EXPECTED_BY_HAND.n3, { tol: 1e-9 });
+  LTT.expect("n=15", rt(15), EXPECTED_BY_HAND.n15, { tol: 1e-9 });
+  LTT.expect("4개씩 2단계", 2 * rt(4), EXPECTED_BY_HAND.grouped_4x4, { tol: 0.05 });
+
+  const ms = (v) => Math.round(v) + " ms";
+  const menu = (n, cls = n > 8 ? "wide" : "") => `<div class="menu ${cls}">${"<i></i>".repeat(n)}</div>`;
+  const two = (c) => [{ color: c }, { color: "transparent" }];
+
+  LTT.deck({
+    title: "메뉴 항목이 두 배가 되면 고르는 시간도 두 배가 될까?",
+    scenes: [
+      { type: "hook", art: "📋",
+        text: "드롭다운 항목을 8개에서 16개로 늘리면<br>고르는 시간도 <u>두 배</u>가 될까?",
+        sub: "설정 메뉴에 항목을 몇 개까지 넣을지 정할 때 '몇 배'가 아니라 '몇 번 반으로 나누나'로 본다." },
+
+      { type: "explain", kicker: "원리", title: "고르기는 '반씩 좁히기'의 횟수다",
+        steps: [
+          { icon: "📋", title: "후보를 본다", text: "처음 보는, 고르게 쓰일 법한 선택지 n개." },
+          { icon: "✂️", title: "반으로 좁힌다", text: "\"위쪽 아니면 아래쪽\"처럼 한 번에 절반씩 지운다. 한 번이 1비트." },
+          { icon: "⏱️", title: "횟수만큼 걸린다", text: "n이 두 배면 좁히기가 한 번 더 늘 뿐이다." },
+        ],
+        tex: "RT = b\\,\\log_2(n+1)",
+        basis: "Hick-Hyman 법칙. b=150ms/bit는 예시값이고 과제와 사용자에 따라 크게 달라진다(불확실)." },
+
+      { type: "predict", kicker: "짐작해 보기", title: "8개 메뉴를 1배라 할 때, 16개 메뉴는 몇 배?",
+        question: "선택지가 8개에서 16개로 늘면 결정 시간은 몇 배가 되는가",
+        choices: [{ id: "2", text: "2배" }, { id: "1.6", text: "약 1.6배" }, { id: "1.3", text: "약 1.3배" }, { id: "1", text: "거의 같다" }],
+        answer: "1.3",
+        why: `모델은 <b>${(rt(16) / rt(8)).toFixed(2)}배</b>(${ms(rt(8))} → ${ms(rt(16))}, 모델로 계산한 예시). 늘어난 건 반씩 좁히기 한 번, 약 b만큼이다.`,
+        answerVisual(n) {
+          const box = document.createElement("div");
+          box.className = "bars";
+          box.innerHTML = "<div></div><div></div>";
+          n.appendChild(box);
+          const bars = [LTT.bar(box.children[0], two("var(--ltt-on)")), LTT.bar(box.children[1], two("var(--ltt-alt)"))];
+          bars[0].set([1, 1], ["8개 = 1배", ""]);
+          bars[1].set([0, 2], ["", ""]);
+          setTimeout(() => bars[1].set([rt(16) / rt(8), 2 - rt(16) / rt(8)], [`16개 = ${(rt(16) / rt(8)).toFixed(2)}배`, ""]), 300);
+        } },
+
+      { type: "compare", kicker: "실제 메뉴", title: "메뉴 모양별 예상 결정 시간",
+        sub: "모두 처음 보는 사용자, 항목이 고르게 쓰인다고 가정.",
+        revealLabel: "예상 시간 보기",
+        items: [
+          { label: "확인 대화상자 3개", visual: menu(3), tone: "good", verdict: ms(rt(3)), noteAfter: true, note: "n+1=4 → 2비트." },
+          { label: "설정 탭 15개", visual: menu(15), tone: "warn", verdict: ms(rt(15)), noteAfter: true, note: "5배 많지만 시간은 2배(4비트)." },
+          { label: "국가 드롭다운 16개", visual: menu(16), tone: "warn", verdict: ms(rt(16)), noteAfter: true, note: "15개와 거의 같다." },
+          { label: "16개를 4개씩 2단계", visual: menu(8, "grp"), tone: "bad", verdict: ms(2 * rt(4)), noteAfter: true,
+            note: "모델상 더 느림. 실제는 범주를 아는지에 달림(미검증)." },
+        ],
+        basis: "모델로 계산한 예시. 그룹 메뉴는 단계 이동 비용을 넣지 않았다." },
+
+      { type: "explain", kicker: "한계", title: "이 법칙이 잘 안 맞는 메뉴",
+        steps: [
+          { icon: "🏃", title: "익숙한 메뉴", text: "연습된 과제에서는 선택지 수 영향이 거의 없다는 보고가 있다(Leonard 1959 등, 불확실)." },
+          { icon: "🔎", title: "검색 가능한 목록", text: "입력으로 후보를 줄이면 시간은 n이 아니라 타이핑 길이가 정한다." },
+          { icon: "⭐", title: "자주 쓰는 항목", text: "균등 확률 가정. 상위 항목이 정해져 있으면 그 항목만 빨라진다." },
+        ] },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [{ ko: "Hick 법칙", en: "Hick-Hyman law" }, { ko: "선택 반응 시간", en: "choice reaction time" }],
+        signals: ["메뉴·드롭다운·설정 화면 항목 수를 정할 때", "\"선택지가 많아 사용자가 헷갈린다\"는 피드백을 받을 때", "메뉴를 계층으로 나눌지 고민할 때"],
+        queries: ["Hick-Hyman law menu design", "menu breadth vs depth", "choice reaction time information bits", "choice overload vs Hick's law"],
+        neighbors: [
+          { term: "Fitts 법칙", diff: "고른 다음 '누르러 가는' 이동 시간. 거리와 크기의 비율." },
+          { term: "선택 과부하", diff: "선택지가 많을 때 아예 고르지 않거나 만족도가 떨어지는 현상. 시간 모델이 아니다." },
+        ] },
+    ],
+  });
+</script>
+</body>
+</html>

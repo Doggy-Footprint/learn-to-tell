@@ -1,124 +1,66 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>웨이퍼 결함과 수율</title>
-<script type="application/json" id="ltt-meta">{"topic":"웨이퍼 결함 분포와 칩 크기별 수율","audience":"반도체 공정 입문자","theme":"blueprint","medium":"웨이퍼 맵","decision":"칩(다이) 면적","domain":"반도체","pattern":["predict"],"mode":"카탈로그용: 장면 하나짜리 본보기. 분포 구조를 \"입자가 흐름\" 움직임과 중앙 주인공 구도로 보인다"}</script>
-<script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/ltt.js"></script>
-<script src="/kit/ltt-parts.js"></script>
-<script src="/kit/ltt-ui.js"></script>
-<script src="/kit/ltt-deck.js"></script>
-<style>
-.wf-wrap{display:flex;justify-content:center}
-.wf{width:720px;max-width:100%;height:auto;display:block}
-.wf text{font-family:inherit}
-</style>
-<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
-</head>
-<body>
-<script>
-const SVG = "http://www.w3.org/2000/svg";
-// 300mm 웨이퍼, 결함 밀도 D0 = 0.1개/cm² (성숙 공정에서 흔히 인용되는 크기, 모델로 계산한 예시)
-const D0 = 0.1, RW = 15, EDGE = 0.3;
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>웨이퍼 결함과 수율</title><script src="/kit/ltt.js"></script></head><body><script>
+const D0 = 0.1, RW = 15, IN = (x, y) => x * x + y * y < (RW - 0.3) ** 2;
 const poisson = (A) => Math.exp(-A * D0);
-const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
-const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-const clamp = (x) => Math.max(0, Math.min(1, x));
-function rng(seed) { return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; }
-const DEFECTS = (() => { const r = rng(7), out = [], n = Math.round(Math.PI * RW * RW * D0);
-  while (out.length < n) { const x = (r() * 2 - 1) * RW, y = (r() * 2 - 1) * RW; if (x * x + y * y < (RW - EDGE) ** 2) out.push([x, y]); }
-  return out; })();
-
-function wafer(host, side) {
-  const W = 720, H = 500, cx = 250, cy = 250, S = 15;
-  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "wf", "data-annotate": "" }, host);
-  mk("circle", { cx, cy, r: RW * S, style: "fill:var(--ltt-card);stroke:var(--ltt-ink-2);stroke-width:2" }, s);
-  mk("path", { d: `M${cx - 14},${cy + RW * S - 1} L${cx},${cy + RW * S - 12} L${cx + 14},${cy + RW * S - 1}`, style: "fill:var(--ltt-bg);stroke:var(--ltt-ink-2);stroke-width:1.5" }, s);
-  const dice = [];
-  const n = Math.floor(2 * RW / side);
-  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-    const x0 = -RW + i * side, y0 = -RW + j * side;
-    const corners = [[x0, y0], [x0 + side, y0], [x0, y0 + side], [x0 + side, y0 + side]];
-    if (corners.every(([x, y]) => x * x + y * y < (RW - EDGE) ** 2)) {
-      const r = mk("rect", { x: cx + x0 * S + .6, y: cy + y0 * S + .6, width: side * S - 1.2, height: side * S - 1.2,
-        style: "fill:var(--ltt-good-soft);stroke:var(--ltt-line-2);stroke-width:.6;transition:fill .25s" }, s);
-      dice.push({ x0, y0, r, hit: Infinity });
-    }
-  }
-  DEFECTS.forEach(([x, y], k) => { const d = dice.find((d) => x >= d.x0 && x < d.x0 + side && y >= d.y0 && y < d.y0 + side); if (d) d.hit = Math.min(d.hit, k); });
-  const parts = DEFECTS.map(() => mk("circle", { r: 3.2, style: "fill:var(--ltt-bad);stroke:var(--ltt-bg);stroke-width:1" }, s));
-  // 오른쪽 판독 패널
-  const X = 520;
-  const lab = (y, size, w, fill, txt) => { const t = mk("text", { x: X, y, style: `font-size:${size}px;font-weight:${w};fill:${fill}` }, s); t.textContent = txt; return t; };
-  lab(70, 15, 600, "var(--ltt-muted)", "300mm 웨이퍼 · D₀ 0.1개/cm²");
-  lab(112, 22, 700, "var(--ltt-ink)", `다이 ${side}×${side} cm`);
-  lab(140, 15, 400, "var(--ltt-muted)", `완전한 다이 ${dice.length}개`);
-  const defT = lab(196, 15, 600, "var(--ltt-ink-2)", "");
-  const badT = lab(226, 15, 600, "var(--ltt-ink-2)", "");
-  lab(290, 15, 600, "var(--ltt-muted)", "수율");
-  const yT = lab(338, 44, 700, "var(--ltt-ink)", "");
-  const barBg = mk("rect", { x: X, y: 356, width: 170, height: 10, rx: 5, style: "fill:var(--ltt-line)" }, s);
-  const bar = mk("rect", { x: X, y: 356, width: 170, height: 10, rx: 5, style: "fill:var(--ltt-good)" }, s);
-  lab(396, 13, 400, "var(--ltt-muted)", `푸아송 모델 e^(−A·D₀) = ${(poisson(side * side) * 100).toFixed(0)}%`);
-  const lg = mk("g", {}, s);
-  mk("rect", { x: X, y: 428, width: 12, height: 12, style: "fill:var(--ltt-good-soft);stroke:var(--ltt-line-2)" }, lg);
-  mk("text", { x: X + 20, y: 439, style: "font-size:13px;fill:var(--ltt-ink-2)" }, lg).textContent = "양품 다이";
-  mk("rect", { x: X + 96, y: 428, width: 12, height: 12, style: "fill:var(--ltt-bad-soft);stroke:var(--ltt-bad)" }, lg);
-  mk("text", { x: X + 116, y: 439, style: "font-size:13px;fill:var(--ltt-ink-2)" }, lg).textContent = "결함 다이";
-
-  function draw(u) {
-    const fall = clamp(u / .62), fade = clamp((u - .92) / .08);
-    let landed = 0;
-    DEFECTS.forEach(([x, y], k) => {
-      const t0 = k / DEFECTS.length * .8, p = ease(clamp((fall - t0) / .2));
-      if (p >= 1) landed = k + 1;
-      const tx = cx + x * S, ty = cy + y * S;
-      parts[k].setAttribute("cx", tx); parts[k].setAttribute("cy", ty - (1 - p) * 260 - 20);
-      parts[k].style.opacity = (p > 0 ? Math.min(1, p * 3) : 0) * (1 - fade);
-    });
-    let bad = 0;
-    dice.forEach((d) => { const b = d.hit < landed && fade < 1; if (b) bad++; d.r.style.fill = b ? "var(--ltt-bad-soft)" : "var(--ltt-good-soft)"; d.r.style.stroke = b ? "var(--ltt-bad)" : "var(--ltt-line-2)"; });
-    const y = 1 - bad / dice.length;
-    defT.textContent = `떨어진 결함 ${landed}개`;
-    badT.textContent = `결함 다이 ${bad}개`;
-    yT.textContent = (y * 100).toFixed(0) + "%";
-    bar.setAttribute("width", 170 * y);
-  }
-  draw(0.9);
-  return { el: s, draw };
-}
-
-function autoLoop(node, period, draw) {
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { draw(0.9); return; }
-  const t0 = Date.now();
-  // answerVisual은 화면 밖에서 미리 그려졌다가 버려지므로 노드가 떨어지면 스스로 멈춘다
-  const f = () => { if (!node.isConnected) return; draw(((Date.now() - t0) / period) % 1); setTimeout(f, 16); };
-  setTimeout(f, 16);
-}
-const stage = (side) => (el) => { const w = el.appendChild(document.createElement("div")); w.className = "wf-wrap";
-  const f = wafer(w, side); autoLoop(w, 8000, f.draw); };
-
 LTT.expect("1cm² 다이 푸아송 수율", poisson(1), 0.9048, { tol: 1e-3 });
 LTT.expect("4cm² 다이 푸아송 수율", poisson(4), 0.6703, { tol: 1e-3 });
-
+const wafer = LTT.draw({
+  aspect: 16 / 10, mobileAspect: 3 / 4, dur: 8, beats: [1.5, 3.5, 6.5],
+  setup(h) {
+    const R = h.mobile ? 340 : 290, cx = h.mobile ? 500 : 330, cy = h.mobile ? 360 : 312, S = R / RW;
+    const lx = h.mobile ? 60 : 690, ly = h.mobile ? 780 : 90, gap = h.mobile ? 95 : 50;
+    const r = h.rng(7), defects = [];
+    while (defects.length < Math.round(Math.PI * RW * RW * D0)) { const x = (r() * 2 - 1) * RW, y = (r() * 2 - 1) * RW; if (IN(x, y)) defects.push([x, y]); }
+    h.el("circle", { cx, cy, r: R, class: "e" });
+    h.label(lx, ly, "300mm 웨이퍼 · D₀ 0.1개/cm²", { anchor: "l", cls: "muted" });
+    const grids = [1, 2].map((side) => {
+      const g = h.g(), dice = [];
+      for (let i = 0; i < 2 * RW / side; i++) for (let j = 0; j < 2 * RW / side; j++) {
+        const x0 = -RW + i * side, y0 = -RW + j * side;
+        if (![[0, 0], [1, 0], [0, 1], [1, 1]].every(([a, b]) => IN(x0 + a * side, y0 + b * side))) continue;
+        const hit = defects.findIndex(([x, y]) => x >= x0 && x < x0 + side && y >= y0 && y < y0 + side);
+        dice.push({ hit: hit < 0 ? Infinity : hit, el: h.el("rect", { x: cx + x0 * S + 1, y: cy + y0 * S + 1, width: side * S - 2, height: side * S - 2, rx: 2 }, g) });
+      }
+      const head = h.label(lx, ly + gap, `다이 ${side}×${side}cm · ${dice.length}개`, { anchor: "l", cls: "strong" });
+      const bad = h.label(lx, ly + gap * 2, "", { anchor: "l" });
+      const yl = h.label(lx, ly + gap * 3.6, "", { anchor: "l", cls: "big" });
+      const model = h.label(lx, ly + gap * 5, `푸아송 e^(−A·D₀) = ${Math.round(poisson(side * side) * 100)}%`, { anchor: "l", cls: "muted" });
+      h.item(side === 1 ? "small" : "big", [g, head, bad, yl, model]);
+      return { dice, bad, yl };
+    });
+    const dots = defects.map(([x, y]) => ({ x: cx + x * S, y: cy + y * S, el: h.el("circle", { r: h.mobile ? 6 : 5, class: "dot bad" }) }));
+    h.anchor("wafer", cx, cy - R);
+    return { grids, dots };
+  },
+  draw(t, h, s) {
+    const fall = h.clamp(t / 5, 0, 1), n = s.dots.length;
+    let landed = 0;
+    s.dots.forEach((d, k) => {
+      const p = h.ease.out(h.clamp((fall - k / n * 0.8) / 0.2, 0, 1));
+      if (p >= 1) landed = k + 1;
+      d.el.setAttribute("cx", d.x); d.el.setAttribute("cy", d.y - (1 - p) * 200);
+      d.el.setAttribute("opacity", p > 0 ? Math.min(1, p * 3) : 0);
+    });
+    s.grids.forEach((g) => {
+      let bad = 0;
+      g.dice.forEach((d) => { const b = d.hit < landed; bad += b; d.el.setAttribute("fill", h.color(b ? "bad" : "good")); d.el.setAttribute("fill-opacity", b ? 0.55 : 0.18); });
+      g.bad.textContent = `떨어진 결함 ${landed}개 · 결함 다이 ${bad}개`;
+      g.yl.textContent = `수율 ${Math.round((1 - bad / g.dice.length) * 100)}%`;
+    });
+  }
+});
 LTT.deck({
-  title: "웨이퍼 결함과 수율", theme: "blueprint",
+  title: "웨이퍼 결함과 수율", theme: "blueprint", exemplar: true,
   glossary: { "결함 밀도": "웨이퍼 면적 1cm²마다 떨어지는 치명 결함의 평균 개수(D₀)", "다이": "웨이퍼 한 장에서 잘라 내는 칩 하나" },
   scenes: [{
-    type: "predict", kicker: "예측",
-    title: "같은 웨이퍼에서 다이만 네 배 키우면 수율은?",
-    sub: "점은 떨어지는 결함, 칸은 {{다이}}(칩 하나). 결함을 맞은 다이는 버린다. 결함 71개는 그대로 두고 다이만 2×2cm로 키운다.",
-    question: "결함은 같은 자리에 같은 수(약 71개)로 떨어진다. {{다이}}를 1×1cm에서 2×2cm로 바꾸면 수율은 어떻게 될까?",
-    visual: stage(1),
-    choices: [{ id: "same", text: "약 90% 그대로. 결함 수가 같으니까" }, { id: "67", text: "약 67%로 떨어진다" }, { id: "23", text: "약 23%. 면적이 4배라 4배 나빠진다" }],
-    answer: "67", rest: "dim",
-    answerVisual: stage(2),
-    why: "결함 하나가 큰 다이를 통째로 버린다. 다이 면적이 A면 결함을 하나도 맞지 않을 확률은 e^(−A·{{결함 밀도}}): e^(−0.1)=90%, e^(−0.4)=67%. 결함이 몰려 겹치면 손실은 4배까지 가지 않는다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
-    basis: "푸아송 수율 모델 Y = e^(−A·D₀). D₀ 0.1/cm²는 성숙 공정의 예시 값이고 공정·세대마다 다르다(불확실). 실무에서는 결함 군집을 반영한 음이항(Murphy·Seeds) 모델도 쓴다."
+    type: "predict", kicker: "예측", title: "같은 웨이퍼에서 다이만 네 배 키우면 수율은?",
+    sub: "점은 떨어지는 결함, 칸은 {{다이}}(칩 하나). 결함을 맞은 다이는 버린다. 결함 71개는 그대로 두고 다이만 키운다.",
+    visual: wafer,
+    q: "결함은 같은 자리에 같은 수로 떨어진다. 다이를 1×1cm에서 2×2cm로 바꾸면 수율은?",
+    choices: ["약 90% 그대로. 결함 수가 같으니까", "약 67%로 떨어진다", "약 23%. 면적이 4배라 4배 나빠진다"], answer: 1,
+    why: "결함 하나가 큰 다이를 통째로 버린다. 결함을 하나도 맞지 않을 확률은 e^(−A·{{결함 밀도}}): e^(−0.1)=90%, e^(−0.4)=67%. 결함이 겹치는 다이가 있어 4배까지는 안 간다.",
+    motion: [["hide", { id: "big", dur: 0.01 }], ["wait", 7.99], ["mark", "ask"], { par: [["hide", { id: "small", dur: 0.01 }], ["show", { id: "big", dur: 0.01 }]] }, ["wait", 7.99]],
+    basis: "푸아송 수율 모델 Y = e^(−A·D₀). D₀ 0.1/cm²는 성숙 공정의 예시 값이고 공정마다 다르다. 결함 군집을 반영한 음이항 모델도 쓴다."
   }]
 });
-</script>
-</body>
-</html>
+</script></body></html>

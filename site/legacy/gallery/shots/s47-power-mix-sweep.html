@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>전력 믹스 변화</title>
+<script type="application/json" id="ltt-meta">{"topic":"국가별 전력 믹스","audience":"에너지 정책 입문자","theme":"atlas","medium":"에너지 통계 차트","decision":"전원 구성 비교","domain":"에너지","pattern":["mount"],"mode":"카탈로그용: 장면 하나짜리 본보기. 부분-전체 구조를 \"모양이 바뀜\" 움직임과 좌우 분할 구도로 보인다"}</script>
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-ui.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+<style>.pm-wrap{display:flex;flex-direction:column;align-items:center;gap:14px}.pm{width:880px;max-width:100%;height:auto;display:block}.pm text{font-family:inherit}</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head><body><script>
+const SVG = "http://www.w3.org/2000/svg";
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const el = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function loop(period, draw) { let raf = 0, t0 = 0;
+  return { enter() { clearTimeout(raf); if (reduced) { draw(0.999); return; }
+      t0 = Date.now(); const f = () => { draw(((Date.now() - t0) / period) % 1); raf = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(raf); } }; }
+// 발전량 비중(%) 근사치. Ember Yearly Electricity Data, IEA 통계를 반올림했다.
+const KINDS = [{ id: "coal", l: "석탄", c: "var(--ltt-c1)" }, { id: "gas", l: "가스", c: "var(--ltt-c2)" }, { id: "nuc", l: "원자력", c: "var(--ltt-c3)" }, { id: "ren", l: "재생에너지", c: "var(--ltt-c4)" }, { id: "oth", l: "석유·기타", c: "var(--ltt-c5)" }];
+const YEARS = [2000, 2010, 2015, 2020, 2023];
+const MIX = {
+  "독일": { 2000: [52, 9, 29, 6, 4], 2010: [42, 14, 22, 17, 5], 2015: [42, 10, 14, 30, 4], 2020: [24, 16, 11, 45, 4], 2023: [26, 15, 1.5, 53, 4.5] },
+  "한국": { 2000: [39, 10, 39, 1, 11], 2010: [44, 20, 31, 2, 3], 2015: [43, 19, 30, 5, 3], 2020: [36, 26, 29, 8, 1], 2023: [33, 27, 30, 9, 1] } };
+Object.values(MIX).forEach((m) => YEARS.forEach((y) => LTT.expect("합계 " + y, m[y].reduce((a, b) => a + b, 0), 100, { tol: 0.6 })));
+const W = 880, H = 440, CW = 300, T = 50, BH = 340;
+function figure(host) {
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "pm", "data-annotate": "" }, host);
+  const cols = Object.keys(MIX).map((name, ci) => { const x0 = ci ? W - CW - 40 : 40;
+    const h = el("text", { x: x0 + CW / 2, y: T - 16, "text-anchor": "middle", style: "font-size:22px;font-weight:700;fill:var(--ltt-ink)" }, s); h.textContent = name;
+    const segs = KINDS.map((k) => ({ r: el("rect", { x: x0, width: CW, rx: 3, style: `fill:${k.c};stroke:var(--ltt-bg);stroke-width:2` }, s),
+      t: el("text", { x: x0 + 14, style: "font-size:15px;font-weight:600;fill:var(--ltt-on-dark)" }, s), k }));
+    return { name, segs, x0 }; });
+  // 가운데 연결선: 같은 전원을 두 나라 사이에 이어 모양 차이를 읽게 한다
+  const links = KINDS.map((k) => el("path", { style: `fill:${k.c};opacity:.16` }, s));
+  const yr = el("text", { x: W / 2, y: T + BH / 2 + 18, "text-anchor": "middle", style: "font-size:52px;font-weight:700;fill:var(--ltt-ink)" }, s);
+  const yrSub = el("text", { x: W / 2, y: T + BH / 2 + 46, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, s); yrSub.textContent = "발전량 비중";
+  function draw(vals) { cols.forEach((c, ci) => { let y = T; c.tops = [];
+      c.segs.forEach((g, i) => { const v = vals[ci][i], hh = v / 100 * BH; g.r.setAttribute("y", y); g.r.setAttribute("height", Math.max(0, hh));
+        g.t.setAttribute("y", y + hh / 2 + 5); g.t.textContent = hh > 22 ? `${g.k.l} ${Math.round(v)}%` : ""; c.tops.push([y, y + hh]); y += hh; }); });
+    links.forEach((p, i) => { const a = cols[0].tops[i], b = cols[1].tops[i], xa = 40 + CW, xb = W - CW - 40, m = (xa + xb) / 2;
+      p.setAttribute("d", `M${xa},${a[0]} C${m},${a[0]} ${m},${b[0]} ${xb},${b[0]} L${xb},${b[1]} C${m},${b[1]} ${m},${a[1]} ${xa},${a[1]}Z`); }); }
+  return { el: s, draw, yr };
+}
+const mixAt = (name, t) => { const i = Math.min(YEARS.length - 2, Math.floor(t)), f = ease(clamp(t - i));
+  return MIX[name][YEARS[i]].map((v, k) => v + (MIX[name][YEARS[i + 1]][k] - v) * f); };
+const scene = { title: "같은 20여 년, 독일은 석탄을 재생에너지로 바꾸고 한국은 가스를 늘렸다",
+  sub: "막대는 해마다 발전량 비중이다. 저절로 연도를 돌고, 연도 단추를 누르면 그 해에 멈춘다.",
+  basis: "Ember Yearly Electricity Data·IEA 통계를 반올림한 근사치(불확실, 1–2%p 차이 가능).",
+  mount(body) {
+    body.innerHTML = '<div class="pm-wrap"><div id="pm-fig"></div><div class="ltt-param">연도 <b id="year-v"></b> <span class="ltt-basis">(누르면 자동 재생이 멈춘다)</span><div id="year"></div></div></div>';
+    const f = figure(body.querySelector("#pm-fig")); let raf = 0, t = 0, auto = true, first = true, from = 0, to = 0, t0 = 0;
+    const show = (tt) => { f.draw([mixAt("독일", tt), mixAt("한국", tt)]); f.yr.textContent = YEARS[Math.round(tt)]; };
+    const tick = () => { if (auto) { const p = ((Date.now() - t0) / 9000) % 1; // 연도마다 1.2초 이동, 0.6초 머묾
+          const seg = p * YEARS.length, i = Math.floor(seg); t = i >= YEARS.length - 1 ? YEARS.length - 1 : i + clamp((seg - i - 0.33) / 0.67); }
+      else { t += (to - t) * 0.12; }
+      show(t); raf = setTimeout(tick, 16); };
+    LTT.sweep({ params: { year: { kind: "steps", stops: YEARS, value: 2000, fmt: (v) => v + "년" } },
+      render: ({ year }) => { if (first) { first = false; return; } auto = false; to = YEARS.indexOf(year); } });
+    return { enter() { clearTimeout(raf); if (reduced) { show(YEARS.length - 1); return; } t0 = Date.now(); tick(); }, leave() { clearTimeout(raf); } };
+  } };
+LTT.deck({ title: "전력 믹스", theme: "atlas", glossary: { "전력 믹스": "한 해 발전량을 전원별로 나눈 비중" }, scenes: [scene] });
+</script></body></html>

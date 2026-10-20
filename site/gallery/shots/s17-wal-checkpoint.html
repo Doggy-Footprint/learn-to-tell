@@ -1,86 +1,32 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WAL과 복구</title>
-<script type="application/json" id="ltt-meta">{"topic":"WAL, 체크포인트, 복구","audience":"백엔드 개발자","theme":"terminal","medium":"DB 로그 타임라인","decision":"checkpoint_timeout·max_wal_size 설정","domain":"DB","pattern":["terms"],"mode":"카탈로그용: 장면 하나짜리 본보기. 시간 구조를 \"선이 그려짐\" 움직임과 중앙 주인공 구도로 보인다"}</script>
-<script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/ltt.js"></script>
-<script src="/kit/ltt-parts.js"></script>
-<script src="/kit/ltt-ui.js"></script>
-<script src="/kit/ltt-deck.js"></script>
-<style>.wl svg{width:100%;height:auto;display:block;margin-bottom:8px}.dk-tm{padding-top:14px!important;padding-bottom:14px!important}.wl text{font-family:var(--ltt-mono,ui-monospace,monospace)}</style>
-<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
-</head>
-<body>
-<script>
-const SVG = "http://www.w3.org/2000/svg";
-const el = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
-const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-const cl = (x) => Math.max(0, Math.min(1, x));
-const X0 = 150, X1 = 1060, WY = 90, DY = 320;
-const REC = [["0/3000028", "BEGIN"], ["0/3000060", "INSERT orders"], ["0/30000C8", "UPDATE stock"], ["0/3000130", "COMMIT"],
-  ["0/3000168", "CHECKPOINT"], ["0/30001A0", "INSERT orders"], ["0/3000208", "COMMIT"], ["0/3000240", "UPDATE stock"]];
-const xs = REC.map((_, i) => X0 + 40 + i * 104), CK = 4, CRASH = X0 + 40 + 8 * 104 - 20;
-function timeline(host) {
-  const w = host.insertBefore(document.createElement("div"), host.firstChild); w.className = "wl";
-  const s = el("svg", { viewBox: "0 0 1100 370", "data-annotate": "" }, w);
-  const lab = (x, y, t, st) => { const n = el("text", { x, y, style: st }, s); n.textContent = t; return n; };
-  lab(20, WY + 5, "WAL", "font-size:18px;font-weight:700;fill:var(--ltt-ink)"); lab(20, WY + 25, "pg_wal/", "font-size:13px;fill:var(--ltt-muted)");
-  lab(20, DY + 5, "데이터 파일", "font-size:16px;font-weight:700;fill:var(--ltt-ink)"); lab(20, DY + 25, "base/ (heap)", "font-size:13px;fill:var(--ltt-muted)");
-  el("line", { x1: X0, y1: DY, x2: X1, y2: DY, style: "stroke:var(--ltt-line);stroke-width:2;stroke-dasharray:2 6" }, s);
-  const wal = el("line", { x1: X0, y1: WY, x2: X0, y2: WY, style: "stroke:var(--ltt-accent);stroke-width:4;stroke-linecap:round" }, s);
-  const recs = REC.map(([lsn, op], i) => { const g = el("g", { style: "opacity:0" }, s), ck = i === CK;
-    el("circle", { cx: xs[i], cy: WY, r: ck ? 9 : 6, style: `fill:var(--ltt-bg);stroke:${ck ? "var(--ltt-warn)" : "var(--ltt-accent)"};stroke-width:3` }, g);
-    const a = el("text", { x: xs[i], y: WY - 34, "text-anchor": "middle", style: `font-size:13px;font-weight:700;fill:${ck ? "var(--ltt-warn)" : "var(--ltt-ink)"}` }, g); a.textContent = op;
-    const b = el("text", { x: xs[i], y: WY - 16, "text-anchor": "middle", style: "font-size:11px;fill:var(--ltt-muted)" }, g); b.textContent = lsn;
-    return g; });
-  const flush = [1, 2].map((k) => el("line", { x1: xs[k], y1: WY + 12, x2: xs[k], y2: WY + 12, style: "stroke:var(--ltt-warn);stroke-width:2.5" }, s));
-  const ckLab = lab(xs[1] - 10, DY + 30, "체크포인트 때 디스크에 반영", "font-size:13px;fill:var(--ltt-warn)");
-  const crash = el("g", { style: "opacity:0" }, s);
-  el("path", { d: `M${CRASH - 11},${WY - 11} l22,22 m0,-22 l-22,22`, style: "stroke:var(--ltt-bad);stroke-width:4;stroke-linecap:round" }, crash);
-  const ct = el("text", { x: CRASH, y: WY + 34, "text-anchor": "middle", style: "font-size:14px;font-weight:700;fill:var(--ltt-bad)" }, crash); ct.textContent = "전원 끊김";
-  const RY = WY + 76;
-  const redo = el("line", { x1: xs[CK], y1: RY, x2: xs[CK], y2: RY, style: "stroke:var(--ltt-good);stroke-width:4;stroke-linecap:round" }, s);
-  const rhead = el("path", { d: "M0,-7 L12,0 L0,7 Z", style: "fill:var(--ltt-good);opacity:0" }, s);
-  const rlab = lab(xs[CK] + 4, RY - 14, "REDO: 체크포인트부터 끝까지 다시 적용", "font-size:14px;font-weight:700;fill:var(--ltt-good)");
-  const drops = [5, 6, 7].map((i) => el("line", { x1: xs[i], y1: RY + 12, x2: xs[i], y2: RY + 12, style: "stroke:var(--ltt-good);stroke-width:2.5;stroke-dasharray:4 4" }, s));
-  const dlab = lab(xs[5] - 10, DY + 30, "복구 때 WAL에서 다시 반영", "font-size:13px;fill:var(--ltt-good)");
-  function draw(u) {
-    const wu = cl(u / .52), wx = X0 + (CRASH - X0) * ease(wu);
-    wal.setAttribute("x2", wx);
-    recs.forEach((g, i) => g.style.opacity = wx >= xs[i] - 2 ? 1 : 0);
-    const fu = ease(cl((u - .24) / .1));
-    flush.forEach((f) => f.setAttribute("y2", WY + 12 + (DY - WY - 18) * fu));
-    ckLab.style.opacity = fu;
-    crash.style.opacity = cl((u - .52) / .04);
-    const ru = ease(cl((u - .6) / .2)), rx = xs[CK] + (CRASH - 20 - xs[CK]) * ru;
-    redo.setAttribute("x2", rx); rhead.setAttribute("transform", `translate(${rx},${RY})`); rhead.style.opacity = ru > 0 ? 1 : 0;
-    rlab.style.opacity = ru; dlab.style.opacity = cl((u - .78) / .06);
-    drops.forEach((d, k) => { const du = ease(cl((u - .66 - k * .05) / .08)); d.setAttribute("y2", RY + 12 + (DY - RY - 18) * du); });
-    s.style.opacity = u > .96 ? 1 - (u - .96) / .04 : 1;
-  }
-  return draw;
-}
-function loop(period, draw) { let raf = 0, t0 = 0; const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  return { enter() { clearTimeout(raf); if (reduced) { draw(.95); return; }
-      t0 = Date.now(); const f = () => { draw(((Date.now() - t0) / period) % 1); raf = setTimeout(f, 16); }; f(); },
-    leave() { clearTimeout(raf); } }; }
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WAL과 복구</title><script src="/kit/ltt.js"></script></head><body><script>
+const REC = [["0/3000130", "COMMIT"], ["0/3000168", "CHECKPOINT"], ["0/3000240", "UPDATE"]];
+const nodes = REC.map(([lsn, op], i) => ({ id: "w" + i, label: op, sub: "LSN …" + lsn.slice(-3), at: [16 + i * 30, 18], tone: i === 1 ? "warn" : "accent" }));
+const flushCk = ["w0>data"];
 LTT.deck({
-  title: "WAL과 복구", theme: "terminal",
-  glossary: {},
+  title: "WAL과 복구", theme: "terminal", exemplar: true, glossary: {},
   scenes: [{
     type: "terms", title: "로그를 먼저 쓰고, 체크포인트에서 끊어 두면, 복구는 그 뒤만 다시 읽는다",
-    sub: "위 선은 WAL에 쌓이는 기록, 아래 점선은 실제 테이블 파일이다.",
+    sub: "위 줄은 WAL에 LSN(0/3000…) 순서로 쌓이는 기록, 아래는 실제 테이블 파일이다. 초록 점은 복구가 다시 읽는 구간이다.",
+    visual: LTT.graph({ layout: "manual", aspect: 2,
+      nodes: [...nodes, { id: "data", label: "데이터 파일", sub: "base/ (heap)", icon: "db", at: [46, 82] }],
+      edges: [...REC.slice(1).map((_, i) => ({ from: "w" + i, to: "w" + (i + 1) })),
+        { from: "w0", to: "data", tone: "warn", dash: true },
+        { from: "w2", to: "data", tone: "good", dash: true }] }),
     terms: [
-      { key: "WAL", word: "WAL", en: "write-ahead log", icon: "doc", visual: false, plain: "테이블을 고치기 전에 바뀐 내용을 먼저 순서대로 적는 로그. 위치는 LSN으로 센다." },
-      { key: "체크포인트", word: "체크포인트", en: "checkpoint", icon: "shield-check", visual: false, plain: "메모리에서 바뀐 페이지를 모두 디스크에 쓰고, 복구를 시작할 자리를 표시하는 순간." },
-      { key: "REDO 복구", word: "REDO 복구", en: "crash recovery", icon: "refresh", visual: false, plain: "재시작할 때 마지막 체크포인트부터 WAL 끝까지 다시 적용해 잃은 변경을 되살리는 일." }],
-    basis: "PostgreSQL 기준. checkpoint_timeout 기본 5분, max_wal_size 기본 1GB(공식 문서 'WAL Configuration'). LSN 값은 예시.",
-    mount(body) { return loop(9000, timeline(body)); }
+      { term: "WAL", on: "w0", plain: "테이블을 고치기 전에 바뀐 내용을 먼저 순서대로 적는 로그. 위치는 LSN으로 센다." },
+      { term: "체크포인트", on: "w1", plain: "바뀐 페이지를 모두 디스크에 쓰고, 복구를 시작할 자리를 표시하는 순간." },
+      { term: "REDO 복구", on: "w2", plain: "재시작 때 마지막 체크포인트부터 WAL 끝까지 다시 적용해 잃은 변경을 되살린다." }],
+    motion: [
+      ["hide", { ids: [...flushCk, "w2>data"], dur: 0.01 }],
+      ["travel", { along: "w0>w1", dur: 1.4 }],
+      { par: [["show", { ids: flushCk, dur: 0.4 }], ["flow", { edges: flushCk, n: 2, tone: "warn", dur: 1.4 }], ["pulse", { node: "w1", tone: "warn", dur: 1.4 }]] },
+      ["travel", { along: "w1>w2", dur: 0.8 }],
+      ["set", { node: "w2", sub: "⚡ 전원 끊김", tone: "bad", dur: 0.8 }],
+      { par: [["travel", { along: "w1>w2", tone: "good", dur: 1.2 }], ["highlight", { id: "w1", tone: "good", dur: 1.2 }]] },
+      { par: [["show", { id: "w2>data", dur: 0.4 }], ["flow", { edges: ["w2>data"], n: 2, tone: "good", dur: 1.4 }]] }
+    ],
+    basis: "PostgreSQL 공식 문서 'WAL Configuration': checkpoint_timeout 5분, max_wal_size 1GB 기본. LSN은 예시."
   }]
 });
-</script>
-</body>
-</html>
+</script></body></html>

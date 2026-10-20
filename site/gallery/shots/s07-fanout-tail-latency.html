@@ -1,134 +1,29 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>fan-out과 꼬리 지연</title>
-<script type="application/json" id="ltt-meta">{"topic":"fan-out과 p99 꼬리 지연","audience":"백엔드 개발자","theme":"terminal","medium":"터미널·대시보드","decision":"한 요청이 부르는 백엔드 수","domain":"백엔드","pattern":["mount"],"mode":"카탈로그용: 장면 하나짜리 본보기. 분포 구조를 \"쪼개지고 합쳐짐\" 움직임과 작은 여러 칸 구도로 보인다"}</script>
-<script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/ltt.js"></script>
-<script src="/kit/ltt-parts.js"></script>
-<script src="/kit/ltt-ui.js"></script>
-<script src="/kit/ltt-deck.js"></script>
-<style>
-.fo{width:100%;max-width:1120px;height:auto;display:block;margin:0 auto}
-.fo text{font-family:inherit}
-.fo-ctl{display:flex;justify-content:center}
-</style>
-<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
-</head>
-<body>
-<script>
-const SVG = "http://www.w3.org/2000/svg";
-// Dean & Barroso, "The Tail at Scale"(CACM 2013): 호출 하나가 1% 확률로 1초를 넘으면 100개 fan-out 요청의 63%가 1초를 넘는다
-const P_SLOW = 0.01;
-const pSlowReq = (n) => 1 - Math.pow(1 - P_SLOW, n);
-LTT.expect("fan-out 100의 느린 요청 비율", pSlowReq(100), 0.634, { tol: 0.001 });
-const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
-const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-const clamp = (x) => Math.max(0, Math.min(1, x));
-function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-
-function fanout(host) {
-  const W = 1120, H = 470, CX = 120, CY = 235, RX = 905;
-  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "fo", "data-annotate": "" }, host);
-  const gLines = mk("g", {}, s), gBack = mk("g", {}, s), gCells = mk("g", {}, s);
-  const label = (x, y, t, st, anchor = "middle") => { const n = mk("text", { x, y, "text-anchor": anchor, style: st }, s); n.textContent = t; return n; };
-  mk("rect", { x: CX - 70, y: CY - 34, width: 140, height: 68, rx: 8, style: "fill:var(--ltt-card);stroke:var(--ltt-ink-2);stroke-width:1.5" }, s);
-  label(CX, CY - 4, "GET /feed", "font-size:18px;font-weight:700;fill:var(--ltt-ink)");
-  label(CX, CY + 20, "요청 1개", "font-size:14px;fill:var(--ltt-muted)");
-  const resp = mk("rect", { x: RX - 75, y: CY - 34, width: 150, height: 68, rx: 8, style: "fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:1.5;transition:stroke .3s" }, s);
-  label(RX, CY - 4, "응답", "font-size:18px;font-weight:700;fill:var(--ltt-ink)");
-  const respT = label(RX, CY + 20, "", "font-size:15px;fill:var(--ltt-muted)");
-  const clock = label(480, 34, "", "font-size:17px;fill:var(--ltt-ink-2)");
-  const gridCap = label(480, H - 24, "", "font-size:15px;fill:var(--ltt-muted)");
-  label(RX, 60, "느린 요청 비율", "font-size:14px;fill:var(--ltt-muted)");
-  const hero = label(RX, 112, "", "font-size:46px;font-weight:700;fill:var(--ltt-ink)");
-  const heroSub = label(RX, 138, "", "font-size:14px;fill:var(--ltt-muted)");
-  label(RX, CY + 84, "최근 요청 20개", "font-size:14px;fill:var(--ltt-muted)");
-  const tallyCells = []; for (let i = 0; i < 20; i++) tallyCells.push(mk("rect", { x: RX - 115 + (i % 10) * 23.5, y: CY + 98 + Math.floor(i / 10) * 23.5, width: 18, height: 18, rx: 3, style: "fill:none;stroke:var(--ltt-line);stroke-width:1.2" }, s));
-  const tallyT = label(RX, CY + 168, "", "font-size:14px;fill:var(--ltt-ink-2)");
-
-  let N = 0, cells = [], rand = rng(7), tally = [], req = null;
-  function layout(n) {
-    N = n; gLines.textContent = ""; gBack.textContent = ""; gCells.textContent = ""; cells = []; tally = [];
-    const x0 = 290, y0 = 64, w = 380, h = 350;
-    const cols = Math.ceil(Math.sqrt(n * w / h)), rows = Math.ceil(n / cols);
-    const size = Math.min(w / cols, h / rows, 110), gap = size * 0.2, cs = size - gap;
-    const ox = x0 + (w - cols * size) / 2 + gap / 2, oy = y0 + (h - rows * size) / 2 + gap / 2;
-    for (let i = 0; i < n; i++) {
-      const x = ox + (i % cols) * size, y = oy + Math.floor(i / cols) * size;
-      const ln = mk("line", { x1: CX + 70, y1: CY, x2: x, y2: y + cs / 2, style: `stroke:var(--ltt-line-2);stroke-width:${n > 50 ? .9 : 1.6}` }, gLines);
-      const bk = mk("line", { x1: x + cs, y1: y + cs / 2, x2: RX - 75, y2: CY, style: `stroke:var(--ltt-accent);stroke-width:${n > 50 ? .6 : 1.2};opacity:0` }, gBack);
-      mk("rect", { x, y, width: cs, height: cs, rx: Math.min(4, cs / 5), style: "fill:var(--ltt-card-2);stroke:var(--ltt-line);stroke-width:1" }, gCells);
-      const fill = mk("rect", { x, y: y + cs, width: cs, height: 0, rx: Math.min(4, cs / 5), style: "fill:var(--ltt-accent)" }, gCells);
-      const t = cs >= 44 ? mk("text", { x: x + cs / 2, y: y + cs / 2 + 6, "text-anchor": "middle", style: `font-size:${Math.min(18, cs / 4)}px;font-weight:700;fill:var(--ltt-ink)` }, gCells) : null;
-      cells.push({ x, y, cs, ln, bk, fill, t });
-    }
-    hero.textContent = Math.round(pSlowReq(n) * 100) + "%";
-    heroSub.textContent = `1 − 0.99^${n} · 모델로 계산한 예시`;
-    gridCap.textContent = `백엔드 호출 ${n}개 · 호출마다 1% 확률로 1초 넘게 걸린다`;
-    newReq();
-  }
-  // 정상 호출 6–25ms, 느린 호출 800–1,200ms로 둔 모델
-  function newReq() { req = { lat: cells.map(() => rand() < P_SLOW ? 800 + 400 * rand() : 6 + 19 * rand() * rand()) }; req.max = Math.max(...req.lat); }
-  const simMs = (u) => 3 * Math.pow(1300 / 3, u);
-  function draw(t, final) {
-    // t: 0–1 split, 1–3.6 calls running (log time), then merge + hold
-    const split = ease(clamp(t / 0.6));
-    const run = clamp((t - 0.6) / 2.8), ms = t < 0.6 ? 0 : simMs(run);
-    const done = ms >= req.max || final, mergeAt = done ? (final ? 0 : (ms >= req.max ? t : 0)) : 0;
-    cells.forEach((c, i) => {
-      c.ln.style.opacity = 0.35 + 0.65 * split * (done ? 0.4 : 1);
-      const lat = req.lat[i], p = final ? 1 : clamp(ms / lat), slow = lat > 100;
-      c.fill.setAttribute("height", c.cs * p); c.fill.setAttribute("y", c.y + c.cs * (1 - p));
-      c.fill.style.fill = slow ? "var(--ltt-bad)" : "var(--ltt-accent)";
-      c.fill.style.opacity = slow ? 1 : 0.55;
-      if (c.t) c.t.textContent = p >= 1 || slow ? Math.round(Math.min(lat, final ? lat : ms)) + "ms" : "";
-      c.bk.style.opacity = done ? 0.7 : 0;
-    });
-    clock.textContent = t < 0.6 ? "요청을 쪼갠다" : done ? `가장 느린 호출을 기다려 합친다 · ${Math.round(req.max)}ms` : `호출 진행 · ${Math.round(ms)}ms 경과`;
-    resp.style.stroke = done ? (req.max > 100 ? "var(--ltt-bad)" : "var(--ltt-good)") : "var(--ltt-line-2)";
-    respT.textContent = done ? Math.round(req.max) + "ms" : "대기 중";
-    respT.style.fill = done ? (req.max > 100 ? "var(--ltt-bad)" : "var(--ltt-good)") : "var(--ltt-muted)";
-    tallyCells.forEach((r, i) => { const v = tally[i]; r.style.fill = v === undefined ? "none" : v ? "var(--ltt-bad)" : "var(--ltt-good-soft)"; r.style.stroke = v === undefined ? "var(--ltt-line)" : v ? "var(--ltt-bad)" : "var(--ltt-good)"; });
-    const slowN = tally.filter(Boolean).length;
-    tallyT.textContent = tally.length ? `느림 ${slowN} / ${tally.length}` : "";
-    return done;
-  }
-  function finish() { tally.push(req.max > 100); if (tally.length > 20) tally.shift(); newReq(); }
-  return { el: s, layout, draw, finish, req: () => req };
-}
-
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>fan-out과 꼬리 지연</title><script src="/kit/ltt.js"></script></head><body><script>
+// Dean & Barroso, "The Tail at Scale"(CACM 2013): 호출 하나가 1% 확률로 1초를 넘는다
+const P = 0.01, pSlow = (n) => 1 - Math.pow(1 - P, n);
+LTT.expect("fan-out 100의 느린 요청 비율", pSlow(100), 0.634, { tol: 0.001 });
+// 요청 한 건을 표본으로 뽑는다(fan-out마다 같은 결과가 나오도록 고정 seed)
+const slowIn = (n) => { let k = 0; for (let i = 0; i < n; i++) if (((Math.sin(i * 12.9898 + n * 78.233) * 43758.5453) % 1 + 1) % 1 < P) k++; return k; };
 LTT.deck({
-  title: "fan-out과 꼬리 지연", theme: "terminal",
+  title: "fan-out과 꼬리 지연", theme: "terminal", exemplar: true,
   glossary: { "fan-out": "요청 하나를 처리하려고 여러 백엔드를 동시에 부르는 것. 응답은 가장 늦은 호출이 끝나야 나간다",
     "p99": "요청을 빠른 순으로 줄 세웠을 때 99번째 백분위의 지연. 100개 중 가장 느린 1개 언저리" },
   scenes: [{
-    title: "호출을 많이 쪼갤수록 한 요청이 느린 호출에 걸릴 확률이 커진다", en: "Tail at scale",
-    sub: "{{fan-out}}된 호출 하나하나는 1%만 느리다(호출 {{p99}}가 1초). 응답은 가장 느린 칸이 차야 나간다.",
-    basis: "Dean & Barroso, “The Tail at Scale”, CACM 2013: 호출의 1%가 1초를 넘으면 100개 fan-out 요청의 63%가 1초를 넘는다.",
-    mount(body) {
-      body.innerHTML = `<div id="g"></div><div id="fig"></div><div class="fo-ctl"><div class="ltt-param">fan-out <b id="fan-v"></b><div id="fan"></div></div></div>`;
-      const f = fanout(body.querySelector("#fig"));
-      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      let timer = 0, t0 = 0, mergedAt = -1;
-      const tick = () => { const t = (Date.now() - t0) / 1000;
-        const done = f.draw(t, false);
-        if (done && mergedAt < 0) mergedAt = t;
-        if (mergedAt >= 0 && t - mergedAt > 0.9) { f.finish(); t0 = Date.now(); mergedAt = -1; }
-        timer = setTimeout(tick, 16); };
-      const start = () => { clearTimeout(timer); if (reduced) { f.draw(9, true); return; } t0 = Date.now(); mergedAt = -1; tick(); };
-      LTT.sweep({ params: { fan: { kind: "steps", stops: [1, 5, 10, 25, 50, 100, 200], value: 100, fmt: (v) => v + "개" } },
-        render: ({ fan }) => { f.layout(fan); if (timer || reduced) start(); },
-        goal: { el: "g", text: "느린 요청이 10% 아래로 내려가는 fan-out을 찾는다", check: ({ fan }) => pSlowReq(fan) < 0.1 } });
-      return { enter: start, leave() { clearTimeout(timer); timer = 0; } };
-    },
-    takeaway: "fan-out N의 요청이 느릴 확률은 1 − (1 − p)^N이라, 호출의 p99가 요청의 중앙값이 된다.",
-    recall: "호출 1%가 느릴 때 fan-out 100이면 느린 요청은 몇 %?"
+    type: "play", title: "호출을 많이 쪼갤수록 한 요청이 느린 호출에 걸릴 확률이 커진다",
+    sub: "칸 하나가 {{fan-out}}된 호출 하나다. 호출마다 1%만 느리다(호출 {{p99}} 1초). 응답은 가장 늦은 칸이 차야 나간다.",
+    knobs: [{ id: "fan", label: "fan-out", min: 1, max: 200, value: 100, step: 1, unit: "개", log: true }],
+    visual: (p) => { const k = slowIn(p.fan);
+      return LTT.units({ n: p.fan, order: "random", seed: 3, groups: [{ k: p.fan - k, label: "빠른 호출 6–25ms", tone: "accent" }, { k, label: "느린 호출 약 1초", tone: "bad" }] }); },
+    motion: [["fill", { group: 0, dur: 0.6 }], ["fill", { group: 1, dur: 2.4 }], ["wait", 0.6]],
+    readout: (p) => [
+      { label: "느린 요청 1−0.99^N", value: Math.round(pSlow(p.fan) * 100), unit: "%", tone: pSlow(p.fan) < 0.1 ? "good" : "bad" },
+      { label: "이 요청의 응답", value: slowIn(p.fan) ? "약 1초" : "25ms 이하", tone: slowIn(p.fan) ? "bad" : "good" }
+    ],
+    goal: { text: "느린 요청이 10% 아래로 내려가는 fan-out을 찾는다", check: (p) => pSlow(p.fan) < 0.1 },
+    takeaway: "느린 요청 확률은 1 − (1 − p)^N이라, 호출의 p99가 요청의 중앙값이 된다.",
+    recall: { q: "호출 1%가 느릴 때 fan-out 100이면 느린 요청은 몇 %?", a: "약 63%. 1 − 0.99^100 ≈ 0.63" },
+    basis: "Dean & Barroso, “The Tail at Scale”, CACM 2013: 호출 1%가 1초를 넘으면 fan-out 100 요청의 63%가 느리다."
   }]
 });
-</script>
-</body>
-</html>
+</script></body></html>

@@ -1,89 +1,29 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CPI 바스켓 가중치</title>
-<script type="application/json" id="ltt-meta">{"topic":"CPI 바스켓 가중치","audience":"경제 기사 독자","theme":"ledger","medium":"경제 신문 차트","decision":"물가 지표 해석","domain":"물가","pattern":["contrast"],"mode":"카탈로그용: 장면 하나짜리 본보기. 부분-전체 구조를 \"선이 그려짐\" 움직임과 전면 구도로 보인다"}</script>
-<script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/ltt.js"></script>
-<script src="/kit/ltt-parts.js"></script>
-<script src="/kit/ltt-ui.js"></script>
-<script src="/kit/ltt-deck.js"></script>
-<style>
-.cpi-w{width:100%;min-width:0}
-.cpi{width:100%;height:auto;display:block;margin:0 auto}
-.cpi text{font-family:inherit}
-</style>
-<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
-</head>
-<body>
-<script>
-const SVG = "http://www.w3.org/2000/svg";
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CPI 바스켓 가중치</title><script src="/kit/ltt.js"></script></head><body><script>
 // 품목군 연간 가격 변화(가정): 두 쪽에 같은 값을 쓴다
-const ITEMS = [{ k: "식료품", r: 10, c: "--ltt-c1" }, { k: "주거·전기", r: 2, c: "--ltt-c2" }, { k: "교통", r: 4, c: "--ltt-c3" }, { k: "기타", r: 1, c: "--ltt-c4" }];
+const ITEMS = [["식료품", 10], ["주거·전기", 2], ["교통", 4], ["기타", 1]];
 const W_OLD = [0.30, 0.15, 0.11, 0.44], W_NEW = [0.15, 0.18, 0.11, 0.56];
-const cpi = (w) => ITEMS.reduce((a, it, i) => a + w[i] * it.r, 0);
+const cpi = (w) => ITEMS.reduce((a, it, i) => a + w[i] * it[1], 0);
 LTT.expect("옛 가중치 CPI 상승률", cpi(W_OLD), 4.18, { tol: 1e-9 });
 LTT.expect("새 가중치 CPI 상승률", cpi(W_NEW), 2.86, { tol: 1e-9 });
-const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-const clamp = (x) => Math.max(0, Math.min(1, x));
-const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
-const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const loops = new Set();
-
-function panel(w, label) {
-  return (host) => {
-    const Wd = 420, H = 400, L = 44, R = 310, T = 96, B = 380;
-    const w0 = host.appendChild(document.createElement("div")); w0.className = "cpi-w";
-    const s = mk("svg", { viewBox: `0 0 ${Wd} ${H}`, class: "cpi" }, w0);
-    // 가중치 막대
-    let x = L; const bw = R - L;
-    mk("text", { x: L, y: 22, style: "font-size:17px;fill:var(--ltt-muted)" }, s).textContent = label + " 바스켓 가중치";
-    w.forEach((v, i) => { mk("rect", { x, y: 32, width: v * bw - 2, height: 30, style: `fill:var(${ITEMS[i].c})` }, s);
-      if (v > 0.1 || true) mk("text", { x: x + 6, y: 53, style: "font-size:15px;font-weight:600;fill:var(--ltt-on-dark)" }, s).textContent = `${Math.round(v * 100)}%`;
-      x += v * bw; });
-    const yv = (v) => B - (v / 11) * (B - T), xm = (m) => L + (m / 12) * (R - L);
-    [0, 2, 4, 6, 8, 10].forEach((v) => { mk("line", { x1: L, x2: R, y1: yv(v), y2: yv(v), style: "stroke:var(--ltt-line);stroke-width:1" }, s);
-      mk("text", { x: L - 8, y: yv(v) + 4, "text-anchor": "end", style: "font-size:15px;fill:var(--ltt-muted)" }, s).textContent = v + "%"; });
-    [0, 6, 12].forEach((m) => mk("text", { x: xm(m), y: B + 20, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-muted)" }, s).textContent = m === 0 ? "1월" : m === 6 ? "7월" : "12월");
-    const lines = ITEMS.map((it, i) => { const d = `M${xm(0)},${yv(0)} L${xm(12)},${yv(it.r)}`;
-      const p = mk("path", { d, style: `fill:none;stroke:var(${it.c});stroke-width:2;opacity:.55` }, s);
-      const t = mk("text", { x: R + 8, y: yv(it.r) + 4 + (it.r === 1 ? 6 : it.r === 2 ? -4 : 0), style: "font-size:15px;fill:var(--ltt-ink-2)" }, s); t.textContent = `${it.k} +${it.r}%`;
-      return { p, t }; });
-    const tot = cpi(w);
-    const main = mk("path", { d: `M${xm(0)},${yv(0)} L${xm(12)},${yv(tot)}`, style: "fill:none;stroke:var(--ltt-ink);stroke-width:4;stroke-linecap:round" }, s);
-    const dot = mk("circle", { r: 6, style: "fill:var(--ltt-ink)" }, s);
-    const val = mk("text", { style: "font-size:30px;font-weight:800;fill:var(--ltt-ink)" }, s);
-    const cap = mk("text", { x: L, y: H - 6, style: "font-size:15px;fill:var(--ltt-muted)" }, s);
-    
-    const len = Math.hypot(xm(12) - xm(0), yv(0) - yv(tot));
-    main.style.strokeDasharray = len;
-    const draw = (u) => {
-      const a = ease(clamp(u / 0.35)), b = ease(clamp((u - 0.35) / 0.4)), fade = u > 0.92 ? 1 - (u - 0.92) / 0.08 : 1;
-      lines.forEach((l, i) => { const L0 = 400; l.p.style.strokeDasharray = L0; l.p.style.strokeDashoffset = L0 * (1 - a); l.p.style.opacity = .55 * fade; l.t.style.opacity = a * fade; });
-      main.style.strokeDashoffset = len * (1 - b); main.style.opacity = fade;
-      const m = 12 * b, v = tot * b;
-      dot.setAttribute("cx", xm(m)); dot.setAttribute("cy", yv(v)); dot.style.opacity = b > 0 ? fade : 0;
-      val.setAttribute("x", L + 10); val.setAttribute("y", T + 20);
-      val.textContent = b > 0 ? `CPI +${v.toFixed(2)}%` : ""; val.style.opacity = fade;
-    };
-    if (reduced) draw(0.9); else { const t0 = Date.now(); let seen = false; const f = () => { if (s.isConnected) seen = true; else if (seen) return; draw(((Date.now() - t0) / 8000) % 1); setTimeout(f, 16); }; f(); }
-    return w0;
-  };
-}
-
+const panel = (s, w) => LTT.chart({ x: { domain: [0, 12] }, y: { label: "1월 대비", domain: [0, 11], fmt: (v) => v + "%" },
+  series: [...ITEMS.map(([k, r], i) => ({ id: s + i, label: `${k} +${r}%`, type: "line", points: [[0, 0], [12, r]], tone: "muted", dash: true })),
+    { id: s + "cpi", label: `CPI +${cpi(w).toFixed(2)}%`, type: "line", points: [[0, 0], [12, cpi(w)]], tone: "accent" }] });
+const mix = (w) => w.map((v, i) => `${ITEMS[i][0]} ${Math.round(v * 100)}`).join(" · ") + "%.";
 LTT.deck({
-  title: "CPI 바스켓 가중치", theme: "ledger",
+  title: "CPI 바스켓 가중치", theme: "ledger", exemplar: true,
   glossary: { "CPI": "소비자물가지수. 가구가 사는 품목 묶음(바스켓)의 가격을 지출 비중으로 가중평균한 값", "가중치": "바스켓에서 각 품목군이 차지하는 지출 비중" },
   scenes: [{
-    type: "contrast", title: "같은 가격 변화도 바스켓 {{가중치}}가 바뀌면 다른 {{CPI}}가 된다",
-    sub: "두 쪽의 품목군 가격 변화는 똑같다. 바뀐 것은 막대의 비중뿐이다. 가는 선은 품목군 가격, 굵은 선은 가중평균(CPI)이다.",
-    before: { label: "식료품 비중 30%", visual: panel(W_OLD, "옛"), foot: { caption: "식료품 +10%가 30%만큼 반영된다" } },
-    after: { label: "식료품 비중 15%", visual: panel(W_NEW, "새"), foot: { caption: "같은 +10%가 15%만큼만 반영된다" } },
-    basis: "CPI 상승률 = Σ(품목군 가격 변화 × 가중치). 가중치는 통계청 2020년 기준 CPI의 품목군 비중(식료품·비주류음료 약 15%)을 단순화. 가격 변화와 결과는 모델로 계산한 예시.",
+    type: "compare", title: "같은 가격 변화도 바스켓 가중치가 바뀌면 다른 CPI가 된다",
+    sub: "가로는 1월부터 지난 달 수. 두 쪽의 품목군 가격선은 똑같다. 바뀐 것은 {{가중치}}뿐이고, 색 선이 가중평균({{CPI}})이다.",
+    left: { label: "옛 바스켓", tag: "식료품 30%", tone: "bad", visual: panel("L", W_OLD), text: `${mix(W_OLD)} 식료품 +10%가 30%만큼 반영된다.` },
+    right: { label: "새 바스켓", tag: "식료품 15%", tone: "good", visual: panel("R", W_NEW), text: `${mix(W_NEW)} 같은 +10%가 15%만큼만 반영된다.` },
+    motion: [
+      { par: [0, 1, 2, 3].flatMap((i) => [["draw", { id: "L" + i, dur: 2.4 }], ["draw", { id: "R" + i, dur: 2.4, side: "right" }]]) },
+      { par: [["draw", { id: "Lcpi", dur: 2.6 }], ["draw", { id: "Rcpi", dur: 2.6, side: "right" }]] },
+      ["wait", 1.4]
+    ],
+    basis: "CPI 상승률 = Σ(품목군 가격 변화 × 가중치). 가중치는 통계청 2020년 기준 품목군 비중을 단순화. 모델로 계산한 예시."
   }]
 });
-</script>
-</body>
-</html>
+</script></body></html>

@@ -1,111 +1,27 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>결제 퍼널 이탈</title>
-<script type="application/json" id="ltt-meta">{"topic":"결제 퍼널 이탈 지점","audience":"UX 입문자","theme":"studio","medium":"제품 분석 대시보드","decision":"어느 결제 단계를 먼저 고칠까","domain":"UX","pattern":["figure"],"mode":"카탈로그용: 장면 하나짜리 본보기. 순서 구조를 \"확대·축소\" 움직임과 좌우 분할 구도로 보인다"}</script>
-<script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/ltt.js"></script>
-<script src="/kit/ltt-parts.js"></script>
-<script src="/kit/ltt-ui.js"></script>
-<script src="/kit/ltt-deck.js"></script>
-<style>
-.fz{width:1120px;max-width:100%;height:auto;display:block;margin:0 auto}
-.fz text{font-family:inherit}
-</style>
-<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
-</head>
-<body>
-<script>
-const SVG = "http://www.w3.org/2000/svg";
-const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-const clamp = (x) => Math.max(0, Math.min(1, x));
-const seg = (u, a, b) => ease(clamp((u - a) / (b - a)));
-const lerp = (a, b, t) => a + (b - a) * t;
-const el = (tag, attrs, parent, text) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; parent && parent.appendChild(n); return n; };
-// 헤드리스 캡처의 virtual time은 setTimeout·Date.now를 따라가므로 rAF 대신 쓴다
-function loop(period, draw, finalU) {
-  let id = 0, t0 = 0;
-  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  return { enter() { clearTimeout(id); if (reduced) { draw(finalU); return; }
-      t0 = Date.now(); const f = () => { draw(((Date.now() - t0) / period) % 1); id = setTimeout(f, 16); }; f(); },
-    leave() { clearTimeout(id); } };
-}
-
-// 모델로 계산한 예시: 장바구니 진입 100명 기준 단계별 잔존율(%)
-const STEPS = [{ l: "장바구니", v: 100 }, { l: "배송 정보", v: 84 }, { l: "결제 수단 선택", v: 72 }, { l: "카드 인증(3DS)", v: 51 }, { l: "주문 완료", v: 47 }];
-const DROP = 3; // 가장 큰 낙폭: 결제 수단 선택 → 카드 인증
-const REASONS = [{ l: "인증 창에서 닫음", v: 10 }, { l: "카드 거절", v: 6 }, { l: "인증 창 로딩 지연", v: 5 }];
-
-function funnel(host) {
-  const W = 1120, H = 500, X0 = 170, BW = 340, RH = 54, GAP = 30, Y0 = 50;
-  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "fz", "data-annotate": "" }, host);
-  const rowY = (i) => Y0 + i * (RH + GAP);
-  el("text", { x: X0, y: 26, style: "font-size:15px;fill:var(--ltt-muted)" }, s, "장바구니에 들어온 100명 중 남은 비율");
-  const bars = STEPS.map((p, i) => {
-    el("text", { x: X0 - 14, y: rowY(i) + RH / 2 + 6, "text-anchor": "end", style: "font-size:17px;fill:var(--ltt-ink-2);font-weight:600" }, s, p.l);
-    el("rect", { x: X0, y: rowY(i), width: BW, height: RH, rx: 6, style: "fill:var(--ltt-card-2)" }, s);
-    const b = el("rect", { x: X0, y: rowY(i), height: RH, rx: 6, style: "fill:var(--ltt-c1)" }, s);
-    const t = el("text", { y: rowY(i) + RH / 2 + 7, style: "font-size:19px;font-weight:700;fill:var(--ltt-ink)" }, s);
-    return { b, t };
-  });
-  const prevW = STEPS[DROP - 1].v / 100 * BW, curW = STEPS[DROP].v / 100 * BW;
-  const lost = el("rect", { x: X0 + curW, y: rowY(DROP), width: prevW - curW, height: RH, style: "fill:var(--ltt-bad-soft);stroke:var(--ltt-bad);stroke-width:1.5;stroke-dasharray:5 4" }, s);
-  const box = { x: X0 + curW - 6, y: rowY(DROP) - 8, w: prevW - curW + 12, h: RH + 16 };
-  const lens = el("rect", { x: box.x, y: box.y, width: box.w, height: box.h, rx: 6, style: "fill:none;stroke:var(--ltt-accent);stroke-width:2.5" }, s);
-  const c1 = el("line", { style: "stroke:var(--ltt-accent);stroke-width:1.5;stroke-dasharray:3 4" }, s);
-  const c2 = el("line", { style: "stroke:var(--ltt-accent);stroke-width:1.5;stroke-dasharray:3 4" }, s);
-
-  const P = { x: 600, y: 40, w: 500, h: 420 };
-  const g = el("g", {}, s);
-  el("rect", { x: 0, y: 0, width: P.w, height: P.h, rx: 14, style: "fill:var(--ltt-card);stroke:var(--ltt-accent);stroke-width:2.5" }, g);
-  const inner = el("g", {}, g);
-  el("text", { x: 28, y: 50, style: "font-size:15px;fill:var(--ltt-muted)" }, inner, "카드 인증 단계에서 사라진 사람");
-  el("text", { x: 28, y: 92, style: "font-size:34px;font-weight:800;fill:var(--ltt-bad)" }, inner, "−21명");
-  el("text", { x: 150, y: 92, style: "font-size:17px;fill:var(--ltt-ink-2)" }, inner, "퍼널 전체 손실 53명 중 가장 큰 칸");
-  const RB = 300, unit = RB / 10;
-  const rs = REASONS.map((r, i) => {
-    const y = 140 + i * 82;
-    el("text", { x: 28, y, style: "font-size:17px;font-weight:600;fill:var(--ltt-ink-2)" }, inner, r.l);
-    const b = el("rect", { x: 28, y: y + 14, height: 34, rx: 5, style: "fill:var(--ltt-bad)" }, inner);
-    const t = el("text", { y: y + 38, style: "font-size:19px;font-weight:700;fill:var(--ltt-ink)" }, inner, r.v + "명");
-    return { b, t, w: r.v * unit };
-  });
-  el("text", { x: 28, y: P.h - 24, style: "font-size:14px;fill:var(--ltt-muted)" }, inner, "모델로 계산한 예시 · 이탈 이벤트 로그를 사유별로 나눈 값");
-
-  function draw(u) {
-    STEPS.forEach((p, i) => { const k = seg(u, 0.02 + i * 0.03, 0.14 + i * 0.03); const w = p.v / 100 * BW * k;
-      bars[i].b.setAttribute("width", Math.max(0, w)); bars[i].t.setAttribute("x", X0 + w + 10);
-      bars[i].t.textContent = Math.round(p.v * k) + "%"; bars[i].t.style.opacity = k; });
-    const show = seg(u, 0.22, 0.28) * (1 - seg(u, 0.93, 0.99));
-    lost.style.opacity = show; lens.style.opacity = show;
-    bars[DROP].t.setAttribute("x", X0 + (u > 0.22 ? prevW : curW) + 14);
-    const z = seg(u, 0.28, 0.42) * (1 - seg(u, 0.84, 0.95));
-    const x = lerp(box.x, P.x, z), y = lerp(box.y, P.y, z), sc = lerp(box.w / P.w, 1, z), sy = lerp(box.h / P.h, 1, z);
-    g.setAttribute("transform", `translate(${x},${y}) scale(${sc},${sy})`);
-    g.style.opacity = show * clamp(z * 4);
-    inner.style.opacity = clamp((z - 0.6) / 0.4);
-    const pw = P.w * sc, ph = P.h * sy;
-    [[c1, box.y, y], [c2, box.y + box.h, y + ph]].forEach(([c, y1, y2]) => { c.setAttribute("x1", box.x + box.w); c.setAttribute("y1", y1); c.setAttribute("x2", x); c.setAttribute("y2", y2); c.style.opacity = show * clamp(z * 3); });
-    rs.forEach((r, i) => { const k = seg(u, 0.44 + i * 0.06, 0.54 + i * 0.06) * (1 - seg(u, 0.84, 0.9)); r.b.setAttribute("width", r.w * k); r.t.setAttribute("x", 28 + r.w * k + 10); r.t.style.opacity = k; });
-  }
-  return { el: s, draw };
-}
-
-let F = null;
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>결제 퍼널</title><script src="/kit/ltt.js"></script></head><body><script>
+const STEPS = ["장바구니", "배송 정보", "결제 수단", "카드 인증", "주문 완료"], LEFT = [100, 84, 72, 51, 47];
+const lost = LEFT.map((v, i) => (i ? LEFT[i - 1] - v : 0)), DROP = 3;
+LTT.expect("가장 큰 낙폭", lost[DROP], 21);
 LTT.deck({
-  title: "결제 퍼널", theme: "studio",
+  title: "결제 퍼널", theme: "studio", exemplar: true,
   glossary: { "퍼널": "사용자가 목표(결제 완료)까지 거치는 단계를 차례로 놓고 단계마다 남은 비율을 본 그림", "이탈": "다음 단계로 가지 않고 떠난 것" },
   scenes: [{
     type: "figure", kicker: "결제 퍼널", title: "가장 크게 새는 칸을 확대해야 고칠 곳이 보인다",
-    sub: "{{퍼널}} 막대의 길이는 남은 사람, 확대한 칸은 한 단계의 {{이탈}}을 사유별로 나눈 것",
-    figure: (h) => (F = funnel(h)),
-    caption: "결제 수단 선택 → 카드 인증에서 21명이 빠진다. 그 21명을 사유로 나누면 '인증 창에서 닫음'이 가장 크다.",
-    basis: "단계 수치는 모델로 계산한 예시. 평균 장바구니 이탈률 약 70%(Baymard Institute, 2024 집계)를 참고했다.",
-    mount() { return loop(9000, (u) => F.draw(u), 0.7); }
+    sub: "{{퍼널}} 막대의 길이는 남은 사람, 오른쪽 21칸은 가장 큰 칸의 {{이탈}}을 사유별로 나눈 것",
+    visual: LTT.chart({ x: { cats: STEPS }, y: { label: "100명 중 남은 사람", domain: [0, 110] }, stack: true, series: [
+        { id: "left", label: "남음", type: "bar", values: LEFT, tone: "accent" },
+        { id: "drop", label: "가장 큰 이탈 −21명", type: "bar", values: lost.map((v, i) => (i === DROP ? v : null)), tone: "bad" }] }),
+    side: LTT.units({ n: 21, cols: 7, groups: [{ k: 10, label: "인증 창에서 닫음", tone: "bad" }, { k: 6, label: "카드 거절", tone: "warn" }, { k: 5, label: "인증 창 로딩 지연", tone: "accent" }] }),
+    motion: [
+      ["grow", { id: "left", dur: 1.6 }],
+      ["grow", { id: "drop", dur: 0.8 }],
+      { par: [["dim", { except: ["drop"], dur: 1.2 }], ["note", { n: 1 }]] },
+      ["fill", { group: 0, dur: 0.8 }], ["fill", { group: 1, dur: 0.6 }], ["fill", { group: 2, dur: 0.6 }]
+    ],
+    points: [{ on: "drop", text: "결제 수단 72명 → 카드 인증 51명: 퍼널에서 가장 큰 21명 손실" }],
+    narration: "결제 수단 선택 → 카드 인증에서 21명이 빠진다. 그 21명을 사유로 나누면 '인증 창에서 닫음'이 가장 크다.",
+    basis: "단계 수치는 모델로 계산한 예시. 평균 장바구니 이탈률 약 70%(Baymard Institute, 2024 집계)를 참고했다."
   }]
 });
-</script>
-</body>
-</html>
+</script></body></html>

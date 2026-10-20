@@ -2,7 +2,7 @@
 
 Learn to Tell은 coding agent가 skill로 제공하는 짧은 상호작용 학습 도구다.
 작업 초기에 사용자가 모르는 핵심 결정 변수를 quick survey로 진단하고, 결정 변수를 이해하는 데 필요한 교과서 기본기(대략 교과서 한 챕터 분량)를 시각 자료·시뮬레이션으로 익히게 한 뒤 서술 퀴즈로 확인하고 결과를 원래 작업으로 돌려준다.
-학습은 `/fork`한 세션에서 진행하고, 학습 결과와 지식 map은 `~/.learn-to-tell/`에 남긴다.
+학습은 `/fork`한 세션에서 진행하고, 학습 결과와 수업 대표 이미지는 `~/.learn-to-tell/`에 남겨 목록 페이지에서 grid로 다시 본다.
 
 <!-- harness:begin 0.25.0 -->
 # Documentation Guide
@@ -143,7 +143,7 @@ When the task completes, remove its entry from `index.md` and move the file to `
 
 ## Generated Lesson Defects
 
-A defect found in a lesson the skill generated (test runs, gallery, user lessons) is evidence about the generator, not a task on that lesson. Trace it to what produced it (`SKILL.md`, `kit/API.md` and `kit/api/`, kit code, audit and lint rules) and fix it there so future generations do not repeat it. Patch the lesson itself only when the user asks for that lesson to be fixed.
+A defect found in a lesson the skill generated (test runs, gallery, user lessons) is evidence about the generator, not a task on that lesson. Trace it to what produced it (`SKILL.md`, `kit/API.md` and `kit/api/`, kit code, schema caps, check and lint rules) and fix it there so future generations do not repeat it. Patch the lesson itself only when the user asks for that lesson to be fixed.
 
 ## User Decision
 

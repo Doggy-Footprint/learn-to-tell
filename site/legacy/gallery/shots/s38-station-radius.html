@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>역세권 가격 띠</title>
+<script type="application/json" id="ltt-meta">{"topic":"역세권 거리와 가격","audience":"주택 구매 검토자","theme":"ledger","medium":"경제 신문 차트","decision":"역에서 몇 m까지를 역세권으로 볼까","domain":"부동산","pattern":["mount"],"mode":"카탈로그용: 장면 하나짜리 본보기. 공간 구조를 \"강조가 훑음\" 움직임과 좌우 분할 구도로 보인다"}</script>
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-ui.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+<style>
+.rs{display:grid;grid-template-columns:1fr 1.25fr;gap:28px;align-items:center}
+.rs svg{width:100%;height:auto;display:block}
+.rs text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+// 모델: 역 앞 3.3㎡당 4,200만원, 1km까지 100m마다 약 2.4% 하락, 그 뒤 완만(0.6%/100m)
+const price = (m) => m <= 1000 ? 4200 * (1 - 0.024 * m / 100) : 4200 * (1 - 0.24) * (1 - 0.006 * (m - 1000) / 100);
+const MAXM = 1600;
+function build(body) {
+  body.innerHTML = `<div class="rs"><svg id="mapv" viewBox="0 0 420 420" data-annotate></svg><svg id="chart" viewBox="0 0 560 400"></svg></div>
+    <div class="ltt-param">역에서 거리 <b id="d-v"></b><input type="range" id="d" min="100" max="1500" step="50" value="300"></div><div id="g"></div>`;
+  const m = body.querySelector("#mapv"), c = body.querySelector("#chart");
+  const C = 210, sc = 190 / MAXM;
+  const ring = mk("circle", { cx: C, cy: C, style: "fill:var(--ltt-accent-soft);fill-opacity:.55;stroke:var(--ltt-accent);stroke-width:2.5" }, m);
+  [400, 800, 1200, 1600].forEach((r) => { mk("circle", { cx: C, cy: C, r: r * sc, style: "fill:none;stroke:var(--ltt-line);stroke-width:1" }, m);
+    const t = mk("text", { x: C + r * sc * .707 + 4, y: C - r * sc * .707 - 4, style: "font-size:13px;fill:var(--ltt-muted)" }, m); t.textContent = r + "m"; });
+  mk("line", { x1: 10, y1: C, x2: 410, y2: C, style: "stroke:var(--ltt-ink-2);stroke-width:5" }, m);
+  mk("line", { x1: C, y1: 10, x2: C, y2: 410, style: "stroke:var(--ltt-line-2);stroke-width:3" }, m);
+  mk("circle", { cx: C, cy: C, r: 11, style: "fill:var(--ltt-bg);stroke:var(--ltt-ink);stroke-width:3" }, m);
+  const st = mk("text", { x: C + 16, y: C + 28, style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, m); st.textContent = "선릉역";
+  const L = 60, R = 540, T = 40, B = 340, x = (d) => L + (R - L) * d / MAXM, y = (p) => B - (B - T) * (p - 2800) / 1600;
+  [3000, 3500, 4000].forEach((p) => { mk("line", { x1: L, x2: R, y1: y(p), y2: y(p), style: "stroke:var(--ltt-line);stroke-width:1" }, c);
+    const t = mk("text", { x: L - 8, y: y(p) + 5, "text-anchor": "end", style: "font-size:13px;fill:var(--ltt-muted)" }, c); t.textContent = p.toLocaleString(); });
+  [0, 400, 800, 1200, 1600].forEach((d) => { const t = mk("text", { x: x(d), y: B + 22, "text-anchor": "middle", style: "font-size:13px;fill:var(--ltt-muted)" }, c); t.textContent = d + "m"; });
+  const tt = mk("text", { x: L, y: 20, style: "font-size:14px;fill:var(--ltt-ink-2);font-weight:600" }, c); tt.textContent = "3.3㎡당 가격(만원)";
+  const band = mk("rect", { x: L, y: T, height: B - T, style: "fill:var(--ltt-accent-soft)" }, c);
+  let d = ""; for (let k = 0; k <= MAXM; k += 20) d += (k ? "L" : "M") + x(k) + "," + y(price(k));
+  mk("path", { d, style: "fill:none;stroke:var(--ltt-ink);stroke-width:3" }, c);
+  const edge = mk("line", { y1: T, y2: B, style: "stroke:var(--ltt-accent);stroke-width:2;stroke-dasharray:5 4" }, c);
+  const dot = mk("circle", { r: 7, style: "fill:var(--ltt-accent);stroke:var(--ltt-bg);stroke-width:2" }, c);
+  const val = mk("text", { style: "font-size:20px;font-weight:700;fill:var(--ltt-ink)" }, c);
+  const drop = mk("text", { style: "font-size:14px;fill:var(--ltt-ink-2)" }, c);
+  mk("line", { x1: x(1000), x2: x(1000), y1: T, y2: B, style: "stroke:var(--ltt-line-2);stroke-width:1" }, c);
+  const kn = mk("text", { x: x(1000) + 6, y: T + 16, style: "font-size:13px;fill:var(--ltt-muted)" }, c); kn.textContent = "1km 뒤 완만";
+  const draw = (dm) => { ring.setAttribute("r", dm * sc); band.setAttribute("width", x(dm) - L);
+    edge.setAttribute("x1", x(dm)); edge.setAttribute("x2", x(dm)); const p = price(dm);
+    dot.setAttribute("cx", x(dm)); dot.setAttribute("cy", y(p));
+    const right = dm > 1100; [val, drop].forEach((t) => t.setAttribute("text-anchor", right ? "end" : "start"));
+    const tx = x(dm) + (right ? -12 : 12);
+    val.setAttribute("x", tx); val.setAttribute("y", y(p) - 40); val.textContent = Math.round(p).toLocaleString() + "만원";
+    drop.setAttribute("x", tx); drop.setAttribute("y", y(p) - 20); drop.textContent = `역 앞보다 ${Math.round((1 - p / 4200) * 100)}% 낮음`; };
+  return draw;
+}
+LTT.deck({
+  title: "역세권 가격 띠", theme: "ledger",
+  glossary: { "역세권": "역에서 걸어서 닿는 거리 안의 지역. 흔히 반경 500m(도보 약 7분)" },
+  scenes: [{
+    title: "역에서 1km까지는 100m마다 가격이 약 2.4%씩 빠진다", en: "Distance bands around a station",
+    sub: "왼쪽 원은 지도 위 반경, 오른쪽 띠는 그 반경 안의 가격. 손잡이로 반경을 옮긴다.",
+    basis: "{{역세권}} 프리미엄이 역에서 멀수록 줄고 1km 안팎에서 완만해진다는 형태는 국토연구원 역세권 연구들의 보고를 따랐다. 가격과 기울기는 모델로 계산한 예시.",
+    chips: ["모델로 계산한 예시"],
+    mount(body) {
+      const draw = build(body); let id = 0, touched = false; const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      LTT.sweep({ params: { d: { kind: "range", map: Number, fmt: (v) => v + "m" } },
+        render: ({ d }) => draw(d),
+        goal: { el: "g", text: "역 앞보다 10% 이상 싸지는 첫 반경을 찾는다", check: ({ d }) => price(d) <= 4200 * 0.9 && price(d - 50) > 4200 * 0.9 } });
+      const inp = body.querySelector("#d"); inp.addEventListener("pointerdown", () => { touched = true; clearTimeout(id); });
+      return { enter() { clearTimeout(id); if (reduced || touched) { draw(+inp.value); return; } const t0 = Date.now();
+          const f = () => { const u = ((Date.now() - t0) / 7000) % 1; const k = u < .7 ? ease(u / .7) : u < .85 ? 1 : 1 - ease((u - .85) / .15);
+            const dm = Math.round((100 + 1400 * k) / 50) * 50; inp.value = dm; body.querySelector("#d-v").textContent = dm + "m"; draw(100 + 1400 * k); id = setTimeout(f, 16); }; f(); },
+        leave() { clearTimeout(id); draw(+inp.value); } };
+    }
+  }]
+});
+</script>
+</body>
+</html>

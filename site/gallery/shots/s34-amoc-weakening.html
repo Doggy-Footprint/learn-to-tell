@@ -1,93 +1,49 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>열염순환 약화</title>
-<script type="application/json" id="ltt-meta">{"topic":"대서양 열염순환(AMOC) 정상과 약화","audience":"기후·해양 입문자","theme":"atlas","medium":"해양 단면도","decision":"AMOC 약화가 무엇을 바꾸나","domain":"해양","pattern":["contrast"],"mode":"카탈로그용: 장면 하나짜리 본보기. 순환 구조를 \"점이 궤적을 그림\" 움직임과 전면 구도로 보인다"}</script>
-<script src="/kit/vendor/d3.min.js"></script>
-<script src="/kit/ltt.js"></script>
-<script src="/kit/ltt-parts.js"></script>
-<script src="/kit/ltt-ui.js"></script>
-<script src="/kit/ltt-deck.js"></script>
-<style>
-.amoc{width:100%;display:block}
-.ltt-ba-side{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-.ltt-ba-rail{order:-1;padding:0}
-.ltt-ba-stage{padding:8px}
-.amoc text{font-family:inherit}
-</style>
-<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
-</head>
-<body>
-<script>
-const SVG = "http://www.w3.org/2000/svg";
-const mk = (tag, attrs, parent, text) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; parent && parent.appendChild(n); return n; };
-const X = (lat) => 46 + (lat + 40) / 110 * 508, Y = (d) => 78 + d / 4000 * 236;
-const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const loops = [];
-
-// 정상: RAPID 26.5°N 관측 평균 약 17 Sv(2004–2012, Srokosz & Bryden 2015), 침강 약 60°N, 심층수 약 3,000 m
-// 약화: 모델로 계산한 예시(약 30% 감소), 침강이 남쪽·얕은 곳으로 옮겨진다
-function section(host, o) {
-  const s = mk("svg", { viewBox: "0 0 600 400", class: "amoc", "data-annotate": "" }, host);
-  mk("rect", { x: X(-40), y: Y(0), width: X(70) - X(-40), height: Y(4000) - Y(0), style: "fill:var(--ltt-sea)" }, s);
-  const floor = [[-40, 4000], [-25, 3900], [-10, 4000], [5, 3800], [20, 3600], [35, 3900], [50, 3400], [62, 3700], [66, 1800], [70, 900]];
-  mk("path", { d: "M" + floor.map(([a, d]) => X(a) + "," + Y(d)).join("L") + `L${X(70)},${Y(4000) + 10}L${X(-40)},${Y(4000) + 10}Z`, style: "fill:var(--ltt-land);stroke:var(--ltt-border)" }, s);
-  mk("line", { x1: X(-40), x2: X(70), y1: Y(0), y2: Y(0), style: "stroke:var(--ltt-ink-2);stroke-width:1.5" }, s);
-  [[-30, "30°S"], [0, "적도"], [26.5, "26.5°N"], [60, "60°N"]].forEach(([a, t]) => {
-    mk("line", { x1: X(a), x2: X(a), y1: Y(0) - 6, y2: Y(0), style: "stroke:var(--ltt-ink-2)" }, s);
-    mk("text", { x: X(a), y: Y(0) - 12, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, s, t); });
-  mk("line", { x1: X(26.5), x2: X(26.5), y1: Y(0), y2: Y(3600), style: "stroke:var(--ltt-muted);stroke-dasharray:3 4" }, s);
-  [1000, 2000, 3000].forEach((d) => mk("text", { x: X(-40) - 6, y: Y(d) + 4, "text-anchor": "end", style: "font-size:12px;fill:var(--ltt-muted)" }, s, d / 1000 + "km"));
-  if (o.lens) {
-    mk("path", { d: `M${X(48)},${Y(0)} Q${X(58)},${Y(260)} ${X(68)},${Y(0)}Z`, style: "fill:var(--ltt-warn-soft);stroke:var(--ltt-warn);stroke-dasharray:4 3" }, s);
-    mk("text", { x: X(58), y: Y(0) - 30, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-warn);font-weight:600" }, s, "녹은 물 · 가벼운 표층");
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>열염순환 약화</title><script src="/kit/ltt.js"></script></head><body><script>
+// 정상: RAPID 26.5°N 관측 평균 약 17 Sv(2004–2012), 침강 약 60°N, 심층수 약 3,000 m.
+// 약화: 침강 약 30% 감소를 가정한 모델 예시. 침강이 남쪽·얕은 곳으로 옮겨지고 한 바퀴가 0.7배 속도로 돈다.
+// 공통 주기 50초에 정상 10바퀴, 약화 7바퀴라 반복 이음매에서 끊기지 않는다. compare 장면은 motion이 없으면 draw 시계가 멈춰 있어 wait로 장면 길이를 준다.
+const section = ({ tone, laps, sink, deep, sinkLabel, sv, lens }) => LTT.draw({
+  aspect: 3 / 2, dur: 50,
+  setup(h) {
+    const X = (lat) => 70 + (lat + 40) / 110 * 900, Y = (d) => 90 + d / 4000 * 470;
+    h.el("rect", { x: X(-40), y: Y(0), width: X(70) - X(-40), height: Y(4000) - Y(0), class: "band" });
+    const floor = [[-40, 4000], [-10, 4000], [20, 3600], [50, 3400], [62, 3700], [66, 1800], [70, 900]];
+    h.el("path", { d: "M" + floor.map(([a, d]) => X(a) + "," + Y(d)).join("L") + `L${X(70)},${Y(4000) + 12}L${X(-40)},${Y(4000) + 12}Z`, class: "e", style: `fill:${h.color("muted")};opacity:.5` });
+    [[-30, "30°S"], [0, "적도"], [26.5, "26.5°N"], [60, "60°N"]].forEach(([a, t]) => h.label(X(a), Y(0) - 8, t, { anchor: "b", cls: "muted" }));
+    [1000, 2000, 3000].forEach((d) => h.label(X(-40) - 8, Y(d), d / 1000 + "km", { anchor: "r", cls: "muted" }));
+    if (lens) { h.el("path", { d: `M${X(48)},${Y(0)} Q${X(58)},${Y(280)} ${X(68)},${Y(0)}Z`, style: `fill:${h.color("warn")};opacity:.3` });
+      h.label(X(58), Y(0) + 40, "녹은 물", { cls: "muted", tone: "warn" }); }
+    const d = `M${X(-36)},${Y(60)} L${X(sink - 4)},${Y(60)} Q${X(sink + 3)},${Y(80)} ${X(sink + 2)},${Y(deep / 2)} Q${X(sink + 1)},${Y(deep)} ${X(sink - 8)},${Y(deep)} L${X(-30)},${Y(deep)} Q${X(-38)},${Y(deep)} ${X(-38)},${Y(deep / 2)} Q${X(-38)},${Y(60)} ${X(-36)},${Y(60)}Z`;
+    const loop = h.el("path", { d, class: "e", style: "stroke-dasharray:3 8;opacity:.6" });
+    const L = loop.getTotalLength(), seg = L * 0.3;
+    const trail = h.el("path", { d, style: `fill:none;stroke:${h.color(tone)};stroke-width:7;stroke-linecap:round;stroke-dasharray:${seg} ${L - seg}` });
+    const head = h.el("circle", { r: 12, class: "dot " + tone });
+    h.label(X(5), Y(60) + 30, "따뜻한 표층수 → 북쪽", { anchor: "l" });
+    h.label(X(sink) - 20, Y(deep / 2), sinkLabel, { anchor: "r" });
+    h.label(X(5), Y(deep) - 30, `차가운 심층수 ← 남쪽 (${deep.toLocaleString()} m)`, { anchor: "l" });
+    h.label(X(-40), h.H - 30, sv, { anchor: "l", cls: "big", tone });
+    h.anchor("sink", X(sink), Y(deep / 2));
+    return { loop, trail, head, L, seg };
+  },
+  draw(t, h, s) {
+    const pos = ((t * laps / 50) % 1) * s.L, [x, y] = h.along(s.loop, pos / s.L);
+    s.trail.setAttribute("stroke-dashoffset", String(s.seg - pos));
+    s.head.setAttribute("cx", x); s.head.setAttribute("cy", y);
   }
-  const p = o.path;
-  const d = `M${X(-36)},${Y(60)} L${X(p.sink - 4)},${Y(60)} Q${X(p.sink + 3)},${Y(80)} ${X(p.sink + 2)},${Y(p.deep * 0.5)} Q${X(p.sink + 1)},${Y(p.deep)} ${X(p.sink - 8)},${Y(p.deep)} L${X(-30)},${Y(p.deep)} Q${X(-38)},${Y(p.deep)} ${X(-38)},${Y(p.deep * 0.5)} Q${X(-38)},${Y(60)} ${X(-36)},${Y(60)}Z`;
-  mk("path", { d, style: "fill:none;stroke:var(--ltt-ink-2);stroke-width:1.2;stroke-dasharray:2 5;opacity:.6" }, s);
-  const trail = mk("path", { d, style: `fill:none;stroke:var(${o.tone});stroke-width:${o.width};stroke-linecap:round` }, s);
-  const L = trail.getTotalLength(), seg = L * 0.32;
-  trail.setAttribute("stroke-dasharray", `${seg} ${L - seg}`);
-  const dots = Array.from({ length: 7 }, (_, i) => mk("circle", { r: i ? 4 : 8, style: `fill:var(${i ? "--ltt-ink-2" : o.tone});stroke:var(--ltt-bg);stroke-width:2` }, s));
-  mk("text", { x: X(4), y: Y(60) + 26, style: "font-size:15px;fill:var(--ltt-ink)" }, s, "따뜻하고 짠 표층수 → 북쪽");
-  mk("text", { x: X(p.sink) - 12, y: Y(p.deep * 0.5), "text-anchor": "end", style: "font-size:15px;fill:var(--ltt-ink)" }, s, p.sinkLabel);
-  mk("text", { x: X(4), y: Y(p.deep) - 12, style: "font-size:15px;fill:var(--ltt-ink)" }, s, `차가운 심층수 ← 남쪽 (${p.deep.toLocaleString()} m)`);
-  mk("text", { x: X(-34), y: Y(p.deep * 0.5) + 5, style: "font-size:14px;fill:var(--ltt-muted)" }, s, "용승");
-  mk("text", { x: X(-40), y: 386, style: "font-size:30px;font-weight:700;fill:var(" + o.tone + ")" }, s, o.sv);
-  mk("text", { x: X(-40) + o.sv.length * 17 + 8, y: 386, style: "font-size:14px;fill:var(--ltt-muted)" }, s, o.svNote);
-  const draw = (t) => {
-    const u = ((t * o.speed) % 1 + 1) % 1, pos = u * L;
-    trail.setAttribute("stroke-dashoffset", String(-(pos - seg)));
-    dots.forEach((c, i) => { const q = trail.getPointAtLength(((pos - i * L / 7) % L + L) % L); c.setAttribute("cx", q.x); c.setAttribute("cy", q.y); });
-  };
-  draw(reduced ? 0.6 / o.speed : 0);
-  loops.push(draw);
-  return s;
-}
-
-function runLoops() {
-  let tm = 0, t0 = 0;
-  return { enter() { clearTimeout(tm); if (reduced) return; t0 = Date.now();
-      const f = () => { const t = (Date.now() - t0) / 1000; loops.forEach((g) => g(t)); tm = setTimeout(f, 16); }; f(); },
-    leave() { clearTimeout(tm); } };
-}
-
+});
 LTT.deck({
-  title: "열염순환 약화", theme: "atlas",
+  title: "열염순환 약화", theme: "studio", exemplar: true,
   glossary: { "AMOC": "대서양 자오면 역전순환. 표층은 북쪽으로, 심층은 남쪽으로 도는 대서양의 열염순환", "Sv": "스베드럽. 초당 100만 m³의 물이 흐르는 양" },
   scenes: [{
-    type: "contrast", title: "북쪽 바다가 가벼워지면 컨베이어가 느려지고 얕아진다", en: "AMOC: normal vs weakened",
-    sub: "대서양 남북 단면의 {{AMOC}}. 흐름의 양은 {{Sv}}. 점 하나가 한 바퀴의 궤적을 그리며 돈다. 같은 시간에 도는 거리를 비교한다.",
-    before: { label: "정상 · 관측", visual: (el) => section(el, { tone: "--ltt-accent", width: 6, speed: 0.16, sv: "17 Sv", svNote: "26.5°N 관측 평균",
-      path: { sink: 62, deep: 3000, sinkLabel: "60°N에서 침강" } }) },
-    after: { label: "약화 · 모델로 계산한 예시", tone: "warn", visual: (el) => section(el, { tone: "--ltt-warn", width: 4, speed: 0.112, sv: "약 12 Sv", svNote: "모델로 계산한 예시", lens: true,
-      path: { sink: 52, deep: 1900, sinkLabel: "덜, 남쪽에서 침강" } }) },
-    basis: "정상값은 RAPID 배열 26.5°N 2004–2012 평균 약 17 Sv(Srokosz & Bryden 2015, Science). 약화 쪽은 침강 감소 약 30%를 가정한 모델로 계산한 예시. 실제 약화 폭은 불확실.",
-    mount: () => runLoops()
+    type: "compare", title: "북쪽 바다가 가벼워지면 컨베이어가 느려지고 얕아진다",
+    sub: "대서양 남북 단면의 {{AMOC}}. 같은 시간에 점이 도는 거리를 비교한다. 흐름의 양은 {{Sv}}.",
+    left: { label: "정상 · 관측", tag: "17 Sv", tone: "accent", text: "60°N에서 깊이 3,000 m까지 가라앉아 크게 돈다.",
+      visual: section({ tone: "accent", laps: 10, sink: 62, deep: 3000, sinkLabel: "60°N에서 침강", sv: "17 Sv" }) },
+    right: { label: "약화 · 모델 예시", tag: "약 12 Sv", tone: "warn", text: "녹은 물이 표층을 가볍게 해 더 남쪽·얕은 곳에서 덜 가라앉고 0.7배로 돈다.",
+      visual: section({ tone: "warn", laps: 7, sink: 52, deep: 1900, sinkLabel: "남쪽에서 덜 침강", sv: "약 12 Sv", lens: true }) },
+    motion: [["wait", 50]], hold: 0,
+    basis: "정상값은 RAPID 26.5°N 2004–2012 평균 약 17 Sv(Srokosz & Bryden 2015). 약화 쪽은 침강 30% 감소를 가정한 모델 예시."
   }]
 });
-</script>
-</body>
-</html>
+</script></body></html>

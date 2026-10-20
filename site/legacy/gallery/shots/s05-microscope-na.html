@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>배율과 개구수</title>
+<script type="application/json" id="ltt-meta">{"topic":"현미경 해상도","audience":"광학 입문자","theme":"lab","medium":"실험 노트·영상 플롯","decision":"대물렌즈를 고를 때 배율과 개구수 중 무엇을 보나","domain":"광학","pattern":["contrast"],"mode":"카탈로그용: 장면 하나짜리 본보기. 공간 구조를 \"확대·축소\" 움직임과 작은 여러 칸 구도로 보인다"}</script>
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-ui.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+<style>
+.na-row{margin-top:40px;display:grid;grid-template-columns:repeat(3,80px);gap:10px;width:max-content}
+.na-cell{display:flex;flex-direction:column;gap:4px}
+.na-cell canvas{width:100%;aspect-ratio:1/1;display:block;border:1px solid var(--ltt-line);background:var(--ltt-card)}
+.na-cell svg{width:100%;height:34px;display:block}
+.na-cell .h{display:flex;justify-content:space-between;align-items:baseline;font-variant-numeric:tabular-nums}
+.na-cell .h b{font-size:18px}.na-cell .ltt-tag{align-self:flex-start}
+.na-cell .d{color:var(--ltt-muted);font-size:14px}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+// Rayleigh 분해능 d = 0.61 λ / NA, λ = 550 nm. 두 점 간격 0.6 µm.
+const LAMBDA = 0.55, SEP = 0.6;
+const rayleigh = (na) => 0.61 * LAMBDA / na;
+LTT.expect("NA 0.25 분해능", rayleigh(0.25), 1.342, { tol: 0.001 });
+// 점상 분포를 가우스로 근사: σ ≈ 0.21 λ / NA
+const sigma = (na) => 0.21 * LAMBDA / na;
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+
+function rgbOf(v) { const c = document.createElement("canvas").getContext("2d"); c.fillStyle = v; c.fillRect(0, 0, 1, 1); return c.getImageData(0, 0, 1, 1).data; }
+const token = (n) => getComputedStyle(document.body).getPropertyValue(n).trim();
+
+function cell(host, mag, na) {
+  const wrap = LTT.h("div", "na-cell");
+  const d = rayleigh(na), ok = d < SEP;
+  wrap.innerHTML = `<div class="h"><b>${mag}×</b></div><div class="d">NA ${na}<br>d ${d.toFixed(2)} µm</div>`;
+  const cv = wrap.appendChild(document.createElement("canvas")); cv.width = 240; cv.height = 240;
+  const sv = wrap.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "svg"));
+  sv.setAttribute("viewBox", "0 0 240 46"); sv.setAttribute("preserveAspectRatio", "none");
+  sv.innerHTML = `<line x1="0" y1="44" x2="240" y2="44" style="stroke:var(--ltt-line)"/><path style="fill:none;stroke:var(--ltt-accent);stroke-width:2"/>`;
+  const prof = sv.querySelector("path");
+    host.appendChild(wrap);
+  wrap.appendChild(LTT.h("span", `ltt-tag ${ok ? "good" : "bad"}`, ok ? "두 점" : "한 덩어리"));
+  const ctx = cv.getContext("2d"), img = ctx.createImageData(240, 240);
+  const s = sigma(na);
+  // 화면 px/µm는 배율에 비례(100× ↦ 60 px/µm)
+  function draw(z) {
+    const ink = rgbOf(token("--ltt-ink")), bg = rgbOf(token("--ltt-card"));
+    const ppu = mag * 1.2 * z;
+    const I = (xu, yu) => Math.exp(-((xu - SEP / 2) ** 2 + yu * yu) / (2 * s * s)) + Math.exp(-((xu + SEP / 2) ** 2 + yu * yu) / (2 * s * s));
+    for (let y = 0; y < 240; y++) for (let x = 0; x < 240; x++) {
+      const v = Math.min(1, I((x - 120) / ppu, (y - 120) / ppu)), o = (y * 240 + x) * 4;
+      for (let c = 0; c < 3; c++) img.data[o + c] = bg[c] + (ink[c] - bg[c]) * v; img.data[o + 3] = 255; }
+    ctx.putImageData(img, 0, 0);
+    let p = ""; for (let x = 0; x <= 240; x += 3) { const v = Math.min(1, I((x - 120) / ppu, 0) / 1.0); p += (x ? "L" : "M") + x + "," + (44 - 40 * v).toFixed(1); }
+    prof.setAttribute("d", p);
+  }
+  return draw;
+}
+
+function row(cells) {
+  return (node) => {
+    const r = LTT.h("div", "na-row"); node.appendChild(r);
+    const draws = cells.map(([m, na]) => cell(r, m, na));
+    const all = (z) => draws.forEach((f) => f(z));
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { all(1); return r; }
+    // 7초 반복: 넓은 시야에서 확대(2.5초) → 멈춤(3초) → 되돌림(1.5초)
+    const t0 = Date.now(), P = 7000;
+    const f = () => { if (!r.isConnected) return; const u = ((Date.now() - t0) % P) / P;
+      const z = u < .36 ? .15 + .85 * ease(u / .36) : u < .79 ? 1 : 1 - .85 * ease((u - .79) / .21);
+      all(z); setTimeout(f, 40); };
+    requestAnimationFrame(f);
+    return r;
+  };
+}
+
+LTT.deck({
+  title: "배율과 개구수", theme: "lab",
+  glossary: { "개구수": "NA. 렌즈가 받아들이는 빛 원뿔이 얼마나 넓은지. 클수록 더 가까운 두 점을 갈라 본다",
+    "분해능": "두 점을 둘로 볼 수 있는 가장 짧은 간격. d = 0.61λ/NA" },
+  scenes: [{
+    type: "contrast",
+    title: "확대만 하면 덩어리가 커질 뿐, 두 점은 개구수가 갈라 준다",
+    sub: "0.6 µm 떨어진 두 점을 찍어 확대한다. 곡선은 가운데 줄의 밝기, d는 갈라 볼 수 있는 최소 간격이다. {{개구수}}가 {{분해능}}을 정한다.",
+    before: { label: "배율만 올림 · NA 0.25 고정", tone: "bad", visual: row([[10, 0.25], [40, 0.25], [100, 0.25]]) },
+    after: { label: "개구수를 함께 올림 · 표준 대물렌즈", tone: "good", visual: row([[10, 0.25], [40, 0.65], [100, 1.25]]) },
+    basis: "Rayleigh 기준 d = 0.61λ/NA, λ = 550 nm. 10×/0.25, 40×/0.65, 100×/1.25(유침)는 흔한 아크로맷 대물렌즈 사양. 점상은 가우스로 근사. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    takeaway: "해상도는 개구수가 정하고, 배율은 이미 갈라진 것을 크게 보여 줄 뿐이다.", recall: "NA 0.25 렌즈로 0.6 µm 간격 두 점을 보려면 배율을 올리면 되나?"
+  }]
+});
+</script>
+</body>
+</html>

@@ -1,461 +1,565 @@
 {
- "10": {
-  "file": "s10-thermostat-overshoot.html",
-  "structure": "되먹임",
-  "theme": "lab",
-  "motion": "입자가 흐름",
-  "role": "hook",
-  "composition": "겹쳐 놓기",
-  "topic": "제어 · 온도조절기 되먹임 루프와 오버슈트"
- },
- "11": {
-  "file": "s11-region-tradeoff.html",
-  "structure": "트레이드오프",
-  "theme": "atlas",
-  "motion": "값이 쌓임",
-  "role": "predict",
-  "composition": "전면",
-  "topic": "클라우드 · 리전을 늘릴수록 지연은 줄고 비용은 쌓임"
- },
- "12": {
-  "file": "s12-node-event-loop.html",
-  "structure": "순환",
-  "theme": "terminal",
-  "motion": "점이 궤적을 그림",
-  "role": "overview",
-  "composition": "겹쳐 놓기",
-  "topic": "런타임 · Node.js 이벤트 루프 단계 한 장 정리"
- },
- "13": {
-  "file": "s13-checkout-funnel-zoom.html",
-  "structure": "순서",
-  "theme": "studio",
-  "motion": "확대·축소",
-  "role": "figure",
-  "composition": "좌우 분할",
-  "topic": "UX · 결제 퍼널 단계, 이탈 지점으로 확대"
- },
- "14": {
-  "file": "s14-simpson-paradox-slopes.html",
-  "structure": "부분-전체",
-  "theme": "paper",
-  "motion": "선이 그려짐",
-  "role": "contrast",
-  "composition": "작은 여러 칸",
-  "topic": "통계 · 심슨의 역설, 집단별 기울기 vs 합친 기울기"
- },
- "15": {
-  "file": "s15-securitization-tranches.html",
-  "structure": "연결",
-  "theme": "ledger",
-  "motion": "쪼개지고 합쳐짐",
-  "role": "figure",
-  "composition": "중앙 주인공",
-  "topic": "금융 · 증권화, 대출을 묶어 트랜치로 나눔"
- },
- "16": {
-  "file": "s16-room-daylight.html",
-  "structure": "공간",
-  "theme": "sketch",
-  "motion": "강조가 훑음",
-  "role": "contrast",
-  "composition": "작은 여러 칸",
-  "topic": "건축 · 남향 vs 북향 방의 하루 채광"
- },
- "17": {
-  "file": "s17-wal-checkpoint.html",
-  "structure": "시간",
-  "theme": "terminal",
-  "motion": "선이 그려짐",
-  "role": "terms",
-  "composition": "중앙 주인공",
-  "topic": "DB · WAL, 체크포인트, 복구 용어와 로그 타임라인"
- },
- "18": {
-  "file": "s18-ab-power.html",
-  "structure": "분포",
-  "theme": "studio",
-  "motion": "쪼개지고 합쳐짐",
-  "role": "sweep",
-  "composition": "전면",
-  "topic": "실험 · A/B 테스트 표본 크기와 두 분포의 겹침(검정력)"
- },
- "19": {
-  "file": "s19-fourier-sweep.html",
-  "structure": "변환",
-  "theme": "paper",
-  "motion": "강조가 훑음",
-  "role": "hook",
-  "composition": "겹쳐 놓기",
-  "topic": "신호처리 · 푸리에 변환, 파형이 주파수 막대로"
- },
- "20": {
-  "file": "s20-equity-consolidation.html",
-  "structure": "계층",
-  "theme": "ledger",
-  "motion": "모양이 바뀜",
-  "role": "predict",
-  "composition": "좌우 분할",
-  "topic": "회계 · 지분율 트리가 연결 범위로 바뀜"
- },
- "21": {
-  "file": "s21-predator-prey-cycle.html",
-  "structure": "되먹임",
-  "theme": "sketch",
-  "motion": "입자가 흐름",
-  "role": "overview",
-  "composition": "겹쳐 놓기",
-  "topic": "생태 · 포식자-피식자 순환 한 장 정리"
- },
- "22": {
-  "file": "s22-clock-power.html",
-  "structure": "트레이드오프",
-  "theme": "blueprint",
-  "motion": "값이 쌓임",
-  "role": "predict",
-  "composition": "좌우 분할",
-  "topic": "칩 설계 · 클럭을 올리면 동적 전력(∝ fV²)이 쌓임"
- },
- "23": {
-  "file": "s23-carnot-cycle.html",
-  "structure": "순환",
-  "theme": "lab",
-  "motion": "점이 궤적을 그림",
-  "role": "overview",
-  "composition": "작은 여러 칸",
-  "topic": "열역학 · 카르노 사이클 P-V 궤적 한 장 정리"
- },
- "24": {
-  "file": "s24-vaccine-cold-chain.html",
-  "structure": "순서",
-  "theme": "atlas",
-  "motion": "확대·축소",
-  "role": "figure",
-  "composition": "중앙 주인공",
-  "topic": "콜드체인 · 백신이 국가→도시→창고로 가는 순서, 지도 확대"
- },
- "25": {
-  "file": "s25-cpi-basket-weights.html",
-  "structure": "부분-전체",
-  "theme": "ledger",
-  "motion": "선이 그려짐",
-  "role": "contrast",
-  "composition": "전면",
-  "topic": "물가 · CPI 바스켓 가중치가 바뀌면 같은 가격 변화도 다른 물가"
- },
- "26": {
-  "file": "s26-git-branch-terms.html",
-  "structure": "연결",
-  "theme": "sketch",
-  "motion": "쪼개지고 합쳐짐",
-  "role": "terms",
-  "composition": "중앙 주인공",
-  "topic": "git · 브랜치, 머지, 리베이스 용어"
- },
- "27": {
-  "file": "s27-wifi-router-floorplan.html",
-  "structure": "공간",
-  "theme": "blueprint",
-  "motion": "강조가 훑음",
-  "role": "sweep",
-  "composition": "전면",
-  "topic": "무선 · 평면도 위 공유기 위치와 Wi-Fi 신호 세기"
- },
- "28": {
-  "file": "s28-dosing-interval.html",
-  "structure": "시간",
-  "theme": "lab",
-  "motion": "모양이 바뀜",
-  "role": "hook",
-  "composition": "겹쳐 놓기",
-  "topic": "약리 · 투약 간격에 따른 혈중 농도 곡선과 반감기"
- },
- "29": {
-  "file": "s29-transit-access.html",
-  "structure": "분포",
-  "theme": "atlas",
-  "motion": "입자가 흐름",
-  "role": "sweep",
-  "composition": "좌우 분할",
-  "topic": "도시 · 노선 수에 따른 출근 인구의 대중교통 접근성"
- },
- "30": {
-  "file": "s30-compile-pipeline.html",
-  "structure": "변환",
-  "theme": "terminal",
-  "motion": "값이 쌓임",
-  "role": "hook",
-  "composition": "작은 여러 칸",
-  "topic": "컴파일러 · 소스→토큰→AST→바이트코드"
- },
- "31": {
-  "file": "s31-visual-hierarchy-gaze.html",
-  "structure": "계층",
-  "theme": "studio",
-  "motion": "점이 궤적을 그림",
-  "role": "predict",
-  "composition": "좌우 분할",
-  "topic": "디자인 · 시각적 위계와 시선이 지나는 길"
- },
- "32": {
-  "file": "s32-ice-albedo-overview.html",
-  "structure": "되먹임",
-  "theme": "paper",
-  "motion": "확대·축소",
-  "role": "overview",
-  "composition": "작은 여러 칸",
-  "topic": "기후 · 얼음-알베도 되먹임 한 장 정리"
- },
- "33": {
-  "file": "s33-bias-variance-error.html",
-  "structure": "트레이드오프",
-  "theme": "lab",
-  "motion": "값이 쌓임",
-  "role": "figure",
-  "composition": "중앙 주인공",
-  "topic": "ML · 편향-분산, 모델 복잡도별 오차"
- },
- "34": {
-  "file": "s34-amoc-weakening.html",
-  "structure": "순환",
-  "theme": "atlas",
-  "motion": "점이 궤적을 그림",
-  "role": "contrast",
-  "composition": "전면",
-  "topic": "해양 · 열염순환 정상 vs 약화"
- },
- "35": {
-  "file": "s35-packet-layers.html",
-  "structure": "순서",
-  "theme": "terminal",
-  "motion": "확대·축소",
-  "role": "terms",
-  "composition": "겹쳐 놓기",
-  "topic": "네트워크 · DNS·TCP·TLS·HTTP 용어, 패킷 캡처 확대"
- },
- "36": {
-  "file": "s36-code-splitting.html",
-  "structure": "부분-전체",
-  "theme": "studio",
-  "motion": "선이 그려짐",
-  "role": "contrast",
-  "composition": "전면",
-  "topic": "프런트엔드 · 앱 번들 구성, 코드 분할 전후"
- },
- "37": {
-  "file": "s37-dependency-parse.html",
-  "structure": "연결",
-  "theme": "paper",
-  "motion": "쪼개지고 합쳐짐",
-  "role": "terms",
-  "composition": "겹쳐 놓기",
-  "topic": "언어학 · 의존 구문 분석의 핵심어·의존어·관계"
- },
- "38": {
-  "file": "s38-station-radius.html",
-  "structure": "공간",
-  "theme": "ledger",
-  "motion": "강조가 훑음",
-  "role": "sweep",
-  "composition": "좌우 분할",
-  "topic": "부동산 · 역에서의 거리 반경과 가격 띠"
- },
- "39": {
-  "file": "s39-tech-debt-sprints.html",
-  "structure": "시간",
-  "theme": "sketch",
-  "motion": "모양이 바뀜",
-  "role": "hook",
-  "composition": "작은 여러 칸",
-  "topic": "제품 · 스프린트마다 쌓이는 기술 부채"
- },
- "40": {
-  "file": "s40-wafer-yield.html",
-  "structure": "분포",
-  "theme": "blueprint",
-  "motion": "입자가 흐름",
-  "role": "predict",
-  "composition": "중앙 주인공",
-  "topic": "반도체 · 웨이퍼 결함 분포와 칩 크기별 수율"
- },
- "41": {
-  "file": "s41-jpeg-pipeline.html",
-  "structure": "변환",
-  "theme": "studio",
-  "motion": "값이 쌓임",
-  "role": "overview",
-  "composition": "작은 여러 칸",
-  "topic": "이미지 · JPEG 압축 단계(YCbCr→DCT→양자화) 한 장 정리"
- },
- "42": {
-  "file": "s42-bst-search-path.html",
-  "structure": "계층",
-  "theme": "paper",
-  "motion": "점이 궤적을 그림",
-  "role": "figure",
-  "composition": "중앙 주인공",
-  "topic": "알고리즘 · 이진 탐색 트리 탐색 경로"
- },
- "43": {
-  "file": "s43-bank-run-loop.html",
-  "structure": "되먹임",
-  "theme": "ledger",
-  "motion": "확대·축소",
-  "role": "overview",
-  "composition": "전면",
-  "topic": "금융 안정 · 뱅크런 되먹임 한 장 정리"
- },
- "44": {
-  "file": "s44-pacelc-latency.html",
-  "structure": "트레이드오프",
-  "theme": "sketch",
-  "motion": "선이 그려짐",
-  "role": "figure",
-  "composition": "겹쳐 놓기",
-  "topic": "분산 시스템 · 일관성 수준과 지연(PACELC)"
- },
- "45": {
-  "file": "s45-refrigerant-undercharge.html",
-  "structure": "순환",
-  "theme": "blueprint",
-  "motion": "쪼개지고 합쳐짐",
-  "role": "contrast",
-  "composition": "좌우 분할",
-  "topic": "냉동 사이클 · 정상 vs 냉매 부족"
- },
- "46": {
-  "file": "s46-titration-terms.html",
-  "structure": "순서",
-  "theme": "lab",
-  "motion": "강조가 훑음",
-  "role": "terms",
-  "composition": "겹쳐 놓기",
-  "topic": "화학 · 적정 곡선의 당량점, 지시약, 완충 구간"
- },
- "47": {
-  "file": "s47-power-mix-sweep.html",
-  "structure": "부분-전체",
-  "theme": "atlas",
-  "motion": "모양이 바뀜",
-  "role": "sweep",
-  "composition": "좌우 분할",
-  "topic": "에너지 · 연도별 지역 전력 믹스"
- },
- "48": {
-  "file": "s48-ransomware-lateral.html",
-  "structure": "연결",
-  "theme": "terminal",
-  "motion": "입자가 흐름",
-  "role": "hook",
-  "composition": "작은 여러 칸",
-  "topic": "보안 · 랜섬웨어의 측면 이동"
- },
- "49": {
-  "file": "s49-basketball-zone-value.html",
-  "structure": "공간",
-  "theme": "sketch",
-  "motion": "강조가 훑음",
-  "role": "predict",
-  "composition": "중앙 주인공",
-  "topic": "스포츠 분석 · 농구 구역별 기대 득점"
- },
- "50": {
-  "file": "s50-moon-phase-orbit.html",
-  "structure": "시간",
-  "theme": "blueprint",
-  "motion": "모양이 바뀜",
-  "role": "hook",
-  "composition": "전면",
-  "topic": "천문 · 공전 위치에 따른 달의 위상"
- },
- "51": {
-  "file": "s51-galton-board.html",
-  "structure": "분포",
-  "theme": "lab",
-  "motion": "입자가 흐름",
-  "role": "predict",
-  "composition": "중앙 주인공",
-  "topic": "물리 · 갈톤 보드와 정규분포"
- },
- "01": {
-  "file": "s01-cell-cycle.html",
-  "structure": "순환",
-  "theme": "paper",
-  "motion": "모양이 바뀜",
-  "role": "hook",
-  "composition": "중앙 주인공",
-  "topic": "생물 · 세포 주기(G1→S→G2→M), 원 위 단계마다 세포 모양이 바뀜"
- },
- "02": {
-  "file": "s02-rate-transmission.html",
-  "structure": "순서",
-  "theme": "ledger",
-  "motion": "입자가 흐름",
-  "role": "predict",
-  "composition": "전면",
-  "topic": "거시경제 · 기준금리 인상이 대출금리→소비→물가로 전달되는 시차"
- },
- "03": {
-  "file": "s03-page-load-budget.html",
-  "structure": "부분-전체",
-  "theme": "sketch",
-  "motion": "값이 쌓임",
-  "role": "overview",
-  "composition": "겹쳐 놓기",
-  "topic": "웹 성능 · 페이지 로드 시간 예산(DNS, TLS, TTFB, 렌더)이 쌓인 한 장 정리"
- },
- "04": {
-  "file": "s04-kirchhoff-junction.html",
-  "structure": "연결",
-  "theme": "blueprint",
-  "motion": "점이 궤적을 그림",
-  "role": "figure",
-  "composition": "좌우 분할",
-  "topic": "전기 회로 · 키르히호프 전류 법칙, 분기점에서 전하가 나뉘는 경로"
- },
- "05": {
-  "file": "s05-microscope-na.html",
-  "structure": "공간",
-  "theme": "lab",
-  "motion": "확대·축소",
-  "role": "contrast",
-  "composition": "작은 여러 칸",
-  "topic": "광학 · 현미경 배율만 올릴 때 vs 개구수를 올릴 때 해상도"
- },
- "06": {
-  "file": "s06-shipping-leadtime.html",
-  "structure": "시간",
-  "theme": "atlas",
-  "motion": "선이 그려짐",
-  "role": "terms",
-  "composition": "좌우 분할",
-  "topic": "해운 물류 · 출항·환적·통관 용어, 지도 위 항로와 리드타임"
- },
- "07": {
-  "file": "s07-fanout-tail-latency.html",
-  "structure": "분포",
-  "theme": "terminal",
-  "motion": "쪼개지고 합쳐짐",
-  "role": "sweep",
-  "composition": "작은 여러 칸",
-  "topic": "백엔드 · fan-out 수에 따라 p99 지연이 커지는 tail latency"
- },
- "08": {
-  "file": "s08-hsl-oklch-lightness.html",
-  "structure": "변환",
-  "theme": "studio",
-  "motion": "강조가 훑음",
-  "role": "terms",
-  "composition": "중앙 주인공",
-  "topic": "UI 색 · 색상·채도·명도 용어, HSL과 OKLCH의 명도 차이"
- },
- "09": {
-  "file": "s09-working-set-hierarchy.html",
-  "structure": "계층",
-  "theme": "blueprint",
-  "motion": "모양이 바뀜",
-  "role": "sweep",
-  "composition": "전면",
-  "topic": "컴퓨터 구조 · 작업 세트 크기에 따라 맞는 메모리 계층(L1→DRAM)"
- }
+  "10": {
+    "file": "s10-thermostat-overshoot.html",
+    "structure": "되먹임",
+    "theme": "lab",
+    "motion": "입자가 흐름",
+    "role": "hook",
+    "composition": "겹쳐 놓기",
+    "topic": "제어 · 온도조절기 되먹임 루프와 오버슈트",
+    "moves": "플롯 위에 온도 곡선이 그려지고, 겹친 되먹임 고리를 열 입자가 돈다. 보일러를 끈 뒤에도 입자 흐름이 서서히 줄며 곡선이 23.5°까지 넘어간다(9초)",
+    "principle": "원인(고리 흐름)과 결과(곡선)를 한 좌표계에 겹치고, 입자 밀도를 실제 상태량에 묶어 끈 뒤에도 남는 것을 보인다"
+  },
+  "11": {
+    "file": "s11-region-tradeoff.html",
+    "structure": "트레이드오프",
+    "theme": "atlas",
+    "motion": "값이 쌓임",
+    "role": "predict",
+    "composition": "전면",
+    "topic": "클라우드 · 리전을 늘릴수록 지연은 줄고 비용은 쌓임",
+    "moves": "리전을 하나씩 더할 때마다 비용 막대가 쌓이고 같은 칸의 p95 지연 선은 내려간다. 남은 칸은 점선 ?로 비우고 정답에서 이어 그린다(9초)",
+    "principle": "축을 처음부터 최종 범위로 고정하고 빈 칸을 ?로 남겨 예측 자리를 그림 안에 둔다. 막대와 선을 한 칸에 겹쳐 X자로"
+  },
+  "12": {
+    "file": "s12-node-event-loop.html",
+    "structure": "순환",
+    "theme": "terminal",
+    "motion": "점이 궤적을 그림",
+    "role": "overview",
+    "composition": "겹쳐 놓기",
+    "topic": "런타임 · Node.js 이벤트 루프 단계 한 장 정리",
+    "moves": "libuv 6단계 고리를 점이 꼬리 궤적을 남기며 돌고, poll에서 오래 머물며, 원 안 터미널 로그에 콜백 줄이 찍힌다(10초)",
+    "principle": "순환은 원으로, 점이 머무는 시간으로 비중을 보이고, 단계 사이 틈 자체를 표식으로 만든다"
+  },
+  "13": {
+    "file": "s13-checkout-funnel-zoom.html",
+    "structure": "순서",
+    "theme": "studio",
+    "motion": "확대·축소",
+    "role": "figure",
+    "composition": "좌우 분할",
+    "topic": "UX · 결제 퍼널 단계, 이탈 지점으로 확대",
+    "moves": "퍼널 막대가 차례로 자라고, 가장 큰 낙폭에 렌즈가 떠 오른쪽 패널로 커지며 사유별 막대가 차오른다(9초 반복)",
+    "principle": "확대 패널이 원본의 정확한 자리에서 커져 나오고 연결선이 둘을 계속 잇는다"
+  },
+  "14": {
+    "file": "s14-simpson-paradox-slopes.html",
+    "structure": "부분-전체",
+    "theme": "paper",
+    "motion": "선이 그려짐",
+    "role": "contrast",
+    "composition": "작은 여러 칸",
+    "topic": "통계 · 심슨의 역설, 집단별 기울기 vs 합친 기울기",
+    "moves": "합친 21명 칸에 오르는 회귀선이 그려진 뒤, 같은 축의 20대·40대·60대 칸에 내려가는 선이 하나씩 그려진다",
+    "principle": "선을 하나씩 그려 같은 점, 반대 방향을 순서대로 보이고, 칸마다 축 범위를 같게 둔다"
+  },
+  "15": {
+    "file": "s15-securitization-tranches.html",
+    "structure": "연결",
+    "theme": "ledger",
+    "motion": "쪼개지고 합쳐짐",
+    "role": "figure",
+    "composition": "중앙 주인공",
+    "topic": "금융 · 증권화, 대출을 묶어 트랜치로 나눔",
+    "moves": "대출 16칸이 가운데로 날아가 풀 하나로 합쳐지고, 세 트랜치로 갈라진 뒤 손실이 아래층부터 차오른다(9초 반복)",
+    "principle": "주인공은 가운데 자리에 둔 채 모이고 갈라지고, 떠난 대출의 빈자리를 점선으로 남긴다"
+  },
+  "16": {
+    "file": "s16-room-daylight.html",
+    "structure": "공간",
+    "theme": "sketch",
+    "motion": "강조가 훑음",
+    "role": "contrast",
+    "composition": "작은 여러 칸",
+    "topic": "건축 · 남향 vs 북향 방의 하루 채광",
+    "moves": "북향(위)·남향(아래) 방 단면 6칸씩, 테두리가 같은 시각 칸을 위아래로 함께 훑고 남향 빛줄기가 강조된다(8.4초 주기)",
+    "principle": "대비는 같은 축으로 정렬한 작은 칸 두 줄로, 훑는 강조가 같은 시각을 위아래로 동시에 비춘다"
+  },
+  "17": {
+    "file": "s17-wal-checkpoint.html",
+    "structure": "시간",
+    "theme": "terminal",
+    "motion": "선이 그려짐",
+    "role": "terms",
+    "composition": "중앙 주인공",
+    "topic": "DB · WAL, 체크포인트, 복구 용어와 로그 타임라인",
+    "moves": "WAL 선이 LSN 순서로 그려지고, 체크포인트에서 페이지가 데이터 파일로 내려가고, 전원 끊김 뒤 REDO 화살표가 체크포인트부터 다시 그려진다(9초)",
+    "principle": "용어 여러 개를 한 타임라인 위 사건 자리로 묶고, 선이 그려지는 순서가 인과 순서가 된다"
+  },
+  "18": {
+    "file": "s18-ab-power.html",
+    "structure": "분포",
+    "theme": "studio",
+    "motion": "쪼개지고 합쳐짐",
+    "role": "sweep",
+    "composition": "전면",
+    "topic": "실험 · A/B 테스트 표본 크기와 두 분포의 겹침(검정력)",
+    "moves": "H0 분포 하나가 둘로 갈라져 H1이 미끄러져 나가고, 유의 기준선과 검정력 음영이 나타났다가 다시 합쳐진다. 표본 크기 손잡이(log)로 폭이 좁아진다(7초)",
+    "principle": "매 주기 같은 것을 합쳤다 갈라 보여 겹침이 무엇의 겹침인지 먼저 보이고, 손잡이는 그 폭만 바꾼다"
+  },
+  "19": {
+    "file": "s19-fourier-sweep.html",
+    "structure": "변환",
+    "theme": "paper",
+    "motion": "강조가 훑음",
+    "role": "hook",
+    "composition": "겹쳐 놓기",
+    "topic": "신호처리 · 푸리에 변환, 파형이 주파수 막대로",
+    "moves": "훑는 막대가 150→400Hz로 지나가며 위 파형에 그 주파수의 기준 사인파를 겹치고, 지나간 자리에 실제 스펙트럼이 드러나 A3·C4·E4 봉우리에 라벨이 켜진다(8초)",
+    "principle": "변환은 연산 자체를 움직여 보인다. 입력과 출력을 한 판에 겹치고 훑는 막대가 지나간 만큼만 출력이 생긴다"
+  },
+  "20": {
+    "file": "s20-equity-consolidation.html",
+    "structure": "계층",
+    "theme": "ledger",
+    "motion": "모양이 바뀜",
+    "role": "predict",
+    "composition": "좌우 분할",
+    "topic": "회계 · 지분율 트리가 연결 범위로 바뀜",
+    "moves": "왼쪽 지분율 트리는 고정하고, 오른쪽 같은 트리의 선이 사라지며 노드가 연결 범위 상자로 모이고 30% 회사는 지분법 자리로 내려간다(8초)",
+    "principle": "위계 구조는 같은 노드를 그대로 둔 채 자리만 옮겨 다른 관점의 같은 대상으로 바꾸고, 원본을 비교 기준으로 고정한다"
+  },
+  "21": {
+    "file": "s21-predator-prey-cycle.html",
+    "structure": "되먹임",
+    "theme": "sketch",
+    "motion": "입자가 흐름",
+    "role": "overview",
+    "composition": "겹쳐 놓기",
+    "topic": "생태 · 포식자-피식자 순환 한 장 정리",
+    "moves": "로트카-볼테라 궤도 위를 점 16개가 모델 시간대로 흐르고, 큰 점이 든 사분면의 설명 ①~④가 차례로 밝아진다(9초)",
+    "principle": "되먹임은 닫힌 고리 위를 계속 흐르는 입자로, 평형선이 나눈 네 구역 자리에 정리 문장을 붙인다"
+  },
+  "22": {
+    "file": "s22-clock-power.html",
+    "structure": "트레이드오프",
+    "theme": "blueprint",
+    "motion": "값이 쌓임",
+    "role": "predict",
+    "composition": "좌우 분할",
+    "topic": "칩 설계 · 클럭을 올리면 동적 전력(∝ fV²)이 쌓임",
+    "moves": "같은 6ns 동안 클럭 파형 위로 커서가 내려가고, 클럭마다 높이가 V²인 블록이 떨어져 쌓인다(6개×0.64 대 9개×1.00, 7초 반복)",
+    "principle": "곱으로 된 공식은 두 인수를 다른 시각 채널로 나눈다. 개수는 f, 블록 크기는 V², 차이는 높이로"
+  },
+  "23": {
+    "file": "s23-carnot-cycle.html",
+    "structure": "순환",
+    "theme": "lab",
+    "motion": "점이 궤적을 그림",
+    "role": "overview",
+    "composition": "작은 여러 칸",
+    "topic": "열역학 · 카르노 사이클 P-V 궤적 한 장 정리",
+    "moves": "같은 P-V 축 칸 4개에서 지금 구간이 그려지며 점이 따라가고, 지난 구간은 남는다. 옆 계수판이 Q_in·Q_out을 세고 끝에 고리 넓이와 W·효율이 나온다",
+    "principle": "순환을 같은 축의 작은 칸으로 단계를 나누고 지난 경로를 남긴 채 넘긴다. 한 바퀴 결과는 맨 끝에만"
+  },
+  "24": {
+    "file": "s24-vaccine-cold-chain.html",
+    "structure": "순서",
+    "theme": "atlas",
+    "motion": "확대·축소",
+    "role": "figure",
+    "composition": "중앙 주인공",
+    "topic": "콜드체인 · 백신이 국가→도시→창고로 가는 순서, 지도 확대",
+    "moves": "지도 위 viewBox가 유라시아→한반도→수도권으로 확대되며 단계마다 경로가 그려지고 점이 이동하고 온도 상자가 바뀐다(10.5초)",
+    "principle": "순서를 보일 때 축척 자체를 단계로 쓴다. 확대→경로 그리기→머묾을 한 박자로, 글자는 같은 크기 유지"
+  },
+  "25": {
+    "file": "s25-cpi-basket-weights.html",
+    "structure": "부분-전체",
+    "theme": "ledger",
+    "motion": "선이 그려짐",
+    "role": "contrast",
+    "composition": "전면",
+    "topic": "물가 · CPI 바스켓 가중치가 바뀌면 같은 가격 변화도 다른 물가",
+    "moves": "양쪽 칸에서 품목군 가격선 4개가 그려진 뒤 굵은 CPI 선이 그려지고 위 숫자가 4.18%·2.86%로 오른다(8초 반복)",
+    "principle": "같은 입력을 양쪽에 똑같이 두고 가중치만 다르게 하면 굵은 선 기울기 차이 하나가 메시지가 된다"
+  },
+  "26": {
+    "file": "s26-git-branch-terms.html",
+    "structure": "연결",
+    "theme": "sketch",
+    "motion": "쪼개지고 합쳐짐",
+    "role": "terms",
+    "composition": "중앙 주인공",
+    "topic": "git · 브랜치, 머지, 리베이스 용어",
+    "moves": "용어 카드 3장의 같은 커밋 그래프에서 각각 갈라짐·머지·리베이스 동작만 재생된다(6초, 카드마다 시작 어긋남)",
+    "principle": "용어마다 같은 그래프를 쓰고 동작 하나만 다르게 하면 용어 차이가 그림 차이로 보인다"
+  },
+  "27": {
+    "file": "s27-wifi-router-floorplan.html",
+    "structure": "공간",
+    "theme": "blueprint",
+    "motion": "강조가 훑음",
+    "role": "sweep",
+    "composition": "전면",
+    "topic": "무선 · 평면도 위 공유기 위치와 Wi-Fi 신호 세기",
+    "moves": "12×8m 평면도 신호 지도 위를 세로 띠가 훑으며 밝히고, 공유기를 끌면 벽 감쇠를 따라 지도가 다시 칠해진다(5초)",
+    "principle": "정적인 히트맵 위를 띠 하나로 훑으면 어디까지 닿나를 읽는 순서가 생긴다"
+  },
+  "28": {
+    "file": "s28-dosing-interval.html",
+    "structure": "시간",
+    "theme": "lab",
+    "motion": "모양이 바뀜",
+    "role": "hook",
+    "composition": "겹쳐 놓기",
+    "topic": "약리 · 투약 간격에 따른 혈중 농도 곡선과 반감기",
+    "moves": "투약 간격이 16h→8h→4h로 바뀌며, 흐린 회당 감쇠 곡선 위의 굵은 합 곡선 톱니와 정상 상태 선이 함께 바뀐다(9초 반복)",
+    "principle": "회당 기여분을 흐리게 겹치고 합을 굵게 그린 뒤, 변수 하나를 연속으로 바꿔 모양 변화로 메커니즘을 보인다"
+  },
+  "29": {
+    "file": "s29-transit-access.html",
+    "structure": "분포",
+    "theme": "atlas",
+    "motion": "입자가 흐름",
+    "role": "sweep",
+    "composition": "좌우 분할",
+    "topic": "도시 · 노선 수에 따른 출근 인구의 대중교통 접근성",
+    "moves": "원형 도시의 출근자 점 중 노선 800m 띠 안이 강조되고, 입자가 노선을 따라 도심으로 흐른다. 오른쪽은 비율 숫자와 노선 수 손잡이(5초 주기)",
+    "principle": "왼쪽은 메커니즘(누가 띠 안에서 흐르나), 오른쪽은 집계(몇 %). 손잡이 하나가 두 쪽을 함께 바꾼다"
+  },
+  "30": {
+    "file": "s30-compile-pipeline.html",
+    "structure": "변환",
+    "theme": "terminal",
+    "motion": "값이 쌓임",
+    "role": "hook",
+    "composition": "작은 여러 칸",
+    "topic": "컴파일러 · 소스→토큰→AST→바이트코드",
+    "moves": "소스/토큰/AST/바이트코드 네 칸이 차례로 채워지고, 지금 만드는 항목의 출처가 소스 칸에서 강조된다(10초 반복, 실제 python3.12 출력)",
+    "principle": "같은 입력을 단계별 작은 칸에 나란히 두고, 항목을 쌓으며 출처 강조로 칸 사이 대응을 잇는다"
+  },
+  "31": {
+    "file": "s31-visual-hierarchy-gaze.html",
+    "structure": "계층",
+    "theme": "studio",
+    "motion": "점이 궤적을 그림",
+    "role": "predict",
+    "composition": "좌우 분할",
+    "topic": "디자인 · 시각적 위계와 시선이 지나는 길",
+    "moves": "같은 크기 줄뿐인 시안 A 위를 점이 F 패턴으로 훑고, 정답에서 시안 B 위를 헤드라인→사진→설명→버튼 순으로 내려간다(6초 반복)",
+    "principle": "예측 장면에서는 비교 대상만 움직이고, 답이 될 궤적은 공개 그림으로 미룬다"
+  },
+  "32": {
+    "file": "s32-ice-albedo-overview.html",
+    "structure": "되먹임",
+    "theme": "paper",
+    "motion": "확대·축소",
+    "role": "overview",
+    "composition": "작은 여러 칸",
+    "topic": "기후 · 얼음-알베도 되먹임 한 장 정리",
+    "moves": "2×2 칸을 순환 화살표로 잇고, 카메라(viewBox)가 전체→각 칸 확대→다시 전체로 옮겨 간다(10초)",
+    "principle": "전체를 먼저 보이고 카메라가 고리 순서대로 칸을 들여다본다. 확대 순서가 곧 인과 순서"
+  },
+  "33": {
+    "file": "s33-bias-variance-error.html",
+    "structure": "트레이드오프",
+    "theme": "lab",
+    "motion": "값이 쌓임",
+    "role": "figure",
+    "composition": "중앙 주인공",
+    "topic": "ML · 편향-분산, 모델 복잡도별 오차",
+    "moves": "차수 1~12마다 잡음·편향²·분산 막대가 쌓이며 자라고, 합계 선이 따라가다 최저점 차수 6에서 멈춘다(9초 반복)",
+    "principle": "두 성분을 한 막대에 쌓고 합계 곡선을 같이 그려, 교차점에서 멈추고 최적점은 끝에 나타낸다"
+  },
+  "34": {
+    "file": "s34-amoc-weakening.html",
+    "structure": "순환",
+    "theme": "atlas",
+    "motion": "점이 궤적을 그림",
+    "role": "contrast",
+    "composition": "전면",
+    "topic": "해양 · 열염순환 정상 vs 약화",
+    "moves": "대서양 남북 단면 정상·약화를 나란히 두고, 혜성꼬리 궤적이 표층→침강→심층→용승으로 돈다. 약화 쪽은 0.7배 속도로 더 남쪽·얕은 곳에서 돈다",
+    "principle": "대조 장면에서는 같은 시간 동안 움직인 거리 차이로 속도와 규모를 보이고, 숫자는 그림 아래 크게 하나만"
+  },
+  "35": {
+    "file": "s35-packet-layers.html",
+    "structure": "순서",
+    "theme": "terminal",
+    "motion": "확대·축소",
+    "role": "terms",
+    "composition": "겹쳐 놓기",
+    "topic": "네트워크 · DNS·TCP·TLS·HTTP 용어, 패킷 캡처 확대",
+    "moves": "상자 안 상자로 겹친 패킷 층(Ethernet→HTTP)을 카메라가 DNS·SYN·ClientHello·GET 순으로 확대했다 축소하고, 옆 용어 목록이 따라 강조된다(9.6초)",
+    "principle": "용어 장면도 카드로 나누지 않고, 용어들이 함께 사는 그림 하나를 확대·축소해 각 용어의 자리를 가리킨다"
+  },
+  "36": {
+    "file": "s36-code-splitting.html",
+    "structure": "부분-전체",
+    "theme": "studio",
+    "motion": "선이 그려짐",
+    "role": "contrast",
+    "composition": "전면",
+    "topic": "프런트엔드 · 앱 번들 구성, 코드 분할 전후",
+    "moves": "모듈 6개에서 파일 막대로 선이 하나씩 그려지고, 닿으면 그 모듈 몫의 칸이 차오른다. 분할 전 main.js 하나, 분할 후 셋으로(8초 반복)",
+    "principle": "부분과 전체는 넓이로, 무엇이 어디로 가는지는 그려지는 선으로. 앞뒤가 같은 좌표계라 바뀐 것은 선이 가는 곳뿐"
+  },
+  "37": {
+    "file": "s37-dependency-parse.html",
+    "structure": "연결",
+    "theme": "paper",
+    "motion": "쪼개지고 합쳐짐",
+    "role": "terms",
+    "composition": "겹쳐 놓기",
+    "topic": "언어학 · 의존 구문 분석의 핵심어·의존어·관계",
+    "moves": "붙은 문장이 어절로 쪼개지고, 핵심어→의존어 호가 하나씩 그려지며 UD 관계 이름이 얹히고, 묶음으로 합쳐진다(9초 반복)",
+    "principle": "관계 이름은 표가 아니라 그 관계를 잇는 선 위에 얹는다. 쪼개짐→연결→합쳐짐을 한 문장 위에서 차례로"
+  },
+  "38": {
+    "file": "s38-station-radius.html",
+    "structure": "공간",
+    "theme": "ledger",
+    "motion": "강조가 훑음",
+    "role": "sweep",
+    "composition": "좌우 분할",
+    "topic": "부동산 · 역에서의 거리 반경과 가격 띠",
+    "moves": "지도 위 역 반경 원이 넓어지고, 오른쪽 가격 꺾은선에서 강조 띠·점·라벨이 같은 거리를 따라 훑는다(7초, 손잡이를 누르면 직접 조작)",
+    "principle": "공간 변수 하나를 지도와 차트 두 표현에 같은 강조로 동시에 걸어 한 값이 두 그림을 잇게 한다"
+  },
+  "39": {
+    "file": "s39-tech-debt-sprints.html",
+    "structure": "시간",
+    "theme": "sketch",
+    "motion": "모양이 바뀜",
+    "role": "hook",
+    "composition": "작은 여러 칸",
+    "topic": "제품 · 스프린트마다 쌓이는 기술 부채",
+    "moves": "스프린트 여섯 칸에서 톱니 모양 부채 이자 층이 내려와 기능 영역을 줄이고 숫자가 40→32.5로 바뀐다(9초 반복)",
+    "principle": "같은 축의 작은 칸을 나란히 두고 한 칸씩 같은 변형을 재생해 누적 변화를 칸 사이 차이로 보인다"
+  },
+  "40": {
+    "file": "s40-wafer-yield.html",
+    "structure": "분포",
+    "theme": "blueprint",
+    "motion": "입자가 흐름",
+    "role": "predict",
+    "composition": "중앙 주인공",
+    "topic": "반도체 · 웨이퍼 결함 분포와 칩 크기별 수율",
+    "moves": "결함 점 71개가 웨이퍼로 떨어져 맞은 다이를 결함으로 바꾸고, 옆 판독 칸의 수율 %와 막대가 실시간으로 바뀐다(8초 반복). 정답은 같은 결함 배치에 큰 다이 격자",
+    "principle": "질문과 정답이 같은 그림·같은 입력을 쓰고 결정 변수 하나만 바뀐다"
+  },
+  "41": {
+    "file": "s41-jpeg-pipeline.html",
+    "structure": "변환",
+    "theme": "studio",
+    "motion": "값이 쌓임",
+    "role": "overview",
+    "composition": "작은 여러 칸",
+    "topic": "이미지 · JPEG 압축 단계(YCbCr→DCT→양자화) 한 장 정리",
+    "moves": "RGB→YCbCr→DCT→양자화 네 칸이 셀 단위(지그재그)로 채워지고, 공유 축 막대가 192→96→64→16으로 줄어든다(9초 반복)",
+    "principle": "작은 칸들이 같은 축의 막대를 공유하면 단계마다 무엇이 줄어드는지가 길이로 바로 비교된다"
+  },
+  "42": {
+    "file": "s42-bst-search-path.html",
+    "structure": "계층",
+    "theme": "paper",
+    "motion": "점이 궤적을 그림",
+    "role": "figure",
+    "composition": "중앙 주인공",
+    "topic": "알고리즘 · 이진 탐색 트리 탐색 경로",
+    "moves": "점이 루트에서 내려가며 지나온 경로를 선으로 남기고, 노드마다 비교 라벨이 붙고 비교 횟수가 차오른다. 찾는 경우와 빈자리 경우를 번갈아(10초)",
+    "principle": "움직이는 점 하나와 그것이 남기는 궤적이 알고리즘의 실행 경로 그 자체다"
+  },
+  "43": {
+    "file": "s43-bank-run-loop.html",
+    "structure": "되먹임",
+    "theme": "ledger",
+    "motion": "확대·축소",
+    "role": "overview",
+    "composition": "전면",
+    "topic": "금융 안정 · 뱅크런 되먹임 한 장 정리",
+    "moves": "뱅크런 고리 5칸을 보인 뒤 카메라가 칸마다 확대하며 빨간 점이 다음 칸으로 가고 핀 설명이 수치를 켠다. 마지막에 전체로 축소한다",
+    "principle": "축소한 화면은 고리 구조만, 확대하면 각 칸의 근거 수치. 확대·축소가 구조와 세부를 오간다"
+  },
+  "44": {
+    "file": "s44-pacelc-latency.html",
+    "structure": "트레이드오프",
+    "theme": "sketch",
+    "motion": "선이 그려짐",
+    "role": "figure",
+    "composition": "겹쳐 놓기",
+    "topic": "분산 시스템 · 일관성 수준과 지연(PACELC)",
+    "moves": "ONE/QUORUM/ALL 축 위에 한 리전 선이 먼저, 세 리전 선이 겹쳐 그려지고 QUORUM에 +68ms 괄호가 나타난다(9초)",
+    "principle": "같은 축에 조건 두 개를 차례로 겹쳐 그리면 손잡이는 같은데 값 차이만 눈에 남는다"
+  },
+  "45": {
+    "file": "s45-refrigerant-undercharge.html",
+    "structure": "순환",
+    "theme": "blueprint",
+    "motion": "쪼개지고 합쳐짐",
+    "role": "contrast",
+    "composition": "좌우 분할",
+    "topic": "냉동 사이클 · 정상 vs 냉매 부족",
+    "moves": "정상·냉매 부족 냉동 사이클 도면에서 액체 큰 점이 증발기에서 기체 알갱이로 쪼개지고 응축기에서 합쳐진다. 부족 쪽은 쪼개지는 자리가 앞당겨진다(7초)",
+    "principle": "같은 회로를 나란히 두고 상이 바뀌는 자리만 달리 보이면 진단 지표가 그 자리의 길이로 읽힌다"
+  },
+  "46": {
+    "file": "s46-titration-terms.html",
+    "structure": "순서",
+    "theme": "lab",
+    "motion": "강조가 훑음",
+    "role": "terms",
+    "composition": "겹쳐 놓기",
+    "topic": "화학 · 적정 곡선의 당량점, 지시약, 완충 구간",
+    "moves": "같은 적정 곡선 3장 위를 점이 함께 훑고, 각 용어 구간에 닿으면 그 구간이 칠해진다(8초 반복)",
+    "principle": "같은 곡선을 용어 수만큼 겹쳐 두고 강조만 바꾸면 용어 사이 관계가 위치로 보인다"
+  },
+  "47": {
+    "file": "s47-power-mix-sweep.html",
+    "structure": "부분-전체",
+    "theme": "atlas",
+    "motion": "모양이 바뀜",
+    "role": "sweep",
+    "composition": "좌우 분할",
+    "topic": "에너지 · 연도별 지역 전력 믹스",
+    "moves": "독일·한국 100% 누적 막대가 단계마다 다음 연도 모양으로 바뀌고, 가운데 띠가 같은 전원끼리 잇는다. 자막이 그해 수치를 보인다",
+    "principle": "비율은 넓이, 시간은 모양 변화로. 두 쪽을 같은 범주 띠로 이으면 비교가 눈으로 된다"
+  },
+  "48": {
+    "file": "s48-ransomware-lateral.html",
+    "structure": "연결",
+    "theme": "terminal",
+    "motion": "입자가 흐름",
+    "role": "hook",
+    "composition": "작은 여러 칸",
+    "topic": "보안 · 랜섬웨어의 측면 이동",
+    "moves": "같은 사내망 그래프 4칸에서 칸마다 다른 간선으로 공격 입자가 흐르고 감염 노드가 차례로 빨개진다",
+    "principle": "작은 여러 칸이 같은 그래프를 공유하면 칸마다 달라지는 것만 눈에 들어온다"
+  },
+  "49": {
+    "file": "s49-basketball-zone-value.html",
+    "structure": "공간",
+    "theme": "sketch",
+    "motion": "강조가 훑음",
+    "role": "predict",
+    "composition": "중앙 주인공",
+    "topic": "스포츠 분석 · 농구 구역별 기대 득점",
+    "moves": "하프코트 다섯 구역을 강조와 퍼지는 고리가 차례로 지나며 성공률을 밝히고, 정답에서는 같은 코트 라벨이 기대 득점으로 바뀐다(8초 반복)",
+    "principle": "강조를 구역에서 구역으로 옮기며 숫자를 하나씩 쌓고, 정답 화면은 같은 그림에서 라벨만 바꾼다"
+  },
+  "50": {
+    "file": "s50-moon-phase-orbit.html",
+    "structure": "시간",
+    "theme": "blueprint",
+    "motion": "모양이 바뀜",
+    "role": "hook",
+    "composition": "전면",
+    "topic": "천문 · 공전 위치에 따른 달의 위상",
+    "moves": "왼쪽 궤도에서 달이 지구를 돌고, 오른쪽 큰 달 원판의 터미네이터가 바뀌며 위상·일수·밝은 면 %가 함께 바뀐다(10초, 주요 위상에서 멈춤)",
+    "principle": "원인(위에서 본 궤도)과 결과(지구에서 본 모양)를 나란히 두고 같은 시계로 움직인다"
+  },
+  "51": {
+    "file": "s51-galton-board.html",
+    "structure": "분포",
+    "theme": "lab",
+    "motion": "입자가 흐름",
+    "role": "predict",
+    "composition": "중앙 주인공",
+    "topic": "물리 · 갈톤 보드와 정규분포",
+    "moves": "공 160개가 못판을 튀며 내려와 칸에 쌓이고, 다 쌓이면 정규분포 곡선이 겹쳐 오른다(9.5초 반복)",
+    "principle": "입자 하나하나의 무작위 경로를 보인 뒤 쌓인 결과로 분포가 생겨나게 하고, 이론 곡선은 마지막에 겹친다"
+  },
+  "01": {
+    "file": "s01-cell-cycle.html",
+    "structure": "순환",
+    "theme": "paper",
+    "motion": "모양이 바뀜",
+    "role": "hook",
+    "composition": "중앙 주인공",
+    "topic": "생물 · 세포 주기(G1→S→G2→M), 원 위 단계마다 세포 모양이 바뀜",
+    "moves": "세포 주기 고리의 G1·S·G2·M 호가 차례로 밝아지고, 가운데 세포가 커지고 복제된 뒤 둘로 나뉜다",
+    "principle": "고리 둘레는 실제 시간 비율로 두고, 짧지만 중요한 단계는 재생만 늘린 뒤 '느리게 재생'이라고 밝힌다"
+  },
+  "02": {
+    "file": "s02-rate-transmission.html",
+    "structure": "순서",
+    "theme": "ledger",
+    "motion": "입자가 흐름",
+    "role": "predict",
+    "composition": "전면",
+    "topic": "거시경제 · 기준금리 인상이 대출금리→소비→물가로 전달되는 시차",
+    "moves": "입자 무리가 기준금리→대출금리→소비→물가 줄을 흐르고, 시차는 속도로, 시계는 분기 수로(7초 반복)",
+    "principle": "순서의 시차는 같은 거리를 지나는 속도로 보이고 시계로 숫자도 읽게 한다"
+  },
+  "03": {
+    "file": "s03-page-load-budget.html",
+    "structure": "부분-전체",
+    "theme": "sketch",
+    "motion": "값이 쌓임",
+    "role": "overview",
+    "composition": "겹쳐 놓기",
+    "topic": "웹 성능 · 페이지 로드 시간 예산(DNS, TLS, TTFB, 렌더)이 쌓인 한 장 정리",
+    "moves": "폭포 차트가 한 줄씩 자란 뒤 한 막대로 접혀 쌓이고, LCP 예산선 앞 남은 칸과 정리 번호가 놓인다(9초 반복)",
+    "principle": "펼친 상태에서 접힌 상태로 가는 과정을 보이고, 펼친 윤곽을 남겨 그 자리에 정리 번호를 얹는다"
+  },
+  "04": {
+    "file": "s04-kirchhoff-junction.html",
+    "structure": "연결",
+    "theme": "blueprint",
+    "motion": "점이 궤적을 그림",
+    "role": "figure",
+    "composition": "좌우 분할",
+    "topic": "전기 회로 · 키르히호프 전류 법칙, 분기점에서 전하가 나뉘는 경로",
+    "moves": "전하 점이 도선을 흐르다 분기점에서 1:2로 갈라지고 합류점에서 다시 합쳐지며, 옆 장부가 들어온 수 = 나간 수의 합을 센다(8초 반복)",
+    "principle": "흐름 그림과 그 흐름을 세는 장부를 나란히 두어 보존 법칙이 매 순간 숫자로 맞아떨어지게 한다"
+  },
+  "05": {
+    "file": "s05-microscope-na.html",
+    "structure": "공간",
+    "theme": "lab",
+    "motion": "확대·축소",
+    "role": "contrast",
+    "composition": "작은 여러 칸",
+    "topic": "광학 · 현미경 배율만 올릴 때 vs 개구수를 올릴 때 해상도",
+    "moves": "배율만 올린 줄과 개구수를 함께 올린 줄의 작은 칸 3개씩이 같은 시계로 확대되고, 밝기 곡선 봉우리가 한쪽만 둘로 갈라진다(7초 반복)",
+    "principle": "대조할 두 줄을 같은 시계로 똑같이 확대하면 화면에서 달라지는 것은 한 변수의 효과뿐이다",
+    "skip": true
+  },
+  "06": {
+    "file": "s06-shipping-leadtime.html",
+    "structure": "시간",
+    "theme": "atlas",
+    "motion": "선이 그려짐",
+    "role": "terms",
+    "composition": "좌우 분할",
+    "topic": "해운 물류 · 출항·환적·통관 용어, 지도 위 항로와 리드타임",
+    "moves": "부산에서 싱가포르·수에즈를 거쳐 로테르담까지 점이 가고, 항구마다 노드 아래 D+n일이 바뀐다",
+    "principle": "공간 위에 선을 그리는 속도와 시간축 막대가 쌓이는 속도를 맞추고, 움직임과 대기를 다른 동작으로 가른다"
+  },
+  "07": {
+    "file": "s07-fanout-tail-latency.html",
+    "structure": "분포",
+    "theme": "terminal",
+    "motion": "쪼개지고 합쳐짐",
+    "role": "sweep",
+    "composition": "작은 여러 칸",
+    "topic": "백엔드 · fan-out 수에 따라 p99 지연이 커지는 tail latency",
+    "moves": "요청 1개가 선 N개로 쪼개져 작은 칸들이 지연만큼 차오르고, 가장 늦은 칸이 차야 응답으로 합쳐진다. 결과가 집계 칸에 쌓인다(반복)",
+    "principle": "쪼개고 합치는 구조로 가장 늦은 칸을 기다린다를 칸이 차는 시간 차로 보이고, 확률 공식은 큰 숫자로 옆에 둔다"
+  },
+  "08": {
+    "file": "s08-hsl-oklch-lightness.html",
+    "structure": "변환",
+    "theme": "studio",
+    "motion": "강조가 훑음",
+    "role": "terms",
+    "composition": "중앙 주인공",
+    "topic": "UI 색 · 색상·채도·명도 용어, HSL과 OKLCH의 명도 차이",
+    "moves": "HSL L 50%와 OKLCH L 0.70 두 줄 색 띠 위를 강조 틀이 훑으며 그 열의 명도 값과 문구가 바뀐다(4.8초 훑고 머묾)",
+    "principle": "같은 축을 두 체계로 나란히 두고 흑백 칸 한 줄로 차이를 직접 보인다",
+    "skip": true
+  },
+  "09": {
+    "file": "s09-working-set-hierarchy.html",
+    "structure": "계층",
+    "theme": "blueprint",
+    "motion": "모양이 바뀜",
+    "role": "sweep",
+    "composition": "전면",
+    "topic": "컴퓨터 구조 · 작업 세트 크기에 따라 맞는 메모리 계층(L1→DRAM)",
+    "moves": "메모리 계층 피라미드에서 작업 세트 상자가 커지며 맞는 층으로 내려가고, 오른쪽 지연 곡선 위를 점이 따라 오른다(8.8초 반복)",
+    "principle": "같은 log 눈금을 공간(피라미드)과 그래프(계단) 두 곳에 써서 넘치는 순간이 함께 보이게 한다"
+  }
 }

@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "",
-  "buildCommand": "rm -rf public && mkdir public && cp -R skills/learn-to-tell/kit site/gallery public/",
+  "buildCommand": "rm -rf public && mkdir public && cp -R skills/learn-to-tell/kit site/gallery site/legacy public/",
   "outputDirectory": "public",
   "redirects": [{ "source": "/", "destination": "/gallery/", "permanent": false }]
 }

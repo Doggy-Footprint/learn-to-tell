@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>부품 데이터: 테이블이면 충분할까, 온톨로지와 SHACL을 얹을까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"데이터 모델링·지식 그래프","topic":"트리플·RDF에서 RDFS/OWL 추론과 SHACL 검증까지, 부품 데이터 모델 고르기","audience":"SQL 테이블과 JSON을 다뤄 본 백엔드 개발자, RDF·OWL은 처음","pattern":["hook","terms","mount:stepper","figure","compare:table","statement","mount:stepper","terms","predict","mount:stepper","sweep","compare:table","statement","terms","predict","contrast","compare:table","figure","summary","overview","keywords"],"theme":"blueprint","medium":"데이터 모델 도면(부품 지식 그래프 도식)과 psql·Turtle·SPARQL·SHACL 검증 리포트 화면","mode":"체험형: 같은 부품 그래프 하나를 테이블 행에서 트리플로 옮기고, 질의로 맞춰 보고, 추론 규칙으로 늘리고, 검증기로 검사하며 장면마다 키워 간다","decision":"부품 데이터 모델: 테이블 vs 트리플, 추론을 켤지(물질화 비용), 검증을 OWL이 아니라 SHACL로 할지"}</script>
+<script src="/legacy/kit-v1/vendor/d3.min.js"></script>
+<script src="/legacy/kit-v1/ltt.js"></script>
+<script src="/legacy/kit-v1/ltt-parts.js"></script>
+<script src="/legacy/kit-v1/ltt-ui.js"></script>
+<script src="/legacy/kit-v1/ltt-mock.js"></script>
+<script src="/legacy/kit-v1/ltt-deck.js"></script>
+<style>
+  .kgstage { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 20px; align-items: start; width: 100%; }
+  .kgstage .side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .kgstage .ltt-term-mock, .kgstage .ltt-code-mock { font-size: 11px; }
+  .kgstage .ltt-caption { min-height: 7.2em; }
+  .tlist { font-family: var(--ltt-mono); font-size: 12.5px; line-height: 1.55; margin: 0; padding: 10px 12px; border: 1px solid var(--ltt-line-2); border-radius: var(--ltt-r, 6px); background: var(--ltt-card); }
+  .tlist .h { font-family: var(--ltt-font); font-weight: 700; color: var(--ltt-muted); font-size: 12px; margin-bottom: 4px; }
+  .tlist .inf { color: var(--ltt-accent); font-weight: 700; }
+  .tlist .dim { color: var(--ltt-muted); }
+  .bomgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 28px; align-items: center; width: 100%; }
+  .bomcol { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+  .bomcol .knobs { display: flex; gap: 22px; flex-wrap: wrap; }
+  .bomcol .num { font-family: var(--ltt-mono); margin: 6px 0 0; color: var(--ltt-muted); }
+  .bomcol .num b { color: var(--ltt-ink); font-size: 20px; }
+  .glyph { font-family: var(--ltt-mono); font-size: 12px; line-height: 1.45; text-align: left; white-space: pre; margin: 0; }
+  .ans2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ans2 .ltt-term-mock { font-size: 12px; }
+</style>
+</head>
+<body>
+<script>
+  // Hand-derived from the formulas and rules only, before the model code below; the model must match these, not the reverse.
+  const EXPECTED_BY_HAND = {
+    dataTriples: 8,
+    inferredAfter: { subclass: 4, domain: 5, transitive: 6 },
+    elecNoReasoner: "B-18", elecReasoner: "B-18,M-200",
+    q1: "B-18,M-200", q2: "B-18 daesung,M-200 hanbit", q3: "B-18,C-21,M-200",
+    shacl: "C-21 MinCount,M-200 MaxCount",
+    bom: [
+      { b: 4, d: 2, D: 20, I: 16 },
+      { b: 4, d: 4, D: 340, I: 912 },
+      { b: 3, d: 5, D: 363, I: 1278 },
+      { b: 2, d: 6, D: 126, I: 516 },
+      { b: 6, d: 5, D: 9330, I: 35460 },
+      { b: 6, d: 4, D: 1554, I: 4356 },
+    ],
+  };
+
+  // ---- model: a tiny triple store, the four entailment rules this lesson uses, BGP matching, one SHACL shape, uniform BOM ----
+  const T = (s, p, o) => [s, p, o];
+  const DATA = [
+    T("M-200", "a", "DriveMotor"), T("M-200", "partOf", "D-300"), T("M-200", "suppliedBy", "hanbit"),
+    T("B-18", "a", "ElectricalPart"), T("B-18", "partOf", "D-300"), T("B-18", "suppliedBy", "daesung"),
+    T("C-21", "partOf", "B-18"), T("C-21", "voltage", "3.6"),
+  ];
+  const SCHEMA = [
+    T("DriveMotor", "subClassOf", "ElectricalPart"), T("ElectricalPart", "subClassOf", "Part"),
+    T("partOf", "domain", "Part"), T("partOf", "a", "TransitiveProperty"),
+  ];
+  const key = (t) => t.join(" ");
+  const RULES = {
+    rdfs11: (g) => g.filter((x) => x[1] === "subClassOf").flatMap((x) => g.filter((y) => y[1] === "subClassOf" && y[0] === x[2]).map((y) => T(x[0], "subClassOf", y[2]))),
+    rdfs9: (g) => g.filter((x) => x[1] === "a").flatMap((x) => g.filter((y) => y[1] === "subClassOf" && y[0] === x[2]).map((y) => T(x[0], "a", y[2]))),
+    rdfs2: (g) => g.filter((x) => x[1] === "domain").flatMap((d) => g.filter((y) => y[1] === d[0]).map((y) => T(y[0], "a", d[2]))),
+    trp: (g) => g.filter((x) => x[1] === "a" && x[2] === "TransitiveProperty").flatMap((p) =>
+      g.filter((x) => x[1] === p[0]).flatMap((x) => g.filter((y) => y[1] === p[0] && y[0] === x[2]).map((y) => T(x[0], p[0], y[2])))),
+  };
+  function infer(base, names) {
+    const seen = new Set(base.map(key)), g = base.slice(), out = [];
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const n of names) for (const t of RULES[n](g)) if (!seen.has(key(t))) { seen.add(key(t)); g.push(t); out.push(t); grew = true; }
+    }
+    return out;
+  }
+  const isVar = (x) => x[0] === "?";
+  function match(patterns, g, binds = [{}]) {
+    return patterns.reduce((bs, pat) => bs.flatMap((b) => g.flatMap((t) => {
+      const nb = { ...b };
+      for (let i = 0; i < 3; i++) {
+        const p = pat[i];
+        if (isVar(p)) { if (p in nb && nb[p] !== t[i]) return []; nb[p] = t[i]; } else if (p !== t[i]) return [];
+      }
+      return [nb];
+    })), binds);
+  }
+  const pathPlus = (g, p, o) => { const r = new Set(), q = [o]; while (q.length) { const x = q.shift(); for (const t of g) if (t[1] === p && t[2] === x && !r.has(t[0])) { r.add(t[0]); q.push(t[0]); } } return [...r].sort(); };
+  const joinSorted = (xs) => xs.slice().sort().join(",");
+  const DATA_TWO_SUPPLIERS = DATA.concat([T("M-200", "suppliedBy", "daesung")]);
+  function shaclPartShape(g) {
+    const focus = [...new Set(g.filter((t) => t[1] === "partOf").map((t) => t[0]))].sort();
+    return focus.flatMap((f) => { const n = g.filter((t) => t[0] === f && t[1] === "suppliedBy").length; return n < 1 ? [f + " MinCount"] : n > 1 ? [f + " MaxCount"] : []; });
+  }
+  function bom(b, d) {
+    let D = 0, C = 0;
+    for (let i = 1; i <= d; i++) { D += b ** i; C += i * b ** i; }
+    return { D, I: C - D };
+  }
+
+  const G0 = DATA.concat(SCHEMA);
+  const INF_SUB = infer(G0, ["rdfs9", "rdfs11"]);
+  const INF_DOM = infer(G0, ["rdfs9", "rdfs11", "rdfs2"]);
+  const INF_ALL = infer(G0, ["rdfs9", "rdfs11", "rdfs2", "trp"]);
+  const Q1 = joinSorted(match([["?part", "partOf", "D-300"]], DATA).map((b) => b["?part"]));
+  const Q2 = joinSorted(match([["?part", "partOf", "D-300"], ["?part", "suppliedBy", "?s"]], DATA).map((b) => b["?part"] + " " + b["?s"]));
+  const Q3 = pathPlus(DATA, "partOf", "D-300").join(",");
+  const ELEC0 = joinSorted(match([["?x", "a", "ElectricalPart"]], DATA).map((b) => b["?x"]));
+  const ELEC1 = joinSorted(match([["?x", "a", "ElectricalPart"]], G0.concat(INF_ALL)).map((b) => b["?x"]));
+  const SH = shaclPartShape(DATA_TWO_SUPPLIERS).join(",");
+
+  const E = EXPECTED_BY_HAND, same = (a, b) => (a === b ? 1 : 0);
+  LTT.expect("데이터 트리플 수", DATA.length, E.dataTriples, { tol: 0 });
+  LTT.expect("rdfs9·rdfs11 뒤 추론 트리플 수", INF_SUB.length, E.inferredAfter.subclass, { tol: 0 });
+  LTT.expect("rdfs2 더한 뒤 추론 트리플 수", INF_DOM.length, E.inferredAfter.domain, { tol: 0 });
+  LTT.expect("전이 규칙 더한 뒤 추론 트리플 수", INF_ALL.length, E.inferredAfter.transitive, { tol: 0 });
+  LTT.expect("?x a :ElectricalPart 추론 없이", same(ELEC0, E.elecNoReasoner), 1, { tol: 0 });
+  LTT.expect("?x a :ElectricalPart 추론 켬", same(ELEC1, E.elecReasoner), 1, { tol: 0 });
+  LTT.expect("질의1 ?part :partOf :D-300", same(Q1, E.q1), 1, { tol: 0 });
+  LTT.expect("질의2 + :suppliedBy ?s", same(Q2, E.q2), 1, { tol: 0 });
+  LTT.expect("질의3 :partOf+ :D-300", same(Q3, E.q3), 1, { tol: 0 });
+  LTT.expect("SHACL 위반 목록", same(SH, E.shacl), 1, { tol: 0 });
+  for (const c of E.bom) {
+    const m = bom(c.b, c.d);
+    LTT.expect(`BOM b${c.b} d${c.d} 직접 partOf`, m.D, c.D, { tol: 0 });
+    LTT.expect(`BOM b${c.b} d${c.d} 추론 partOf`, m.I, c.I, { tol: 0 });
+  }
+
+  // ---- signature visual: one parts graph on fixed grid coordinates, so every scene shows the same picture in a new state ----
+  const svgEl = () => document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  function kgSpec(o = {}) {
+    const bad = (id) => o.shacl && (id === "C21" || id === "M200");
+    const n = (id, c, r, l, s, k) => ({ id, c, r, l, s, k: bad(id) ? "bad" : k, flaw: bad(id) || undefined });
+    const nodes = [
+      n("Part", 0, 0, ":Part", "부품 · 클래스", "dark"), n("Elec", 1, 0, ":ElectricalPart", "전기부품 · 클래스", "dark"), n("Motor", 2, 0, ":DriveMotor", "구동모터 · 클래스", "dark"),
+      n("M200", 2, 1, ":M-200", "모터"), n("hanbit", 3, 1, ":hanbit", "한빛모터 · 공급사"),
+      n("D300", 0, 2, ":D-300", "전동드릴"), n("B18", 1, 2, ":B-18", "배터리팩"), n("daesung", 3, 2, ":daesung", "대성전기 · 공급사"),
+      n("C21", 1, 3, ":C-21", "배터리셀"), n("v36", 2, 3, "3.6", "리터럴 · 숫자", "muted"),
+    ];
+    const edges = [
+      { id: "Motor>Elec", f: "Motor", t: "Elec", l: "subClassOf", k: "muted" },
+      { id: "Elec>Part", f: "Elec", t: "Part", l: "subClassOf", k: "muted" },
+      { id: "M200>Motor", f: "M200", t: "Motor", l: "a" },
+      { id: "M200>hanbit", f: "M200", t: "hanbit", l: "suppliedBy" },
+      { id: "M200>D300", f: "M200", t: "D300", l: "partOf", shape: "ortho", from: "bottom", to: "top", via: [[2, 1.5], [0, 1.5]], lo: [-100, -11] },
+      { id: "B18>Elec", f: "B18", t: "Elec", l: "a" },
+      { id: "B18>D300", f: "B18", t: "D300", l: "partOf" },
+      { id: "B18>daesung", f: "B18", t: "daesung", l: "suppliedBy", lo: [60, 0] },
+      { id: "C21>B18", f: "C21", t: "B18", l: "partOf" },
+      { id: "C21>v36", f: "C21", t: "v36", l: "voltage" },
+    ];
+    if (o.inferred) edges.push(
+      { id: "M200>Elec", f: "M200", t: "Elec", l: "a (추론)", k: "accent", dash: true },
+      { id: "C21>D300", f: "C21", t: "D300", l: "partOf (추론)", k: "accent", dash: true, lo: [-30, 8] });
+    if (o.second) edges.push(
+      { id: "M200>daesung", f: "M200", t: "daesung", l: "suppliedBy", k: "bad", lo: [26, -10] },
+      { id: "hanbit>daesung", f: "hanbit", t: "daesung", l: "sameAs?", k: "bad", dash: true, both: true });
+    return { cols: 4, rows: 4, cell: [212, 92], node: [136, 46], nodes, edges };
+  }
+  function drawKG(host, o) { const svg = host.appendChild(svgEl()); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", "부품 지식 그래프: 클래스 세 개, 부품 네 개, 공급사 두 개, 리터럴 하나"); return LTT.diagram(svg, kgSpec(o)); }
+
+  const INF_LABEL = { "M200>Elec": "a (추론)", "C21>D300": "partOf (추론)" };
+  function showInf(f, on) {
+    for (const [id, text] of Object.entries(INF_LABEL)) {
+      const v = on.includes(id) ? "visible" : "hidden";
+      f.dg.edge(id).style("visibility", v);
+      f.host.querySelectorAll("text").forEach((t) => { if (t.textContent === text) t.style.visibility = v; });
+    }
+  }
+  function kgStepScene(o, side, steps) {
+    return (body) => {
+      const wrap = body.appendChild(LTT.h("div", "kgstage"));
+      const host = wrap.appendChild(LTT.h("div", "g")), f = { host, dg: drawKG(host, o) };
+      const right = wrap.appendChild(LTT.h("div", "side"));
+      Object.assign(f, side(right));
+      LTT.stepper(right.appendChild(LTT.h("div")), steps.map((st) => ({ caption: st.caption, enter: (i) => st.enter(i, f) })));
+      return {};
+    };
+  }
+
+  // ---- scene 3: psql rows beside the graph they become ----
+  const PSQL_HEAD = ["$ psql -c \"SELECT * FROM parts\"", { t: "dim", text: " id    | kind           | parent_id | supplier_id | voltage" }, { t: "dim", text: "-------+----------------+-----------+-------------+--------" }];
+  const ROWS = {
+    M200: " M-200 | DriveMotor     | D-300     | hanbit      |",
+    B18: " B-18  | ElectricalPart | D-300     | daesung     |",
+    C21: " C-21  |                | B-18      |             | 3.6",
+  };
+  function psql(term, hot) {
+    term.screen.replaceChildren();
+    PSQL_HEAD.forEach(term.add);
+    Object.entries(ROWS).forEach(([id, text]) => term.add({ t: hot.includes(id) ? "warn" : "out", text }));
+  }
+
+  // ---- scene 7: SPARQL over the same graph ----
+  const PREFIX = "PREFIX : <https://parts.example.com/id/>\n";
+  const QUERIES = [
+    { q: PREFIX + "SELECT ?part WHERE {\n  ?part :partOf :D-300 .\n}", head: "| part    |", rows: ["| :B-18   |", "| :M-200  |"] },
+    { q: PREFIX + "SELECT ?part ?s WHERE {\n  ?part :partOf :D-300 .\n  ?part :suppliedBy ?s .\n}", head: "| part    | s        |", rows: ["| :B-18   | :daesung |", "| :M-200  | :hanbit  |"] },
+    { q: PREFIX + "SELECT ?part WHERE {\n  ?part :partOf+ :D-300 .\n}", head: "| part    |", rows: ["| :B-18   |", "| :C-21   |", "| :M-200  |"] },
+  ];
+  function showQuery(fig, k) {
+    fig.codeHost.replaceChildren(LTT.mock.code({ title: "parts.rq", code: QUERIES[k].q, marks: k === 0 ? { 3: "accent" } : k === 1 ? { 4: "accent" } : { 3: "accent" } }).el);
+    fig.term.screen.replaceChildren();
+    ["$ arq --data parts.ttl --query parts.rq", { t: "dim", text: QUERIES[k].head }, ...QUERIES[k].rows.map((r) => ({ t: "ok", text: r }))].forEach(fig.term.add);
+    while (fig.term.screen.children.length < 6) fig.term.add({ t: "dim", text: " " });
+  }
+
+  // ---- scene 10: rule-by-rule inference list ----
+  const short = (t) => `:${t[0]} ${t[1] === "a" ? "a" : t[1] === "subClassOf" ? "rdfs:subClassOf" : ":" + t[1]} :${t[2]}`;
+  function inferList(host, names, label) {
+    const inf = names.length ? infer(G0, names) : [];
+    host.innerHTML = `<div class="h">${label} · 저장 ${G0.length}개 + 추론 ${inf.length}개</div>` +
+      (inf.length ? inf.map((t) => `<div class="inf">+ ${short(t)}</div>`).join("") : `<div class="dim">(아직 추론한 트리플 없음)</div>`) +
+      Array.from({ length: 6 - inf.length }, () => `<div class="dim">&nbsp;</div>`).join("");
+  }
+
+  // ---- scene 11: uniform BOM chain ----
+  function chain(svg, d, b) {
+    const W = 600, H = 240, x = (i) => 40 + i * (W - 80) / 6, y = 160;
+    const s = d3.select(svg).attr("viewBox", `0 0 ${W} ${H}`);
+    s.selectAll("*").remove();
+    const names = ["D-300", "B-18", "C-21", "셀 단자", "단자 핀", "도금층", "코팅"];
+    for (let i = 1; i <= d; i++) for (let j = 0; j < i - 1; j++) {
+      const x1 = x(i), x2 = x(j), r = (x1 - x2) / 2;
+      s.append("path").attr("d", `M${x1} ${y - 12} A ${r} ${Math.min(r, 120) * 0.9} 0 0 0 ${x2} ${y - 12}`).style("fill", "none").style("stroke", "var(--ltt-accent)").style("stroke-width", 1.5).style("stroke-dasharray", "4 4");
+    }
+    for (let i = 1; i <= d; i++) s.append("line").attr("x1", x(i) - 12).attr("x2", x(i - 1) + 12).attr("y1", y).attr("y2", y).style("stroke", "var(--ltt-ink)").style("stroke-width", 2);
+    for (let i = 0; i <= d; i++) {
+      s.append("circle").attr("cx", x(i)).attr("cy", y).attr("r", 10).style("fill", i === 0 ? "var(--ltt-ink)" : "var(--ltt-card)").style("stroke", "var(--ltt-ink)").style("stroke-width", 2);
+      s.append("text").attr("x", x(i)).attr("y", y + 30).attr("text-anchor", "middle").text(names[i]).style("font-size", "12px");
+      s.append("text").attr("x", x(i)).attr("y", y + 46).attr("text-anchor", "middle").text(i === 0 ? "제품 1개" : `층 ${i}: ${d3.format(",")(b ** i)}개`).style("font-size", "11px").style("fill", "var(--ltt-muted)");
+    }
+    s.append("text").attr("x", 4).attr("y", H - 4).text("실선 = 저장한 partOf · 점선 = 전이 추론으로 더해진 partOf (한 갈래만 그림)").style("font-size", "11px").style("fill", "var(--ltt-muted)");
+  }
+
+  // ---- small term pictures ----
+  const tv = (label, inner, h = 100) => `<svg class="ltt-svg" viewBox="0 0 240 ${h}" style="max-height:${h + 10}px" role="img" aria-label="${label}">${inner}</svg>`;
+  const box = (x, y, w, t, o = {}) => `<rect x="${x}" y="${y}" width="${w}" height="30" rx="4" style="fill:${o.fill || "var(--ltt-card)"};stroke:${o.stroke || "var(--ltt-ink)"};stroke-width:1.5${o.dash ? ";stroke-dasharray:4 3" : ""}"/><text x="${x + w / 2}" y="${y + 20}" text-anchor="middle" style="font-size:12px;font-weight:700;fill:${o.tc || "var(--ltt-ink)"}">${t}</text>`;
+  const arr = (x1, y1, x2, y2, c = "var(--ltt-ink)", dash) => { const a = Math.atan2(y2 - y1, x2 - x1), p = (k) => `${x2 - 8 * Math.cos(a + k)},${y2 - 8 * Math.sin(a + k)}`; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" style="stroke:${c};stroke-width:2${dash ? ";stroke-dasharray:4 3" : ""}"/><polygon points="${x2},${y2} ${p(0.45)} ${p(-0.45)}" style="fill:${c}"/>`; };
+  const lab = (x, y, t, c = "var(--ltt-muted)", a = "middle") => `<text x="${x}" y="${y}" text-anchor="${a}" style="font-size:11px;fill:${c}">${t}</text>`;
+  const TV = {
+    triple: tv("주어 상자에서 술어 화살표를 따라 목적어 상자로", box(4, 40, 70, ":M-200") + arr(76, 55, 162, 55) + lab(119, 47, "partOf", "var(--ltt-ink)") + box(164, 40, 70, ":D-300") + lab(39, 28, "주어") + lab(119, 86, "술어") + lab(199, 28, "목적어")),
+    iri: tv("짧은 이름이 전체 주소로 펼쳐진다", box(70, 10, 100, ":M-200", { fill: "var(--ltt-accent-soft)" }) + arr(120, 42, 120, 62) + `<text x="120" y="84" text-anchor="middle" style="font-size:10.5px;font-family:var(--ltt-mono);fill:var(--ltt-ink)">https://parts.example.com/id/M-200</text>`),
+    hier: tv("구동모터가 전기부품 안에, 전기부품이 부품 안에 들어 있는 겹친 상자", `<rect x="10" y="6" width="220" height="88" rx="6" style="fill:none;stroke:var(--ltt-ink);stroke-width:1.5"/><rect x="40" y="26" width="180" height="60" rx="6" style="fill:none;stroke:var(--ltt-ink);stroke-width:1.5"/><rect x="80" y="46" width="130" height="32" rx="6" style="fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:1.5"/>` + lab(16, 20, ":Part", "var(--ltt-ink)", "start") + lab(46, 40, ":ElectricalPart", "var(--ltt-ink)", "start") + lab(145, 66, ":DriveMotor", "var(--ltt-ink)")),
+    entail: tv("적힌 두 트리플에서 점선 트리플 하나가 나온다", box(0, 8, 70, ":M-200") + arr(72, 23, 112, 23) + lab(92, 16, "a") + box(114, 8, 124, ":DriveMotor") + arr(176, 40, 176, 64, "var(--ltt-ink)") + lab(180, 56, "subClassOf", "var(--ltt-ink)", "start") + box(114, 66, 124, ":ElectricalPart") + arr(40, 40, 112, 80, "var(--ltt-accent)", true) + lab(40, 92, "a (추론)", "var(--ltt-accent)")),
+    vendor: tv("같은 공급 관계를 두 시스템이 다른 술어로 적어 두 갈래 화살표가 된다", box(4, 36, 70, ":M-200") + arr(76, 46, 160, 22) + lab(96, 22, ":suppliedBy (PLM)", "var(--ltt-ink)", "start") + arr(76, 64, 160, 82, "var(--ltt-bad)") + lab(96, 96, ":vendor (ERP)", "var(--ltt-bad)", "start") + box(162, 8, 74, ":hanbit") + box(162, 66, 74, ":hanbit"), 110),
+    grow: tv("domain 규칙이 C-21을 막지 않고 Part 종류를 붙인다", box(4, 10, 70, ":C-21") + arr(76, 25, 160, 25) + lab(118, 18, "partOf") + box(162, 10, 74, ":B-18") + arr(39, 42, 39, 66, "var(--ltt-accent)", true) + lab(46, 58, "domain 규칙", "var(--ltt-accent)", "start") + box(4, 68, 120, "C-21 a :Part", { stroke: "var(--ltt-accent)", tc: "var(--ltt-accent)", dash: true }) + lab(132, 88, "막지 않고 늘린다", "var(--ltt-muted)", "start"), 104),
+    owa: tv("공급사 칸이 비어 있어도 물음표 상자로 남는다", box(4, 36, 70, ":C-21") + arr(76, 51, 156, 51, "var(--ltt-muted)", true) + lab(116, 43, "suppliedBy") + box(158, 36, 78, "?", { dash: true, stroke: "var(--ltt-muted)", tc: "var(--ltt-muted)" }) + lab(197, 86, "아직 모를 뿐")),
+    shape: tv("셰이프 틀에 부품을 대 보니 공급사 칸이 비어 위반", `<rect x="6" y="8" width="228" height="84" rx="6" style="fill:none;stroke:var(--ltt-ink);stroke-width:1.5;stroke-dasharray:6 4"/>` + lab(14, 24, "PartShape: suppliedBy 정확히 1개", "var(--ltt-ink)", "start") + box(16, 40, 64, ":C-21") + arr(82, 55, 128, 55, "var(--ltt-bad)") + box(130, 40, 94, "0개 → 위반", { stroke: "var(--ltt-bad)", tc: "var(--ltt-bad)" })),
+  };
+
+  // ---- decision flow (scene 18) ----
+  function flowSpec() {
+    return {
+      cols: 4, rows: 3, cell: [260, 130], node: [200, 70],
+      nodes: [
+        { id: "q1", c: 0, r: 0, l: "Q1 속성이 자주 늘거나\n출처가 여럿인가?", k: "dark" },
+        { id: "tbl", c: 0, r: 1, l: "테이블 + DB 제약", s: "NOT NULL · FK · CHECK", k: "good" },
+        { id: "q2", c: 1, r: 0, l: "Q2 분류 계층을 매번 쓰고\n분류가 자주 바뀌나?", k: "dark" },
+        { id: "inf", c: 2, r: 0, l: "RDF + RDFS 추론", s: "subClassOf", k: "accent" },
+        { id: "path", c: 1, r: 1, l: "RDF + SPARQL 경로", s: "partOf+ 펼치기로 충분\n물질화 땐 OWL 2 RL", k: "accent" },
+        { id: "q3", c: 3, r: 0.5, l: "Q3 넣을 때 막아야 할\n규칙이 있나?", k: "dark" },
+        { id: "shacl", c: 3, r: 1.6, l: "+ SHACL 셰이프", s: "필수 · 개수 · 참조" },
+      ],
+      edges: [
+        { f: "q1", t: "tbl", l: "아니오" }, { f: "q1", t: "q2", l: "예" },
+        { f: "q2", t: "inf", l: "예" }, { f: "q2", t: "path", l: "아니오" },
+        { f: "inf", t: "q3" }, { f: "path", t: "q3" },
+        { f: "q3", t: "shacl", l: "예" },
+      ],
+    };
+  }
+
+  // ---- overview: the finished graph with each takeaway pinned to its place ----
+  function overviewFigure(stage) {
+    const svg = stage.appendChild(svgEl());
+    svg.setAttribute("role", "img"); svg.setAttribute("aria-label", "추론 엣지와 검증 위반까지 표시한 부품 그래프 위에 정리 번호 다섯 개");
+    const spec = kgSpec({ inferred: true, shacl: true, second: true });
+    LTT.diagram(svg, spec);
+    const L = LTT.diagramLayout(spec), sel = d3.select(svg);
+    const pin = (x, y, n) => {
+      sel.append("circle").attr("cx", x).attr("cy", y).attr("r", 13).style("fill", "var(--ltt-ink)");
+      sel.append("text").attr("x", x).attr("y", y + 5).attr("text-anchor", "middle").text(n).style("fill", "var(--ltt-card)").style("font-weight", 800).style("font-size", "14px");
+    };
+    const P = (id, n, dx = -4, dy = -2) => { const b = L.nodes[id]; pin(b.x + b.w + dx, b.y + dy, n); };
+    P("M200", 1, 12, -10);
+    P("D300", 2, 12, -10);
+    P("Elec", 3, 12, -10);
+    P("C21", 4, -150, -10);
+    P("hanbit", 5, 12, -10);
+    P("C21", 6, 14, 40);
+  }
+
+  LTT.deck({
+    title: "부품 데이터: 테이블이면 충분할까, 온톨로지와 SHACL을 얹을까?",
+    theme: "blueprint",
+    glossary: {
+      "RDF": "Resource Description Framework. 모든 데이터를 '주어–술어–목적어' 세 칸짜리 문장(트리플)으로 적는 W3C 표준 데이터 모델.",
+      "온톨로지": "한 분야의 개념(클래스)과 관계, 그 사이의 규칙을 기계가 읽게 적은 스키마. 이 수업에서는 RDFS·OWL로 적은 규칙 묶음.",
+      "SHACL": "Shapes Constraint Language. RDF 데이터가 정해 둔 모양(필수 속성, 값 개수, 타입)을 지키는지 검사하는 W3C 표준.",
+      "Turtle": "트리플을 사람이 읽고 쓰기 쉽게 줄여 적는 RDF 파일 형식(.ttl).",
+      "리터럴": "IRI가 아닌 값 그 자체. 숫자·문자열·날짜. 트리플의 목적어 자리에만 온다.",
+      "SPARQL": "RDF 그래프용 질의 언어. ?로 시작하는 변수가 든 트리플 패턴을 그래프에 겹쳐 맞는 값을 찾는다.",
+      "RDFS": "RDF Schema. 클래스 계층(subClassOf), 속성의 주어 종류(domain) 같은 가장 기본적인 스키마 어휘와 그 추론 규칙.",
+      "OWL": "Web Ontology Language. RDFS보다 표현력이 큰 온톨로지 언어. 전이 속성, 값 개수 제한, 서로 배타적인 클래스 등을 적는다.",
+      "BOM": "Bill of Materials. 제품을 이루는 부품과 그 하위 부품을 층층이 적은 목록.",
+      "물질화": "추론으로 나올 트리플을 미리 계산해 저장해 두는 것(materialization). 질의는 빨라지고 저장량은 늘어난다.",
+    },
+    scenes: [
+      { type: "hook", art: "workflow", kicker: "사내 제품·부품 데이터 모델 고르기",
+        pre: "부품 테이블에 FK 몇 개면 될까,",
+        text: "{{RDF}} 그래프에 {{온톨로지}}와 {{SHACL}}까지<br><u>얹어야</u> 할까?",
+        sub: "두 방식은 '무엇을 저장하나'보다 '빠진 값을 어떻게 보나', '적히지 않은 사실을 누가 만드나'에서 갈린다. 이 수업을 마치면 테이블로 충분한 경우와, {{추론}}·검증을 얹어야 하는 경우를 질문 세 개로 가를 수 있다." },
+
+      { type: "terms", title: "그래프 데이터의 두 낱말: 트리플과 IRI", en: "Terms",
+        terms: [
+          { key: "트리플", en: "triple", icon: "link", visual: TV.triple, plain: "'주어 – 술어 – 목적어' 세 칸짜리 사실 하나. 테이블로 치면 행 하나의 셀 하나다.", example: ":M-200 :partOf :D-300 (모터 M-200은 드릴 D-300의 부품이다)." },
+          { key: "IRI", en: "Internationalized Resource Identifier", icon: "globe", visual: TV.iri, plain: "주어·술어·목적어에 붙이는 전 세계에서 하나뿐인 이름. 웹 주소 모양이라 다른 시스템도 같은 것을 같은 이름으로 가리킬 수 있다.", example: ":M-200은 https://parts.example.com/id/M-200의 줄임." },
+        ] },
+
+      { kicker: "Part 1 · 테이블에서 트리플로", title: "테이블의 셀 하나가 트리플 하나가 된다", en: "Rows to triples",
+        sub: "왼쪽: parts 테이블을 {{트리플}}로 옮긴 그래프(상자 = {{IRI}}, 화살표 = 트리플). 오른쪽: 원래 테이블. 열 → 술어: parent_id → :partOf, supplier_id → :suppliedBy, kind → a, 값 IRI(:D-300, :hanbit, :DriveMotor)는 같은 접두어로 만든다.",
+        mount: kgStepScene({}, (side) => { const term = LTT.mock.terminal({ title: "psql · parts" }); side.appendChild(term.el); return { term }; }, [
+          { caption: "<b>① id 셀 = 주어</b> — M-200 행의 id는 주어 IRI가 되고, 나머지 빈칸 아닌 셀 세 개(kind, parent_id, supplier_id)가 M-200에서 나가는 화살표 세 개가 된다.",
+            enter: (k, f) => { psql(f.term, ["M200"]); f.dg.highlight(["M200", "Motor", "D300", "hanbit", "M200>Motor", "M200>D300", "M200>hanbit"]); } },
+          { caption: "<b>② 외래 키 = 노드를 잇는 화살표</b> — parent_id 열은 partOf 화살표가 된다. 조인 대신 화살표를 따라간다.",
+            enter: (k, f) => { psql(f.term, ["M200", "B18", "C21"]); f.dg.highlight(["M200", "B18", "C21", "D300", "M200>D300", "B18>D300", "C21>B18"]); } },
+          { caption: "<b>③ NULL은 '트리플 없음'</b> — C-21의 빈 supplier_id는 화살표가 없는 것으로 남는다. 3.6 같은 값은 IRI가 아닌 {{리터럴}} 상자다.",
+            enter: (k, f) => { psql(f.term, ["C21"]); f.dg.highlight(["C21", "B18", "v36", "C21>B18", "C21>v36"]); } },
+          { caption: "<b>④ 스키마도 트리플</b> — kind 값은 클래스(= 종류) 상자를 가리키는 a(= 종류는) 화살표다. 'DriveMotor는 ElectricalPart의 한 종류'라는 subClassOf도 같은 그래프에 적힌다.",
+            enter: (k, f) => { psql(f.term, ["M200", "B18"]); f.dg.highlight(["Part", "Elec", "Motor", "M200", "B18", "Motor>Elec", "Elec>Part", "M200>Motor", "B18>Elec"]); } },
+        ]),
+        takeaway: "id = 주어, 나머지 빈칸 아닌 셀 하나 = 트리플 하나, 외래 키 = 화살표, NULL = 트리플 없음.",
+        recall: "테이블 한 행을 트리플로 옮기면 외래 키와 NULL은 각각 무엇이 되나?" },
+
+      { type: "figure", kicker: "Part 1 · 파일로 적기", title: "Turtle은 같은 데이터 트리플 여덟 개를 줄여 쓴 글이다", en: "Turtle",
+        caption: "앞 그래프의 부품 데이터(스키마 4줄은 뺐다)를 {{Turtle}} 파일로 적었다. 번호를 따라 읽으면 줄임 규칙 세 가지와 값 하나가 보인다. 뒤에 나오는 rdf:·rdfs:·owl:·sh:·skos:는 표준 어휘에 미리 정해 둔 같은 종류의 접두어다.",
+        figure: () => { const m = LTT.mock.code({ title: "parts.ttl", code:
+`@prefix :    <https://parts.example.com/id/> .
+
+:M-200  a            :DriveMotor ;
+        :partOf      :D-300 ;
+        :suppliedBy  :hanbit .
+
+:B-18   a            :ElectricalPart ;
+        :partOf      :D-300 ;
+        :suppliedBy  :daesung .
+
+:C-21   :partOf      :B-18 ;
+        :voltage     3.6 .`, marks: { 1: "accent", 3: "accent", 12: "accent" } }); m.el.style.width = "760px"; m.el.style.maxWidth = "100%"; m.el.style.margin = "0 auto"; return m.el; },
+        points: [
+          { at: [13, 16], title: "@prefix", text: "긴 IRI 앞부분을 :로 줄인다. :M-200은 https://parts.example.com/id/M-200." },
+          { at: [15, 30], title: "a", text: "rdf:type의 줄임. '종류는'으로 읽는다." },
+          { at: [37, 30], title: "; 와 ,", text: "; 는 주어를 다시 쓰지 않고 술어·목적어를 잇는다. , 는 주어·술어까지 같고 목적어만 잇는다. 마침표(.)에서 끝난다." },
+          { at: [28, 93], title: "3.6", text: "따옴표 없는 소수는 xsd:decimal {{리터럴}}(정수면 xsd:integer). C-21은 kind가 비어 a 줄이 없다." },
+        ],
+      },
+
+      { type: "compare", form: "table", kicker: "결정 1 · 데이터 모양", title: "열이 자주 늘거나 출처가 여럿일 때 트리플이 값을 한다", en: "Table or triples",
+        sub: "행마다 묻는다: 테이블만으로 괜찮은가? 짐작한 뒤 판정을 연다. 판정은 사실이 아니라 설계 의견이다.",
+        head: ["상황", "데이터 예", "테이블만으로?"],
+        items: [
+          { label: "주문 기록 · 열이 고정, 한 시스템이 소유", visual: "<p class=\"glyph\">orders(order_id, part_id,\n       qty, ordered_at)</p>", tone: "good", verdict: "테이블로 충분",
+            noteAfter: true, note: "열과 질의가 정해져 있다. 트리플로 바꿔도 얻는 것이 없다." },
+          { label: "부품 종류마다 속성이 다르고 달마다 늘어남", visual: "<p class=\"glyph\">모터: torque_nm, rpm\n셀: chemistry, voltage\n기어: ratio …</p>", tone: "warn", verdict: "버티지만 비용이 쌓임",
+            noteAfter: true, note: "열 추가나 JSON 열로 버티지만 속성의 뜻이 코드에 흩어진다. 트리플은 새 술어 하나." },
+          { label: "PLM·ERP·공급사 카탈로그의 같은 부품을 합쳐 질의", visual: "<p class=\"glyph\">PLM: M-200\nERP: 10045-MTR\n공급사: HB-M200</p>", tone: "bad", verdict: "테이블만으로는 어려움",
+            noteAfter: true, note: "키가 달라 매핑 테이블·ETL이 는다. 누군가 키를 같은 IRI로 매핑하면(Part 3의 sameAs·exactMatch) 파일을 이어 붙여도 한 그래프다." },
+        ],
+        takeaway: "열이 고정되고 한 시스템이 소유하면 테이블로 충분하다. 속성이 자주 늘거나 출처가 여럿이면 트리플.",
+        recall: "부품 데이터를 트리플로 옮길 이유가 생기는 두 상황은?",
+        ask: "\"부품 데이터는 몇 개 시스템에서 오나요?\"" },
+
+      { type: "statement", title: "트리플로 옮긴다고 뜻이 합쳐지지는 않는다. <em>같은 IRI와 같은 술어에 합의</em>할 때 합쳐진다.",
+        sub: "ERP가 :suppliedBy 대신 :vendor를 쓰면 그래프는 두 술어를 다른 관계로 본다. 다른 시스템의 키(10045-MTR)도 누군가 같은 IRI로 매핑해야 한다. 이 합의를 적는 곳이 Part 3의 스키마다.",
+        visual: TV.vendor },
+
+      { kicker: "Part 2 · 질의", title: "SPARQL은 변수가 든 패턴을 그래프에 겹쳐 맞춘다", en: "SPARQL",
+        sub: "왼쪽: 같은 부품 그래프, 진하게 남은 화살표가 패턴에 맞은 트리플. 오른쪽 위: {{SPARQL}} 질의, 아래: Apache Jena의 arq로 실행한 결과.",
+        mount: kgStepScene({}, (side) => { const codeHost = side.appendChild(LTT.h("div")); const term = LTT.mock.terminal({ title: "zsh" }); side.appendChild(term.el); return { codeHost, term }; }, [
+          { caption: "<b>① 패턴 하나</b> — ?part 자리에 아무 노드나 넣어 보고, ':partOf :D-300' 화살표가 실제로 있는 것만 남긴다. M-200과 B-18.",
+            enter: (k, f) => { showQuery(f, 0); f.dg.highlight(["M200", "B18", "D300", "M200>D300", "B18>D300"]); } },
+          { caption: "<b>② 패턴 둘 = 조인</b> — 같은 변수 ?part가 두 패턴을 묶는다. SQL의 JOIN ON과 같은 일이다.",
+            enter: (k, f) => { showQuery(f, 1); f.dg.highlight(["M200", "B18", "D300", "hanbit", "daesung", "M200>D300", "B18>D300", "M200>hanbit", "B18>daesung"]); } },
+          { caption: "<b>③ 속성 경로 :partOf+</b> — 패턴이 아니라 property path다. '+'는 화살표를 한 번 이상('*'는 0번 이상) 따라간다. C-21(셀 → 팩 → 드릴)까지 나온다. SQL WITH RECURSIVE(UNION)의 도달 집합과 같고, 깊이·경로는 안 나온다.",
+            enter: (k, f) => { showQuery(f, 2); f.dg.highlight(["M200", "B18", "C21", "D300", "M200>D300", "B18>D300", "C21>B18"]); } },
+        ]),
+      },
+
+      { type: "terms", title: "스키마가 하는 일: 클래스 계층과 추론", en: "Terms",
+        terms: [
+          { key: "클래스 계층", en: "rdfs:subClassOf", icon: "layers", visual: TV.hier, plain: "'구동모터는 전기부품의 한 종류'처럼 종류 사이의 포함 관계. {{RDFS}}의 subClassOf로 적는다.", example: ":DriveMotor rdfs:subClassOf :ElectricalPart ." },
+          { key: "추론", en: "entailment · reasoning", icon: "bulb", visual: TV.entail, plain: "적힌 트리플과 규칙에서 적히지 않은 트리플을 끌어내는 것. 추론기(reasoner)가 하고, 규칙은 RDFS·{{OWL}} 표준이 정한다.", example: "M-200이 구동모터이고 구동모터가 전기부품이면, M-200은 전기부품이다. 다음 장면은 규칙 둘을 더 쓴다: domain('이 술어의 주어는 이 종류'), 전이 속성('A→B, B→C면 A→C')." },
+        ] },
+
+      { type: "predict", kicker: "Part 3 · 짐작해 보기", title: "추론기 없이 '전기부품 전부'를 물으면 M-200이 나올까?",
+        sub: "아래 트리플을 저장한 RDF 저장소에 질의를 보낸다. 저장소의 추론 기능은 꺼져 있다.",
+        visual: () => LTT.mock.code({ title: "저장된 트리플 일부 · 질의", code:
+`:M-200 a :DriveMotor .
+:B-18  a :ElectricalPart .
+:DriveMotor rdfs:subClassOf :ElectricalPart .
+
+SELECT ?x WHERE { ?x a :ElectricalPart . }`, marks: { 5: "accent" } }).el,
+        question: "{{추론}}을 끈 저장소에서 '?x a :ElectricalPart'의 결과",
+        choices: [{ id: "b18", text: ":B-18만" }, { id: "both", text: ":B-18과 :M-200" }, { id: "none", text: "결과 없음" }],
+        answer: "b18",
+        answerVisual(node) {
+          node.innerHTML = `<div class="ans2"></div>`;
+          const g = node.firstChild;
+          g.appendChild(LTT.mock.terminal({ title: "추론 끔", lines: ["$ arq … ?x a :ElectricalPart", { t: "ok", text: "| :B-18  |" }] }).el);
+          g.appendChild(LTT.mock.terminal({ title: "RDFS 추론 켬", lines: ["$ arq … ?x a :ElectricalPart", { t: "ok", text: "| :B-18  |" }, { t: "warn", text: "| :M-200 |" }] }).el);
+        },
+        why: ":B-18만. 저장소는 패턴과 글자가 같은 트리플만 찾는다. subClassOf는 추론기를 켜야 '그러므로 M-200도 전기부품'이라는 트리플을 만든다." },
+
+      { kicker: "Part 3 · 규칙 하나씩", title: "추론은 규칙을 반복 적용해 적히지 않은 트리플을 더한다", en: "Entailment",
+        sub: "저장한 12개(데이터 8 + 스키마 4: subClassOf 두 줄, ':partOf rdfs:domain :Part', ':partOf a owl:TransitiveProperty')에 규칙을 하나씩 더한다. 점선 화살표와 오른쪽 + 줄이 추론으로 생긴 트리플이다(목록은 스키마 수준 1개 포함).",
+        mount: kgStepScene({ inferred: true }, (side) => ({ list: side.appendChild(LTT.h("div", "tlist")) }), [
+          { caption: "<b>① 저장한 것만</b> — 추론 전. 점선 화살표는 아직 없다.",
+            enter: (k, f) => { showInf(f, []); inferList(f.list, [], "추론 전"); f.dg.highlight(["Part", "Elec", "Motor", "M200", "hanbit", "D300", "B18", "daesung", "C21", "v36", "Motor>Elec", "Elec>Part", "M200>Motor", "M200>hanbit", "M200>D300", "B18>Elec", "B18>D300", "B18>daesung", "C21>B18", "C21>v36"]); } },
+          { caption: "<b>② 계층 따라 종류 전파</b> — rdfs9: 'x a A, A subClassOf B 이면 x a B'. rdfs11: subClassOf끼리도 이어져 DriveMotor subClassOf Part가 더해진다. M-200은 전기부품이자 부품, B-18은 부품.",
+            enter: (k, f) => { showInf(f, ["M200>Elec"]); inferList(f.list, ["rdfs9", "rdfs11"], "rdfs9 · rdfs11"); f.dg.highlight(["M200", "Motor", "Elec", "Part", "B18", "M200>Elec", "M200>Motor", "Motor>Elec", "Elec>Part", "B18>Elec"]); } },
+          { caption: "<b>③ domain은 제약이 아니다</b> (rdfs2) — ':partOf의 주어는 Part'라고 적으면, 종류가 비어 있던 C-21도 'Part다'로 추론된다. 틀린 값을 막지 않고 결론을 늘린다.",
+            enter: (k, f) => { showInf(f, ["M200>Elec"]); inferList(f.list, ["rdfs9", "rdfs11", "rdfs2"], "+ rdfs2 (domain)"); f.dg.highlight(["C21", "B18", "C21>B18"]); } },
+          { caption: "<b>④ 전이 속성</b> ({{OWL}} 2 RL 규칙 prp-trp) — C-21 partOf B-18, B-18 partOf D-300 이면 C-21 partOf D-300.",
+            enter: (k, f) => { showInf(f, ["M200>Elec", "C21>D300"]); inferList(f.list, ["rdfs9", "rdfs11", "rdfs2", "trp"], "+ owl:TransitiveProperty"); f.dg.highlight(["C21", "B18", "D300", "C21>B18", "B18>D300", "C21>D300"]); } },
+        ]),
+        basis: "RDFS 규칙의 일부(rdfs2·rdfs9·rdfs11)와 OWL 2 RL 규칙 하나(prp-trp)만 적용했다. 전체 RDFS 함의는 rdf1·rdfs4a/4b·rdfs8과 공리 트리플로 더 많은 트리플을 만든다. W3C RDF 1.1 Semantics §9.2.1, OWL 2 Profiles §4.3 Table 5.",
+        takeaway: "추론은 적히지 않은 트리플을 더한다. RDFS domain은 제약이 아니라 종류를 붙이는 규칙이다.",
+        recall: "종류 없는 C-21에 partOf를 넣으면 domain 규칙이 무엇을 더하나?" },
+
+      { kicker: "Part 3 · 직접 바꿔 보기", title: "전이 추론을 물질화하면 트리플이 BOM 깊이만큼 불어난다", en: "Materialization",
+        sub: "{{BOM}}에서 partOf가 전이 속성이면 부품마다 조상 전부와 이어진다. 추론 결과는 질의 때 계산하거나 미리 저장(={{물질화}})한다. 물질화하면 깊이 i의 부품은 partOf를 i개 갖는다.",
+        mount(body) {
+          body.innerHTML = `<div id="bom-goal"></div><div class="bomgrid"><div class="bomcol"><div class="knobs"><div class="ltt-param">조립품당 하위 부품 수 <b id="bb-v"></b><div id="bb"></div></div><div class="ltt-param">BOM 깊이 <b id="bd-v"></b><div id="bd"></div></div></div>
+
+            <p class="ltt-basis">partOf 트리플 구성</p><div class="ltt-bar" id="bom-bar"></div>
+            <p class="num">저장 <b id="bom-d">0</b> · 추론 <b id="bom-i">0</b> · 배수 <b id="bom-r">0</b></p></div>
+            <svg class="ltt-svg" id="bom-chain" role="img" aria-label="드릴에서 가장 깊은 부품까지 한 갈래와 추론 partOf 호"></svg></div>`;
+          const bar = LTT.bar("bom-bar", [{ color: "var(--ltt-ink)" }, { color: "var(--ltt-accent)" }]);
+          const svg = body.querySelector("#bom-chain");
+          const fmt = d3.format(",");
+          LTT.sweep({
+            params: {
+              bb: { kind: "steps", stops: [2, 3, 4, 5, 6], value: 4, fmt: (v) => v + "개", label: "하위 부품 수" },
+              bd: { kind: "steps", stops: [1, 2, 3, 4, 5, 6], value: 4, fmt: (v) => v + "단", label: "깊이" },
+            },
+            render({ bb, bd }) {
+              const m = bom(bb, bd), tot = m.D + m.I;
+              chain(svg, bd, bb);
+              bar.set([m.D / tot * 100, m.I / tot * 100], ["저장", m.I ? "추론" : ""]);
+              body.querySelector("#bom-d").textContent = fmt(m.D);
+              body.querySelector("#bom-i").textContent = fmt(m.I);
+              body.querySelector("#bom-r").textContent = (m.I / m.D).toFixed(2) + "배";
+            },
+            goal: { el: "bom-goal", target: "<b>추론 > 저장 × 3</b>", text: "추론으로 더해지는 partOf가 저장한 partOf의 3배를 넘는 BOM을 찾는다. 어느 손잡이가 배수를 움직이나?",
+              check: ({ bb, bd }) => { const m = bom(bb, bd); return m.I > 3 * m.D; } },
+          });
+          return {};
+        },
+        basis: "모든 조립품이 같은 수(b)의 하위 부품을 갖는 균일 BOM 가정. 저장 = Σ bⁱ, 추론 = Σ (i−1)·bⁱ (i = 1…깊이 d), 배수 ≈ d − 1 − 1/(b−1) · <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+        takeaway: "물질화한 전이 partOf는 저장의 약 (깊이 − 1)배이고, 분기 수는 배수를 조금만 바꾼다(개수 자체는 bᵈ로 는다).",
+        recall: "깊이 5, 분기 3인 BOM을 물질화하면 partOf가 대략 몇 배가 되고, 왜?",
+        ask: "\"우리 BOM은 최대 몇 단인가요?\"" },
+
+      { type: "compare", form: "table", kicker: "결정 2 · 추론을 켤까", title: "추론은 분류 계층이 깊고 자주 바뀔 때 값을 한다", en: "Reason or query",
+        sub: "행마다 묻는다: 추론기를 켤 만한가? 판정은 설계 의견이다.",
+        head: ["요구", "적을 것", "추론기를 켤까?"],
+        items: [
+          { label: "'전기부품 전부'를 묻는데 분류가 5단이고 석 달마다 바뀐다", visual: "<p class=\"glyph\">:DriveMotor subClassOf :Motor\n:Motor subClassOf :ElectricalPart …</p>", tone: "good", verdict: "켤 만하다",
+            noteAfter: true, note: "subClassOf 한 줄만 고치면 모든 질의가 따라온다. 경로(subClassOf*)로 하면 질의마다 적어야 한다." },
+          { label: "D-300의 하위 부품 전부(BOM 펼치기)", visual: "<p class=\"glyph\">?p :partOf+ :D-300</p>", tone: "warn", verdict: "질의 경로로 충분",
+            noteAfter: true, note: "partOf+로 질의 때 계산한다. 미리 저장하려면 OWL 2 RL 물질화, 약 (깊이−1)배." },
+          { label: "다른 시스템의 부품 코드를 owl:sameAs로 대량 연결", visual: "<p class=\"glyph\">:M-200 owl:sameAs\n  erp:10045-MTR .</p>", tone: "bad", verdict: "조심",
+            noteAfter: true, note: "sameAs는 두 이름의 사실을 서로 복사한다. skos:exactMatch는 복사 없는 매핑 표시(단 전이적)." },
+        ],
+        basis: "W3C RDF 1.1 Semantics §9.2.1 (RDFS entailment patterns), W3C OWL 2 Profiles §4.3 Table 5 (prp-trp)",
+ },
+
+      { type: "statement", title: "누락·중복 앞에서 RDFS·{{OWL}}은 <em>틀렸다</em>고 하지 않고 <em>결론을 늘린다</em>.",
+        sub: "RDFS domain 규칙이 C-21을 막지 않고 Part로 만든 것처럼. 공리끼리 모순(배타적 클래스 등)일 때만 OWL이 '불일치'를 낸다. 테이블의 NOT NULL·FK가 해 주던 '막기'는 다른 도구가 맡는다.",
+        visual: TV.grow },
+
+      { type: "terms", title: "빠진 값을 보는 두 관점: 열린 세계와 셰이프", en: "Terms",
+        terms: [
+          { key: "열린 세계 가정", en: "open-world assumption", icon: "globe", visual: TV.owa, plain: "적혀 있지 않은 사실을 '거짓'이 아니라 '아직 모름'으로 본다. RDF·OWL의 기본 관점. 테이블의 NULL 검사는 반대로 '없으면 없다'(닫힌 세계)로 본다.", example: "C-21의 공급사가 안 적혀 있어도 OWL은 '어딘가 있을 것'으로 본다." },
+          { key: "셰이프", en: "SHACL shape", icon: "target", visual: TV.shape, plain: "{{SHACL}}에서 '이 대상은 이런 모양이어야 한다'를 적은 틀. 지금 그래프에 적힌 것만 세어 맞는지 보고, 어기면 위반 리포트를 낸다.", example: ":partOf가 있는 노드는 :suppliedBy가 정확히 1개." },
+        ] },
+
+      { type: "predict", kicker: "Part 4 · 짐작해 보기", title: "OWL에 '공급사는 정확히 1개'라고 적으면 잘못된 부품이 걸릴까?",
+        sub: "OWL 공리 '부품은 공급사 정확히 1개'를 넣고 추론기를 돌린다. M-200엔 대성전기를 더 적었고, C-21은 domain 규칙으로 Part다.",
+        visual: () => LTT.mock.code({ title: "ontology.ttl + parts.ttl", code:
+`:Part rdfs:subClassOf [ a owl:Restriction ;   # [ ] = 이름 없는 노드
+    owl:onProperty :suppliedBy ; owl:cardinality 1 ] .
+
+:C-21  :partOf :B-18 .                   # 공급사 없음
+:M-200 :suppliedBy :hanbit , :daesung .  # 공급사 둘`, marks: { 4: "warn", 5: "warn" } }).el,
+        question: "{{열린 세계 가정}}에서 OWL 추론기가 오류로 보고하는 부품",
+        choices: [{ id: "both", text: "C-21과 M-200 둘 다" }, { id: "m200", text: "M-200만" }, { id: "c21", text: "C-21만" }, { id: "none", text: "둘 다 오류 없음" }],
+        answer: "none",
+        answerVisual(node) {
+          node.appendChild(LTT.mock.terminal({ title: "추론 결과 요약", lines: [{ t: "ok", text: "consistent: 오류 없음" }, { t: "warn", text: "+ :hanbit owl:sameAs :daesung" }] }).el);
+        },
+        why: "C-21은 '아직 모름'. 고유 이름 가정이 없어 두 공급사는 '같은 회사'로 추론된다(differentFrom을 적었다면 불일치)." },
+
+      { type: "contrast", kicker: "Part 4 · 같은 데이터, 두 도구", title: "누락·중복은 OWL 추론기가 아니라 SHACL 검증기가 잡는다", en: "Reasoner vs validator",
+        sub: "같은 parts.ttl(C-21 공급사 없음, M-200 공급사 둘)을 넣었다. robot은 HermiT 추론기를 돌리는 CLI, shacl은 Jena의 검증기다. 셰이프는 ':partOf의 주어마다 suppliedBy 정확히 1개'(SHACL은 domain을 추론하지 않아 targetClass :Part 대신 targetSubjectsOf). 출력은 줄여 옮겼다.",
+        before: {
+          label: "OWL 추론기", tone: "bad",
+          visual: () => LTT.mock.terminal({ title: "robot reason", lines: [
+            "$ robot reason -r hermit",
+            "    -i parts.ttl -o out.ttl",
+            { t: "ok", text: "정상 종료(일관성 있음)" },
+            "$ diff parts.ttl out.ttl",
+            { t: "warn", text: "+ :hanbit sameAs :daesung" },
+            { t: "out", text: "+ :C-21 a :Part" },
+          ] }).el,
+          points: [
+            { at: [94, 50], title: "오류 없음", text: "누락도 중복도 '모순'이 아니다." },
+            { at: [94, 78], title: "두 공급사를 합침", text: "개수 제한을 지키려고 두 이름을 같은 회사로 만든다.", tone: "bad" },
+          ],
+        },
+        after: {
+          label: "SHACL 검증기", tone: "good",
+          visual: () => LTT.mock.terminal({ title: "shacl validate", lines: [
+            "$ shacl validate",
+            "    --shapes shapes.ttl --data parts.ttl",
+            { t: "err", text: "conforms false" },
+            { t: "warn", text: ":C-21  minCount 1" },
+            { t: "warn", text: ":M-200 maxCount 1" },
+            { t: "dim", text: "(:B-18 통과)" },
+          ] }).el,
+          points: [
+            { at: [94, 50], title: "위반 있음", text: "적힌 것만 센다(닫힌 세계처럼)." },
+            { at: [94, 72], title: "누락·중복 각 1건", text: "어느 노드가 어떤 규칙을 어겼는지 나온다.", tone: "good" },
+          ],
+        },
+        takeaway: "OWL은 열린 세계 가정이라 누락·중복을 위반으로 보지 않고, 데이터 모양 검사는 SHACL 셰이프가 한다.",
+        recall: "공급사 누락·중복을 OWL과 SHACL은 각각 어떻게 다루나?",
+        ask: "\"넣을 때 꼭 막아야 할 규칙은?\"",
+        sources: ["W3C SHACL §4.2 Cardinality Constraint Components, §2.1.3.4 targetSubjectsOf", "W3C OWL 2 Primer: Property Cardinality Restrictions, Equality and Inequality of Individuals (절 번호 미확인)"] },
+
+      { type: "compare", form: "table", kicker: "결정 3 · 누가 막나", title: "누락·중복·참조 오타는 SHACL이, 분류 모순은 OWL이 잡는다", en: "Who catches what",
+        sub: "어느 도구가 '위반'으로 보고하나? (sh:class X = 값이 X 종류여야 함, sh:not = 이 모양이면 안 됨)",
+        head: ["오류", "들어온 데이터", "누가 잡나"],
+        items: [
+          { label: "필수 속성 누락", visual: "<p class=\"glyph\">:C-21 :partOf :B-18 .\n# suppliedBy 없음</p>", tone: "bad", verdict: "SHACL minCount · OWL은 통과",
+            noteAfter: true, note: "테이블이면 NOT NULL. OWL은 '아직 모름'." },
+          { label: "값이 둘", visual: "<p class=\"glyph\">:M-200 :suppliedBy\n  :hanbit , :daesung .</p>", tone: "bad", verdict: "SHACL maxCount · OWL은 둘을 합침",
+            noteAfter: true, note: "테이블 열 하나엔 두 값을 못 넣는다." },
+          { label: "참조 오타", visual: "<p class=\"glyph\">:C-21 :partOf :B-81 .\n# B-81은 없는 부품</p>", tone: "bad", verdict: "타입을 다 적었다면 SHACL sh:class · OWL은 통과",
+            noteAfter: true, note: "sh:class는 적힌 a만 본다. D-300처럼 타입 없는 정상 값도 위반이 되니 ':D-300 a :Part'부터 적는다. 테이블이면 FK가 막았다." },
+          { label: "배타적인 분류에 동시 소속", visual: "<p class=\"glyph\">:X-9 a :PurchasedPart ,\n        :InHousePart .</p>", tone: "good", verdict: "OWL이 모순으로 잡음",
+            noteAfter: true, note: "owl:disjointWith면 '불일치'. SHACL은 sh:not을 따로." },
+        ],
+      },
+
+      { type: "figure", kicker: "정리 · 결정 흐름", title: "질문 세 개가 테이블·추론·검증을 가른다", en: "Decision flow",
+        caption: "짙은 상자가 질문, 화살표 라벨이 답이다(설계 의견). 테이블을 유지하면서 트리플로 보이게만 하는 W3C 매핑 표준(R2RML, Direct Mapping)도 있다.",
+        figure(stage) { const svg = stage.appendChild(svgEl()); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", "세 질문으로 테이블, RDF와 SHACL, 추론 또는 질의 경로를 고르는 흐름도"); LTT.diagram(svg, flowSpec()); },
+        takeaway: "모양이 자주 바뀌거나 출처가 여럿이면 트리플, 분류 계층을 매번 쓰면 RDFS 추론(펼치기는 경로), 막을 규칙이 있으면 SHACL.",
+        recall: "흐름도의 질문 Q1·Q2·Q3는 각각 무엇을 묻나?",
+        ask: "\"우리 요구는 이 흐름의 어디에 떨어지나요?\"" },
+
+      { type: "summary", title: "부품 데이터 모델을 고르기 전에 떠올릴 것", en: "Recap" },
+
+      { type: "overview", title: "같은 그래프 위에서: 트리플로 옮기고, 질의하고, 추론으로 늘리고, SHACL로 막는다",
+        figure: overviewFigure,
+        caption: "① 결정 1: 테이블 행이 트리플이 된다 · ② 질의: D-300에서 partOf+로 하위 부품 전부 · ③ 결정 2: 계층을 따라 종류가 전파되는 추론(점선) · ④ 결정 2: 전이 추론, 물질화하면 약 (깊이−1)배 · ⑤ OWL은 공급사 둘을 같은 회사로 합친다(열린 세계) · ⑥ 결정 3: 붉은 상자 C-21(누락)·M-200(중복)은 SHACL 위반" },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [{ ko: "트리플 · RDF", en: "RDF triple" }, { ko: "RDFS 추론 · 물질화", en: "RDFS entailment · materialization" }, { ko: "열린 세계 가정", en: "open-world assumption" }, { ko: "SHACL 셰이프", en: "SHACL shape" }],
+        signals: ["부품 속성이 매달 늘고 테이블에 JSON 열이 쌓일 때", "여러 시스템의 같은 부품을 합쳐 보자는 요구", "'OWL로 데이터 검증하자'는 제안", "BOM을 미리 펼쳐 저장하자는 제안"],
+        queries: ["RDF vs relational data model product data", "RDFS entailment rules rdfs9 rdfs2", "OWL open world assumption cardinality", "SHACL minCount validation report", "R2RML relational to RDF"],
+        neighbors: [
+          { term: "속성 그래프(Neo4j)", diff: "노드·엣지에 속성을 다는 그래프 DB. IRI·표준 추론·SHACL이 없다." },
+          { term: "JSON Schema", diff: "문서 하나의 모양 검사. SHACL은 그래프 전체에서 대상을 골라 검사한다." },
+          { term: "owl:sameAs vs skos:exactMatch", diff: "앞의 것은 사실을 복사하는 추론, 뒤의 것은 추론 없는 매핑 표시." },
+        ] },
+    ],
+  });
+</script>
+</body>
+</html>
