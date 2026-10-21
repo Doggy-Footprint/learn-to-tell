@@ -485,19 +485,14 @@ test("VO-6 C-9: B1 tokens split across two lines fail with the id and tokens", (
   assert.ok(err.startsWith("B1:") && err.includes("8~10장면"), err);
 });
 
-for (const [id, tokens] of Object.entries(BUDGET)) {
-  test(`VO-6 FR-8 ${id}: SKILL.md §2 has a line with ${tokens.join(" / ")}`, () => {
-    const err = tokenLineError(section(skillText(), 2), `FR-8 ${id}`, tokens);
-    assert.equal(err, null, err);
-  });
-}
+// The scene budget was removed by plan b4c8f31281e094e4 (user decision); BUDGET stays only as tokenLineError fixtures.
 
 test("VO-6 FR-8 no-scene-budget: SKILL.md §2 has no scene-budget", () => {
   assert.equal(section(skillText(), 2).includes("scene-budget"), false, "FR-8: §2 mentions scene-budget");
 });
 
-test("VO-6 FR-7 §3 read line: one line holds kit/API.md, kit/api/<part>.md and 만 읽는다", () => {
-  const err = tokenLineError(section(skillText(), 3), "FR-7 §3 read line", ["kit/API.md", "kit/api/<part>.md", "만 읽는다"]);
+test("VO-6 FR-7 §3 read line: one line holds kit/API.md, look/look.md and board.jpg", () => {
+  const err = tokenLineError(section(skillText(), 3), "FR-7 §3 read line", ["kit/API.md", "look/look.md", "board.jpg"]);
   assert.equal(err, null, err);
 });
 
@@ -523,7 +518,7 @@ test("VO-6 FR-7 no-internals: SKILL.md never mentions internals.md", () => {
   assert.equal(skillText().includes("internals.md"), false, "FR-7: SKILL.md mentions internals.md");
 });
 
-const COST_TOKENS = ["lesson.html", "바이트", "장면 수", "결정 변수 수", "검토 서브에이전트", "audit", "남은 권고", "시작", "공개", "토큰"];
+const COST_TOKENS = ["lesson.html", "바이트", "결정 변수 수", "서브에이전트", "판정", "audit", "남은 권고", "시작", "공개", "토큰"];
 const isCostLine = (l) => l.trimStart().startsWith("- 생성 비용:");
 
 function costTemplate() {
@@ -776,14 +771,6 @@ for (const { rule, tokens, what } of THRESHOLD_ROWS) {
 }
 
 // ---------- plan b71ddee49f77ac06 §1–3: flow docs stay consistent ----------
-
-test("plan §2: the 권고 ids named in SKILL.md §3 are exactly the rules.md rows graded 권고", () => {
-  const graded = lines(rulesText()).filter(isRow).filter((r) => (cells(r)[1] ?? "").trim() === "권고").flatMap((r) => codeSpans(firstCell(r)));
-  const line = lines(section(skillText(), 3)).find((l) => l.includes("**권고**"));
-  assert.ok(line, "SKILL.md §3 has no line naming **권고**");
-  const named = codeSpans(line.slice(line.indexOf("**권고**"), line.indexOf("**고침**")));
-  assert.deepEqual([...named].sort(), [...graded].sort());
-});
 
 test("plan §2: every rules.md row is graded 고침 or 권고", () => {
   const bad = lines(rulesText()).filter(isRow).filter((r) => firstCell(r).trim() !== "rule" && !["고침", "권고"].includes((cells(r)[1] ?? "").trim()));

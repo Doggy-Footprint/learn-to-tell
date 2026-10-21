@@ -1,8 +1,16 @@
 # kit API
 
-수업 작성 참조. 빈 `lesson.html`에서 아래 부품을 조합해 짠다. 이 문서와 고른 부품 문서에 없는 것은 있는 부품으로 대신한다.
+수업 작성 참조. kit은 기능을 제공하고 그리는 방법을 정하지 않는다. 필요한 부품만 골라 쓰고, 없는 것은 페이지에 직접 짠다(SVG, canvas, d3 모두 된다). 부품 문서는 "부품 고르기" 표의 참조 열에서 고른 것만 읽는다. audit·lint 규칙 뜻은 출력만으로 모를 때만 `kit/api/rules.md`, 글꼴·모양 토큰과 드문 ltt.js 이름은 `kit/api/base.md`.
 
-부품 문서는 아래 "부품 고르기" 표의 참조 열에서 고른 것만 읽는다. figure `steps`·predict `answerVisual`을 쓸 때만 `kit/api/deck-contracts.md`, audit·lint 규칙 뜻은 출력만으로 모를 때만 `kit/api/rules.md`, 글꼴·모양 토큰과 드문 ltt.js 이름은 `kit/api/base.md`.
+## 페이지 계약
+
+수업은 `lessons/<id>/lesson.html` 한 페이지다. 구성(넘김, 스크롤, 한 화면)은 자유다. 지킬 것은 셋이다.
+
+1. head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "theme", "medium", "decision"}</script>`를 둔다.
+2. 계산한 수치는 `LTT.expect(label, actual, expected, {tol})`로 대조한다.
+3. 움직이는 그림은 `LTT.clock(el, draw, {dur, loop})`로 돌린다. `draw(t)`는 t초의 화면을 그린다. clock은 `el`이 화면 밖이거나 숨겨지면 멈추고, reduced-motion이면 `draw(dur)`만 그린다. audit은 clock에 등록된 그림을 시간 간격으로 찍어 contact sheet를 만든다. 반환값 `{play, pause, seek(t)}`.
+
+여러 화면을 순서대로 넘길 때만 `LTT.deck`을 쓴다(아래 "덱"). 그 밖에는 페이지에 직접 배치한다.
 
 ## 불러오기
 
@@ -22,32 +30,33 @@
 <script src="/kit/ltt-parts.js"></script>
 <script src="/kit/ltt-ui.js"></script>
 <script src="/kit/ltt-mock.js"></script> <!-- 목업, 쓸 때만 -->
-<script src="/kit/ltt-deck.js"></script>
+<script src="/kit/ltt-deck.js"></script> <!-- 덱, 쓸 때만 -->
 ```
-
-head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "theme", "medium", "decision"}</script>`를 둔다.
 
 ## 기본 이름
 
 | 이름 | 설명 |
 | --- | --- |
-| `LTT.deck({title, theme, glossary: {용어: 풀이}, scenes})` | 장면 덱. 장면 하나 = 메시지 하나 = 스크롤 없는 한 화면 |
-| `LTT.theme(name)`, `LTT.themes` | 테마. 덱에서는 `theme` 필드로 |
+| `LTT.clock(el, draw, {dur, loop})` | 움직이는 그림의 시계(페이지 계약 3) |
+| `LTT.deck({title, theme, glossary: {용어: 풀이}, scenes})` | 장면 덱(선택). 장면 하나 = 스크롤 없는 한 화면 |
+| `LTT.theme(name)`, `LTT.themes` | 테마(아래 표). 덱에서는 `theme` 필드로 |
 | `LTT.icon(name, {weight, cls})`, `LTT.icons` | 선 아이콘 SVG. `art`·`icon` 필드에는 이름만(아래 목록) |
 | `LTT.palette()`, `LTT.palette(theme, "light"\|"dark")` | 범주형 색 6개. 계열 구분에만 |
 | `LTT.mark(kind, {size, color, weight, fill, inline})`, `LTT.marks` | 모양 표식(square, ring, dot, diamond, cross). 색만으로 계열을 가르지 않게 |
-| `{{용어}}`, `{{보이는 말\|용어}}` | 본문 속 용어. 덱이 풀이 팝오버로 바꾸고, 처음 나온 장면은 진하게 |
+| `{{용어}}`, `{{보이는 말\|용어}}` | 본문 속 용어. 풀이 팝오버가 된다 |
 | `LTT.expect(label, actual, expected, {tol})` | 기대값 대조. 불일치는 패널과 서버에 남는다 |
-| `LTT.lintDeck(spec)` | 독학 기준 점검 `[{scene, rule, msg}]`. 덱이 시작할 때 실행한다 |
+| `LTT.lintDeck(spec)` | 덱 장면 데이터 점검 `[{scene, rule, msg}]`. 덱이 시작할 때 실행한다 |
 | `LTT.record(type, data)` | 서버로 이벤트(lesson 페이지에서만) |
 | `LTT.math(scope)` | `data-tex` 요소를 KaTeX로 |
-| `LTT.MOTION_MS` | 기본 모션 길이. reduced-motion이면 0 |
+| `LTT.MOTION_MS` | 기본 전환 길이. reduced-motion이면 0 |
 
 색 토큰: `--ltt-bg` `--ltt-card` `--ltt-card-2` `--ltt-line` `--ltt-line-2` `--ltt-ink` `--ltt-ink-2` `--ltt-muted` `--ltt-accent(-soft)` `--ltt-good(-soft)` `--ltt-bad(-soft)` `--ltt-warn(-soft)` `--ltt-dark` `--ltt-on-dark`, 범주형 `--ltt-c1`…`c6`, 지도 `--ltt-sea` `--ltt-land` `--ltt-border`. CSS 클래스: `ltt-param`(손잡이 줄), `ltt-bar`, `ltt-stat`·`ltt-hero`(큰 숫자, `<small>` 단위), `ltt-key`(범례), `ltt-basis`(근거 작은 글), `ltt-tag`(+`warn`·`bad`·`good`·`muted`), `ltt-mono`.
 
 아이콘: check x arrow arrow-down plus minus clock hourglass db server cache cpu memory user users doc search eye alert bolt refresh target chart trend phone monitor cursor lock send layers wind ruler scale dice home anchor pencil palette sun ball question bulb link inbox globe map-pin route git-branch timer database-zap network shield-check key-round mail package truck wifi cloud gauge workflow
 
 ### 테마
+
+테마는 그 분야 사람이 보는 매체의 모양이다. 고르지 않으면 `studio`.
 
 | theme | 매체 |
 | --- | --- |
@@ -94,18 +103,11 @@ head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "th
 
 시각 칸(`figure`, `visual`, `answerVisual`)은 HTML 문자열, 노드, 또는 `(el) => …` 함수를 받는다.
 
-### 장면 고르기
+### 덱의 고정 순서
 
-- 고정 순서는 셋: hook이 처음, keywords가 마지막, overview는 summary 바로 뒤. 흔한 흐름은 hook → 파트마다 [(terms) → 원리 → predict → 조작] → summary → overview → keywords.
-- 원리: 원인 → 과정 → 결과가 한 그림에 보이면 `figure`(번호 주석·단계 재생), 순서가 핵심이면 explain `strip`·`stack`, 독립 요소 나열만 `cards`. 수식(`tex`)보다 먼저.
-- `statement`는 직관과 반대인 결론을 못 박을 때, `contrast`는 같은 대상의 BEFORE/AFTER, `compare`는 실제 사례 2–4개를 같은 질문으로(속성 차이면 `table`, 판정을 미리 말하는 설명은 `noteAfter`).
-- `predict`는 퀴즈가 아니다. 결정 변수를 조작하는 장면 바로 앞에 둔다. 질문 용어는 앞 장면에서 푼다. 사용자가 세계·시스템을 짐작할 때만 쓴다(자기 편향 체험은 연구 사례 `compare`로).
-- 조작(`mount` 안의 `LTT.sweep`)은 조작 자체가 배움일 때만, 실사용 범위만. `goal`은 손잡이 두 자리 이상에서 맞고, 시작 위치는 목표 밖에 둔다. 결정 변수끼리 영향을 주면 summary 앞에 손잡이를 함께 여는 샌드박스를 둘 수 있다.
-- 모션은 아끼지 않는다(3B1B·설명 GIF처럼): 선이 그려지고, 모양이 바뀌고, 값이 쌓이고, 패킷이 흐르며 메커니즘을 보인다. 자동 재생·반복도 된다. 효과를 흩뿌리지 말고 장면마다 잘 짜인 움직임 하나를 둔다. 반복은 `leave`에서 멈추고, reduced-motion이면 최종 상태를 보인다.
+hook이 처음, keywords가 마지막, overview는 summary 바로 뒤다. figure `steps`·predict `answerVisual`을 쓸 때는 `kit/api/deck-contracts.md`를 읽는다. 장면의 `mount` 안에서 `LTT.clock`을 쓰면 장면을 떠날 때 자동으로 멈춘다.
 
-### 부품 고르기
-
-그림의 모양은 개념의 구조를 따른다: 순환은 원, 순서는 줄, 비율은 넓이, 연결은 선. 직접 그리기 전에 이 표를 본다.
+## 부품 고르기
 
 | 보여 줄 것 | 부품 | 참조 |
 | --- | --- | --- |
@@ -133,18 +135,9 @@ head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "th
 | 그림 속 대상(벡터 끝, 경계선) | `LTT.drag`를 `control`로 |
 | 연속된 한 값 | `"range"` |
 
-### 독학 기준
-
-- 장면마다 독자의 질문에 답한다: 왜 보지(`hook`), 무슨 뜻이지(`terms`·`{{}}`, 새 용어는 장면당 2개 이하), 어딜 보지(`points`·`sub`·범례), 왜 그렇지(그림 위 라벨·화살표·단계 자막), 내 일에선(목업·사례), 어디서 틀리지(`predict`+`why`), 뭘 기억하지(주장 제목, `takeaway`+`recall`), 더 알려면(`basis`·`sources`·`ask`·`keywords`).
-- 익히는 장면은 인포그래픽으로: 설명은 그림 위 번호 주석·라벨·짧은 문구로 얹고, 얹을 수 없는 것만 글로 쓴다. 확인하는 `summary`는 반대로 글과 `recall`이다.
-- 글이 말하는 동작(돌린다, 늘린다, 옮긴다)과 그림·손잡이의 동작을 맞춘다.
-- 장면마다 가장 큰 것은 그림 하나다. 그림 아래 문단이 그림보다 길면 장면을 나눈다. 카드 격자(explain `cards`, compare, terms, summary)는 연속 2장까지, 전체의 절반 이하.
-- 글자 크기는 kit 단계만 쓴다. `accent`는 장면당 한 의미, good·bad·warn은 판정에만. 색 이름("파란 선") 대신 모양·라벨로 가리킨다.
-- 구조 장치는 정보일 때만: 번호는 실제 순서일 때, 테두리·카드는 따로 떼어 볼 것에만. 장식 이모지는 쓰지 않는다.
-
 ## 조합 조각
 
-문법을 보이는 조각이다. 장면 구성·장면 수·그림 종류의 본보기가 아니다. 장면 구성은 SKILL.md §3과 위 "장면 고르기"로 주제에 맞게 짠다.
+덱과 부품의 문법을 보이는 조각이다. 수업 구성이나 그림 종류의 본보기가 아니다.
 
 ```js
 const SVG = "http://www.w3.org/2000/svg";
@@ -178,10 +171,8 @@ LTT.expect("라인 8개 분류 시간", hours(8), 1, { tol: 1e-9 });
 
 ## 원칙
 
-- 페이지에는 모델 함수, 기대값, 장면 데이터, 부품 조합, 그 수업에만 필요한 작은 CSS만 둔다. kit에 없는 부품이 필요하면 페이지에 짜고 `result.md`의 "kit 후보"에 적는다.
-- 색은 위 토큰만 쓴다. hex를 새로 적으면 다크 모드가 깨진다(목업 속 '실제 화면' 색은 예외). 범주 색은 `--ltt-c1`부터 차례로 쓴다.
-- 테마는 매체를 고르는 것이지 장식이 아니다. 페이지 CSS에서 토큰을 다시 정의하지 않는다.
-- 범위와 상수에는 `basis`를 적고, 근거가 약하면 "불확실", 화면 수치에는 "모델로 계산한 예시" 태그를 단다. 근거 없는 수치를 지어내지 않는다. 실제 활용 예와 실패·주의 예를 함께 둔다. 목업·표에는 "항목 1" 같은 채움 글 대신 사용자 작업에서 나올 법한 이름과 값을 넣는다.
+- 색은 위 토큰만 쓴다. hex를 새로 적으면 다크 모드가 깨진다(목업 속 '실제 화면' 색은 예외). 페이지 CSS에서 토큰을 다시 정의하지 않는다.
+- 범위와 상수에는 `basis`를 적고, 근거가 약하면 "불확실", 화면 수치에는 "모델로 계산한 예시" 태그를 단다. 근거 없는 수치를 지어내지 않는다.
 - lint는 `{{}}`로 표시된 용어만 안다. 표시하지 않은 전문 용어는 쓰는 사람이 풀어 둔다.
-- 작성·점검 기준은 1280px 이상 데스크톱이다. 폰에서는 kit이 한 열로 다시 배치한다.
+- 작성·점검 기준은 1280px 이상 데스크톱이다.
 - figure 그림 폭을 `vw`로 고정하지 않는다(kit이 칸 폭을 준다).
