@@ -34,7 +34,7 @@ claude.ai에 올린 skill은 자동 업데이트되지 않는다. 시작할 때 
 <script src="https://cdn.jsdelivr.net/npm/@doggy-footprint/ltt-kit@<v>/ltt-deck.js"></script>
 ```
 
-폰트와 지도 데이터는 `ltt.js`가 불러온 위치를 기준으로 찾는다. `ltt-meta`에 `"lesson": "<id>"`를 넣는다.
+폰트와 지도 데이터는 `ltt.js`가 불러온 위치를 기준으로 찾는다. `ltt-meta`에 `"lesson": "<id>"`를 처음 쓸 때부터 넣는다. 이해 확인 전에 멈춘 수업도 import가 이 id로 PC에 저장한다.
 
 ## result 블록
 

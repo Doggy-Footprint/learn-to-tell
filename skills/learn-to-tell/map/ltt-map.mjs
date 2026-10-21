@@ -137,11 +137,28 @@ async function readSwept(home) {
 // Claude Code session can bring it into the map; a bare result.md is accepted for the paste fallback.
 const RESULT_BLOCK = /<script\b[^>]*\btype=["']application\/ltt-result["'][^>]*>([\s\S]*?)<\/script>/i;
 
+const META_BLOCK = /<script\b[^>]*\bid=["']ltt-meta["'][^>]*>([\s\S]*?)<\/script>/i;
+
+function metaLesson(text) {
+  const block = META_BLOCK.exec(text);
+  if (!block) return null;
+  try {
+    const lesson = JSON.parse(block[1]).lesson;
+    return lesson === undefined ? null : String(lesson);
+  } catch {
+    return null;
+  }
+}
+
 function extractResult(text) {
   const block = RESULT_BLOCK.exec(text);
   const body = (block ? block[1] : text).replace(/^\s*\n/, "").replace(/\s+$/, "") + "\n";
   const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(body);
-  if (!fm) return { error: block ? "result block has no frontmatter" : "no ltt-result block or result.md frontmatter" };
+  if (!fm && !block) {
+    const lesson = metaLesson(text);
+    if (lesson !== null) return ID_RE.test(lesson) ? { lesson, body: null, html: text } : { error: `invalid lesson id ${JSON.stringify(lesson)}` };
+  }
+  if (!fm) return { error: block ? "result block has no frontmatter" : "no ltt-result block, ltt-meta lesson, or result.md frontmatter" };
   let meta;
   try {
     meta = yaml.load(fm[1]);
@@ -160,6 +177,7 @@ async function importLesson(home, file, day, out, err) {
     return 1;
   }
   const dir = join(home, "lessons", found.lesson);
+  if (found.body === null) return await importUnfinished(dir, found, out);
   const existing = await readOptional(join(dir, "result.md"));
   if (existing !== null) {
     out(existing === found.body ? `skip ${found.lesson}: already imported` : `skip ${found.lesson}: lessons/${found.lesson}/result.md exists and differs`);
@@ -174,8 +192,39 @@ async function importLesson(home, file, day, out, err) {
   return result.errors.length ? 1 : 0;
 }
 
+// An artifact without a result block is a lesson stopped before the quiz; keep the page but leave the map alone.
+async function importUnfinished(dir, found, out) {
+  if ((await readOptional(join(dir, "result.md"))) !== null) {
+    out(`skip ${found.lesson}: already finished`);
+    return 0;
+  }
+  const existing = await readOptional(join(dir, "lesson.html"));
+  if (existing !== null) {
+    out(existing === found.html ? `skip ${found.lesson}: already imported` : `skip ${found.lesson}: lessons/${found.lesson}/lesson.html exists and differs`);
+    return 0;
+  }
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, "lesson.html"), found.html);
+  out(`imported ${found.lesson} (unfinished: no result)`);
+  return 0;
+}
+
+async function listLessons(home, out) {
+  let names;
+  try {
+    names = (await readdir(join(home, "lessons"), { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => d.name).sort(cmp);
+  } catch (err) {
+    if (err.code === "ENOENT") return;
+    throw err;
+  }
+  for (const name of names) {
+    const files = (await readdir(join(home, "lessons", name), { withFileTypes: true })).map((d) => d.name + (d.isDirectory() ? "/" : "")).sort(cmp);
+    out(`${name} | ${files.includes("result.md") ? "finished" : "unfinished"} | ${files.join(", ")}`);
+  }
+}
+
 function usage(err) {
-  err("usage: ltt-map rebuild | import <lesson.html|result.md> | find <text> [--domain d] [-k n] | show <id> [--depth 1|2] | decide merge|link|reject <id> <id> | check | sweep | sweep-done <id>...");
+  err("usage: ltt-map rebuild | import <lesson.html|result.md> | lessons | find <text> [--domain d] [-k n] | show <id> [--depth 1|2] | decide merge|link|reject <id> <id> | check | sweep | sweep-done <id>...");
   return 2;
 }
 
@@ -200,6 +249,11 @@ export async function run(argv, { home = lttHome(), today: day = today(), out = 
     case "import": {
       if (args.length !== 1) return usage(err);
       return await importLesson(home, args[0], day, out, err);
+    }
+    case "lessons": {
+      if (args.length) return usage(err);
+      await listLessons(home, out);
+      return 0;
     }
     case "check": {
       const result = await load(home, day);

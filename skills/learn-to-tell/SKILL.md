@@ -147,5 +147,6 @@ map은 `result.md` frontmatter(원본)와 `<home>/decisions.jsonl`(merge·link·
 ### 찾아 보기
 
 - `find "<텍스트>" [--domain d] [-k n]`, `show <id> [--depth 1|2]`.
+- `lessons`: 수업 디렉터리마다 `<id> | finished|unfinished | 파일 목록`을 출력한다. 사용자가 지난 수업이나 저장된 파일을 물으면 이것으로 답한다.
 - 격자 `http://127.0.0.1:47823/map/grid.html`, 개념 상세 `http://127.0.0.1:47823/map/focus.html?id=<id>`(서버가 켜져 있어야 한다). 학습을 마치면 방금 다룬 개념의 focus URL을 안내한다.
 - 마지막에 다음 학습 경로를 한두 줄 제시한다. 후보는 `status`가 weak인 개념, `freshness`가 fading·stale·weak인 개념, `show`에서 frontier로 표시된 `leads_to` 개념이다.

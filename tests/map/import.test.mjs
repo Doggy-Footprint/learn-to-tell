@@ -53,3 +53,31 @@ test("import rejects pages without a result and unsafe lesson ids", () => {
   assert.match(bad.err, /invalid lesson id/);
   assert.ok(!exists(join(dirname(home), "escape")));
 });
+
+const unfinished = (lesson) => `<!doctype html><html><head><title>LTT · 캐시</title>
+<script type="application/json" id="ltt-meta">{"topic":"캐시","lesson":${JSON.stringify(lesson)}}</script></head><body></body></html>`;
+
+test("import keeps an unfinished artifact's page without touching the map, and a finished one replaces it", () => {
+  const home = tmpHome();
+  const r = ltt(home, ["import", put(home, "u.html", unfinished("20261017-mobile"))]);
+  assert.equal(r.code, 0, r.all);
+  assert.match(r.out, /imported 20261017-mobile \(unfinished/);
+  assert.ok(exists(join(home, "lessons/20261017-mobile/lesson.html")));
+  assert.ok(!exists(join(home, "lessons/20261017-mobile/result.md")));
+  assert.ok(!exists(join(home, "map-data.json")));
+  assert.match(ltt(home, ["import", put(home, "u.html", unfinished("20261017-mobile"))]).out, /already imported/);
+  assert.match(ltt(home, ["import", put(home, "u2.html", unfinished("20261017-mobile") + " ")]).out, /exists and differs/);
+  assert.match(ltt(home, ["lessons"]).out, /^20261017-mobile \| unfinished \| lesson\.html$/m);
+  const done = ltt(home, ["import", put(home, "a.html", artifact(result()))]);
+  assert.match(done.out, /imported 20261017-mobile$/m);
+  assert.match(readFileSync(join(home, "lessons/20261017-mobile/lesson.html"), "utf8"), /application\/ltt-result/);
+  assert.match(ltt(home, ["import", put(home, "u.html", unfinished("20261017-mobile"))]).out, /already finished/);
+  assert.match(ltt(home, ["lessons"]).out, /^20261017-mobile \| finished \| lesson\.html, result\.md$/m);
+});
+
+test("import rejects an unsafe lesson id in ltt-meta", () => {
+  const home = tmpHome();
+  const bad = ltt(home, ["import", put(home, "u.html", unfinished("../escape"))]);
+  assert.equal(bad.code, 1);
+  assert.match(bad.err, /invalid lesson id/);
+});
