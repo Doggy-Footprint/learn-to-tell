@@ -1,6 +1,6 @@
 # Education first 실행 계획
 
-출처: `agent-docs/handoff/b7ee48d448480ff5-education-first.md`. 상태: 사용자 검토 대기. 브랜치 `education-first`.
+출처: `agent-docs/handoff/b7ee48d448480ff5-education-first.md`. 상태: 사용자 검토 대기. 브랜치 `education-first`. 3단계(audit 페이지화)와 5단계(contact sheet 판정)는 `eff0795231314dc5-kit-auxiliary-screenshot-check.md`로 대체됐다(ADR `6ff15ad3eef7b88d`).
 
 ## 사용자 결정 (2026-10-21)
 

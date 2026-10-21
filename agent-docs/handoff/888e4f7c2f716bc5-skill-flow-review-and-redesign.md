@@ -6,7 +6,7 @@
 
 ## State
 
-- 브랜치 `education-first`, 커밋 `6558676` 위에 계획 `98c0e5bb55098a10` 수정과 이 handoff(커밋 예정).
+- 브랜치 `education-first`, 커밋 `6558676`(ADR·계획·AGENTS·SKILL 수정), `5e95796`(계획 98c0e5bb, 이 handoff) 이후 이 handoff 보완 커밋.
 - 이번 세션에서 바뀐 파일:
   - `AGENTS.md`: Project Definition 다음에 `# Design Principles`(사용자가 다듬은 6개 원칙)를 harness 표시 앞에 두었다. Comment Enforcement에 kit 파트 검색 키워드 주석 예외를 추가했다(harness 영역 안이지만 harness는 개별 수정이 있으면 덮어쓰지 않는다고 사용자가 확인).
   - `intent.md`: Design principles는 AGENTS.md로 옮겼다. Open questions는 품질 측정, 비용 목표 둘.
@@ -34,7 +34,15 @@
   - 기대값은 생성 agent가 모델 코드보다 먼저 적고, 검증 서브에이전트는 불일치 출력만 확인한다.
   - 학습자 평가 기준(`outline.md`)과 자료 검증표(`checklist.md`)는 다른 파일. 파일 이름은 agent 기본값(바꿀 수 있음).
   - kit 검색 키워드는 각 kit 파트 머리의 코드 주석(유지보수 편의, 검색 후 바로 봄).
+  - 기존 수업이 있으면(`lesson.html` 존재) 다시 열지 새로 만들지 사용자에게 묻는다: agent 기본값, 사용자 거부 없음. 자동으로 다시 열기로 바꿀 수 있다.
+  - SKILL.md 범위 문장은 초기 scaffold(`26644e0`)부터 있던 "알리기만 한다(묻지 않는다)"를 사용자가 교체 지시함. intent Problem 1(모호한 상황에서 LLM의 임의 결정)과는 다른 문제로 정리됨.
   - audit 규칙 3갈래 분류는 계획 `eff07952` "규칙 분류" 표를 사용자가 승인함.
+
+## 방향 미정 (사용자에게 지적했으나 결정되지 않음)
+
+- 성공(품질) 측정 방법, 수업당 비용 목표: `intent.md` Open questions 1·2.
+- simple 경로(§2 "조작해서 관찰할 필요가 없으면")의 판단 기준이 모호하고, kit 보조화 뒤 경계가 더 흐려진다.
+- `standalone.md:7, 26`이 참조하는 `<skill>/VERSION`은 빌드 zip에만 생긴다(`scripts/build.mjs:34`).
 
 ## Spec
 
