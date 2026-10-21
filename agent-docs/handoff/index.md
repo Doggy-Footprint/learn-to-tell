@@ -22,3 +22,8 @@ File: b7ee48d448480ff5-education-first.md
 Summary: 생성 lesson 품질 문제의 진단과 재설계 계획(storyboard 먼저, shot 소스 few-shot, 규제 완화, LTT.clock, 블라인드 A/B). 수치 하한 지표 실험은 실패로 기록
 Related Files: skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/server/audit.mjs, skills/learn-to-tell/look/look.md
 Related Symbols: LTT.deck, LTT.clock, LTT.expect
+---
+File: 888e4f7c2f716bc5-skill-flow-review-and-redesign.md
+Summary: SKILL.md 흐름 외부 검토 결과와 Design Principles·ADR 6ff15ad3·계획 eff07952/98c0e5bb로 이어진 재설계 착수 상태. 다음은 B 검출을 deck에서 분리하는 R1
+Related Files: AGENTS.md, intent.md, skills/learn-to-tell/SKILL.md, agent-docs/adr/6ff15ad3eef7b88d-kit-as-auxiliary-library.md, agent-docs/plans/eff0795231314dc5-kit-auxiliary-screenshot-check.md, agent-docs/plans/98c0e5bb55098a10-skill-redesign-by-principles.md
+Related Symbols: LTT.deck, LTT.expect, LTT.record, LTT.auditScene

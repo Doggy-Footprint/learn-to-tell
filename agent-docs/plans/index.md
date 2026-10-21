@@ -12,3 +12,8 @@ File: eff0795231314dc5-kit-auxiliary-screenshot-check.md
 Summary: kit 보조화 실행 계획: B 검출을 deck에서 분리, A 자동 보정, audit을 스크린샷 도구로 대체, kit 파트 키워드 주석, 검증표(checklist.md)와 단일 검증 서브에이전트로 SKILL.md §3 재작성. education-first 계획 3·5단계를 대체
 Related Files: skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/server/audit.mjs, skills/learn-to-tell/look/look.md, agent-docs/adr/6ff15ad3eef7b88d-kit-as-auxiliary-library.md
 Related Symbols: LTT.deck, LTT.auditScene, LTT.lintDeck, LTT.expect, LTT.record, LTT.clock
+---
+File: 98c0e5bb55098a10-skill-redesign-by-principles.md
+Summary: Design Principles 기준 SKILL.md 재설계 상위 계획: checklist.md와 단일 검증 서브에이전트, eff07952 1–4단계 편입, 시험 생성으로 비교. 세션 분리는 issue #16
+Related Files: skills/learn-to-tell/SKILL.md, skills/learn-to-tell/standalone.md, AGENTS.md, README.md, agent-docs/plans/eff0795231314dc5-kit-auxiliary-screenshot-check.md, agent-docs/adr/6ff15ad3eef7b88d-kit-as-auxiliary-library.md
+Related Symbols: 없음
