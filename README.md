@@ -22,19 +22,6 @@ Learn to Tell은 그 사이를 노린다. 목표는 숙련이 아니라, 사용�
 
 ## 어떻게 동작하나
 
-Claude Code skill(`/learn-to-tell <주제>`)로 동작한다. 작업 세션을 `/fork`한 세션에서 학습하므로 원래 작업의 context를 더럽히지 않는다.
-
-```
-작업 세션 ──/fork──▶ 학습 세션
-                     1. 진단     대화로 quick survey (최대 5문항)
-                     2. 범위     결정 변수와 필요한 선행 개념을 agent가 정해서 알림
-                     3. 자료     교과서 한 챕터 분량의 시각 자료·시뮬레이션 (브라우저)
-                     4. 이해 확인 서술 퀴즈 (pass / fail / skipped)
-                     5. 작업 복귀 결정·조건·질문을 result.md로 원래 세션에 전달
-                     6. 지식 map ~/.learn-to-tell/map.md 갱신
-작업 세션 ◀──────────┘
-```
-
 ### 1. 진단: 개념 사다리
 
 낯선 용어부터 묻지 않는다. 상황에 필요한 개념을 낮은 수준부터 3–5단으로 세우고 중간 단부터 "알고 있음 / 애매함 / 아예 모름"을 묻는다. 답에 따라 위아래로 이동해, **아는 개념 바로 위의 모르는 개념**을 이번 학습 수준으로 정한다. 자기 보고는 실제보다 높게 나오기 쉬우므로 핵심 결정 변수는 짧은 퀴즈로 확인한다. 진단 결과는 판정이 아니라 가설로 다룬다.
@@ -66,45 +53,6 @@ agent가 즉석에서 만드는 교재는 틀린 수치나 그럴듯한 오개�
 | 화면이 깨지거나 단조로움 | 자동 lint(카드 남용, 채움 글, 용어 밀도)와 두 화면 크기의 레이아웃 감사("고침" 0건, "권고"는 3회 안에서 고치고 남으면 기록) |
 
 agent의 자기 확언만으로는 정확성을 인정하지 않는 것이 원칙이다.
-
-## 예시
-
-https://learn-to-tell.vercel.app 에서 실제 생성 형식의 수업을 볼 수 있다. 분야마다 실무자가 실제로 보는 매체(터미널 로그, 회로 도면, 논문 figure, 신문 차트 등)의 모양을 따른다.
-
-| 수업 | 분야 | 다루는 결정 |
-| --- | --- | --- |
-| [캐시 TTL](https://learn-to-tell.vercel.app/gallery/cache-ttl.html) | 백엔드 | 응답 신선도와 부하 사이의 TTL 선택 |
-| [단일 GPU 데이터 흐름](https://learn-to-tell.vercel.app/gallery/gpu/single-gpu-dataflow.html) | 시스템 | HBM → L2 → SM 중 어디가 병목인가 |
-| [색 대비](https://learn-to-tell.vercel.app/gallery/uiux/color-contrast.html) | UI/UX | 읽히는 대비 기준 |
-| [시각 위계와 간격](https://learn-to-tell.vercel.app/gallery/uiux/visual-hierarchy-spacing.html) | UI/UX | 간격으로 묶음 표현하기 |
-| [공기 저항이 있는 포물선](https://learn-to-tell.vercel.app/gallery/physics/projectile-drag.html) | 물리 | 저항을 모델에 넣어야 하는 조건 |
-| [분산 투자](https://learn-to-tell.vercel.app/gallery/finance/diversification.html) | 금융 | 변동성과 상관관계 |
-| [행렬 = 변환](https://learn-to-tell.vercel.app/gallery/linear-algebra/matrix-as-transform.html) | 선형대수 | 행렬을 격자 변형으로 읽기 |
-| [앵커링](https://learn-to-tell.vercel.app/gallery/cognition/anchoring.html) | 인지심리 | 첫 숫자가 판단에 남기는 영향 |
-| [인출 연습](https://learn-to-tell.vercel.app/gallery/pedagogy/retrieval-practice.html) | 교육학 | 다시 읽기 vs 떠올리기 |
-| [온톨로지 기초](https://learn-to-tell.vercel.app/gallery/knowledge-graph/ontology-triples.html) | 지식 표현 | 테이블 스키마로 충분한가, 온톨로지·SHACL을 얹어야 하는가 |
-
-수업은 폭 1280px 이상의 데스크톱 브라우저를 기준으로 만들고 점검한다. 폰(폭 760px 미만)에서는 kit가 같은 장면을 한 열로 다시 배치해 세로 스크롤로 읽을 수 있게 하는 열람만 보장하며, 폰 화면은 점검하지 않는다.
-
-## 구성
-
-```
-skills/learn-to-tell/
-├── SKILL.md      # agent가 따르는 절차: 진단 → 범위 → 자료 → 검증 → 확인 → 복귀 → map
-├── kit/          # 수업 생성용 부품 라이브러리 (장면 덱, 도식, 차트, lint, 기대값 대조)
-├── map/          # 지식 map CLI(ltt-map)와 뷰어, standalone 수업 import
-├── server/       # 로컬 수업 서버 + 학습 이벤트 기록 (127.0.0.1:47823), 헤드리스 화면 점검 (audit.mjs)
-├── standalone.md # claude.ai(웹·모바일)용 artifact 수업 절차
-└── hooks/        # background.md 크기 관리 (Claude Code 전용)
-site/gallery/     # 예시 수업 (Vercel 배포 대상, skill 패키지에는 포함되지 않음)
-site/compareN/    # skill 유무 비교 실험 결과 (로컬 서버 전용, Vercel 배포 안 함)
-packages/ltt-kit/ # kit npm 패키지 (artifact 수업이 jsDelivr로 불러옴)
-.claude-plugin/   # Claude Code plugin manifest
-tests/            # node --test 기반 kit·서버·gallery 테스트
-agent-docs/adr/   # 주요 설계 결정과 기각한 대안
-```
-
-설계 결정은 `agent-docs/adr/`에 기각한 대안과 함께 남겨 두었다. 예를 들어 v0를 폐기하고 최소 설계로 다시 쓴 이유, 정리 장면을 "그림 요약"이 아니라 "회상 질문 → 답 공개"로 둔 이유, 수업 하나의 피드백을 그 수업이 아니라 생성기(skill·kit)에서 고친다는 규칙 등이다.
 
 ## 설치
 
