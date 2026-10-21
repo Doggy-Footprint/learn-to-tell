@@ -30,6 +30,9 @@ test("gallery decks stay at or under the audit baseline in both sizes", { skip }
       const allowed = baseline[r.size][r.target] ?? 0;
       if (r.audit.length > allowed) problems.push(`${at}: audit ${r.audit.length} > ${allowed}\n` + r.audit.map((w) => `    장면 ${w.scene} [${w.rule}]: ${w.msg}`).join("\n"));
       if (r.lint.length) problems.push(`${at}: lint ${r.lint.map((w) => w.msg).join(" / ")}`);
+      // Spec 80a1b2f18f50b1df C-10 / QR-2: kit-common B checks (#ltt-check) must be empty for every gallery deck.
+      assert.ok(Array.isArray(r.check), `${at}: result has no check array`);
+      if (r.check.length) problems.push(`${at}: check\n` + r.check.map((w) => `    ${w.where} [${w.rule}]: ${w.msg}`).join("\n"));
       if (r.expectFails.length) problems.push(`${at}: ${r.expectFails.join(" / ")}`);
     }
     assert.deepEqual(problems, []);

@@ -245,33 +245,45 @@ test("VO-1 C-6: an undocumented runtime name newThing is reported", () => {
 });
 
 const BASE_DEFINITIONS = {
-  "kit/API.md": "theme, themes, palette, mark, marks, icon, icons, expect, record, lintDeck, math, MOTION_MS, deck",
+  "kit/API.md": "theme, themes, palette, mark, marks, icon, icons, expect, record, lintDeck, math, MOTION_MS, deck, check",
   "kit/api/base.md": "themeTokens, summaryCards, linkTerms, warn",
-  "kit/api/ui.md": "narration, annotate, beforeAfter, facts, chips, badge, callout, swatches, takeaway, chartFrame, inspector, redline, h, fill, contrast",
+  "kit/api/ui.md": "narration, annotate, beforeAfter, facts, chips, badge, callout, swatches, takeaway, chartFrame, inspector, redline, h, fill, contrast, recall",
   "kit/api/mock.md": "mock",
   "kit/api/diagram.md": "diagram, graphOverlaps, diagramLayout, autoLayout, state, stateSpec",
   "kit/api/sequence.md": "sequence, sequenceLayout",
   "kit/api/map.md": "map",
   "kit/api/controls.md": "sweep, drag, predict, stepper, sim, tween",
   "kit/api/charts.md": "axisPlot, hbars, lanes, sankey, plot, plotTheme, plane, units, bar",
-  "kit/api/internals.md": "kitBase, lessonId, compare, termsIn, sceneText, termIndex, rectHit, freeSlot, stepValues, goalReach, setGlossary, auditScene, mobile, measure, $, deckTypes, sceneTypes, placement",
+  "kit/api/internals.md": "kitBase, lessonId, compare, termsIn, sceneText, termIndex, rectHit, freeSlot, stepValues, goalReach, setGlossary, auditScene, mobile, measure, $, deckTypes, sceneTypes, placement, termIssues, goalIssues, deckIssues, checkSource",
 };
 
 // Spec 74cb05d7da21907e v1 FR-3: the base 74 public names plus placement (defined by ltt-deck.js, documented in internals.md) = 75.
-test("VO-2 oracle table lists 75 distinct names: the base 74 plus placement", () => {
+// Spec 80a1b2f18f50b1df FR-15: plus check (API.md), recall (ui.md), termIssues, goalIssues, deckIssues, checkSource (internals.md) = 81.
+const CHECK_NAMES = ["check", "recall", "termIssues", "goalIssues", "deckIssues", "checkSource"];
+test("VO-2 oracle table lists 81 distinct names: the base 74 plus placement plus the 6 check names", () => {
   const all = Object.values(BASE_DEFINITIONS).flatMap((s) => s.split(", "));
-  assert.equal(new Set(all).size, 75);
-  assert.equal(all.length, 75);
-  assert.equal(all.filter((n) => n !== "placement").length, 74);
+  assert.equal(new Set(all).size, 81);
+  assert.equal(all.length, 81);
+  assert.equal(all.filter((n) => n !== "placement" && !CHECK_NAMES.includes(n)).length, 74);
 });
 
-test("VO-2 FR-3 QR-2: the runtime LTT public names are exactly the 75 oracle names", () => {
+test("VO-11 FR-15: each new check name is defined in exactly its declared doc file", () => {
+  const where = { check: "kit/API.md", recall: "kit/api/ui.md", termIssues: "kit/api/internals.md", goalIssues: "kit/api/internals.md", deckIssues: "kit/api/internals.md", checkSource: "kit/api/internals.md" };
+  const defs = definitions(realDocs());
+  const wrong = Object.entries(where).flatMap(([name, file]) => {
+    const files = [...(defs.get(name) ?? [])].sort();
+    return files.length === 1 && files[0] === file ? [] : [`${name}: expected only ${file}, got [${files.join(", ")}]`];
+  });
+  assert.deepEqual(wrong, [], wrong.join("\n"));
+});
+
+test("VO-2 FR-3 QR-2: the runtime LTT public names are exactly the 81 oracle names", () => {
   const expected = Object.values(BASE_DEFINITIONS).flatMap((s) => s.split(", ")).sort();
   const names = Object.keys(loadLTT()).sort();
   const missing = expected.filter((n) => !names.includes(n));
   const extra = names.filter((n) => !expected.includes(n));
   assert.deepEqual({ missing, extra }, { missing: [], extra: [] }, `runtime LTT differs from the oracle: missing [${missing.join(", ")}], extra [${extra.join(", ")}]`);
-  assert.equal(names.length, 75);
+  assert.equal(names.length, 81);
 });
 
 for (const [file, list] of Object.entries(BASE_DEFINITIONS)) {
@@ -372,10 +384,12 @@ test("VO-4 themes: every LTT.themes name is a first-cell code span", () => {
   assert.deepEqual(missing, [], `theme rows missing: ${missing.join(", ")}`);
 });
 
-const LINT_IDS = ["unknown-term", "used-before-defined", "predict-new-term", "no-reading-guide", "no-title", "overview-missing", "overview-order", "overview-no-visual", "keywords-last", "unused-term", "term-no-visual", "summary-no-recall", "card-monotony", "no-signature", "no-theme", "unknown-theme", "filler-content"];
-const AUDIT_IDS = ["overflow", "shrunk", "small-visual", "loose-figure", "empty-stage", "many-sizes", "hscroll", "graph-overlap", "panel-overlap", "goal-unreachable", "goal-narrow", "goal-at-start"];
+const LINT_IDS = ["no-reading-guide", "no-title", "overview-missing", "overview-order", "overview-no-visual", "keywords-last", "unused-term", "term-no-visual", "summary-no-recall", "card-monotony", "no-signature", "no-theme", "unknown-theme"];
+const AUDIT_IDS = ["overflow", "shrunk", "small-visual", "loose-figure", "empty-stage", "many-sizes", "hscroll", "graph-overlap", "panel-overlap", "goal-narrow"];
+// Spec 80a1b2f18f50b1df FR-15 / VO-11: the seven kit-common B checks live in the "검사(`#ltt-check`)" section of rules.md.
+const CHECK_IDS = ["unknown-term", "used-before-defined", "predict-new-term", "filler-content", "goal-unreachable", "goal-at-start", "expect-mismatch"];
 
-for (const [label, ids] of [["lint", LINT_IDS], ["audit", AUDIT_IDS]]) {
+for (const [label, ids] of [["lint", LINT_IDS], ["audit", AUDIT_IDS], ["check", CHECK_IDS]]) {
   test(`VO-4 ${label} rules: all ${ids.length} ids are first-cell code spans of kit/api/rules.md`, () => {
     const spans = firstCellSpans(rulesText());
     const missing = ids.filter((id) => !spans.has(id));
@@ -772,8 +786,12 @@ for (const { rule, tokens, what } of THRESHOLD_ROWS) {
 
 // ---------- plan b71ddee49f77ac06 §1–3: flow docs stay consistent ----------
 
-test("plan §2: every rules.md row is graded 고침 or 권고", () => {
-  const bad = lines(rulesText()).filter(isRow).filter((r) => firstCell(r).trim() !== "rule" && !["고침", "권고"].includes((cells(r)[1] ?? "").trim()));
+// Spec 80a1b2f18f50b1df FR-15: the "## 검사(`#ltt-check`)" section lists kit-common checks that are not graded; every row above it still is.
+test("plan §2: every rules.md row outside the 검사 section is graded 고침 or 권고", () => {
+  const text = rulesText();
+  const at = text.search(/^## 검사/m);
+  assert.ok(at > 0, "rules.md has no '## 검사' section");
+  const bad = lines(text.slice(0, at)).filter(isRow).filter((r) => firstCell(r).trim() !== "rule" && !["고침", "권고"].includes((cells(r)[1] ?? "").trim()));
   assert.deepEqual(bad, []);
 });
 
@@ -781,4 +799,27 @@ test("plan §3: the kit/API.md lesson example is valid JavaScript", () => {
   const block = apiText().match(/^```js\n([\s\S]*?)^```/m);
   assert.ok(block, "kit/API.md has no ```js example");
   assert.doesNotThrow(() => new vm.Script(block[1]));
+});
+
+// ---------- Spec 80a1b2f18f50b1df VO-11 (SC-2): page contract and changelog mention the check surface ----------
+
+test("VO-11 SC-2: kit/API.md '## 페이지 계약' section mentions glossary, #ltt-check and data-ltt-check", () => {
+  const text = apiText();
+  const start = text.search(/^## 페이지 계약/m);
+  assert.ok(start >= 0, "kit/API.md has no '## 페이지 계약' section");
+  const rest = text.slice(start + 3);
+  const end = rest.search(/^## /m);
+  const sec = end >= 0 ? rest.slice(0, end) : rest;
+  const missing = ["glossary", "#ltt-check", "data-ltt-check"].filter((t) => !sec.includes(t));
+  assert.deepEqual(missing, [], `page contract section lacks: ${missing.join(", ")}`);
+});
+
+test("VO-11 SC-2: kit/CHANGELOG.md first '## ' heading is '## 미출시' and that section mentions #ltt-check, glossary and LTT.recall", () => {
+  const text = readFileSync(join(KIT, "CHANGELOG.md"), "utf8");
+  const heads = [...text.matchAll(/^## .*$/gm)];
+  assert.ok(heads.length > 0, "CHANGELOG.md has no '## ' heading");
+  assert.equal(heads[0][0].trim(), "## 미출시");
+  const sec = text.slice(heads[0].index, heads[1]?.index ?? text.length);
+  const missing = ["#ltt-check", "glossary", "LTT.recall"].filter((t) => !sec.includes(t));
+  assert.deepEqual(missing, [], `미출시 section lacks: ${missing.join(", ")}`);
 });

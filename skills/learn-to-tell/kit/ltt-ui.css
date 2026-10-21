@@ -577,3 +577,56 @@
   color: var(--ltt-accent);
   white-space: nowrap;
 }
+.ltt-recall {
+  display: grid;
+  gap: 8px;
+}
+.ltt-recall .q {
+  margin: 0;
+  font-family: var(--ltt-font-display);
+  font-size: clamp(17px,1.5vw,21px);
+  font-weight: var(--ltt-display-weight);
+  letter-spacing: -.02em;
+  line-height: 1.35;
+}
+.ltt-recall .row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.ltt-recall .row textarea {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.4;
+  padding: 7px 12px;
+  border: 1.5px solid var(--ltt-line-2);
+  border-radius: 12px;
+  background: var(--ltt-card);
+  color: var(--ltt-ink);
+  resize: vertical;
+}
+.ltt-recall .row .dk-actions {
+  flex: none;
+}
+.ltt-recall .a {
+  border-left: 3px solid var(--ltt-accent);
+  padding: 2px 0 2px 14px;
+}
+.ltt-recall .a p {
+  margin: 0;
+  font-size: clamp(15px,1.4vw,19px);
+  line-height: 1.55;
+  color: var(--ltt-ink-2);
+}
+.ltt-recall .a .ask {
+  margin-top: 6px;
+  font-size: clamp(13.5px,1.15vw,15.5px);
+  color: var(--ltt-ink-2);
+}
+.ltt-recall .a .ask b {
+  color: var(--ltt-accent);
+  font-size: 12px;
+  margin-right: 6px;
+}

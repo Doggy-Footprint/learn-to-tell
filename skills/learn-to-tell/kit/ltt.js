@@ -394,13 +394,17 @@
     if (fails || warns) panel.open = true;
   }
 
+  // Kept so check() can report mismatches without scraping the panel; text matches the panel's fail rows.
+  var expectFails = [];
+  function failText(f) { return "✗ 검증 실패: " + f.label + " (모델 " + f.actual + ", 기대 " + f.expected + ")"; }
+
   function expect(label, actual, expected, opts) {
     var r = compare(actual, expected, opts && opts.tol);
+    if (!r.ok) expectFails.push({ label: label, actual: actual, expected: expected });
     if (typeof document !== "undefined") {
       var row = document.createElement("div");
       row.className = r.ok ? "ok" : "fail";
-      row.textContent = (r.ok ? "✓ " : "✗ 검증 실패: ") + label +
-        (r.ok ? "" : " (모델 " + actual + ", 기대 " + expected + ")");
+      row.textContent = r.ok ? "✓ " + label : failText({ label: label, actual: actual, expected: expected });
       var panel = expectPanel();
       panel.insertBefore(row, r.ok ? null : panel.firstChild.nextSibling);
       summarize(panel);
@@ -409,15 +413,17 @@
     return r.ok;
   }
 
-  function warn(msg) {
+  function warnRow(msg, tag) {
     if (typeof document === "undefined") return;
     var row = document.createElement("div");
     row.className = "warn";
+    if (tag) row.dataset.check = "1";
     row.textContent = "⚠ " + msg;
     var panel = expectPanel();
     panel.insertBefore(row, panel.firstChild.nextSibling);
     summarize(panel);
   }
+  function warn(msg) { warnRow(msg); }
 
   /* ---------- glossary ---------- */
 
@@ -508,18 +514,88 @@
   // Filler that signals unreal content; "placeholder" itself is a legitimate UI term, so it is not listed.
   var FILLER = /lorem|ipsum|\bTODO\b|\bTBD\b|xxx|더미 ?(텍스트|데이터)|샘플 ?텍스트|임시 ?텍스트|\bItem [A-D]\b|항목 ?[0-9]\b/i;
 
+  var has = Object.prototype.hasOwnProperty;
+
+  // Shared by pages (sections) and decks (scenes). `hooks` lets deckIssues slot deck-only rules in at the positions lintDeck
+  // used to emit them: afterUnknown(i, u) after the unknown-term marks, afterUsed(i, u, first) after used-before-defined.
+  function termCheck(units, glossary, hooks) {
+    var out = [], first = Object.create(null), known = Object.create(null), keys = [];
+    Object.keys(glossary || {}).forEach(function (k) { known[k] = 1; keys.push(k); });
+    units.forEach(function (u, i) {
+      (u.defines || []).forEach(function (k) {
+        k = String(k);
+        if (!(k in first)) first[k] = i;
+        if (!(k in known)) { known[k] = 1; keys.push(k); }
+      });
+      termsIn(u.text).forEach(function (t) { if (!(t.key in first)) first[t.key] = i; });
+    });
+    function add(u, list) { list.forEach(function (w) { out.push({ where: u.where, rule: w[0], msg: w[1] }); }); }
+    units.forEach(function (u, i) {
+      if (!u.skipUnknown) {
+        add(u, termsIn(u.text).filter(function (t) { return !(t.key in known); })
+          .map(function (t) { return ["unknown-term", "풀이가 없는 용어 {{" + t.key + "}}"]; }));
+      }
+      if (hooks && hooks.afterUnknown) add(u, hooks.afterUnknown(i, u));
+      var plain = stripMarks(u.text);
+      add(u, keys.filter(function (key) {
+        var at = first[key];
+        return plain.indexOf(key) >= 0 && (at == null || at > i);
+      }).map(function (key) { return ["used-before-defined", "'" + key + "'가 풀이(첫 {{" + key + "}})보다 먼저 쓰였다"]; }));
+      if (hooks && hooks.afterUsed) add(u, hooks.afterUsed(i, u, first));
+      var filler = FILLER.exec(plain);
+      if (filler) add(u, [["filler-content", "채움 글 '" + filler[0] + "' (실제 사례·값으로 바꿀 것)"]]);
+    });
+    return out;
+  }
+
+  // units: [{where, text, defines?, skipUnknown?}] in reading order; glossary: {key: 풀이}. Returns [{where, rule, msg}].
+  function termIssues(units, glossary) { return termCheck(units, glossary, null); }
+
+  function goalIssues(goals) {
+    var out = [];
+    goals.forEach(function (g) {
+      if (!g.hits) out.push({ where: g.where, rule: "goal-unreachable", msg: "목표를 맞추는 손잡이 위치가 없다 (표본 " + g.samples + "개 중 0개). 기준이나 손잡이 범위를 고칠 것" });
+      if (g.start) out.push({ where: g.where, rule: "goal-at-start", msg: "시작 위치에서 이미 목표가 맞는다. 시작값을 목표 밖으로 옮길 것" });
+    });
+    return out;
+  }
+
+  // Same findings and order as the term/filler rules lintDeck had before the checks were shared with non-deck pages.
+  function deckIssues(spec, extraGlossary) {
+    var scenes = spec.scenes || [], glossary = {};
+    [extraGlossary, spec.glossary].forEach(function (g) {
+      Object.keys(g || {}).forEach(function (k) { if (!has.call(glossary, k)) glossary[k] = g[k]; });
+    });
+    var units = scenes.map(function (s, i) {
+      var terms = s.type === "terms";
+      return { where: "장면 " + (i + 1), text: sceneText(s), defines: terms ? (s.terms || []).map(function (t) { return t.key; }) : [], skipUnknown: terms };
+    });
+    return termCheck(units, glossary, {
+      afterUnknown: function (i) {
+        var s = scenes[i];
+        return (s.type === "terms" ? s.terms || [] : []).filter(function (t) { return !t.plain; })
+          .map(function (t) { return ["unknown-term", "terms 장면의 '" + t.key + "'에 plain 풀이가 없다"]; });
+      },
+      afterUsed: function (i, u, first) {
+        var s = scenes[i];
+        if (s.type !== "predict") return [];
+        var out = [], seen = Object.create(null);
+        Object.keys(first).forEach(function (k) { if (first[k] === i) seen[k] = 1; });
+        var asked = sceneText({ title: s.title, sub: s.sub, question: s.question, hint: s.hint, choices: s.choices });
+        termsIn(asked).forEach(function (t) {
+          if (seen[t.key]) { out.push(["predict-new-term", "predict 질문에서 처음 나온 용어 '" + t.key + "' (앞 장면에서 풀이할 것)"]); seen[t.key] = 0; }
+        });
+        return out;
+      }
+    });
+  }
+
   // lintDeck runs every `scene` rule per scene (scene order), then every `deck` rule; registration order is output order.
   // Rules return [index, rule, msg]: a scene index (0-based) or -1 for the whole deck.
   var RULES = [
-    { id: "unknown-term", scene: function (s, i, c) {
-      if (s.type === "terms") return [];
-      return termsIn(sceneText(s)).filter(function (t) { return !(t.key in c.glossary); })
-        .map(function (t) { return [i, "unknown-term", "풀이가 없는 용어 {{" + t.key + "}}"]; });
-    } },
     { id: "terms-entries", scene: function (s, i) {
       var out = [];
       (s.type === "terms" ? s.terms || [] : []).forEach(function (t) {
-        if (!t.plain) out.push([i, "unknown-term", "terms 장면의 '" + t.key + "'에 plain 풀이가 없다"]);
         if (t.visual === undefined) out.push([i, "term-no-visual", "'" + t.key + "'에 그 뜻을 보이는 visual이 없다 (그림으로 보일 수 없는 말이면 visual: false)"]);
       });
       return out;
@@ -533,23 +609,6 @@
     { id: "overview-no-visual", scene: function (s, i) {
       return s.type === "overview" && !s.figure ? [[i, "overview-no-visual", "overview에 한 장으로 정리한 그림(figure)이 없다"]] : [];
     } },
-    { id: "used-before-defined", scene: function (s, i, c) {
-      var plain = stripMarks(sceneText(s));
-      return Object.keys(c.glossary).filter(function (key) {
-        var at = c.first[key];
-        return plain.indexOf(key) >= 0 && (at == null || at > i);
-      }).map(function (key) { return [i, "used-before-defined", "'" + key + "'가 풀이(첫 {{" + key + "}})보다 먼저 쓰였다"]; });
-    } },
-    { id: "predict-new-term", scene: function (s, i, c) {
-      if (s.type !== "predict") return [];
-      var out = [], seen = {};
-      Object.keys(c.first).forEach(function (k) { if (c.first[k] === i) seen[k] = 1; });
-      var asked = sceneText({ title: s.title, sub: s.sub, question: s.question, hint: s.hint, choices: s.choices });
-      termsIn(asked).forEach(function (t) {
-        if (seen[t.key]) { out.push([i, "predict-new-term", "predict 질문에서 처음 나온 용어 '" + t.key + "' (앞 장면에서 풀이할 것)"]); seen[t.key] = 0; }
-      });
-      return out;
-    } },
     { id: "no-reading-guide", scene: function (s, i) {
       var hasVisual = sceneMeta(s.type, "needsReadingGuide") || (!s.type && s.mount);
       return hasVisual && !s.narration && !s.points && !s.sub && !s.caption && !(s.before && s.before.points) ?
@@ -557,10 +616,6 @@
     } },
     { id: "no-title", scene: function (s, i) {
       return !sceneMeta(s.type, "titleOptional") && !s.title ? [[i, "no-title", "제목이 없다"]] : [];
-    } },
-    { id: "filler-content", scene: function (s, i) {
-      var filler = FILLER.exec(stripMarks(sceneText(s)));
-      return filler ? [[i, "filler-content", "채움 글 '" + filler[0] + "' (실제 사례·값으로 바꿀 것)"]] : [];
     } },
     { id: "card-monotony", deck: function (c) {
       var out = [], run = 0, cards = 0, body = 0;
@@ -623,9 +678,7 @@
     if (m.panelOverlap) add("panel-overlap", "자막·정답 패널이 글·그림 " + m.panelOverlap + "곳과 겹친다. 그림을 줄이거나 장면을 나눌 것");
     if (m.graphOverlaps) add("graph-overlap", "그래프에서 라벨·노드·엣지가 " + m.graphOverlaps + "곳 겹친다. 좌표를 손으로 정했다면 LTT.autoLayout으로 배치할 것");
     (m.goals || []).forEach(function (g) {
-      if (!g.hits) add("goal-unreachable", "목표를 맞추는 손잡이 위치가 없다 (표본 " + g.samples + "개 중 0개). 기준이나 손잡이 범위를 고칠 것");
-      else if (g.hits < 2) add("goal-narrow", "목표가 손잡이 한 자리에서만 맞는다. 기준에 여유를 두어 두 자리 이상에서 맞게 할 것");
-      if (g.start) add("goal-at-start", "시작 위치에서 이미 목표가 맞는다. 시작값을 목표 밖으로 옮길 것");
+      if (g.hits && g.hits < 2) add("goal-narrow", "목표가 손잡이 한 자리에서만 맞는다. 기준에 여유를 두어 두 자리 이상에서 맞게 할 것");
     });
     if (m.overflow) add("overflow", "한 화면에 안 들어간다 (78%로 줄여도 넘친다). 해설·캡션을 줄이거나 장면을 나눌 것");
     else if (!m.compact && m.zoom < 0.88) add("shrunk", "화면에 맞추느라 " + Math.round(m.zoom * 100) + "%로 줄었다. 글을 줄이거나 장면을 나눌 것");
@@ -694,15 +747,40 @@
 
   var glossaryState = { defs: {}, first: {} };
 
+  // First registration wins, so the page's `#ltt-meta` glossary (read first) outranks a deck's own for the same key.
   function setGlossary(defs, first) {
-    glossaryState.defs = defs || {};
+    readMeta();
+    mergeDefs(defs);
     glossaryState.first = first || {};
   }
+  function mergeDefs(defs) {
+    Object.keys(defs || {}).forEach(function (k) { if (!glossaryState.defs[k]) glossaryState.defs[k] = defs[k]; });
+  }
+
+  // Read lazily: ltt.js may load before the meta element is parsed, and a deck registers its glossary after it.
+  var metaRead = false;
+  function readMeta() {
+    if (metaRead || typeof document === "undefined") return;
+    var el = document.getElementById("ltt-meta");
+    if (!el && document.readyState === "loading") return;
+    metaRead = true;
+    try {
+      var g = JSON.parse(el.textContent).glossary;
+      if (g && typeof g === "object") mergeDefs(g);
+    } catch (e) {
+      console.warn("[ltt] #ltt-meta를 읽을 수 없다 (없거나 JSON이 깨졌다), glossary 없이 진행:", e.message);
+    }
+  }
+
+  // Page chrome and non-reader text; `{{}}` here is neither linked nor checked.
+  var SKIP_SEL = "script,style,template,noscript,textarea,#ltt-expect,#ltt-pop,#ltt-check,#ltt-meta";
 
   // Replaces {{term}} marks in text nodes under `scope` with hover/tap definitions.
   function linkTerms(scope, sceneIndex) {
     if (!scope || typeof document === "undefined") return;
-    var walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, null), hits = [], n;
+    var walker = document.createTreeWalker(scope, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) { return n.nodeType === 1 ? (n.matches(SKIP_SEL) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP) : NodeFilter.FILTER_ACCEPT; }
+    }), hits = [], n;
     while ((n = walker.nextNode())) if (n.nodeValue.indexOf("{{") >= 0) hits.push(n);
     hits.forEach(function (node) {
       var frag = document.createDocumentFragment(), text = node.nodeValue, last = 0, m;
@@ -710,7 +788,7 @@
       while ((m = TERM.exec(text))) {
         frag.appendChild(document.createTextNode(text.slice(last, m.index)));
         var key = (m[2] || m[1]).trim(), span = document.createElement("span");
-        span.className = "ltt-term" + (glossaryState.first[key] === sceneIndex ? " first" : "");
+        span.className = "ltt-term" + (sceneIndex != null && glossaryState.first[key] === sceneIndex ? " first" : "");
         span.tabIndex = 0;
         span.dataset.term = key;
         span.textContent = m[1];
@@ -722,6 +800,96 @@
     });
   }
 
+  /* ---------- check ---------- */
+
+  var checkSrc = null;
+  function checkSource(src) { checkSrc = src || null; }
+
+  var BLOCK = /^(p|div|li|ul|ol|dl|dt|dd|tr|td|th|table|section|article|header|footer|main|aside|nav|br|pre|blockquote|figure|figcaption|details|summary|form|h[1-6])$/;
+
+  // Reading-order units of a non-deck page, split at h1-h3. `head` is the heading element that opened the unit.
+  function pageUnits() {
+    var units = [], cur = { where: "구역 (처음)", text: "" };
+    function walk(n) {
+      if (n.nodeType === 3) { cur.text += n.nodeValue; return; }
+      if (n.nodeType !== 1 || n.matches(SKIP_SEL)) return;
+      if (n.classList.contains("ltt-term") && n.dataset.term) { cur.text += "{{" + n.dataset.term + "}}"; return; }
+      var tag = n.localName, block = BLOCK.test(tag);
+      if (/^h[1-3]$/.test(tag)) {
+        units.push(cur);
+        cur = { where: "구역 '" + shownText(n).replace(/\s+/g, " ").trim() + "'", text: "", head: n };
+      }
+      if (block) cur.text += "\n";
+      for (var c = n.firstChild; c; c = c.nextSibling) walk(c);
+      if (block) cur.text += "\n";
+    }
+    function shownText(n) {
+      if (n.nodeType === 3) return n.nodeValue;
+      if (n.nodeType !== 1 || n.matches(SKIP_SEL)) return "";
+      var t = "";
+      for (var c = n.firstChild; c; c = c.nextSibling) t += shownText(c);
+      return t;
+    }
+    walk(document.body);
+    units.push(cur);
+    return units;
+  }
+
+  function sectionOf(units, el) {
+    var at = units[0];
+    units.forEach(function (u) { if (u.head && (u.head.compareDocumentPosition(el) & 4)) at = u; });
+    return at.where;
+  }
+
+  function runCheck(auto) {
+    var errors, units = null;
+    try {
+      readMeta();
+      if (checkSrc && checkSrc.prepare) checkSrc.prepare();
+      if (checkSrc) errors = checkSrc.issues(glossaryState.defs).slice();
+      else { units = pageUnits(); errors = termIssues(units, glossaryState.defs); }
+      var goals = [].map.call(document.querySelectorAll(".ltt-goal[data-samples]"), function (g) {
+        return {
+          where: checkSrc ? (checkSrc.whereOf ? checkSrc.whereOf(g) : "페이지") : sectionOf(units, g),
+          hits: +g.dataset.hits, samples: +g.dataset.samples, start: g.dataset.start === "1"
+        };
+      });
+      errors = errors.concat(goalIssues(goals), expectFails.map(function (f) {
+        return { where: "페이지", rule: "expect-mismatch", msg: f.label + " (모델 " + f.actual + ", 기대 " + f.expected + ")" };
+      }));
+    } catch (e) {
+      errors = [{ where: "페이지", rule: "check-failed", msg: e && e.message ? e.message : String(e) }];
+    }
+    var result = { source: checkSrc ? "deck" : "page", viewport: [root.innerWidth, root.innerHeight], errors: errors };
+    if (typeof document !== "undefined") publish(result);
+    if (auto) {
+      var lint = errors.filter(function (e) { return e.rule !== "expect-mismatch"; });
+      if (lint.length) record("lint", lint);
+    }
+    return result;
+  }
+
+  function publish(result) {
+    var out = document.getElementById("ltt-check");
+    if (!out) {
+      out = document.createElement("script");
+      out.type = "application/json";
+      out.id = "ltt-check";
+      document.documentElement.appendChild(out);
+    }
+    // `<` is escaped so a message holding "</script>" cannot end the element.
+    out.textContent = JSON.stringify(result).replace(/</g, "\\u003c");
+    document.documentElement.setAttribute("data-ltt-check", result.errors.length);
+    var panel = document.getElementById("ltt-expect");
+    if (panel) {
+      [].forEach.call(panel.querySelectorAll("div.warn[data-check]"), function (r) { r.remove(); });
+      if (!panel.querySelector("div.warn")) delete panel.dataset.warns;
+    }
+    result.errors.forEach(function (e) { warnRow(e.where + ": " + e.msg, true); });
+  }
+
+  function check() { return runCheck(false); }
+
   function initPopover() {
     var pop = document.createElement("div");
     pop.id = "ltt-pop";
@@ -729,6 +897,7 @@
     document.body.appendChild(pop);
     var pinned = null;
     function show(t) {
+      readMeta();
       var key = t.dataset.term, def = glossaryState.defs[key];
       pop.innerHTML = "<b></b><span></span>";
       pop.firstChild.textContent = key;
@@ -759,6 +928,13 @@
     style.textContent = STYLE;
     document.head.appendChild(style);
     if (document.body) initPopover(); else document.addEventListener("DOMContentLoaded", initPopover);
+    var onLoad = function () {
+      if (!checkSrc) { readMeta(); linkTerms(document.body); }
+      var run = function () { if (typeof setTimeout === "function") setTimeout(function () { runCheck(true); }, 300); };
+      if (document.fonts && document.fonts.ready && document.fonts.ready.then) document.fonts.ready.then(run, run); else run();
+    };
+    // Minimal hosts (no window events) just never auto-run; check() stays callable.
+    if (document.readyState === "complete") onLoad(); else if (typeof root.addEventListener === "function") root.addEventListener("load", onLoad);
     // Lessons are authored for desktop only; phones get the same scenes reflowed by the kit, never a separate version,
     // so agents spend no tokens on mobile. Set before any part lays out, since autoLayout reads it.
     if (root.matchMedia) {
@@ -775,7 +951,8 @@
     kitBase: KIT, lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
     icon: icon, icons: Object.keys(ICONS), theme: theme, themeTokens: themeTokens, palette: palette, contrast: contrast, mark: mark, marks: Object.keys(MARKS),
     themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
-    termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck, auditScene: auditScene, sceneTypes: SCENE_TYPES, rectHit: rectHit, freeSlot: freeSlot,
+    termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck,
+    termIssues: termIssues, goalIssues: goalIssues, deckIssues: deckIssues, check: check, checkSource: checkSource, auditScene: auditScene, sceneTypes: SCENE_TYPES, rectHit: rectHit, freeSlot: freeSlot,
     stepValues: stepValues, goalReach: goalReach,
     setGlossary: setGlossary, linkTerms: linkTerms, mobile: mobile
   };

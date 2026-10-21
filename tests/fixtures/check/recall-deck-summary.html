@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>fixture</title>
+<script>window.__errs=0;addEventListener("error",function(){window.__errs++});addEventListener("unhandledrejection",function(){window.__errs++});window.__warns=[];console.warn=function(){window.__warns.push(Array.prototype.join.call(arguments," "));};</script>
+<script type="application/json" id="ltt-meta">{"topic":"t","audience":"a","theme":"paper","medium":"m","decision":"d"}</script>
+</head>
+<body>
+
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+
+<script>LTT.deck({title:"d",theme:"paper",scenes:[
+ {type:"figure",title:"그림",caption:"c",figure:"그림"},
+ {type:"explain",form:"strip",title:"설명 하나",steps:[],takeaway:"핵심 하나",recall:"첫째 질문?"},
+ {type:"explain",form:"strip",title:"설명 둘",steps:[],takeaway:"핵심 둘",recall:"둘째 질문?"},
+ {type:"summary",title:"정리"},{type:"keywords",terms:[]}]});</script>
+<script>
+function ltt_probe(extra){var p={errs:window.__errs,warns:window.__warns,vp:[innerWidth,innerHeight]};var e=extra||{};for(var k in e)p[k]=e[k];
+  var s=document.createElement("script");s.type="application/json";s.id="probe";
+  s.textContent=JSON.stringify(p).replace(/</g,"\u003c");document.body.appendChild(s);}
+function ltt_openPop(term){var ev=["mouseover","focusin","click"];
+  for(var i=0;i<ev.length;i++){term.dispatchEvent(new MouseEvent(ev[i],{bubbles:true}));
+    var pop=document.getElementById("ltt-pop");
+    if(pop&&pop.textContent.trim())return{via:ev[i],text:pop.textContent.trim()};}
+  return{via:null,text:""};}
+addEventListener("load",function(){setTimeout(function(){
+var tas=document.querySelectorAll("textarea"),out={textareas:tas.length,rows:[]};
+function btnOf(ta){var n=ta.parentNode;while(n&&n!==document.body){var b=n.querySelector("button");if(b)return b;n=n.parentNode;}return null;}
+for(var i=0;i<tas.length;i++){var b=btnOf(tas[i]);var row={hasBtn:!!b,disabledBefore:b?b.disabled:null,textBefore:b?b.textContent.trim():null};
+  tas[i].value=" 답"+i+" ";tas[i].dispatchEvent(new Event("input",{bubbles:true}));
+  if(b)b.click();row.disabledAfter=b?b.disabled:null;row.textAfter=b?b.textContent.trim():null;out.rows.push(row);}
+ltt_probe(out);},2500);});
+</script>
+</body>
+</html>

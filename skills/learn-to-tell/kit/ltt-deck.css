@@ -1042,18 +1042,6 @@ body {
   gap: clamp(10px,2vh,22px) clamp(20px,3vw,44px);
   align-items: start;
 }
-.dk-rc .row {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-}
-.dk-rc .row textarea {
-  flex: 1;
-  min-width: 0;
-}
-.dk-rc .row .dk-actions {
-  flex: none;
-}
 .dk-rc li {
   counter-increment: rc;
   position: relative;
@@ -1079,17 +1067,6 @@ body {
   font-weight: var(--ltt-display-weight);
   letter-spacing: -.02em;
   line-height: 1.35;
-}
-.dk-rc textarea {
-  font: inherit;
-  font-size: 15px;
-  line-height: 1.4;
-  padding: 7px 12px;
-  border: 1.5px solid var(--ltt-line-2);
-  border-radius: 12px;
-  background: var(--ltt-card);
-  color: var(--ltt-ink);
-  resize: vertical;
 }
 .dk-rc .a {
   border-left: 3px solid var(--ltt-accent);

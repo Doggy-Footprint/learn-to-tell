@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>fixture</title>
+<script>window.__errs=0;addEventListener("error",function(){window.__errs++});addEventListener("unhandledrejection",function(){window.__errs++});window.__warns=[];console.warn=function(){window.__warns.push(Array.prototype.join.call(arguments," "));};</script>
+<script type="application/json" id="ltt-meta">{"topic":"t","audience":"a","theme":"paper","medium":"m","decision":"d","glossary":{"k":"키 풀이"}}</script>
+</head>
+<body>
+<h2>가  {{보이는 말|k}}   나</h2>
+<p>샘플 텍스트</p>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+
+
+<script>
+function ltt_probe(extra){var p={errs:window.__errs,warns:window.__warns,vp:[innerWidth,innerHeight]};var e=extra||{};for(var k in e)p[k]=e[k];
+  var s=document.createElement("script");s.type="application/json";s.id="probe";
+  s.textContent=JSON.stringify(p).replace(/</g,"\u003c");document.body.appendChild(s);}
+function ltt_openPop(term){var ev=["mouseover","focusin","click"];
+  for(var i=0;i<ev.length;i++){term.dispatchEvent(new MouseEvent(ev[i],{bubbles:true}));
+    var pop=document.getElementById("ltt-pop");
+    if(pop&&pop.textContent.trim())return{via:ev[i],text:pop.textContent.trim()};}
+  return{via:null,text:""};}
+addEventListener("load",function(){setTimeout(function(){ltt_probe({});},2500);});
+</script>
+</body>
+</html>

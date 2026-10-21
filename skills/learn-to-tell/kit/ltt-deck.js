@@ -184,14 +184,10 @@
     ".dk-nb b{display:block;font-size:clamp(15px,1.3vw,17px)}",
     ".dk-nb span{color:var(--ltt-muted);line-height:1.5}",
     ".dk-rc{list-style:none;margin:0;padding:0;counter-reset:rc;display:grid;grid-template-columns:repeat(var(--c,1),minmax(0,1fr));gap:clamp(10px,2vh,22px) clamp(20px,3vw,44px);align-items:start}",
-    ".dk-rc .row{display:flex;gap:8px;align-items:stretch}",
-    ".dk-rc .row textarea{flex:1;min-width:0}",
-    ".dk-rc .row .dk-actions{flex:none}",
     ".dk-rc li{counter-increment:rc;position:relative;padding-left:clamp(40px,4vw,56px);display:grid;gap:8px}",
     ".dk-rc li::before{content:counter(rc,decimal-leading-zero);position:absolute;left:0;top:.1em;font:700 clamp(15px,1.4vw,18px) var(--ltt-mono);color:var(--ltt-accent)}",
     ".dk-rc li.extra::before{content:'+'}",
     ".dk-rc .q{margin:0;font-family:var(--ltt-font-display);font-size:clamp(17px,1.5vw,21px);font-weight:var(--ltt-display-weight);letter-spacing:-.02em;line-height:1.35}",
-    ".dk-rc textarea{font:inherit;font-size:15px;line-height:1.4;padding:7px 12px;border:1.5px solid var(--ltt-line-2);border-radius:12px;background:var(--ltt-card);color:var(--ltt-ink);resize:vertical}",
     ".dk-rc .a{border-left:3px solid var(--ltt-accent);padding:2px 0 2px 14px}",
     ".dk-rc .a p{margin:0;font-size:clamp(15px,1.4vw,19px);line-height:1.55;color:var(--ltt-ink-2)}",
     ".dk-rc .a .ask{margin-top:6px;font-size:clamp(13.5px,1.15vw,15.5px);color:var(--ltt-ink-2)}",
@@ -778,25 +774,18 @@
   function recallList(s, cards, body, ctx) {
     var w = body.appendChild(h("ol", "dk-rc"));
     cards.forEach(function (c) {
+      if (c.recall) {
+        LTT.recall(w.appendChild(h("li")), {
+          question: c.recall, answer: c.text, ask: c.ask, title: c.title, hold: placement.reserve,
+          onReveal: function (a) { placement.release(a); LTT.linkTerms(a, ctx.index); ctx.fit(); }
+        });
+        return;
+      }
       var li = w.appendChild(h("li", null, "<p class='q'></p>"));
-      li.firstChild.innerHTML = c.recall || c.title || "";
+      li.firstChild.innerHTML = c.title || "";
       var a = h("div", "a", "<p></p>");
-      if (c.recall) placement.reserve(a);
       a.firstChild.innerHTML = c.text;
       if (c.ask) a.appendChild(h("p", "ask", "<b>agent에게</b>" + c.ask));
-      if (c.recall) {
-        var row = li.appendChild(h("div", "row"));
-        var box = row.appendChild(h("textarea"));
-        box.rows = 1;
-        box.placeholder = "떠올린 답 (적지 않아도 된다)";
-        var b = row.appendChild(h("div", "dk-actions")).appendChild(h("button", "ghost", "답 보기"));
-        b.onclick = function () {
-          placement.release(a); b.disabled = true;
-          LTT.linkTerms(a, ctx.index);
-          ctx.fit();
-          LTT.record("recall", { scene: c.title, question: stripTags(c.recall), answer: box.value.trim() });
-        };
-      }
       li.appendChild(a);
     });
     if (s.extra) {
@@ -807,7 +796,6 @@
     if (w.children.length > 3) w.style.setProperty("--c", 2);
     return { enter: function () { rise(w.children); } };
   }
-  function stripTags(html) { return String(html).replace(/<[^>]*>/g, ""); }
 
   var SCENE_TYPES = LTT.sceneTypes;
   // Same defaults as ltt.js uses for these fields; entries added at runtime may omit any of them.
@@ -1191,12 +1179,17 @@
       }
       return null;
     }
-    // Mounts every scene and checks the rendered layout; `?audit` in the URL runs it on load.
-    function audit() {
-      var found = [];
+    function mountAll() {
       scenes.forEach(function (s, i) {
         if (!mounted[i]) mount(i);
         mounted[i].fit();
+      });
+    }
+    // Mounts every scene and checks the rendered layout; `?audit` in the URL runs it on load.
+    function audit() {
+      var found = [];
+      mountAll();
+      scenes.forEach(function (s, i) {
         LTT.auditScene(measure(s, stage.children[i])).forEach(function (w) { found.push({ scene: i + 1, rule: w.rule, msg: w.msg }); });
       });
       found.forEach(function (w) { LTT.warn("화면 점검 · 장면 " + w.scene + ": " + w.msg); });
@@ -1204,11 +1197,23 @@
       // server/audit.mjs reads this from `--dump-dom` output; the attribute alone cannot carry per-scene results.
       var out = document.getElementById("ltt-audit");
       if (!out) { out = h("script"); out.id = "ltt-audit"; out.type = "application/json"; document.documentElement.appendChild(out); }
-      var fails = [].map.call(document.querySelectorAll("#ltt-expect div.fail"), function (d) { return d.textContent; });
+      var fails = LTT.check().errors.filter(function (e) { return e.rule === "expect-mismatch"; }).map(function (e) { return "✗ 검증 실패: " + e.msg; });
       out.textContent = JSON.stringify({ viewport: [innerWidth, innerHeight], scenes: scenes.length, audit: found, lint: lint, expectFails: fails }).replace(/</g, "\\u003c");
       LTT.record("layout-audit", { viewport: [innerWidth, innerHeight], found: found });
       return found;
     }
+
+    // map-related is appended after load from other lessons' titles, so it is not part of what the author wrote.
+    LTT.checkSource({
+      issues: function (known) {
+        return LTT.deckIssues({ glossary: spec.glossary, scenes: scenes.filter(function (s) { return s.type !== "map-related"; }) }, known);
+      },
+      prepare: function () { if (/[?&](check|audit)\b/.test(location.search)) mountAll(); },
+      whereOf: function (el) {
+        var sec = el.closest(".dk-scene");
+        return sec ? "장면 " + ([].indexOf.call(stage.children, sec) + 1) : "페이지";
+      }
+    });
 
     function addScene(s) {
       scenes.push(s);

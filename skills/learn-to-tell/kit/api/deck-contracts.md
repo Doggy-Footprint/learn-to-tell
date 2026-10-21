@@ -45,10 +45,11 @@
 
 ## 화면 점검 (`?audit`) 세부
 
+- `?check`나 `?audit`이면 덱이 모든 장면을 그려 `#ltt-check`의 목표 판정에 넣는다(없으면 그려진 장면만). `?audit`은 거기에 더해 잰다.
 - 덱이 모든 장면을 그려 잰다. `LTT.deck(...)`가 돌려주는 객체의 `audit()`으로 직접 부를 수도 있다. 판정은 `LTT.auditScene(측정값)`이 한다.
-- 결과는 `<script type="application/json" id="ltt-audit">`에 `{viewport, scenes, audit, lint, expectFails}`로도 남고, `server/audit.mjs`가 헤드리스 Chrome의 `--dump-dom` 출력에서 그것을 읽어 두 크기의 표를 만든다.
+- 결과는 `<script type="application/json" id="ltt-audit">`에 `{viewport, scenes, audit, lint, expectFails}`로도 남고(`lint`는 `LTT.lintDeck`의 나머지 규칙, `audit`은 `LTT.auditScene`의 레이아웃 규칙, 용어·목표·expect 결함은 `#ltt-check`의 `errors`), `server/audit.mjs`가 헤드리스 Chrome의 `--dump-dom` 출력에서 그것을 읽어 두 크기의 표를 만든다.
 - 폭 1000px 이하 창에서는 `shrunk`·`small-visual`·`loose-figure`를 판정하지 않는다. `small-visual`은 hook·terms·summary·keywords·statement·predict 장면에서도 판정하지 않는다.
-- `goal-unreachable`·`goal-narrow`·`goal-at-start`의 자리는 손잡이마다 최대 201곳(dial은 최대 360곳, pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다.
+- `goal-unreachable`·`goal-narrow`·`goal-at-start`의 자리(앞의 둘은 `#ltt-check`, `goal-narrow`는 audit이 판정)는 손잡이마다 최대 201곳(dial은 최대 360곳, pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다.
 
 ## 폰 재배치
 

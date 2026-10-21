@@ -115,8 +115,26 @@ async function runOne(chrome, profile, run, budget, attempt = 1) {
   const base = { target: run.target, size: run.size, url: run.url };
   const { out, error } = await runChrome(chrome, chromeArgs(profile, run.size, `--virtual-time-budget=${budget}`, "--dump-dom", withQuery(run.url, "audit")));
   if (error) return { ...base, error };
-  const m = out.match(/<script[^>]*id="ltt-audit"[^>]*>([\s\S]*?)<\/script>/);
-  if (!m) {
+  const parse = (id) => {
+    const m = out.match(new RegExp(`<script[^>]*id="${id}"[^>]*>([\\s\\S]*?)</script>`));
+    return m ? JSON.parse(m[1]) : null;
+  };
+  let check, data;
+  try {
+    check = parse("ltt-check");
+  } catch {
+    return { ...base, error: "#ltt-check JSON을 읽을 수 없다" };
+  }
+  // A page that is not a deck has no #ltt-audit; its #ltt-check is the whole result.
+  if (check?.source === "page") {
+    return { ...base, scenes: 0, viewport: check.viewport, audit: [], lint: [], expectFails: [], check: check.errors };
+  }
+  try {
+    data = parse("ltt-audit");
+  } catch {
+    return { ...base, error: "#ltt-audit JSON을 읽을 수 없다" };
+  }
+  if (!data) {
     // Under CPU load the deck's deferred audit can miss the virtual-time budget; each retry waits, then starts a fresh Chrome with triple the budget.
     if (attempt < 3) {
       await new Promise((r) => setTimeout(r, 500 * attempt));
@@ -124,12 +142,7 @@ async function runOne(chrome, profile, run, budget, attempt = 1) {
     }
     return { ...base, error: out.trim() ? "audit이 돌지 않았다(#ltt-audit 없음). LTT.deck 페이지인지, 서버 경로가 맞는지 본다" : "Chrome이 아무것도 출력하지 않았다" };
   }
-  try {
-    const data = JSON.parse(m[1]);
-    return { ...base, scenes: data.scenes, viewport: data.viewport, audit: data.audit, lint: data.lint, expectFails: data.expectFails };
-  } catch {
-    return { ...base, error: "#ltt-audit JSON을 읽을 수 없다" };
-  }
+  return { ...base, scenes: data.scenes, viewport: data.viewport, audit: data.audit, lint: data.lint, expectFails: data.expectFails, check: check?.errors ?? [] };
 }
 
 async function takeShots(chrome, profile, run, scenes, budget, dir) {
@@ -196,10 +209,11 @@ export function formatReport(results) {
     }
     const total = totals[r.size] ||= { n: 0, viewport: r.viewport };
     total.n += r.audit.length;
-    lines.push(`${head}  audit ${r.audit.length} · lint ${r.lint.length} · expect ${r.expectFails.length}${r.shots ? ` · shots ${r.shots.length}` : ""}`);
+    lines.push(`${head}  audit ${r.audit.length} · lint ${r.lint.length} · expect ${r.expectFails.length} · check ${r.check.length}${r.shots ? ` · shots ${r.shots.length}` : ""}`);
     r.audit.forEach((w) => lines.push(`    장면 ${w.scene} [${w.rule}]: ${w.msg}`));
     r.lint.forEach((w) => lines.push(`    lint${w.scene ? ` 장면 ${w.scene}` : ""}: ${w.msg}`));
     r.expectFails.forEach((t) => lines.push(`    ${t}`));
+    r.check.forEach((w) => lines.push(`    check ${w.where} [${w.rule}]: ${w.msg}`));
   }
   // Headless `--window-size` is the outer window, so the page sees a shorter viewport; the summary shows what was actually measured.
   lines.push(Object.keys(totals).map((s) => `${s} (화면 ${totals[s].viewport.join("×")}): audit ${totals[s].n}건`).join(" · ") || "측정된 결과 없음");
@@ -208,7 +222,7 @@ export function formatReport(results) {
 
 export function exitCode(results) {
   if (results.some((r) => r.error)) return 2;
-  return results.some((r) => r.audit.length || r.lint.length || r.expectFails.length) ? 1 : 0;
+  return results.some((r) => r.audit.length || r.lint.length || r.expectFails.length || r.check.length) ? 1 : 0;
 }
 
 function parseArgs(argv) {

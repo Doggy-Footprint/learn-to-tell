@@ -14,8 +14,12 @@ kit 개발자용 · 수업에서 부르지 않는 kit 내부 이름이다. kit �
 | `LTT.freeSlot(region, size, solids, gap, step)` | `region` 안에서 모든 `solids`와 `gap`만큼 떨어진 `size` 상자의 첫 왼쪽 위 자리(위 줄부터 훑는다), 없으면 `null`. 펼친 predict 정답 배치가 쓴다. |
 | `LTT.stepValues(min, max, step, cap)` | 손잡이가 가질 수 있는 값 목록. 길면 양 끝을 포함해 고르게 `cap`개(기본 201)만. `?audit`의 목표 판정용. |
 | `LTT.goalReach(lists, check, start, limit)` | 손잡이 값 조합마다 `check`를 불러 맞는 자리 수 `{samples, hits, start}`. 조합이 `limit`(기본 20000)를 넘으면 고정 시드로 표본을 뽑는다. |
-| `LTT.setGlossary(defs, first)` | `linkTerms`가 쓸 용어 풀이와 용어별 첫 장면을 정한다. 덱이 시작할 때 부른다. |
-| `LTT.auditScene(m)` | 그려진 장면 하나의 측정값으로 `?audit` 규칙을 판정 → `[{rule, msg}]`. |
+| `LTT.setGlossary(defs, first)` | `linkTerms`와 팝오버가 쓸 용어 풀이와 용어별 첫 장면을 정한다. 풀이는 합쳐지고 같은 용어는 먼저 등록된 것이 남는다(`#ltt-meta`의 `glossary`가 가장 먼저 읽힌다). 덱이 시작할 때 부른다. |
+| `LTT.auditScene(m)` | 그려진 장면 하나의 측정값으로 `?audit` 레이아웃 규칙을 판정 → `[{rule, msg}]`. 목표 규칙은 `goal-narrow`만 낸다(`goal-unreachable`·`goal-at-start`는 `goalIssues`). |
+| `LTT.termIssues(units, glossary)` | 용어 검사 → `[{where, rule, msg}]`. `units: [{where, text, defines?, skipUnknown?}]`는 읽는 순서의 단위(덱은 장면, 페이지는 구역), `text`의 `{{}}`가 표시다. 단위마다 `unknown-term` → `used-before-defined` → `filler-content` 순. `defines`는 그 단위가 정의하는 key(terms 장면), `skipUnknown`은 `unknown-term`을 건너뛴다. |
+| `LTT.goalIssues(goals)` | `goals: [{where, hits, samples, start}]`마다 `goal-unreachable`(`hits`가 0) → `goal-at-start`(`start`) → `[{where, rule, msg}]`. |
+| `LTT.deckIssues(spec, extraGlossary)` | 덱 장면 데이터의 `unknown-term`(terms 항목의 plain 누락 포함)·`used-before-defined`·`predict-new-term`·`filler-content` → `[{where: "장면 n", rule, msg}]`. `extraGlossary`(`{용어: 풀이}`)의 key도 풀이가 있는 용어로 치고, key 순서는 등록 순서(`extraGlossary` → `spec.glossary` → terms 장면)다. |
+| `LTT.checkSource({issues, prepare, whereOf})` | `check()`가 쓸 검사 원천을 등록한다(덱이 등록한다). 등록하지 않은 페이지는 `body`의 구역을 쓴다. `issues(glossary)` → 정적 오류 목록, `prepare()`는 검사 전에 불린다(덱은 `?check`·`?audit`이면 모든 장면을 그린다), `whereOf(el)`은 목표 요소가 속한 위치 문자열. |
 | `LTT.mobile()` | `<html data-ltt-mobile>`가 붙어 있는가(폰 재배치 중인가). |
 | `LTT.placement` | `{zoomLock}`. `zoomLock(question, zs)` → 배율. `question`은 질문 상태(정답 숨김)를 상한 1에서 맞춘 배율, `zs`는 선택지별 정답을 흐름 안에 둔 상태를 상한 1에서 맞춘 배율의 배열. `Math.min(question, ...zs)`를 돌려주고 `zs`가 비면 `question`. 잘못된 입력(`question`이나 원소가 number가 아니거나 유한수가 아니거나 0 이하이거나 1 초과, `zs`가 배열이 아님)이면 1. DOM·전역을 읽지 않고 인자를 바꾸지 않는다. predict 배율 잠금이 `ctx.zmax`를 이것으로 정한다. |
 | `LTT.measure(fn)` | `fn`을 측정 모드로 실행한다. 그동안 diagram·sequence·map의 `send` 패킷(단계 반복 포함)은 아무것도 하지 않는다. 덱이 figure 단계·predict 정답을 미리 잴 때 쓴다. |
@@ -87,7 +91,7 @@ render는 `{enter}`(또는 `{}`)를 돌려준다. `enter`는 방문할 때마다
 
 ## lint 규칙 추가
 
-`LTT.lintDeck`은 `ltt.js`의 지역 배열 `RULES`로 돈다. 항목은 `{id, scene(s, i, c)}` 또는 `{id, deck(c)}` 중 하나이고, `c`는 덱마다 한 번 만드는 `{spec, scenes, glossary, first}`다(`glossary` = `spec.glossary` 키 뒤에 terms 장면 key, `first` = `LTT.termIndex(spec)`). 규칙은 `[index, rule, msg]` 배열을 돌려준다. `index`는 0부터 센 장면 번호이고 덱 전체 경고는 -1이다(출력 `scene`은 `index + 1`). `scene` 규칙은 장면마다(장면 순서) 등록 순서로, 이어서 `deck` 규칙이 등록 순서로 돈다. 등록 순서가 곧 출력 순서이므로 새 규칙을 넣는 자리가 경고 순서를 정한다.
+`LTT.lintDeck`은 `ltt.js`의 지역 배열 `RULES`로 돈다(용어·채움 글 규칙은 `deckIssues`로 옮겨 `lintDeck`에 없다). 항목은 `{id, scene(s, i, c)}` 또는 `{id, deck(c)}` 중 하나이고, `c`는 덱마다 한 번 만드는 `{spec, scenes, glossary, first}`다(`glossary` = `spec.glossary` 키 뒤에 terms 장면 key, `first` = `LTT.termIndex(spec)`; `unused-term`이 쓴다). 규칙은 `[index, rule, msg]` 배열을 돌려준다. `index`는 0부터 센 장면 번호이고 덱 전체 경고는 -1이다(출력 `scene`은 `index + 1`). `scene` 규칙은 장면마다(장면 순서) 등록 순서로, 이어서 `deck` 규칙이 등록 순서로 돈다. 등록 순서가 곧 출력 순서이므로 새 규칙을 넣는 자리가 경고 순서를 정한다.
 
 ## CSS를 고치려면
 

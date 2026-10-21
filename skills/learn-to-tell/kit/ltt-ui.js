@@ -102,7 +102,16 @@
     ".ltt-insp .v{text-align:right;font:800 17px var(--ltt-mono);color:var(--ltt-ink)}",
     ".ltt-insp .v .ltt-tag{display:block;margin:4px 0 0;font-family:var(--ltt-font)}",
     ".ltt-redline [data-gap]{position:relative}",
-    ".ltt-redline [data-gap]::after{content:attr(data-gap);position:absolute;right:var(--ltt-redline-x,-14px);bottom:100%;height:var(--g);display:flex;align-items:center;padding-right:6px;border-right:1.5px solid var(--ltt-accent);font:700 10px var(--ltt-mono);color:var(--ltt-accent);white-space:nowrap}"
+    ".ltt-redline [data-gap]::after{content:attr(data-gap);position:absolute;right:var(--ltt-redline-x,-14px);bottom:100%;height:var(--g);display:flex;align-items:center;padding-right:6px;border-right:1.5px solid var(--ltt-accent);font:700 10px var(--ltt-mono);color:var(--ltt-accent);white-space:nowrap}",
+    ".ltt-recall{display:grid;gap:8px}",
+    ".ltt-recall .q{margin:0;font-family:var(--ltt-font-display);font-size:clamp(17px,1.5vw,21px);font-weight:var(--ltt-display-weight);letter-spacing:-.02em;line-height:1.35}",
+    ".ltt-recall .row{display:flex;gap:8px;align-items:stretch}",
+    ".ltt-recall .row textarea{flex:1;min-width:0;font:inherit;font-size:15px;line-height:1.4;padding:7px 12px;border:1.5px solid var(--ltt-line-2);border-radius:12px;background:var(--ltt-card);color:var(--ltt-ink);resize:vertical}",
+    ".ltt-recall .row .dk-actions{flex:none}",
+    ".ltt-recall .a{border-left:3px solid var(--ltt-accent);padding:2px 0 2px 14px}",
+    ".ltt-recall .a p{margin:0;font-size:clamp(15px,1.4vw,19px);line-height:1.55;color:var(--ltt-ink-2)}",
+    ".ltt-recall .a .ask{margin-top:6px;font-size:clamp(13.5px,1.15vw,15.5px);color:var(--ltt-ink-2)}",
+    ".ltt-recall .a .ask b{color:var(--ltt-accent);font-size:12px;margin-right:6px}"
   ].join("")/* css:end */;
 
   function h(tag, cls, html) {
@@ -312,6 +321,34 @@
     return { update: update };
   }
 
+  // Retrieval practice: question, a box for the learner's own answer, then the model answer behind a button.
+  // With `hold` the caller keeps the answer out of the layout itself (a deck reserves its space); otherwise it is hidden.
+  function recall(el, opts) {
+    if (!opts || !opts.question) throw new Error("recall: question이 필요하다");
+    el.classList.add("ltt-recall");
+    var q = el.appendChild(h("p", "q"));
+    q.innerHTML = opts.question;
+    var row = el.appendChild(h("div", "row"));
+    var box = row.appendChild(h("textarea"));
+    box.rows = 1;
+    box.placeholder = "떠올린 답 (적지 않아도 된다)";
+    var btn = row.appendChild(h("div", "dk-actions")).appendChild(h("button", "ghost", "답 보기"));
+    var a = el.appendChild(h("div", "a", "<p></p>"));
+    a.firstChild.innerHTML = opts.answer == null ? "" : opts.answer;
+    if (opts.ask) a.appendChild(h("p", "ask", "<b>agent에게</b>" + opts.ask));
+    if (opts.hold) opts.hold(a); else a.hidden = true;
+    function reveal() {
+      if (btn.disabled) return;
+      a.hidden = false;
+      btn.disabled = true;
+      if (opts.onReveal) opts.onReveal(a);
+      LTT.linkTerms(a);
+      LTT.record("recall", { scene: opts.title, question: String(opts.question).replace(/<[^>]*>/g, ""), answer: box.value.trim() });
+    }
+    btn.onclick = reveal;
+    return { answer: a, reveal: reveal };
+  }
+
   if (typeof document !== "undefined") {
     var style = document.createElement("style");
     style.id = "ltt-ui-style";
@@ -333,4 +370,5 @@
   LTT.chartFrame = chartFrame;
   LTT.inspector = inspector;
   LTT.redline = redline;
+  LTT.recall = recall;
 })(typeof globalThis !== "undefined" ? globalThis : this);

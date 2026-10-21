@@ -11,6 +11,13 @@ function loadKit() {
 }
 
 const lint = (spec) => Array.from(loadKit().lintDeck(spec), (w) => [w.scene, w.rule]);
+// Spec 80a1b2f18f50b1df FR-2/FR-3: the four B rules are emitted by deckIssues with where "장면 n"; lintDeck no longer emits them.
+const B_IDS = ["unknown-term", "used-before-defined", "predict-new-term", "filler-content"];
+const bIssues = (spec) => Array.from(loadKit().deckIssues(spec), (w) => {
+  const m = /^장면 (\d+)$/.exec(w.where);
+  assert.ok(m, `where is not "장면 n": ${w.where}`);
+  return [Number(m[1]), w.rule];
+});
 
 // Clean building blocks, each checked by hand against lint rules R1–R16 of the spec.
 // FIG: counted, not a card, signature, guide = caption. KW: bookend, last. ST: counted, not a card.
@@ -35,16 +42,16 @@ test("VO-4 isolation: the clean base deck gives no warning", () => {
   assert.deepEqual(lint(mid()), []);
 });
 
+// FR-5 registration order: #ltt-meta glossary (the extraGlossary argument) -> deck spec.glossary; F-1(c) message order follows glossary key order.
+test("VO-3 FR-5 deckIssues: used-before-defined messages follow extraGlossary keys first, then spec.glossary keys", () => {
+  const spec = deck([{ type: "hook", text: "적중률 적중" }, STRIP({ title: "{{적중}} {{적중률}}" }), KW()], { glossary: { 적중률: "x" } });
+  const keys = Array.from(loadKit().deckIssues(spec, { 적중: "y" }), (w) => /'(.+)'가/.exec(w.msg)?.[1]);
+  assert.deepEqual(keys, ["적중", "적중률"]);
+});
+
 // ---------- VO-4 per-rule partitions (17 rule names x {fires, does not fire}) ----------
 
 const CASES = [
-  // unknown-term (R1, R2)
-  { id: "unknown-term R1 fires: explain marks a key missing from the glossary", spec: mid(STRIP({ title: "{{없는말}}" })), out: [[2, "unknown-term"]] },
-  { id: "unknown-term R1 quiet: the marked key is in spec.glossary", spec: deck([FIG(), STRIP({ title: "{{적중}}" }), KW()], { glossary: { 적중: "x" } }), out: [] },
-  { id: "unknown-term R1 quiet: a terms-scene key counts as a glossary key", spec: mid(TERMS([{ key: "적중", plain: "캐시에 있음", visual: "<svg></svg>" }]), STRIP({ title: "{{적중}}" })), out: [] },
-  { id: "unknown-term R1 quiet: R1 skips marks on a terms scene", spec: mid({ type: "terms", title: "{{없는말}}", terms: [] }), out: [] },
-  { id: "unknown-term R2 fires: a terms entry without plain", spec: mid(TERMS([{ key: "적중", visual: "<svg></svg>" }])), out: [[2, "unknown-term"]] },
-  { id: "unknown-term R2 quiet: a terms entry with plain and visual", spec: mid(TERMS([{ key: "적중", plain: "캐시에 있음", visual: "<svg></svg>" }])), out: [] },
   // term-no-visual (R2)
   { id: "term-no-visual fires: visual undefined", spec: mid(TERMS([{ key: "적중", plain: "캐시에 있음" }])), out: [[2, "term-no-visual"]] },
   { id: "term-no-visual quiet: visual false", spec: mid(TERMS([{ key: "적중", plain: "캐시에 있음", visual: false }])), out: [] },
@@ -55,12 +62,6 @@ const CASES = [
   // overview-no-visual (R4)
   { id: "overview-no-visual fires: overview without figure", spec: mid(SUM_RECALL(), OV({ figure: undefined })), out: [[3, "overview-no-visual"]] },
   { id: "overview-no-visual quiet: overview with figure", spec: mid(SUM_RECALL(), OV()), out: [] },
-  // used-before-defined (R5)
-  { id: "used-before-defined fires: the bare key appears before its first mark", spec: deck([FIG(), { type: "hook", text: "TTL을 늘리면" }, STRIP({ title: "{{TTL}}의 뜻" }), KW()], { glossary: { TTL: "유효 시간" } }), out: [[2, "used-before-defined"]] },
-  { id: "used-before-defined quiet: the key is marked where it first appears", spec: deck([FIG(), { type: "hook", text: "{{TTL}}을 늘리면" }, STRIP({ title: "{{TTL}}의 뜻" }), KW()], { glossary: { TTL: "유효 시간" } }), out: [] },
-  // predict-new-term (R6)
-  { id: "predict-new-term fires: the predict question first marks a glossary key", spec: deck([FIG(), { type: "predict", title: "몇 건?", question: "{{적중률}}은?", choices: [] }, KW()], { glossary: { 적중률: "x" } }), out: [[2, "predict-new-term"]] },
-  { id: "predict-new-term quiet: the key was marked in an earlier scene", spec: deck([FIG(), STRIP({ title: "{{적중률}}" }), { type: "predict", title: "몇 건?", question: "{{적중률}}은?", choices: [] }, KW()], { glossary: { 적중률: "x" } }), out: [] },
   // no-reading-guide (R7): needsReadingGuide 4 types + statement + untyped with/without mount
   { id: "no-reading-guide fires: compare without a guide", spec: mid({ type: "compare", form: "table", title: "c", items: [] }), out: [[2, "no-reading-guide"]] },
   { id: "no-reading-guide fires: contrast without a guide", spec: mid({ type: "contrast", title: "c" }), out: [[2, "no-reading-guide"]] },
@@ -78,9 +79,6 @@ const CASES = [
   { id: "no-title fires: explain without title", spec: mid({ type: "explain", form: "strip", steps: [] }), out: [[2, "no-title"]] },
   { id: "no-title fires: unknown type foo without title (C-8)", spec: mid({ type: "foo" }), out: [[2, "no-title"]] },
   { id: "no-title fires: untyped scene without title", spec: mid({ narration: "n" }), out: [[2, "no-title"]] },
-  // filler-content (R9)
-  { id: "filler-content fires: filler words, first match only", spec: mid(STRIP({ title: "항목 1과 샘플 텍스트" })), out: [[2, "filler-content"]] },
-  { id: "filler-content quiet: the UI word placeholder", spec: mid(STRIP({ title: "placeholder 글자색은 옅다" })), out: [] },
   // no-signature (R11): figure, contrast, layout full, untyped mount, none
   { id: "no-signature quiet: figure", spec: deck([FIG(), KW()]), out: [] },
   { id: "no-signature quiet: contrast", spec: deck([{ type: "contrast", title: "c", narration: "n" }, KW()]), out: [] },
@@ -115,6 +113,44 @@ for (const { id, spec, out } of CASES) {
     assert.deepEqual(lint(spec), out);
   });
 }
+
+// ---------- VO-3 B-rule cases (moved from lintDeck to deckIssues) ----------
+
+const B_CASES = [
+  { id: "unknown-term R1 fires: explain marks a key missing from the glossary", spec: mid(STRIP({ title: "{{없는말}}" })), out: [[2, "unknown-term"]] },
+  { id: "unknown-term R1 quiet: the marked key is in spec.glossary", spec: deck([FIG(), STRIP({ title: "{{적중}}" }), KW()], { glossary: { 적중: "x" } }), out: [] },
+  { id: "unknown-term R1 quiet: a terms-scene key counts as a glossary key", spec: mid(TERMS([{ key: "적중", plain: "캐시에 있음", visual: "<svg></svg>" }]), STRIP({ title: "{{적중}}" })), out: [] },
+  { id: "unknown-term R1 quiet: R1 skips marks on a terms scene", spec: mid({ type: "terms", title: "{{없는말}}", terms: [] }), out: [] },
+  { id: "unknown-term R2 fires: a terms entry without plain", spec: mid(TERMS([{ key: "적중", visual: "<svg></svg>" }])), out: [[2, "unknown-term"]] },
+  { id: "unknown-term R2 quiet: a terms entry with plain and visual", spec: mid(TERMS([{ key: "적중", plain: "캐시에 있음", visual: "<svg></svg>" }])), out: [] },
+  { id: "used-before-defined fires: the bare key appears before its first mark", spec: deck([FIG(), { type: "hook", text: "TTL을 늘리면" }, STRIP({ title: "{{TTL}}의 뜻" }), KW()], { glossary: { TTL: "유효 시간" } }), out: [[2, "used-before-defined"]] },
+  { id: "used-before-defined quiet: the key is marked where it first appears", spec: deck([FIG(), { type: "hook", text: "{{TTL}}을 늘리면" }, STRIP({ title: "{{TTL}}의 뜻" }), KW()], { glossary: { TTL: "유효 시간" } }), out: [] },
+  { id: "predict-new-term fires: the predict question first marks a glossary key", spec: deck([FIG(), { type: "predict", title: "몇 건?", question: "{{적중률}}은?", choices: [] }, KW()], { glossary: { 적중률: "x" } }), out: [[2, "predict-new-term"]] },
+  { id: "predict-new-term quiet: the key was marked in an earlier scene", spec: deck([FIG(), STRIP({ title: "{{적중률}}" }), { type: "predict", title: "몇 건?", question: "{{적중률}}은?", choices: [] }, KW()], { glossary: { 적중률: "x" } }), out: [] },
+  { id: "filler-content fires: filler words, first match only", spec: mid(STRIP({ title: "항목 1과 샘플 텍스트" })), out: [[2, "filler-content"]] },
+  { id: "filler-content quiet: the UI word placeholder", spec: mid(STRIP({ title: "placeholder 글자색은 옅다" })), out: [] },
+];
+
+for (const { id, spec, out } of B_CASES) {
+  test(`VO-3 ${id}`, () => {
+    assert.deepEqual(bIssues(spec), out);
+  });
+  test(`VO-3 ${id}: lintDeck emits no B rule for the same deck`, () => {
+    assert.deepEqual(lint(spec).filter(([, rule]) => B_IDS.includes(rule)), []);
+  });
+}
+
+test("VO-3 every B rule id fires in some B_CASES case", () => {
+  const fired = new Set(B_CASES.flatMap(({ out }) => out.map(([, rule]) => rule)));
+  assert.deepEqual(B_IDS.filter((id) => !fired.has(id)), []);
+});
+
+test("VO-3 extraGlossary counts as glossary keys for deckIssues", () => {
+  const LTT = loadKit();
+  const spec = mid(STRIP({ title: "{{적중}}" }));
+  assert.deepEqual(Array.from(LTT.deckIssues(spec), (w) => w.rule), ["unknown-term"]);
+  assert.deepEqual(Array.from(LTT.deckIssues(spec, { 적중: "x" }), (w) => w.rule), []);
+});
 
 test("VO-4 unknown-theme quiet: every LTT.themes name is accepted", () => {
   const names = Array.from(loadKit().themes, (t) => t.name);
@@ -235,7 +271,7 @@ test("VO-7 C-18 MR-1: every VO-4 lintDeck input with a foo scene gives the same 
 
 // ---------- VO-5 output order (scenario testing) ----------
 
-test("VO-5 C-12: scene order, then R1..R9 inside a scene, then deck R10..R16", () => {
+test("VO-5 C-12: scene order, then R1..R9 inside a scene, then deck R10..R16 (non-B rules in lintDeck)", () => {
   const spec = {
     glossary: { TTL: "유효 시간" },
     scenes: [
@@ -246,9 +282,6 @@ test("VO-5 C-12: scene order, then R1..R9 inside a scene, then deck R10..R16", (
   assert.deepEqual(lint(spec), [
     [1, "no-reading-guide"],
     [1, "no-title"],
-    [2, "unknown-term"],
-    [2, "used-before-defined"],
-    [2, "filler-content"],
     [0, "no-signature"],
     [0, "no-theme"],
     [0, "keywords-last"],
@@ -256,11 +289,19 @@ test("VO-5 C-12: scene order, then R1..R9 inside a scene, then deck R10..R16", (
   ]);
 });
 
-test("VO-5 C-12 R2: terms entries are checked one by one (unknown-term, term-no-visual, unknown-term)", () => {
+test("VO-5 C-12: deckIssues keeps unknown-term, used-before-defined, filler-content order inside a scene", () => {
+  const spec = {
+    glossary: { TTL: "유효 시간" },
+    scenes: [
+      { type: "compare", form: "table", items: [] },
+      { type: "explain", form: "strip", title: "{{없는말}}과 TTL TODO", steps: [] },
+    ],
+  };
+  assert.deepEqual(bIssues(spec), [[2, "unknown-term"], [2, "used-before-defined"], [2, "filler-content"]]);
+});
+
+test("VO-5 C-12 R2: terms entries are checked one by one (term-no-visual in lintDeck, unknown-term in deckIssues)", () => {
   const spec = mid(TERMS([{ key: "가" }, { key: "나", visual: "<svg></svg>" }]));
-  assert.deepEqual(lint(spec), [
-    [2, "unknown-term"],
-    [2, "term-no-visual"],
-    [2, "unknown-term"],
-  ]);
+  assert.deepEqual(lint(spec), [[2, "term-no-visual"]]);
+  assert.deepEqual(bIssues(spec), [[2, "unknown-term"], [2, "unknown-term"]]);
 });

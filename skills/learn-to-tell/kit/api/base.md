@@ -14,7 +14,7 @@
 | 아이콘 크기 | 장면의 그림 칸(compare·explain·terms `visual`, predict `visual`·`answerVisual`, figure)에 아이콘 하나만 넣으면 본문 글자 크기가 아니라 칸에 맞는 크기(44–84px, 강조색)로 그린다. 문장 속·버튼·범례 아이콘은 1em 그대로다. SVG 안(diagram·sequence 노드)에서는 글자가 보이지 않으니 이름만 쓴다. |
 | 아이콘 출처 | 손으로 그린 44개 + Lucide에서 가져온 16개(globe, map-pin, route, git-branch, timer, database-zap, network, shield-check, key-round, mail, package, truck, wifi, cloud, gauge, workflow). 더 필요하면 Lucide에서 그 아이콘만 `ICONS`에 옮긴다(전체 세트는 넣지 않는다). |
 | `LTT.themeTokens(theme, scheme)` | 문서 없이 테마의 색 토큰 객체(`{bg, ink, c1, …}`). 테스트·서버 쪽 계산용. |
-| `LTT.linkTerms(el, sceneIndex)` | 덱 밖이나 나중에 그린 DOM의 `{{}}`를 바꾼다. 덱은 장면 마운트, predict 공개, compare 공개, summary recall의 답 보기, stepper 자막에서 알아서 부른다. |
+| `LTT.linkTerms(el, sceneIndex)` | 나중에 그린 DOM의 `{{}}`를 바꾼다(`load` 때 덱 밖 페이지의 `body`는 kit이 한다). `script`·`style`·`template`·`noscript`·`textarea`와 kit UI 안 글은 건드리지 않는다. 덱은 장면 마운트, predict 공개, compare 공개, summary recall의 답 보기, stepper 자막에서 알아서 부른다. |
 | `LTT.warn(msg)` | 패널에 경고 한 줄. |
 | `LTT.summaryCards(scene, scenes)` | summary 장면이 보일 항목 목록(lint와 덱이 같이 쓴다). |
 

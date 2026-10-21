@@ -24,6 +24,6 @@ Related Files: skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, s
 Related Symbols: LTT.deck, LTT.clock, LTT.expect
 ---
 File: 888e4f7c2f716bc5-skill-flow-review-and-redesign.md
-Summary: SKILL.md 흐름 외부 검토 결과와 Design Principles·ADR 6ff15ad3·계획 eff07952/98c0e5bb로 이어진 재설계 착수 상태. 다음은 B 검출을 deck에서 분리하는 R1
+Summary: SKILL.md 흐름 외부 검토 결과와 Design Principles·ADR 6ff15ad3·계획 eff07952/98c0e5bb로 이어진 재설계 진행 상태. R1 1단계(B 검출 분리, spec 80a1b2f18f50b1df) 완료, 다음은 eff07952 2단계(A 자동 보정)
 Related Files: AGENTS.md, intent.md, skills/learn-to-tell/SKILL.md, agent-docs/adr/6ff15ad3eef7b88d-kit-as-auxiliary-library.md, agent-docs/plans/eff0795231314dc5-kit-auxiliary-screenshot-check.md, agent-docs/plans/98c0e5bb55098a10-skill-redesign-by-principles.md
 Related Symbols: LTT.deck, LTT.expect, LTT.record, LTT.auditScene

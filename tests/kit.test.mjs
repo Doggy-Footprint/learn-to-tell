@@ -50,6 +50,8 @@ function loadParts() {
 }
 
 const rules = (spec) => loadKit().lintDeck(spec).map((w) => w.rule);
+// Spec 80a1b2f18f50b1df FR-2/FR-3: the four B rules (term and filler checks) moved from lintDeck to deckIssues.
+const brules = (spec) => Array.from(loadKit().deckIssues(spec), (w) => w.rule);
 const KW = { type: "keywords", terms: [] };
 
 test("termsIn reads {{key}} and {{shown|key}} marks in order", () => {
@@ -74,21 +76,21 @@ test("lint flags a glossary term used before its first definition", () => {
   const spec = { glossary: { TTL: "유효 시간" }, scenes: [
     { type: "hook", text: "TTL을 늘리면" },
     { type: "explain", title: "{{TTL}}의 뜻", steps: [] }, KW] };
-  assert.ok(rules(spec).includes("used-before-defined"));
+  assert.ok(brules(spec).includes("used-before-defined"));
   spec.scenes[0].text = "{{TTL}}을 늘리면";
-  assert.ok(!rules(spec).includes("used-before-defined"));
+  assert.ok(!brules(spec).includes("used-before-defined"));
 });
 
 test("lint flags marks without a definition, and terms-scene keys count as definitions", () => {
-  assert.ok(rules({ scenes: [{ type: "explain", title: "{{없는말}}", steps: [] }, KW] }).includes("unknown-term"));
-  assert.ok(!rules({ scenes: [
+  assert.ok(brules({ scenes: [{ type: "explain", title: "{{없는말}}", steps: [] }, KW] }).includes("unknown-term"));
+  assert.ok(!brules({ scenes: [
     { type: "terms", title: "t", terms: [{ key: "적중", plain: "캐시에 있음" }] },
     { type: "explain", title: "{{적중}}", steps: [] }, KW] }).includes("unknown-term"));
 });
 
 test("lint flags new terms in a predict question", () => {
   const p = { type: "predict", title: "몇 건?", choices: [] };
-  const fresh = rules({ glossary: { 적중률: "x" }, scenes: [{ type: "explain", title: "e", steps: [] }, { ...p, question: "{{적중률}}은?" }, KW] });
+  const fresh = brules({ glossary: { 적중률: "x" }, scenes: [{ type: "explain", title: "e", steps: [] }, { ...p, question: "{{적중률}}은?" }, KW] });
   assert.ok(fresh.includes("predict-new-term"));
 });
 
@@ -153,8 +155,8 @@ test("figure scenes accept a caption as their reading guide", () => {
 });
 
 test("lint flags filler text but not the UI word placeholder", () => {
-  assert.ok(rules({ scenes: [{ type: "explain", title: "항목 1과 샘플 텍스트", steps: [] }, KW] }).includes("filler-content"));
-  assert.ok(!rules({ scenes: [{ type: "explain", title: "placeholder 글자색은 옅다", steps: [] }, KW] }).includes("filler-content"));
+  assert.ok(brules({ scenes: [{ type: "explain", title: "항목 1과 샘플 텍스트", steps: [] }, KW] }).includes("filler-content"));
+  assert.ok(!brules({ scenes: [{ type: "explain", title: "placeholder 글자색은 옅다", steps: [] }, KW] }).includes("filler-content"));
 });
 
 test("auditScene judges rendered measurements", () => {
@@ -174,13 +176,45 @@ test("auditScene judges rendered measurements", () => {
   assert.deepEqual(r({ compact: true, overflow: true, zoom: 0.78, hscroll: 5 }), ["hscroll", "overflow"]);
 });
 
-test("auditScene flags sweep goals that fail at every position, hold at one only, or hold at the start", () => {
-  const { auditScene } = loadKit();
-  const r = (goals) => [...auditScene({ type: "", zoom: 1, fill: 0.9, fontSizes: 5, goals })].map((w) => w.rule);
-  assert.deepEqual(r([{ hits: 7, samples: 256, start: false }]), []);
-  assert.deepEqual(r([{ hits: 0, samples: 10, start: false }]), ["goal-unreachable"]);
-  assert.deepEqual(r([{ hits: 1, samples: 10, start: false }]), ["goal-narrow"]);
-  assert.deepEqual(r([{ hits: 3, samples: 10, start: true }]), ["goal-at-start"]);
+// Spec 80a1b2f18f50b1df VO-2 (decision table): hits {0, 1, >=2} x start {true, false}.
+// goal-narrow stays an auditScene rule (hits == 1); the other two moved to goalIssues.
+const GOAL_CELLS = [
+  { id: "hits 0, start false", hits: 0, start: false, issues: ["goal-unreachable"], audit: [] },
+  { id: "hits 0, start true", hits: 0, start: true, issues: ["goal-unreachable", "goal-at-start"], audit: [] },
+  { id: "hits 1, start false", hits: 1, start: false, issues: [], audit: ["goal-narrow"] },
+  { id: "hits 1, start true", hits: 1, start: true, issues: ["goal-at-start"], audit: ["goal-narrow"] },
+  { id: "hits 3, start false", hits: 3, start: false, issues: [], audit: [] },
+  { id: "hits 3, start true", hits: 3, start: true, issues: ["goal-at-start"], audit: [] },
+];
+
+for (const c of GOAL_CELLS) {
+  test(`VO-2 goalIssues ${c.id}`, () => {
+    const { goalIssues } = loadKit();
+    const got = Array.from(goalIssues([{ where: "W", hits: c.hits, samples: 10, start: c.start }]), (w) => [w.where, w.rule]);
+    assert.deepEqual(got, c.issues.map((rule) => ["W", rule]));
+  });
+  test(`VO-2 auditScene ${c.id}: only goal-narrow`, () => {
+    const { auditScene } = loadKit();
+    const got = Array.from(auditScene({ type: "", zoom: 1, fill: 0.9, fontSizes: 5, goals: [{ hits: c.hits, samples: 10, start: c.start }] }), (w) => w.rule);
+    assert.deepEqual(got, c.audit);
+  });
+}
+
+test("VO-2 goalIssues messages keep the base_commit wording and order goals as given", () => {
+  const { goalIssues } = loadKit();
+  const got = Array.from(goalIssues([
+    { where: "A", hits: 0, samples: 12, start: true },
+    { where: "B", hits: 5, samples: 12, start: true },
+  ]), (w) => ({ where: w.where, rule: w.rule, msg: w.msg }));
+  assert.deepEqual(got, [
+    { where: "A", rule: "goal-unreachable", msg: "목표를 맞추는 손잡이 위치가 없다 (표본 12개 중 0개). 기준이나 손잡이 범위를 고칠 것" },
+    { where: "A", rule: "goal-at-start", msg: "시작 위치에서 이미 목표가 맞는다. 시작값을 목표 밖으로 옮길 것" },
+    { where: "B", rule: "goal-at-start", msg: "시작 위치에서 이미 목표가 맞는다. 시작값을 목표 밖으로 옮길 것" },
+  ]);
+});
+
+test("VO-2 goalIssues of no goals is empty", () => {
+  assert.equal(loadKit().goalIssues([]).length, 0);
 });
 
 test("stepValues lists control positions and thins long ranges to evenly spaced ones with both ends", () => {

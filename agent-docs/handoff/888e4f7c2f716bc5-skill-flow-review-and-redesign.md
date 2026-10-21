@@ -13,6 +13,7 @@
   - `skills/learn-to-tell/SKILL.md`: 100k tokens 새 세션 권고 삭제 / §0에 기존 수업 판정(`lesson.html`이 있어야 이미 있는 수업) / §3 audit 6–8번 합쳐 최대 4회, 이후 고칠 것이 남으면 사용자 허락 / outline에 학습자 평가 기준을 제작 전에 적고 §4가 그것을 씀 / §2 범위 문장을 "진단으로 정해진 범위 안에서 agent가 우선 결정, 필요하면 질문"으로 교체.
   - `agent-docs/adr/6ff15ad3eef7b88d-kit-as-auxiliary-library.md`(Accepted) + index.
   - `agent-docs/plans/eff0795231314dc5-kit-auxiliary-screenshot-check.md`, `agent-docs/plans/98c0e5bb55098a10-skill-redesign-by-principles.md` + index.
+- 2026-10-21 후속 세션: R1 1단계(B 검출 분리)를 workflow-approach spec `80a1b2f18f50b1df`(v5, complete, `agent-docs/spec-logs/80a1b2f18f50b1df-kit-common-check.md`)로 끝냈다. 공통 검사 `LTT.check`·`#ltt-check`, `#ltt-meta` glossary, 덱 아닌 페이지 `{{}}` 자동 링크, `LTT.recall`, audit.mjs의 `check` 출력. 커밋은 사용자 확인 뒤.
 - GitHub issue #16: `/fork` 안내 대신 백그라운드 생성 서브에이전트로 학습 세션 분리. **이 작업 범위 밖이다. 다시 묻지 않는다.**
 
 ## Failed Attempts
@@ -24,7 +25,7 @@
 
 ## Next Step
 
-1. 계획 `98c0e5bb55098a10`의 R1 = 계획 `eff0795231314dc5`의 1단계부터 시작한다: 코드 검출 규칙(B 갈래: `unknown-term`, `used-before-defined`, `predict-new-term`, `filler-content`, `goal-unreachable`, `goal-at-start`, `LTT.expect` 불일치)을 `kit/ltt-deck.js`의 `audit()`(1195–1208)에서 kit 공통 코드로 떼어 내 deck이 아닌 페이지에서도 `#ltt-check` JSON과 `lint` 이벤트를 내게 한다. `recall` 기록(`ltt-deck.js:797`)도 deck 밖에서 되게 한다.
+1. 계획 `eff0795231314dc5`의 2단계(A 자동 보정)부터 이어 간다. 1단계는 spec `80a1b2f18f50b1df`로 완료됐다(아래 State).
 2. 단계마다 사용자 확인을 받는다.
 
 ## Open Questions

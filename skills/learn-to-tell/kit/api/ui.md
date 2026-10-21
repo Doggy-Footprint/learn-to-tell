@@ -1,4 +1,4 @@
-언제: 그림에 해설, 번호 주석, BEFORE/AFTER, 숫자 카드, 키워드, 상태 표시, 콜아웃, 견본, 핵심 바, 신문 차트 틀, 대비 검사 패널, 간격 측정선을 붙일 때 · vendor 없음 · 실물: `https://learn-to-tell.vercel.app/gallery/catalog.html#api-ui`
+언제: 그림에 해설, 번호 주석, BEFORE/AFTER, 숫자 카드, 키워드, 상태 표시, 콜아웃, 견본, 핵심 바, 신문 차트 틀, 대비 검사 패널, 간격 측정선, 떠올리기 질문을 붙일 때 · vendor 없음 · 실물: `https://learn-to-tell.vercel.app/gallery/catalog.html#api-ui`
 
 # ltt-ui.js: 설명 부품
 
@@ -19,4 +19,5 @@
 | `LTT.inspector({title, rows: [{name, fg, bg, ratio}], min, level})` | 디자인 툴식 대비 검사 패널(문자열). `ratio`가 없으면 `LTT.contrast`로 계산, `min`(기본 4.5) 미만이면 미달. |
 | `LTT.redline(container, {selector, x})` → `{update}` | 대상마다 위쪽 margin을 오른쪽 여백에 px 측정선으로. 스타일을 바꾼 뒤 `update()`. |
 | `LTT.h(tag, cls, html)`, `LTT.fill(node, v)` | 작은 DOM 도우미. `fill`은 문자열·노드·함수(노드를 채우거나 노드/문자열을 돌려줌)를 받는다. |
+| `LTT.recall(el, {question, answer, ask, title, hold, onReveal})` → `{answer, reveal}` | 인출 연습 한 칸을 `el`에 넣는다: 질문, 답을 적는 칸, "답 보기" 버튼, 숨은 답. 버튼(키보드로 누를 수 있다)을 누르면 답이 보이고 버튼이 꺼지며 `recall` 이벤트 `{scene: title, question(태그 뺌), answer(적은 글)}`를 남긴다. `answer`·`ask`는 HTML이고 `{{}}`는 링크된다. `question`이 없으면 `el`을 건드리기 전에 던진다. `hold(답 요소)`를 주면 숨김은 호출자가 맡고(덱 summary가 자리를 미리 잡는다), 없으면 kit이 답을 렌더되지 않게 숨긴다. `onReveal(답 요소)`는 공개 직후 불린다. 장면에서는 summary의 `recall`. |
 | `LTT.contrast(a, b)` | 두 hex 색의 WCAG 대비비. `ltt.js`에 있고 `inspector`가 `ratio` 없는 행에 쓴다. |

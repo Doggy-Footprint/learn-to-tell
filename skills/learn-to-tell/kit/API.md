@@ -6,11 +6,13 @@
 
 수업은 `lessons/<id>/lesson.html` 한 페이지다. 구성(넘김, 스크롤, 한 화면)은 자유다. 지킬 것은 셋이다.
 
-1. head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "theme", "medium", "decision"}</script>`를 둔다.
+1. head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "theme", "medium", "decision", "glossary"}</script>`를 둔다. `glossary`는 `{용어: 풀이 HTML}`이고 본문의 `{{용어}}`가 이것으로 팝오버가 된다(덱 밖 페이지도 같다. 덱의 `glossary`·terms 장면과 합쳐지고 같은 용어는 메타가 이긴다). 메타가 없거나 JSON이 깨지면 glossary 없이 진행하고 콘솔에 경고한다.
 2. 계산한 수치는 `LTT.expect(label, actual, expected, {tol})`로 대조한다.
 3. 움직이는 그림은 `LTT.clock(el, draw, {dur, loop})`로 돌린다. `draw(t)`는 t초의 화면을 그린다. clock은 `el`이 화면 밖이거나 숨겨지면 멈추고, reduced-motion이면 `draw(dur)`만 그린다. audit은 clock에 등록된 그림을 시간 간격으로 찍어 contact sheet를 만든다. 반환값 `{play, pause, seek(t)}`.
 
 여러 화면을 순서대로 넘길 때만 `LTT.deck`을 쓴다(아래 "덱"). 그 밖에는 페이지에 직접 배치한다.
+
+페이지를 열면 kit이 결정적 결함을 스스로 검사한다(덱이든 아니든 같다). 결과는 `#ltt-check`, 곧 `<script type="application/json" id="ltt-check">{"source": "deck"|"page", "viewport": [w, h], "errors": [{where, rule, msg}]}</script>`, `<html data-ltt-check="건수">`, 패널 경고, `lint` 이벤트로 남는다. 덱이 아닌 페이지는 h1–h3로 나눈 구역이 `where`가 된다. rule 뜻은 `kit/api/rules.md`의 "검사" 절.
 
 ## 불러오기
 
@@ -43,8 +45,9 @@
 | `LTT.icon(name, {weight, cls})`, `LTT.icons` | 선 아이콘 SVG. `art`·`icon` 필드에는 이름만(아래 목록) |
 | `LTT.palette()`, `LTT.palette(theme, "light"\|"dark")` | 범주형 색 6개. 계열 구분에만 |
 | `LTT.mark(kind, {size, color, weight, fill, inline})`, `LTT.marks` | 모양 표식(square, ring, dot, diamond, cross). 색만으로 계열을 가르지 않게 |
-| `{{용어}}`, `{{보이는 말\|용어}}` | 본문 속 용어. 풀이 팝오버가 된다 |
+| `{{용어}}`, `{{보이는 말\|용어}}` | 본문 속 용어. 풀이 팝오버가 된다. 덱 밖 페이지는 kit이 `load` 때 `body`의 `{{}}`를 바꾼다 |
 | `LTT.expect(label, actual, expected, {tol})` | 기대값 대조. 불일치는 패널과 서버에 남는다 |
+| `LTT.check()` | 결함 검사를 지금 다시 돌려 `{source, viewport, errors}`를 돌려주고 `#ltt-check`·`data-ltt-check`·패널을 갱신한다. 페이지를 열면 글꼴 준비 뒤 한 번 자동으로 돈다 |
 | `LTT.lintDeck(spec)` | 덱 장면 데이터 점검 `[{scene, rule, msg}]`. 덱이 시작할 때 실행한다 |
 | `LTT.record(type, data)` | 서버로 이벤트(lesson 페이지에서만) |
 | `LTT.math(scope)` | `data-tex` 요소를 KaTeX로 |
