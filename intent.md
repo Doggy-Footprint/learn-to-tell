@@ -19,3 +19,5 @@ Author: Doggy-FP (claims operations). Status: draft.
 2. Quality versus usual query for learning materials. Since this is subjective matter, it's especially hard to tell if this skill works well.
 
 ## Open questions
+1. How to measure whether a result is good or bad (Constraint 2) beyond the user's human feedback?
+2. Target cost (time, tokens) per lesson.

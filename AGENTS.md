@@ -4,6 +4,15 @@ Learn to Tell은 coding agent가 skill로 제공하는 짧은 상호작용 학�
 작업 초기에 사용자가 모르는 핵심 결정 변수를 quick survey로 진단하고, 결정 변수를 이해하는 데 필요한 교과서 기본기(대략 교과서 한 챕터 분량)를 시각 자료·시뮬레이션으로 익히게 한 뒤 서술 퀴즈로 확인하고 결과를 원래 작업으로 돌려준다.
 학습은 `/fork`한 세션에서 진행하고, 학습 결과와 지식 map은 `~/.learn-to-tell/`에 남긴다.
 
+# Design Principles
+
+1. The agent decides the strategy and structure of learning material. The kit is auxiliary: the agent uses a kit part only when the structure it already chose exists there. Some parts (theme) are mandatory for a consistent look.
+2. The agent should not read the whole kit. Kit parts are found by keywords along several axes (what is explained, how, what kind of figure, e.g. "2D map", "diagram", "flowchart").
+3. Layout defects that have a deterministic fix (e.g. text too small) are fixed automatically, not reported back to the agent.
+4. Quality is checked by looking at the rendered result (screenshots; for animated figures, the idle or final state) against a checklist the agent wrote before generating.
+5. One agent plans, writes the checklist, and generates. A verifier subagent only checks against that checklist and reports only unmet items. The checklist is shared as a file, not re-emitted as output.
+6. Learning should not interrupt the user's work. Asking the user to switch sessions (e.g. `/fork`) is a UX cost to avoid.
+
 <!-- harness:begin 0.25.0 -->
 # Documentation Guide
 
@@ -23,6 +32,8 @@ A comment/docstring is allowed only when it records a non-obvious:
 - reason a seemingly odd implementation is necessary.
 
 Do not use comments to narrate code, restate names/types/control flow, provide tutorials, or justify ordinary implementation choices.
+
+Exception: each kit part (`skills/learn-to-tell/kit/`) carries a search-keyword comment at its head, listing keywords along the axes the generating agent searches by (what is explained, how, figure kind). Agents find kit parts by grepping these instead of reading the whole kit (ADR `6ff15ad3eef7b88d`).
 
 ## Index & Staleness Management
 1. Every agent-managed directory (e.g., `agent-docs/adr`, `agent-docs/rejections`, `agent-docs/handoff`) must contain `index.md`, `stale.md`, and a `stale/` directory. `agent-docs/specs/` and `agent-docs/spec-logs/` are workflow state and immutable run records, so they are exempt.

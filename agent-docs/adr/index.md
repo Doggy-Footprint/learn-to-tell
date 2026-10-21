@@ -42,3 +42,8 @@ File: dbd5ddb9b247aa15-phone-viewing-guarantee.md
 Summary: 8a61c967을 supersede: claude.ai 모바일 열람을 지원 범위에 넣고, 작성·점검은 데스크톱 1280px 이상(1440×900·1280×800), 폰(폭 760px 미만)은 한 열·세로 스크롤·가로 넘침 없음의 열람만 보장하며 390×844 audit는 넣지 않는 결정
 Related Files: skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt-parts.js, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/standalone.md, skills/learn-to-tell/server/audit.mjs, README.md
 Related Symbols: LTT.mobile, mobileFit, LTT.autoLayout, data-ltt-mobile
+---
+File: 6ff15ad3eef7b88d-kit-as-auxiliary-library.md
+Summary: kit을 보조 라이브러리로 두고 수업 구조는 agent가 정하며, audit을 자동 보정과 스크린샷·검증표 대조로 대체한 결정
+Related Files: skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/server/audit.mjs
+Related Symbols: LTT.deck, LTT.auditScene, LTT.lintDeck
