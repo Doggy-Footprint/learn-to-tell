@@ -17,3 +17,8 @@ File: 3b9ef4b406088e7f-skill-generation-diet.md
 Summary: 수업 생성 경로 다이어트(흐름·검증·문서·audit·kit 선언형 부품) 착수 전 handoff. 승인된 계획은 agent-docs/plans/b71ddee49f77ac06-skill-generation-diet.md, 시작점은 단계 0 transcript-cost.mjs
 Related Files: agent-docs/plans/b71ddee49f77ac06-skill-generation-diet.md, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/server/audit.mjs, skills/learn-to-tell/kit/ltt-deck.js, agent-docs/handoff/b41cd6aec66a2589-refactoring-1-lesson-cost-ledger.md
 Related Symbols: LTT.deck, LTT.auditScene, LTT.lintDeck, fill, fit, zoomLock
+---
+File: b7ee48d448480ff5-education-first.md
+Summary: 생성 lesson 품질 문제의 진단과 재설계 계획(storyboard 먼저, shot 소스 few-shot, 규제 완화, LTT.clock, 블라인드 A/B). 수치 하한 지표 실험은 실패로 기록
+Related Files: skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/server/audit.mjs, skills/learn-to-tell/look/look.md
+Related Symbols: LTT.deck, LTT.clock, LTT.expect

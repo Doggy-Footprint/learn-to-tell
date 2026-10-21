@@ -8,11 +8,6 @@ Summary: figure 단계별 프레임을 한 칸에 겹쳐 높이를 CSS로 정하
 Related Files: skills/learn-to-tell/kit/ltt-deck.js, agent-docs/adr/40552fcb2a7c3985-lock-scene-scale-on-entry.md
 Related Symbols: placement, LTT.stepper
 ---
-File: 3c711c4d7cad7c40-ltt-later-deferred-draw.md
-Summary: 측정 모드에서 동기로 도는 지연 그리기 API LTT.later를 기각하고 .dk-still과 "크기를 바꾸지 않을 때만" 작가 계약을 유지했다
-Related Files: skills/learn-to-tell/kit/api/deck-contracts.md, skills/learn-to-tell/kit/ltt-parts.js
-Related Symbols: LTT.measure
----
 File: f9e3756dd41b66c2-kit-css-runtime-link.md
 Summary: kit CSS를 각 JS가 런타임에 `<link rel="stylesheet">`로 불러오는 안을 기각하고, `.css` 원본을 편집 시점에 JS 문자열로 생성하는 방식을 택했다
 Related Files: scripts/build.mjs, skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/standalone.md
