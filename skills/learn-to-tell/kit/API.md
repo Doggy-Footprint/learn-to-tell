@@ -4,11 +4,10 @@
 
 ## 페이지 계약
 
-수업은 `lessons/<id>/lesson.html` 한 페이지다. 구성(넘김, 스크롤, 한 화면)은 자유다. 지킬 것은 셋이다.
+수업은 `lessons/<id>/lesson.html` 한 페이지다. 구성(넘김, 스크롤, 한 화면)은 자유다. 지킬 것은 둘이다.
 
 1. head에 `<script type="application/json" id="ltt-meta">{"topic", "audience", "theme", "medium", "decision", "glossary"}</script>`를 둔다. `glossary`는 `{용어: 풀이 HTML}`이고 본문의 `{{용어}}`가 이것으로 팝오버가 된다(덱 밖 페이지도 같다. 덱의 `glossary`·terms 장면과 합쳐지고 같은 용어는 메타가 이긴다). 메타가 없거나 JSON이 깨지면 glossary 없이 진행하고 콘솔에 경고한다.
 2. 계산한 수치는 `LTT.expect(label, actual, expected, {tol})`로 대조한다.
-3. 움직이는 그림은 `LTT.clock(el, draw, {dur, loop})`로 돌린다. `draw(t)`는 t초의 화면을 그린다. clock은 `el`이 화면 밖이거나 숨겨지면 멈추고, reduced-motion이면 `draw(dur)`만 그린다. audit은 clock에 등록된 그림을 시간 간격으로 찍어 contact sheet를 만든다. 반환값 `{play, pause, seek(t)}`.
 
 여러 화면을 순서대로 넘길 때만 `LTT.deck`을 쓴다(아래 "덱"). 그 밖에는 페이지에 직접 배치한다.
 
@@ -39,7 +38,6 @@
 
 | 이름 | 설명 |
 | --- | --- |
-| `LTT.clock(el, draw, {dur, loop})` | 움직이는 그림의 시계(페이지 계약 3) |
 | `LTT.deck({title, theme, glossary: {용어: 풀이}, scenes})` | 장면 덱(선택). 장면 하나 = 스크롤 없는 한 화면 |
 | `LTT.theme(name)`, `LTT.themes` | 테마(아래 표). 덱에서는 `theme` 필드로 |
 | `LTT.icon(name, {weight, cls})`, `LTT.icons` | 선 아이콘 SVG. `art`·`icon` 필드에는 이름만(아래 목록) |
@@ -108,7 +106,7 @@
 
 ### 덱의 고정 순서
 
-hook이 처음, keywords가 마지막, overview는 summary 바로 뒤다. figure `steps`·predict `answerVisual`을 쓸 때는 `kit/api/deck-contracts.md`를 읽는다. 장면의 `mount` 안에서 `LTT.clock`을 쓰면 장면을 떠날 때 자동으로 멈춘다.
+hook이 처음, keywords가 마지막, overview는 summary 바로 뒤다. figure `steps`·predict `answerVisual`을 쓸 때는 `kit/api/deck-contracts.md`를 읽는다.
 
 ## 부품 고르기
 

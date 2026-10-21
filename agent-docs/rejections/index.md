@@ -18,11 +18,6 @@ Summary: v0의 브라우저 진단 페이지(카드 + 4가지 반응)를 기각�
 Related Files: skills/learn-to-tell/SKILL.md, learn-to-tell-PROJECT.md
 Related Symbols: 없음
 ---
-File: 92f0f2a78d6b9dca-situation-card-first-diagnosis.md
-Summary: 상황 카드로 바로 시작하는 진단을 기각했다. 2026-10-13 설계는 상황 카드 단계 없이 개념 사다리만으로 학습 수준을 정한다
-Related Files: skills/learn-to-tell/SKILL.md, learn-to-tell-PROJECT.md
-Related Symbols: 없음
----
 File: fe3a45c84cd7828b-download-result-json.md
 Summary: 결과 JSON을 내려받아 경로를 agent에 전달하는 방식을 기각하고, 경량 로컬 서버가 브라우저 결과를 events.jsonl로 받게 했다
 Related Files: skills/learn-to-tell/server/server.mjs, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/standalone.md

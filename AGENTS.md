@@ -11,7 +11,6 @@ Learn to Tell은 coding agent가 skill로 제공하는 짧은 상호작용 학�
 3. Layout defects that have a deterministic fix (e.g. text too small) are fixed automatically, not reported back to the agent.
 4. Quality is checked by looking at the rendered result (screenshots; for animated figures, the idle or final state) against a checklist the agent wrote before generating.
 5. One agent plans, writes the checklist, and generates. A verifier subagent only checks against that checklist and reports only unmet items. The checklist is shared as a file, not re-emitted as output.
-6. Learning should not interrupt the user's work. Asking the user to switch sessions (e.g. `/fork`) is a UX cost to avoid.
 
 <!-- harness:begin 0.25.0 -->
 # Documentation Guide
