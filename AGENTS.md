@@ -2,7 +2,7 @@
 
 Learn to Tell은 coding agent가 skill로 제공하는 짧은 상호작용 학습 도구다.
 작업 초기에 사용자가 모르는 핵심 결정 변수를 quick survey로 진단하고, 결정 변수를 이해하는 데 필요한 교과서 기본기(대략 교과서 한 챕터 분량)를 시각 자료·시뮬레이션으로 익히게 한 뒤 서술 퀴즈로 확인하고 결과를 원래 작업으로 돌려준다.
-학습은 `/fork`한 세션에서 진행하고, 학습 결과와 지식 map은 `~/.learn-to-tell/`에 남긴다.
+학습 결과와 지식 map은 `~/.learn-to-tell/`에 남긴다.
 
 # Design Principles
 
