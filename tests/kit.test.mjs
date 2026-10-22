@@ -52,7 +52,8 @@ function loadParts() {
 const rules = (spec) => loadKit().lintDeck(spec).map((w) => w.rule);
 // Spec 80a1b2f18f50b1df FR-2/FR-3: the four B rules (term and filler checks) moved from lintDeck to deckIssues.
 const brules = (spec) => Array.from(loadKit().deckIssues(spec), (w) => w.rule);
-const KW = { type: "keywords", terms: [] };
+// Spec 753ff3c539424409 FR-6: the last keywords scene carries a non-empty next, else lint keywords-no-next fires.
+const KW = { type: "keywords", terms: [], next: [{ term: "다음", why: "이유" }] };
 
 test("termsIn reads {{key}} and {{shown|key}} marks in order", () => {
   const { termsIn } = loadKit();

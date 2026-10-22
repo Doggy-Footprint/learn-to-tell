@@ -9,6 +9,13 @@
 
 ## State
 
+- 2026-10-23 갱신: workflow run `753ff3c539424409`(spec `agent-docs/spec-logs/753ff3c539424409-generator-defects-audit-lint-docs.md` v4, complete)로 결함 1, 3, 4, 5, 6, 7, 8(전반), 9, 17, 19를 고쳤다. 브랜치 `test`, HEAD `bd8e3e4` 위 커밋하지 않은 변경:
+  - 코드: `skills/learn-to-tell/kit/ltt.js`, `ltt-deck.js`, `ltt-deck.css`, `server/audit.mjs`.
+  - 지시 rewrite: `SKILL.md`, `kit/API.md`, `kit/api/deck-contracts.md`, `kit/api/rules.md`, `kit/api/internals.md`. run 뒤 사용자 지시로 문서 분량 상한 테스트를 모두 지웠다(`tests/api-docs.test.mjs` API.md 11,500 code points·API.md+부품 문서 18,000·표 행 300, `tests/generator-defects.test.mjs` SKILL.md+API.md 36,139 B). 문서 분량은 사용자가 직접 관리한다. 같은 때 RV-1이 놓친 두 가지를 고쳤다: API.md "부품 찾기"의 "걸리지 않으면 다른 축의 말로 한 번 더 찾고, 그래도 없으면 직접 짠다" 복원, SKILL.md 검증 절의 중복 문장(`check`는 … 두 상태에서 읽어 합친다) 제거.
+  - 테스트: 새 `tests/generator-defects.test.mjs`, `tests/generator-defects-audit.test.mjs`, `tests/term-boundary.fuzz.mjs`(npm test 밖), `tests/fixtures/generator-defects/`; 갱신 `api-docs`, `kit`, `lint-rules`, `scene-types`, `shots` 테스트, `tests/fixtures/check/` 덱 11개(keywords에 `next`), `tests/gallery-audit.baseline.json`(갤러리 18페이지 × 2크기 각 +1, 모두 `keywords-no-next`).
+  - `npm test` 1347/1347 pass, fuzz 20,000건 차이 0, 손 mutation 14건 모두 검출.
+- 아래 첫 State 항목들은 이 handoff를 처음 쓴 시점(HEAD `8ed403f`)의 기록이다. 그때의 갤러리 변경은 `f2ce682`로 커밋되었다.
+
 - 브랜치 `test`, HEAD `8ed403f`. 커밋하지 않은 변경:
   - 옛 갤러리 `site/gallery/{index.html, cache-ttl.html, cognition, finance, gpu, knowledge-graph, linear-algebra, network, pedagogy, philosophy, physics, uiux}`를 `site/gallery/archived/20261022/`로 `git mv`(staged). `catalog.html`, `scenes.html`, `shots/`, `stale/`는 그대로.
   - 새 갤러리(untracked): `site/gallery/index.html`(list-view 표) 과 `site/gallery/{art,backend,cognition,finance,gpu,knowledge-graph,math,ml,network,pedagogy,philosophy,physics,uiux}/*.html` 17개. `measurements/20261022-gallery-v2/build-gallery.mjs`가 `home/lessons/<id>/lesson.html`을 복사하고 인덱스를 쓴다.
@@ -108,6 +115,23 @@
 | 19 | background.md가 없을 때 검증 프롬프트 규칙이 없다. "미검증" 표기 규칙이 모호하다 | llm, retrieval, art, cache (4) | SKILL.md |
 | 20 | 서브에이전트가 kit 안에 self symlink(`kit/kit`)를 만들었다. 디버깅을 위해 임시 서버·headless Chrome을 직접 띄운 수업도 있다(art, ontology) — audit이 원인(콘솔 오류)을 보여 주지 않아서다 | 내가 발견 | 9번을 고치면 원인 제거. symlink 생성 경로는 미확인 |
 
+## 처리 현황 (run `753ff3c539424409`)
+
+| # | 상태 | 바뀐 것 |
+|---|---|---|
+| 1 | 고침 | lint "고침"은 `#ltt-check` `errors`(audit check, 종료 1), "권고"(`unused-term`, `card-monotony`, `no-signature`)는 `advice`(출력 `advice` 줄, 종료 코드 무관). `?shot`에서 `#ltt-expect` 패널 숨김 |
+| 3 | 고침 | 개념 나무 = keywords `next: [{term, why, from?}]`, kit이 덱 제목을 뿌리로 그림. 없으면 lint `keywords-no-next`(고침). 덱 순서 hook → … → summary → overview → keywords |
+| 4 | 고침 | API.md 장면 표에 `choices: [{id, text}]`·`answer: id`. lint `predict-choices`(고침) |
+| 5 | 고침 | `?shot&state=reveal\|step-<k>#n`, `#ltt-check.sceneList`, audit `--shots`가 predict·compare 공개와 steps 2단계 이후를 `sNN-reveal.png`·`sNN-step<k>.png`로 찍고 `<dir>/index.md`(파일·장면·제목·상태)를 씀. 장면+상태 합 30장 상한 |
+| 6 | 고침 | predict·compare(판정 공개형) takeaway는 공개 전 `visibility:hidden`(자리 유지), 공개 뒤 보임. summary는 그대로 모음 |
+| 7 | 고침 | SKILL.md: checklist는 장면을 제목으로 지칭, 순서·제목 변경으로 지칭만 어긋난 곳은 고쳐도 됨(질문·정답은 안 됨) |
+| 8 | 전반 고침 | `LTT.usesTerm`: 영문·숫자는 단어 경계, 한글은 앞이 한글 아님 + 뒤가 끝·비한글·조사/어미 목록. "분산 투자", 『…기술』은 여전히 사용으로 셈. 후반(mount/figure HTML·SVG 안 용어 검사)은 남음 |
+| 9 | 고침 | 로드 중 예외·unhandled rejection → `script-error`(파일:줄), 장면 render/mount 예외 → `scene-error`(그 장면만 빈 본문, 나머지는 계속), `figure` 필드 + type 없음 → lint `figure-no-type`. API.md 불러오기에 d3·ltt.js·ltt-parts.js·ltt-ui.js "필수" |
+| 17 | 고침 | SKILL.md: frontmatter 문자열에 `: `·`#`·따옴표가 있으면 큰따옴표, 템플릿 `definition`은 기본 큰따옴표 |
+| 19 | 고침 | 검증 서브에이전트에 `background.md`는 있을 때만, shot `index.md` 전달. "미검증"은 검증 못 한 항목만, 못 고친 advice는 result.md "남은 권고" |
+| 20 | 원인 일부 제거 | 9번으로 audit이 콘솔 예외를 보여 준다. symlink 생성 경로는 미확인 |
+| 2, 10–16, 18 | 남음 | 이번 run 범위 밖(사용자 결정: 2번은 다음 run) |
+
 ## Failed Attempts
 
 | attempt | failure evidence | cause |
@@ -115,27 +139,30 @@
 | 생성 뒤 `ltt-map rebuild` | ontology-triples·trolley-ethics result.md YAML 파싱 오류 | `definition`·`aliases` 값의 `: `를 따옴표 없이 씀 (verified) |
 | 생성 뒤 `npm test` | kit 빌드 테스트 4개 EINVAL "cannot copy kit to subdirectory of self" | 서브에이전트가 22:24에 만든 `skills/learn-to-tell/kit/kit` self symlink (verified, 삭제로 해결) |
 | 새 갤러리에 옛 vw 검사 적용 | `math/matrix-as-transform.html :has(> svg.hookart) { width: min(440px, 34vw) !important }` | hook `art` 240px 고정을 피하려 수업이 kit 상자를 덮어씀(11·18번) (verified) |
+| run 753ff3c539424409: 지시 rewrite를 base 바이트 예산 안에서 수행 | `npm test`의 gate-gaps 2건 실패(평가 기준 2번 문장 변형, SKILL.md에서 `?check` 언급 삭제), RV-1에서 katex CSS 주석 삭제·남은 advice를 "미검증"에 넣음 발견 | 예산을 맞추려 다른 문장을 줄이다 기존 테스트가 지키는 문장과 "필수/선택" 표시를 건드림 (verified, 복원함). rewrite 때는 기존 테스트가 글자 그대로 지키는 문장 목록을 먼저 확인할 것 |
 
 ## Next Step
 
-1. 1–4번(보고 15·14·14·12개)부터 고친다. 1·2·9번은 audit·check, 3·4·7번은 SKILL.md·API.md·lint, 5·6번은 kit·audit.
-2. 고친 뒤 3–4개 주제로 같은 조건(prompts/common.md, 진단 고정)에서 다시 생성해 audit 회차·검증 회차·미충족이 줄었는지 이 표와 비교한다. 재생성 결과는 새 run 디렉터리(`measurements/<date>-…/`)에 둔다.
-3. 생성 시간 목표(10분대)와 겹치는 항목은 시간 handoff와 함께 본다.
+1. 이번 변경을 커밋할지 사용자에게 묻는다(아직 커밋 안 함).
+2. 남은 2번(레이아웃 결함 탐지: 넘침·하단 내비 가림·겹침·SVG 축소로 작은 글자·카드 제목 넘침·hook `art` 넘침)을 다음 workflow run으로 한다. 지금 rules.md는 "그려진 화면의 레이아웃은 판정하지 않는다"이므로 이 원칙을 바꾸는 결정부터 필요하다. 결정적으로 고칠 수 있는 것은 자동 보정(Design Principle 3).
+3. 이어서 10–16, 18번과 8번 후반.
+4. 고친 뒤 3–4개 주제로 같은 조건(prompts/common.md, 진단 고정)에서 다시 생성해 audit 회차·검증 회차·미충족이 줄었는지 이 표와 비교한다. 재생성 결과는 새 run 디렉터리(`measurements/<date>-…/`)에 둔다.
+5. 생성 시간 목표(10분대)와 겹치는 항목은 시간 handoff와 함께 본다.
 
 ## Open Questions
 
-- 개념 나무를 overview가 겸할지, summary 앞 별도 장면으로 고정할지(3번).
-- predict 공개 상태를 audit이 찍게 할지, 체크리스트에서 공개 그림 항목을 금지할지(5번).
-- 체크리스트 장면 번호 고침을 허용할지, 번호 대신 제목만 쓰게 할지(7번).
-- 새 갤러리와 테스트 정리 변경을 커밋할지(아직 커밋 안 함).
+- (해결) 개념 나무 → keywords `next`(사용자 답 1-A). 공개 상태 → audit이 찍음. 장면 지칭 → 제목, 지칭만 고침 허용(사용자 답 2-A). 새 갤러리 커밋 → `f2ce682`.
+- run 753ff3c539424409 변경을 커밋할지.
+- 2번에서 레이아웃을 audit이 판정하게 할지(지금 원칙과 충돌), 판정 범위(넘침·작은 글자·겹침 중 어디까지).
 
 ## Spec
 
-없음(workflow-approach를 쓰지 않은 시험 생성).
+- 처음 작성 시: 없음(workflow-approach를 쓰지 않은 시험 생성).
+- run `753ff3c539424409`: `agent-docs/spec-logs/753ff3c539424409-generator-defects-audit-lint-docs.md`, v4, status complete. 검증 2/2회(1회 retry → 2회 pass), 보정 묶음 3회.
 
 ## Execution Ledger
 
-- findings: 위 "고쳐야 할 항목" 20개, 모두 미처리(open).
+- findings: 위 "고쳐야 할 항목" 20개. 처리 현황 표대로 10개 고침·1개 일부, 2·10–16·18번 open. run의 finding(F-1..F-6, G-1..G-6, S-1, A-1..A-4)과 처분은 spec 실행 원장에 있다.
 - evidence: 수업 에이전트 17개의 최종 보고(이 세션), `measurements/20261022-gallery-v2/cost.md`, 각 `home/lessons/<id>/result.md`·`events.jsonl`·`shots/`.
-- fuzz·mutation: 해당 없음.
+- fuzz·mutation(run 753ff…): `tests/term-boundary.fuzz.mjs` 20,000건 seed 1 차이 0. 손 mutation M1–M14 모두 의도한 단언이 검출. mutation 도구 없음.
 - 검증 회차: 수업별 표의 "검증 회차" 열. 이 handoff 작업 자체의 verifier는 없음.

@@ -223,7 +223,7 @@ test("VO-6 scroll BVA (C-11, C-12): scroll = h, h+1, 30h, 30h+1 and 2.5h give 1,
     assert.equal(r.scroll, Math.floor(h * c.mult) + c.add, `${c.label}: fixture height (h ${h})`);
     assertShots(r, { kind: "p", n: c.n, dir: dirs[i] });
     assert.equal(r.truncated, c.truncated, c.label);
-    assert.equal(readdirSync(dirs[i]).length, c.n, `${c.label}: files on disk`);
+    assert.equal(readdirSync(dirs[i]).filter((f) => f.endsWith(".png")).length, c.n, `${c.label}: files on disk`);
   });
 });
 
@@ -305,7 +305,8 @@ test("VO-7 C-14: [shot a 0] [shot a 1200] and a repeated [shot a 1200] give exac
   assert.deepEqual(markFiles(r).map((f) => f.replace(/^.*-1440x900-/, "")).sort(), ["a-t0.png", "a-t1200.png"]);
   assertShots(r, { kind: "p", n: 3, dir });
   for (const p of r.shots) assert.ok(isPng(p), p);
-  assert.equal(readdirSync(dir).length, 5);
+  // Spec 753ff3c539424409 FR-13: --shots <dir> also writes <dir>/index.md, so only PNG files are counted.
+  assert.equal(readdirSync(dir).filter((f) => f.endsWith(".png")).length, 5);
 });
 
 test("VO-7 C-15: format, unknown clock, bad time give marks errors, no PNG for them; ms = dur is valid; exit 1", T, async () => {
@@ -486,7 +487,7 @@ test("VO-6 F-5 (FR-10): on a truncated 30h+1 page a valid mark is still shot: 31
   assertShots(r, { kind: "p", n: 30, dir });
   assert.deepEqual(markFiles(r).map((f) => f.replace(/^.*-1440x900-/, "")), ["a-t500.png"]);
   assert.equal(r.shots.length, 31);
-  assert.equal(readdirSync(dir).length, 31);
+  assert.equal(readdirSync(dir).filter((f) => f.endsWith(".png")).length, 31);
 });
 
 test("VO-6 regression guard: p01 and p02 differ in bytes on a page whose viewports differ visibly; mark PNGs a-t0 and a-t1200 differ", T, async () => {

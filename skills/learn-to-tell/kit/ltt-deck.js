@@ -173,6 +173,25 @@
     ".dk-q{display:flex;width:fit-content;max-width:100%;box-sizing:border-box;align-items:flex-start;gap:8px;font:13.5px/1.45 var(--ltt-mono);background:var(--ltt-card-2);border-radius:10px;padding:6px 10px;margin:0 0 8px;cursor:copy;transition:background-color .2s}",
     ".dk-q:hover{background:var(--ltt-accent-soft)}",
     ".dk-q.copied{background:var(--ltt-good-soft)}",
+    ".dk-kw.has-tree .dk-tree{grid-column:1/-1}",
+    ".dk-trow{display:flex;align-items:center}",
+    ".dk-troot{position:relative;flex:none;max-width:24%;background:var(--ltt-dark);color:var(--ltt-on-dark);border-radius:var(--ltt-r-md);padding:10px 14px;font-family:var(--ltt-font-display);font-weight:var(--ltt-display-weight);font-size:clamp(14px,1.2vw,16px);line-height:1.3}",
+    ".dk-troot::after{content:'';position:absolute;left:100%;top:50%;width:28px;border-top:2px solid var(--ltt-line-2)}",
+    ".dk-kw .dk-tree ul{position:relative;display:grid;gap:6px;margin:0;padding:0;list-style:none}",
+    ".dk-kw .dk-trow>ul{flex:1;min-width:0;margin-left:28px}",
+    ".dk-kw .dk-tree ul::before{content:'';position:absolute;left:0;top:.9em;bottom:.9em;border-left:2px solid var(--ltt-line-2)}",
+    ".dk-kw .dk-tree li{position:relative;padding-left:22px;font-size:clamp(14px,1.15vw,16px);line-height:1.4}",
+    ".dk-kw .dk-tree li::before{content:'';position:absolute;left:0;top:.9em;width:16px;height:0;border-top:2px solid var(--ltt-line-2);border-radius:0;background:none}",
+    ".dk-kw .dk-tree li>ul{margin:6px 0 0 4px}",
+    ".dk-kw .dk-tree li>ul::before{top:-4px}",
+    ".dk-tn{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px}",
+    ".dk-tn b{font-size:clamp(15px,1.3vw,17px)}",
+    ".dk-tn span{color:var(--ltt-muted)}",
+    ".dk-hold{visibility:hidden}",
+    "[data-ltt-mobile] .dk-trow{flex-direction:column;align-items:flex-start;gap:10px}",
+    "[data-ltt-mobile] .dk-troot{max-width:none}",
+    "[data-ltt-mobile] .dk-troot::after{display:none}",
+    "[data-ltt-mobile] .dk-kw .dk-trow>ul{margin-left:0}",
     ".dk-mr{display:grid;grid-template-columns:repeat(var(--c,2),1fr);gap:clamp(12px,1.8vw,22px)}",
     ".dk-mr section{background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:var(--ltt-r-lg);padding:clamp(16px,1.8vw,24px);box-shadow:var(--ltt-shadow)}",
     ".dk-mr h3{font-size:13px;font-weight:800;color:var(--ltt-accent);margin:0 0 12px;letter-spacing:.02em}",
@@ -443,6 +462,11 @@
     release: function (a) { a.classList.remove("pending"); }
   };
 
+  // A takeaway that states the answer keeps its space but stays invisible until the viewer has answered.
+  function holdTakeaway(ctx, on) {
+    if (ctx.takeawayEl) ctx.takeawayEl.classList.toggle("dk-hold", on);
+  }
+
   var RENDERS = {
     hook: function (s, body) {
       var w = h("div", "dk-hook");
@@ -525,8 +549,11 @@
         var b = h("button", null, s.revealLabel || "판정 보기"), rs = h("button", "ghost dk-off", "초기화");
         var gate = { btn: b, word: "판정" };
         ctx.gate = gate;
+        ctx.holdTakeaway = true;
+        ctx.showState = function (st) { if (st !== "reveal" || b.disabled) return false; b.click(); return true; };
         b.onclick = function () {
           ctx.gate = null;
+          holdTakeaway(ctx, false);
           w.classList.add("shown"); b.disabled = true; rs.classList.remove("dk-off");
           s.items.forEach(function (it, k) { if (it.onReveal) it.onReveal(cells[k].querySelector(".vis")); });
           LTT.linkTerms(w, ctx.index);
@@ -536,6 +563,7 @@
         rs.onclick = function () {
           w.classList.remove("shown"); b.disabled = false; rs.classList.add("dk-off");
           ctx.gate = gate;
+          holdTakeaway(ctx, true);
           s.items.forEach(function (it, k) { if (it.onReset) it.onReset(cells[k].querySelector(".vis")); });
           ctx.fit();
           LTT.record("compare-reset", { scene: s.title });
@@ -573,6 +601,12 @@
           var g = capStack.appendChild(h("p", "ltt-caption ghost", (x.caption || "").replace(/\{\{([^}|]+)(\|[^}]*)?\}\}/g, "$1")));
           g.setAttribute("aria-hidden", "true");
         });
+        ctx.showState = function (st) {
+          var m = /^step-(\d+)$/.exec(st), k = m ? +m[1] : 0;
+          if (k < 2 || k > s.steps.length) return false;
+          sp.go(k - 1, 1);
+          return true;
+        };
         ctl.__lttPlace = { scope: pic, keepFaded: true };
         ctx.place = fp.place;
         ctx.unplace = fp.unplace;
@@ -635,6 +669,14 @@
       var faded = rest === "hide" ? ".ltt-choices button:not(.right):not([aria-pressed=true])" : null;
       ans.__lttPlace = { scope: ctx.el.firstChild, skip: faded, keepFaded: !faded };
       var chosen = null;
+      ctx.holdTakeaway = true;
+      ctx.showState = function (st) {
+        var pick = st === "reveal" && !w.classList.contains("done") ? [].filter.call(box.children, function (b) { return b.dataset.choice === String(s.answer); })[0] : null;
+        if (!pick) return false;
+        pick.click();
+        lock.click();
+        return true;
+      };
       function draw(v) {
         if (typeof s.answerVisual === "function") { av.replaceChildren(); s.answerVisual(av, v); }
         else if (s.answerVisual) av.innerHTML = s.answerVisual;
@@ -651,6 +693,7 @@
       var pr = LTT.predict({ question: s.question || s.title, choices: box, button: lock, answer: s.answer, show: [ans],
         onReset: function () {
           w.classList.remove("done");
+          holdTakeaway(ctx, true);
           ctx.gate = gate;
           ctx.back = null;
           av.replaceChildren();
@@ -659,6 +702,7 @@
         },
         reveal: function (v) {
           ctx.gate = null;
+          holdTakeaway(ctx, false);
           ctx.back = pr.reset;
           w.classList.add("done");
           why.tabIndex = -1;
@@ -698,8 +742,8 @@
       body.appendChild(w);
       return { enter: function () { rise(w.children); } };
     },
-    keywords: function (s, body) {
-      var w = h("div", "dk-kw");
+    keywords: function (s, body, ctx) {
+      var w = h("div", "dk-kw" + (nextItems(s).length ? " has-tree" : ""));
       var a = h("section", "dark"), b = h("section"), c = h("section");
       a.appendChild(h("h3", null, "이 이름으로 기억"));
       (s.terms || []).forEach(function (t) { a.appendChild(h("div", "dk-term", t.ko + (t.en ? "<small>" + t.en + "</small>" : ""))); });
@@ -725,6 +769,7 @@
         c.appendChild(k);
       });
       w.append(a, b, c);
+      if (nextItems(s).length) w.appendChild(nextTree(s, ctx));
       body.appendChild(w);
       return { enter: function () { rise(w.children); } };
     },
@@ -746,6 +791,46 @@
       return { enter: function () { rise(w.children); } };
     }
   };
+
+  function nextItems(s) {
+    return (Array.isArray(s.next) ? s.next : []).filter(function (n) { return n && typeof n === "object" && n.term != null; });
+  }
+
+  // The deck title is the root; an item whose `from` names no other item (or loops back on itself) hangs from the root.
+  function nextTree(s, ctx) {
+    var items = nextItems(s), byTerm = {}, parent = items.map(function () { return -1; });
+    items.forEach(function (n, i) { if (!(String(n.term) in byTerm)) byTerm[String(n.term)] = i; });
+    items.forEach(function (n, i) {
+      var at = n.from != null && String(n.from) in byTerm ? byTerm[String(n.from)] : -1;
+      parent[i] = at === i ? -1 : at;
+    });
+    items.forEach(function (n, i) {
+      for (var up = parent[i], hops = 0; up >= 0; up = parent[up]) {
+        if (up === i) { parent[i] = -1; break; }
+        if (++hops > items.length) break;
+      }
+    });
+    function list(at) {
+      var ul = h("ul");
+      items.forEach(function (n, i) {
+        if (parent[i] !== at) return;
+        var li = ul.appendChild(h("li"));
+        var node = li.appendChild(h("div", "dk-tn"));
+        node.append(h("b", null, ""), h("span", null, ""));
+        node.firstChild.innerHTML = String(n.term);
+        node.lastChild.innerHTML = n.why == null ? "" : String(n.why);
+        if (items.some(function (_, j) { return parent[j] === i; })) li.appendChild(list(i));
+      });
+      return ul;
+    }
+    var sec = h("section", "dk-tree");
+    sec.appendChild(h("h3", null, "다음에 배울 개념"));
+    var row = sec.appendChild(h("div", "dk-trow"));
+    var root = row.appendChild(h("div", "dk-troot"));
+    root.textContent = ctx && ctx.deckTitle ? ctx.deckTitle : "";
+    row.appendChild(list(-1));
+    return sec;
+  }
 
   function lessonId() {
     try {
@@ -932,7 +1017,8 @@
     spec.scenes.forEach(function (s) { if (s.type === "terms") s.terms.forEach(function (t) { if (!defs[t.key]) defs[t.key] = t.plain; }); });
     LTT.setGlossary(defs, LTT.termIndex(spec));
     var lint = LTT.lintDeck(spec);
-    lint.forEach(function (w) { LTT.warn((w.scene ? "장면 " + w.scene + ": " : "덱: ") + w.msg); });
+    // Fix-grade findings reach the panel through the check; only advice has no other row.
+    lint.filter(function (w) { return LTT.isAdvice(w.rule); }).forEach(function (w) { LTT.warn((w.scene ? "장면 " + w.scene + ": " : "덱: ") + w.msg); });
     if (lint.length) LTT.record("lint", lint);
 
     var root_ = h("div", "dk");
@@ -949,7 +1035,7 @@
     document.title = spec.title;
     (spec.mountIn ? document.querySelector(spec.mountIn) : document.body).appendChild(root_);
 
-    var scenes = spec.scenes, cur = -1, mounted = [];
+    var scenes = spec.scenes, cur = -1, mounted = [], sceneErrors = [];
     scenes.forEach(function (s, i) {
       var d = h("i");
       d.title = s.title || "";
@@ -958,8 +1044,14 @@
       stage.appendChild(h("section", "dk-scene"));
     });
 
+    function sceneFail(i, e) {
+      var msg = e && e.message ? e.message : String(e), where = "장면 " + (i + 1);
+      if (!sceneErrors.some(function (x) { return x.where === where && x.msg === msg; })) sceneErrors.push({ where: where, rule: "scene-error", msg: msg });
+      console.warn("[ltt] " + where + "을 그리다 예외가 나 빈 본문으로 둔다:", e);
+    }
+
     function mount(i) {
-      var s = scenes[i], el = stage.children[i], ctx = { el: el, scene: s, index: i, scenes: scenes, predictRest: spec.predictRest };
+      var s = scenes[i], el = stage.children[i], ctx = { el: el, scene: s, index: i, scenes: scenes, predictRest: spec.predictRest, deckTitle: spec.title };
       var inner = el.appendChild(h("div", "dk-in"));
       ctx.refit = function () { return fit(el, inner, ctx.zmax); };
       ctx.float = function (panel, host, skip, keepFaded) { return floatPanel(el, inner, panel, host, skip, keepFaded, ctx.zmax); };
@@ -981,29 +1073,40 @@
       var rail = split ? main.appendChild(h("aside", "dk-rail")) : full ? inner.appendChild(h("div", "dk-capbar")) : null;
       if (!split && !full && s.narration) inner.insertBefore(h("div", "dk-lead"), main).appendChild(LTT.narration(s.narration));
 
-      var entry = typeof s.type === "string" ? SCENE_TYPES[s.type] : undefined;
-      var r = entry && entry.render ? entry.render(s, body, ctx) : {};
-      var custom = s.mount ? s.mount(body, ctx) : null;
-      var anno = null;
-      if (rail && s.narration) rail.appendChild(LTT.narration(s.narration));
-      if (s.points) {
-        var target = s.pointsOn ? body.querySelector(s.pointsOn) :
-          (sceneMeta(s.type, "pointsOnMock") && body.querySelector(".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code")) || body.querySelector("[data-annotate]") || body.firstElementChild;
-        anno = LTT.annotate(target, s.points, { tone: s.pointsTone });
-        if (rail) { if (s.narration && !full) rail.appendChild(h("hr")); rail.appendChild(anno.list); }
-        else inner.insertBefore(anno.list, main.nextSibling);
+      var entry = typeof s.type === "string" ? SCENE_TYPES[s.type] : undefined, r = null, custom = null, anno = null;
+      try {
+        r = entry && entry.render ? entry.render(s, body, ctx) : {};
+        custom = s.mount ? s.mount(body, ctx) : null;
+        if (rail && s.narration) rail.appendChild(LTT.narration(s.narration));
+        if (s.points) {
+          var target = s.pointsOn ? body.querySelector(s.pointsOn) :
+            (sceneMeta(s.type, "pointsOnMock") && body.querySelector(".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code")) || body.querySelector("[data-annotate]") || body.firstElementChild;
+          anno = LTT.annotate(target, s.points, { tone: s.pointsTone });
+          if (rail) { if (s.narration && !full) rail.appendChild(h("hr")); rail.appendChild(anno.list); }
+          else inner.insertBefore(anno.list, main.nextSibling);
+        }
+        if (s.aside) fill((rail || inner).appendChild(h("div")), s.aside, ctx);
+        if (s.tex) {
+          var m = h("details", "dk-math");
+          m.append(h("summary", null, "수식으로 보기"), h("div"));
+          m.lastChild.dataset.tex = s.tex;
+          m.lastChild.setAttribute("data-display", "");
+          (rail || inner).appendChild(m);
+          LTT.math(m);
+        }
+        if (s.basis) (rail || inner).appendChild(h("p", "ltt-basis", s.basis));
+      } catch (e) {
+        // One scene's exception must not stop the others from mounting (their clocks and sweeps live in their own mount).
+        sceneFail(i, e);
+        body.replaceChildren();
+        r = custom = anno = null;
+        ctx.place = ctx.unplace = ctx.gate = ctx.back = ctx.showState = null;
+        ctx.holdTakeaway = false;
       }
-      if (s.aside) fill((rail || inner).appendChild(h("div")), s.aside, ctx);
-      if (s.tex) {
-        var m = h("details", "dk-math");
-        m.append(h("summary", null, "수식으로 보기"), h("div"));
-        m.lastChild.dataset.tex = s.tex;
-        m.lastChild.setAttribute("data-display", "");
-        (rail || inner).appendChild(m);
-        LTT.math(m);
+      if (s.takeaway) {
+        ctx.takeawayEl = inner.appendChild(LTT.takeaway(s.takeaway, s.sources));
+        if (ctx.holdTakeaway) ctx.takeawayEl.classList.add("dk-hold");
       }
-      if (s.basis) (rail || inner).appendChild(h("p", "ltt-basis", s.basis));
-      if (s.takeaway) inner.appendChild(LTT.takeaway(s.takeaway, s.sources));
       LTT.linkTerms(el, i);
       ctx.fit = function () {
         if (LTT.mobile()) { if (ctx.unplace) ctx.unplace(); mobileFit(el, inner); }
@@ -1039,7 +1142,7 @@
       next.disabled = i === scenes.length - 1;
       try { history.replaceState(null, "", "#" + (i + 1)); } catch (e) { /* file:// or sandboxed */ }
       LTT.record("scene", { index: i, title: scenes[i].title || scenes[i].type });
-      mounted[i].enter();
+      try { mounted[i].enter(); } catch (e) { sceneFail(i, e); }
       mounted[i].fit();
     }
 
@@ -1134,16 +1237,39 @@
     function mountAll() {
       scenes.forEach(function (s, i) {
         if (!mounted[i]) mount(i);
-        mounted[i].fit();
+        try { mounted[i].fit(); } catch (e) { sceneFail(i, e); }
       });
     }
     // map-related is appended after load from other lessons' titles, so it is not part of what the author wrote.
+    function written() { return scenes.filter(function (s) { return s.type !== "map-related"; }); }
+    function lintFindings() {
+      return LTT.lintDeck({ theme: spec.theme, glossary: spec.glossary, scenes: written() }).map(function (w) {
+        return { where: w.scene ? "장면 " + w.scene : "덱", rule: w.rule, msg: w.msg };
+      });
+    }
+    function stateList(s) {
+      if (s.type === "predict" || (s.type === "compare" && s.reveal !== false)) return ["reveal"];
+      var m = s.type === "figure" && Array.isArray(s.steps) ? s.steps.length : 0, out = [];
+      for (var k = 2; k <= m; k++) out.push("step-" + k);
+      return out;
+    }
     LTT.checkSource({
       issues: function (known) {
-        return LTT.deckIssues({ glossary: spec.glossary, scenes: scenes.filter(function (s) { return s.type !== "map-related"; }) }, known);
+        return LTT.deckIssues({ glossary: spec.glossary, scenes: written() }, known)
+          .concat(lintFindings().filter(function (w) { return !LTT.isAdvice(w.rule); }), sceneErrors);
       },
+      advice: function () { return lintFindings().filter(function (w) { return LTT.isAdvice(w.rule); }); },
       prepare: function () { if (/[?&](check|shot)\b/.test(location.search)) mountAll(); },
-      scenes: function () { return scenes.filter(function (s) { return s.type !== "map-related"; }).length; },
+      scenes: function () { return written().length; },
+      sceneList: function () {
+        return written().map(function (s, i) {
+          return { n: i + 1, title: String(s.title || s.text || "").replace(/<[^>]*>/g, "").trim(), states: stateList(s) };
+        });
+      },
+      state: function (st) {
+        var m = mounted[cur];
+        return !!(m && m.ctx.showState && m.ctx.showState(st));
+      },
       reveal: function (el) {
         var sec = el.closest(".dk-scene"), i = sec ? [].indexOf.call(stage.children, sec) : -1;
         if (i >= 0) go(i);

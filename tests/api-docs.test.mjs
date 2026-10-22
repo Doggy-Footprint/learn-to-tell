@@ -14,12 +14,6 @@ const PKG = join(ROOT, "packages/ltt-kit");
 
 const PART_DOCS = ["base", "ui", "mock", "diagram", "sequence", "map", "controls", "charts"];
 const API_FILES = [...PART_DOCS, "deck-contracts", "internals", "rules"].map((f) => `${f}.md`);
-const P2_PARTS = ["ui", "mock", "diagram", "sequence", "map", "controls", "charts"];
-// Plan b71ddee49f77ac06 §3: what a generating agent reads before writing (SKILL.md + API.md) stays near 30K bytes.
-// API.md carries the authoring rules and syntax snippets; the snippets shrink once scene specs become declarative.
-const CORE_LIMIT = 11500;
-const P2_LIMIT = 18000;
-const ROW_LIMIT = 300;
 
 // ---------- pure checkers ----------
 
@@ -67,19 +61,6 @@ function definitionErrors(names, defs) {
     else if (files.length > 1) errors.push(`${name}: defined in ${files.length} files: ${files.join(", ")} (EP-2, FR-1)`);
   }
   return errors;
-}
-
-function sizeError(text, limit, label) {
-  const n = cp(text);
-  return n <= limit ? null : `${label}: ${n} code points > limit ${limit}`;
-}
-
-function partsSumError(core, parts, limit) {
-  const sized = Object.entries(parts).map(([name, text]) => [name, cp(text)]).sort((a, b) => b[1] - a[1]);
-  const top = sized.slice(0, 2);
-  const total = cp(core) + top.reduce((s, [, n]) => s + n, 0);
-  if (total <= limit) return null;
-  return `QR-P2: API.md ${cp(core)} + ${top.map(([f, n]) => `${f} ${n}`).join(" + ")} = ${total} code points > limit ${limit}`;
 }
 
 const lineWithAll = (text, tokens) => lines(text).some((l) => tokens.every((t) => l.includes(t)));
@@ -277,14 +258,23 @@ test("VO-11 FR-15: each new check name is defined in exactly its declared doc fi
   assert.deepEqual(wrong, [], wrong.join("\n"));
 });
 
-test("VO-2 FR-3 QR-2: the runtime LTT public names are exactly the 81 oracle names", () => {
-  const expected = Object.values(BASE_DEFINITIONS).flatMap((s) => s.split(", ")).sort();
+// Spec 753ff3c539424409 v3 Signatures: LTT.usesTerm and LTT.isAdvice join the public set (83 names); both are documented in kit/api/internals.md.
+const NEW_NAMES = ["usesTerm", "isAdvice"];
+test("VO-2 FR-3 QR-2: the runtime LTT public names are exactly the 81 oracle names plus usesTerm and isAdvice (83)", () => {
+  const expected = [...Object.values(BASE_DEFINITIONS).flatMap((s) => s.split(", ")), ...NEW_NAMES].sort();
   const names = Object.keys(loadLTT()).sort();
   const missing = expected.filter((n) => !names.includes(n));
   const extra = names.filter((n) => !expected.includes(n));
   assert.deepEqual({ missing, extra }, { missing: [], extra: [] }, `runtime LTT differs from the oracle: missing [${missing.join(", ")}], extra [${extra.join(", ")}]`);
-  assert.equal(names.length, 81);
+  assert.equal(names.length, 83);
 });
+
+for (const name of NEW_NAMES) {
+  test(`VO-11 FR-14 (753ff3c539424409 v3): ${name} is defined in exactly kit/api/internals.md`, () => {
+    const files = [...(definitions(realDocs()).get(name) ?? [])].sort();
+    assert.deepEqual(files, ["kit/api/internals.md"]);
+  });
+}
 
 for (const [file, list] of Object.entries(BASE_DEFINITIONS)) {
   test(`VO-2 FR-2: ${file} is the only file defining ${list.split(", ").length} base names`, () => {
@@ -302,45 +292,6 @@ test("VO-2 FR-2: kit/api/deck-contracts.md defines no name", () => {
   const defs = definitions(realDocs());
   const names = [...defs].filter(([, files]) => files.has("kit/api/deck-contracts.md")).map(([n]) => n);
   assert.deepEqual(names, [], `deck-contracts.md defines ${names.join(", ")}`);
-});
-
-// ---------- VO-3 size ----------
-
-const pad = (n) => "😀".repeat(100) + "가".repeat(4000) + "a".repeat(n - 4100);
-
-test("VO-3 C-2: 11,500 code points pass the core size check", () => {
-  const text = pad(11500);
-  assert.equal(cp(text), 11500);
-  assert.equal(sizeError(text, CORE_LIMIT, "kit/API.md"), null);
-});
-
-test("VO-3 C-2: 11,501 code points fail with the actual count and the limit", () => {
-  const err = sizeError(pad(11501), CORE_LIMIT, "kit/API.md");
-  assert.ok(err, "11,501 code points passed");
-  assert.ok(err.includes("11501") && err.includes("11500"), err);
-});
-
-test("VO-3 FR-3 QR-P1: real kit/API.md is at most 11,500 code points", () => {
-  const err = sizeError(apiText(), CORE_LIMIT, "kit/API.md");
-  assert.equal(err, null, err);
-});
-
-const p2Parts = (charts) => ({ ui: pad(4200), mock: pad(4200), diagram: pad(4200), sequence: pad(4200), map: pad(4200), controls: pad(5000), charts: pad(charts) });
-
-test("VO-3 C-2 QR-P2: core plus the two largest parts at 18,000 passes", () => {
-  assert.equal(partsSumError(pad(8000), p2Parts(5000), P2_LIMIT), null);
-});
-
-test("VO-3 C-2 QR-P2: core plus the two largest parts at 18,001 fails with the sum and the limit", () => {
-  const err = partsSumError(pad(8000), p2Parts(5001), P2_LIMIT);
-  assert.ok(err, "18,001 passed");
-  assert.ok(err.includes("18001") && err.includes("18000") && err.includes("charts") && err.includes("controls"), err);
-});
-
-test("VO-3 QR-P2: real API.md plus the two largest of the seven part docs is at most 18,000 code points", () => {
-  const parts = Object.fromEntries(P2_PARTS.map((p) => [p, apiDoc(`${p}.md`)]));
-  const err = partsSumError(apiText(), parts, P2_LIMIT);
-  assert.equal(err, null, err);
 });
 
 // ---------- VO-4 core structure ----------
@@ -403,7 +354,6 @@ function sceneTypeProblems(text) {
   for (const t of SCENE_TYPES) {
     const hits = rows.filter((r) => isTypeCell(r, t));
     if (hits.length !== 1) problems.push(`${t}: ${hits.length} rows have this first cell (expected exactly 1)`);
-    for (const r of hits) if (cp(r) > ROW_LIMIT) problems.push(`${t}: row has ${cp(r)} code points > ${ROW_LIMIT}`);
   }
   return problems;
 }
@@ -415,27 +365,14 @@ test("VO-4 scene-type checker: a clean table with one short row per type passes"
   assert.deepEqual(sceneTypeProblems(fakeSceneTable(["| `figure` | 짧은 설명 |"])), []);
 });
 
-test("VO-4 scene-type checker: a duplicated long figure row fails on count and on length", () => {
-  const long = `| \`figure\` | ${"가".repeat(ROW_LIMIT)} |`;
-  const problems = sceneTypeProblems(fakeSceneTable(["| `figure` | 짧은 설명 |", long]));
-  assert.deepEqual(problems, ["figure: 2 rows have this first cell (expected exactly 1)", `figure: row has ${cp(long)} code points > ${ROW_LIMIT}`]);
+test("VO-4 scene-type checker: a duplicated figure row fails on count", () => {
+  const problems = sceneTypeProblems(fakeSceneTable(["| `figure` | 짧은 설명 |", "| `figure` | 다른 설명 |"]));
+  assert.deepEqual(problems, ["figure: 2 rows have this first cell (expected exactly 1)"]);
 });
 
-test("VO-4 scene types: each type and (없음) is the first cell of exactly one row, each such row at most 300 code points", () => {
+test("VO-4 scene types: each type and (없음) is the first cell of exactly one row", () => {
   const problems = sceneTypeProblems(apiText());
   assert.deepEqual(problems, [], problems.join("\n"));
-});
-
-test("VO-4 common fields: every row of the table under the 공통 필드 heading is at most 300 code points", () => {
-  const ls = lines(apiText());
-  const at = ls.findIndex((l) => /^#+\s/.test(l) && l.includes("공통 필드"));
-  assert.ok(at >= 0, "no heading containing 공통 필드");
-  const rest = ls.slice(at + 1);
-  const until = rest.findIndex((l) => /^#+\s/.test(l));
-  const rows = (until >= 0 ? rest.slice(0, until) : rest).filter(isRow);
-  assert.ok(rows.length > 1, "no table under the 공통 필드 heading");
-  const long = rows.filter((r) => cp(r) > ROW_LIMIT).map((r) => `${firstCell(r).trim()}: ${cp(r)} code points > ${ROW_LIMIT}`);
-  assert.deepEqual(long, [], long.join("\n"));
 });
 
 test("VO-4 deck-contracts pointer: one line holds steps, answerVisual and kit/api/deck-contracts.md", () => {

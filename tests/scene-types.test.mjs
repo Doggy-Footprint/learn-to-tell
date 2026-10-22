@@ -145,7 +145,8 @@ test("VO-2 FR-3: LTT.deckTypes is the same object as LTT.sceneTypes", () => {
 test("VO-2 FR-11 C-3 (74cb05d7da21907e FR-3): public names are the 73 base names (auditScene out, clock in) plus sceneTypes, placement and the 6 check names", () => {
   assert.equal(new Set(BASE_NAMES).size, 73);
   const checkNames = ["check", "recall", "termIssues", "goalIssues", "deckIssues", "checkSource"];
-  assert.deepEqual(Object.keys(loadDeck()).sort(), [...BASE_NAMES, "sceneTypes", "placement", ...checkNames].sort());
+  // Spec 753ff3c539424409 v3 Signatures: plus usesTerm and isAdvice.
+  assert.deepEqual(Object.keys(loadDeck()).sort(), [...BASE_NAMES, "sceneTypes", "placement", ...checkNames, "usesTerm", "isAdvice"].sort());
 });
 
 // ---------- VO-3 load errors (error guessing) ----------
@@ -201,7 +202,8 @@ test("VO-3 EG-2 E-2: an ltt.js without LTT.sceneTypes makes ltt-deck.js throw th
 
 // ---------- VO-7 runtime-added partial entry (C-15) ----------
 
-const KW = { type: "keywords", terms: [] };
+// Spec 753ff3c539424409 FR-6: the last keywords scene carries a non-empty next, else lint keywords-no-next fires.
+const KW = { type: "keywords", terms: [], next: [{ term: "다음", why: "이유" }] };
 const FIG = { type: "figure", title: "t", caption: "c", figure: "그림" };
 const ST = { type: "statement", title: "s" };
 const pairs = (LTT, spec) => Array.from(LTT.lintDeck(spec), (w) => [w.scene, w.rule]);
@@ -270,16 +272,18 @@ function withCopyOf(type) {
 }
 
 const MR2_LINT_TYPES = ["hook", "explain", "terms", "compare", "figure", "statement", "contrast", "predict", "map-related"];
-const mr2Deck = (x, form) => ({
+// Spec 753ff3c539424409 FR-4/FR-6: a predict scene carries valid choices and answer (so predict-choices stays quiet for it) and
+// the keywords scene carries next (keywords-no-next). The copy keeps the base type's other lint findings by design.
+const mr2Deck = (x, form, base = x) => ({
   theme: "paper",
-  scenes: [{ type: "figure", title: "t", caption: "c", figure: "그림" }, ...Array.from({ length: 3 }, () => (form ? { type: x, form } : { type: x })), { type: "keywords", terms: [] }],
+  scenes: [{ type: "figure", title: "t", caption: "c", figure: "그림" }, ...Array.from({ length: 3 }, () => ({ type: x, ...(form ? { form } : {}), ...(base === "predict" ? { choices: [{ id: "a", text: "가" }, { id: "b", text: "나" }], answer: "a" } : {}) })), { type: "keywords", terms: [], next: [{ term: "다음", why: "이유" }] }],
 });
 
 for (const type of MR2_LINT_TYPES) {
   for (const form of [undefined, "table"]) {
     test(`VO-7 C-19 MR-2 lint ${type}${form ? " form table" : " no form"}: three copy scenes lint like three ${type} scenes`, () => {
       const LTT = withCopyOf(type);
-      assert.equal(JSON.stringify(LTT.lintDeck(mr2Deck("copy", form))), JSON.stringify(LTT.lintDeck(mr2Deck(type, form))));
+      assert.equal(JSON.stringify(LTT.lintDeck(mr2Deck("copy", form, type))), JSON.stringify(LTT.lintDeck(mr2Deck(type, form, type))));
     });
   }
 }

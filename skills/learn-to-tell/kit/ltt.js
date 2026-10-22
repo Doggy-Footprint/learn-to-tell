@@ -584,6 +584,27 @@
 
   function stripMarks(text) { return text.replace(TERM, ""); }
 
+  // Particles and endings that may follow a Hangul term ("분산이", "상관한다"); any other syllable means a longer word ("상관없이").
+  var JOSA = ["은", "는", "이", "가", "을", "를", "의", "에", "와", "과", "도", "로", "으로", "에서", "에게", "만", "까지", "부터", "보다", "처럼",
+    "이다", "이고", "이며", "이나", "이란", "이라", "라", "란", "나", "랑", "하", "한", "할", "해", "했", "된", "되", "될", "적", "들"];
+  function isAlnum(c) { return c !== "" && /[A-Za-z0-9]/.test(c); }
+  function isHangul(c) { var n = c === "" ? 0 : c.charCodeAt(0); return n >= 0xAC00 && n <= 0xD7A3; }
+  // Substring search wrongly finds "pt" in "perceptual" and "상관" in "상관없이", so a hit counts only on a word edge.
+  function usesTerm(text, key) {
+    text = String(text); key = String(key);
+    if (!key) return false;
+    var first = key.charAt(0), last = key.charAt(key.length - 1);
+    for (var at = text.indexOf(key); at >= 0; at = text.indexOf(key, at + 1)) {
+      var before = at > 0 ? text.charAt(at - 1) : "", rest = text.slice(at + key.length), after = rest.charAt(0);
+      if (isAlnum(first) && isAlnum(before)) continue;
+      if (isHangul(first) && isHangul(before)) continue;
+      if (isAlnum(last) && isAlnum(after)) continue;
+      if (isHangul(last) && isHangul(after) && !JOSA.some(function (j) { return rest.indexOf(j) === 0; })) continue;
+      return true;
+    }
+    return false;
+  }
+
   // First scene that marks each glossary term; a `terms` scene defines every term it lists.
   function termIndex(spec) {
     var first = {};
@@ -669,7 +690,7 @@
       var plain = stripMarks(u.text);
       add(u, keys.filter(function (key) {
         var at = first[key];
-        return plain.indexOf(key) >= 0 && (at == null || at > i);
+        return usesTerm(plain, key) && (at == null || at > i);
       }).map(function (key) { return ["used-before-defined", "'" + key + "'가 풀이(첫 {{" + key + "}})보다 먼저 쓰였다"]; }));
       if (hooks && hooks.afterUsed) add(u, hooks.afterUsed(i, u, first));
       var filler = FILLER.exec(plain);
@@ -739,6 +760,18 @@
     { id: "overview-no-visual", scene: function (s, i) {
       return s.type === "overview" && !s.figure ? [[i, "overview-no-visual", "overview에 한 장으로 정리한 그림(figure)이 없다"]] : [];
     } },
+    { id: "predict-choices", scene: function (s, i) {
+      if (s.type !== "predict") return [];
+      var ch = s.choices, ok = Array.isArray(ch) && ch.length >= 2 && ch.every(function (c) {
+        return c && typeof c === "object" && typeof c.id === "string" && c.id !== "" && typeof c.text === "string" && c.text !== "";
+      });
+      if (ok && (typeof s.answer === "string" || typeof s.answer === "number") && ch.some(function (c) { return c.id === String(s.answer); })) return [];
+      return [[i, "predict-choices", "predict의 choices는 [{id, text}] 두 개 이상이고 answer는 그 중 한 id여야 한다 (문자열 배열·label 필드는 빈 버튼이 된다)"]];
+    } },
+    { id: "figure-no-type", scene: function (s, i) {
+      return s.figure != null && s.type !== "figure" && s.type !== "overview" ?
+        [[i, "figure-no-type", "figure가 있는데 type이 figure·overview가 아니라 그려지지 않는다 (type: \"figure\"를 쓴다)"]] : [];
+    } },
     { id: "no-reading-guide", scene: function (s, i) {
       var hasVisual = sceneMeta(s.type, "needsReadingGuide") || (!s.type && s.mount);
       return hasVisual && !s.narration && !s.points && !s.sub && !s.caption && !(s.before && s.before.points) ?
@@ -769,6 +802,12 @@
       var last = c.scenes[c.scenes.length - 1];
       return !last || last.type !== "keywords" ? [[-1, "keywords-last", "마지막 장면이 keywords가 아니다"]] : [];
     } },
+    { id: "keywords-no-next", deck: function (c) {
+      var at = -1;
+      c.scenes.forEach(function (s, i) { if (s.type === "keywords") at = i; });
+      var next = at >= 0 ? c.scenes[at].next : null;
+      return at >= 0 && !(Array.isArray(next) && next.length) ? [[at, "keywords-no-next", "keywords에 다음에 배울 개념 나무(next: [{term, why, from?}])가 없다"]] : [];
+    } },
     { id: "overview-missing", deck: function (c) {
       var types = c.scenes.map(function (s) { return s.type; });
       return types.lastIndexOf("summary") >= 0 && types.indexOf("overview") < 0 ? [[-1, "overview-missing", "summary 뒤에 한 장 정리(overview)가 없다"]] : [];
@@ -782,6 +821,10 @@
         .map(function (k) { return [-1, "unused-term", "glossary의 '" + k + "'가 어디에도 표시되지 않았다"]; });
     } }
   ];
+
+  // Rules in this set only advise: the check reports them as `advice` and they never count as errors.
+  var ADVICE_RULES = { "unused-term": 1, "card-monotony": 1, "no-signature": 1 };
+  function isAdvice(rule) { return has.call(ADVICE_RULES, rule); }
 
   // Static checks for self-study readiness; returns [{scene, rule, msg}] (scene is 1-based, 0 for the deck).
   function lintDeck(spec) {
@@ -998,6 +1041,16 @@
 
   /* ---------- check ---------- */
 
+  // Collected from load so an error thrown by a later script (a missing d3 breaks ltt-parts.js) still reaches the check.
+  var scriptErrors = [];
+  function fileLine(url, line) {
+    var name = String(url || "").split(/[?#]/)[0].split("/").pop();
+    return name ? " (" + name + (line ? ":" + line : "") + ")" : "";
+  }
+  function noteScriptError(msg) {
+    if (!scriptErrors.some(function (e) { return e.msg === msg; })) scriptErrors.push({ where: "페이지", rule: "script-error", msg: msg });
+  }
+
   var checkSrc = null;
   function checkSource(src) { checkSrc = src || null; }
 
@@ -1038,11 +1091,14 @@
   }
 
   function runCheck(auto) {
-    var errors, units = null;
+    var errors, advice = [], units = null;
     try {
       readMeta();
       if (checkSrc && checkSrc.prepare) checkSrc.prepare();
-      if (checkSrc) errors = checkSrc.issues(glossaryState.defs).slice();
+      if (checkSrc) {
+        errors = checkSrc.issues(glossaryState.defs).slice();
+        if (checkSrc.advice) advice = checkSrc.advice();
+      }
       else { units = pageUnits(); errors = termIssues(units, glossaryState.defs); }
       var goals = [].map.call(document.querySelectorAll(".ltt-goal[data-samples]"), function (g) {
         return {
@@ -1056,6 +1112,7 @@
     } catch (e) {
       errors = [{ where: "페이지", rule: "check-failed", msg: e && e.message ? e.message : String(e) }];
     }
+    errors = errors.concat(scriptErrors);
     var seen = {}, dups = [];
     clocks.forEach(function (c) {
       if (!c.id) return;
@@ -1065,9 +1122,10 @@
     dups.forEach(function (d) {
       errors.push({ where: "페이지", rule: "clock-duplicate-id", msg: "LTT.clock id '" + d + "'가 둘 이상이다. id는 페이지에서 하나씩만 쓴다" });
     });
-    var result = { source: checkSrc ? "deck" : "page", viewport: [root.innerWidth, root.innerHeight], errors: errors };
+    var result = { source: checkSrc ? "deck" : "page", viewport: [root.innerWidth, root.innerHeight], errors: errors, advice: advice };
     if (typeof document !== "undefined") result.scroll = document.documentElement.scrollHeight;
     if (checkSrc && checkSrc.scenes) result.scenes = checkSrc.scenes();
+    if (checkSrc && checkSrc.sceneList) result.sceneList = checkSrc.sceneList();
     result.clocks = clocks.filter(function (c) { return c.id; }).map(function (c) { return { id: c.id, dur: c.dur }; });
     if (typeof document !== "undefined") publish(result);
     if (auto) {
@@ -1108,8 +1166,11 @@
       var r = target.el.getBoundingClientRect();
       if (r.top < 0 || r.bottom > root.innerHeight) target.el.scrollIntoView({ block: r.height > root.innerHeight ? "start" : "center", inline: "nearest", behavior: "instant" });
     } else if (id === null && y !== null && /^\d+$/.test(y)) root.scrollTo(0, +y);
+    // A revealed answer lands after the choice click's own delay, so the signal waits for it.
+    var st = queryParam("state"), applied = st !== null && id === null && checkSrc && checkSrc.state ? checkSrc.state(st) : false;
     // The signal audit.mjs waits for before capturing.
-    document.documentElement.setAttribute("data-ltt-shot", "");
+    var signal = function () { document.documentElement.setAttribute("data-ltt-shot", ""); };
+    if (applied && typeof setTimeout === "function") setTimeout(signal, 450); else signal();
   }
 
   function initPopover() {
@@ -1144,10 +1205,21 @@
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") hide(); });
   }
 
+  if (typeof root.addEventListener === "function") {
+    root.addEventListener("error", function (e) {
+      if (e && e.message) noteScriptError(String(e.message).replace(/^Uncaught /, "") + fileLine(e.filename, e.lineno));
+    });
+    root.addEventListener("unhandledrejection", function (e) {
+      var r = e && e.reason;
+      noteScriptError("처리 안 된 Promise 거부: " + (r && r.message ? r.message : String(r)));
+    });
+  }
+
   if (typeof document !== "undefined") {
     var style = document.createElement("style");
     style.id = "ltt-style";
-    style.textContent = STYLE;
+    // The panel overlays the right and bottom edge of a screenshot, so a shot document drops it.
+    style.textContent = STYLE + (queryParam("shot") !== null ? "#ltt-expect{display:none!important}" : "");
     document.head.appendChild(style);
     if (document.body) initPopover(); else document.addEventListener("DOMContentLoaded", initPopover);
     var onLoad = function () {
@@ -1173,7 +1245,7 @@
     kitBase: KIT, lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
     icon: icon, icons: Object.keys(ICONS), theme: theme, themeTokens: themeTokens, palette: palette, contrast: contrast, mark: mark, marks: Object.keys(MARKS),
     themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium, keywords: THEMES[k].keywords }; }),
-    termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck,
+    termsIn: termsIn, usesTerm: usesTerm, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck, isAdvice: isAdvice,
     termIssues: termIssues, goalIssues: goalIssues, deckIssues: deckIssues, check: check, checkSource: checkSource, clock: clock, sceneTypes: SCENE_TYPES, rectHit: rectHit, freeSlot: freeSlot,
     stepValues: stepValues, goalReach: goalReach,
     setGlossary: setGlossary, linkTerms: linkTerms, mobile: mobile

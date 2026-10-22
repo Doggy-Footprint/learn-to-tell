@@ -31,14 +31,14 @@ const USAGE = `사용법: node audit.mjs <대상>... [옵션]
 대상: 수업 파일(<home>/lessons/<id>/lesson.html), 수업 id, 갤러리 파일(site/gallery/...), 또는 http(s) URL
 옵션:
   --size WxH         측정 크기(반복 가능, 기본 ${DEFAULT_SIZES.join(" ")})
-  --shots <dir>      덱은 장면마다, 덱 아닌 페이지는 스크롤 위치마다 스크린샷 PNG를 <dir>에 남긴다(크기당 ${MAX_PAGE_SHOTS}장까지)
+  --shots <dir>      덱은 장면마다(predict·compare 공개, figure steps 각 단계 상태 포함), 덱 아닌 페이지는 스크롤 위치마다 스크린샷 PNG를 <dir>에 남기고 파일 설명을 <dir>/index.md에 쓴다(크기당 ${MAX_PAGE_SHOTS}장까지)
   --checklist <file> checklist의 [shot <id> <ms>] 표식마다 그 시점의 PNG를 한 장씩 더 남긴다(--shots와 함께)
   --json             결과를 JSON으로 출력
   --chrome <경로>     Chrome 실행 파일(기본: LTT_CHROME, 설치 경로, PATH)
   --budget <ms>      페이지가 준비되길 기다리는 시간(기본 ${DEFAULT_BUDGET})
   --jobs <n>         동시에 띄울 Chrome 수(기본 ${DEFAULT_JOBS})
   --home <dir>       수업 폴더 루트(기본: LTT_HOME 또는 ~/.learn-to-tell)
-종료 코드: 0 오류 없음 · 1 check 오류나 표식 오류 있음 · 2 Chrome 없음/측정 실패/checklist 파일 없음`;
+종료 코드: 0 오류 없음(advice만 있어도 0) · 1 check 오류나 표식 오류 있음 · 2 Chrome 없음/측정 실패/checklist 파일 없음`;
 
 export function findChrome(explicit = process.env.LTT_CHROME) {
   if (explicit) return existsSync(explicit) ? explicit : null;
@@ -331,6 +331,9 @@ async function takeShot(call, budget, file, url) {
   }
 }
 
+// A state string comes from the page's own #ltt-check, and it ends up in a file name, so only the kit's two forms pass.
+const STATE_NAME = /^(reveal|step-([1-9]\d{0,2}))$/;
+
 async function takeShots(call, run, check, validMarks, budget, dir) {
   const slug = run.target.replace(/^https?:\/\//, "").replace(/\.html$/, "").replace(/[^\w.-]+/g, "-");
   const pad = (n) => String(n).padStart(2, "0");
@@ -338,24 +341,53 @@ async function takeShots(call, run, check, validMarks, budget, dir) {
   const jobs = [];
   let truncated = false;
   if (typeof check.scenes === "number") {
-    truncated = check.scenes > MAX_PAGE_SHOTS;
-    for (let i = 1; i <= Math.min(check.scenes, MAX_PAGE_SHOTS); i++) jobs.push([`${slug}-${run.size}-s${pad(i)}.png`, withQuery(page, "shot") + "#" + i]);
+    const titles = new Map((check.sceneList || []).map((s) => [s.n, s.title]));
+    const states = [];
+    for (let i = 1; i <= check.scenes; i++) jobs.push({ name: `${slug}-${run.size}-s${pad(i)}.png`, url: withQuery(page, "shot") + "#" + i, n: i, title: titles.get(i) ?? "", state: "처음" });
+    for (const s of check.sceneList || []) {
+      if (!Number.isInteger(s.n) || s.n < 1 || s.n > check.scenes) continue;
+      for (const state of Array.isArray(s.states) ? s.states : []) {
+        const m = typeof state === "string" ? STATE_NAME.exec(state) : null;
+        if (!m) continue;
+        states.push({ name: `${slug}-${run.size}-s${pad(s.n)}-${m[2] ? "step" + m[2] : "reveal"}.png`, url: withQuery(page, "shot&state=" + state) + "#" + s.n, n: s.n, title: titles.get(s.n) ?? "", state, hold: true });
+      }
+    }
+    jobs.push(...states);
+    truncated = jobs.length > MAX_PAGE_SHOTS;
+    jobs.length = Math.min(jobs.length, MAX_PAGE_SHOTS);
   } else {
     const h = check.viewport[1];
     const count = Math.max(1, Math.ceil(check.scroll / h));
     truncated = count > MAX_PAGE_SHOTS;
-    for (let i = 0; i < Math.min(count, MAX_PAGE_SHOTS); i++) jobs.push([`${slug}-${run.size}-p${pad(i + 1)}.png`, withQuery(page, `shot&y=${i * h}`)]);
+    for (let i = 0; i < Math.min(count, MAX_PAGE_SHOTS); i++) jobs.push({ name: `${slug}-${run.size}-p${pad(i + 1)}.png`, url: withQuery(page, `shot&y=${i * h}`), n: null, title: "", state: `스크롤 y=${i * h}` });
   }
   for (const { id, ms } of validMarks) {
     if (!SHOT_ID.test(id) || !Number.isInteger(ms)) continue;
-    jobs.push([`${slug}-${run.size}-${id}-t${ms}.png`, withQuery(page, `shot&clock=${id}&t=${ms}`)]);
+    jobs.push({ name: `${slug}-${run.size}-${id}-t${ms}.png`, url: withQuery(page, `shot&clock=${id}&t=${ms}`), n: null, title: "", state: `clock ${id} ${ms}` });
   }
   const files = [];
-  for (const [name, url] of jobs) {
-    const file = join(dir, name);
-    if (await takeShot(call, budget, file, url)) files.push(file);
+  const entries = [];
+  for (const job of jobs) {
+    const file = join(dir, job.name);
+    // Revealing an answer records a predict event, which must not land in a real lesson's events.jsonl.
+    const ok = job.hold ? await blocked(call, () => takeShot(call, budget, file, job.url)) : await takeShot(call, budget, file, job.url);
+    if (ok) {
+      files.push(file);
+      entries.push({ file: job.name, n: job.n, title: job.title, state: job.state });
+    }
   }
-  return { files, truncated };
+  return { files, entries, truncated };
+}
+
+export function shotIndex(results) {
+  const lines = ["# shot 색인", "", "파일 이름 | 장면 n | 제목 | 상태", ""];
+  for (const r of results) {
+    if (r.error || !r.shotEntries) continue;
+    lines.push(`## ${r.target} ${r.size}`, "");
+    for (const e of r.shotEntries) lines.push(`${e.file} | ${e.n == null ? "-" : "장면 " + e.n} | ${(e.title || "-").replace(/[\r\n|]+/g, " ")} | ${e.state}`);
+    lines.push("");
+  }
+  return lines.join("\n");
 }
 
 async function pool(items, size, fn) {
@@ -386,7 +418,7 @@ export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrom
     if (shots) await mkdir(shots, { recursive: true });
     const runs = [];
     for (const t of resolved) for (const size of sizes) runs.push({ target: t.label, url: t.url || base + t.path, size });
-    return await pool(runs, Math.max(1, jobs), async (run, i) => {
+    const results = await pool(runs, Math.max(1, jobs), async (run, i) => {
       const profile = join(tmp, `p${i}`);
       const base = { target: run.target, size: run.size, url: run.url };
       const cdp = openCdp(chrome, profile, run.size);
@@ -405,16 +437,21 @@ export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrom
         // The learner's state (answers closed) can hold errors the shot state hides, so both are read and merged.
         const learner = await readCheck(call, withQuery(run.url, "check"), budget, "data-ltt-check");
         if (learner.error) return { ...base, error: learner.error };
-        const seen = new Set();
-        const errors = [...learner.check.errors, ...check.errors].filter((e) => {
-          const k = JSON.stringify([e.where, e.rule, e.msg]);
-          return seen.has(k) ? false : seen.add(k);
-        });
+        const unique = (list) => {
+          const seen = new Set();
+          return list.filter((e) => {
+            const k = JSON.stringify([e.where, e.rule, e.msg]);
+            return seen.has(k) ? false : seen.add(k);
+          });
+        };
+        const errors = unique([...learner.check.errors, ...check.errors]);
+        const advice = unique([...(learner.check.advice || []), ...(check.advice || [])]);
         const marks = checkMarks(parsed, check.clocks || []);
-        const result = { ...base, viewport: check.viewport, scroll: check.scroll, check: errors, marks: marks.errors, shots: [], truncated: false };
+        const result = { ...base, viewport: check.viewport, scroll: check.scroll, check: errors, advice, marks: marks.errors, shots: [], truncated: false };
         if (shots) {
           const t = await takeShots(call, run, check, marks.valid, budget, shots);
           result.shots = t.files;
+          result.shotEntries = t.entries;
           result.truncated = t.truncated;
         }
         if (typeof check.scenes === "number") await probing(() => probeDeck(call, run, deckScenes, budget));
@@ -426,6 +463,8 @@ export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrom
         await cdp.close();
       }
     });
+    if (shots) await writeFile(join(shots, "index.md"), shotIndex(results));
+    return results;
   } finally {
     if (server) {
       server.closeAllConnections();
@@ -447,8 +486,9 @@ export function formatReport(results) {
     }
     const total = totals[r.size] ||= { n: 0, viewport: r.viewport };
     total.n += r.check.length;
-    lines.push(`${head}  check ${r.check.length} · marks ${r.marks.length} · shots ${r.shots.length}${r.truncated ? " (잘림)" : ""}`);
+    lines.push(`${head}  check ${r.check.length} · marks ${r.marks.length} · shots ${r.shots.length}${r.truncated ? " (잘림)" : ""}${r.advice?.length ? ` · advice ${r.advice.length}` : ""}`);
     r.check.forEach((w) => lines.push(`    check ${w.where} [${w.rule}]: ${w.msg}`));
+    (r.advice || []).forEach((w) => lines.push(`    advice ${w.where} [${w.rule}]: ${w.msg}`));
     r.marks.forEach((w) => lines.push(`    checklist [${w.rule}]: ${w.msg}`));
     r.shots.forEach((f) => lines.push(`    ${f}`));
   }

@@ -1,4 +1,4 @@
-언제: figure `steps`, predict `answerVisual`·`rest`를 쓸 때, 또는 덱 이동·layout 기본값·`?shot`·폰 재배치의 세부 동작이 필요할 때 읽는다. 수업 작가가 지킬 계약만 담는다.
+언제: figure `steps`, predict `answerVisual`·`rest`, keywords `next`를 쓸 때, 또는 덱 이동·layout 기본값·`?shot`·폰 재배치의 세부 동작이 필요할 때 읽는다. 수업 작가가 지킬 계약만 담는다.
 
 # ltt-deck.js: 장면 덱 계약
 
@@ -23,11 +23,13 @@
 - `rest`는 정답 공개 뒤 고르지 않은 오답의 모습: `"hide"`(기본, 자리만 남기고 숨김) · `"dim"`(흐리게) · `"dot"`(점으로). 어느 쪽이든 자리를 유지해 화면이 흔들리지 않는다. 펼친 정답은 hide로 숨긴 자리에는 놓일 수 있지만 dim·dot 선택지는 가리지 않는다. 덱 전체 기본값은 `LTT.deck({predictRest})`.
 - 배율은 장면에 들어올 때 문제 상태와 선택지별 정답 상태 중 가장 큰 쪽에 맞춰 정하고, 공개할 때 바꾸지 않는다. 그래서 해설(`why`)·`answerVisual`이 길면 공개 전에도 장면이 작아지니 짧게 쓴다.
 - 공개 뒤 창 크기가 바뀌면 배율을 다시 잰다. 그 크기에서 새로 열어 같은 답을 공개한 배율과 같다.
+- `takeaway`는 정답을 펼치기 전에는 자리만 잡고 보이지 않는다(답을 미리 알려 주지 않는다). 정답을 펼치면 보이고, 초기화나 ← 키로 문제 상태로 돌아가면 다시 숨는다. 판정 공개형 compare(`reveal: false`가 아님)의 `takeaway`도 같다(판정 공개 전 숨김, 초기화하면 다시 숨김). summary는 공개 여부와 상관없이 모은다.
 - 측정을 위해 함수형 `answerVisual(node, id)`는 선택지마다 화면 밖에서 미리 한 번씩 불릴 수 있다(인자를 하나만 받으면 한 번만). 공개 뒤에도 창 크기가 바뀌면 다시 불리고, 이어서 고른 값으로 한 번 더 불려 공개 모습을 다시 그린다. 같은 입력이면 같은 크기를 내고, 전역 상태·기록을 건드리지 않아야 한다. 미리 그리는 동안 kit의 `send`는 아무것도 하지 않는다. `node` 안의 지연 애니메이션은 크기를 바꾸지 않을 때만 괜찮다.
 
 ## summary·keywords
 
 - `recall`이 있으면 summary는 글 목록의 인출 연습이 된다. summary가 질문을 먼저 보이고 답(takeaway)은 "답 보기" 뒤에 연다. 답 칸은 열기 전에도 빈자리로 잡혀 있어 열어도 배율이 바뀌지 않는다. 공개할 때 `recall` 이벤트(`{scene, question, answer}`)를 남긴다.
+- keywords의 `next: [{term, why, from?}]`는 덱 제목을 뿌리로 한 개념 나무로 그려진다. `from`이 다른 `next` 항목의 `term`이면 그 아래 가지이고, 없거나 어느 항목과도 맞지 않거나 순환하면 뿌리 아래에 둔다(오류 없음). 항목마다 `term`과 `why`가 보인다. `terms`·`signals`·`neighbors`·`queries`는 그 옆 칸으로 그대로 그려진다.
 - keywords 뒤에 `map-related` 장면이 `/map/data.json`에서 자동으로 붙는다(이어진 개념이 없으면 없음). 직접 쓰지 않는다.
 
 ## layout 기본값
@@ -46,6 +48,8 @@
 ## 화면 확인 (`?check`·`?shot`) 세부
 
 - `?check`나 `?shot`이면 덱이 모든 장면을 그려 `#ltt-check`의 목표 판정에 넣는다(없으면 그려진 장면만). `?shot`의 `#n`은 n번 장면을 고르고, `?shot&clock=<id>&t=<ms>`는 그 clock이 든 장면을 보인다. 결과의 `scenes`는 덱 장면 수다.
+- `?shot&state=reveal#n`은 n번 predict를 `answer`를 고른 공개 상태로, compare(`reveal: false`가 아님)를 판정 공개 상태로 그린다. `?shot&state=step-<k>#n`은 n번 figure의 `steps`를 k단계(1부터)로 그린다. 모르는 값이거나 그 장면에 없는 상태면 상태 없이 그린다(오류 없음). `#ltt-check`의 `sceneList`가 장면마다 `{n, title, states}`를 담고(`map-related` 제외), `states`는 predict·compare면 `["reveal"]`, steps가 m개면 `["step-2", …, "step-m"]`, 그 밖은 `[]`이다. `audit.mjs --shots`는 `states`마다 `<slug>-<size>-sNN-reveal.png`·`-sNN-step<k>.png`를 찍는다.
+- 한 장면을 그리다(render·`mount`·`enter`) 예외가 나면 그 장면만 빈 본문으로 남고 check에 `scene-error`(`장면 n`)가 나며, 나머지 장면은 그대로 mount된다. 그 장면에 있던 `LTT.clock`·`sweep`은 만들어지지 않지만 다른 장면의 것은 동작한다.
 - `goal-unreachable`·`goal-at-start`는 손잡이마다 최대 201곳(dial은 최대 360곳, pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다.
 
 ## 폰 재배치

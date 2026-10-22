@@ -10,6 +10,8 @@ kit 개발자용 · 수업에서 부르지 않는 kit 내부 이름이다. kit �
 | `LTT.termsIn(text)` | 문자열 속 `{{용어}}`·`{{보이는 말\|용어}}` 표시를 나온 순서대로 `[{key, shown}]`로. |
 | `LTT.sceneText(scene)` | 장면에서 독자가 읽는 글 필드만 모아 한 문자열로(`type`·`tone`·`answer`·`id` 같은 필드와 DOM 노드는 뺀다). lint가 쓴다. |
 | `LTT.termIndex(spec)` | glossary 용어마다 처음 표시되거나 terms 장면에서 정의된 장면 번호 `{용어: 번호}`. |
+| `LTT.usesTerm(text, key)` | `text`가 용어 `key`를 단어 경계에서 쓰는지 → boolean. 영문·숫자 끝은 앞뒤가 영문·숫자가 아니어야 하고, 한글 끝은 앞이 한글이 아니고 뒤가 끝·한글 아님·조사나 어미 목록(은 는 이 가 을 를 의 에 와 과 도 로 으로 에서 에게 만 까지 부터 보다 처럼 이다 이고 이며 이나 이란 이라 라 란 나 랑 하 한 할 해 했 된 되 될 적 들)으로 시작해야 한다. `used-before-defined`가 쓴다. |
+| `LTT.isAdvice(rule)` | lint rule id가 등급 "권고"(`unused-term`·`card-monotony`·`no-signature`)인지 → boolean. 덱이 check `errors`와 `advice`를 가르는 데 쓴다. |
 | `LTT.rectHit(a, b)` | 두 사각형 `{x0, y0, x1, y1}`가 0.5px 넘게 겹치는가. |
 | `LTT.freeSlot(region, size, solids, gap, step)` | `region` 안에서 모든 `solids`와 `gap`만큼 떨어진 `size` 상자의 첫 왼쪽 위 자리(위 줄부터 훑는다), 없으면 `null`. 펼친 predict 정답 배치가 쓴다. |
 | `LTT.stepValues(min, max, step, cap)` | 손잡이가 가질 수 있는 값 목록. 길면 양 끝을 포함해 고르게 `cap`개(기본 201)만. 목표 판정용. |

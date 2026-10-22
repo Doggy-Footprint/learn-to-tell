@@ -22,7 +22,8 @@ const bIssues = (spec) => Array.from(loadKit().deckIssues(spec), (w) => {
 // Clean building blocks, each checked by hand against lint rules R1–R16 of the spec.
 // FIG: counted, not a card, signature, guide = caption. KW: bookend, last. ST: counted, not a card.
 const THEME = "paper";
-const KW = () => ({ type: "keywords", terms: [] });
+// Spec 753ff3c539424409 FR-6: the last keywords scene carries a non-empty next, else lint keywords-no-next fires.
+const KW = () => ({ type: "keywords", terms: [], next: [{ term: "다음", why: "이유" }] });
 const FIG = () => ({ type: "figure", title: "t", caption: "c", figure: "그림" });
 const ST = () => ({ type: "statement", title: "s" });
 const HOOK = () => ({ type: "hook", text: "h" });
