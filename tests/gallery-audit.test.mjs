@@ -13,7 +13,7 @@ const skip = process.env.LTT_AUDIT === "0" ? "LTT_AUDIT=0"
   : !chrome ? "no Chrome found (set LTT_CHROME)"
   : false;
 
-test("gallery decks stay at or under the audit baseline in both sizes", { skip }, async () => {
+test("gallery decks report no error and the baseline check count in both sizes", { skip }, async () => {
   const home = await mkdtemp(join(tmpdir(), "ltt-audit-test-"));
   try {
     const results = await audit({ targets: galleryTargets(), sizes: Object.keys(baseline), chrome, home, jobs: 2 });
@@ -27,13 +27,10 @@ test("gallery decks stay at or under the audit baseline in both sizes", { skip }
         problems.push(`${at}: ${r.error}`);
         continue;
       }
-      const allowed = baseline[r.size][r.target] ?? 0;
-      if (r.audit.length > allowed) problems.push(`${at}: audit ${r.audit.length} > ${allowed}\n` + r.audit.map((w) => `    장면 ${w.scene} [${w.rule}]: ${w.msg}`).join("\n"));
-      if (r.lint.length) problems.push(`${at}: lint ${r.lint.map((w) => w.msg).join(" / ")}`);
-      // Spec 80a1b2f18f50b1df C-10 / QR-2: kit-common B checks (#ltt-check) must be empty for every gallery deck.
+      // Spec 76b739afacf5b868 VO-10 (QR-3, D-7): the baseline is the per-target #ltt-check error count; equality, not a ceiling.
       assert.ok(Array.isArray(r.check), `${at}: result has no check array`);
-      if (r.check.length) problems.push(`${at}: check\n` + r.check.map((w) => `    ${w.where} [${w.rule}]: ${w.msg}`).join("\n"));
-      if (r.expectFails.length) problems.push(`${at}: ${r.expectFails.join(" / ")}`);
+      const want = baseline[r.size][r.target];
+      if (r.check.length !== want) problems.push(`${at}: check ${r.check.length} != baseline ${want}\n` + r.check.map((w) => `    ${w.where} [${w.rule}]: ${w.msg}`).join("\n"));
     }
     assert.deepEqual(problems, []);
   } finally {

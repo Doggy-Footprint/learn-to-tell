@@ -245,7 +245,7 @@ test("VO-1 C-6: an undocumented runtime name newThing is reported", () => {
 });
 
 const BASE_DEFINITIONS = {
-  "kit/API.md": "theme, themes, palette, mark, marks, icon, icons, expect, record, lintDeck, math, MOTION_MS, deck, check",
+  "kit/API.md": "theme, themes, palette, mark, marks, icon, icons, expect, record, lintDeck, math, MOTION_MS, deck, check, clock",
   "kit/api/base.md": "themeTokens, summaryCards, linkTerms, warn",
   "kit/api/ui.md": "narration, annotate, beforeAfter, facts, chips, badge, callout, swatches, takeaway, chartFrame, inspector, redline, h, fill, contrast, recall",
   "kit/api/mock.md": "mock",
@@ -254,13 +254,14 @@ const BASE_DEFINITIONS = {
   "kit/api/map.md": "map",
   "kit/api/controls.md": "sweep, drag, predict, stepper, sim, tween",
   "kit/api/charts.md": "axisPlot, hbars, lanes, sankey, plot, plotTheme, plane, units, bar",
-  "kit/api/internals.md": "kitBase, lessonId, compare, termsIn, sceneText, termIndex, rectHit, freeSlot, stepValues, goalReach, setGlossary, auditScene, mobile, measure, $, deckTypes, sceneTypes, placement, termIssues, goalIssues, deckIssues, checkSource",
+  "kit/api/internals.md": "kitBase, lessonId, compare, termsIn, sceneText, termIndex, rectHit, freeSlot, stepValues, goalReach, setGlossary, mobile, measure, $, deckTypes, sceneTypes, placement, termIssues, goalIssues, deckIssues, checkSource",
 };
 
 // Spec 74cb05d7da21907e v1 FR-3: the base 74 public names plus placement (defined by ltt-deck.js, documented in internals.md) = 75.
+// Spec 76b739afacf5b868 FR-14/FR-16: auditScene is gone and LTT.clock joins kit/API.md (net 81 again).
 // Spec 80a1b2f18f50b1df FR-15: plus check (API.md), recall (ui.md), termIssues, goalIssues, deckIssues, checkSource (internals.md) = 81.
 const CHECK_NAMES = ["check", "recall", "termIssues", "goalIssues", "deckIssues", "checkSource"];
-test("VO-2 oracle table lists 81 distinct names: the base 74 plus placement plus the 6 check names", () => {
+test("VO-2 oracle table lists 81 distinct names: the base 74 (auditScene out, clock in) plus placement plus the 6 check names", () => {
   const all = Object.values(BASE_DEFINITIONS).flatMap((s) => s.split(", "));
   assert.equal(new Set(all).size, 81);
   assert.equal(all.length, 81);
@@ -385,11 +386,10 @@ test("VO-4 themes: every LTT.themes name is a first-cell code span", () => {
 });
 
 const LINT_IDS = ["no-reading-guide", "no-title", "overview-missing", "overview-order", "overview-no-visual", "keywords-last", "unused-term", "term-no-visual", "summary-no-recall", "card-monotony", "no-signature", "no-theme", "unknown-theme"];
-const AUDIT_IDS = ["overflow", "shrunk", "small-visual", "loose-figure", "empty-stage", "many-sizes", "hscroll", "graph-overlap", "panel-overlap", "goal-narrow"];
 // Spec 80a1b2f18f50b1df FR-15 / VO-11: the seven kit-common B checks live in the "검사(`#ltt-check`)" section of rules.md.
 const CHECK_IDS = ["unknown-term", "used-before-defined", "predict-new-term", "filler-content", "goal-unreachable", "goal-at-start", "expect-mismatch"];
 
-for (const [label, ids] of [["lint", LINT_IDS], ["audit", AUDIT_IDS], ["check", CHECK_IDS]]) {
+for (const [label, ids] of [["lint", LINT_IDS], ["check", CHECK_IDS]]) {
   test(`VO-4 ${label} rules: all ${ids.length} ids are first-cell code spans of kit/api/rules.md`, () => {
     const spans = firstCellSpans(rulesText());
     const missing = ids.filter((id) => !spans.has(id));
@@ -686,103 +686,7 @@ test("VO-8 bf761 VO-5 C-9: npm pack --dry-run lists the five kit .css files", { 
   assert.deepEqual(missing, [], `npm pack list lacks ${missing.join(", ")}: ${paths.join(", ")}`);
 });
 
-// ---------- spec 1e62814b16984176 VO-5 (FR-2, C-15): audit table rows carry the measured-zoom and full-scene wording ----------
-
-// A row counts for an audit id only when that id is a code span of its first cell; text in other rows never satisfies it.
-// One such row holding every token suffices, so an unrelated second table naming the id cannot cause a false failure.
-function auditRowError(text, id, tokens, has = (row, t) => row.includes(t)) {
-  const hits = lines(text).filter(isRow).filter((r) => codeSpans(firstCell(r)).includes(id));
-  if (hits.length === 0) return `${id}: no table row has \`${id}\` in its first cell`;
-  if (hits.some((r) => tokens.every((t) => has(r, t)))) return null;
-  return hits.map((r) => `${id}: row lacks ${tokens.filter((t) => !has(r, t)).map((t) => JSON.stringify(t)).join(", ")}: ${r}`).join("\n");
-}
-
-const DOC_ROWS = [
-  { id: "DOC-1", rule: "shrunk", tokens: ["모든 상태", "최소 배율"] },
-  { id: "DOC-2", rule: "small-visual", tokens: ["layout을 적지 않은 overview"] },
-  { id: "DOC-3", rule: "empty-stage", tokens: ["layout을 적지 않은 overview"] },
-];
-
-const fakeAuditTable = (rowsByRule) => ["| 규칙 | 뜻 |", "| --- | --- |", ...Object.entries(rowsByRule).map(([rule, text]) => `| \`${rule}\` | ${text} |`)].join("\n");
-
-test("VO-5 checker: tokens in the shrunk row pass", () => {
-  assert.equal(auditRowError(fakeAuditTable({ overflow: "넘침", shrunk: "모든 상태를 그려 잠근 최소 배율로 판정" }), "shrunk", ["모든 상태", "최소 배율"]), null);
-});
-
-test("VO-5 checker: tokens only in a neighbouring row fail and name the shrunk row", () => {
-  const err = auditRowError(fakeAuditTable({ overflow: "모든 상태의 최소 배율", shrunk: "축소" }), "shrunk", ["모든 상태", "최소 배율"]);
-  assert.ok(err && err.includes('row lacks "모든 상태", "최소 배율"') && err.includes("축소"), String(err));
-});
-
-test("VO-5 checker: the two tokens split over two rows that both have shrunk in the first cell fail", () => {
-  const err = auditRowError(fakeAuditTable({ shrunk: "모든 상태를 그린다" }) + "\n\n" + fakeAuditTable({ shrunk: "최소 배율로 판정" }), "shrunk", ["모든 상태", "최소 배율"]);
-  assert.ok(err && err.split("\n").length === 2, String(err));
-});
-
-test("VO-5 checker: one of two tokens missing fails naming the missing one", () => {
-  const err = auditRowError(fakeAuditTable({ shrunk: "모든 상태를 그려 판정" }), "shrunk", ["모든 상태", "최소 배율"]);
-  assert.ok(err && err.includes('"최소 배율"') && !err.includes('"모든 상태"'), String(err));
-});
-
-test("VO-5 checker: the id in a non-first cell or outside a table does not count as the row", () => {
-  const text = `\`small-visual\`은 layout을 적지 않은 overview도 본다.\n\n${fakeAuditTable({ "empty-stage": "`small-visual`과 같이 layout을 적지 않은 overview" })}`;
-  assert.equal(auditRowError(text, "small-visual", ["layout을 적지 않은 overview"]), "small-visual: no table row has `small-visual` in its first cell");
-});
-
-test("VO-5 checker: a first cell holding several ids counts for each of them", () => {
-  const text = ["| 규칙 | 뜻 |", "| --- | --- |", "| `overflow` · `shrunk` · `hscroll` | 모든 상태를 그린 최소 배율 |"].join("\n");
-  assert.equal(auditRowError(text, "shrunk", ["모든 상태", "최소 배율"]), null);
-});
-
-for (const { id, rule, tokens } of DOC_ROWS) {
-  test(`VO-5 ${id} FR-2 C-15: kit/api/rules.md has a row with \`${rule}\` in the first cell containing ${tokens.join(" and ")}`, () => {
-    const err = auditRowError(rulesText(), rule, tokens);
-    assert.equal(err, null, err ?? "");
-  });
-}
-
-// ---------- spec 1e62814b16984176 v2 VO-5 DOC-5 (FR-2(c)): threshold text stays in its base-commit audit row ----------
-
-// A threshold must not be a digit-extended number ("188%", "17단계") or a decimal tail ("0.88%").
-const hasThreshold = (row, t) => new RegExp(`(?<![\\d.])${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(row);
-
-const THRESHOLD_ROWS = [
-  { rule: "shrunk", tokens: ["78%", "88%"], what: "the shrunk row" },
-  { rule: "small-visual", tokens: ["10%", "22%"], what: "the small-visual row" },
-  { rule: "empty-stage", tokens: ["35%", "60%"], what: "the loose-figure · empty-stage row" },
-  { rule: "many-sizes", tokens: ["7단계"], what: "the many-sizes row" },
-];
-
-const fakeThresholdTable = (rows) => ["| 규칙 | 뜻 |", "| --- | --- |", ...rows].join("\n");
-
-test("VO-5 DOC-5 checker: thresholds in their own rows pass", () => {
-  const text = fakeThresholdTable(["| `overflow`, `shrunk`, `hscroll` | 배율 78% 미만 넘침, 88% 미만 축소 |", "| `small-visual` | 그림 10% 미만, full 장면은 22% 미만 |"]);
-  assert.equal(auditRowError(text, "shrunk", ["78%", "88%"], hasThreshold), null);
-  assert.equal(auditRowError(text, "small-visual", ["10%", "22%"], hasThreshold), null);
-});
-
-test("VO-5 DOC-5 checker: a changed number (88% → 85%) fails naming 88%", () => {
-  const err = auditRowError(fakeThresholdTable(["| `overflow`, `shrunk`, `hscroll` | 배율 78% 미만 넘침, 85% 미만 축소 |"]), "shrunk", ["78%", "88%"], hasThreshold);
-  assert.ok(err && err.includes('row lacks "88%"') && !err.includes('"78%"'), String(err));
-});
-
-test("VO-5 DOC-5 checker: a threshold moved to a neighbouring row fails", () => {
-  const err = auditRowError(fakeThresholdTable(["| `small-visual` | 그림 10% 미만 |", "| `loose-figure`, `empty-stage` | 22% 미만, 35%, 60% |"]), "small-visual", ["10%", "22%"], hasThreshold);
-  assert.ok(err && err.includes('row lacks "22%"'), String(err));
-});
-
-test("VO-5 DOC-5 checker: digit-extended numbers (188%, 17단계, 0.88%) do not count as the threshold", () => {
-  assert.notEqual(auditRowError(fakeThresholdTable(["| `shrunk` | 178%, 188% |"]), "shrunk", ["78%", "88%"], hasThreshold), null);
-  assert.notEqual(auditRowError(fakeThresholdTable(["| `shrunk` | 0.78%, 0.88% |"]), "shrunk", ["78%", "88%"], hasThreshold), null);
-  assert.notEqual(auditRowError(fakeThresholdTable(["| `many-sizes` | 글자 크기 17단계 초과 |"]), "many-sizes", ["7단계"], hasThreshold), null);
-});
-
-for (const { rule, tokens, what } of THRESHOLD_ROWS) {
-  test(`VO-5 DOC-5 FR-2(c): kit/api/rules.md ${what} (first cell holds \`${rule}\`) keeps ${tokens.join(" and ")}`, () => {
-    const err = auditRowError(rulesText(), rule, tokens, hasThreshold);
-    assert.equal(err, null, err ?? "");
-  });
-}
+// Spec 76b739afacf5b868 FR-16: the rules.md audit section (auditScene rule rows and their wording checks) is deleted.
 
 // ---------- plan b71ddee49f77ac06 §1–3: flow docs stay consistent ----------
 
@@ -821,5 +725,80 @@ test("VO-11 SC-2: kit/CHANGELOG.md first '## ' heading is '## 미출시' and tha
   assert.equal(heads[0][0].trim(), "## 미출시");
   const sec = text.slice(heads[0].index, heads[1]?.index ?? text.length);
   const missing = ["#ltt-check", "glossary", "LTT.recall"].filter((t) => !sec.includes(t));
+  assert.deepEqual(missing, [], `미출시 section lacks: ${missing.join(", ")}`);
+});
+
+// ---------- spec 76b739afacf5b868 VO-11 (FR-14, FR-16, QR-7) ----------
+
+// Oracle: the four strings are the removed audit surface (FR-14); the six file groups are the QR-7 target list.
+const REMOVED_STRINGS = ["auditScene", "ltt-audit", "?audit", "layout-audit"];
+const mjsIn = (dir) => readdirSync(dir).filter((f) => f.endsWith(".mjs")).sort().map((f) => join(dir, f));
+const ltt = (rel) => join(KIT, rel);
+const FILE_GROUPS = {
+  "kit/*.js": () => readdirSync(KIT).filter((f) => f.endsWith(".js")).sort().map(ltt),
+  "server/*.mjs": () => mjsIn(join(SKILL, "server")),
+  "scripts/*.mjs": () => mjsIn(join(ROOT, "scripts")),
+  "kit/API.md": () => [join(KIT, "API.md")],
+  "kit/api/*.md": () => readdirSync(API_DIR).filter((f) => f.endsWith(".md")).sort().map((f) => join(API_DIR, f)),
+  "SKILL.md": () => [join(SKILL, "SKILL.md")],
+};
+
+for (const [group, list] of Object.entries(FILE_GROUPS)) {
+  for (const str of REMOVED_STRINGS) {
+    test(`VO-11 QR-7: ${JSON.stringify(str)} occurs 0 times in ${group}`, () => {
+      const files = list();
+      assert.ok(files.length > 0, `${group} matched no file`);
+      const hits = files.filter((f) => readFileSync(f, "utf8").includes(str));
+      assert.deepEqual(hits.map((f) => f.replace(ROOT, "")), []);
+    });
+  }
+}
+
+test("VO-11 QR-7 checker: the file-group walk is not vacuous (finds ltt.js, audit.mjs, rules.md)", () => {
+  assert.ok(FILE_GROUPS["kit/*.js"]().some((f) => f.endsWith("/ltt.js")));
+  assert.ok(FILE_GROUPS["server/*.mjs"]().some((f) => f.endsWith("/audit.mjs")));
+  assert.ok(FILE_GROUPS["kit/api/*.md"]().some((f) => f.endsWith("/rules.md")));
+});
+
+test("VO-11 FR-14: LTT.auditScene === undefined on the full deck chain", () => {
+  assert.equal(loadLTT().auditScene, undefined);
+});
+
+test("VO-11 FR-16: kit/API.md has a table row whose first cell holds the LTT.clock code span", () => {
+  const rows = lines(apiText()).filter(isRow).filter((r) => /`LTT\.clock\b/.test(firstCell(r)));
+  assert.equal(rows.length, 1, `rows with LTT.clock in the first cell: ${rows.length}`);
+});
+
+test("VO-11 FR-16: kit/API.md '## 페이지 계약' section mentions ?shot, scroll, scenes and clocks", () => {
+  const text = apiText();
+  const start = text.search(/^## 페이지 계약/m);
+  assert.ok(start >= 0, "kit/API.md has no '## 페이지 계약' section");
+  const rest = text.slice(start + 3);
+  const end = rest.search(/^## /m);
+  const sec = end >= 0 ? rest.slice(0, end) : rest;
+  const missing = ["?shot", "scroll", "scenes", "clocks"].filter((t) => !sec.includes(t));
+  assert.deepEqual(missing, [], `page contract section lacks: ${missing.join(", ")}`);
+});
+
+test("VO-11 FR-16: kit/API.md mentions ?shot", () => {
+  assert.ok(apiText().includes("?shot"));
+});
+
+test("VO-11 FR-16: SKILL.md contains `[shot` and `--checklist` and `LTT.clock`", () => {
+  const t = skillText();
+  const missing = ["[shot", "--checklist", "LTT.clock"].filter((x) => !t.includes(x));
+  assert.deepEqual(missing, [], `SKILL.md lacks: ${missing.join(", ")}`);
+});
+
+test("VO-11 FR-16: rules.md has no audit section heading and internals.md names no removed helper", () => {
+  assert.ok(!/^#+ .*audit/im.test(rulesText()), "rules.md still has an audit heading");
+  assert.ok(!apiDoc("internals.md").includes("auditScene"));
+});
+
+test("VO-11 FR-16: kit/CHANGELOG.md 미출시 section mentions LTT.clock", () => {
+  const text = readFileSync(join(KIT, "CHANGELOG.md"), "utf8");
+  const heads = [...text.matchAll(/^## .*$/gm)];
+  const sec = text.slice(heads[0].index, heads[1]?.index ?? text.length);
+  const missing = ["LTT.clock"].filter((t) => !sec.includes(t));
   assert.deepEqual(missing, [], `미출시 section lacks: ${missing.join(", ")}`);
 });

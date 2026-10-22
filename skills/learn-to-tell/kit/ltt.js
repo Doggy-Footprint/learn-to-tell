@@ -465,24 +465,24 @@
   }
 
   var META_DEFAULTS = {
-    head: true, autoSplit: true, fullByDefault: false, pointsOnMock: false, sumVisualAreas: false, needsReadingGuide: false,
-    titleOptional: false, bookend: false, cardGrid: false, signature: false, auditHero: false, auditSmallVisual: true, auditLooseFigure: false
+    head: true, autoSplit: true, fullByDefault: false, pointsOnMock: false, needsReadingGuide: false,
+    titleOptional: false, bookend: false, cardGrid: false, signature: false
   };
   var TYPE_META = {
-    hook: { head: false, autoSplit: false, titleOptional: true, bookend: true, auditSmallVisual: false },
+    hook: { head: false, autoSplit: false, titleOptional: true, bookend: true },
     explain: { cardGrid: function (s) { return !s.form || s.form === "cards"; } },
-    terms: { autoSplit: false, cardGrid: function () { return true; }, auditSmallVisual: false },
-    compare: { sumVisualAreas: true, needsReadingGuide: true, cardGrid: function (s) { return s.form !== "table"; } },
-    figure: { autoSplit: false, fullByDefault: true, pointsOnMock: true, needsReadingGuide: true, signature: true, auditHero: true, auditLooseFigure: true },
+    terms: { autoSplit: false, cardGrid: function () { return true; } },
+    compare: { needsReadingGuide: true, cardGrid: function (s) { return s.form !== "table"; } },
+    figure: { autoSplit: false, fullByDefault: true, pointsOnMock: true, needsReadingGuide: true, signature: true },
     overview: { autoSplit: false, fullByDefault: true, pointsOnMock: true, needsReadingGuide: true },
-    statement: { head: false, autoSplit: false, auditSmallVisual: false },
+    statement: { head: false, autoSplit: false },
     contrast: { autoSplit: false, needsReadingGuide: true, signature: true },
-    predict: { autoSplit: false, auditSmallVisual: false },
+    predict: { autoSplit: false },
     summary: {
-      autoSplit: false, titleOptional: true, auditSmallVisual: false,
+      autoSplit: false, titleOptional: true,
       cardGrid: function (s, scenes) { return !summaryCards(s, scenes || []).some(function (c) { return c.recall; }); }
     },
-    keywords: { autoSplit: false, titleOptional: true, bookend: true, auditSmallVisual: false },
+    keywords: { autoSplit: false, titleOptional: true, bookend: true },
     "map-related": { autoSplit: false }
   };
   // Prototype-free so names like "constructor" or "toString" read as unknown types, not as entries.
@@ -667,30 +667,6 @@
     return out;
   }
 
-  // Judges measurements of one rendered scene (see ltt-deck.js audit). Thresholds were calibrated on the gallery at 1440×900:
-  // below them a figure read as a thumbnail or the scene needed the zoom floor; kit parts alone already use about 7 text sizes.
-  // Narrow windows (compact, ≤1000px) shrink by design, so zoom and visual-size ratios are not judged there.
-  // hero repeats the deck mount's full-layout rule (ltt-deck.js) so a scene is judged by the layout it is actually drawn in.
-  function auditScene(m) {
-    var out = [], hero = sceneMeta(m.type, "auditHero") || (m.layout ? m.layout === "full" : !!sceneMeta(m.type, "fullByDefault"));
-    function add(rule, msg) { out.push({ rule: rule, msg: msg }); }
-    if (m.hscroll) add("hscroll", "가로로 넘친다 (폭 " + m.hscroll + "px 초과). 고정 폭을 max-width:100%로 바꿀 것");
-    if (m.panelOverlap) add("panel-overlap", "자막·정답 패널이 글·그림 " + m.panelOverlap + "곳과 겹친다. 그림을 줄이거나 장면을 나눌 것");
-    if (m.graphOverlaps) add("graph-overlap", "그래프에서 라벨·노드·엣지가 " + m.graphOverlaps + "곳 겹친다. 좌표를 손으로 정했다면 LTT.autoLayout으로 배치할 것");
-    (m.goals || []).forEach(function (g) {
-      if (g.hits && g.hits < 2) add("goal-narrow", "목표가 손잡이 한 자리에서만 맞는다. 기준에 여유를 두어 두 자리 이상에서 맞게 할 것");
-    });
-    if (m.overflow) add("overflow", "한 화면에 안 들어간다 (78%로 줄여도 넘친다). 해설·캡션을 줄이거나 장면을 나눌 것");
-    else if (!m.compact && m.zoom < 0.88) add("shrunk", "화면에 맞추느라 " + Math.round(m.zoom * 100) + "%로 줄었다. 글을 줄이거나 장면을 나눌 것");
-    if (!m.compact && sceneMeta(m.type, "auditSmallVisual") && m.visualRatio != null && m.visualRatio < (hero ? 0.22 : 0.1))
-      add("small-visual", "가장 큰 그림이 화면의 " + Math.round(m.visualRatio * 100) + "%뿐이다. 그림을 키우거나 layout: \"full\"");
-    if (!m.compact && sceneMeta(m.type, "auditLooseFigure") && m.figRatio != null && m.figRatio < 0.35)
-      add("loose-figure", "그림이 figure 무대의 " + Math.round(m.figRatio * 100) + "%만 채운다. 그림 폭·높이를 키우거나 가로로 배치할 것");
-    if (hero && m.fill != null && m.fill < 0.6) add("empty-stage", "장면이 화면 높이의 " + Math.round(m.fill * 100) + "%만 쓴다. 그림을 키울 것");
-    if (m.fontSizes > 7) add("many-sizes", "본문 글자 크기가 " + m.fontSizes + "단계다 (kit 부품 포함 7단계 이하). 페이지 CSS의 font-size를 kit 크기에 맞출 것");
-    return out;
-  }
-
   function rectHit(a, b) { return Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5; }
 
   // Top-left corner of the first spot, scanning rows downward, where a w×h box inside `region` stays `gap` clear of every
@@ -737,6 +713,95 @@
       if (ok(v)) hits++;
     }
     return { samples: n, hits: hits, start: start ? ok(start) : false };
+  }
+
+  /* ---------- clock ---------- */
+
+  var clocks = [];
+
+  function queryParam(name) {
+    var q = root.location && root.location.search || "", parts = q.replace(/^\?/, "").split("&");
+    for (var i = 0; i < parts.length; i++) {
+      var kv = parts[i].split("="), k = kv[0];
+      if (k !== name) continue;
+      try { return kv.length > 1 ? decodeURIComponent(kv.slice(1).join("=")) : ""; } catch (e) { return kv.slice(1).join("="); }
+    }
+    return null;
+  }
+
+  // Globals are read at call time, not at load, so a host can stub them per call. `?shot` and reduced motion draw one
+  // still frame and never schedule rAF; a screenshot must not depend on when it is taken.
+  function clock(el, draw, opts) {
+    var dur = opts && opts.dur, id = opts && typeof opts.id === "string" && opts.id ? opts.id : null, loop = !!(opts && opts.loop);
+    if (typeof dur !== "number" || !isFinite(dur) || !(dur > 0)) throw new TypeError("LTT.clock: dur는 0보다 큰 유한한 ms여야 한다 (받은 값: " + dur + ")");
+    if (typeof draw !== "function") throw new TypeError("LTT.clock: draw는 함수여야 한다");
+    var t = 0, want = true, dead = false, raf = 0, last = null, visible = true, docVisible = true;
+    var entry = { id: id, dur: dur, el: el };
+    clocks.push(entry);
+
+    function paint(at) {
+      try { draw(at); } catch (e) {
+        dead = true;
+        stop();
+        console.warn("[ltt] LTT.clock" + (id ? " '" + id + "'" : "") + "의 draw가 던져서 이 clock을 멈춘다:", e && e.message ? e.message : e);
+      }
+    }
+    function stop() {
+      if (raf && typeof root.cancelAnimationFrame === "function") root.cancelAnimationFrame(raf);
+      raf = 0;
+      last = null;
+    }
+    function ended() { return !loop && t >= dur; }
+    function update() {
+      var should = want && !dead && !ended() && visible && docVisible;
+      if (should && !raf) raf = root.requestAnimationFrame(tick);
+      else if (!should && raf) stop();
+    }
+    function tick(ts) {
+      raf = 0;
+      if (dead) return;
+      if (last !== null) t += ts - last;
+      last = ts;
+      if (t >= dur) t = loop ? t % dur : dur;
+      paint(t);
+      if (!dead) update();
+    }
+
+    var reduced = !!(typeof root.matchMedia === "function" && root.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    var shot = queryParam("shot") !== null;
+    if (shot || reduced) {
+      var at = dur, ms = shot && id && queryParam("clock") === id ? queryParam("t") : null;
+      if (ms !== null && /^\d+(\.\d+)?$/.test(ms)) at = Math.min(+ms, dur);
+      t = at;
+      paint(at);
+      want = false;
+    } else {
+      if (typeof root.IntersectionObserver === "function" && el) {
+        visible = false;
+        new root.IntersectionObserver(function (list) {
+          visible = !!list[list.length - 1].isIntersecting;
+          update();
+        }).observe(el);
+      }
+      if (typeof document !== "undefined" && document.addEventListener) {
+        docVisible = !document.hidden;
+        document.addEventListener("visibilitychange", function () { docVisible = !document.hidden; update(); });
+      }
+      update();
+    }
+
+    return {
+      play: function () { if (shot || reduced) return; want = true; update(); },
+      pause: function () { want = false; update(); },
+      seek: function (to) {
+        if (dead) return;
+        to = +to;
+        t = to > 0 ? Math.min(to, dur) : 0;
+        last = null;
+        paint(t);
+        update();
+      }
+    };
   }
 
   function theme(name) {
@@ -860,7 +925,19 @@
     } catch (e) {
       errors = [{ where: "페이지", rule: "check-failed", msg: e && e.message ? e.message : String(e) }];
     }
+    var seen = {}, dups = [];
+    clocks.forEach(function (c) {
+      if (!c.id) return;
+      if (seen[c.id] === 1) dups.push(c.id);
+      seen[c.id] = (seen[c.id] || 0) + 1;
+    });
+    dups.forEach(function (d) {
+      errors.push({ where: "페이지", rule: "clock-duplicate-id", msg: "LTT.clock id '" + d + "'가 둘 이상이다. id는 페이지에서 하나씩만 쓴다" });
+    });
     var result = { source: checkSrc ? "deck" : "page", viewport: [root.innerWidth, root.innerHeight], errors: errors };
+    if (typeof document !== "undefined") result.scroll = document.documentElement.scrollHeight;
+    if (checkSrc && checkSrc.scenes) result.scenes = checkSrc.scenes();
+    result.clocks = clocks.filter(function (c) { return c.id; }).map(function (c) { return { id: c.id, dur: c.dur }; });
     if (typeof document !== "undefined") publish(result);
     if (auto) {
       var lint = errors.filter(function (e) { return e.rule !== "expect-mismatch"; });
@@ -889,6 +966,20 @@
   }
 
   function check() { return runCheck(false); }
+
+  // Runs after the auto check: the check mounts every deck scene, and the shot must end on the requested state.
+  function shotPosition() {
+    if (queryParam("shot") === null) return;
+    var id = queryParam("clock"), target = null, y = queryParam("y");
+    if (id !== null) clocks.some(function (c) { if (c.id === id) { target = c; return true; } return false; });
+    if (target && target.el) {
+      if (checkSrc && checkSrc.reveal) checkSrc.reveal(target.el);
+      var r = target.el.getBoundingClientRect();
+      if (r.top < 0 || r.bottom > root.innerHeight) target.el.scrollIntoView({ block: r.height > root.innerHeight ? "start" : "center", inline: "nearest", behavior: "instant" });
+    } else if (id === null && y !== null && /^\d+$/.test(y)) root.scrollTo(0, +y);
+    // The signal audit.mjs waits for before capturing.
+    document.documentElement.setAttribute("data-ltt-shot", "");
+  }
 
   function initPopover() {
     var pop = document.createElement("div");
@@ -930,7 +1021,7 @@
     if (document.body) initPopover(); else document.addEventListener("DOMContentLoaded", initPopover);
     var onLoad = function () {
       if (!checkSrc) { readMeta(); linkTerms(document.body); }
-      var run = function () { if (typeof setTimeout === "function") setTimeout(function () { runCheck(true); }, 300); };
+      var run = function () { if (typeof setTimeout === "function") setTimeout(function () { runCheck(true); shotPosition(); }, 300); };
       if (document.fonts && document.fonts.ready && document.fonts.ready.then) document.fonts.ready.then(run, run); else run();
     };
     // Minimal hosts (no window events) just never auto-run; check() stays callable.
@@ -952,7 +1043,7 @@
     icon: icon, icons: Object.keys(ICONS), theme: theme, themeTokens: themeTokens, palette: palette, contrast: contrast, mark: mark, marks: Object.keys(MARKS),
     themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
     termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck,
-    termIssues: termIssues, goalIssues: goalIssues, deckIssues: deckIssues, check: check, checkSource: checkSource, auditScene: auditScene, sceneTypes: SCENE_TYPES, rectHit: rectHit, freeSlot: freeSlot,
+    termIssues: termIssues, goalIssues: goalIssues, deckIssues: deckIssues, check: check, checkSource: checkSource, clock: clock, sceneTypes: SCENE_TYPES, rectHit: rectHit, freeSlot: freeSlot,
     stepValues: stepValues, goalReach: goalReach,
     setGlossary: setGlossary, linkTerms: linkTerms, mobile: mobile
   };

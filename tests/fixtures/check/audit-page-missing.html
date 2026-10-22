@@ -7,15 +7,14 @@
 <script type="application/json" id="ltt-meta">{"topic":"t","audience":"a","theme":"paper","medium":"m","decision":"d"}</script>
 </head>
 <body>
-
+<h1>제목</h1><p>본문</p>
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
 <script src="/kit/ltt-ui.js"></script>
-<script src="/kit/ltt-deck.js"></script>
+<script>new MutationObserver(function(){var c=document.getElementById("ltt-check");if(c)c.remove();}).observe(document.documentElement,{childList:true,subtree:true});</script>
 
-<script>
-new MutationObserver(function(){var a=document.getElementById("ltt-audit");if(a)a.remove();}).observe(document.documentElement,{childList:true,subtree:true});
-LTT.deck({title:"d",theme:"paper",scenes:[{type:"figure",title:"그림",caption:"c",figure:"그림"},{type:"statement",title:"문장"},{type:"keywords",terms:[]}]});</script>
+
+
 </body>
 </html>

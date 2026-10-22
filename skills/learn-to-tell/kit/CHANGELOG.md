@@ -6,13 +6,16 @@
 
 작가 계약
 - 덱이 아닌 페이지도 `#ltt-meta`의 `glossary`로 `{{용어}}` 풀이 팝오버를 얻고, `load` 때 kit이 `{{}}`를 링크한다.
-- 모든 페이지에서 kit이 `unknown-term`·`used-before-defined`·`filler-content`·`goal-unreachable`·`goal-at-start`·`expect-mismatch`를 검사해 `#ltt-check`·`data-ltt-check`·패널·`lint` 이벤트로 낸다. 덱의 `predict-new-term`도 같다. 덱의 `lint`·`#ltt-audit`에서는 이 항목들이 빠진다.
-- `?check`(또는 `?audit`)이면 덱이 모든 장면을 그려 목표를 검사한다.
+- 모든 페이지에서 kit이 `unknown-term`·`used-before-defined`·`filler-content`·`goal-unreachable`·`goal-at-start`·`expect-mismatch`를 검사해 `#ltt-check`·`data-ltt-check`·패널·`lint` 이벤트로 낸다. 덱의 `predict-new-term`도 같다. 덱의 `lint`에서는 이 항목들이 빠진다.
+- `?check`(또는 `?shot`)이면 덱이 모든 장면을 그려 목표를 검사한다.
+- `LTT.clock(el, draw, {dur, loop, id})` 추가: 보일 때만 도는 시계. reduced-motion이거나 `?shot`이면 `draw(dur)` 한 장만 그린다. 움직이는 그림은 이것으로 그리고 id를 붙인다.
+- `?shot` 모드(`?shot`, `?shot&y=<px>`, `?shot&clock=<id>&t=<ms>`)와 `#ltt-check`의 `scroll`·`scenes`·`clocks` 필드. 같은 clock id가 둘이면 `clock-duplicate-id`.
+- 덱의 `?audit`·`audit()`·`#ltt-audit`·`layout-audit` 이벤트와 레이아웃 판정 규칙(`overflow`·`shrunk`·`small-visual` 등)을 없앴다. 그려진 화면은 `audit.mjs --shots` PNG로 본다.
 - `LTT.recall`로 덱 밖에서도 떠올리기 질문과 `recall` 이벤트를 쓸 수 있다.
 kit 개발자용 · 수업에서 부르지 않는 kit 내부 이름이다. kit 모듈끼리, 테스트, 서버 쪽 계산이 쓴다.
-- `LTT.termIssues`·`goalIssues`·`deckIssues`·`checkSource` 추가. `lintDeck`은 용어·채움 글 규칙을, `auditScene`은 `goal-unreachable`·`goal-at-start`를 더는 내지 않는다.
+- `LTT.termIssues`·`goalIssues`·`deckIssues`·`checkSource` 추가. `lintDeck`은 용어·채움 글 규칙을 더는 내지 않는다. 장면 타입 메타의 `sumVisualAreas`·`auditHero`·`auditSmallVisual`·`auditLooseFigure`와 `LTT.auditScene`을 없앴다.
 - `LTT.setGlossary`는 풀이를 합치고 먼저 등록된 것을 남긴다.
-- `server/audit.mjs`가 `#ltt-check`를 읽어 결과에 `check`를 더하고, 덱이 아닌 페이지는 `#ltt-audit` 없이 받는다.
+- `server/audit.mjs`는 `?shot`으로 `#ltt-check`만 읽는다. `--shots`는 덱은 장면마다, 덱 아닌 페이지는 스크롤 위치마다 PNG를 남기고, `--checklist`의 `[shot <id> <ms>]` 표식마다 한 장 더 찍는다. 결과 필드가 `check`·`marks`·`shots`·`truncated`·`scroll`로 바뀌었다(`audit`·`lint`·`expectFails`·`scenes` 삭제). `checkSource`에 `scenes`·`reveal`이 더해졌다.
 
 ## 0.2.0
 

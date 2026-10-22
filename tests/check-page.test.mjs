@@ -228,7 +228,7 @@ const DECK_GOAL = unreachable("장면 3", 3);
 
 for (const [query, want] of [
   ["?check", [DECK_STATIC, DECK_GOAL]],
-  ["?audit", [DECK_STATIC, DECK_GOAL]],
+  ["?shot", [DECK_STATIC, DECK_GOAL]],
   ["", [DECK_STATIC]],
 ]) {
   test(`VO-6 C-18 FR-9: deck page with query "${query}" ${want.length === 2 ? "mounts all scenes and reports the scene-3 goal" : "reports only mounted-scene goals (none)"}`, T, async () => {
@@ -280,7 +280,8 @@ test("VO-7 FR-12 UI-3: deck summary recall cards behave like the base_commit kit
   await new Promise((r) => baseServer.listen(0, "127.0.0.1", r));
   basePort = baseServer.address().port;
   const oldRun = await runPage("recall-deck-summary.html", { query: "?audit", homeDir: baseHome, srvPort: basePort });
-  const newRun = await runPage("recall-deck-summary.html", { query: "?audit" });
+  // Spec 76b739afacf5b868 FR-14: ?audit is gone from the current kit; ?shot mounts every scene. The base kit copy still needs ?audit.
+  const newRun = await runPage("recall-deck-summary.html", { query: "?shot" });
   assert.ok(oldRun.probe && newRun.probe, "probe missing");
   assert.ok(oldRun.probe.textareas >= 2, `base summary has ${oldRun.probe.textareas} answer boxes; fixture cannot observe it`);
   assert.deepEqual(newRun.probe.rows, oldRun.probe.rows);
@@ -330,51 +331,63 @@ async function auditFixture(fixture) {
 }
 const hasLine = (report, line) => report.split("\n").includes(line);
 
-test("VO-14 page source, no #ltt-audit, check 0: accepted with scenes 0 and empty arrays, exit 0", T, async () => {
-  const { r, code } = await auditFixture("audit-page-clean.html");
+// Spec 76b739afacf5b868 FR-8/FR-13/D-6: result items carry check, marks, shots, truncated, scroll; audit/lint/expectFails/scenes are gone.
+const REMOVED_FIELDS = ["audit", "lint", "expectFails", "scenes"];
+const assertNoRemovedFields = (r) => { for (const k of REMOVED_FIELDS) assert.equal(k in r, false, `result still has ${k}`); };
+
+test("VO-14 page, check 0: result has check [], marks [], shots [], truncated false, a numeric scroll, no removed fields; exit 0", T, async () => {
+  const { r, report, code } = await auditFixture("audit-page-clean.html");
   assert.equal(r.error, undefined);
-  assert.equal(r.scenes, 0);
-  for (const k of ["audit", "lint", "expectFails", "check"]) assert.deepEqual(r[k], [], k);
+  assert.deepEqual(r.check, []);
+  assert.deepEqual(r.marks, []);
+  assert.deepEqual(r.shots, []);
+  assert.equal(r.truncated, false);
+  assert.ok(Number.isFinite(r.scroll) && r.scroll > 0, String(r.scroll));
+  assert.ok(Array.isArray(r.viewport) && r.viewport.length === 2);
+  assertNoRemovedFields(r);
   assert.equal(code, 0);
+  const last = report.trimEnd().split("\n").at(-1);
+  assert.equal(last, `1440x900 (화면 ${r.viewport[0]}×${r.viewport[1]}): check 0건`);
 });
 
-test("VO-14 page source, no #ltt-audit, check >= 1: check copied, report lines, exit 1", T, async () => {
+test("VO-14 page, check >= 1: check copied from #ltt-check, exact report lines, exit 1", T, async () => {
   const { r, report, code } = await auditFixture("audit-page-defect.html");
   assert.equal(r.error, undefined);
-  assert.equal(r.scenes, 0);
   assert.deepEqual(r.check, [unknown("구역 '제목'", "없는말"), mismatch("x", 2, 3)]);
-  assert.deepEqual(r.expectFails, [], "a page has no #ltt-audit expectFails");
+  assertNoRemovedFields(r);
+  assert.ok(hasLine(report, `1440x900 ${r.target}  check 2 · marks 0 · shots 0`), report);
   assert.ok(hasLine(report, "    check 구역 '제목' [unknown-term]: 풀이가 없는 용어 {{없는말}}"), report);
   assert.ok(hasLine(report, "    check 페이지 [expect-mismatch]: x (모델 2, 기대 3)"), report);
+  assert.ok(hasLine(report, `1440x900 (화면 ${r.viewport[0]}×${r.viewport[1]}): check 2건`), report);
   assert.equal(code, 1);
 });
 
-test("VO-14 deck source with #ltt-audit, check 0: normal deck result, check empty", T, async () => {
+test("VO-14 deck, check 0: no #ltt-audit needed, check empty, no scenes field, exit 0", T, async () => {
   const { r, code } = await auditFixture("audit-deck-clean.html");
   assert.equal(r.error, undefined);
-  assert.equal(r.scenes, 3);
   assert.deepEqual(r.check, []);
-  assert.deepEqual(r.lint, []);
-  assert.equal(code, r.audit.length + r.expectFails.length > 0 ? 1 : 0);
+  assertNoRemovedFields(r);
+  assert.equal(code, 0);
 });
 
-test("VO-14 deck source with #ltt-audit, check >= 1: check copied, lint stays empty for the moved B rule, exit 1", T, async () => {
+test("VO-14 deck, check >= 1: check copied, no lint field, exit 1", T, async () => {
   const { r, report, code } = await auditFixture("audit-deck-defect.html");
   assert.equal(r.error, undefined);
-  assert.equal(r.scenes, 3);
   assert.deepEqual(r.check, [unknown("장면 2", "없는말")]);
-  assert.deepEqual(r.lint.filter((w) => w.rule === "unknown-term"), []);
+  assertNoRemovedFields(r);
   assert.ok(hasLine(report, "    check 장면 2 [unknown-term]: 풀이가 없는 용어 {{없는말}}"), report);
   assert.equal(code, 1);
 });
 
-test("VO-14 deck source without #ltt-audit keeps the old error, exit 2", T, async () => {
-  const { r, code } = await auditFixture("audit-deck-noaudit.html");
+test("VO-14 missing #ltt-check: the item is an error and the exit code is 2", T, async () => {
+  const { r, report, code } = await auditFixture("audit-page-missing.html");
   assert.equal(typeof r.error, "string");
   assert.ok(r.error.length > 0);
+  assert.ok(report.split("\n").some((l) => l.includes(`오류: ${r.error}`)), report);
   assert.equal(code, 2);
 });
 
+// Characterization (pre-existing wording, unchanged by spec 76b739afacf5b868).
 test("VO-14 broken #ltt-check JSON: error text and exit 2", T, async () => {
   const { r, code } = await auditFixture("audit-page-broken.html");
   assert.equal(r.error, "#ltt-check JSON을 읽을 수 없다");
@@ -452,10 +465,10 @@ test("VO-6 A-c: a deck without a query reports an unreachable goal in the first 
   assert.equal(r.probe.errs, 0);
 });
 
-test("VO-12 F-8: a deck with a failing LTT.expect audits to the base expectFails wording and a check expect-mismatch", T, async () => {
+test("VO-12 F-8 (revised by 76b739afacf5b868): a deck with a failing LTT.expect reports one check expect-mismatch and no expectFails", T, async () => {
   const { r, code } = await auditFixture("audit-deck-expect.html");
   assert.equal(r.error, undefined);
-  assert.deepEqual(r.expectFails, ["✗ 검증 실패: x (모델 2, 기대 3)"]);
   assert.deepEqual(r.check, [mismatch("x", 2, 3)]);
+  assertNoRemovedFields(r);
   assert.equal(code, 1);
 });

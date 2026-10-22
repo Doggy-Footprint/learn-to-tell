@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>fixture</title>
+<style>html,body{margin:0;padding:0}*,*::before,*::after{transition:none!important;animation:none!important}</style>
+<script>window.__errs=0;addEventListener("error",function(){window.__errs++});addEventListener("unhandledrejection",function(){window.__errs++});</script>
+<script type="application/json" id="ltt-meta">{"topic":"t","audience":"a","theme":"paper","medium":"m","decision":"d"}</script>
+</head>
+<body>
+<h1>dup</h1>
+<div id="c1" style="height:40px"></div><div id="c2" style="height:40px"></div>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script>
+LTT.clock(document.getElementById("c1"),function(){},{dur:1000,id:"a"});
+LTT.clock(document.getElementById("c2"),function(){},{dur:1000,id:"a"});
+</script>
+</body>
+</html>

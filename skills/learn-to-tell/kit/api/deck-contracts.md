@@ -1,4 +1,4 @@
-언제: figure `steps`, predict `answerVisual`·`rest`를 쓸 때, 또는 덱 이동·layout 기본값·`?audit`·폰 재배치의 세부 동작이 필요할 때 읽는다. 수업 작가가 지킬 계약만 담는다.
+언제: figure `steps`, predict `answerVisual`·`rest`를 쓸 때, 또는 덱 이동·layout 기본값·`?shot`·폰 재배치의 세부 동작이 필요할 때 읽는다. 수업 작가가 지킬 계약만 담는다.
 
 # ltt-deck.js: 장면 덱 계약
 
@@ -43,13 +43,10 @@
 - 정답을 펼친 predict에서 ← 키는 이전 장면 대신 문제 상태로 돌아간다(`predict-back` 이벤트, 이전 버튼·스와이프는 그대로 이전 장면).
 - 펼친 정답은 장면 안에서 글·컨트롤·그림이 없는 빈자리를 찾아 그 위에 놓이고, 빈자리가 없으면 아래로 붙는다(넘치면 평소처럼 78%까지 줄인다).
 
-## 화면 점검 (`?audit`) 세부
+## 화면 확인 (`?check`·`?shot`) 세부
 
-- `?check`나 `?audit`이면 덱이 모든 장면을 그려 `#ltt-check`의 목표 판정에 넣는다(없으면 그려진 장면만). `?audit`은 거기에 더해 잰다.
-- 덱이 모든 장면을 그려 잰다. `LTT.deck(...)`가 돌려주는 객체의 `audit()`으로 직접 부를 수도 있다. 판정은 `LTT.auditScene(측정값)`이 한다.
-- 결과는 `<script type="application/json" id="ltt-audit">`에 `{viewport, scenes, audit, lint, expectFails}`로도 남고(`lint`는 `LTT.lintDeck`의 나머지 규칙, `audit`은 `LTT.auditScene`의 레이아웃 규칙, 용어·목표·expect 결함은 `#ltt-check`의 `errors`), `server/audit.mjs`가 헤드리스 Chrome의 `--dump-dom` 출력에서 그것을 읽어 두 크기의 표를 만든다.
-- 폭 1000px 이하 창에서는 `shrunk`·`small-visual`·`loose-figure`를 판정하지 않는다. `small-visual`은 hook·terms·summary·keywords·statement·predict 장면에서도 판정하지 않는다.
-- `goal-unreachable`·`goal-narrow`·`goal-at-start`의 자리(앞의 둘은 `#ltt-check`, `goal-narrow`는 audit이 판정)는 손잡이마다 최대 201곳(dial은 최대 360곳, pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다.
+- `?check`나 `?shot`이면 덱이 모든 장면을 그려 `#ltt-check`의 목표 판정에 넣는다(없으면 그려진 장면만). `?shot`의 `#n`은 n번 장면을 고르고, `?shot&clock=<id>&t=<ms>`는 그 clock이 든 장면을 보인다. 결과의 `scenes`는 덱 장면 수다.
+- `goal-unreachable`·`goal-at-start`는 손잡이마다 최대 201곳(dial은 최대 360곳, pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다.
 
 ## 폰 재배치
 

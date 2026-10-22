@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>fixture</title>
+<style>html,body{margin:0;padding:0}*,*::before,*::after{transition:none!important;animation:none!important}</style>
+<script>window.__errs=0;addEventListener("error",function(){window.__errs++});addEventListener("unhandledrejection",function(){window.__errs++});</script>
+<script type="application/json" id="ltt-meta">{"topic":"t","audience":"a","theme":"paper","medium":"m","decision":"d"}</script>
+</head>
+<body>
+<h1>throwing</h1>
+<div id="ct" style="height:40px"></div><div id="cn" style="height:40px"></div>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script>
+function ltt_el(id){var e=document.getElementById(id);if(!e)return null;var b=e.getBoundingClientRect();
+  var shown=typeof e.checkVisibility==="function"?e.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}):true;
+  return{t:e.getAttribute("data-t"),vis:shown&&b.width>0&&b.height>0&&b.right>0&&b.left<innerWidth&&b.bottom>0&&b.top<innerHeight,
+    inView:b.top>=0&&b.bottom<=innerHeight&&b.left>=0&&b.right<=innerWidth};}
+function ltt_probe(ids){var p={errs:window.__errs,scrollY:Math.round(scrollY),vp:[innerWidth,innerHeight],els:{}};
+  for(var i=0;i<ids.length;i++)p.els[ids[i]]=ltt_el(ids[i]);
+  var s=document.createElement("script");s.type="application/json";s.id="probe";
+  s.textContent=JSON.stringify(p).replace(/</g,"\u003c");document.body.appendChild(s);}
+function ltt_when(ids){
+  if(!/[?&]shot\b/.test(location.search)){setTimeout(function(){ltt_probe(ids);},2500);return;}
+  var n=0;(function poll(){if(document.documentElement.hasAttribute("data-ltt-shot")||++n>160){setTimeout(function(){ltt_probe(ids);},300);}else setTimeout(poll,50);})();}
+</script>
+<script>
+function mark(id,label){return function(t){var e=document.getElementById(id);e.setAttribute("data-t",String(t));e.textContent=label+" t="+t;};}
+LTT.clock(document.getElementById("ct"),function(){throw new Error("boom");},{dur:1000,id:"t"});
+LTT.clock(document.getElementById("cn"),mark("cn","N"),{dur:1000,id:"n"});
+addEventListener("load",function(){ltt_when(["ct","cn"]);});
+</script>
+</body>
+</html>

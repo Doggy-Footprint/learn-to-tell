@@ -248,7 +248,7 @@ test("VO-4 summary cardGrid reads scenes: the same deck with recall on the takea
   assert.deepEqual(lint(deck(scenes)), []);
 });
 
-// ---------- VO-7 C-18 MR-1 (lintDeck part; the auditScene part is in tests/scene-types.test.mjs) ----------
+// ---------- VO-7 C-18 MR-1 (lintDeck part) ----------
 
 const LINT_INPUTS = [
   ...CASES.map(({ id, spec }) => ({ id, spec })),

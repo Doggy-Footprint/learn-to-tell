@@ -54,7 +54,7 @@ Make an visual learning material for a given topic to help user get intuitive un
 
 아래는 생성에 도움을 주기 위한 kit이다. agent는 kit을 읽지 않고, 검색어로 필요한 부분만 찾아 쓴다. kit은 agent가 정한 전략과 구조를 보조하는 역할만 한다. kit에 없는 것은 직접 짠다.
 
-- 필수 파트: theme, `{{용어}}` 풀이, `LTT.expect`, `LTT.record`(이벤트 기록). 사용법은 `<skill>/kit/API.md`의 "페이지 계약"·"불러오기"·"기본 이름" 절에 있다. 이 세 절만 읽는다.
+- 필수 파트: theme, `{{용어}}` 풀이, `LTT.expect`, `LTT.record`(이벤트 기록), 움직이는 그림은 `LTT.clock`(id를 붙인다). 사용법은 `<skill>/kit/API.md`의 "페이지 계약"·"불러오기"·"기본 이름" 절에 있다. 이 세 절만 읽는다.
 - 그 밖의 파트는 정한 구조가 있을 때만 찾는다. 설명 대상(예: 시간에 따른 변화, 구성 요소 관계), 방식(예: 2D 지도, diagram, 흐름도, 그래프, 목업), 그림 종류의 키워드로 `kit/API.md`의 "부품 고르기" 표를 grep하고, 걸린 줄의 참조 문서만 읽는다.
 - 그리는 방법의 본보기는 `<skill>/look/look.md`의 shot 색인이다. 개념 구조·움직임 열을 grep해 맞는 shot 2–3개의 카드(`look/shots/sNN.jpg`)를 본다. shot의 주제·문구·수치·배치는 옮기지 않는다. `look/board.jpg`는 완성도 기준으로 한 번 본다.
 
@@ -64,11 +64,11 @@ Make an visual learning material for a given topic to help user get intuitive un
 
 1. **계획** `outline.md`: §1에서 정한 범위(시작·종료 지점, 복습 대상), 전달 전략과 설명 흐름(비트 한 줄씩), 주장과 근거(출처), 수치 모델의 공식과 계산 지점마다 직접 구한 기대값(모델 코드보다 먼저 적는다), 수업 끝 개념 나무에 넣을 다음 개념, §4에서 쓸 학습자 평가 기준.
 2. **검증표**: 시행과 정답을 두 파일로 나눈다.
-   - `checklist.md`: 그림마다 그림만 보고 답할 질문 하나(위 평가 기준 1), 그 그림에서 가장 먼저 눈에 띄어야 할 것(평가 기준 2), 형식과 무관한 수업 항목(정의 전에 쓴 용어·기호가 없다, 예측을 묻기 전에 답을 말하지 않는다, 수업 끝에 한 장 정리와 떠올리기 질문, 개념 나무가 있다 등).
+   - `checklist.md`: 그림마다 그림만 보고 답할 질문 하나(위 평가 기준 1), 그 그림에서 가장 먼저 눈에 띄어야 할 것(평가 기준 2), 움직이는 그림의 핵심 상태는 `[shot <id> <ms>]` 표식(한 그림에 여러 개 가능), 형식과 무관한 수업 항목(정의 전에 쓴 용어·기호가 없다, 예측을 묻기 전에 답을 말하지 않는다, 수업 끝에 한 장 정리와 떠올리기 질문, 개념 나무가 있다 등).
    - `answers.md`: `checklist.md` 항목 번호마다 정답(실제 대상에서 성립하는 답, 눈에 띄어야 할 요소).
 3. **storyboard** `storyboard.html`: 서로 다른 설명 방식 2–3안을 나란히 그린다. 안마다 수업의 근간이 될 핵심 그림 3–5장을 실제로 그리고(움직여도 된다), 그림마다 비트 한 줄을 붙인다. 서버(6번)를 띄워 `http://127.0.0.1:47823/lessons/<id>/storyboard.html`을 안내하고 사용자가 고를 때까지 기다린다. 사용자가 섞거나 고치라고 하면 storyboard를 고쳐 다시 보이고, 바뀐 그림에 맞춰 `checklist.md`·`answers.md`를 고친다.
 4. **생성**: 고른 안의 그림을 근간으로 `lesson.html`을 한 번에 Write한다. 형식은 자유다(넘김, 스크롤, 한 화면). 기대값은 1번에 적은 값을 `LTT.expect`에 넣는다.
-5. **점검과 검증**: `node <skill>/server/audit.mjs <home>/lessons/<id>/lesson.html --shots <home>/lessons/<id>/shots`를 실행한다. 출력의 `check` 오류와 expect 불일치는 Edit로 고치고 0이 될 때까지 다시 돌린다. expect 불일치는 먼저 손으로 다시 계산하고, 모델에 맞춰 기대값을 고치지 않는다. 0이 되면 검증 서브에이전트를 띄운다(아래 검증). 받은 미충족 항목을 한 응답의 Edit 묶음으로 반영하고 audit과 검증을 다시 돌린다. 검증은 최대 3회다. 3회째에도 미충족 항목이 남으면 그 항목을 보이고 더 고칠지 사용자에게 허락을 구한다.
+5. **점검과 검증**: `node <skill>/server/audit.mjs <home>/lessons/<id>/lesson.html --shots <home>/lessons/<id>/shots --checklist <home>/lessons/<id>/checklist.md`를 실행한다. 출력의 `check` 오류와 expect 불일치는 Edit로 고치고 0이 될 때까지 다시 돌린다. expect 불일치는 먼저 손으로 다시 계산하고, 모델에 맞춰 기대값을 고치지 않는다. 0이 되면 검증 서브에이전트를 띄운다(아래 검증). 받은 미충족 항목을 한 응답의 Edit 묶음으로 반영하고 점검과 검증을 다시 돌린다. 검증은 최대 3회다. 3회째에도 미충족 항목이 남으면 그 항목을 보이고 더 고칠지 사용자에게 허락을 구한다.
 6. **공개**: 서버를 백그라운드로 실행한다: `node <skill>/server/server.mjs`(실행 중이면 재사용, 포트는 `LTT_PORT`). `http://127.0.0.1:47823/lessons/<id>/lesson.html`을 안내한다.
 7. 사용자가 다 봤다고 하면 `events.jsonl`의 예측, `term`, `recall`, `goal`, `expect-mismatch`, `lint` 이벤트를 읽는다. 여러 번 연 용어와 비었거나 틀린 `recall`은 §4에서 다시 묻는다. 사용자가 고칠 곳을 말하면 Edit로 고치고 5번을 다시 지난다.
 
@@ -83,7 +83,7 @@ Make an visual learning material for a given topic to help user get intuitive un
 - **검증 서브에이전트** 1개, 모델은 지정하지 않는다. 주는 것: `checklist.md` 경로, 스크린샷 디렉터리 경로, `answers.md` 경로, `background.md` 경로. `lesson.html`, 모델 코드, `outline.md`는 주지 않는다.
 - 프롬프트에 순서를 적는다: `checklist.md`와 스크린샷만 보고 항목마다 답을 먼저 정한 뒤 `answers.md`를 연다. 두 답이 다르거나 항목을 만족하지 않으면 그 항목만 `항목 번호: 본 것 | 기대한 것` 한 줄로 보고한다. 모두 만족하면 "없음"만 답한다. 검증표를 다시 옮겨 적지 않는다.
 - 서브에이전트를 쓸 수 없으면 검증표의 질문을 스크린샷에 직접 답하고, 수업의 해당 주장에 "미검증" 태그를 단다. 자기 확언만으로 정확성을 인정하지 않는다.
-- audit은 헤드리스 Chrome으로 `lesson.html?audit`을 1440×900과 1280×800에서 연다. 규칙 뜻은 `<skill>/kit/api/rules.md`에 있고, 출력만으로 고칠 수 있으면 읽지 않는다. Chrome이 없으면(종료 코드 2) 브라우저에서 `lesson.html?audit`을 두 크기로 열어 패널 경고를 보고, 스크린샷 대신 사용자에게 화면 캡처를 부탁하거나 검증을 "미검증"으로 둔다. 폰 화면은 점검하지 않는다.
+- audit은 헤드리스 Chrome으로 `lesson.html?shot`을 1440×900과 1280×800에서 열어 `check` 오류를 내고 스크린샷을 남긴다. 규칙 뜻은 `<skill>/kit/api/rules.md`에 있고, 출력만으로 고칠 수 있으면 읽지 않는다. Chrome이 없으면(종료 코드 2) 브라우저에서 `lesson.html?shot`을 두 크기로 열어 보고, 스크린샷 대신 사용자에게 화면 캡처를 부탁하거나 검증을 "미검증"으로 둔다. 폰 화면은 점검하지 않는다.
 
 ## 4. 이해 확인 (대화)
 

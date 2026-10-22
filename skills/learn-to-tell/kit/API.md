@@ -11,7 +11,9 @@
 
 여러 화면을 순서대로 넘길 때만 `LTT.deck`을 쓴다(아래 "덱"). 그 밖에는 페이지에 직접 배치한다.
 
-페이지를 열면 kit이 결정적 결함을 스스로 검사한다(덱이든 아니든 같다). 결과는 `#ltt-check`, 곧 `<script type="application/json" id="ltt-check">{"source": "deck"|"page", "viewport": [w, h], "errors": [{where, rule, msg}]}</script>`, `<html data-ltt-check="건수">`, 패널 경고, `lint` 이벤트로 남는다. 덱이 아닌 페이지는 h1–h3로 나눈 구역이 `where`가 된다. rule 뜻은 `kit/api/rules.md`의 "검사" 절.
+페이지를 열면 kit이 결정적 결함을 스스로 검사한다(덱이든 아니든 같다). 결과는 `#ltt-check`, 곧 `<script type="application/json" id="ltt-check">{"source": "deck"|"page", "viewport": [w, h], "errors": [{where, rule, msg}], "scroll": 문서 scrollHeight, "scenes": 장면 수(덱만), "clocks": [{id, dur}]}</script>`, `<html data-ltt-check="건수">`, 패널 경고, `lint` 이벤트로 남는다. 덱이 아닌 페이지는 h1–h3로 나눈 구역이 `where`가 된다. rule 뜻은 `kit/api/rules.md`의 "검사" 절. `clocks`는 id를 붙인 `LTT.clock`만 만든 순서로 담고, 같은 id가 둘이면 `clock-duplicate-id`가 난다.
+
+URL에 `?shot`을 붙이면 스크린샷 모드다: 모든 `LTT.clock`이 돌지 않고 `draw(dur)`만 그린다. `?shot&y=<px>`는 검사 뒤 그 높이로 스크롤하고, `?shot&clock=<id>&t=<ms>`는 그 id의 clock만 `draw(t)`로 그려(다른 clock은 `dur`) 그 그림이 화면 안에 오게 스크롤한다(덱이면 그 장면을 보인다). 덱의 `#n`은 `?shot`에서도 n번 장면을 고른다. `audit.mjs --shots`가 이 모드로 PNG를 찍는다.
 
 ## 불러오기
 
@@ -45,7 +47,8 @@
 | `LTT.mark(kind, {size, color, weight, fill, inline})`, `LTT.marks` | 모양 표식(square, ring, dot, diamond, cross). 색만으로 계열을 가르지 않게 |
 | `{{용어}}`, `{{보이는 말\|용어}}` | 본문 속 용어. 풀이 팝오버가 된다. 덱 밖 페이지는 kit이 `load` 때 `body`의 `{{}}`를 바꾼다 |
 | `LTT.expect(label, actual, expected, {tol})` | 기대값 대조. 불일치는 패널과 서버에 남는다 |
-| `LTT.check()` | 결함 검사를 지금 다시 돌려 `{source, viewport, errors}`를 돌려주고 `#ltt-check`·`data-ltt-check`·패널을 갱신한다. 페이지를 열면 글꼴 준비 뒤 한 번 자동으로 돈다 |
+| `LTT.check()` | 결함 검사를 지금 다시 돌려 `{source, viewport, errors, scroll, scenes?, clocks}`를 돌려주고 `#ltt-check`·`data-ltt-check`·패널을 갱신한다. 페이지를 열면 글꼴 준비 뒤 한 번 자동으로 돈다 |
+| `LTT.clock(el, draw, {dur, loop, id})` | 움직이는 그림의 시계 → `{play, pause, seek}`. `draw(t)`(t는 0~`dur` ms)를 `el`이 보이는 동안 프레임마다 부르고 `loop`이 아니면 `draw(dur)`에서 멈춘다. reduced-motion·`?shot`이면 `draw(dur)` 한 번뿐. `id`를 붙이면 checklist `[shot <id> <ms>]`로 그 시점을 찍는다 |
 | `LTT.lintDeck(spec)` | 덱 장면 데이터 점검 `[{scene, rule, msg}]`. 덱이 시작할 때 실행한다 |
 | `LTT.record(type, data)` | 서버로 이벤트(lesson 페이지에서만) |
 | `LTT.math(scope)` | `data-tex` 요소를 KaTeX로 |

@@ -92,7 +92,7 @@ test("VO-10 FR-9: the LTT.deckTypes row mentions sceneTypes", () => {
   assert.deepEqual(stale, [], `LTT.deckTypes rows without sceneTypes:\n${stale.join("\n")}`);
 });
 
-const FIELDS = ["head", "autoSplit", "fullByDefault", "pointsOnMock", "sumVisualAreas", "needsReadingGuide", "titleOptional", "bookend", "cardGrid", "signature", "auditHero", "auditSmallVisual", "auditLooseFigure", "render"];
+const FIELDS = ["head", "autoSplit", "fullByDefault", "pointsOnMock", "needsReadingGuide", "titleOptional", "bookend", "cardGrid", "signature", "render"];
 
 const fieldCell = (row, field) => new RegExp(`^${field}(?![\\w$-])`).test(firstCell(row).replace(/`/g, "").trim());
 
@@ -130,15 +130,11 @@ const SPEC_META = {
   autoSplit: [true, ["map-related", "hook", "keywords", "summary", "terms", "contrast", "predict", "figure", "overview", "statement"]],
   fullByDefault: [false, ["figure", "overview"]],
   pointsOnMock: [false, ["figure", "overview"]],
-  sumVisualAreas: [false, ["compare"]],
   needsReadingGuide: [false, ["compare", "contrast", "figure", "overview"]],
   titleOptional: [false, ["hook", "keywords", "summary"]],
   bookend: [false, ["hook", "keywords"]],
   cardGrid: [false, ["explain", "compare", "summary", "terms"]],
   signature: [false, ["figure", "contrast"]],
-  auditHero: [false, ["figure"]],
-  auditSmallVisual: [true, ["hook", "terms", "summary", "keywords", "statement", "predict"]],
-  auditLooseFigure: [false, ["figure"]],
 };
 
 function tableBlocks(text) {

@@ -35,28 +35,20 @@ const BOOL_DEFAULTS = {
   autoSplit: true,
   fullByDefault: false,
   pointsOnMock: false,
-  sumVisualAreas: false,
   needsReadingGuide: false,
   titleOptional: false,
   bookend: false,
   signature: false,
-  auditHero: false,
-  auditSmallVisual: true,
-  auditLooseFigure: false,
 };
 const NON_DEFAULT = {
   head: ["hook", "statement"],
   autoSplit: ["map-related", "hook", "keywords", "summary", "terms", "contrast", "predict", "figure", "overview", "statement"],
   fullByDefault: ["figure", "overview"],
   pointsOnMock: ["figure", "overview"],
-  sumVisualAreas: ["compare"],
   needsReadingGuide: ["compare", "contrast", "figure", "overview"],
   titleOptional: ["hook", "keywords", "summary"],
   bookend: ["hook", "keywords"],
   signature: ["figure", "contrast"],
-  auditHero: ["figure"],
-  auditSmallVisual: ["hook", "terms", "summary", "keywords", "statement", "predict"],
-  auditLooseFigure: ["figure"],
 };
 const CARD_GRID_TYPES = ["explain", "compare", "summary", "terms"];
 const META_FIELDS = [...Object.keys(BOOL_DEFAULTS), "cardGrid"];
@@ -65,8 +57,8 @@ const label = (type) => (type === "" ? '""' : type);
 
 // ---------- VO-1 table values (ltt.js only) ----------
 
-test("VO-1 C-2: oracle covers 13 meta fields", () => {
-  assert.equal(META_FIELDS.length, 13);
+test("VO-1 C-2: oracle covers 9 meta fields (sumVisualAreas and the three audit* fields removed, spec 76b739afacf5b868 FR-14)", () => {
+  assert.equal(META_FIELDS.length, 9);
   assert.equal(TYPES.length, 12);
 });
 
@@ -91,6 +83,7 @@ for (const type of TYPES) {
       if (!Object.prototype.hasOwnProperty.call(entry, field)) wrong.push(`${field}: not an own property`);
       else if (entry[field] !== meta(type, field)) wrong.push(`${field}: expected ${meta(type, field)}, got ${String(entry[field])}`);
     }
+    for (const gone of ["sumVisualAreas", "auditHero", "auditSmallVisual", "auditLooseFigure"]) if (Object.prototype.hasOwnProperty.call(entry, gone)) wrong.push(`${gone}: removed field still present`);
     if (!Object.prototype.hasOwnProperty.call(entry, "cardGrid")) wrong.push("cardGrid: not an own property");
     else if (CARD_GRID_TYPES.includes(type)) {
       if (typeof entry.cardGrid !== "function") wrong.push(`cardGrid: expected a function, got ${String(entry.cardGrid)}`);
@@ -123,7 +116,7 @@ for (const { id, type, s, card } of CARD_GRID_CASES) {
 // ---------- VO-2 deck attaches render (6 files, DOM-free) ----------
 
 const BASE_NAMES = [
-  "theme, themes, palette, mark, marks, icon, icons, expect, record, lintDeck, math, MOTION_MS, deck",
+  "theme, themes, palette, mark, marks, icon, icons, expect, record, lintDeck, math, MOTION_MS, deck, clock",
   "themeTokens, summaryCards, linkTerms, warn",
   "narration, annotate, beforeAfter, facts, chips, badge, callout, swatches, takeaway, chartFrame, inspector, redline, h, fill, contrast",
   "mock",
@@ -132,7 +125,7 @@ const BASE_NAMES = [
   "map",
   "sweep, drag, predict, stepper, sim, tween",
   "axisPlot, hbars, lanes, sankey, plot, plotTheme, plane, units, bar",
-  "kitBase, lessonId, compare, termsIn, sceneText, termIndex, rectHit, freeSlot, stepValues, goalReach, setGlossary, auditScene, mobile, measure, $, deckTypes",
+  "kitBase, lessonId, compare, termsIn, sceneText, termIndex, rectHit, freeSlot, stepValues, goalReach, setGlossary, mobile, measure, $, deckTypes",
 ].flatMap((s) => s.split(", "));
 
 test("VO-2 C-3: every one of the 12 entries has a render function after ltt-deck.js loads", () => {
@@ -149,7 +142,7 @@ test("VO-2 FR-3: LTT.deckTypes is the same object as LTT.sceneTypes", () => {
 
 // Spec 74cb05d7da21907e v3 FR-3 adds placement (defined by ltt-deck.js) to the public set.
 // Spec 80a1b2f18f50b1df FR-15 adds check, recall, termIssues, goalIssues, deckIssues and checkSource.
-test("VO-2 FR-11 C-3 (74cb05d7da21907e FR-3): public names are the 73 base names plus sceneTypes, placement and the 6 check names", () => {
+test("VO-2 FR-11 C-3 (74cb05d7da21907e FR-3): public names are the 73 base names (auditScene out, clock in) plus sceneTypes, placement and the 6 check names", () => {
   assert.equal(new Set(BASE_NAMES).size, 73);
   const checkNames = ["check", "recall", "termIssues", "goalIssues", "deckIssues", "checkSource"];
   assert.deepEqual(Object.keys(loadDeck()).sort(), [...BASE_NAMES, "sceneTypes", "placement", ...checkNames].sort());
@@ -206,75 +199,6 @@ test("VO-3 EG-2 E-2: an ltt.js without LTT.sceneTypes makes ltt-deck.js throw th
   assert.equal(context.LTT.deck, undefined);
 });
 
-// ---------- VO-6 auditScene (BVA + decision table) ----------
-
-const M = { type: "explain", layout: "", compact: false, zoom: 1, visualRatio: 0.4, figRatio: 0.8, fill: 0.9, fontSizes: 5, hscroll: 0, overflow: false, panelOverlap: 0, graphOverlaps: 0, goals: [] };
-const audit = (LTT, m) => Array.from(LTT.auditScene({ ...M, ...m }), (w) => w.rule);
-const AUDIT_TYPES = [...TYPES, "", "foo", "constructor"];
-
-// Spec 1e62814b16984176 Signatures: hero = auditHero || (layout ? layout === "full" : fullByDefault).
-const hero = (type, layout) => meta(type, "auditHero") || (layout ? layout === "full" : meta(type, "fullByDefault"));
-
-// Per-type decision-table columns; also the measurement variants reused by VO-7 MR-1 and MR-2.
-// Spec 1e62814b16984176 VO-1: the 22% bar and fill 0.3 columns follow the effective hero for M.layout "", so overview now warns.
-const TYPE_VARIANTS = [
-  { id: "isolation", what: "the non-triggering measurement", m: {}, out: () => [] },
-  { id: "C-9", what: "visualRatio 0.05 (auditSmallVisual)", m: { visualRatio: 0.05 }, out: (t) => (meta(t, "auditSmallVisual") ? ["small-visual"] : []) },
-  { id: "C-9", what: "visualRatio 0.15 (22% hero bar)", m: { visualRatio: 0.15 }, out: (t) => (meta(t, "auditSmallVisual") && hero(t, M.layout) ? ["small-visual"] : []) },
-  { id: "C-10", what: "figRatio 0.2 (auditLooseFigure)", m: { figRatio: 0.2 }, out: (t) => (meta(t, "auditLooseFigure") ? ["loose-figure"] : []) },
-  { id: "C-10", what: "fill 0.3 (effective hero)", m: { fill: 0.3 }, out: (t) => (hero(t, M.layout) ? ["empty-stage"] : []) },
-];
-
-for (const type of AUDIT_TYPES) {
-  for (const { id, what, m, out } of TYPE_VARIANTS) {
-    const expected = out(type);
-    test(`VO-6 ${id} ${label(type)}: ${what} gives ${expected.length ? expected.join(", ") : "no warning"}`, () => {
-      assert.deepEqual(audit(loadKit(), { ...m, type }), expected);
-    });
-  }
-}
-
-const AUDIT_BOUNDARIES = [
-  { id: "C-9 general explain visualRatio 0.0999", m: { type: "explain", visualRatio: 0.0999 }, out: ["small-visual"] },
-  { id: "C-9 general explain visualRatio 0.1", m: { type: "explain", visualRatio: 0.1 }, out: [] },
-  { id: "C-9 general explain visualRatio 0.1001", m: { type: "explain", visualRatio: 0.1001 }, out: [] },
-  { id: "C-9 hero figure visualRatio 0.2199", m: { type: "figure", visualRatio: 0.2199 }, out: ["small-visual"] },
-  { id: "C-9 hero figure visualRatio 0.22", m: { type: "figure", visualRatio: 0.22 }, out: [] },
-  { id: "C-9 hero figure visualRatio 0.2201", m: { type: "figure", visualRatio: 0.2201 }, out: [] },
-  { id: "C-9 hero explain layout full visualRatio 0.2199", m: { type: "explain", layout: "full", visualRatio: 0.2199 }, out: ["small-visual"] },
-  { id: "C-9 hero explain layout full visualRatio 0.22", m: { type: "explain", layout: "full", visualRatio: 0.22 }, out: [] },
-  { id: "C-9 hero explain layout full visualRatio 0.2201", m: { type: "explain", layout: "full", visualRatio: 0.2201 }, out: [] },
-  { id: "C-9 compact figure visualRatio 0.05", m: { type: "figure", compact: true, visualRatio: 0.05 }, out: [] },
-  { id: "C-9 compact explain visualRatio 0.05", m: { type: "explain", compact: true, visualRatio: 0.05 }, out: [] },
-  { id: "C-10 loose-figure figure figRatio 0.349", m: { type: "figure", figRatio: 0.349 }, out: ["loose-figure"] },
-  { id: "C-10 loose-figure figure figRatio 0.35", m: { type: "figure", figRatio: 0.35 }, out: [] },
-  { id: "C-10 loose-figure figure figRatio 0.351", m: { type: "figure", figRatio: 0.351 }, out: [] },
-  { id: "C-10 loose-figure overview figRatio 0.1", m: { type: "overview", figRatio: 0.1 }, out: [] },
-  { id: "C-10 empty-stage figure fill 0.599", m: { type: "figure", fill: 0.599 }, out: ["empty-stage"] },
-  { id: "C-10 empty-stage figure fill 0.6", m: { type: "figure", fill: 0.6 }, out: [] },
-  { id: "C-10 empty-stage figure fill 0.601", m: { type: "figure", fill: 0.601 }, out: [] },
-  { id: "C-10 empty-stage explain layout full fill 0.599", m: { type: "explain", layout: "full", fill: 0.599 }, out: ["empty-stage"] },
-  { id: "C-10 empty-stage explain layout full fill 0.6", m: { type: "explain", layout: "full", fill: 0.6 }, out: [] },
-  { id: "C-10 empty-stage explain layout full fill 0.601", m: { type: "explain", layout: "full", fill: 0.601 }, out: [] },
-  { id: "C-10 empty-stage general explain fill 0.1", m: { type: "explain", fill: 0.1 }, out: [] },
-  // Spec 1e62814b16984176 C-1/C-3: layout-less overview is a full scene, so both hero warnings fire (was []).
-  // The spec fixes the rule set, not the order; the order is checked against overview layout "full" below.
-  { id: "C-11 overview without layout, visualRatio 0.15 and fill 0.3", m: { type: "overview", layout: "", visualRatio: 0.15, fill: 0.3 }, out: ["empty-stage", "small-visual"], anyOrder: true },
-];
-
-for (const { id, m, out, anyOrder } of AUDIT_BOUNDARIES) {
-  test(`VO-6 ${id}: ${out.length ? out.join(", ") : "no warning"}${anyOrder ? " (in any order)" : ""}`, () => {
-    const got = audit(loadKit(), m);
-    assert.deepEqual(anyOrder ? [...got].sort() : got, out);
-  });
-}
-
-test("VO-1 C-11 order (spec 1e62814b16984176 FR-1): overview layout \"\" with visualRatio 0.15 and fill 0.3 gives the same rules, messages and order as overview layout \"full\"", () => {
-  const LTT = loadKit();
-  const json = (layout) => JSON.stringify(LTT.auditScene({ ...M, type: "overview", visualRatio: 0.15, fill: 0.3, layout }));
-  assert.equal(json(""), json("full"));
-});
-
 // ---------- VO-7 runtime-added partial entry (C-15) ----------
 
 const KW = { type: "keywords", terms: [] };
@@ -284,7 +208,7 @@ const pairs = (LTT, spec) => Array.from(LTT.lintDeck(spec), (w) => [w.scene, w.r
 
 function withTimeline() {
   const LTT = loadKit();
-  LTT.sceneTypes.timeline = { needsReadingGuide: true, titleOptional: true, cardGrid: () => true, auditSmallVisual: false };
+  LTT.sceneTypes.timeline = { needsReadingGuide: true, titleOptional: true, cardGrid: () => true };
   return LTT;
 }
 
@@ -307,18 +231,6 @@ test("VO-7 C-15 cardGrid: three timeline scenes in a row count as a card run", (
 
 test("VO-7 C-15 signature default: a timeline-only deck warns no-signature", () => {
   assert.deepEqual(pairs(withTimeline(), { theme: "paper", scenes: [{ type: "timeline", title: "x", narration: "n" }, KW] }), [[0, "no-signature"]]);
-});
-
-test("VO-7 C-15 auditSmallVisual: timeline visualRatio 0.05 is not judged", () => {
-  assert.deepEqual(audit(withTimeline(), { type: "timeline", visualRatio: 0.05 }), []);
-});
-
-test("VO-7 C-15 auditHero default: timeline fill 0.3 gives no empty-stage", () => {
-  assert.deepEqual(audit(withTimeline(), { type: "timeline", fill: 0.3 }), []);
-});
-
-test("VO-7 C-15 auditLooseFigure default: timeline figRatio 0.2 gives no loose-figure", () => {
-  assert.deepEqual(audit(withTimeline(), { type: "timeline", figRatio: 0.2 }), []);
 });
 
 // ---------- VO-7 C-17 empty and cardGrid-less runtime entries ----------
@@ -347,31 +259,7 @@ for (const { id, spec, out } of C17_LINT) {
   });
 }
 
-for (const type of ["foo", "bar"]) {
-  test(`VO-7 C-17 ${type}: visualRatio 0.05 warns small-visual (default auditSmallVisual true)`, () => {
-    assert.deepEqual(audit(withFooBar(), { type, visualRatio: 0.05 }), ["small-visual"]);
-  });
-  test(`VO-7 C-17 ${type}: visualRatio 0.15 passes (10% non-hero bar)`, () => {
-    assert.deepEqual(audit(withFooBar(), { type, visualRatio: 0.15 }), []);
-  });
-}
-
-// ---------- VO-7 C-18 MR-1 (auditScene part; the lintDeck part is in tests/lint-rules.test.mjs) ----------
-
-const AUDIT_INPUTS = [
-  ...AUDIT_TYPES.flatMap((type) => TYPE_VARIANTS.map((v) => ({ id: `${v.id} ${label(type)} ${v.what}`, m: { ...v.m, type } }))),
-  ...AUDIT_BOUNDARIES.map(({ id, m }) => ({ id, m })),
-];
-const auditJson = (LTT, m) => JSON.stringify(LTT.auditScene({ ...M, ...m }));
-
-test("VO-7 C-18 MR-1: every VO-6 auditScene input with type foo gives the same output before and after sceneTypes.foo = {}", () => {
-  const inputs = AUDIT_INPUTS.filter(({ m }) => m.type === "foo");
-  assert.ok(inputs.length >= TYPE_VARIANTS.length, `only ${inputs.length} foo inputs collected`);
-  const diff = inputs.filter(({ m }) => auditJson(loadKit(), m) !== auditJson(withEntries({ foo: {} }), m)).map(({ id }) => id);
-  assert.deepEqual(diff, [], `outputs differ for: ${diff.join("; ")}`);
-});
-
-// ---------- VO-7 C-19 MR-2 copy of a built-in entry's 13 meta fields ----------
+// ---------- VO-7 C-19 MR-2 copy of a built-in entry's 9 meta fields ----------
 
 function withCopyOf(type) {
   const LTT = loadKit();
@@ -379,20 +267,6 @@ function withCopyOf(type) {
   for (const field of META_FIELDS) copy[field] = LTT.sceneTypes[type][field];
   LTT.sceneTypes.copy = copy;
   return LTT;
-}
-
-const MEASURE_VARIANTS = [...TYPE_VARIANTS.map((v) => ({ id: `${v.id} ${v.what}`, m: v.m })), ...AUDIT_BOUNDARIES.map(({ id, m }) => ({ id, m }))]
-  .map(({ id, m }) => {
-    const { type, ...rest } = m;
-    return { id, m: rest };
-  });
-
-for (const type of TYPES) {
-  test(`VO-7 C-19 MR-2 audit ${type}: type copy matches type ${type} on all ${MEASURE_VARIANTS.length} VO-6 measurement variants`, () => {
-    const LTT = withCopyOf(type);
-    const diff = MEASURE_VARIANTS.filter(({ m }) => auditJson(LTT, { ...m, type: "copy" }) !== auditJson(LTT, { ...m, type })).map(({ id }) => id);
-    assert.deepEqual(diff, [], `outputs differ for: ${diff.join("; ")}`);
-  });
 }
 
 const MR2_LINT_TYPES = ["hook", "explain", "terms", "compare", "figure", "statement", "contrast", "predict", "map-related"];
@@ -409,74 +283,7 @@ for (const type of MR2_LINT_TYPES) {
     });
   }
 }
-
-// ---------- spec 1e62814b16984176 VO-1: auditScene hero follows the effective layout (decision table + 3-value BVA) ----------
-
-// Expected rule arrays come from the spec Cases C-1..C-10 and the Signatures formula, not from running ltt.js.
-// `table` is the [auditHero, fullByDefault] the row's kit holds for m.type; `setup` edits a fresh kit after load.
-const HERO_TABLE = [
-  { id: 'DT-1 auditHero T, layout "": figure visualRatio 0.15', table: [true, true], m: { type: "figure", layout: "", visualRatio: 0.15 }, out: ["small-visual"] },
-  { id: 'DT-1 auditHero T, layout "": figure fill 0.3', table: [true, true], m: { type: "figure", layout: "", fill: 0.3 }, out: ["empty-stage"] },
-  { id: 'DT-2 C-6 auditHero T, layout "split": figure visualRatio 0.15', table: [true, true], m: { type: "figure", layout: "split", visualRatio: 0.15 }, out: ["small-visual"] },
-  { id: 'DT-2 auditHero T, layout "split": figure fill 0.3', table: [true, true], m: { type: "figure", layout: "split", fill: 0.3 }, out: ["empty-stage"] },
-  { id: 'DT-3 C-1 auditHero F, layout "", fullByDefault T: overview visualRatio 0.15, fill 0.9', table: [false, true], m: { type: "overview", layout: "", visualRatio: 0.15, fill: 0.9 }, out: ["small-visual"] },
-  { id: 'DT-4 C-7 auditHero F, layout "", fullByDefault F: explain visualRatio 0.15, fill 0.3', table: [false, false], m: { type: "explain", layout: "", visualRatio: 0.15, fill: 0.3 }, out: [] },
-  { id: 'DT-5 C-7 auditHero F, layout "full": explain visualRatio 0.15', table: [false, false], m: { type: "explain", layout: "full", visualRatio: 0.15 }, out: ["small-visual"] },
-  { id: 'DT-5 C-5 auditHero F, layout "full": overview visualRatio 0.15', table: [false, true], m: { type: "overview", layout: "full", visualRatio: 0.15 }, out: ["small-visual"] },
-  { id: 'DT-6 C-4 auditHero F, layout "split", fullByDefault T: overview visualRatio 0.15, fill 0.3', table: [false, true], m: { type: "overview", layout: "split", visualRatio: 0.15, fill: 0.3 }, out: [] },
-  { id: 'DT-7 C-8 runtime foo = {fullByDefault: true}, layout "": visualRatio 0.15', setup: (t) => { t.foo = { fullByDefault: true }; }, table: [false, true], m: { type: "foo", layout: "", visualRatio: 0.15 }, out: ["small-visual"] },
-  { id: 'DT-7 C-8 runtime foo = {fullByDefault: true}, layout "": fill 0.3', setup: (t) => { t.foo = { fullByDefault: true }; }, table: [false, true], m: { type: "foo", layout: "", fill: 0.3 }, out: ["empty-stage"] },
-  { id: 'DT-8 C-8 runtime foo = {}, layout "": visualRatio 0.15', setup: (t) => { t.foo = {}; }, table: [false, false], m: { type: "foo", layout: "", visualRatio: 0.15 }, out: [] },
-  { id: 'DT-8 C-8 runtime foo = {}, layout "": fill 0.3', setup: (t) => { t.foo = {}; }, table: [false, false], m: { type: "foo", layout: "", fill: 0.3 }, out: [] },
-  { id: 'BV-1 C-2 overview layout "" visualRatio 0.2199', table: [false, true], m: { type: "overview", layout: "", visualRatio: 0.2199 }, out: ["small-visual"] },
-  { id: 'BV-2 C-2 overview layout "" visualRatio 0.22', table: [false, true], m: { type: "overview", layout: "", visualRatio: 0.22 }, out: [] },
-  { id: 'BV-3 C-2 overview layout "" visualRatio 0.2201', table: [false, true], m: { type: "overview", layout: "", visualRatio: 0.2201 }, out: [] },
-  { id: 'BV-4 C-3 overview layout "" fill 0.599', table: [false, true], m: { type: "overview", layout: "", fill: 0.599 }, out: ["empty-stage"] },
-  { id: 'BV-5 C-3 overview layout "" fill 0.6', table: [false, true], m: { type: "overview", layout: "", fill: 0.6 }, out: [] },
-  { id: 'BV-6 C-3 overview layout "" fill 0.601', table: [false, true], m: { type: "overview", layout: "", fill: 0.601 }, out: [] },
-  { id: 'EC-1 C-9 after sceneTypes.overview.fullByDefault = false: overview layout "" visualRatio 0.15', setup: (t) => { t.overview.fullByDefault = false; }, table: [false, false], m: { type: "overview", layout: "", visualRatio: 0.15 }, out: [] },
-  { id: "EC-2 C-10 overview layout null visualRatio 0.15", table: [false, true], m: { type: "overview", layout: null, visualRatio: 0.15 }, out: ["small-visual"] },
-  { id: "EC-2 C-10 overview layout undefined (explicit) visualRatio 0.15", table: [false, true], m: { type: "overview", layout: undefined, visualRatio: 0.15 }, out: ["small-visual"] },
-];
-
-test("VO-1 oracle: every HERO_TABLE row matches the Signatures formula (hero bar 22%, else 10%; empty-stage only for hero below 0.6) and the built-in table", () => {
-  const wrong = [];
-  for (const { id, setup, table: [auditHero, fullByDefault], m, out } of HERO_TABLE) {
-    if (!setup && (meta(m.type, "auditHero") !== auditHero || meta(m.type, "fullByDefault") !== fullByDefault)) wrong.push(`${id}: table column disagrees with the meta oracle`);
-    const { layout, visualRatio = M.visualRatio, fill = M.fill } = m;
-    const isHero = auditHero || (layout ? layout === "full" : fullByDefault);
-    const want = [...(visualRatio < (isHero ? 0.22 : 0.1) ? ["small-visual"] : []), ...(isHero && fill < 0.6 ? ["empty-stage"] : [])];
-    if (JSON.stringify(want) !== JSON.stringify(out)) wrong.push(`${id}: formula gives ${JSON.stringify(want)}`);
-  }
-  assert.deepEqual(wrong, []);
-});
-
-for (const { id, setup, m, out } of HERO_TABLE) {
-  test(`VO-1 ${id}: ${out.length ? out.join(", ") : "no warning"}`, () => {
-    const LTT = loadKit();
-    if (setup) setup(LTT.sceneTypes);
-    assert.deepEqual(audit(LTT, m), out);
-  });
-}
-
-test("VO-1 EC-2 C-10: overview with no layout key at all, visualRatio 0.15, warns small-visual", () => {
-  const { layout, ...rest } = M;
-  assert.equal("layout" in rest, false);
-  assert.deepEqual(Array.from(loadKit().auditScene({ ...rest, type: "overview", visualRatio: 0.15 }), (w) => w.rule), ["small-visual"]);
-});
-
-test("VO-1 EC-1 C-9: the table edit is read at call time — the same kit warns before and stops after overview.fullByDefault = false", () => {
-  const LTT = loadKit();
-  const m = { type: "overview", layout: "", visualRatio: 0.15 };
-  assert.deepEqual(audit(LTT, m), ["small-visual"]);
-  LTT.sceneTypes.overview.fullByDefault = false;
-  assert.deepEqual(audit(LTT, m), []);
-});
-
-test("VO-1 DT-7 C-8: an entry added after load is read at call time — foo warns only once foo = {fullByDefault: true} is set", () => {
-  const LTT = loadKit();
-  const m = { type: "foo", layout: "", visualRatio: 0.15 };
-  assert.deepEqual(audit(LTT, m), []);
-  LTT.sceneTypes.foo = { fullByDefault: true };
-  assert.deepEqual(audit(LTT, m), ["small-visual"]);
+// Spec 76b739afacf5b868 FR-14: the deck audit judge is gone; no helper under the old name remains on the kit.
+test("76b739afacf5b868 FR-14: LTT.auditScene is undefined", () => {
+  assert.equal(loadKit().auditScene, undefined);
 });

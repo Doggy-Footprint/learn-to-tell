@@ -915,58 +915,7 @@
     return false;
   }
 
-  function panelOverlap(body) {
-    var n = 0;
-    [].forEach.call(body.querySelectorAll(".dk-float,.dk-figsteps:not(.stack)>.ctl"), function (p) {
-      if (!p.__lttPlace) return;
-      var r = p.getBoundingClientRect(), box = { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom };
-      n += solidRects(p.__lttPlace.scope, p, p.__lttPlace.skip, p.__lttPlace.keepFaded).filter(function (o) { return LTT.rectHit(box, o); }).length;
-    });
-    return n;
-  }
-
-  var MOCKS = ".ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code";
   var VISUALS = "svg.ltt-svg,svg.ltt-dg,.ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code,canvas,img,.ltt-ba,.dk-fig-stage>*,[data-visual]";
-
-  function area(r) { return Math.max(0, r.width) * Math.max(0, r.height); }
-
-  // Rendered-layout measurements for LTT.auditScene; hidden scenes still lay out, so this runs without showing them.
-  function measure(s, el) {
-    var inner = el.firstChild, body = el.querySelector(".dk-body"), stage = area(el.getBoundingClientRect()) || 1;
-    var zoom = parseFloat(inner.style.zoom) || 1, ih = inner.getBoundingClientRect().height;
-    var biggest = 0;
-    [].forEach.call(body.querySelectorAll(VISUALS), function (v) { biggest = Math.max(biggest, area(v.getBoundingClientRect()) * zoom * zoom); });
-    // Compare rows read as one figure together, so their visuals count as a sum rather than the largest one.
-    if (sceneMeta(s.type, "sumVisualAreas")) {
-      var sum = 0;
-      [].forEach.call(body.querySelectorAll(".dk-item .vis"), function (v) { sum += area(v.getBoundingClientRect()) * zoom * zoom; });
-      biggest = Math.max(biggest, sum);
-    }
-    var fig = el.querySelector(".dk-fig-stage"), figRatio = null;
-    if (fig && fig.firstElementChild) {
-      var fr = fig.getBoundingClientRect(), cr = fig.firstElementChild.getBoundingClientRect();
-      figRatio = Math.min(1, area(cr) / (area(fr) || 1));
-    }
-    var sizes = {};
-    [].forEach.call(body.querySelectorAll("*"), function (n) {
-      if (n.closest(MOCKS) || n.closest("svg") || n.closest(".ltt-mk")) return;
-      var own = [].some.call(n.childNodes, function (c) { return c.nodeType === 3 && c.nodeValue.trim(); });
-      if (own) sizes[Math.round(parseFloat(getComputedStyle(n).fontSize))] = 1;
-    });
-    return {
-      type: s.type || "", layout: s.layout || "", zoom: zoom, compact: innerWidth <= 1000,
-      hscroll: Math.max(0, Math.round(Math.max(inner.scrollWidth, body.scrollWidth) - inner.clientWidth - 1)),
-      overflow: ih * zoom > el.clientHeight + 2,
-      visualRatio: body.querySelector(VISUALS) ? biggest / stage : null,
-      figRatio: figRatio, fill: Math.min(1, (ih * zoom) / (el.clientHeight || 1)),
-      fontSizes: Object.keys(sizes).length,
-      panelOverlap: panelOverlap(body),
-      graphOverlaps: [].reduce.call(body.querySelectorAll("svg.ltt-dg"), function (n, g) { return n + (g.__lttDiagram ? LTT.graphOverlaps(g.__lttDiagram).length : 0); }, 0),
-      goals: [].map.call(body.querySelectorAll(".ltt-goal[data-samples]"), function (g) {
-        return { hits: +g.dataset.hits, samples: +g.dataset.samples, start: g.dataset.start === "1" };
-      })
-    };
-  }
 
   // Scenes mount lazily on first visit; `enter` runs on every visit so motion replays when the viewer comes back.
   function deck(spec) {
@@ -1185,30 +1134,17 @@
         mounted[i].fit();
       });
     }
-    // Mounts every scene and checks the rendered layout; `?audit` in the URL runs it on load.
-    function audit() {
-      var found = [];
-      mountAll();
-      scenes.forEach(function (s, i) {
-        LTT.auditScene(measure(s, stage.children[i])).forEach(function (w) { found.push({ scene: i + 1, rule: w.rule, msg: w.msg }); });
-      });
-      found.forEach(function (w) { LTT.warn("화면 점검 · 장면 " + w.scene + ": " + w.msg); });
-      document.documentElement.setAttribute("data-ltt-audit", found.length);
-      // server/audit.mjs reads this from `--dump-dom` output; the attribute alone cannot carry per-scene results.
-      var out = document.getElementById("ltt-audit");
-      if (!out) { out = h("script"); out.id = "ltt-audit"; out.type = "application/json"; document.documentElement.appendChild(out); }
-      var fails = LTT.check().errors.filter(function (e) { return e.rule === "expect-mismatch"; }).map(function (e) { return "✗ 검증 실패: " + e.msg; });
-      out.textContent = JSON.stringify({ viewport: [innerWidth, innerHeight], scenes: scenes.length, audit: found, lint: lint, expectFails: fails }).replace(/</g, "\\u003c");
-      LTT.record("layout-audit", { viewport: [innerWidth, innerHeight], found: found });
-      return found;
-    }
-
     // map-related is appended after load from other lessons' titles, so it is not part of what the author wrote.
     LTT.checkSource({
       issues: function (known) {
         return LTT.deckIssues({ glossary: spec.glossary, scenes: scenes.filter(function (s) { return s.type !== "map-related"; }) }, known);
       },
-      prepare: function () { if (/[?&](check|audit)\b/.test(location.search)) mountAll(); },
+      prepare: function () { if (/[?&](check|shot)\b/.test(location.search)) mountAll(); },
+      scenes: function () { return scenes.filter(function (s) { return s.type !== "map-related"; }).length; },
+      reveal: function (el) {
+        var sec = el.closest(".dk-scene"), i = sec ? [].indexOf.call(stage.children, sec) : -1;
+        if (i >= 0) go(i);
+      },
       whereOf: function (el) {
         var sec = el.closest(".dk-scene");
         return sec ? "장면 " + ([].indexOf.call(stage.children, sec) + 1) : "페이지";
@@ -1237,10 +1173,7 @@
         if (start === scenes.length) go(start - 1);
       }).catch(function () { /* no server or no map yet: the scene simply stays absent */ });
     }
-    if (/[?&]audit\b/.test(location.search)) {
-      if (document.fonts) document.fonts.ready.then(function () { setTimeout(audit, 300); }); else setTimeout(audit, 300);
-    }
-    return { go: go, lint: lint, audit: audit, get index() { return cur; } };
+    return { go: go, lint: lint, get index() { return cur; } };
   }
 
   LTT.deck = deck;

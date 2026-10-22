@@ -159,32 +159,15 @@ test("lint flags filler text but not the UI word placeholder", () => {
   assert.ok(!brules({ scenes: [{ type: "explain", title: "placeholder 글자색은 옅다", steps: [] }, KW] }).includes("filler-content"));
 });
 
-test("auditScene judges rendered measurements", () => {
-  const { auditScene } = loadKit();
-  const r = (m) => [...auditScene({ type: "figure", zoom: 1, visualRatio: 0.4, figRatio: 0.8, fill: 0.9, fontSizes: 5, ...m })].map((w) => w.rule);
-  assert.deepEqual(r({}), []);
-  assert.deepEqual(r({ overflow: true, zoom: 0.78 }), ["overflow"]);
-  assert.deepEqual(r({ zoom: 0.8 }), ["shrunk"]);
-  assert.deepEqual(r({ visualRatio: 0.15 }), ["small-visual"]);
-  assert.deepEqual(r({ type: "", visualRatio: 0.15 }), []);
-  assert.deepEqual(r({ figRatio: 0.2 }), ["loose-figure"]);
-  assert.deepEqual(r({ fill: 0.4 }), ["empty-stage"]);
-  assert.deepEqual(r({ fontSizes: 9 }), ["many-sizes"]);
-  assert.deepEqual(r({ type: "statement", visualRatio: 0.01 }), []);
-  assert.deepEqual(r({ hscroll: 30 }), ["hscroll"]);
-  assert.deepEqual(r({ compact: true, zoom: 0.8, visualRatio: 0.01, figRatio: 0.1 }), []);
-  assert.deepEqual(r({ compact: true, overflow: true, zoom: 0.78, hscroll: 5 }), ["hscroll", "overflow"]);
-});
-
 // Spec 80a1b2f18f50b1df VO-2 (decision table): hits {0, 1, >=2} x start {true, false}.
-// goal-narrow stays an auditScene rule (hits == 1); the other two moved to goalIssues.
+// goal-narrow went away with auditScene (spec 76b739afacf5b868 FR-14); hits == 1 has no issue of its own.
 const GOAL_CELLS = [
-  { id: "hits 0, start false", hits: 0, start: false, issues: ["goal-unreachable"], audit: [] },
-  { id: "hits 0, start true", hits: 0, start: true, issues: ["goal-unreachable", "goal-at-start"], audit: [] },
-  { id: "hits 1, start false", hits: 1, start: false, issues: [], audit: ["goal-narrow"] },
-  { id: "hits 1, start true", hits: 1, start: true, issues: ["goal-at-start"], audit: ["goal-narrow"] },
-  { id: "hits 3, start false", hits: 3, start: false, issues: [], audit: [] },
-  { id: "hits 3, start true", hits: 3, start: true, issues: ["goal-at-start"], audit: [] },
+  { id: "hits 0, start false", hits: 0, start: false, issues: ["goal-unreachable"] },
+  { id: "hits 0, start true", hits: 0, start: true, issues: ["goal-unreachable", "goal-at-start"] },
+  { id: "hits 1, start false", hits: 1, start: false, issues: [] },
+  { id: "hits 1, start true", hits: 1, start: true, issues: ["goal-at-start"] },
+  { id: "hits 3, start false", hits: 3, start: false, issues: [] },
+  { id: "hits 3, start true", hits: 3, start: true, issues: ["goal-at-start"] },
 ];
 
 for (const c of GOAL_CELLS) {
@@ -192,11 +175,6 @@ for (const c of GOAL_CELLS) {
     const { goalIssues } = loadKit();
     const got = Array.from(goalIssues([{ where: "W", hits: c.hits, samples: 10, start: c.start }]), (w) => [w.where, w.rule]);
     assert.deepEqual(got, c.issues.map((rule) => ["W", rule]));
-  });
-  test(`VO-2 auditScene ${c.id}: only goal-narrow`, () => {
-    const { auditScene } = loadKit();
-    const got = Array.from(auditScene({ type: "", zoom: 1, fill: 0.9, fontSizes: 5, goals: [{ hits: c.hits, samples: 10, start: c.start }] }), (w) => w.rule);
-    assert.deepEqual(got, c.audit);
   });
 }
 
@@ -402,4 +380,8 @@ test("freeSlot returns the first spot below or beside solids and null when the b
   assert.deepEqual([...freeSlot(region, [40, 40], [{ x0: 0, y0: 0, x1: 50, y1: 100 }], 0, 1)], [50, 0]);
   assert.equal(freeSlot(region, [100, 80], [top], 0, 1), null);
   assert.equal(freeSlot(region, [120, 10], [], 0, 1), null);
+});
+
+test("76b739afacf5b868 FR-14: LTT.auditScene is undefined on ltt.js", () => {
+  assert.equal(loadKit().auditScene, undefined);
 });
