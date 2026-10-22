@@ -100,7 +100,7 @@ URL에 `?shot`을 붙이면 스크린샷 모드다: 모든 `LTT.clock`이 돌지
 | `statement` | `title`(큰 주장, `<em>` 강조), `sub`, `visual`. 리듬을 바꾸는 장면 |
 | `contrast` | `before`, `after`(`LTT.beforeAfter`의 각 쪽) |
 | `compare` | `items: [{label, visual, tone, verdict, note, noteAfter}]`, `form: "table"`·`head`, `cols`, `reveal`. 판정은 공개 뒤 |
-| `predict` | `question`, `choices`, `answer`, `visual`(조건, `LTT.facts`), `answerVisual`, `why`, `hint`, `rest` |
+| `predict` | `question`(화면에 보이는 질문, 조건 `visual` 위에 그려진다), `choices`, `answer`, `visual`(조건, `LTT.facts`), `answerVisual`, `why`, `hint`, `rest` |
 | `summary` | 앞 takeaway를 모은다. `recall`이 있으면 질문 → "답 보기"의 인출 연습. `cards`로 직접 줄 수도 있다 |
 | `keywords` | `terms: [{ko, en}]`, `signals`, `queries`, `neighbors: [{term, diff}]`. 작성하는 마지막 장면 |
 | (없음) | `mount`로 그리는 커스텀 장면(손잡이 장면) |

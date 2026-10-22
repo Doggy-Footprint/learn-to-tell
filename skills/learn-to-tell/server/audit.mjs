@@ -150,15 +150,16 @@ async function openSession(cdp) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Opens `url` as a new document (via about:blank, so a hash-only change never reuses the old one) and waits for the kit's `data-ltt-shot`.
-async function load(call, url, wait) {
+// Opens `url` as a new document (via about:blank, so a hash-only change never reuses the old one) and waits for the kit's
+// `data-ltt-shot` (a `?shot` load) or `data-ltt-check` (a load without `shot`, which never gets the shot signal).
+async function load(call, url, wait, attr = "data-ltt-shot") {
   await call("Page.navigate", { url: "about:blank" });
   await call("Page.navigate", { url });
   const end = Date.now() + wait;
   while (Date.now() < end) {
-    const r = await call("Runtime.evaluate", { expression: "document.documentElement.hasAttribute('data-ltt-shot')", returnByValue: true });
+    const r = await call("Runtime.evaluate", { expression: "document.documentElement.hasAttribute('" + attr + "')", returnByValue: true });
     if (r.result.value === true) return true;
-    await sleep(100);
+    await sleep(25);
   }
   return false;
 }
@@ -210,9 +211,9 @@ function checkMarks(parsed, clocks) {
   return { errors: out, valid };
 }
 
-async function readCheck(call, url, budget) {
+async function readCheck(call, url, budget, attr) {
   for (let attempt = 1; attempt <= 3; attempt++) {
-    if (!(await load(call, url, budget))) continue;
+    if (!(await load(call, url, budget, attr))) continue;
     const r = await call("Runtime.evaluate", { expression: "(document.getElementById('ltt-check')||{}).textContent||''", returnByValue: true });
     try {
       return { check: JSON.parse(r.result.value) };
@@ -221,6 +222,98 @@ async function readCheck(call, url, budget) {
     }
   }
   return { error: "#ltt-check가 없다. kit(ltt.js)을 불러오는 페이지인지, 서버 경로가 맞는지 본다" };
+}
+
+// Runs inside the page. Skips zero-size controls (hidden, or in another deck scene) rather than unhiding them.
+// Each step waits a frame: a lesson that redraws its readout in requestAnimationFrame moves the control only then.
+const PROBE_JS = `(async function (scopeSel) {
+  var scope = scopeSel ? document.querySelector(scopeSel) : document;
+  var raf = function () { return new Promise(function (r) { requestAnimationFrame(r); }); };
+  var box = function (e) { var r = e.getBoundingClientRect(); return [r.left, r.top, r.width]; };
+  var out = [];
+  function track(el, base, worst) {
+    var r = box(el);
+    return Math.max(worst, Math.abs(r[0] - base[0]), Math.abs(r[1] - base[1]), Math.abs(r[2] - base[2]));
+  }
+  function name(el, own, kind) { return el.id || own.id || el.getAttribute("aria-label") || own.getAttribute("aria-label") || kind; }
+  if (!scope) return out;
+  await raf(); await raf();
+  var ranges = scope.querySelectorAll("input[type=range]");
+  for (var i = 0; i < ranges.length; i++) {
+    var inp = ranges[i];
+    if (!inp.getBoundingClientRect().width) continue;
+    var min = inp.min === "" ? 0 : +inp.min, max = inp.max === "" ? 100 : +inp.max, orig = inp.value;
+    var base = box(inp), worst = 0;
+    for (var k = 0; k <= 40; k++) {
+      inp.value = min + (max - min) * k / 40;
+      inp.dispatchEvent(new Event("input", { bubbles: true }));
+      await raf();
+      worst = track(inp, base, worst);
+    }
+    inp.value = orig;
+    inp.dispatchEvent(new Event("input", { bubbles: true }));
+    if (worst > 1) out.push({ kind: "range", id: name(inp, inp.parentElement || inp, "range"), shift: Math.round(worst) });
+  }
+  var keyed = scope.querySelectorAll(".ltt-dial, .ltt-pad");
+  for (var j = 0; j < keyed.length; j++) {
+    var ctl = keyed[j], pad = ctl.classList.contains("ltt-pad");
+    var target = pad ? ctl.querySelector(".area") : ctl, key = pad ? ctl.querySelector(".dot") : ctl;
+    if (!target.getBoundingClientRect().width || !key) continue;
+    var b = box(target), w = 0;
+    for (var n = 0; n < 40; n++) {
+      key.dispatchEvent(new KeyboardEvent("keydown", { key: n < 20 ? "ArrowRight" : "ArrowUp", bubbles: true }));
+      await raf();
+      w = track(target, b, w);
+    }
+    if (w > 1) out.push({ kind: pad ? "pad" : "dial", id: name(ctl, key, pad ? "pad" : "dial"), shift: Math.round(w) });
+  }
+  return out;
+})`;
+
+function shiftError(where, c) {
+  return { where, rule: "control-shift", msg: `${c.kind} '${c.id}'가 값을 바꾸면 최대 ${c.shift}px 움직인다. 손잡이를 잡은 동안 위치가 바뀌면 값이 떨리므로, 값 표시 글자는 폭을 고정(tabular-nums + min-width)하고 컨트롤과 같은 가운데 정렬·줄바꿈 줄에 두지 않는다` };
+}
+
+// Value changes call LTT.record, which would append sweep events to a real lesson's events.jsonl, so the events endpoint is
+// blocked while probing and unblocked afterwards: later loads must record exactly as they did before the probe existed.
+async function blocked(call, fn) {
+  await call("Network.enable");
+  await call("Network.setBlockedURLs", { urls: ["*/api/lessons/*/events"] });
+  try {
+    return await fn();
+  } finally {
+    await call("Network.setBlockedURLs", { urls: [] }).catch(() => {});
+  }
+}
+
+async function probeEval(call, scopeSel) {
+  const r = await call("Runtime.evaluate", { expression: PROBE_JS + "(" + JSON.stringify(scopeSel) + ")", awaitPromise: true, returnByValue: true });
+  if (r.exceptionDetails) throw new Error((r.exceptionDetails.exception && r.exceptionDetails.exception.description) || r.exceptionDetails.text);
+  return r.result.value;
+}
+
+// Pages are probed in the `?shot` document the check was read from, so the probe costs no extra load.
+const probePage = (call) => blocked(call, async () => (await probeEval(call, null)).map((c) => shiftError("페이지", c)));
+
+// The scene list comes from the first `?shot` document (all scenes are mounted there), which saves a load per deck.
+async function controlScenes(call) {
+  const r = await call("Runtime.evaluate", {
+    expression: "[].map.call(document.querySelectorAll('.dk-stage > .dk-scene'), function (s, i) { return s.querySelector('input[type=range], .ltt-dial, .ltt-pad') ? i + 1 : 0; }).filter(Boolean)",
+    returnByValue: true
+  });
+  return r.result.value;
+}
+
+async function probeDeck(call, run, scenes, budget) {
+  const page = withQuery(run.url.split("#")[0], "shot");
+  return blocked(call, async () => {
+    const out = [];
+    for (const n of scenes) {
+      if (!(await load(call, page + "#" + n, budget))) throw new Error("점검용 ?shot 로드가 준비되지 않았다");
+      for (const c of await probeEval(call, ".dk-stage > .dk-scene.cur")) out.push(shiftError("장면 " + n, c));
+    }
+    return out;
+  });
 }
 
 async function takeShot(call, budget, file, url) {
@@ -301,13 +394,30 @@ export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrom
         const r = await readCheck(call, withQuery(run.url, "shot"), budget);
         if (r.error) return { ...base, error: r.error };
         const { check } = r;
+        const probeErrors = [];
+        const probing = async (fn) => {
+          try { probeErrors.push(...(await fn())); } catch (err) { probeErrors.push({ where: "페이지", rule: "probe-failed", msg: err.message }); }
+        };
+        let deckScenes = [];
+        if (typeof check.scenes !== "number") await probing(() => probePage(call));
+        else await probing(async () => { deckScenes = await controlScenes(call); return []; });
+        // The learner's state (answers closed) can hold errors the shot state hides, so both are read and merged.
+        const learner = await readCheck(call, withQuery(run.url, "check"), budget, "data-ltt-check");
+        if (learner.error) return { ...base, error: learner.error };
+        const seen = new Set();
+        const errors = [...learner.check.errors, ...check.errors].filter((e) => {
+          const k = JSON.stringify([e.where, e.rule, e.msg]);
+          return seen.has(k) ? false : seen.add(k);
+        });
         const marks = checkMarks(parsed, check.clocks || []);
-        const result = { ...base, viewport: check.viewport, scroll: check.scroll, check: check.errors, marks: marks.errors, shots: [], truncated: false };
+        const result = { ...base, viewport: check.viewport, scroll: check.scroll, check: errors, marks: marks.errors, shots: [], truncated: false };
         if (shots) {
           const t = await takeShots(call, run, check, marks.valid, budget, shots);
           result.shots = t.files;
           result.truncated = t.truncated;
         }
+        if (typeof check.scenes === "number") await probing(() => probeDeck(call, run, deckScenes, budget));
+        result.check.push(...probeErrors);
         return result;
       } catch (err) {
         return { ...base, error: err.message };

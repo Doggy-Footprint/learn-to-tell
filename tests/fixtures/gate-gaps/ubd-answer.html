@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>fixture</title>
+<script type="application/json" id="ltt-meta">{"topic":"t","audience":"a","theme":"paper","medium":"m","decision":"d","glossary":{"적중률":"맞힌 비율"}}</script>
+</head>
+<body>
+<h1>답</h1>
+<div id="ans"></div>
+<h2>그림</h2>
+<p>그림 주석: 적중률이 높다</p>
+<script>
+// The first {{}} sits in an answer block that only a ?shot load reveals.
+if (/[?&]shot\b/.test(location.search)) document.getElementById("ans").textContent = "{{적중률}} 풀이";
+</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+</body>
+</html>

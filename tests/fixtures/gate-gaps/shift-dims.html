@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>fixture</title>
+<style>html,body{margin:0;padding:0}*,*::before,*::after{transition:none!important;animation:none!important}
+.blk{width:760px;margin:12px auto;height:260px}
+.row{display:flex;flex-wrap:nowrap;align-items:flex-start}
+#hue{margin:8px 0 2px;flex:none}</style>
+<script type="application/json" id="ltt-meta">{"topic":"t","audience":"a","theme":"paper","medium":"m","decision":"d"}</script>
+</head>
+<body>
+<h1>제목</h1>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script>
+// MODE isolates one dimension of the control box:
+//   top        a block above the range grows with the value (only top moves)
+//   width      the range's own width grows with the value (left and top fixed)
+//   mid-range  a spacer before the range is LOW px wide for values 30..40 and HIGH px wide for 60..70, 0 elsewhere (returns at both ends)
+//   mid-dial   the same for a dial and key steps 8..12 (LOW) and 26..30 (HIGH); 40 key steps wrap the value back to 0
+var MODE = "__MODE__", LOW = __LOW__, HIGH = __HIGH__;
+var d = document.createElement("div");
+d.className = "blk";
+document.body.appendChild(d);
+function wire(inp, f) { inp.addEventListener("input", function () { f(+inp.value); }); }
+if (MODE === "top") {
+  d.innerHTML = '<div id="up" style="height:0"></div><input type="range" id="r1" min="0" max="100" value="0" style="width:200px">';
+  wire(d.querySelector("#r1"), function (v) { d.querySelector("#up").style.height = (v / 100 * 5) + "px"; });
+} else if (MODE === "width") {
+  d.innerHTML = '<input type="range" id="r1" min="0" max="100" value="0" style="width:200px">';
+  wire(d.querySelector("#r1"), function (v) { d.querySelector("#r1").style.width = (200 + v / 100 * 5) + "px"; });
+} else if (MODE === "mid-range") {
+  d.innerHTML = '<span id="sp" style="display:inline-block;height:10px;width:0"></span><input type="range" id="r1" min="0" max="100" value="0" style="width:200px">';
+  wire(d.querySelector("#r1"), function (v) { d.querySelector("#sp").style.width = (v >= 30 && v <= 40 ? LOW : v >= 60 && v <= 70 ? HIGH : 0) + "px"; });
+} else if (MODE === "mid-dial") {
+  d.innerHTML = '<div class="row"><div id="sp" style="width:0;height:10px;flex:none"></div><div id="hue"></div></div>';
+  LTT.sweep({params: {hue: {kind: "dial", step: 9, value: 0}}, render: function (v) {
+    var k = Math.round(v.hue / 9);
+    document.getElementById("sp").style.width = (k >= 8 && k <= 12 ? LOW : k >= 26 && k <= 30 ? HIGH : 0) + "px";
+  }});
+}
+</script>
+</body>
+</html>

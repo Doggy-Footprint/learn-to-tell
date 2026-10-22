@@ -65,3 +65,11 @@
 - 손 mutation 14건 모두 잡힘. fuzz·mutation 도구 없음(spec D-8).
 - RV-1: 덱 1개와 clock 시험 페이지의 PNG를 직접 확인했다. RV-2: 기준 파일 쓰기를 확인했다.
 - 3단계 확인: grep "흐름도" → diagram·autoLayout, "2D 지도" → map, "시간에 따른 변화" → sim·clock. 같은 내용을 `tests/api-docs.test.mjs`가 고정한다.
+
+### 2026-10-22 사용자 검토 뒤 생성기 결함 (spec df4d5d6613e9ad3c, complete)
+
+- D-8 anchoring #5: 덱 predict가 `question`을 그리지 않았다. 고침: `.dk-pq`로 그린다(`.dk-q`는 keywords 검색어 칩이 쓰는 이름이라 처음 이름이 충돌했다).
+- D-9 matrix-as-transform 다이얼 떨림: `dialControl`·`padControl`이 move마다 사각형을 다시 쟀고, 옆 값 글자 폭 변화로 다이얼이 69px 움직였다. 고침: pointerdown 때 고정. audit `control-shift` 점검 추가, controls.md에 값 글자 폭 고정 안내.
+- D-10 color-contrast lint: audit이 `?shot`에서만 check를 읽어 숨은 답 속 `{{}}`를 정의로 쳤다. 고침: `?check`와 `?shot`을 합쳐 읽는다.
+- D-11 retrieval-practice §6(29% 대 46%), trolley 고리 사례: checklist가 그림 읽기만 다뤘다. 고침: SKILL.md 평가 기준 3–5와 checklist 수업 항목 세 줄(사용자 문구).
+- 점검은 걸음마다 한 frame을 기다린다(사용자 결정). microtask만 기다리면 rAF로 다시 그리는 수업의 이동을 놓쳤다(임시 페이지에서 0건, frame 대기 49px). `tests/gate-gaps.test.mjs` C-21이 고정한다. 대가: 컨트롤마다 약 0.6초.

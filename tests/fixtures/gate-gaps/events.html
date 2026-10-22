@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>fixture</title>
+<style>html,body{margin:0;padding:0}*,*::before,*::after{transition:none!important;animation:none!important}
+.blk{width:760px;margin:12px auto}.flex{display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:center}.rd{font:16px monospace;display:inline-block}</style>
+<script type="application/json" id="ltt-meta">{"topic":"t","audience":"a","theme":"paper","medium":"m","decision":"d"}</script>
+</head>
+<body>
+<h1>제목</h1>
+<div class="blk"><span id="sp" style="display:inline-block;height:10px;width:0"></span><input type="range" id="r1" min="0" max="100" value="0" style="width:200px"></div>
+<div class="blk"><div class="flex"><div id="hue"></div><span id="hue-v" class="rd"></span></div></div>
+<div class="blk"><div class="flex"><div id="xy" style="width:200px"></div><span id="xy-v" class="rd"></span></div></div>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script>
+// Events of these types come only from a learner's input: renders before `load` (the initial one) are not recorded.
+window.__loaded = false;
+addEventListener("load", function () { window.__loaded = true; });
+var inp = document.getElementById("r1"), sp = document.getElementById("sp");
+inp.addEventListener("input", function () { sp.style.width = (inp.value / 100 * 2) + "px"; LTT.record("range-input", {v: inp.value}); });
+LTT.sweep({params: {
+  hue: {kind: "dial", step: 9, value: 0, fmt: function (v) { return "W".repeat(1 + Math.round(v / 9)); }},
+  xy: {kind: "pad", x: {min: 0, max: 100, step: 2.5, value: 0}, y: {min: 0, max: 100, step: 100, value: 0}, fmt: function (v) { return "W".repeat(1 + Math.round(v[0] / 5)); }}
+}, render: function () { if (window.__loaded) LTT.record("sweep-render", {}); }});
+</script>
+</body>
+</html>

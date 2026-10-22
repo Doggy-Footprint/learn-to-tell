@@ -20,7 +20,7 @@ lint는 장면 데이터만 본다(`LTT.lintDeck`). 용어·채움 글·목표·
 
 ## 검사(`#ltt-check`)
 
-덱이든 아니든 모든 페이지에서 kit이 연 뒤 한 번 돌린다. 결과는 `#ltt-check`의 `errors`, `<html data-ltt-check="건수">`, 패널 경고, `lint` 이벤트다. 아래는 모두 등급 "고침"이다. 덱은 `where`가 `장면 n`, 덱이 아닌 페이지는 h1–h3로 나눈 구역 `구역 '제목'`(첫 제목 앞은 `구역 (처음)`)이다.
+덱이든 아니든 모든 페이지에서 kit이 연 뒤 한 번 돌린다. audit은 이를 학습자 상태(`?check`)와 `?shot` 두 상태에서 읽어 `where`·`rule`·`msg`가 같은 오류를 하나로 합친다. 결과는 `#ltt-check`의 `errors`, `<html data-ltt-check="건수">`, 패널 경고, `lint` 이벤트다. 아래는 모두 등급 "고침"이다. 덱은 `where`가 `장면 n`, 덱이 아닌 페이지는 h1–h3로 나눈 구역 `구역 '제목'`(첫 제목 앞은 `구역 (처음)`)이다.
 
 | rule | 뜻 |
 | --- | --- |
@@ -32,3 +32,5 @@ lint는 장면 데이터만 본다(`LTT.lintDeck`). 용어·채움 글·목표·
 | `goal-at-start` | 시작 위치에서 이미 목표가 맞는다 |
 | `expect-mismatch` | `LTT.expect` 불일치(where는 `페이지`). `lint` 이벤트에는 담지 않는다(별도 `expect-mismatch` 이벤트가 있다) |
 | `check-failed` | 검사 중 예외가 났다. msg가 예외 문구이고 페이지는 계속 동작한다 |
+| `control-shift` | audit만 낸다. range·dial·pad의 값을 처음부터 끝까지 바꾸는 동안 컨트롤 상자의 left·top·width가 1px 넘게 움직인다. 값 표시 글자 폭이 값마다 달라 컨트롤이 밀리는 경우가 많다. msg에 컨트롤 id와 최대 이동 px가 있다 |
+| `probe-failed` | audit만 낸다. `control-shift` 점검 로드가 실패했다. 다른 오류는 그대로 믿는다 |

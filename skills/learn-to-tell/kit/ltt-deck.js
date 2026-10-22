@@ -141,6 +141,7 @@
     ".dk-pred .ltt-choices button{padding:clamp(16px,2.4vh,24px) 20px;font-size:clamp(16px,1.6vw,21px)}",
     ".dk-pred .ltt-choices button.unsure{color:var(--ltt-muted);font-weight:500;box-shadow:inset 0 0 0 1.5px var(--ltt-line-2);border:0;background:transparent}",
     ".dk-pred .ltt-choices button.unsure.wrong{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ltt-line-2)}",
+    ".dk-pq{margin:0;font-size:clamp(16px,1.5vw,20px);font-weight:600;line-height:1.5;max-width:72ch}",
     ".dk-hint2{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ltt-muted);margin:0}",
     ".dk-pred{position:relative}",
     ".dk-pred.done .dk-hint2,.dk-pred.done>.dk-actions{visibility:hidden}",
@@ -626,6 +627,7 @@
       var rs = h("button", "ghost", "초기화");
       why.appendChild(h("div", "dk-actions")).appendChild(rs);
       ans.append(av, why);
+      if (typeof s.question === "string" && s.question) w.appendChild(h("p", "dk-pq", s.question));
       if (s.visual) fill(w.appendChild(h("div", "dk-pvis")), s.visual, ctx);
       w.append(h("p", "dk-hint2", LTT.icon("question") + "<span>" + (s.hint || "틀려도 괜찮다. 감으로 하나 고른다.") + "</span>"), box, h("div", "dk-actions"), ans);
       w.querySelector(".dk-actions").appendChild(lock);

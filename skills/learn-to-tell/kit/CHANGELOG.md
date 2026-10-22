@@ -5,6 +5,9 @@
 ## 미출시
 
 작가 계약
+- 덱 predict의 `question`이 장면 맨 위(`visual` 앞)에 `.dk-pq` 글로 보인다. `question`이 없거나 빈 문자열이면 `.dk-pq`가 없다.
+- `dialControl`·`padControl`은 pointerdown 때 잰 사각형으로 그 드래그의 값을 정한다. 값 표시 글자 폭이 바뀌어 컨트롤이 움직여도 값이 떨리지 않는다.
+- `audit.mjs`가 `check`를 `?check`와 `?shot` 두 상태에서 읽어 합치고, 값을 바꾸면 range·dial·pad 상자가 1px 넘게 움직일 때 `control-shift`를 낸다(점검 로드가 실패하면 `probe-failed`). 점검 로드는 `/api/lessons/*/events`를 막아 `events.jsonl`에 남지 않는다.
 - 덱이 아닌 페이지도 `#ltt-meta`의 `glossary`로 `{{용어}}` 풀이 팝오버를 얻고, `load` 때 kit이 `{{}}`를 링크한다.
 - 모든 페이지에서 kit이 `unknown-term`·`used-before-defined`·`filler-content`·`goal-unreachable`·`goal-at-start`·`expect-mismatch`를 검사해 `#ltt-check`·`data-ltt-check`·패널·`lint` 이벤트로 낸다. 덱의 `predict-new-term`도 같다. 덱의 `lint`에서는 이 항목들이 빠진다.
 - `?check`(또는 `?shot`)이면 덱이 모든 장면을 그려 목표를 검사한다.

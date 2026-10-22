@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>fixture</title>
+<style>html,body{margin:0;padding:0}*,*::before,*::after{transition:none!important;animation:none!important}</style>
+<script type="application/json" id="ltt-meta">{"topic":"t","audience":"a","theme":"paper","medium":"m","decision":"d"}</script>
+</head>
+<body>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script>LTT.deck({title:"d",theme:"paper",glossary:{"적중률":"맞힌 비율"},scenes:[
+ {type:"predict",title:"예측",__QPROP__choices:[{id:"a",text:"가"},{id:"b",text:"나"}],answer:"a",visual:"<div id='pv' style='padding:12px'>조건 그림</div>",why:"이유"},
+ {type:"keywords",terms:[{ko:"적중률",en:"hit rate"}],queries:["hit rate definition"]}]});</script>
+</body>
+</html>

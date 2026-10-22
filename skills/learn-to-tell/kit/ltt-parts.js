@@ -473,8 +473,7 @@
       box.style.setProperty("--a", (cur / period * 360) + "deg");
       box.setAttribute("aria-valuenow", cur);
     }
-    function fromPointer(e) {
-      var r = box.getBoundingClientRect();
+    function fromPointer(e, r) {
       var deg = Math.atan2(e.clientX - r.left - r.width / 2, -(e.clientY - r.top - r.height / 2)) * 180 / Math.PI;
       write((deg + 360) % 360 / 360 * period);
       ev.fire();
@@ -512,8 +511,7 @@
       dot.style.top = ((1 - (cur[1] - ay.min) / (ay.max - ay.min)) * 100) + "%";
       dot.setAttribute("aria-valuetext", fmtValue(cur));
     }
-    dragOn(area, function (e) {
-      var r = area.getBoundingClientRect();
+    dragOn(area, function (e, r) {
       write([ax.min + (e.clientX - r.left) / r.width * (ax.max - ax.min), ay.max - (e.clientY - r.top) / r.height * (ay.max - ay.min)]);
       ev.fire();
     });
@@ -535,14 +533,18 @@
     };
   }
 
+  // The rect is read once at pointerdown: a readout beside the control can resize with its value and move the control
+  // under a held pointer, and re-reading the rect on every move would turn that into a feedback loop of changing values.
   function dragOn(node, move) {
+    var rect;
     node.style.touchAction = "none";
     node.addEventListener("pointerdown", function (e) {
       node.setPointerCapture(e.pointerId);
       node.classList.add("grab");
-      move(e);
+      rect = node.getBoundingClientRect();
+      move(e, rect);
     });
-    node.addEventListener("pointermove", function (e) { if (node.hasPointerCapture(e.pointerId)) move(e); });
+    node.addEventListener("pointermove", function (e) { if (node.hasPointerCapture(e.pointerId)) move(e, rect); });
     ["pointerup", "pointercancel"].forEach(function (t) { node.addEventListener(t, function () { node.classList.remove("grab"); }); });
   }
 

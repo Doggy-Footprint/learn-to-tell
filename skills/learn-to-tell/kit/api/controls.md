@@ -23,3 +23,5 @@
 | 서로 묶인 두 값(x·y) | `"pad"` |
 | 그림 속 대상(벡터 끝, 경계선) | `LTT.drag`를 `control`로 |
 | 연속된 한 값 | `"range"` |
+
+컨트롤 옆에 값을 보이는 글(`#id-v` 등)은 폭을 고정하고(`font-variant-numeric: tabular-nums` + `min-width`), 컨트롤과 같은 가운데 정렬 줄이나 줄바꿈되는 줄에 두지 않는다. 값이 바뀔 때 글 폭이 변하면 컨트롤이 포인터 밑에서 움직인다. `audit.mjs`가 이를 `control-shift`로 알린다.

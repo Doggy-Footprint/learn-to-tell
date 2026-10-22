@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>fixture</title>
+<style>html,body{margin:0;padding:0}*,*::before,*::after{transition:none!important;animation:none!important}
+.blk{width:760px;margin:12px auto;height:260px}
+.flex{display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:center}
+.rd{font:16px monospace;white-space:nowrap;display:inline-block}
+.hid{display:none}</style>
+<script type="application/json" id="ltt-meta">{"topic":"t","audience":"a","theme":"paper","medium":"m","decision":"d"}</script>
+</head>
+<body>
+<h1>제목</h1>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script>
+// KINDS: comma list of range|dial|pad. PX: how far the range's left neighbour grows. MOVE: 1 = readouts change width with
+// the value (controls shift), 0 = fixed-width readouts. HIDE: 1 = the control blocks are display:none.
+var KINDS = "__KINDS__".split(","), PX = __PX__, MOVE = __MOVE__, HIDE = __HIDE__;
+var params = {}, hasSweep = false;
+KINDS.forEach(function (k) {
+  var d = document.createElement("div");
+  d.className = "blk" + (HIDE ? " hid" : "");
+  document.body.appendChild(d);
+  if (k === "range") {
+    d.innerHTML = '<span id="sp" style="display:inline-block;height:10px;width:0"></span><input type="range" id="r1" min="0" max="100" value="0" style="width:200px">';
+    var sp = d.querySelector("#sp"), inp = d.querySelector("#r1");
+    inp.addEventListener("input", function () { if (MOVE) sp.style.width = (inp.value / 100 * PX) + "px"; });
+  } else if (k === "dial") {
+    d.innerHTML = '<div class="' + (MOVE ? "flex" : "") + '"><div id="hue"></div><span id="hue-v" class="rd"></span></div>';
+    params.hue = {kind: "dial", step: 9, value: 0, fmt: function (v) { return MOVE ? "W".repeat(1 + Math.round(v / 9)) : "값"; }};
+    hasSweep = true;
+  } else if (k === "pad") {
+    d.innerHTML = '<div class="' + (MOVE ? "flex" : "") + '"><div id="xy" style="width:200px"></div><span id="xy-v" class="rd"></span></div>';
+    params.xy = {kind: "pad", x: {min: 0, max: 100, step: 2.5, value: 0}, y: {min: 0, max: 100, step: 100, value: 0},
+      fmt: function (v) { return MOVE ? "W".repeat(1 + Math.round(v[0] / 5)) : "값"; }};
+    hasSweep = true;
+  }
+});
+if (hasSweep) LTT.sweep({params: params, render: function () {}});
+</script>
+</body>
+</html>
