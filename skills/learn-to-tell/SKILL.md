@@ -55,7 +55,7 @@ Make an visual learning material for a given topic to help user get intuitive un
 아래는 생성에 도움을 주기 위한 kit이다. agent는 kit을 읽지 않고, 검색어로 필요한 부분만 찾아 쓴다. kit은 agent가 정한 전략과 구조를 보조하는 역할만 한다. kit에 없는 것은 직접 짠다.
 
 - 필수 파트: theme, `{{용어}}` 풀이, `LTT.expect`, `LTT.record`(이벤트 기록), 움직이는 그림은 `LTT.clock`(id를 붙인다). 사용법은 `<skill>/kit/API.md`의 "페이지 계약"·"불러오기"·"기본 이름" 절에 있다. 이 세 절만 읽는다.
-- 그 밖의 파트는 정한 구조가 있을 때만 찾는다. 설명 대상(예: 시간에 따른 변화, 구성 요소 관계), 방식(예: 2D 지도, diagram, 흐름도, 그래프, 목업), 그림 종류의 키워드로 `kit/API.md`의 "부품 고르기" 표를 grep하고, 걸린 줄의 참조 문서만 읽는다.
+- 그 밖의 파트는 정한 구조가 있을 때만 찾는다. 설명 대상(예: 시간에 따른 변화, 구성 요소 관계), 방식(예: 2D 지도, diagram, 흐름도, 그래프, 목업), 그림 종류의 키워드로 `grep -n "@ltt-part" <skill>/kit/*.js | grep -i "<키워드>"`를 실행하고, 걸린 줄의 `문서:`만 읽는다.
 - 그리는 방법의 본보기는 `<skill>/look/look.md`의 shot 색인이다. 개념 구조·움직임 열을 grep해 맞는 shot 2–3개의 카드(`look/shots/sNN.jpg`)를 본다. shot의 주제·문구·수치·배치는 옮기지 않는다. `look/board.jpg`는 완성도 기준으로 한 번 본다.
 
 ### 생성 순서

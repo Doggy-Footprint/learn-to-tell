@@ -14,11 +14,11 @@ claude.ai에 올린 skill은 자동 업데이트되지 않는다. 시작할 때 
 | 단계 | Claude Code | standalone |
 | --- | --- | --- |
 | 0. 시작 | `/fork`, map `find`·`show`, `background.md` | fork·map·background 없음. 사용자가 대화에서 말한 배경만 쓴다. |
-| 3. 자료 | `outline.md` → `lesson.html` + 로컬 서버 | HTML artifact 하나. 제목은 `LTT · <주제>`. outline 파일 대신 기대값, 결정 변수 주장, 장면별 기대 화면을 artifact를 쓰기 전에 응답에 짧게 적는다 |
-| 3. 검증 | 검토 서브에이전트, audit | 결정 변수 주장에 "미검증", 화면에 "미점검"을 표시하고 사용자에게 알린다(SKILL.md 검증). |
+| 3. 자료 | `outline.md`·`checklist.md`·`answers.md` → storyboard → `lesson.html` + 로컬 서버 | HTML artifact 하나. 제목은 `LTT · <주제>`. 파일 대신 계획(기대값 포함)과 검증표(`checklist.md` 항목, `answers.md` 정답)를 artifact를 쓰기 전에 응답에 짧게 적는다. storyboard는 건너뛴다 |
+| 3. 검증 | `audit.mjs --shots`, 검증 서브에이전트 | 스크린샷이 없으므로 검증표를 확인하지 못한 주장에 "미검증", 화면에 "미점검"을 표시하고 사용자에게 알린다(SKILL.md 검증). |
 | 3-10. events | `events.jsonl` | 없음. 예측·recall은 이해 확인 대화에서 직접 묻는다. |
 | 5. 작업 복귀 | `result.md` 파일 + SendMessage | 같은 artifact에 result 블록을 넣는다(아래). |
-| 5. 생성 비용 | `result.md`의 "생성 비용" 항목 | result 블록에 같은 생성 비용 항목을 넣고, 검토 서브에이전트·audit(브라우저) 항목은 "해당 없음"으로 적는다. |
+| 5. 생성 비용 | `result.md`의 "생성 비용" 항목 | result 블록에 같은 생성 비용 항목을 넣고, 검증 서브에이전트·audit(브라우저) 항목은 "해당 없음"으로 적는다. |
 | 6. 지식 map | `ltt-map` | 하지 않는다. `concepts`의 id는 map을 볼 수 없으니 `kebab-case` 일반 명칭으로 짓는다. import 때 Claude Code가 기존 개념과 맞춘다. |
 
 ## kit 불러오기

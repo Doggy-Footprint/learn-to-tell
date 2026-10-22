@@ -917,6 +917,7 @@
 
   var VISUALS = "svg.ltt-svg,svg.ltt-dg,.ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code,canvas,img,.ltt-ba,.dk-fig-stage>*,[data-visual]";
 
+  // @ltt-part LTT.deck | 대상: 순서대로 넘기는 설명, 슬라이드, slides | 방식: 장면 덱, deck, 발표, 넘김 | 그림: 한 화면씩 장면 | 문서: kit/API.md
   // Scenes mount lazily on first visit; `enter` runs on every visit so motion replays when the viewer comes back.
   function deck(spec) {
     var style = h("style");

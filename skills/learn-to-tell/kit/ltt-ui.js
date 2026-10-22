@@ -130,6 +130,7 @@
     return node;
   }
 
+  // @ltt-part LTT.chips | 대상: 키워드, 태그, keywords, tags | 방식: 알약 목록, chips | 그림: 알약 | 문서: kit/api/ui.md
   function chips(list) {
     var w = h("div", "ltt-chips");
     (list || []).forEach(function (c) {
@@ -144,6 +145,7 @@
 
   var BADGE = { before: ["bad", "x", "Before"], after: ["good", "check", "After"], bad: ["bad", "x"], good: ["good", "check"], warn: ["warn", "alert"], accent: ["accent", "bulb"] };
 
+  // @ltt-part LTT.badge | 대상: 판정, 좋음·나쁨, before/after 표시, verdict | 방식: 배지, badge, 아이콘 표시 | 그림: 배지 | 문서: kit/api/ui.md
   function badge(kind, text) {
     var b = BADGE[kind] || BADGE.accent;
     return "<span class='ltt-badge " + b[0] + "'><i>" + LTT.icon(b[1], { weight: 2.6 }) + "</i>" + (text || b[2] || "") + "</span>";
@@ -153,6 +155,7 @@
     return p.tone === "bad" ? LTT.icon("x", { weight: 3 }) : String(p.n || i + 1);
   }
 
+  // @ltt-part LTT.annotate | 대상: 그림 부분 설명, 번호 주석, annotation | 방식: 번호 표식과 해설 목록, markers | 그림: 그림 위 번호 | 문서: kit/api/ui.md
   // points: [{at: [x%, y%] (optional), title, text, tone: accent|good|bad|warn}]. Markers go on `target`;
   // the numbered list is returned for the caller to place (the deck puts it in the explanation rail).
   function annotate(target, points, opts) {
@@ -195,6 +198,7 @@
     };
   }
 
+  // @ltt-part LTT.beforeAfter | 대상: 전후 비교, 고치기 전과 후, 대조, before after, contrast | 방식: 나란히 두 쪽, side by side | 그림: 두 칸 비교 | 문서: kit/api/ui.md
   // side: {visual, points, label, tone, foot: {label, caption, visual}, pointsOn}; `pointsOn` picks the marker target inside the stage.
   function beforeAfter(spec, ctx) {
     var w = h("div", "ltt-ba"), sides = {}, annos = [];
@@ -224,6 +228,7 @@
     return { el: w, before: sides.before, after: sides.after, replay: function () { annos.forEach(function (a) { a.replay(); }); } };
   }
 
+  // @ltt-part LTT.takeaway | 대상: 핵심 한 문장, 요약, key point, summary | 방식: 강조 문장 상자 | 그림: 글 상자 | 문서: kit/api/ui.md
   function takeaway(text, sources) {
     var w = h("div", "ltt-take");
     w.innerHTML = "<span class='k'>핵심</span><span class='t'></span>";
@@ -236,12 +241,14 @@
     return w;
   }
 
+  // @ltt-part LTT.narration | 대상: 해설, 설명 글, explanation | 방식: 해설 단락, narration | 그림: 글 | 문서: kit/api/ui.md
   function narration(html) {
     var w = document.createDocumentFragment();
     [].concat(html).forEach(function (p) { w.appendChild(h("p", "ltt-narr", p)); });
     return w;
   }
 
+  // @ltt-part LTT.callout | 대상: 주의, 조건, 보충 설명, note, warning | 방식: 강조 상자, callout | 그림: 글 상자 | 문서: kit/api/ui.md
   function callout(html, opts) {
     opts = opts || {};
     var ic = { warn: "alert", bad: "alert", good: "check" }[opts.tone] || "bulb";
@@ -252,6 +259,7 @@
     return w;
   }
 
+  // @ltt-part LTT.swatches | 대상: 쓰인 색·크기, 디자인 요소, color, size | 방식: 견본 줄, swatch | 그림: 색 견본 | 문서: kit/api/ui.md
   // items: [{color, label, w, h, r, border}] in px; a swatch row for "what was used" style mini-infographics.
   function swatches(items, opts) {
     opts = opts || {};
@@ -273,6 +281,7 @@
     return w;
   }
 
+  // @ltt-part LTT.facts | 대상: 상황의 조건, 주어진 숫자, givens, stats | 방식: 숫자 카드 줄, stat cards, KPI | 그림: 큰 숫자 카드 | 문서: kit/api/ui.md
   // items: [{icon, value, label, tone}]; the givens of a situation as a row of stat cards.
   function facts(items) {
     var w = h("div", "ltt-facts");
@@ -286,6 +295,7 @@
     return w;
   }
 
+  // @ltt-part LTT.chartFrame | 대상: 차트 제목과 출처, 신문 차트, newspaper chart | 방식: 차트 틀, headline, source line | 그림: 차트 머리·꼬리 | 문서: kit/api/ui.md
   // Newspaper chart frame: rule with a thick tab, headline, dek, then the chart, then a source line added by foot().
   function chartFrame(o) {
     var w = h("div", "ltt-cf");
@@ -294,6 +304,7 @@
     return { el: w, foot: function () { if (o.source) w.appendChild(h("p", "src", o.source)); return w; } };
   }
 
+  // @ltt-part LTT.inspector | 대상: 색 대비, 접근성, contrast, accessibility | 방식: 디자인 툴 검사 패널, inspector | 그림: 표 | 문서: kit/api/ui.md
   // Design-tool style contrast check. rows: [{name, fg, bg, ratio}]; ratio defaults to LTT.contrast(fg, bg).
   function inspector(o) {
     var min = o.min || 4.5, label = o.level || "AA " + min;
@@ -305,6 +316,7 @@
     }).join("") + "</div>";
   }
 
+  // @ltt-part LTT.redline | 대상: 화면 간격, 여백, spacing, margin | 방식: 치수선, redline, 측정 막대 | 그림: 치수 표시 | 문서: kit/api/ui.md
   // Measurement bars for the margin above each target, drawn in the container's right padding; call update() after restyling.
   // Inline margin-top is read first because a figure is often styled before it is attached, when computed style is empty.
   function redline(container, o) {
@@ -321,6 +333,7 @@
     return { update: update };
   }
 
+  // @ltt-part LTT.recall | 대상: 인출 연습, 복습 질문, retrieval practice, quiz | 방식: 질문과 답 보기 | 그림: 질문 상자 | 문서: kit/api/ui.md
   // Retrieval practice: question, a box for the learner's own answer, then the model answer behind a button.
   // With `hold` the caller keeps the answer out of the layout itself (a deck reserves its space); otherwise it is hidden.
   function recall(el, opts) {

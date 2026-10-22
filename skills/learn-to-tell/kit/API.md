@@ -1,6 +1,6 @@
 # kit API
 
-수업 작성 참조. kit은 기능을 제공하고 그리는 방법을 정하지 않는다. 필요한 부품만 골라 쓰고, 없는 것은 페이지에 직접 짠다(SVG, canvas, d3 모두 된다). 부품 문서는 "부품 고르기" 표의 참조 열에서 고른 것만 읽는다. audit·lint 규칙 뜻은 출력만으로 모를 때만 `kit/api/rules.md`, 글꼴·모양 토큰과 드문 ltt.js 이름은 `kit/api/base.md`.
+수업 작성 참조. kit은 기능을 제공하고 그리는 방법을 정하지 않는다. 필요한 부품만 골라 쓰고, 없는 것은 페이지에 직접 짠다(SVG, canvas, d3 모두 된다). 부품은 "부품 찾기"대로 kit 코드의 `@ltt-part` 주석을 grep해 찾고, 걸린 줄의 문서만 읽는다. audit·lint 규칙 뜻은 출력만으로 모를 때만 `kit/api/rules.md`, 글꼴·모양 토큰과 드문 ltt.js 이름은 `kit/api/base.md`.
 
 ## 페이지 계약
 
@@ -111,33 +111,15 @@ URL에 `?shot`을 붙이면 스크린샷 모드다: 모든 `LTT.clock`이 돌지
 
 hook이 처음, keywords가 마지막, overview는 summary 바로 뒤다. figure `steps`·predict `answerVisual`을 쓸 때는 `kit/api/deck-contracts.md`를 읽는다.
 
-## 부품 고르기
+## 부품 찾기
 
-| 보여 줄 것 | 부품 | 참조 |
-| --- | --- | --- |
-| 박스와 화살표, 몇 개 | `LTT.diagram`(격자 좌표, `player` 단계 재생) | `kit/api/diagram.md` |
-| 박스 20개 넘음·여러 겹 묶음 / 상태 전이 | `LTT.autoLayout` → `LTT.diagram` / `LTT.state` | `kit/api/diagram.md` |
-| 누가 누구에게 언제 보내나 | `LTT.sequence` | `kit/api/sequence.md` |
-| 어디에서 어디로(지리) | `LTT.map` | `kit/api/map.md` |
-| 시간이 어디에 쓰이나 | `LTT.lanes` | `kit/api/charts.md` |
-| 양을 고정 축에서 비교 | `LTT.hbars`, 좌표 플롯 `LTT.axisPlot`, 그 밖의 통계 차트 `LTT.plot` | `kit/api/charts.md` |
-| 비율·건수 | `LTT.bar`, `LTT.units`(100칸) | `kit/api/charts.md` |
-| 흐름의 양이 갈라지나 | `LTT.sankey` | `kit/api/charts.md` |
-| 상황의 조건·숫자 | `LTT.facts`, `LTT.callout` | `kit/api/ui.md` |
-| 실제 화면·로그·코드 | `LTT.mock.*` | `kit/api/mock.md` |
-| 화면 간격·색 대비 | `LTT.redline`, `LTT.inspector` | `kit/api/ui.md` |
-| 손잡이·단계 재생·시뮬레이션 | `LTT.sweep`, `LTT.drag`, `LTT.stepper`, `LTT.sim` | `kit/api/controls.md` |
+kit 코드의 부품마다 머리에 한 줄 주석이 있다: `// @ltt-part LTT.이름 | 대상: … | 방식: … | 그림: … | 문서: kit/api/….md`. 대상은 설명하는 것(예: 시간에 따른 변화, 구성 요소 관계), 방식은 보이는 방법(예: 2D 지도, 흐름도, 목업), 그림은 그림 종류이고, 한국어와 영어 키워드가 함께 있다.
 
-손잡이는 변수의 모양으로 고른다(`LTT.sweep` `params`의 `kind`). 그 분야 사람이 실제로 만지는 손잡이가 있으면 그 모양을 따른다.
+```sh
+grep -n "@ltt-part" <skill>/kit/*.js | grep -i "<키워드>"
+```
 
-| 변수의 모양 | 손잡이 |
-| --- | --- |
-| 선택지 2–6개, 고정 단계(흔히 쓰는 TTL 값) | `"steps"` |
-| 순환하는 값(각도, 색상, 시각) | `"dial"` |
-| 자릿수가 바뀌는 범위(1초~1시간) | `"log"` |
-| 서로 묶인 두 값(x·y) | `"pad"` |
-| 그림 속 대상(벡터 끝, 경계선) | `LTT.drag`를 `control`로 |
-| 연속된 한 값 | `"range"` |
+걸린 줄의 `문서:`만 읽는다. 걸리지 않으면 다른 축의 말로 한 번 더 찾고, 그래도 없으면 직접 짠다.
 
 ## 조합 조각
 

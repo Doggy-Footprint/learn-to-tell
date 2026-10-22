@@ -11,6 +11,7 @@
 - `LTT.clock(el, draw, {dur, loop, id})` 추가: 보일 때만 도는 시계. reduced-motion이거나 `?shot`이면 `draw(dur)` 한 장만 그린다. 움직이는 그림은 이것으로 그리고 id를 붙인다.
 - `?shot` 모드(`?shot`, `?shot&y=<px>`, `?shot&clock=<id>&t=<ms>`)와 `#ltt-check`의 `scroll`·`scenes`·`clocks` 필드. 같은 clock id가 둘이면 `clock-duplicate-id`.
 - 덱의 `?audit`·`audit()`·`#ltt-audit`·`layout-audit` 이벤트와 레이아웃 판정 규칙(`overflow`·`shrunk`·`small-visual` 등)을 없앴다. 그려진 화면은 `audit.mjs --shots` PNG로 본다.
+- 부품은 kit 코드의 `// @ltt-part LTT.이름 | 대상 | 방식 | 그림 | 문서` 주석을 grep해 찾는다. `kit/API.md`의 "부품 고르기" 표를 없애고, 손잡이 모양 표는 `kit/api/controls.md`로 옮겼다.
 - `LTT.recall`로 덱 밖에서도 떠올리기 질문과 `recall` 이벤트를 쓸 수 있다.
 kit 개발자용 · 수업에서 부르지 않는 kit 내부 이름이다. kit 모듈끼리, 테스트, 서버 쪽 계산이 쓴다.
 - `LTT.termIssues`·`goalIssues`·`deckIssues`·`checkSource` 추가. `lintDeck`은 용어·채움 글 규칙을 더는 내지 않는다. 장면 타입 메타의 `sumVisualAreas`·`auditHero`·`auditSmallVisual`·`auditLooseFigure`와 `LTT.auditScene`을 없앴다.

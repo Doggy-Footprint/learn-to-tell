@@ -10,3 +10,16 @@
 | `LTT.stepper(el, [{caption, hold, enter(i, dir)}], {onStep, interval})` → `{go, play, stop, index}` | 한 그림을 단계별로. `enter`는 다시 들어와도 같은 화면이 되게 짠다. '반복 재생' 버튼(또는 `play()`)은 단계마다 `hold`ms(없으면 `interval`, 기본 1800ms) 머문 뒤 다음 단계로, 끝에서 처음으로 돌아간다. `hold`는 표현하려는 바에 맞게 정한다(오래 봐야 할 단계는 길게). 이전/다음을 누르면 멈춘다. |
 | `LTT.sim({init, step, draw, until, dt, onEnd})` | 고정 간격 시뮬레이션. `runToEnd()`는 화면 없이 결과만. |
 | `LTT.tween(el, to, fmt, ms)` | 숫자 변화. |
+
+## 손잡이 고르기
+
+손잡이는 변수의 모양으로 고른다(`LTT.sweep` `params`의 `kind`). 그 분야 사람이 실제로 만지는 손잡이가 있으면 그 모양을 따른다.
+
+| 변수의 모양 | 손잡이 |
+| --- | --- |
+| 선택지 2–6개, 고정 단계(흔히 쓰는 TTL 값) | `"steps"` |
+| 순환하는 값(각도, 색상, 시각) | `"dial"` |
+| 자릿수가 바뀌는 범위(1초~1시간) | `"log"` |
+| 서로 묶인 두 값(x·y) | `"pad"` |
+| 그림 속 대상(벡터 끝, 경계선) | `LTT.drag`를 `control`로 |
+| 연속된 한 값 | `"range"` |

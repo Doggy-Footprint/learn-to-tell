@@ -192,6 +192,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var el = function (x) { return typeof x === "string" ? (x[0] === "#" ? document.querySelector(x) : $(x)) : x; };
 
+  // @ltt-part LTT.tween | 대상: 수치 변화, 숫자가 바뀌는 순간 | 방식: 숫자 애니메이션, count-up, tween | 그림: 숫자 | 문서: kit/api/controls.md
   function tween(node, to, fmt, ms) {
     node = el(node);
     fmt = fmt || d3.format(",.0f");
@@ -202,6 +203,7 @@
       .tween("text", function () { var i = d3.interpolateNumber(from, to); return function (t) { node.textContent = fmt(i(t)); }; });
   }
 
+  // @ltt-part LTT.units | 대상: 비율, 건수, 몇 개 중 몇 개, proportion, count | 방식: 단위 칸, 100칸, unit chart, waffle, 띠 | 그림: 점·칸 격자 | 문서: kit/api/charts.md
   // opts.band: a wide strip of thin ticks (e.g. 2×50 requests in time order) instead of a square grid.
   function units(container, n, cols, opts) {
     container = el(container);
@@ -229,6 +231,7 @@
     };
   }
 
+  // @ltt-part LTT.bar | 대상: 비율, 구성비, 몫, share, ratio | 방식: 누적 막대 한 줄, stacked bar | 그림: 막대 | 문서: kit/api/charts.md
   function bar(container, parts) {
     container = el(container);
     container.classList.add("ltt-bar");
@@ -249,6 +252,7 @@
     };
   }
 
+  // @ltt-part LTT.predict | 대상: 예측, 학습자 추측, prediction, guess | 방식: 먼저 예측하고 확인, 슬라이더 예측 | 그림: 손잡이·선택지 | 문서: kit/api/controls.md
   // The first prediction is locked and recorded once; later slider moves are exploration, not prediction.
   function predict(opts) {
     var locked = false, tries = 0;
@@ -317,6 +321,7 @@
     return { reset: reset, get value() { return value; }, get locked() { return locked; } };
   }
 
+  // @ltt-part LTT.sweep | 대상: 변수에 따른 변화, 매개변수, parameter, what-if, 목표 도달 | 방식: 손잡이, 슬라이더, 다이얼, slider, knob, dial | 그림: 손잡이와 그림 | 문서: kit/api/controls.md
   // Each parameter is a control {read, write, raws}; `map` turns its raw position into the value render() gets.
   // `#<id>-v` gets the formatted value when present. Controls stop arrow keys from reaching the deck's scene navigation.
   function sweep(opts) {
@@ -541,6 +546,7 @@
     ["pointerup", "pointercancel"].forEach(function (t) { node.addEventListener(t, function () { node.classList.remove("grab"); }); });
   }
 
+  // @ltt-part LTT.drag | 대상: 그림 속 대상 조작, 벡터 끝, 경계선, direct manipulation | 방식: 드래그 손잡이, drag handle | 그림: SVG 위 손잡이 | 문서: kit/api/controls.md
   // A handle on the figure itself, for when the thing to move is drawn (a vector tip, a bar end): the hand moves the object,
   // not a slider beside it. o.toSvg/o.fromSvg convert data ⇄ SVG user units; the value snaps to `step` inside `bounds`.
   // The handle is appended last once and never re-inserted: moving the node in the DOM drops focus and pointer capture mid-drag.
@@ -594,6 +600,7 @@
     return b;
   }
 
+  // @ltt-part LTT.stepper | 대상: 단계, 순서, 절차, step-by-step, procedure | 방식: 단계 재생, 이전·다음 버튼, stepper | 그림: 단계 버튼 | 문서: kit/api/controls.md
   // steps[i].enter(i, dir) must be idempotent: going back re-enters the earlier step from scratch.
   function stepper(container, steps, opts) {
     container = el(container);
@@ -889,6 +896,7 @@
     return { width: width, height: height, nodes: nodes, edges: edges, zones: zones };
   }
 
+  // @ltt-part LTT.diagram | 대상: 구성 요소 관계, 단계 흐름, 아키텍처, architecture, components | 방식: diagram, 다이어그램, 박스와 화살표, 흐름도, flowchart, 단계 재생 | 그림: 노드-링크, 격자 배치 | 문서: kit/api/diagram.md
   // Box-and-arrow diagram from a grid spec (see diagramLayout); `player` turns it into a captioned step replay.
   function diagram(svgEl, spec) {
     var L = diagramLayout(spec), uid = "dg" + Math.random().toString(36).slice(2, 8);
@@ -1059,6 +1067,7 @@
     return api;
   }
 
+  // @ltt-part LTT.plane | 대상: 선형 변환, 행렬, 벡터, linear algebra, matrix, vector | 방식: 2D 평면, 격자 변형, coordinate plane | 그림: 좌표 격자와 화살표 | 문서: kit/api/charts.md
   // 2D plane that morphs a unit grid and vectors under a 2x2 matrix [[a,b],[c,d]] (column vectors i-hat=(a,c), j-hat=(b,d)).
   function plane(svgEl, o) {
     o = o || {};
@@ -1131,6 +1140,7 @@
     };
   }
 
+  // @ltt-part LTT.sim | 대상: 시간에 따른 변화, 동역학, 시뮬레이션, simulation, dynamics | 방식: 고정 간격 루프, 재생·정지, animation | 그림: canvas·SVG 애니메이션 | 문서: kit/api/controls.md
   // Fixed-step simulation loop; under reduced motion it computes to the end and draws only the final state.
   function sim(o) {
     var state, raf = null, t = 0, acc = 0, last = 0;
@@ -1217,6 +1227,7 @@
     return { width: pad * 2 + order.length * col, height: y + pad - row * 0.2, head: head, actorW: bw, actors: actors, items: items, activations: acts, spans: spans };
   }
 
+  // @ltt-part LTT.sequence | 대상: 누가 누구에게 언제 보내나, 메시지 순서, 프로토콜, protocol, messages | 방식: 시퀀스 다이어그램, sequence diagram, 단계 재생 | 그림: 생명선과 화살표 | 문서: kit/api/sequence.md
   // Lifelines and messages; `player` reveals messages in order (steps: [{caption, upto, hot}], upto = items shown, default i + 1).
   function sequence(svgEl, spec) {
     var L = sequenceLayout(spec), uid = "sq" + Math.random().toString(36).slice(2, 8), pad = spec.pad == null ? 20 : spec.pad;
@@ -1314,6 +1325,7 @@
     return api;
   }
 
+  // @ltt-part LTT.axisPlot | 대상: 함수, 곡선 비교, 두 양의 관계, function, curve | 방식: 좌표 플롯, 그래프, graph, line chart, 고정 축 | 그림: x-y 축과 곡선 | 문서: kit/api/charts.md
   // Axes with fixed domains so curves are compared against the same frame; `equal` uses one scale for x and y (shapes stay true).
   function axisPlot(target, o) {
     var W = o.width || 560, H = o.height || 200, M = Object.assign({ l: 40, r: 12, t: 10, b: 30 }, o.margin || {});
@@ -1354,6 +1366,7 @@
     };
   }
 
+  // @ltt-part LTT.lanes | 대상: 시간이 어디에 쓰이나, 지연, latency, 소요 시간 | 방식: 시간 막대, 타임라인, timeline, gantt | 그림: 공통 시간축 위 막대 | 문서: kit/api/charts.md
   // Bars on one shared time axis so a 300x gap reads as length (lanes: [{l, s, value, text, color | k}], axis: {max, step, fmt}).
   function lanes(target, o) {
     var W = o.width || 880, X0 = o.labelW || 230, X1 = W - (o.right || 40), laneH = o.laneH || 70, top = 22;
@@ -1382,6 +1395,7 @@
     return { svg: svg, play: play };
   }
 
+  // @ltt-part LTT.hbars | 대상: 양 비교, 크기 비교, comparison, magnitude | 방식: 가로 막대, bar chart, 고정 축 | 그림: 가로 막대 | 문서: kit/api/charts.md
   // Horizontal bars on a fixed axis (domain), so every chart in a lesson is measured against the same reference.
   // rows: [{label, value, text, tone: "accent"|"bad"|"good"|"warn"|"floor"}]; "floor" draws a dashed outline for a lower bound.
   function hbars(target, o) {
@@ -1434,11 +1448,13 @@
     }, options);
   }
 
+  // @ltt-part LTT.plot | 대상: 통계, 분포, 데이터, statistics, distribution | 방식: Observable Plot, 산점도, 히스토그램, scatter, histogram, 그래프 | 그림: 통계 차트 | 문서: kit/api/charts.md
   function plot(options) {
     if (!root.Plot) throw new Error("LTT.plot needs /kit/vendor/plot.umd.min.js");
     return root.Plot.plot(plotTheme(options));
   }
 
+  // @ltt-part LTT.sankey | 대상: 흐름의 양, 갈라짐, 비용·트래픽 흐름, flow volume | 방식: 샌키, sankey diagram | 그림: 폭이 양인 띠 | 문서: kit/api/charts.md
   // Flow quantities (cost, traffic) between stages; link width = value. nodes: [{id, l, k}], links: [{f, t, value}].
   function sankey(target, o) {
     if (!d3.sankey) throw new Error("LTT.sankey needs /kit/vendor/d3-sankey.min.js");
@@ -1477,6 +1493,7 @@
     return worldData;
   }
 
+  // @ltt-part LTT.map | 대상: 지리, 어디에서 어디로, 리전, 경로, geography, region, route | 방식: 2D 지도, 세계 지도, world map, 대권 경로 | 그림: 지도와 호 | 문서: kit/api/map.md
   // World map (Natural Earth 1:110m via world-atlas). Routes are great-circle arcs, so long hauls curve the way flights and cables do.
   // countries keys are Natural Earth English names (e.g. "South Korea", "United States of America").
   function map(svgEl, o) {
@@ -1581,6 +1598,7 @@
     });
   }
 
+  // @ltt-part LTT.math | 대상: 수식, 공식, formula, equation | 방식: KaTeX, LaTeX | 그림: 수식 | 문서: kit/API.md
   function math(scope) {
     if (!root.katex) return;
     (scope ? el(scope) : document).querySelectorAll("[data-tex]").forEach(function (n) {
@@ -1615,6 +1633,7 @@
     return Math.ceil(w);
   }
 
+  // @ltt-part LTT.autoLayout | 대상: 큰 구조, 여러 겹 묶음, 박스 20개 넘음, 계층, hierarchy | 방식: 자동 배치, ELK, auto layout, 흐름도, flowchart | 그림: 노드-링크, 그룹 | 문서: kit/api/diagram.md
   function autoLayout(spec) {
     return new Promise(function (resolve, reject) {
       spec = spec || {};
@@ -1804,6 +1823,7 @@
     return out;
   }
 
+  // @ltt-part LTT.state | 대상: 상태 전이, 상태 기계, 생명주기, state machine, lifecycle | 방식: 상태도, state diagram, 자동 배치 | 그림: 노드-링크 | 문서: kit/api/diagram.md
   // Resolves to the diagram api (player, highlight, send ...); rejects without elk.bundled.js or on bad input.
   function state(svgEl, o) {
     return new Promise(function (resolve) { resolve(stateSpec(o)); })

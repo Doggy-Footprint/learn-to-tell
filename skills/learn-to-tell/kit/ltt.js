@@ -729,6 +729,7 @@
     return null;
   }
 
+  // @ltt-part LTT.clock | 대상: 시간에 따른 변화, 움직임, 애니메이션, motion, animation | 방식: 시계 기반 그리기, animation loop, 재생·정지 | 그림: 움직이는 그림 | 문서: kit/API.md
   // Globals are read at call time, not at load, so a host can stub them per call. `?shot` and reduced motion draw one
   // still frame and never schedule rAF; a screenshot must not depend on when it is taken.
   function clock(el, draw, opts) {

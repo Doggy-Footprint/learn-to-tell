@@ -6,38 +6,44 @@
 
 ## State
 
-- 브랜치 `education-first`, 기준 커밋 `9ae88d0`. 사용자 검토 대기, stage·커밋하지 않음.
-- staged(사용자 수정): `AGENTS.md`(원칙 6 삭제), `README.md`, `agent-docs/rejections/*`, `skills/learn-to-tell/SKILL.md` §1–§3 앞부분.
-- unstaged(이번 세션): `skills/learn-to-tell/SKILL.md` §0, §3 "Auxiliary kit" 이후, §4–§6. `skills/learn-to-tell/kit/API.md`에서 `LTT.clock` 설명 3곳 삭제.
-- 새 SKILL.md §3 절차: `outline.md` → `checklist.md`(시행)·`answers.md`(정답) → storyboard → `lesson.html` → `audit.mjs --shots` → 검증 서브에이전트 1개(미충족만 보고, 최대 3회) → 공개.
-- `/fork` 안내는 사용자 지시로 유지(issue #16 범위).
+- 브랜치 `education-first`. 1·2단계는 `e3ffc31`로 커밋했다.
+- 커밋하지 않은 것(3·5·6단계와 문서 테스트):
+  - kit `@ltt-part` 주석 36개(`ltt-parts.js`, `ltt-ui.js`, `ltt-mock.js`, `ltt-deck.js`, `ltt.js`).
+  - `kit/API.md`의 "부품 찾기" 절. "부품 고르기" 표는 지웠다.
+  - `kit/api/controls.md`의 "손잡이 고르기"와 `kit/CHANGELOG.md`.
+  - `SKILL.md` "Auxiliary kit"의 grep 줄.
+  - `standalone.md`, `README.md`, `look/look.md`("판정" 절과 `look/src` 참조를 지웠다).
+  - `tests/api-docs.test.mjs`, `tests/map/skill.test.mjs`.
+- `npm test`: 1127개 모두 통과.
+- 사용자 결정:
+  - SKILL.md 길이 상한 테스트는 지운다.
+  - `learn-to-tell-PROJECT.md`를 읽던 FR-11 테스트 2개는 그 파일이 `2b3df17`에서 지워져 함께 지웠다(기본값).
 
 ## Failed Attempts
 
 | attempt | failure evidence | cause |
 | --- | --- | --- |
 | SKILL.md에 `LTT.clock`을 필수 파트로 적음 | `grep -rn clock kit/ltt.js server/`에 아이콘 외 구현 없음 | verified: API.md가 미구현 API를 문서화하고 있었다. API.md·SKILL.md에서 제거함 |
+| Chrome CLI `--screenshot`으로 스크롤한 페이지 찍기 | Chrome 155에서 `scrollTo` 뒤 찍은 PNG가 하얗다(scratchpad 재현) | verified: headless CLI 캡처 결함. CDP `--remote-debugging-pipe`로 바꿨다 |
+| `--dump-dom` + `--virtual-time-budget`로 CSS 전환 뒤 상태 읽기 | 덱 C-10 probe가 전환 전 값을 읽었다 | verified: virtual time이 CSS transition을 진행시키지 않는다. 고정 페이지에서 전환을 끄고 `data-ltt-shot`을 기다린다 |
 
 ## Next Step
 
-1. `server/audit.mjs`를 스크린샷 도구로 바꾼다(옛 계획 eff07952 3단계). 지금은 `takeShots`가 deck 장면(`#1..n`)만 찍고, `check.source === "page"`면 `scenes: 0`이라 스크린샷이 없다. 페이지는 1440×900·1280×800에서 스크롤하며 찍고, 출력은 PNG 경로와 `check`·expect 오류만 남긴다. `LTT.auditScene` 판정·"고침/권고"는 지운다.
-2. `LTT.clock(el, draw, {dur, loop})`을 `kit/ltt.js`에 구현한다(화면 밖·숨김이면 멈춤, reduced-motion이면 `draw(dur)`, `{play, pause, seek}`). 스크린샷 도구는 clock 그림을 idle 또는 마지막 t로 찍는다. 구현 뒤 API.md 페이지 계약과 SKILL.md 필수 파트에 다시 넣는다.
-3. kit 파트 머리에 축별 검색 키워드 주석(설명 대상, 방식, 그림 종류)을 단다(옛 계획 4단계). 끝나면 SKILL.md "Auxiliary kit"의 "부품 고르기 표 grep"을 주석 grep으로 바꾸고, API.md에서 파트 목록을 줄인다.
-4. A 자동 보정(옛 계획 eff07952 2단계)을 구현한다: 최소 글자 크기, 가로 넘침, 겹침, 기본 theme, 안 쓴 풀이 제거. 보정 전후는 `autofix` 이벤트로 남긴다.
-5. `standalone.md` 표(3. 자료·3. 검증·5. 생성 비용 줄)를 새 §3에 맞춘다: 검토 서브에이전트·"결정 변수 주장" → 검증표(`checklist.md`·`answers.md`)와 검증 서브에이전트.
-6. `README.md`의 범위(31행)와 품질 표(50–53행)를 새 절차에 맞춘다: 결정 변수·검토 서브에이전트·"고침/권고" 서술이 남아 있다.
-7. 위가 끝나면 기존 gallery 주제 하나로 새 절차를 돌려 `result.md` 생성 비용과 검증 보고를 현행본과 비교한다(옛 계획 6단계).
-8. 1·2·4는 workflow-approach 대상이다.
+1. A 자동 보정(옛 계획 eff07952 2단계)을 구현한다: 최소 글자 크기, 가로 넘침, 겹침, 기본 theme, 안 쓴 풀이 제거. 보정 전후는 `autofix` 이벤트로 남긴다. workflow-approach 대상이다.
+2. 위가 끝나면 기존 gallery 주제 하나로 새 절차(`audit.mjs --shots --checklist` 포함)를 돌려 `result.md` 생성 비용과 검증 보고를 현행본과 비교한다(옛 계획 6단계).
+3. 권고(차단 아님): gallery-audit 기준 갱신(RV-2, 손으로 확인)을 자동 테스트로 만든다.
 
 ## Open Questions
 
-- `look/look.md`의 "판정" 절과 storyboard 절 "판정 서브에이전트" 문장은 새 검증 방식과 맞지 않는다. 지울지 검증표 작성 가이드로 바꿀지.
-- `look/src/`가 없다. shot 소스를 다시 둘지, 카드 jpg만 쓸지.
+없음(판정 절은 지우고, look/src 대신 카드 jpg만 쓰기로 사용자가 정했다).
 
 ## Spec
 
-없음.
+`agent-docs/spec-logs/76b739afacf5b868-page-shots-and-clock.md`, v2, complete, run `76b739afacf5b868` (1·2단계). 3·5·6단계는 문서·주석 작업이라 spec 없이 했다.
 
 ## Execution Ledger
 
-없음(구현 전).
+- 검증 서브에이전트(verifier) 2회: 1회차 retry(F-1..F-5), 2회차 pass. 수정 3번.
+- 손 mutation 14건 모두 잡힘. fuzz·mutation 도구 없음(spec D-8).
+- RV-1: 덱 1개와 clock 시험 페이지의 PNG를 직접 확인했다. RV-2: 기준 파일 쓰기를 확인했다.
+- 3단계 확인: grep "흐름도" → diagram·autoLayout, "2D 지도" → map, "시간에 따른 변화" → sim·clock. 같은 내용을 `tests/api-docs.test.mjs`가 고정한다.

@@ -65,6 +65,7 @@
     return el;
   }
 
+  // @ltt-part LTT.mock | 대상: 실제 화면, 로그, 코드, 앱 화면, UI, screen, log, code | 방식: 목업, mockup, 폰·브라우저·터미널·코드 창 | 그림: 기기 틀 | 문서: kit/api/mock.md
   // Each mock returns {el, screen}: put content in `screen`, annotate `el` (markers are placed relative to the frame).
   function phone(opts) {
     opts = opts || {};

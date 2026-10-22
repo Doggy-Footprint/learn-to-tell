@@ -41,9 +41,9 @@ test("VO-16 §6 find-before-create (scoped to §6): find, exact -> reuse, compar
   assert.match(block, /(정의|definition)[^\n]*(비교|compare)|(비교|compare)[^\n]*(정의|definition)/i);
   assert.match(block, /(ambiguous|애매|모호)[^\n]*(ask|묻|질문)|(ask|묻|질문)[^\n]*(ambiguous|애매|모호)/i);
 });
-test("VO-16 §6 granularity rule: one concept = one decision variable checkable by one quiz item", () => {
+test("VO-16 §6 granularity rule: one concept = what one quiz item can check", () => {
   const s6 = section(6);
-  const dv = "(?:결정\\s*변수\\s*(?:하나|한\\s*개|1\\s*개)|(?:하나의|한\\s*개의|1\\s*개의)\\s*결정\\s*변수|one\\s+decision\\s+variable)";
+  const dv = "(?:개념\\s*(?:하나|한\\s*개|1\\s*개)|one\\s+concept)";
   const qi = "(?:문항\\s*(?:하나|한\\s*개|1\\s*개)|(?:하나의|한|1)\\s*(?:퀴즈\\s*)?문항|퀴즈\\s*(?:한|1)\\s*(?:문항|개)|one\\s+quiz\\s+item)";
   assert.match(s6, new RegExp(`${dv}[^\\n]{0,80}${qi}|${qi}[^\\n]{0,80}${dv}`, "i"));
 });

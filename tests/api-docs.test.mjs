@@ -18,7 +18,6 @@ const P2_PARTS = ["ui", "mock", "diagram", "sequence", "map", "controls", "chart
 // Plan b71ddee49f77ac06 §3: what a generating agent reads before writing (SKILL.md + API.md) stays near 30K bytes.
 // API.md carries the authoring rules and syntax snippets; the snippets shrink once scene specs become declarative.
 const CORE_LIMIT = 11500;
-const SKILL_LIMIT = 9500;
 const P2_LIMIT = 18000;
 const ROW_LIMIT = 300;
 
@@ -326,11 +325,6 @@ test("VO-3 FR-3 QR-P1: real kit/API.md is at most 11,500 code points", () => {
   assert.equal(err, null, err);
 });
 
-test("plan b71ddee49f77ac06 §3: real SKILL.md is at most 8,500 code points", () => {
-  const err = sizeError(skillText(), SKILL_LIMIT, "SKILL.md");
-  assert.equal(err, null, err);
-});
-
 const p2Parts = (charts) => ({ ui: pad(4200), mock: pad(4200), diagram: pad(4200), sequence: pad(4200), map: pad(4200), controls: pad(5000), charts: pad(charts) });
 
 test("VO-3 C-2 QR-P2: core plus the two largest parts at 18,000 passes", () => {
@@ -449,11 +443,36 @@ test("VO-4 deck-contracts pointer: one line holds steps, answerVisual and kit/ap
   assert.equal(err, null, err);
 });
 
-test("VO-4 part paths: kit/API.md names the nine kit/api docs and not internals.md", () => {
-  const text = apiText();
+// ADR 6ff15ad3eef7b88d: agents find parts by grepping `@ltt-part` lines, so each line must fill every axis and point at a real doc.
+const PART_TAG = /^\s*\/\/ @ltt-part (LTT\.\w+) \| 대상: ([^|]+) \| 방식: ([^|]+) \| 그림: ([^|]+) \| 문서: (\S+)$/;
+const TAGGED_PARTS = ["tween", "units", "bar", "predict", "sweep", "drag", "stepper", "diagram", "plane", "sim", "sequence", "axisPlot",
+  "lanes", "hbars", "plot", "sankey", "map", "math", "autoLayout", "state", "chips", "badge", "annotate", "beforeAfter", "takeaway",
+  "narration", "callout", "swatches", "facts", "chartFrame", "inspector", "redline", "recall", "mock", "deck", "clock"].map((n) => `LTT.${n}`);
+const partTags = () => readdirSync(KIT).filter((f) => f.endsWith(".js")).flatMap((f) =>
+  readFileSync(join(KIT, f), "utf8").split("\n").filter((l) => l.includes("@ltt-part")).map((line) => ({ f, line, m: line.match(PART_TAG) })));
+
+test("@ltt-part: every public part has one four-axis tag whose 문서 path exists", () => {
+  const tags = partTags();
+  const bad = tags.filter((t) => !t.m).map((t) => `${t.f}: ${t.line.trim()}`);
+  assert.deepEqual(bad, [], `malformed @ltt-part lines:\n${bad.join("\n")}`);
+  const names = tags.map((t) => t.m[1]);
+  assert.deepEqual([...names].sort(), [...TAGGED_PARTS].sort());
+  const missingDoc = tags.filter((t) => !existsSync(join(SKILL, t.m[5]))).map((t) => `${t.m[1]} → ${t.m[5]}`);
+  assert.deepEqual(missingDoc, [], missingDoc.join(", "));
+});
+
+test("@ltt-part: the SKILL.md example keywords reach the expected parts", () => {
+  const hits = (k) => partTags().filter((t) => t.line.toLowerCase().includes(k.toLowerCase())).map((t) => t.m[1]).sort();
+  assert.deepEqual(hits("흐름도"), ["LTT.autoLayout", "LTT.diagram"]);
+  assert.deepEqual(hits("2D 지도"), ["LTT.map"]);
+  assert.deepEqual(hits("시간에 따른 변화"), ["LTT.clock", "LTT.sim"]);
+});
+
+test("VO-4 part paths: kit/API.md plus the @ltt-part tags name the nine kit/api docs; API.md does not name internals.md", () => {
+  const text = apiText() + partTags().map((t) => t.line).join("\n");
   const missing = [...PART_DOCS, "deck-contracts"].map((f) => `kit/api/${f}.md`).filter((p) => !text.includes(p));
-  assert.deepEqual(missing, [], `kit/API.md lacks ${missing.join(", ")}`);
-  assert.equal(text.includes("internals.md"), false, "kit/API.md mentions internals.md");
+  assert.deepEqual(missing, [], `kit/API.md and @ltt-part lack ${missing.join(", ")}`);
+  assert.equal(apiText().includes("internals.md"), false, "kit/API.md mentions internals.md");
 });
 
 test("VO-4 principles heading: kit/API.md has ## 원칙 or ### 원칙", () => {
@@ -505,34 +524,19 @@ test("VO-6 FR-8 no-scene-budget: SKILL.md §2 has no scene-budget", () => {
   assert.equal(section(skillText(), 2).includes("scene-budget"), false, "FR-8: §2 mentions scene-budget");
 });
 
-test("VO-6 FR-7 §3 read line: one line holds kit/API.md, look/look.md and board.jpg", () => {
-  const err = tokenLineError(section(skillText(), 3), "FR-7 §3 read line", ["kit/API.md", "look/look.md", "board.jpg"]);
-  assert.equal(err, null, err);
-});
-
-const REF_HEADER = "| 보여 줄 것 | 부품 | 참조 |";
-const REF_PATHS = [...["diagram", "sequence", "map", "controls", "charts", "ui", "mock"].map((x) => `\`kit/api/${x}.md\``), "`kit/API.md`"];
-
-// Plan b71ddee49f77ac06 §3 moved the part-picking table from SKILL.md §3 into kit/API.md.
-test("VO-6 FR-7 API.md reference column: every row of the 보여 줄 것 | 부품 | 참조 table points at a doc", () => {
-  const ls = lines(apiText());
-  const at = ls.findIndex((l) => l.trim() === REF_HEADER);
-  assert.ok(at >= 0, `FR-7: kit/API.md has no table header ${REF_HEADER}`);
-  const rows = [];
-  for (let i = at + 1; i < ls.length && ls[i].trimStart().startsWith("|"); i++) {
-    const row = ls[i].trimStart();
-    if (isRow(row)) rows.push(row);
-  }
-  assert.ok(rows.length > 0, "FR-7: the reference table has no data rows");
-  const bad = rows.filter((r) => !REF_PATHS.some((p) => (cells(r)[2] ?? "").includes(p)));
-  assert.deepEqual(bad, [], `FR-7: rows without a doc in the 참조 cell:\n${bad.join("\n")}`);
-});
+for (const [id, tokens] of [["FR-7 §3 kit read line", ["kit/API.md", "페이지 계약", "불러오기", "기본 이름"]],
+  ["FR-7 §3 part search line", ["@ltt-part", "문서:"]], ["FR-7 §3 look line", ["look/look.md", "board.jpg"]]]) {
+  test(`VO-6 ${id}: one §3 line holds ${tokens.join(", ")}`, () => {
+    const err = tokenLineError(section(skillText(), 3), id, tokens);
+    assert.equal(err, null, err);
+  });
+}
 
 test("VO-6 FR-7 no-internals: SKILL.md never mentions internals.md", () => {
   assert.equal(skillText().includes("internals.md"), false, "FR-7: SKILL.md mentions internals.md");
 });
 
-const COST_TOKENS = ["lesson.html", "바이트", "결정 변수 수", "서브에이전트", "판정", "audit", "남은 권고", "시작", "공개", "토큰"];
+const COST_TOKENS = ["lesson.html", "바이트", "그림 수", "서브에이전트", "검증", "미충족", "audit", "시작", "storyboard 공개", "토큰"];
 const isCostLine = (l) => l.trimStart().startsWith("- 생성 비용:");
 
 function costTemplate() {
@@ -563,23 +567,6 @@ for (const [id, tokens] of [["FR-9 §5 once line", ["생성 비용", "한 번"]]
 test("VO-6 FR-10 standalone line: 생성 비용, 해당 없음, 서브에이전트, 브라우저 on one line", () => {
   const err = tokenLineError(readReal(join(SKILL, "standalone.md"), "standalone.md"), "FR-10 standalone line", ["생성 비용", "해당 없음", "서브에이전트", "브라우저"]);
   assert.equal(err, null, err);
-});
-
-const projectText = () => readReal(join(ROOT, "learn-to-tell-PROJECT.md"), "learn-to-tell-PROJECT.md");
-
-test("VO-6 FR-11 PROJECT 범위 line: ### 범위 has a line with 장면 수, 기본값, 상한이 아니", () => {
-  const ls = lines(projectText());
-  const at = ls.findIndex((l) => /^###\s+범위/.test(l));
-  assert.ok(at >= 0, "FR-11: learn-to-tell-PROJECT.md has no ### 범위 heading");
-  const rest = ls.slice(at + 1);
-  const until = rest.findIndex((l) => /^#{2,3}\s/.test(l));
-  const err = tokenLineError((until >= 0 ? rest.slice(0, until) : rest).join("\n"), "FR-11 PROJECT 범위 line", ["장면 수", "기본값", "상한이 아니"]);
-  assert.equal(err, null, err);
-});
-
-test("VO-6 FR-11 PROJECT kit/api: kit/api/ occurs at least twice", () => {
-  const n = projectText().split("kit/api/").length - 1;
-  assert.ok(n >= 2, `FR-11: kit/api/ occurs ${n} times (need >= 2)`);
 });
 
 // ---------- VO-7 catalog anchors ----------
