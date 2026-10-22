@@ -75,3 +75,38 @@ File: 0f72dd38f6236771-refactoring-10-move-v0-rejected-designs-to-rejections.md
 Summary: refactoring-10: learn-to-tell-PROJECT.md에서 옮긴 v0 폐기 설계 표를 rejection 기록으로 정리하는 남은 작업
 Related Files: learn-to-tell-PROJECT.md, agent-docs/rejections/index.md
 Related Symbols: 없음
+---
+File: b41cd6aec66a2589-refactoring-1-lesson-cost-ledger.md
+Summary: refactoring-1: 수업 생성 비용(읽은 문서·수업 바이트·서브에이전트·브라우저 왕복·시간)을 result.md에 기록해 intent 1을 측정 가능하게 하는 작업
+Related Files: skills/learn-to-tell/SKILL.md, skills/learn-to-tell/standalone.md
+Related Symbols: 없음
+---
+File: 3d2bdfc94cd5e417-refactoring-9-kit-3d-lessons.md
+Summary: refactoring-9: 3D가 핵심인 수업이 생기면 three.js를 kit에 넣는 남은 작업(kit 확장 handoff에서 보류된 항목)
+Related Files: skills/learn-to-tell/kit/vendor/VERSIONS, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/gallery/catalog.html
+Related Symbols: 없음
+---
+File: 418133af7560aefc-refactoring-1-skill-time-breakdown.md
+Summary: refactoring-1 compare1 실험의 skill·기준선 서브에이전트 소요 시간 분해 원자료(단계·도구·이벤트 시각)
+Related Files: site/compare1/index.html, agent-docs/handoff/b41cd6aec66a2589-refactoring-1-lesson-cost-ledger.md
+Related Symbols: 없음
+---
+File: 3b9ef4b406088e7f-skill-generation-diet.md
+Summary: 수업 생성 경로 다이어트(흐름·검증·문서·audit·kit 선언형 부품) 착수 전 handoff. 승인된 계획은 agent-docs/plans/b71ddee49f77ac06-skill-generation-diet.md, 시작점은 단계 0 transcript-cost.mjs
+Related Files: agent-docs/plans/b71ddee49f77ac06-skill-generation-diet.md, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/server/audit.mjs, skills/learn-to-tell/kit/ltt-deck.js, agent-docs/handoff/b41cd6aec66a2589-refactoring-1-lesson-cost-ledger.md
+Related Symbols: LTT.deck, LTT.auditScene, LTT.lintDeck, fill, fit, zoomLock
+---
+File: b7ee48d448480ff5-education-first.md
+Summary: 생성 lesson 품질 문제의 진단과 재설계 계획(storyboard 먼저, shot 소스 few-shot, 규제 완화, LTT.clock, 블라인드 A/B). 수치 하한 지표 실험은 실패로 기록
+Related Files: skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/server/audit.mjs, skills/learn-to-tell/look/look.md
+Related Symbols: LTT.deck, LTT.clock, LTT.expect
+---
+File: 888e4f7c2f716bc5-skill-flow-review-and-redesign.md
+Summary: SKILL.md 흐름 외부 검토 결과와 Design Principles·ADR 6ff15ad3·계획 eff07952/98c0e5bb로 이어진 재설계 진행 상태. R1 1단계(B 검출 분리, spec 80a1b2f18f50b1df) 완료, 다음은 eff07952 2단계(A 자동 보정)
+Related Files: AGENTS.md, intent.md, skills/learn-to-tell/SKILL.md, agent-docs/adr/6ff15ad3eef7b88d-kit-as-auxiliary-library.md, agent-docs/plans/eff0795231314dc5-kit-auxiliary-screenshot-check.md, agent-docs/plans/98c0e5bb55098a10-skill-redesign-by-principles.md
+Related Symbols: LTT.deck, LTT.expect, LTT.record, LTT.auditScene
+---
+File: 6cc0362b0535c56b-page-screenshot-and-kit-keywords.md
+Summary: 새 SKILL.md §3 절차에 필요한 남은 구현: 페이지 스크린샷 도구(audit.mjs), LTT.clock 구현, kit 검색 키워드 주석
+Related Files: skills/learn-to-tell/server/audit.mjs, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/look/look.md
+Related Symbols: takeShots, runOne, LTT.clock, LTT.check
