@@ -925,7 +925,7 @@
     var style = h("style");
     style.textContent = STYLE;
     document.head.appendChild(style);
-    LTT.theme(spec.theme || "studio");
+    if (!LTT.theme(spec.theme || "studio")) LTT.warn("알 수 없는 theme \"" + spec.theme + "\": studio로 그린다. 이름은 kit/API.md 테마 표에 있다");
 
     var defs = {};
     Object.keys(spec.glossary || {}).forEach(function (k) { defs[k] = spec.glossary[k]; });

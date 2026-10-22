@@ -24,9 +24,9 @@
   // Each theme imitates the medium practitioners of a field already read (paper figures, drawings, terminals, financial press, plot paper).
   // `shape` holds non-colour tokens shared by both schemes; `css` is extra surface styling scoped to the theme.
   var THEMES = {
-    studio: { label: "Studio", medium: "제품 화면·디자인 툴", light: "", dark: "", shape: "", css: "" },
+    studio: { label: "Studio", medium: "제품 화면·디자인 툴", keywords: "UI/UX, 제품 화면, 프런트엔드, 디자인 시스템, A/B 실험, 퍼널, 이미지 처리", light: "", dark: "", shape: "", css: "" },
     paper: {
-      label: "Paper", medium: "논문 figure·교과서",
+      label: "Paper", medium: "논문 figure·교과서", keywords: "통계, 인지과학, 심리 실험, 교육학, 언어학, 알고리즘, 신호처리",
       light: "--ltt-bg:#f4efe4;--ltt-card:#fbf8f1;--ltt-card-2:#f1ebdf;--ltt-line:#e0d6c3;--ltt-line-2:#cdbfa6;--ltt-ink:#1f1b16;--ltt-ink-2:#433c33;" +
         "--ltt-muted:#71685b;--ltt-accent:#23508e;--ltt-accent-soft:#e0e7f1;--ltt-good:#3b7449;--ltt-good-soft:#e3eddc;--ltt-bad:#b1322a;--ltt-bad-soft:#f5dfda;" +
         "--ltt-warn:#925b0c;--ltt-warn-soft:#f4e7cf;--ltt-dark:#2b2620;--ltt-on-dark:#f4efe4;--ltt-accent-on-dark:#a9c2ee;--ltt-shadow:none;",
@@ -40,7 +40,7 @@
         "[data-ltt-theme=paper] .ltt-dg rect.box,[data-ltt-theme=paper] .ltt-dg .z rect{rx:3px}[data-ltt-theme=paper] .ltt-dg .n .l{font-family:" + SERIF + "}"
     },
     blueprint: {
-      label: "Blueprint", medium: "회로·블록 도면",
+      label: "Blueprint", medium: "회로·블록 도면", keywords: "하드웨어, 회로, 칩 설계, GPU, 컴퓨터 구조, 시스템 블록도, 반도체, 기계 장치",
       light: "--ltt-bg:#eef3f8;--ltt-card:#f7fafd;--ltt-card-2:#e6edf5;--ltt-line:#c9d7e6;--ltt-line-2:#a9bfd6;--ltt-ink:#0f2740;--ltt-ink-2:#2a4562;" +
         "--ltt-muted:#546b84;--ltt-accent:#1c61d2;--ltt-accent-soft:#dde9fb;--ltt-good:#0b7759;--ltt-good-soft:#d9f0e8;--ltt-bad:#bd3137;--ltt-bad-soft:#fae1e1;" +
         "--ltt-warn:#985a00;--ltt-warn-soft:#f8ead2;--ltt-dark:#0b1d33;--ltt-on-dark:#dce8f5;--ltt-accent-on-dark:#7cc2ff;--ltt-shadow:none;" +
@@ -57,7 +57,7 @@
         "[data-ltt-theme=blueprint] .ltt-dg .n .s,[data-ltt-theme=blueprint] .ltt-dg .el,[data-ltt-theme=blueprint] .ltt-dg .z text{font-family:var(--ltt-mono);letter-spacing:.02em}"
     },
     terminal: {
-      label: "Terminal", medium: "터미널·로그·대시보드",
+      label: "Terminal", medium: "터미널·로그·대시보드", keywords: "백엔드, 인프라, 클라우드 운영, DB, 런타임, 네트워크, 보안, 컴파일러, 로그·모니터링",
       light: "--ltt-bg:#f3f3ee;--ltt-card:#fbfbf8;--ltt-card-2:#ecece5;--ltt-line:#dcdcd2;--ltt-line-2:#c4c4b8;--ltt-ink:#121512;--ltt-ink-2:#30352f;" +
         "--ltt-muted:#656b62;--ltt-accent:#07793b;--ltt-accent-soft:#dcf1e3;--ltt-good:#07793b;--ltt-good-soft:#dcf1e3;--ltt-bad:#bd2d29;--ltt-bad-soft:#f8dedd;" +
         "--ltt-warn:#925c00;--ltt-warn-soft:#f5e8cc;--ltt-dark:#0d0f0e;--ltt-on-dark:#d6e5dc;--ltt-accent-on-dark:#3ddc84;--ltt-shadow:none;",
@@ -72,7 +72,7 @@
         "[data-ltt-theme=terminal] .ltt-dg rect.box,[data-ltt-theme=terminal] .ltt-dg .z rect{rx:4px}[data-ltt-theme=terminal] .ltt-dg .n .l,[data-ltt-theme=terminal] .ltt-dg .el{font-family:var(--ltt-mono)}"
     },
     ledger: {
-      label: "Ledger", medium: "경제 신문 차트",
+      label: "Ledger", medium: "경제 신문 차트", keywords: "금융, 투자, 거시경제, 회계, 물가, 부동산, 경제 지표",
       light: "--ltt-bg:#fff1e5;--ltt-card:#fff8f2;--ltt-card-2:#f8e6d6;--ltt-line:#ead5c2;--ltt-line-2:#d9bca3;--ltt-ink:#33302e;--ltt-ink-2:#4d4845;" +
         "--ltt-muted:#6f665f;--ltt-accent:#0c727c;--ltt-accent-soft:#d9ecea;--ltt-good:#09753f;--ltt-good-soft:#dcefdf;--ltt-bad:#cc0000;--ltt-bad-soft:#f9dcd6;" +
         "--ltt-warn:#9c5300;--ltt-warn-soft:#f8e3c8;--ltt-dark:#262a33;--ltt-on-dark:#fff1e5;--ltt-accent-on-dark:#7fd0d6;--ltt-shadow:none;",
@@ -87,7 +87,7 @@
         "[data-ltt-theme=ledger] .ltt-dg rect.box,[data-ltt-theme=ledger] .ltt-dg .z rect{rx:0}"
     },
     lab: {
-      label: "Lab", medium: "실험 노트·모눈 플롯",
+      label: "Lab", medium: "실험 노트·모눈 플롯", keywords: "물리, 화학, 공학, 제어, 시뮬레이션, 측정 실험, 열역학",
       light: "--ltt-bg:#f8f9f4;--ltt-card:#fdfdfa;--ltt-card-2:#eff2ea;--ltt-line:#dbe2d6;--ltt-line-2:#bfcab9;--ltt-ink:#1b2620;--ltt-ink-2:#34423a;" +
         "--ltt-muted:#627067;--ltt-accent:#b93e0b;--ltt-accent-soft:#fbe5d8;--ltt-good:#137750;--ltt-good-soft:#dbefe4;--ltt-bad:#be2e3a;--ltt-bad-soft:#f7dfe0;" +
         "--ltt-warn:#8a5e00;--ltt-warn-soft:#f2e8c9;--ltt-dark:#18231d;--ltt-on-dark:#eef3ec;--ltt-accent-on-dark:#ffa877;" +
@@ -103,7 +103,7 @@
     },
     // Diagrams switch to hand-drawn strokes under this theme when rough.js is loaded (see ltt-parts.js diagram).
     sketch: {
-      label: "Sketch", medium: "화이트보드·손그림 설명",
+      label: "Sketch", medium: "화이트보드·손그림 설명", keywords: "첫 소개, 아키텍처 스케치, 분산 시스템 개념, 제품·조직 프로세스, git",
       light: "--ltt-bg:#fbfaf6;--ltt-card:#fff;--ltt-card-2:#f4f2ec;--ltt-line:#e4e0d6;--ltt-line-2:#b9b3a6;--ltt-ink:#1e1d1b;--ltt-ink-2:#3a3833;" +
         "--ltt-muted:#716d65;--ltt-accent:#1f5fc4;--ltt-accent-soft:#e4ecfa;--ltt-good:#1a7942;--ltt-good-soft:#e0f1e6;--ltt-bad:#bf322a;--ltt-bad-soft:#fbe2df;" +
         "--ltt-warn:#9e5b00;--ltt-warn-soft:#fbedd6;--ltt-dark:#22211f;--ltt-on-dark:#f6f4ee;--ltt-accent-on-dark:#9dbbf2;--ltt-shadow:none;",
@@ -116,7 +116,7 @@
         "[data-ltt-theme=sketch] .ltt-dg .e{stroke-width:2.2}[data-ltt-theme=sketch] .ltt-dg .n rect.box{stroke:var(--ltt-ink-2)}"
     },
     atlas: {
-      label: "Atlas", medium: "지도·지리·물류",
+      label: "Atlas", medium: "지도·지리·물류", keywords: "지리, 리전, 물류, 공급망, 도시, 교통, 해양, 에너지 지도",
       light: "--ltt-bg:#eef2f1;--ltt-card:#fbfcfa;--ltt-card-2:#e6ecea;--ltt-line:#d3dcd9;--ltt-line-2:#b3c1bd;--ltt-ink:#17262b;--ltt-ink-2:#2f4248;" +
         "--ltt-muted:#5a6c70;--ltt-accent:#0f6e8c;--ltt-accent-soft:#dcecf0;--ltt-good:#2a763d;--ltt-good-soft:#e0eedf;--ltt-bad:#b73629;--ltt-bad-soft:#f6dfdb;" +
         "--ltt-warn:#965900;--ltt-warn-soft:#f6e8cf;--ltt-dark:#13232a;--ltt-on-dark:#e8f0ef;--ltt-accent-on-dark:#7fcbe0;--ltt-shadow:none;" +
@@ -128,6 +128,136 @@
       shape: "--ltt-radius:8px;--ltt-r-lg:10px;--ltt-r-md:6px;--ltt-r-sm:4px;--ltt-display-weight:780;--ltt-display-track:-.025em;",
       css: "[data-ltt-theme=atlas] .dk-kicker,[data-ltt-theme=atlas] .dk-top h1{text-transform:uppercase;font-size:12px;letter-spacing:.1em;border-radius:3px}" +
         "[data-ltt-theme=atlas] .dk-no{font-family:var(--ltt-mono);font-weight:500;letter-spacing:0}"
+    },
+    essay: {
+      label: "Essay", medium: "인문서·에세이 지면", keywords: "철학, 윤리, 문학, 역사, 사회 이론, 심리 에세이, 고전 읽기, 종교",
+      light: "--ltt-bg:#f6f2ea;--ltt-card:#fdfbf7;--ltt-card-2:#f0eadf;--ltt-line:#e3dacb;--ltt-line-2:#cfc2ad;--ltt-ink:#221d18;--ltt-ink-2:#463e35;" +
+        "--ltt-muted:#685e52;--ltt-accent:#8c2f2b;--ltt-accent-soft:#f3e1dc;--ltt-good:#3c6e47;--ltt-good-soft:#e2ecdf;--ltt-bad:#b02a2a;--ltt-bad-soft:#f6dedb;" +
+        "--ltt-warn:#8c5a0f;--ltt-warn-soft:#f3e6cd;--ltt-dark:#2a231d;--ltt-on-dark:#f6f2ea;--ltt-accent-on-dark:#e8a59c;--ltt-shadow:none;",
+      dark: "--ltt-bg:#1b1815;--ltt-card:#23201c;--ltt-card-2:#2b2722;--ltt-line:#39332c;--ltt-line-2:#4b433a;--ltt-ink:#eee5d8;--ltt-ink-2:#d4c9b9;" +
+        "--ltt-muted:#a39787;--ltt-accent:#e59a8f;--ltt-accent-soft:#3a2321;--ltt-good:#8fc59b;--ltt-good-soft:#22301f;--ltt-bad:#f08a7e;--ltt-bad-soft:#3b2220;" +
+        "--ltt-warn:#e5b45e;--ltt-warn-soft:#382c17;--ltt-dark:#0e0c0a;--ltt-on-dark:#eee5d8;--ltt-on-accent:#1b1815;--ltt-accent-on-dark:#e8a59c;--ltt-shadow:none;",
+      shape: "--ltt-radius:2px;--ltt-r-lg:2px;--ltt-r-md:2px;--ltt-r-sm:2px;--ltt-font:" + SERIF + ";--ltt-font-display:" + SERIF + ";--ltt-display-weight:600;--ltt-display-track:-.01em;",
+      css: "[data-ltt-theme=essay] .dk-no{font-style:italic;font-weight:400;color:var(--ltt-ink-2)}" +
+        "[data-ltt-theme=essay] .dk-kicker,[data-ltt-theme=essay] .dk-top h1{box-shadow:none;background:none;padding-left:0;border-radius:0;letter-spacing:.12em;font-size:12px;font-weight:600}" +
+        "[data-ltt-theme=essay] .dk-kicker::before,[data-ltt-theme=essay] .dk-top h1::before{border-radius:0;width:18px;height:1px}" +
+        "[data-ltt-theme=essay] .ltt-dg rect.box,[data-ltt-theme=essay] .ltt-dg .z rect{rx:2px}"
+    },
+    chalk: {
+      label: "Chalk", medium: "칠판 강의·판서 노트", keywords: "수학 유도·증명, 선형대수, 미적분, 벡터 미적분, 확률 기초, 수식 전개, 기하",
+      light: "--ltt-bg:#eef1ec;--ltt-card:#f9faf7;--ltt-card-2:#e5eae3;--ltt-line:#d2dbd0;--ltt-line-2:#b3c0b0;--ltt-ink:#1a2420;--ltt-ink-2:#33423b;" +
+        "--ltt-muted:#56645c;--ltt-accent:#1d5e8a;--ltt-accent-soft:#dde9f1;--ltt-good:#22703f;--ltt-good-soft:#dcefe1;--ltt-bad:#b5302c;--ltt-bad-soft:#f6dfdc;" +
+        "--ltt-warn:#875800;--ltt-warn-soft:#f3e7cc;--ltt-dark:#213029;--ltt-on-dark:#eef1ec;--ltt-accent-on-dark:#9fd0f0;--ltt-shadow:none;",
+      dark: "--ltt-bg:#1f3329;--ltt-card:#243a2f;--ltt-card-2:#294135;--ltt-line:#375244;--ltt-line-2:#4f6d5d;--ltt-ink:#f1f0e6;--ltt-ink-2:#d9dccd;" +
+        "--ltt-muted:#b0bdae;--ltt-accent:#ffe08a;--ltt-accent-soft:#3d4a2e;--ltt-good:#a8e6b0;--ltt-good-soft:#2a4a35;--ltt-bad:#ffaaa1;--ltt-bad-soft:#4a2f2c;" +
+        "--ltt-warn:#ffc77a;--ltt-warn-soft:#4a3f26;--ltt-dark:#15241d;--ltt-on-dark:#f1f0e6;--ltt-on-accent:#1f3329;--ltt-accent-on-dark:#ffe08a;--ltt-shadow:none;",
+      shape: "--ltt-radius:6px;--ltt-r-lg:8px;--ltt-r-md:6px;--ltt-r-sm:4px;--ltt-display-weight:750;--ltt-display-track:-.02em;--ltt-border-w:1.5px;",
+      css: "[data-ltt-theme=chalk] .dk-no{font-family:" + SERIF + ";font-style:italic;font-weight:500}" +
+        "[data-ltt-theme=chalk] .dk-kicker,[data-ltt-theme=chalk] .dk-top h1{box-shadow:none;background:none;padding-left:0;border-radius:0;border-bottom:2px solid var(--ltt-accent)}" +
+        "[data-ltt-theme=chalk] .dk-kicker::before,[data-ltt-theme=chalk] .dk-top h1::before{display:none}" +
+        "[data-ltt-theme=chalk] .ltt-dg .e{stroke-width:2}"
+    },
+    notebook: {
+      label: "Notebook", medium: "Jupyter·연구 노트북", keywords: "머신러닝, 딥러닝, LLM, 모델 내부, 데이터 분석, 데이터 과학, 모델 평가",
+      light: "--ltt-bg:#f5f6f8;--ltt-card:#fff;--ltt-card-2:#f0f2f5;--ltt-line:#e0e3e8;--ltt-line-2:#c5cad3;--ltt-ink:#1b1f24;--ltt-ink-2:#39404a;" +
+        "--ltt-muted:#5c6570;--ltt-accent:#ad4c0b;--ltt-accent-soft:#fbe9dc;--ltt-good:#17733f;--ltt-good-soft:#ddf1e4;--ltt-bad:#c0282d;--ltt-bad-soft:#fbe1e1;" +
+        "--ltt-warn:#875a00;--ltt-warn-soft:#f6ebcf;--ltt-dark:#1e2329;--ltt-on-dark:#f2f4f7;--ltt-accent-on-dark:#ffab70;--ltt-shadow:0 1px 2px rgba(27,31,36,.06);",
+      dark: "--ltt-bg:#111418;--ltt-card:#181c21;--ltt-card-2:#1f242a;--ltt-line:#2a3038;--ltt-line-2:#3a424c;--ltt-ink:#e6e9ee;--ltt-ink-2:#c4cad3;" +
+        "--ltt-muted:#8f98a3;--ltt-accent:#ff9a52;--ltt-accent-soft:#3a2414;--ltt-good:#4fcf8a;--ltt-good-soft:#15301f;--ltt-bad:#ff6b70;--ltt-bad-soft:#3a1d20;" +
+        "--ltt-warn:#f0b13c;--ltt-warn-soft:#352914;--ltt-dark:#07090b;--ltt-on-dark:#e6e9ee;--ltt-on-accent:#1a0d05;--ltt-accent-on-dark:#ffab70;--ltt-shadow:none;",
+      shape: "--ltt-radius:4px;--ltt-r-lg:6px;--ltt-r-md:4px;--ltt-r-sm:3px;--ltt-display-weight:750;--ltt-display-track:-.025em;",
+      css: "[data-ltt-theme=notebook] .dk-no,[data-ltt-theme=notebook] .dk-kicker,[data-ltt-theme=notebook] .dk-step .no,[data-ltt-theme=notebook] .dk-count{font-family:var(--ltt-mono);letter-spacing:0}" +
+        "[data-ltt-theme=notebook] .dk-no{font-weight:500;font-size:clamp(30px,min(4.4vw,8vh),60px);color:var(--ltt-muted)}" +
+        "[data-ltt-theme=notebook] .dk-no::before{content:'[';color:var(--ltt-line-2)}[data-ltt-theme=notebook] .dk-no::after{content:']';color:var(--ltt-line-2)}" +
+        "[data-ltt-theme=notebook] .dk-kicker{border-radius:3px;font-size:12px}" +
+        "[data-ltt-theme=notebook] .ltt-dg .n .s,[data-ltt-theme=notebook] .ltt-dg .el{font-family:var(--ltt-mono)}"
+    },
+    atelier: {
+      label: "Atelier", medium: "스케치북·화실", keywords: "드로잉, 회화, 색채, 미술사, 사진 구도, 조형, 공예",
+      light: "--ltt-bg:#efe9de;--ltt-card:#f8f4ec;--ltt-card-2:#e8e0d2;--ltt-line:#dcd2c1;--ltt-line-2:#c2b49e;--ltt-ink:#2a2622;--ltt-ink-2:#4a443d;" +
+        "--ltt-muted:#625a50;--ltt-accent:#943c1d;--ltt-accent-soft:#f1dfd3;--ltt-good:#3d6838;--ltt-good-soft:#e1ead9;--ltt-bad:#a82d28;--ltt-bad-soft:#f3dbd6;" +
+        "--ltt-warn:#7e520a;--ltt-warn-soft:#f0e2c8;--ltt-dark:#2a2622;--ltt-on-dark:#f3eee4;--ltt-accent-on-dark:#f0a483;--ltt-shadow:none;",
+      dark: "--ltt-bg:#1c1b19;--ltt-card:#252321;--ltt-card-2:#2d2a27;--ltt-line:#3a3733;--ltt-line-2:#4f4a44;--ltt-ink:#ece6dc;--ltt-ink-2:#d0c8bb;" +
+        "--ltt-muted:#a0978b;--ltt-accent:#ef9a76;--ltt-accent-soft:#3b261d;--ltt-good:#9cc995;--ltt-good-soft:#23311f;--ltt-bad:#f08a7e;--ltt-bad-soft:#3b2220;" +
+        "--ltt-warn:#e5b45e;--ltt-warn-soft:#382c17;--ltt-dark:#0e0d0c;--ltt-on-dark:#ece6dc;--ltt-on-accent:#1c1b19;--ltt-accent-on-dark:#f0a483;--ltt-shadow:none;",
+      shape: "--ltt-radius:3px;--ltt-r-lg:4px;--ltt-r-md:3px;--ltt-r-sm:2px;--ltt-font-display:" + SERIF + ";--ltt-display-weight:500;--ltt-display-track:-.01em;",
+      css: "[data-ltt-theme=atelier] .dk-no{font-family:" + SERIF + ";font-weight:300;color:var(--ltt-ink-2)}" +
+        "[data-ltt-theme=atelier] .dk-kicker,[data-ltt-theme=atelier] .dk-top h1{box-shadow:none;background:none;padding-left:0;border-radius:0;font-style:italic;font-weight:500}" +
+        "[data-ltt-theme=atelier] .dk-kicker::before,[data-ltt-theme=atelier] .dk-top h1::before{border-radius:50%;width:6px;height:6px}" +
+        "[data-ltt-theme=atelier] .ltt-dg .e{stroke-width:1.4}"
+    },
+    spec: {
+      label: "Spec", medium: "표준 문서·명세서(RFC)", keywords: "프로토콜 명세, 표준·규격, RFC, 스키마·데이터 모델, 온톨로지, 파일 형식, 법 조문·규정",
+      light: "--ltt-bg:#fafafa;--ltt-card:#fff;--ltt-card-2:#f3f3f3;--ltt-line:#e2e2e2;--ltt-line-2:#c8c8c8;--ltt-ink:#141414;--ltt-ink-2:#333;" +
+        "--ltt-muted:#5f5f5f;--ltt-accent:#1a4f9c;--ltt-accent-soft:#e3ebf7;--ltt-good:#1b6e3a;--ltt-good-soft:#e0f0e5;--ltt-bad:#b3261e;--ltt-bad-soft:#f8e0de;" +
+        "--ltt-warn:#875700;--ltt-warn-soft:#f5e9cf;--ltt-dark:#1a1a1a;--ltt-on-dark:#f5f5f5;--ltt-accent-on-dark:#9cc0f5;--ltt-shadow:none;",
+      dark: "--ltt-bg:#141414;--ltt-card:#1b1b1b;--ltt-card-2:#222;--ltt-line:#2e2e2e;--ltt-line-2:#444;--ltt-ink:#e8e8e8;--ltt-ink-2:#c8c8c8;" +
+        "--ltt-muted:#969696;--ltt-accent:#8fb6f2;--ltt-accent-soft:#1e2a3d;--ltt-good:#5fcf8a;--ltt-good-soft:#17301f;--ltt-bad:#ff7a73;--ltt-bad-soft:#3a1e1d;" +
+        "--ltt-warn:#f0b13c;--ltt-warn-soft:#352914;--ltt-dark:#080808;--ltt-on-dark:#e8e8e8;--ltt-on-accent:#0e1622;--ltt-accent-on-dark:#9cc0f5;--ltt-shadow:none;",
+      shape: "--ltt-radius:0px;--ltt-r-lg:0px;--ltt-r-md:0px;--ltt-r-sm:0px;--ltt-display-weight:700;--ltt-display-track:-.02em;",
+      css: "[data-ltt-theme=spec] .dk-no,[data-ltt-theme=spec] .dk-kicker,[data-ltt-theme=spec] .dk-step .no,[data-ltt-theme=spec] .dk-count,[data-ltt-theme=spec] .dk-top h1{font-family:var(--ltt-mono);letter-spacing:0}" +
+        "[data-ltt-theme=spec] .dk-no{font-weight:700;font-size:clamp(32px,min(4.6vw,8.5vh),64px);color:var(--ltt-ink)}[data-ltt-theme=spec] .dk-no::before{content:'§';color:var(--ltt-muted);margin-right:.08em}" +
+        "[data-ltt-theme=spec] .dk-kicker,[data-ltt-theme=spec] .dk-top h1{box-shadow:none;background:none;padding-left:0;border-radius:0;font-size:12px}" +
+        "[data-ltt-theme=spec] .dk-kicker::before,[data-ltt-theme=spec] .dk-top h1::before{display:none}" +
+        "[data-ltt-theme=spec] .dk-top{border-bottom:1px solid var(--ltt-line-2);margin-bottom:8px}" +
+        "[data-ltt-theme=spec] .ltt-dg rect.box,[data-ltt-theme=spec] .ltt-dg .z rect{rx:0}[data-ltt-theme=spec] .ltt-dg .n .l,[data-ltt-theme=spec] .ltt-dg .el{font-family:var(--ltt-mono)}"
+    },
+    clinic: {
+      label: "Clinic", medium: "의학 교과서·진료 차트", keywords: "의학, 약리, 생리, 해부, 생물, 세포, 영양, 공중보건, 임상 시험",
+      light: "--ltt-bg:#f2f6f7;--ltt-card:#fff;--ltt-card-2:#eaf1f3;--ltt-line:#d6e2e5;--ltt-line-2:#b5c8cd;--ltt-ink:#13252b;--ltt-ink-2:#2e444b;" +
+        "--ltt-muted:#53686f;--ltt-accent:#0a6873;--ltt-accent-soft:#d9eef0;--ltt-good:#17733f;--ltt-good-soft:#ddf1e4;--ltt-bad:#c0282d;--ltt-bad-soft:#fbe1e1;" +
+        "--ltt-warn:#875a00;--ltt-warn-soft:#f6ebcf;--ltt-dark:#12252b;--ltt-on-dark:#eaf4f6;--ltt-accent-on-dark:#7fd3dc;--ltt-shadow:0 1px 2px rgba(19,37,43,.05);",
+      dark: "--ltt-bg:#0f1a1d;--ltt-card:#142226;--ltt-card-2:#1a2a2f;--ltt-line:#243a40;--ltt-line-2:#355058;--ltt-ink:#e3eff1;--ltt-ink-2:#c0d3d7;" +
+        "--ltt-muted:#88a2a8;--ltt-accent:#5cc8d3;--ltt-accent-soft:#133840;--ltt-good:#5fd08f;--ltt-good-soft:#15301f;--ltt-bad:#ff7076;--ltt-bad-soft:#3d1e22;" +
+        "--ltt-warn:#f0b13c;--ltt-warn-soft:#352914;--ltt-dark:#071012;--ltt-on-dark:#e3eff1;--ltt-on-accent:#04191c;--ltt-accent-on-dark:#7fd3dc;--ltt-shadow:none;",
+      shape: "--ltt-radius:10px;--ltt-r-lg:12px;--ltt-r-md:8px;--ltt-r-sm:6px;--ltt-display-weight:750;--ltt-display-track:-.025em;",
+      css: "[data-ltt-theme=clinic] .dk-kicker,[data-ltt-theme=clinic] .dk-top h1{text-transform:uppercase;font-size:12px;letter-spacing:.08em;border-radius:4px}" +
+        "[data-ltt-theme=clinic] .dk-no{font-weight:600;letter-spacing:-.03em}" +
+        "[data-ltt-theme=clinic] .dk-kicker::before,[data-ltt-theme=clinic] .dk-top h1::before{border-radius:1px;width:10px;height:10px;clip-path:polygon(35% 0,65% 0,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0 65%,0 35%,35% 35%)}"
+    },
+    field: {
+      label: "Field", medium: "야외 도감·현장 노트", keywords: "생태, 진화, 기후, 지구과학, 지질, 농업, 원예, 환경",
+      light: "--ltt-bg:#f1efe4;--ltt-card:#faf8f0;--ltt-card-2:#e9e6d7;--ltt-line:#dcd8c4;--ltt-line-2:#c0ba9f;--ltt-ink:#1f241a;--ltt-ink-2:#3a4232;" +
+        "--ltt-muted:#5c6450;--ltt-accent:#3d6618;--ltt-accent-soft:#e4ebd2;--ltt-good:#1c6a52;--ltt-good-soft:#dcece5;--ltt-bad:#a8352a;--ltt-bad-soft:#f3ddd7;" +
+        "--ltt-warn:#7e520a;--ltt-warn-soft:#f0e3c6;--ltt-dark:#232a1d;--ltt-on-dark:#f1efe4;--ltt-accent-on-dark:#b9d77f;--ltt-shadow:none;",
+      dark: "--ltt-bg:#171a13;--ltt-card:#1e2219;--ltt-card-2:#252a1f;--ltt-line:#323829;--ltt-line-2:#464f39;--ltt-ink:#e9ecdf;--ltt-ink-2:#ccd2bf;" +
+        "--ltt-muted:#9aa38b;--ltt-accent:#b2d27a;--ltt-accent-soft:#2c3a1c;--ltt-good:#6fd0ad;--ltt-good-soft:#163026;--ltt-bad:#ff8a7a;--ltt-bad-soft:#3d221d;" +
+        "--ltt-warn:#ebb75a;--ltt-warn-soft:#382c17;--ltt-dark:#0b0d09;--ltt-on-dark:#e9ecdf;--ltt-on-accent:#172010;--ltt-accent-on-dark:#b9d77f;--ltt-shadow:none;",
+      shape: "--ltt-radius:6px;--ltt-r-lg:8px;--ltt-r-md:6px;--ltt-r-sm:4px;--ltt-font-display:" + SERIF + ";--ltt-display-weight:700;--ltt-display-track:-.015em;",
+      css: "[data-ltt-theme=field] .dk-no{font-family:" + SERIF + ";font-weight:500}" +
+        "[data-ltt-theme=field] .dk-kicker,[data-ltt-theme=field] .dk-top h1{box-shadow:none;background:none;padding-left:0;border-radius:0;font-size:12px;letter-spacing:.06em}" +
+        "[data-ltt-theme=field] .dk-kicker::before,[data-ltt-theme=field] .dk-top h1::before{border-radius:0 50%;width:10px;height:10px}" +
+        "[data-ltt-theme=field] .dk-top{border-bottom:1px dashed var(--ltt-line-2);margin-bottom:8px}"
+    },
+    playbook: {
+      label: "Playbook", medium: "전술판·경기 분석", keywords: "스포츠 전술, 경기 데이터, 포메이션, 게임 전략, 보드게임, e스포츠",
+      light: "--ltt-bg:#eef0f2;--ltt-card:#fff;--ltt-card-2:#e8ebee;--ltt-line:#d3d8de;--ltt-line-2:#aeb6c0;--ltt-ink:#111820;--ltt-ink-2:#2c3640;" +
+        "--ltt-muted:#535e6b;--ltt-accent:#0b4fb3;--ltt-accent-soft:#dfe9f9;--ltt-good:#13733f;--ltt-good-soft:#ddf1e4;--ltt-bad:#c0222b;--ltt-bad-soft:#fbe0e1;" +
+        "--ltt-warn:#875a00;--ltt-warn-soft:#f6ebcf;--ltt-dark:#111820;--ltt-on-dark:#eef2f6;--ltt-accent-on-dark:#8cbcff;--ltt-shadow:0 1px 2px rgba(17,24,32,.06);",
+      dark: "--ltt-bg:#0d1117;--ltt-card:#141a22;--ltt-card-2:#1a222c;--ltt-line:#26303c;--ltt-line-2:#384656;--ltt-ink:#eef2f6;--ltt-ink-2:#c8d1dc;" +
+        "--ltt-muted:#8d99a8;--ltt-accent:#5fa8ff;--ltt-accent-soft:#16294a;--ltt-good:#4fd18b;--ltt-good-soft:#13301f;--ltt-bad:#ff6b73;--ltt-bad-soft:#3d1c22;" +
+        "--ltt-warn:#ffbf3d;--ltt-warn-soft:#3a2c10;--ltt-dark:#06080b;--ltt-on-dark:#eef2f6;--ltt-on-accent:#06101f;--ltt-accent-on-dark:#8cbcff;--ltt-shadow:none;",
+      shape: "--ltt-radius:6px;--ltt-r-lg:8px;--ltt-r-md:6px;--ltt-r-sm:4px;--ltt-display-weight:900;--ltt-display-track:-.035em;--ltt-border-w:1.5px;",
+      css: "[data-ltt-theme=playbook] .dk-no{font-weight:900;font-style:italic;letter-spacing:-.04em}" +
+        "[data-ltt-theme=playbook] .dk-kicker,[data-ltt-theme=playbook] .dk-top h1{text-transform:uppercase;font-style:italic;font-weight:850;font-size:12px;letter-spacing:.06em;border-radius:3px}" +
+        "[data-ltt-theme=playbook] .dk-kicker::before,[data-ltt-theme=playbook] .dk-top h1::before{border-radius:0;width:12px;height:4px;transform:skewX(-20deg)}" +
+        "[data-ltt-theme=playbook] .ltt-dg .e{stroke-width:2.2}"
+    },
+    // Staff-line background: five 1px lines every 8px, then a gap, repeating every 72px.
+    score: {
+      label: "Score", medium: "오선지·악보", keywords: "음악 이론, 화성, 리듬, 음계, 음향, 악기, 작곡",
+      light: "--ltt-bg:#f7f4ec;--ltt-card:#fdfbf6;--ltt-card-2:#efeadf;--ltt-line:#e2dccd;--ltt-line-2:#c9c0ad;--ltt-ink:#18161a;--ltt-ink-2:#3a363d;" +
+        "--ltt-muted:#615b65;--ltt-accent:#5a2d82;--ltt-accent-soft:#ece3f4;--ltt-good:#2d6e45;--ltt-good-soft:#e0eee3;--ltt-bad:#b02a30;--ltt-bad-soft:#f6dedd;" +
+        "--ltt-warn:#875800;--ltt-warn-soft:#f3e6cd;--ltt-dark:#1e1b20;--ltt-on-dark:#f7f4ec;--ltt-accent-on-dark:#c9a9ec;--ltt-shadow:none;" +
+        "--ltt-pattern:linear-gradient(#ebe5d8 1px,transparent 1px,transparent 8px,#ebe5d8 8px,#ebe5d8 9px,transparent 9px,transparent 16px,#ebe5d8 16px,#ebe5d8 17px,transparent 17px,transparent 24px,#ebe5d8 24px,#ebe5d8 25px,transparent 25px,transparent 32px,#ebe5d8 32px,#ebe5d8 33px,transparent 33px) 0 20px/100% 72px;",
+      dark: "--ltt-bg:#16141a;--ltt-card:#1e1b23;--ltt-card-2:#25222b;--ltt-line:#322e39;--ltt-line-2:#47414f;--ltt-ink:#ece8f0;--ltt-ink-2:#cfc9d6;" +
+        "--ltt-muted:#9d96a6;--ltt-accent:#c7a6f0;--ltt-accent-soft:#2f2440;--ltt-good:#79cf98;--ltt-good-soft:#18301f;--ltt-bad:#ff7d84;--ltt-bad-soft:#3b1f24;" +
+        "--ltt-warn:#e9b45a;--ltt-warn-soft:#382c17;--ltt-dark:#0a090c;--ltt-on-dark:#ece8f0;--ltt-on-accent:#16141a;--ltt-accent-on-dark:#c9a9ec;--ltt-shadow:none;" +
+        "--ltt-pattern:linear-gradient(#221f27 1px,transparent 1px,transparent 8px,#221f27 8px,#221f27 9px,transparent 9px,transparent 16px,#221f27 16px,#221f27 17px,transparent 17px,transparent 24px,#221f27 24px,#221f27 25px,transparent 25px,transparent 32px,#221f27 32px,#221f27 33px,transparent 33px) 0 20px/100% 72px;",
+      shape: "--ltt-radius:4px;--ltt-r-lg:6px;--ltt-r-md:4px;--ltt-r-sm:3px;--ltt-font-display:" + SERIF + ";--ltt-display-weight:700;--ltt-display-track:-.015em;",
+      css: "[data-ltt-theme=score] .dk-no{font-family:" + SERIF + ";font-style:italic;font-weight:700}" +
+        "[data-ltt-theme=score] .dk-kicker,[data-ltt-theme=score] .dk-top h1{box-shadow:none;background:none;padding-left:0;border-radius:0;font-style:italic;font-size:13px}" +
+        "[data-ltt-theme=score] .dk-kicker::before,[data-ltt-theme=score] .dk-top h1::before{content:'♪';width:auto;height:auto;background:none;color:var(--kc,var(--ltt-accent))}"
     }
   };
 
@@ -1042,7 +1172,7 @@
   var LTT = root.LTT = {
     kitBase: KIT, lessonId: lessonId, compare: compare, record: record, expect: expect, warn: warn,
     icon: icon, icons: Object.keys(ICONS), theme: theme, themeTokens: themeTokens, palette: palette, contrast: contrast, mark: mark, marks: Object.keys(MARKS),
-    themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium }; }),
+    themes: Object.keys(THEMES).map(function (k) { return { name: k, label: THEMES[k].label, medium: THEMES[k].medium, keywords: THEMES[k].keywords }; }),
     termsIn: termsIn, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck,
     termIssues: termIssues, goalIssues: goalIssues, deckIssues: deckIssues, check: check, checkSource: checkSource, clock: clock, sceneTypes: SCENE_TYPES, rectHit: rectHit, freeSlot: freeSlot,
     stepValues: stepValues, goalReach: goalReach,

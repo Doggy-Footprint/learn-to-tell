@@ -5,6 +5,8 @@
 ## 미출시
 
 작가 계약
+- 수업의 기본 형식이 `LTT.deck` 슬라이드가 됐다. 스크롤·한 화면은 장면으로 나뉘지 않는 내용일 때만 쓰고 이유를 `outline.md`에 적는다.
+- 테마 9개 추가(`essay` `chalk` `notebook` `atelier` `spec` `clinic` `field` `playbook` `score`). `LTT.themes` 항목에 `keywords`가 생겼고, `kit/API.md` 테마 표의 키워드 열로 고른다. 덱의 `theme`이 없는 이름이면 경고하고 `studio`로 그린다.
 - 덱 predict의 `question`이 장면 맨 위(`visual` 앞)에 `.dk-pq` 글로 보인다. `question`이 없거나 빈 문자열이면 `.dk-pq`가 없다.
 - `dialControl`·`padControl`은 pointerdown 때 잰 사각형으로 그 드래그의 값을 정한다. 값 표시 글자 폭이 바뀌어 컨트롤이 움직여도 값이 떨리지 않는다.
 - `audit.mjs`가 `check`를 `?check`와 `?shot` 두 상태에서 읽어 합치고, 값을 바꾸면 range·dial·pad 상자가 1px 넘게 움직일 때 `control-shift`를 낸다(점검 로드가 실패하면 `probe-failed`). 점검 로드는 `/api/lessons/*/events`를 막아 `events.jsonl`에 남지 않는다.

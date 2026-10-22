@@ -216,10 +216,10 @@ test("goalReach counts every combination when few, samples repeatably when many,
   assert.equal(goalReach({ a: [1, 2] }, () => { throw new Error("x"); }).hits, 0);
 });
 
-test("every theme is listed with a medium", () => {
+test("every theme is listed with a medium and keywords", () => {
   const { themes } = loadKit();
-  assert.deepEqual([...themes.map((t) => t.name)].sort(), ["atlas", "blueprint", "lab", "ledger", "paper", "sketch", "studio", "terminal"]);
-  for (const t of themes) assert.ok(t.medium, `${t.name} has no medium`);
+  assert.deepEqual([...themes.map((t) => t.name)].sort(), ["atelier", "atlas", "blueprint", "chalk", "clinic", "essay", "field", "lab", "ledger", "notebook", "paper", "playbook", "score", "sketch", "spec", "studio", "terminal"]);
+  for (const t of themes) { assert.ok(t.medium, `${t.name} has no medium`); assert.ok(t.keywords, `${t.name} has no keywords`); }
 });
 
 test("diagramLayout centres nodes in grid cells and clips edges to box borders", () => {
