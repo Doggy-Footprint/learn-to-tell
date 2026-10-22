@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MML 5장 벡터 미적분 — 미분은 모양을 가진 선형 사상</title>
+<script type="application/json" id="ltt-meta">{
+  "topic": "Mathematics for Machine Learning 5장 Vector Calculus: Jacobian과 모양 규칙, 행렬 gradient, 역전파, Hessian",
+  "audience": "AI 대학원 1년차. 학부 미적분·선형대수 수강, 다변수 미분을 행렬로 다루는 데 서툼",
+  "theme": "chalk",
+  "medium": "deck",
+  "decision": "MML 5장을 읽을 때 미분의 모양(행·열)을 스스로 정하고 연쇄 법칙·역전파를 계산할 수 있는가",
+  "glossary": {
+    "편미분": "다른 입력은 고정하고 입력 하나만 움직일 때 함수값의 변화율. ∂f/∂x₁처럼 쓴다.",
+    "gradient": "스칼라 함수의 편미분을 모두 모은 것. 어떤 모양(행·열)으로 모으는지가 이 수업의 질문 중 하나다.",
+    "방향 미분": "길이 1인 방향 u로 아주 조금 움직일 때 함수값의 변화율.",
+    "Jacobian": "벡터 출력 함수 f의 편미분 ∂fᵢ/∂xⱼ를 모두 모은 행렬. 한 점 근처에서 f를 대신하는 선형 사상이다(MML 5.3).",
+    "행렬식": "2×2 행렬이면 ad − bc. 그 선형 사상이 넓이를 몇 배로 바꾸는지(부호는 방향 뒤집힘)를 뜻한다.",
+    "텐서": "축이 셋 이상인 수 배열. 이 수업에서는 2×2×3 블록(축 3개).",
+    "연쇄 법칙": "합성 함수의 미분은 각 단계 미분의 곱이다. 다변수에서는 Jacobian 행렬의 곱이 된다.",
+    "역전파": "출력 쪽에서 입력 쪽으로 연쇄 법칙을 계산하는 방법. 신경망 학습에서 손실의 gradient를 구한다(MML 5.6).",
+    "자동미분": "프로그램을 기본 연산의 계산 그래프로 보고, 연산마다 아는 국소 미분을 연쇄 법칙으로 곱해 정확한 미분값을 내는 방법. 수치 차분도, 기호식 미분도 아니다.",
+    "adjoint": "최종 출력 f를 중간 변수 v로 미분한 값 ∂f/∂v. 역전파가 출력에서 입력 쪽으로 채워 가는 값이다.",
+    "forward 모드": "자동미분에서 입력 쪽부터 곱해 가는 방식. 한 번 지나면 Jacobian의 열 하나(J v)를 얻는다.",
+    "reverse 모드": "자동미분에서 출력 쪽부터 곱해 가는 방식(역전파). 한 번 지나면 Jacobian의 행 하나(vᵀ J)를 얻는다.",
+    "Hessian": "스칼라 함수의 2차 편미분 ∂²f/∂xᵢ∂xⱼ를 모은 n×n 행렬. 2차 편미분이 연속이면 대칭이다(MML 5.7).",
+    "테일러 전개": "한 점 근처에서 함수를 다항식으로 근사하는 것. 다변수 2차까지: f(x₀+Δx) ≈ f(x₀) + (df/dx)Δx + ½ ΔxᵀHΔx (Δx: x₀에서 움직인 변위).",
+    "패스": "계산 그래프를 처음부터 끝까지 한 번 훑는 것."
+  }
+}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .fig { width: 100%; height: auto; display: block; }
+  .fig text { font-size: 15px; fill: var(--ltt-ink); }
+  .fig .m { fill: var(--ltt-muted); font-size: 14px; }
+  .fig .big { font-size: 18px; font-weight: 600; }
+  .fig .acc { fill: var(--ltt-accent); }
+  .fig .c2t { fill: var(--ltt-c2); }
+  .fig .frame { fill: none; stroke: var(--ltt-line-2); stroke-width: 1; }
+  .fig .grid { stroke: var(--ltt-line); stroke-width: 1; fill: none; }
+  .fig .ctr { fill: none; stroke: var(--ltt-muted); stroke-width: 1.2; opacity: .75; }
+  .fig .ctr-hot { fill: none; stroke: var(--ltt-ink); stroke-width: 2.2; }
+  .fig .curve { fill: none; stroke: var(--ltt-ink); stroke-width: 2.5; }
+  .fig .l-acc { fill: none; stroke: var(--ltt-accent); stroke-width: 3; }
+  .fig .l-c2 { fill: none; stroke: var(--ltt-c2); stroke-width: 3; }
+  .fig .l-dash { stroke-dasharray: 7 5; }
+  .fig .cell { stroke: var(--ltt-line-2); stroke-width: 1; fill: var(--ltt-card-2); }
+  .fig .cell-acc { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); stroke-width: 1.5; }
+  .fig .cell-c2 { fill: var(--ltt-card-2); stroke: var(--ltt-c2); stroke-width: 1.5; }
+  .fig .ghost { fill: none; stroke: var(--ltt-muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  .fig .node { fill: var(--ltt-card-2); stroke: var(--ltt-ink); stroke-width: 2; }
+  .fig .edge { stroke: var(--ltt-line-2); stroke-width: 2; fill: none; }
+  .fig .edge-hot { stroke: var(--ltt-accent); stroke-width: 3.5; fill: none; }
+  .fig .edge-fw { stroke: var(--ltt-c2); stroke-width: 3; fill: none; }
+  .fig .badge circle { fill: var(--ltt-accent); }
+  .fig .badge text { fill: var(--ltt-bg); font-weight: 700; font-size: 14px; text-anchor: middle; }
+  .ro { display: flex; flex-wrap: wrap; gap: 6px 18px; font-variant-numeric: tabular-nums; margin-top: 6px; font-size: 16px; }
+  .ro span b { display: inline-block; min-width: 4.2em; }
+  .ro .wide b { min-width: 7.5em; }
+  .ctl { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+  .ctl .ltt-param { margin: 0; }
+  .ctl .val { display: inline-block; min-width: 5.5em; font-variant-numeric: tabular-nums; }
+  .mat { display: inline-grid; grid-template-columns: repeat(2, 3.6em); border-left: 2px solid var(--ltt-ink); border-right: 2px solid var(--ltt-ink); padding: 0 6px; vertical-align: middle; text-align: right; font-variant-numeric: tabular-nums; }
+  .mini { width: 100%; max-width: 220px; height: auto; }
+  .side { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 16px; align-items: center; }
+  .col { flex-direction: column; align-items: flex-start; }
+  .bp-fig svg { max-height: 400px; }
+  .jc-fig svg { max-height: 290px; }
+  .fig .lg { font-size: 18px; }
+</style>
+</head>
+<body>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const F = (a, b) => a * a * b + a * b ** 3;
+const G = (a, b) => [2 * a * b + b ** 3, a * a + 3 * a * b * b];
+const H = (a, b) => [[2 * b, 2 * a + 3 * b * b], [2 * a + 3 * b * b, 6 * a * b]];
+const num = (v, d = 2) => { const s = (Math.abs(v) < 0.5 * 10 ** -d ? 0 : v).toFixed(d); return s.replace("-", "−"); };
+let uid = 0;
+
+function svgFig(el, w, h) {
+  const s = d3.select(el).append("svg").attr("class", "fig").attr("viewBox", `0 0 ${w} ${h}`).attr("data-annotate", "");
+  const id = "f" + (++uid);
+  const defs = s.append("defs");
+  [["acc", "var(--ltt-accent)"], ["c2", "var(--ltt-c2)"], ["ink", "var(--ltt-ink)"], ["mut", "var(--ltt-muted)"]].forEach(([k, c]) => {
+    defs.append("marker").attr("id", `${id}-${k}`).attr("viewBox", "0 0 10 10").attr("refX", 8).attr("refY", 5)
+      .attr("markerWidth", 7).attr("markerHeight", 7).attr("orient", "auto-start-reverse")
+      .append("path").attr("d", "M0,0 L10,5 L0,10 z").style("fill", c);
+  });
+  s.mk = (k) => `url(#${id}-${k})`;
+  s.clip = (x, y, w2, h2) => { const cid = `${id}-c${x}-${y}`; defs.append("clipPath").attr("id", cid).append("rect").attr("x", x).attr("y", y).attr("width", w2).attr("height", h2); return `url(#${cid})`; };
+  return s;
+}
+function arrow(g, x1, y1, x2, y2, cls, mk) {
+  return g.append("line").attr("x1", x1).attr("y1", y1).attr("x2", x2).attr("y2", y2).attr("class", cls).attr("marker-end", mk);
+}
+function contourPaths(g, X, Y, dom, levels, cls) {
+  const n = 90, [a0, a1, b0, b1] = dom, vals = new Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) vals[j * n + i] = F(a0 + (a1 - a0) * i / (n - 1), b0 + (b1 - b0) * j / (n - 1));
+  const cs = d3.contours().size([n, n]).thresholds(levels)(vals);
+  const tr = d3.geoTransform({ point(x, y) { this.stream.point(X(a0 + (a1 - a0) * (x - 0.5) / (n - 1)), Y(b0 + (b1 - b0) * (y - 0.5) / (n - 1))); } });
+  return g.selectAll(null).data(cs).join("path").attr("d", d3.geoPath(tr)).attr("class", cls);
+}
+function mapFrame(s, X, Y, ticks) {
+  const g = s.append("g");
+  const [x0, x1] = X.domain(), [y0, y1] = Y.domain();
+  g.append("rect").attr("class", "frame").attr("x", X(x0)).attr("y", Y(y1)).attr("width", X(x1) - X(x0)).attr("height", Y(y0) - Y(y1));
+  ticks.forEach(t => {
+    g.append("text").attr("class", "m").attr("x", X(t)).attr("y", Y(y0) + 20).attr("text-anchor", "middle").text(num(t, 1));
+    g.append("text").attr("class", "m").attr("x", X(x0) - 8).attr("y", Y(t) + 5).attr("text-anchor", "end").text(num(t, 1));
+  });
+  g.append("text").attr("x", X(x1)).attr("y", Y(y0) + 40).attr("text-anchor", "end").text("x₁ →");
+  g.append("text").attr("x", X(x0) - 8).attr("y", Y(y1) - 10).attr("text-anchor", "start").text("↑ x₂");
+  return g;
+}
+function blockGrid(g, x, y, rows, cols, size, cls, vals) {
+  for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+    g.append("rect").attr("x", x + j * size).attr("y", y + i * size).attr("width", size - 3).attr("height", size - 3).attr("rx", 3).attr("class", typeof cls === "function" ? cls(i, j) : cls);
+    if (vals) g.append("text").attr("x", x + j * size + (size - 3) / 2).attr("y", y + i * size + size / 2 + 3).attr("text-anchor", "middle").text(vals[i][j]);
+  }
+}
+
+/* ---------- 장면 3: 편미분 단면 ---------- */
+function partialScene(body) {
+  body.innerHTML = `<div class="side"><div class="pd-fig"></div>
+    <div class="ro col"><span>x₀ = <b id="pd-x0">(1.00, 1.00)</b></span><span>∂f/∂x₁ = <b id="pd-g1">3.00</b></span><span>∂f/∂x₂ = <b id="pd-g2">4.00</b></span><span>편미분을 나란히:</span><span>df/dx = <b id="pd-row">[ 3.00  4.00 ]</b></span></div></div>`;
+  const s = svgFig(body.querySelector(".pd-fig"), 920, 470);
+  const X = d3.scaleLinear([-0.2, 1.8], [60, 460]), Y = d3.scaleLinear([-0.2, 1.8], [440, 40]);
+  const clip = s.clip(60, 40, 400, 400);
+  mapFrame(s, X, Y, [0, 0.5, 1, 1.5]);
+  const gc = s.append("g").attr("clip-path", clip);
+  contourPaths(gc, X, Y, [-0.2, 1.8, -0.2, 1.8], [0.25, 0.5, 1, 2, 3, 5, 8, 12], "ctr");
+  const hot = s.append("g").attr("clip-path", clip), lines = s.append("g").attr("clip-path", clip), lab = s.append("g");
+  const SX = d3.scaleLinear([-0.2, 1.8], [550, 900]);
+  const P1 = d3.scaleLinear([-2, 15], [215, 45]), P2 = d3.scaleLinear([-2, 15], [445, 275]);
+  const plots = s.append("g"), dyn = s.append("g");
+  [[P1, "x₁", 40], [P2, "x₂", 270]].forEach(([P, v, top]) => {
+    plots.append("rect").attr("class", "frame").attr("x", 550).attr("y", P(15)).attr("width", 350).attr("height", P(-2) - P(15));
+    plots.append("line").attr("class", "grid").attr("x1", 550).attr("x2", 900).attr("y1", P(0)).attr("y2", P(0));
+    [0, 1].forEach(t => plots.append("text").attr("class", "m").attr("x", SX(t)).attr("y", P(-2) + 18).attr("text-anchor", "middle").text(t));
+    [0, 10].forEach(t => plots.append("text").attr("class", "m").attr("x", 544).attr("y", P(t) + 5).attr("text-anchor", "end").text(t));
+    plots.append("text").attr("class", "m").attr("x", 900).attr("y", P(-2) + 18).attr("text-anchor", "end").text(v + " →");
+  });
+  const T = d3.range(-0.2, 1.8001, 0.02);
+  const drag = LTT.drag(s.node(), { value: [1, 1], toSvg: p => [X(p[0]), Y(p[1])], fromSvg: q => [X.invert(q[0]), Y.invert(q[1])], bounds: [[0.2, 1.6], [0.2, 1.6]], step: 0.05, label: "x₀" });
+  LTT.sweep({
+    params: { x0: { control: drag, label: "x₀" } },
+    render: ({ x0 }) => {
+      const [a, b] = x0, f0 = F(a, b), [g1, g2] = G(a, b);
+      hot.selectAll("*").remove(); lines.selectAll("*").remove(); lab.selectAll("*").remove(); dyn.selectAll("*").remove();
+      contourPaths(hot, X, Y, [-0.2, 1.8, -0.2, 1.8], [f0], "ctr-hot");
+      lines.append("line").attr("class", "l-acc").attr("x1", X(-0.2)).attr("x2", X(1.8)).attr("y1", Y(b)).attr("y2", Y(b));
+      lines.append("line").attr("class", "l-c2").attr("x1", X(a)).attr("x2", X(a)).attr("y1", Y(-0.2)).attr("y2", Y(1.8));
+      lab.append("text").attr("x", X(1.8) - 6).attr("y", Y(b) - 8).attr("text-anchor", "end").attr("class", "acc").text(`x₂ = ${num(b)} 고정`);
+      lab.append("text").attr("x", X(a) + 8).attr("y", Y(1.8) + 20).attr("class", "c2t").text(`x₁ = ${num(a)} 고정`);
+      lab.append("text").attr("x", 460).attr("y", 30).attr("text-anchor", "end").attr("class", "m").text(`굵은 등고선: f = f(x₀) = ${num(f0)}`);
+      [[P1, s1 => F(s1, b), a, g1, "l-acc", `x₂ = ${num(b)} 고정 단면 f(x₁, ${num(b)})`, "acc", "∂f/∂x₁"],
+       [P2, s2 => F(a, s2), b, g2, "l-c2", `x₁ = ${num(a)} 고정 단면 f(${num(a)}, x₂)`, "c2t", "∂f/∂x₂"]].forEach(([P, fn, c, sl, cls, title, tc, nm]) => {
+        dyn.append("path").attr("class", "curve").attr("clip-path", null).attr("d", d3.line()(T.map(t => [SX(t), P(Math.max(-2, Math.min(15, fn(t))))])));
+        const y0 = fn(c);
+        dyn.append("line").attr("class", cls).attr("x1", SX(c - 0.35)).attr("x2", SX(c + 0.35)).attr("y1", P(y0 - 0.35 * sl)).attr("y2", P(y0 + 0.35 * sl));
+        dyn.append("circle").attr("cx", SX(c)).attr("cy", P(y0)).attr("r", 6).style("fill", "var(--ltt-ink)");
+        dyn.append("text").attr("x", 558).attr("y", P(15) + 20).attr("class", tc).text(title);
+        dyn.append("text").attr("x", 558).attr("y", P(15) + 42).text(`접선 기울기 = ${nm} = ${num(sl)}`);
+      });
+      body.querySelector("#pd-x0").textContent = `(${num(a)}, ${num(b)})`;
+      body.querySelector("#pd-g1").textContent = num(g1);
+      body.querySelector("#pd-g2").textContent = num(g2);
+      body.querySelector("#pd-row").textContent = `[ ${num(g1)}  ${num(g2)} ]`;
+    }
+  });
+  return {};
+}
+
+/* ---------- 장면 4: 방향 미분 ---------- */
+function directionScene(body) {
+  body.innerHTML = `<div class="side"><div class="dd-fig"></div>
+    <div class="ctl col"><div class="ltt-param">방향 u (바늘 = 지도 위 방향) <span class="val" id="dd-a-v"></span><div id="dd-a"></div></div>
+    <div class="ro col"><span class="wide">u = <b id="dd-u">(1.00, 0.00)</b></span><span class="wide">3u₁ + 4u₂ = <b id="dd-d">3.00</b></span></div></div></div>`;
+  const s = svgFig(body.querySelector(".dd-fig"), 920, 440);
+  const X = d3.scaleLinear([0.2, 1.8], [50, 400]), Y = d3.scaleLinear([0.2, 1.8], [400, 50]);
+  const clip = s.clip(50, 50, 350, 350);
+  mapFrame(s, X, Y, [0.5, 1, 1.5]);
+  contourPaths(s.append("g").attr("clip-path", clip), X, Y, [0.2, 1.8, 0.2, 1.8], [0.5, 1, 3, 5, 8], "ctr");
+  contourPaths(s.append("g").attr("clip-path", clip), X, Y, [0.2, 1.8, 0.2, 1.8], [2], "ctr-hot");
+  const cx = X(1), cy = Y(1), L = 130;
+  const tdir = [0.8, -0.6];
+  s.append("line").attr("class", "ghost").attr("x1", cx - tdir[0] * 110).attr("y1", cy + tdir[1] * 110).attr("x2", cx + tdir[0] * 110).attr("y2", cy - tdir[1] * 110);
+  s.append("text").attr("class", "m").attr("x", cx - tdir[0] * 110 - 6).attr("y", cy + tdir[1] * 110 - 6).attr("text-anchor", "end").text("등고선 접선");
+  const gx = cx + 0.6 * L, gy = cy - 0.8 * L;
+  arrow(s, cx, cy, gx, gy, "l-acc", s.mk("acc"));
+  s.append("text").attr("class", "acc").attr("x", gx + 8).attr("y", gy - 4).text("(3, 4) 방향 (gradient)");
+  const q = 14, a1 = [0.6, -0.8], a2 = [0.8, 0.6];
+  s.append("path").attr("class", "edge").attr("d", `M${cx + a1[0] * q},${cy + a1[1] * q} L${cx + (a1[0] + a2[0]) * q},${cy + (a1[1] + a2[1]) * q} L${cx + a2[0] * q},${cy + a2[1] * q}`);
+  const uline = s.append("line").attr("class", "l-c2").attr("marker-end", s.mk("c2"));
+  const ulab = s.append("text").attr("class", "c2t");
+  s.append("circle").attr("cx", cx).attr("cy", cy).attr("r", 6).style("fill", "var(--ltt-ink)");
+  s.append("text").attr("x", cx - 12).attr("y", cy + 24).attr("text-anchor", "end").text("x₀ = (1, 1)");
+  const AX = d3.scaleLinear([0, 360], [500, 900]), DY = d3.scaleLinear([-5.5, 5.5], [400, 60]);
+  s.append("rect").attr("class", "frame").attr("x", 500).attr("y", 60).attr("width", 400).attr("height", 340);
+  s.append("line").attr("class", "grid").attr("x1", 500).attr("x2", 900).attr("y1", DY(0)).attr("y2", DY(0));
+  [0, 90, 180, 270, 360].forEach(t => s.append("text").attr("class", "m").attr("x", AX(t)).attr("y", 420).attr("text-anchor", "middle").text(t + "°"));
+  [-5, 0, 5].forEach(t => s.append("text").attr("class", "m").attr("x", 494).attr("y", DY(t) + 5).attr("text-anchor", "end").text(num(t, 0)));
+  s.append("text").attr("x", 500).attr("y", 44).text("방향 미분 3u₁ + 4u₂ (다이얼 각 α: 0° = +x₂, 시계 방향)");
+  const aMax = Math.atan2(0.6, 0.8) * 180 / Math.PI;
+  s.append("path").attr("class", "curve").attr("d", d3.line()(d3.range(0, 360.1, 2).map(t => { const r = t * Math.PI / 180; return [AX(t), DY(3 * Math.sin(r) + 4 * Math.cos(r))]; })));
+  s.append("line").attr("class", "ghost").attr("x1", AX(aMax)).attr("x2", AX(aMax)).attr("y1", DY(5)).attr("y2", DY(-5.5));
+  s.append("circle").attr("cx", AX(aMax)).attr("cy", DY(5)).attr("r", 6).style("fill", "var(--ltt-accent)");
+  s.append("text").attr("class", "acc").attr("x", AX(102)).attr("y", DY(4.7)).text("← 최대 5 = √(3² + 4²), gradient 방향");
+  s.append("text").attr("class", "m").attr("x", AX(126.87) + 8).attr("y", DY(0) - 10).text("0: 등고선 방향");
+  const dot = s.append("circle").attr("r", 7).style("fill", "var(--ltt-c2)");
+  LTT.sweep({
+    params: { "dd-a": { kind: "dial", value: 90, step: 1, fmt: v => `α = ${Math.round(v)}°` } },
+    render: (v) => {
+      const al = v["dd-a"], r = al * Math.PI / 180, u = [Math.sin(r), Math.cos(r)], D = 3 * u[0] + 4 * u[1];
+      uline.attr("x1", cx).attr("y1", cy).attr("x2", cx + u[0] * L).attr("y2", cy - u[1] * L);
+      ulab.attr("x", cx + u[0] * (L + 14) - (u[0] < 0 ? 40 : 0)).attr("y", cy - u[1] * (L + 14) + 5).text("u");
+      dot.attr("cx", AX(al)).attr("cy", DY(D));
+      body.querySelector("#dd-u").textContent = `(${num(u[0])}, ${num(u[1])})`;
+      body.querySelector("#dd-d").textContent = num(D);
+    }
+  });
+  return {};
+}
+
+/* ---------- 장면 5: 극좌표 Jacobian ---------- */
+function jacobianScene(body) {
+  body.innerHTML = `<div class="jc-fig"></div>
+    <div class="ctl">
+      <div class="ltt-param">r <span class="val" id="jr-v"></span><input id="jr" type="range" min="0.5" max="2.5" step="0.1" value="2"></div>
+      <div class="ltt-param">θ <span class="val" id="jt-v"></span><input id="jt" type="range" min="0" max="60" step="5" value="30"></div>
+      <div class="ltt-param">h (정사각형 한 변) <span class="val" id="jh-v"></span><input id="jh" type="range" min="0.05" max="0.6" step="0.05" value="0.2"></div>
+    </div>
+    <div class="ro"><span class="wide">J = <b id="jc-mat" style="min-width:13em"></b></span><span>det J = r = <b id="jc-det"></b></span><span class="wide">실제 넓이 ÷ h² = <b id="jc-ratio"></b></span><span class="wide">J 근사 넓이 ÷ h² = <b id="jc-appr"></b></span></div>`;
+  const s = svgFig(body.querySelector(".jc-fig"), 1020, 350);
+  const IX = d3.scaleLinear([0, 3.2], [40, 360]), IY = d3.scaleLinear([0, 1.7], [300, 130]);
+  const OX = d3.scaleLinear([-1.2, 3.2], [420, 772]), OY = d3.scaleLinear([0, 3.2], [300, 44]);
+  s.append("text").attr("x", 40).attr("y", 24).attr("class", "big").text("입력 평면 (r, θ)");
+  s.append("text").attr("x", 420).attr("y", 24).attr("class", "big").text("출력 (x, y) = (r cos θ, r sin θ)");
+  s.append("rect").attr("class", "frame").attr("x", 40).attr("y", 130).attr("width", 320).attr("height", 170);
+  for (let r = 0.5; r < 3.2; r += 0.5) s.append("line").attr("class", "grid").attr("x1", IX(r)).attr("x2", IX(r)).attr("y1", 130).attr("y2", 300);
+  for (let t = 0.5; t < 1.7; t += 0.5) s.append("line").attr("class", "grid").attr("x1", 40).attr("x2", 360).attr("y1", IY(t)).attr("y2", IY(t));
+  [0, 1, 2, 3].forEach(t => s.append("text").attr("class", "m").attr("x", IX(t)).attr("y", 320).attr("text-anchor", "middle").text(t));
+  [0, 1].forEach(t => s.append("text").attr("class", "m").attr("x", 34).attr("y", IY(t) + 5).attr("text-anchor", "end").text(t));
+  s.append("text").attr("x", 360).attr("y", 342).attr("text-anchor", "end").text("r →");
+  s.append("text").attr("x", 40).attr("y", 122).text("↑ θ (라디안)");
+  const oclip = s.clip(420, 44, 352, 256);
+  s.append("rect").attr("class", "frame").attr("x", 420).attr("y", 44).attr("width", 352).attr("height", 256);
+  const og = s.append("g").attr("clip-path", oclip);
+  for (let r = 0.5; r <= 3.5; r += 0.5) og.append("circle").attr("class", "grid").attr("cx", OX(0)).attr("cy", OY(0)).attr("r", OX(r) - OX(0));
+  for (let t = 0; t <= 180; t += 15) { const rr = t * Math.PI / 180; og.append("line").attr("class", "grid").attr("x1", OX(0)).attr("y1", OY(0)).attr("x2", OX(5 * Math.cos(rr))).attr("y2", OY(5 * Math.sin(rr))); }
+  [-1, 0, 1, 2, 3].forEach(t => s.append("text").attr("class", "m").attr("x", OX(t)).attr("y", 320).attr("text-anchor", "middle").text(t));
+  [1, 2, 3].forEach(t => s.append("text").attr("class", "m").attr("x", 414).attr("y", OY(t) + 5).attr("text-anchor", "end").text(t));
+  s.append("text").attr("class", "m").attr("x", 772).attr("y", 342).attr("text-anchor", "end").text("격자: r 일정한 원, θ 일정한 직선");
+  const IN = s.append("g"), OUT = s.append("g").attr("clip-path", oclip), ZM = s.append("g"), LINK = s.append("g");
+  const zx = 800, zy = 44, zw = 200;
+  s.append("text").attr("x", zx).attr("y", 24).text("확대");
+  ZM.attr("clip-path", s.clip(zx, zy, zw, zw));
+  s.append("rect").attr("class", "frame").attr("x", zx).attr("y", zy).attr("width", zw).attr("height", zw);
+  s.append("rect").attr("x", zx).attr("y", zy + zw + 14).attr("width", 18).attr("height", 12).attr("class", "cell-acc");
+  s.append("text").attr("class", "m").attr("x", zx + 24).attr("y", zy + zw + 25).text("실제 조각");
+  s.append("line").attr("class", "ghost").attr("x1", zx).attr("x2", zx + 18).attr("y1", zy + zw + 44).attr("y2", zy + zw + 44).style("stroke", "var(--ltt-ink)");
+  s.append("text").attr("class", "m").attr("x", zx + 24).attr("y", zy + zw + 49).text("J 평행사변형");
+  const patch = (r, th, h, k = 16) => {
+    const p = [];
+    for (let i = 0; i <= k; i++) p.push([r + h * i / k, th]);
+    for (let i = 0; i <= k; i++) p.push([r + h, th + h * i / k]);
+    for (let i = k; i >= 0; i--) p.push([r + h * i / k, th + h]);
+    for (let i = k; i >= 0; i--) p.push([r, th + h * i / k]);
+    return p.map(([rr, t]) => [rr * Math.cos(t), rr * Math.sin(t)]);
+  };
+  LTT.sweep({
+    params: {
+      jr: { map: v => +v, fmt: v => num(v, 1) },
+      jt: { map: v => +v, fmt: v => `${Math.round(v)}°` },
+      jh: { map: v => +v, fmt: v => num(v, 2) }
+    },
+    render: ({ jr: r, jt: td, jh: h }) => {
+      const th = td * Math.PI / 180, c = Math.cos(th), sn = Math.sin(th);
+      const J = [[c, -r * sn], [sn, r * c]], det = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+      IN.selectAll("*").remove(); OUT.selectAll("*").remove(); ZM.selectAll("*").remove(); LINK.selectAll("*").remove();
+      IN.append("rect").attr("class", "cell-acc").attr("x", IX(r)).attr("y", IY(th + h)).attr("width", IX(r + h) - IX(r)).attr("height", IY(th) - IY(th + h));
+      arrow(IN, IX(r), IY(th), IX(r + h), IY(th), "l-acc", s.mk("acc"));
+      arrow(IN, IX(r), IY(th), IX(r), IY(th + h), "l-c2", s.mk("c2"));
+      IN.append("circle").attr("cx", IX(r)).attr("cy", IY(th)).attr("r", 5).style("fill", "var(--ltt-ink)");
+      IN.append("text").attr("x", 40).attr("y", 52).text(`한 변 h = ${num(h)}인 정사각형, 넓이 h² = ${num(h * h, 4)}`);
+      IN.append("text").attr("class", "acc").attr("x", 40).attr("y", 76).text("→ r 방향 한 변 (h·e_r)");
+      IN.append("text").attr("class", "c2t").attr("x", 40).attr("y", 98).text("→ θ 방향 한 변 (h·e_θ)");
+      const pts = patch(r, th, h), P = p => [OX(p[0]), OY(p[1])];
+      const o = [r * c, r * sn], v1 = [J[0][0] * h, J[1][0] * h], v2 = [J[0][1] * h, J[1][1] * h];
+      const par = [o, [o[0] + v1[0], o[1] + v1[1]], [o[0] + v1[0] + v2[0], o[1] + v1[1] + v2[1]], [o[0] + v2[0], o[1] + v2[1]]];
+      OUT.append("path").attr("class", "cell-acc").attr("d", d3.line()(pts.map(P)) + "Z");
+      OUT.append("path").attr("class", "ghost").style("stroke", "var(--ltt-ink)").attr("d", d3.line()(par.map(P)) + "Z");
+      const cen = [(r + h / 2) * Math.cos(th + h / 2), (r + h / 2) * Math.sin(th + h / 2)];
+      const span = h * Math.max(1, r + h) * 1.25, k = (zw - 30) / span;
+      const ZX = x => zx + zw / 2 + (x - cen[0]) * k, ZY = y => zy + zw / 2 - (y - cen[1]) * k;
+      const half = span / 2 * (zw / (zw - 30));
+      LINK.append("rect").attr("class", "ghost").attr("x", OX(cen[0] - half)).attr("y", OY(cen[1] + half)).attr("width", OX(cen[0] + half) - OX(cen[0] - half)).attr("height", OY(cen[1] - half) - OY(cen[1] + half));
+      LINK.append("line").attr("class", "ghost").attr("x1", OX(cen[0] + half)).attr("y1", OY(cen[1] + half)).attr("x2", zx).attr("y2", zy);
+      LINK.append("line").attr("class", "ghost").attr("x1", OX(cen[0] + half)).attr("y1", OY(cen[1] - half)).attr("x2", zx).attr("y2", zy + zw);
+      ZM.append("path").attr("class", "cell-acc").attr("d", d3.line()(pts.map(p => [ZX(p[0]), ZY(p[1])])) + "Z");
+      ZM.append("path").attr("class", "ghost").style("stroke", "var(--ltt-ink)").attr("d", d3.line()(par.map(p => [ZX(p[0]), ZY(p[1])])) + "Z");
+      arrow(ZM, ZX(o[0]), ZY(o[1]), ZX(o[0] + v1[0]), ZY(o[1] + v1[1]), "l-acc", s.mk("acc"));
+      arrow(ZM, ZX(o[0]), ZY(o[1]), ZX(o[0] + v2[0]), ZY(o[1] + v2[1]), "l-c2", s.mk("c2"));
+      ZM.append("circle").attr("cx", ZX(o[0])).attr("cy", ZY(o[1])).attr("r", 4).style("fill", "var(--ltt-ink)");
+      LINK.append("text").attr("class", "acc").attr("x", zx).attr("y", zy + zw + 76).text("J 1열 = h·(cos θ, sin θ)");
+      LINK.append("text").attr("class", "c2t").attr("x", zx).attr("y", zy + zw + 98).text("J 2열 = h·(−r sin θ, r cos θ)");
+      const exact = d3.polygonArea(pts) / (h * h);
+      body.querySelector("#jc-mat").textContent = `[ ${num(J[0][0])}  ${num(J[0][1])} ; ${num(J[1][0])}  ${num(J[1][1])} ]`;
+      body.querySelector("#jc-det").textContent = num(det);
+      body.querySelector("#jc-ratio").textContent = `${num(Math.abs(exact), 3)} (= r + h/2)`;
+      body.querySelector("#jc-appr").textContent = `${num(Math.abs(det), 3)} (= det J)`;
+    }
+  });
+  return {};
+}
+
+/* ---------- 장면 7: 모양 규칙 표 ---------- */
+function shapeTable(el) {
+  const s = svgFig(el, 940, 450);
+  const colX = [180, 370, 740], rowY = [90, 260];
+  s.append("text").attr("x", 20).attr("y", 36).attr("class", "big").text("df/dx 의 모양");
+  s.append("text").attr("x", 200).attr("y", 36).attr("class", "m").text("열 방향: x의 축 →");
+  ["x 스칼라", "x ∈ ℝ³", "A ∈ ℝ²ˣ³ (행렬)"].forEach((t, j) => s.append("text").attr("class", "c2t big").attr("x", colX[j]).attr("y", 62).text(t));
+  ["f 스칼라", "f ∈ ℝ²"].forEach((t, i) => s.append("text").attr("class", "acc big").attr("x", 20).attr("y", rowY[i] + 30).text(t));
+  s.append("text").attr("class", "m").attr("x", 20).attr("y", rowY[0] + 54).text("행 방향:");
+  s.append("text").attr("class", "m").attr("x", 20).attr("y", rowY[0] + 74).text("f의 축 ↓");
+  const z = 30;
+  const cls = (i, j) => "cell";
+  const g = s.append("g");
+  const lab = (x, y, t, c = "") => g.append("text").attr("x", x).attr("y", y).attr("class", c).text(t);
+  // f 스칼라
+  blockGrid(g, colX[0], rowY[0], 1, 1, z, "cell-acc"); lab(colX[0], rowY[0] + 56, "1×1");
+  blockGrid(g, colX[1], rowY[0], 1, 3, z, "cell-c2"); lab(colX[1], rowY[0] + 56, "1×3  gradient (MML)");
+  blockGrid(g, colX[1] + 150, rowY[0] - 20, 3, 1, z, "ghost");
+  lab(colX[1] + 186, rowY[0] - 2, "∇f = (df/dx)ᵀ", "m"); lab(colX[1] + 186, rowY[0] + 18, "x와 같은 모양으로", "m"); lab(colX[1] + 186, rowY[0] + 38, "저장하는 관례", "m");
+  blockGrid(g, colX[2], rowY[0], 2, 3, z, "cell-c2"); lab(colX[2], rowY[0] + 86, "1×(2×3): A 모양으로 놓는다", "");
+  // f ∈ R2
+  blockGrid(g, colX[0], rowY[1], 2, 1, z, "cell-acc"); lab(colX[0], rowY[1] + 86, "2×1");
+  blockGrid(g, colX[1], rowY[1], 2, 3, z, (i, j) => "cell"); lab(colX[1], rowY[1] + 86, "2×3  Jacobian");
+  g.append("line").attr("class", "l-acc").attr("x1", colX[1] - 8).attr("x2", colX[1] - 8).attr("y1", rowY[1]).attr("y2", rowY[1] + 2 * z - 3);
+  g.append("line").attr("class", "l-c2").attr("x1", colX[1]).attr("x2", colX[1] + 3 * z - 3).attr("y1", rowY[1] - 8).attr("y2", rowY[1] - 8);
+  [0, 1].forEach(k => {
+    const ox = colX[2] + k * 100, oy = rowY[1];
+    blockGrid(g, ox, oy, 2, 3, z, "cell");
+    g.append("rect").attr("class", "ghost").attr("x", ox - 4).attr("y", oy - 4).attr("width", 3 * z + 5).attr("height", 2 * z + 5).attr("rx", 5);
+    g.append("text").attr("class", "acc").attr("x", ox).attr("y", oy - 12).text(`f${k === 0 ? "₁" : "₂"} 조각`);
+  });
+  lab(colX[2], rowY[1] + 120, "2×(2×3): 축 3개 텐서");
+  lab(colX[2], rowY[1] + 142, "조각 2장 = f의 축 (겹쳐 쌓은 블록)", "m");
+  lab(colX[2], rowY[1] + 162, "조각 하나 = A의 축 (2×3)", "m");
+  s.append("text").attr("x", 20).attr("y", 442).attr("class", "m").text("규칙: 결과의 축 = (f의 축들) 다음 (x의 축들). 칸 (i, j) = ∂fᵢ/∂xⱼ.");
+  return { el: s.node() };
+}
+
+/* ---------- 장면 8: 연쇄 법칙 ---------- */
+function chainFig(el) {
+  const s = svgFig(el, 940, 470);
+  const g = s.append("g");
+  const z = 40;
+  // 파이프라인
+  g.append("text").attr("x", 20).attr("y", 30).attr("class", "big").text("① 계산: x → h = A x → L = ½‖h − y‖²");
+  blockGrid(g, 40, 50, 3, 1, z, "cell-c2", [["1"], ["2"], ["−1"]]); g.append("text").attr("x", 40).attr("y", 186).text("x ∈ ℝ³");
+  arrow(g, 92, 110, 150, 110, "edge", s.mk("mut"));
+  g.append("rect").attr("x", 155).attr("y", 70).attr("width", 150).attr("height", 80).attr("rx", 8).attr("class", "cell");
+  g.append("text").attr("x", 230).attr("y", 102).attr("text-anchor", "middle").text("A (2×3)");
+  g.append("text").attr("x", 230).attr("y", 128).attr("text-anchor", "middle").attr("class", "m").text("[1 0 1; 0 1 1]");
+  arrow(g, 308, 110, 365, 110, "edge", s.mk("mut"));
+  blockGrid(g, 370, 70, 2, 1, z, "cell-acc", [["0"], ["1"]]); g.append("text").attr("x", 370).attr("y", 166).text("h ∈ ℝ²");
+  arrow(g, 420, 110, 475, 110, "edge", s.mk("mut"));
+  g.append("rect").attr("x", 480).attr("y", 70).attr("width", 200).attr("height", 80).attr("rx", 8).attr("class", "cell");
+  g.append("text").attr("x", 580).attr("y", 102).attr("text-anchor", "middle").text("ℓ(h) = ½‖h − y‖²");
+  g.append("text").attr("x", 580).attr("y", 128).attr("text-anchor", "middle").attr("class", "m").text("y = (−0.5, 2)");
+  arrow(g, 683, 110, 735, 110, "edge", s.mk("mut"));
+  g.append("text").attr("x", 745).attr("y", 116).attr("class", "big").text("L = 0.625");
+  // Jacobian 곱
+  g.append("text").attr("x", 20).attr("y", 240).attr("class", "big").text("② 미분: dL/dx = (dL/dh) · (dh/dx)");
+  const y0 = 300;
+  blockGrid(g, 40, y0 + 20, 1, 2, z + 10, "cell-acc", [["0.5", "−1"]]);
+  g.append("text").attr("x", 40).attr("y", y0 + 8).text("dL/dh = (h − y)ᵀ");
+  g.append("text").attr("x", 40).attr("y", y0 + 100).attr("class", "big").text("1 × 2");
+  g.append("text").attr("x", 160).attr("y", y0 + 50).attr("class", "big").text("·");
+  blockGrid(g, 190, y0, 2, 3, z + 10, "cell", [["1", "0", "1"], ["0", "1", "1"]]);
+  g.append("text").attr("x", 190).attr("y", y0 - 12).text("dh/dx = A");
+  g.append("text").attr("x", 190).attr("y", y0 + 128).attr("class", "big").text("2 × 3");
+  g.append("text").attr("x", 360).attr("y", y0 + 50).attr("class", "big").text("=");
+  blockGrid(g, 400, y0 + 20, 1, 3, z + 10, "cell-c2", [["0.5", "−1", "−0.5"]]);
+  g.append("text").attr("x", 400).attr("y", y0 + 8).text("dL/dx");
+  g.append("text").attr("x", 400).attr("y", y0 + 100).attr("class", "big").text("1 × 3");
+  // 안쪽 차원
+  g.append("path").attr("class", "l-acc").attr("d", `M 70 ${y0 + 110} C 70 ${y0 + 160}, 205 ${y0 + 160}, 205 ${y0 + 140}`);
+  g.append("text").attr("class", "acc").attr("x", 90).attr("y", y0 + 166).text("안쪽 2 = 2 → 곱할 수 있다");
+  g.append("text").attr("x", 580).attr("y", y0 + 20).attr("class", "lg").text("dL/dx₃ = 0.5·1 + (−1)·1 = −0.5");
+  g.append("text").attr("x", 580).attr("y", y0 + 54).attr("class", "lg").text("dL/dh는 ℓ 쪽(출력 쪽),");
+  g.append("text").attr("x", 580).attr("y", y0 + 80).attr("class", "lg").text("dh/dx는 A 쪽.");
+  g.append("text").attr("x", 580).attr("y", y0 + 106).attr("class", "lg").text("곱하는 순서 = 출력 쪽이 왼쪽.");
+  g.append("text").attr("x", 580).attr("y", y0 + 132).attr("class", "lg").text("결과 1×3: 출력 1개, 입력 3개.");
+  return { el: s.node() };
+}
+
+/* ---------- 장면 9: 행렬에 대한 gradient ---------- */
+function matrixFig(el) {
+  const s = svgFig(el, 940, 420);
+  s.style("max-height", "400px");
+  const z = 46;
+  const zero = [["0", "0", "0"]], xr = [["1", "2", "−1"]];
+  const g = s.append("g");
+  g.append("text").attr("x", 20).attr("y", 28).attr("class", "big").text("dh/dA: h의 축 2개 × A의 축 (2×3) = 조각 2장");
+  const slice = (x, y, vals, hotRow, title, cls) => {
+    const gg = g.append("g");
+    blockGrid(gg, x, y, 2, 3, z, (i) => i === hotRow ? cls : "cell", vals);
+    gg.append("text").attr("x", x).attr("y", y - 10).text(title);
+    return gg;
+  };
+  slice(40, 70, [xr[0], zero[0]], 0, "∂h₁/∂A (h₁ = A₁₁x₁ + A₁₂x₂ + A₁₃x₃)", "cell-c2");
+  slice(40, 260, [zero[0], xr[0]], 1, "∂h₂/∂A (h₂ = A₂₁x₁ + A₂₂x₂ + A₂₃x₃)", "cell-c2");
+  const st2 = g.append("g"), st3 = g.append("g");
+  [["①", 40], ["②", 360], ["③", 580]].forEach(([t, x]) => g.append("text").attr("x", x).attr("y", 410).attr("class", "acc big").text(t));
+  st2.append("text").attr("x", 230).attr("y", 125).attr("class", "acc big").text("× δ₁ = 0.5");
+  st2.append("text").attr("x", 230).attr("y", 315).attr("class", "acc big").text("× δ₂ = −1");
+  blockGrid(st2, 360, 70, 2, 3, z, (i) => i === 0 ? "cell-acc" : "cell", [["0.5", "1", "−0.5"], zero[0]]);
+  blockGrid(st2, 360, 260, 2, 3, z, (i) => i === 1 ? "cell-acc" : "cell", [zero[0], ["−1", "−2", "1"]]);
+  st2.append("text").attr("x", 360).attr("y", 230).attr("class", "m").text("δ = dL/dh = [0.5  −1] (앞 장면)");
+  st3.append("text").attr("x", 520).attr("y", 215).attr("class", "big").text("합 →");
+  blockGrid(st3, 580, 165, 2, 3, z, "cell-acc", [["0.5", "1", "−0.5"], ["−1", "−2", "1"]]);
+  st3.append("text").attr("x", 580).attr("y", 152).attr("class", "big").text("dL/dA (2×3, A와 같은 모양)");
+  st3.append("text").attr("x", 580).attr("y", 290).text("= δᵀ xᵀ : (2×1)(1×3)");
+  st3.append("text").attr("x", 580).attr("y", 316).attr("class", "m").text("칸 (i, j) = δᵢ · xⱼ");
+  return { el: s.node(), st2, st3 };
+}
+
+/* ---------- 장면 10: 역전파 계산 그래프 ---------- */
+function backpropScene(body) {
+  body.innerHTML = `<div class="bp-fig"></div><div class="ctl"><button class="ltt-btn" id="bp-replay">다시 재생</button><span class="m" id="bp-phase"></span></div>`;
+  const s = svgFig(body.querySelector(".bp-fig"), 940, 385);
+  const x = 1, a = x * x, b = Math.exp(a), c = a + b, d = Math.sqrt(c), e = Math.cos(c), f = d + e;
+  const gf = 1, gd = 1, ge = 1, gc = gd / (2 * Math.sqrt(c)) - ge * Math.sin(c), gb = gc, ga = gc + gb * Math.exp(a), gx = ga * 2 * x;
+  const N = { x: [50, 220], a: [150, 220], b: [255, 110], c: [355, 220], d: [455, 110], e: [455, 330], f: [550, 220] };
+  const val = { x: "1", a: num(a, 3), b: num(b, 3), c: num(c, 3), d: num(d, 3), e: num(e, 3), f: num(f, 3) };
+  const adj = { f: "1", d: "1", e: "1", c: num(gc, 3), b: num(gb, 3), a: num(ga, 3), x: num(gx, 3) };
+  const E = [["x", "a", "2x"], ["a", "b", "eᵃ"], ["a", "c", "1"], ["b", "c", "1"], ["c", "d", "1/(2√c)"], ["c", "e", "−sin c"], ["d", "f", "1"], ["e", "f", "1"]];
+  const tF = { x: 0, a: 600, b: 1200, c: 1800, d: 2400, e: 2400, f: 3000 };
+  const tB = { f: 5000, d: 5800, e: 5800, c: 6600, b: 7400, a: 8200, x: 9000 };
+  const eg = s.append("g"), dots = s.append("g"), ng = s.append("g");
+  const edges = E.map(([u, v, l]) => {
+    const [x1, y1] = N[u], [x2, y2] = N[v];
+    const line = eg.append("line").attr("x1", x1).attr("y1", y1).attr("x2", x2).attr("y2", y2).attr("class", "edge");
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, off = y1 === y2 ? -10 : (y2 < y1 ? -6 : 16);
+    const t = eg.append("text").attr("x", mx + (y1 === y2 ? 0 : -8)).attr("y", my + off).attr("text-anchor", y1 === y2 ? "middle" : "end").attr("class", "m").text(l);
+    return { u, v, line, t };
+  });
+  const nodes = Object.entries(N).map(([k, [nx, ny]]) => {
+    ng.append("circle").attr("cx", nx).attr("cy", ny).attr("r", 24).attr("class", "node");
+    ng.append("text").attr("x", nx).attr("y", ny + 6).attr("text-anchor", "middle").attr("class", "big").text(k);
+    const tv = ng.append("text").attr("x", nx).attr("y", ny - 34).attr("text-anchor", "middle").attr("class", "c2t");
+    const ta = ng.append("text").attr("x", nx).attr("y", ny + 48).attr("text-anchor", "middle").attr("class", "acc");
+    return { k, tv, ta };
+  });
+  const lx = 620;
+  s.append("text").attr("x", lx).attr("y", 30).attr("class", "c2t big").text("앞으로 (x = 1)");
+  s.append("text").attr("x", lx).attr("y", 220).attr("class", "acc big").text("뒤로: adjoint ∂f/∂·");
+  const fwd = [["a", "a = x² = " + val.a], ["b", "b = eᵃ = " + val.b], ["c", "c = a + b = " + val.c], ["d", "d = √c = " + val.d], ["e", "e = cos c = " + val.e], ["f", "f = d + e = " + val.f]];
+  const bwd = [["f", "∂f/∂f = 1"], ["d", "∂f/∂d = 1,  ∂f/∂e = 1"], ["c", "∂f/∂c = 1/(2√c) − sin c = " + adj.c], ["b", "∂f/∂b = ∂f/∂c · 1 = " + adj.b], ["a", "∂f/∂a = ∂f/∂c·1 + ∂f/∂b·eᵃ = " + adj.a], ["x", "∂f/∂x = ∂f/∂a · 2x = " + adj.x]];
+  const fl = fwd.map(([k, t], i) => ({ k, el: s.append("text").attr("x", lx).attr("y", 58 + i * 25).text(t) }));
+  const bl = bwd.map(([k, t], i) => ({ k, el: s.append("text").attr("x", lx).attr("y", 248 + i * 25).text(t) }));
+  const phase = body.querySelector("#bp-phase");
+  const draw = (t) => {
+    nodes.forEach(n => {
+      n.tv.text(t >= tF[n.k] + 300 ? val[n.k] : "");
+      n.ta.text(t >= tB[n.k] + 300 ? adj[n.k] : "");
+    });
+    fl.forEach(r => r.el.style("opacity", t >= tF[r.k] + 300 ? 1 : 0.12));
+    bl.forEach(r => r.el.style("opacity", t >= tB[r.k] + 300 ? 1 : 0.12));
+    dots.selectAll("*").remove();
+    edges.forEach(ed => {
+      const sF = tF[ed.v] - 600 + 0, inF = t >= tF[ed.v] - 600 && t < tF[ed.v] + 300 && t < 4000;
+      const sB = tB[ed.u] - 800, inB = t >= sB && t < tB[ed.u] + 300;
+      ed.line.attr("class", inB ? "edge-hot" : (inF ? "edge-fw" : "edge"));
+      ed.t.attr("class", t >= 5000 ? "acc" : "m");
+      const [x1, y1] = N[ed.u], [x2, y2] = N[ed.v];
+      if (inF) { const p = Math.min(1, (t - sF) / 900); dots.append("circle").attr("r", 6).attr("cx", x1 + (x2 - x1) * p).attr("cy", y1 + (y2 - y1) * p).style("fill", "var(--ltt-c2)"); }
+      if (inB) { const p = Math.min(1, (t - sB) / 1100); dots.append("circle").attr("r", 6).attr("cx", x2 + (x1 - x2) * p).attr("cy", y2 + (y1 - y2) * p).style("fill", "var(--ltt-accent)"); }
+    });
+    phase.textContent = t < 4200 ? "① 앞으로: 값을 계산해 둔다" : (t < 4800 ? "앞으로 끝 — 아직 미분은 하나도 없다" : (t < 9300 ? "② 뒤로: 출력에서 1을 놓고 국소 미분을 곱한다" : "끝: 한 번 거꾸로 지나 모든 adjoint가 찼다"));
+  };
+  const clk = LTT.clock(s.node(), draw, { dur: 10500, id: "backprop" });
+  body.querySelector("#bp-replay").addEventListener("click", () => { clk.seek(0); clk.play(); LTT.record("replay", { scene: "backprop" }); });
+  return {};
+}
+
+/* ---------- 장면 11: forward vs reverse ---------- */
+function modeScene(body) {
+  body.innerHTML = `<div class="fr-fig"></div>
+    <div class="ctl"><div class="ltt-param">입력 수 n <span class="val" id="fr-n-v"></span><input id="fr-n" type="range"></div>
+    <div class="ltt-param">출력 수 m <span class="val" id="fr-m-v"></span><input id="fr-m" type="range"></div></div>`;
+  const s = svgFig(body.querySelector(".fr-fig"), 940, 400);
+  const g = s.append("g");
+  g.append("text").attr("x", 20).attr("y", 30).attr("class", "big").text("Jacobian J (m × n) 를 다 구하려면");
+  g.append("rect").attr("x", 40).attr("y", 60).attr("width", 260).attr("height", 130).attr("class", "cell");
+  g.append("rect").attr("x", 120).attr("y", 60).attr("width", 26).attr("height", 130).attr("class", "cell-c2");
+  g.append("rect").attr("x", 40).attr("y", 100).attr("width", 260).attr("height", 24).attr("class", "cell-acc");
+  g.append("text").attr("x", 40).attr("y", 212).attr("class", "m").text("단순화한 그림(칸 수는 축척 아님)");
+  g.append("text").attr("x", 330).attr("y", 80).attr("class", "c2t").text("forward 모드 1번 = J v: v = eⱼ(j번째 입력만 1)이면 j열 하나");
+  g.append("text").attr("x", 330).attr("y", 106).attr("class", "c2t").text("→ 열 n개를 채우려면 n번");
+  g.append("text").attr("x", 330).attr("y", 146).attr("class", "acc").text("reverse 모드 1번 = vᵀJ: v = eᵢ(i번째 출력만 1)이면 i행 하나");
+  g.append("text").attr("x", 330).attr("y", 172).attr("class", "acc").text("→ 행 m개를 채우려면 m번");
+  const LX = d3.scaleLog([1, 1e6], [200, 800]);
+  [1, 10, 100, 1e3, 1e4, 1e5, 1e6].forEach(t => {
+    g.append("line").attr("class", "grid").attr("x1", LX(t)).attr("x2", LX(t)).attr("y1", 250).attr("y2", 352);
+    g.append("text").attr("class", "m").attr("x", LX(t)).attr("y", 372).attr("text-anchor", "middle").text(t >= 1e3 ? "10" + "⁰¹²³⁴⁵⁶"[Math.log10(t)] : t);
+  });
+  g.append("text").attr("class", "m").attr("x", 800).attr("y", 392).attr("text-anchor", "end").text("지나는 횟수 (로그 축)");
+  g.append("text").attr("x", 20).attr("y", 280).attr("class", "c2t big").text("forward");
+  g.append("text").attr("x", 20).attr("y", 330).attr("class", "acc big").text("reverse");
+  const bF = g.append("rect").attr("x", 200).attr("y", 262).attr("height", 26).attr("class", "cell-c2");
+  const bR = g.append("rect").attr("x", 200).attr("y", 312).attr("height", 26).attr("class", "cell-acc");
+  const tFw = g.append("text").attr("y", 281), tRv = g.append("text").attr("y", 331);
+  g.selectAll("text").classed("lg", true);
+  const fmt = v => Math.round(v).toLocaleString("en-US");
+  LTT.sweep({
+    params: {
+      "fr-n": { kind: "log", min: 1, max: 1e6, value: 1e6, fmt },
+      "fr-m": { kind: "log", min: 1, max: 1e6, value: 1, fmt }
+    },
+    render: (v) => {
+      const n = Math.round(v["fr-n"]), m = Math.round(v["fr-m"]);
+      bF.attr("width", Math.max(4, LX(n) - 200)); bR.attr("width", Math.max(4, LX(m) - 200));
+      tFw.text(`${fmt(n)}번`).attr("x", Math.max(204, LX(n)) + 10);
+      tRv.text(`${fmt(m)}번`).attr("x", Math.max(204, LX(m)) + 10);
+    }
+  });
+  return {};
+}
+
+/* ---------- 장면 12: Hessian과 2차 테일러 ---------- */
+function taylorScene(body) {
+  body.innerHTML = `<div class="side"><div class="ty-fig"></div>
+    <div class="ctl col"><div class="ltt-param">방향 u <span class="val" id="ty-a-v"></span><div id="ty-a"></div></div>
+    <div class="ro col"><span class="wide">H(x₀) = <b>[ 2  5 ; 5  6 ]</b></span><span class="wide">(df/dx)u = <b id="ty-d"></b></span><span class="wide">uᵀHu = <b id="ty-q"></b></span></div></div></div>`;
+  const s = svgFig(body.querySelector(".ty-fig"), 940, 440);
+  const X = d3.scaleLinear([-0.2, 1.8], [40, 340]), Y = d3.scaleLinear([-0.2, 1.8], [380, 80]);
+  const clip = s.clip(40, 80, 300, 300);
+  mapFrame(s, X, Y, [0, 1]);
+  contourPaths(s.append("g").attr("clip-path", clip), X, Y, [-0.2, 1.8, -0.2, 1.8], [0.5, 1, 2, 3, 5, 8, 12], "ctr");
+  s.append("text").attr("x", 40).attr("y", 36).attr("class", "big").text("지도: x₀ + t·u, t ∈ [−1, 1]");
+  const path = s.append("line").attr("class", "l-c2").attr("clip-path", clip), uA = s.append("line").attr("class", "l-acc").attr("marker-end", s.mk("acc"));
+  s.append("circle").attr("cx", X(1)).attr("cy", Y(1)).attr("r", 6).style("fill", "var(--ltt-ink)");
+  const TX = d3.scaleLinear([-1, 1], [440, 900]), TY = d3.scaleLinear([-4, 15], [380, 60]);
+  s.append("rect").attr("class", "frame").attr("x", 440).attr("y", 60).attr("width", 460).attr("height", 320);
+  s.append("line").attr("class", "grid").attr("x1", 440).attr("x2", 900).attr("y1", TY(0)).attr("y2", TY(0));
+  s.append("line").attr("class", "grid").attr("x1", TX(0)).attr("x2", TX(0)).attr("y1", 60).attr("y2", 380);
+  [-1, -0.5, 0, 0.5, 1].forEach(t => s.append("text").attr("class", "m").attr("x", TX(t)).attr("y", 400).attr("text-anchor", "middle").text(num(t, 1)));
+  [0, 5, 10].forEach(t => s.append("text").attr("class", "m").attr("x", 434).attr("y", TY(t) + 5).attr("text-anchor", "end").text(t));
+  s.append("text").attr("class", "m").attr("x", 900).attr("y", 420).attr("text-anchor", "end").text("t →");
+  s.append("text").attr("x", 440).attr("y", 36).attr("class", "big").text("단면 f(x₀ + t·u)와 근사");
+  const real = s.append("path").attr("class", "curve"), t1 = s.append("path").attr("class", "l-c2"), t2 = s.append("path").attr("class", "l-acc l-dash");
+  const mk = s.append("line").attr("class", "ghost").attr("x1", TX(0.5)).attr("x2", TX(0.5)).attr("y1", 60).attr("y2", 380);
+  const dots = s.append("g"), leg = s.append("g");
+  [["curve", "실제 f(x₀ + t·u)"], ["l-c2", "1차: f + t·(df/dx)u"], ["l-acc l-dash", "2차: … + ½t²·uᵀHu"]].forEach(([c, t], i) => {
+    leg.append("line").attr("class", c).attr("x1", 460).attr("x2", 496).attr("y1", 82 + i * 24).attr("y2", 82 + i * 24);
+    leg.append("text").attr("x", 504).attr("y", 87 + i * 24).text(t);
+  });
+  const vt = s.append("text").attr("x", 460).attr("y", 166);
+  const T = d3.range(-1, 1.0001, 0.02);
+  LTT.sweep({
+    params: { "ty-a": { kind: "dial", value: 37, step: 1, fmt: v => `α = ${Math.round(v)}°` } },
+    render: (v) => {
+      const r = v["ty-a"] * Math.PI / 180, u = [Math.sin(r), Math.cos(r)];
+      const D = 3 * u[0] + 4 * u[1], Q = 2 * u[0] * u[0] + 10 * u[0] * u[1] + 6 * u[1] * u[1];
+      const g = t => F(1 + t * u[0], 1 + t * u[1]), a1 = t => 2 + t * D, a2 = t => 2 + t * D + 0.5 * t * t * Q;
+      const clampY = y => TY(Math.max(-4, Math.min(15, y)));
+      path.attr("x1", X(1 - u[0])).attr("y1", Y(1 - u[1])).attr("x2", X(1 + u[0])).attr("y2", Y(1 + u[1]));
+      uA.attr("x1", X(1)).attr("y1", Y(1)).attr("x2", X(1 + 0.5 * u[0])).attr("y2", Y(1 + 0.5 * u[1]));
+      real.attr("d", d3.line()(T.map(t => [TX(t), clampY(g(t))])));
+      t1.attr("d", d3.line()(T.map(t => [TX(t), clampY(a1(t))])));
+      t2.attr("d", d3.line()(T.map(t => [TX(t), clampY(a2(t))])));
+      dots.selectAll("*").remove();
+      [[g, "var(--ltt-ink)"], [a1, "var(--ltt-c2)"], [a2, "var(--ltt-accent)"]].forEach(([fn, col]) => dots.append("circle").attr("cx", TX(0.5)).attr("cy", clampY(fn(0.5))).attr("r", 6).style("fill", col));
+      vt.text(`t = 0.5: 실제 ${num(g(0.5))} · 1차 ${num(a1(0.5))} · 2차 ${num(a2(0.5))}`);
+      body.querySelector("#ty-d").textContent = num(D);
+      body.querySelector("#ty-q").textContent = num(Q);
+    }
+  });
+  return {};
+}
+
+/* ---------- 개요 그림 ---------- */
+function overviewFig(el) {
+  const s = svgFig(el, 960, 470);
+  const g = s.append("g"), z = 30;
+  const badge = (x, y, n) => { const b = g.append("g").attr("class", "badge"); b.append("circle").attr("cx", x).attr("cy", y).attr("r", 13); b.append("text").attr("x", x).attr("y", y + 5).text(n); };
+  g.append("text").attr("x", 20).attr("y", 50).attr("class", "big").text("f(x₀ + Δx) ≈ f(x₀) +");
+  blockGrid(g, 200, 30, 1, 3, z, "cell-c2"); g.append("text").attr("x", 200).attr("y", 82).attr("class", "m").text("df/dx 1×n");
+  blockGrid(g, 300, 15, 3, 1, z, "cell"); g.append("text").attr("x", 296).attr("y", 122).attr("class", "m").text("Δx n×1");
+  g.append("text").attr("x", 350).attr("y", 50).attr("class", "big").text("+ ½");
+  blockGrid(g, 390, 30, 1, 3, z, "cell"); g.append("text").attr("x", 390).attr("y", 82).attr("class", "m").text("Δxᵀ");
+  blockGrid(g, 490, 15, 3, 3, z, "cell-acc"); g.append("text").attr("x", 490).attr("y", 122).attr("class", "m").text("H n×n");
+  blockGrid(g, 590, 15, 3, 1, z, "cell"); g.append("text").attr("x", 590).attr("y", 122).attr("class", "m").text("Δx");
+  badge(200, 18, "1"); badge(318, 8, "2"); badge(490, 8, "9");
+  g.append("text").attr("x", 650).attr("y", 36).attr("class", "m").text("1 칸 하나 = 편미분 하나");
+  g.append("text").attr("x", 650).attr("y", 60).attr("class", "m").text("2 (df/dx)Δx = 방향 변화율 × 거리");
+  g.append("text").attr("x", 650).attr("y", 84).attr("class", "m").text("9 Hessian = 곡률 항");
+  // Jacobian과 모양
+  g.append("text").attr("x", 20).attr("y", 180).attr("class", "big").text("출력이 벡터면");
+  blockGrid(g, 40, 200, 2, 3, z, (i) => "cell"); badge(30, 200, "3");
+  g.append("line").attr("class", "l-acc").attr("x1", 32).attr("x2", 32).attr("y1", 222).attr("y2", 257);
+  g.append("line").attr("class", "l-c2").attr("x1", 40).attr("x2", 127).attr("y1", 192).attr("y2", 192);
+  g.append("text").attr("x", 40).attr("y", 290).text("J: m×n, 행 = 출력");
+  g.append("text").attr("x", 40).attr("y", 312).text("열 = 입력, |det J| = 넓이 배율");
+  badge(26, 335, "4"); g.append("text").attr("x", 46).attr("y", 340).attr("class", "m").text("df/dx 모양 = (f 모양) × (x 모양)");
+  // 연쇄 법칙
+  g.append("text").attr("x", 360).attr("y", 180).attr("class", "big").text("합성하면 곱한다");
+  blockGrid(g, 360, 210, 1, 2, z, "cell-acc"); g.append("text").attr("x", 428).attr("y", 230).text("·");
+  blockGrid(g, 445, 200, 2, 3, z, "cell"); g.append("text").attr("x", 540).attr("y", 230).text("=");
+  blockGrid(g, 560, 210, 1, 3, z, "cell-c2"); badge(350, 200, "5");
+  arrow(g, 520, 290, 380, 290, "l-acc", s.mk("acc"));
+  g.append("text").attr("x", 360).attr("y", 316).attr("class", "acc").text("출력 쪽 행벡터부터 곱한다 = 역전파");
+  badge(350, 290, "7"); badge(350, 340, "8");
+  g.append("text").attr("x", 370).attr("y", 346).attr("class", "m").text("손실 1개(m=1) → reverse 1번, forward n번");
+  // 행렬 gradient
+  g.append("text").attr("x", 700).attr("y", 180).attr("class", "big").text("층의 가중치로");
+  blockGrid(g, 700, 200, 2, 1, z, "cell-acc"); g.append("text").attr("x", 736).attr("y", 230).text("·");
+  blockGrid(g, 750, 215, 1, 3, z, "cell-c2"); g.append("text").attr("x", 845).attr("y", 230).text("=");
+  blockGrid(g, 865, 200, 2, 3, 26, "cell-acc"); badge(690, 200, "6");
+  g.append("text").attr("x", 700).attr("y", 290).text("dL/dA = δᵀ xᵀ");
+  g.append("text").attr("x", 700).attr("y", 312).attr("class", "m").text("A와 같은 모양");
+  g.append("text").attr("x", 20).attr("y", 440).attr("class", "m").text("번호 = 앞 정리 카드 번호. MML 표기(df/dx = 행)를 따른다. 프레임워크는 ∇f = (df/dx)ᵀ를 x 모양으로 저장한다.");
+  return { el: s.node() };
+}
+
+/* ---------- 개념 나무 ---------- */
+function treeFig(el) {
+  const svg = el.appendChild(document.createElementNS(SVGNS, "svg"));
+  svg.setAttribute("class", "fig");
+  const dg = LTT.diagram(svg, {
+    cols: 2, rows: 7, cell: [340, 62], node: [250, 52],
+    zones: [{ id: "now", c0: 0, r0: 0, c1: 0, r1: 6, l: "이번 수업", k: "accent" }, { id: "next", c0: 1, r0: 0, c1: 1, r1: 6, l: "다음에 이어서", k: "muted" }],
+    nodes: [
+      { id: "g", c: 0, r: 1.1, l: "gradient 1×n", s: "편미분·방향 미분", k: "accent" },
+      { id: "h", c: 0, r: 2.6, l: "Hessian·2차 테일러", k: "accent" },
+      { id: "j", c: 0, r: 3.6, l: "Jacobian·det J", k: "accent" },
+      { id: "b", c: 0, r: 4.6, l: "역전파 (reverse 모드)", k: "accent" },
+      { id: "s", c: 0, r: 5.6, l: "모양 규칙·행렬 gradient", k: "accent" },
+      { id: "gd", c: 1, r: 0.6, l: "경사 하강법", s: "MML 7.1" },
+      { id: "lg", c: 1, r: 1.6, l: "라그랑주 승수", s: "MML 7.2 제약 최적화" },
+      { id: "nt", c: 1, r: 2.6, l: "뉴턴 방법", s: "Hessian으로 한 걸음" },
+      { id: "cv", c: 1, r: 3.6, l: "확률밀도 변수 변환", s: "MML 6.7 · |det J|" },
+      { id: "vjp", c: 1, r: 4.6, l: "vjp / jvp API", s: "JAX·PyTorch autograd" },
+      { id: "mc", c: 1, r: 5.6, l: "행렬 미분 항등식", s: "Matrix Cookbook" }
+    ],
+    edges: [{ f: "g", t: "gd" }, { f: "g", t: "lg" }, { f: "h", t: "nt" }, { f: "j", t: "cv" }, { f: "b", t: "vjp" }, { f: "s", t: "mc" }]
+  });
+  return { el: svg, dg };
+}
+
+const svgMini = (inner, vb = "0 0 120 80") => `<svg class="mini" viewBox="${vb}" fill="none" stroke="currentColor" stroke-width="2.5">${inner}</svg>`;
+
+LTT.deck({
+  title: "MML 5장 Vector Calculus — 미분은 모양을 가진 선형 사상",
+  theme: "chalk",
+  scenes: [
+    { type: "hook", art: svgMini(`<rect x="14" y="8" width="18" height="18"/><rect x="14" y="30" width="18" height="18"/><rect x="14" y="52" width="18" height="18"/><text x="44" y="46" fill="currentColor" stroke="none" font-size="20">?</text><rect x="62" y="30" width="16" height="18"/><rect x="80" y="30" width="16" height="18"/><rect x="98" y="30" width="16" height="18"/>`),
+      pre: "MML 5장 Vector Calculus", text: "{{gradient}}는 언제나 x와 같은 모양의 열벡터일까?",
+      sub: "이 질문에 스스로 답할 수 있게 되는 것이 이 수업의 목표다. {{편미분}} → {{Jacobian}} → 모양 규칙 → {{연쇄 법칙}} → {{역전파}} → {{Hessian}} 순서로 올라간다." },
+    { type: "terms", title: "이 수업에서 쓰는 말", terms: [
+      { key: "편미분", word: "편미분", en: "partial derivative", visual: svgMini(`<path d="M5 70 Q60 0 115 40"/><line x1="30" y1="62" x2="95" y2="18" stroke-dasharray="5 4"/>`), plain: "다른 입력은 고정하고 하나만 움직인 단면의 기울기", example: "∂f/∂x₁" },
+      { key: "Jacobian", word: "Jacobian", en: "Jacobian", visual: svgMini(`<rect x="10" y="25" width="30" height="30"/><path d="M50 40 h15"/><path d="M75 55 L95 20 L118 30 L98 65 Z"/>`), plain: "벡터 출력 함수를 한 점 근처에서 대신하는 선형 사상(행렬)", example: "극좌표 → 직교좌표" },
+      { key: "연쇄 법칙", word: "연쇄 법칙", en: "chain rule", visual: svgMini(`<rect x="5" y="25" width="30" height="30"/><rect x="45" y="25" width="30" height="30"/><rect x="85" y="25" width="30" height="30"/><path d="M35 40h10M75 40h10"/>`), plain: "합성 함수의 미분은 각 단계 미분의 곱", example: "dL/dx = (dL/dh)(dh/dx)" },
+      { key: "역전파", word: "역전파", en: "backpropagation", visual: svgMini(`<circle cx="15" cy="40" r="10"/><circle cx="60" cy="40" r="10"/><circle cx="105" cy="40" r="10"/><path d="M95 40H72M50 40H27" stroke-dasharray="4 3"/><path d="M76 34l-6 6 6 6M31 34l-6 6 6 6"/>`), plain: "출력에서 입력 쪽으로 미분을 곱해 가는 계산", example: "신경망 학습의 {{gradient}}" },
+      { key: "Hessian", word: "Hessian", en: "Hessian", visual: svgMini(`<path d="M10 15 Q60 110 110 15"/>`), plain: "2차 편미분을 모은 n×n 행렬 — 휘어짐(곡률)", example: "뉴턴 방법의 재료" },
+      { key: "텐서", word: "텐서", en: "tensor", visual: svgMini(`<rect x="30" y="10" width="60" height="40"/><rect x="20" y="20" width="60" height="40"/><rect x="10" y="30" width="60" height="40"/>`), plain: "축이 셋 이상인 수 배열", example: "2×2×3 블록" }
+    ] },
+    { title: "편미분은 한 입력만 움직인 단면의 기울기다", en: "Partial derivatives as slice slopes",
+      sub: "f(x₁, x₂) = x₁²x₂ + x₁x₂³ (MML 예 5.6). 지도 위 x₀를 끌어 본다. 가로선(x₂ 고정)·세로선(x₁ 고정) 위의 f가 오른쪽 단면이고(두 그래프는 같은 축척), x₀에서의 접선 기울기가 {{편미분}}이다. 두 편미분을 모은 것이 {{gradient}}다.",
+      mount: partialScene,
+      takeaway: "편미분 ∂f/∂xᵢ는 다른 입력을 고정한 단면의 기울기이고, 편미분을 모두 모은 것이 gradient다.",
+      recall: "x₀ = (1, 1)에서 ∂f/∂x₂ = 4를 단면 그림에서 어떻게 읽나?", basis: "MML 5.2 예 5.6–5.7" },
+    { title: "gradient 방향으로 갈 때 f가 가장 빨리 오른다", en: "Directional derivative",
+      sub: "같은 f, x₀ = (1, 1). 다이얼로 방향 u를 돌린다. 방향 u로의 변화율({{방향 미분}})은 편미분에 u의 성분을 곱해 더한 3u₁ + 4u₂이고, (3, 4) 방향에서 가장 크며(5) 등고선을 따라가면 0이다.",
+      mount: directionScene,
+      takeaway: "방향 u로의 변화율은 3u₁ + 4u₂ = (df/dx)·u이고, 최댓값 ‖(3, 4)‖ = 5는 등고선에 수직인 gradient 방향에서 나온다.",
+      recall: "등고선을 따라 움직이면 방향 미분은 얼마이고, 왜 그런가?", basis: "MML 5.2" },
+    { title: "Jacobian은 한 점 근처에서 함수를 대신하는 선형 사상이다", en: "Jacobian as local linear map",
+      layout: "stack",
+      narration: "출력도 벡터인 함수 (r, θ) ↦ (r cos θ, r sin θ)에서 입력의 작은 정사각형은 출력에서 굽은 조각(색칠)이 된다. J의 1열은 r 방향 한 변이, 2열은 θ 방향 한 변이 가는 곳이고, 두 열이 만든 평행사변형(점선)이 굽은 조각을 근사한다. {{행렬식}} det J = r는 넓이 배율이고, h를 줄이면 실제 넓이비 r + h/2가 det J로 다가간다.",
+      mount: jacobianScene,
+      takeaway: "{{Jacobian}} J의 j번째 열은 입력 j축 방향의 작은 이동이 출력에서 가는 곳이고, |det J|는 작은 넓이의 배율이다.",
+      recall: "극좌표 사상에서 det J = r는 무엇을 뜻하나?", basis: "MML 5.3 그림 5.5–5.6, 식 5.58" },
+    { type: "predict", title: "스칼라 함수의 df/dx는 어떤 모양일까?",
+      question: "f: ℝ³ → ℝ (입력 3개, 출력 1개). 앞 장면 J와 같은 규칙(MML 표기)으로 df/dx를 쓰면 모양은?",
+      visual: () => LTT.facts([{ icon: "layers", value: "ℝ³ → ℝ", label: "입력 3개, 출력 1개" }, { icon: "target", value: "J (극좌표)", label: "앞 장면: 2×2" }]),
+      choices: [{ id: "col", text: "3×1 열벡터 (x와 같은 모양)" }, { id: "row", text: "1×3 행벡터" }, { id: "sq", text: "3×3 행렬" }, { id: "none", text: "정할 수 없다" }],
+      answer: "row",
+      why: "행 = 출력 f의 축(1개), 열 = 입력 x의 축(3개) → 1×3. 극좌표 J에서 행이 (x, y), 열이 (r, θ)였던 것과 같은 규칙이다. x와 같은 모양의 열벡터 ∇f = (df/dx)ᵀ는 많은 교재와 PyTorch·JAX의 .grad가 쓰는 저장 관례다. 숫자는 같고 모양만 전치다.",
+      answerVisual: svgMini(`<rect x="10" y="30" width="24" height="24"/><rect x="36" y="30" width="24" height="24"/><rect x="62" y="30" width="24" height="24"/><g stroke-dasharray="4 3" opacity=".6"><rect x="98" y="4" width="18" height="18"/><rect x="98" y="24" width="18" height="18"/><rect x="98" y="44" width="18" height="18"/></g>`) },
+    { type: "figure", title: "df/dx의 모양은 (f의 모양) × (x의 모양)이다", en: "Shape rule",
+      sub: "MML 표기. 행 방향에 f(출력)의 축, 열 방향에 x(입력)의 축이 붙는다. 수치 예: f ∈ ℝ², x ∈ ℝ³, A ∈ ℝ²ˣ³.",
+      figure: shapeTable,
+      caption: "오른쪽 아래가 다음 장면들의 주인공이다: 출력이 벡터이고 미분할 대상이 행렬이면 축이 3개인 {{텐서}}가 된다.",
+      takeaway: "MML 표기에서 df/dx의 행은 출력 f의 축, 열은 입력 x의 축이다. 스칼라 f의 gradient는 1×n이고, x 모양의 열벡터 ∇f는 그 전치로 저장하는 관례다.",
+      recall: "f ∈ ℝ²를 A ∈ ℝ²ˣ³로 미분하면 어떤 모양인가?", basis: "MML 5.3–5.4 (그림 5.7)" },
+    { type: "figure", title: "연쇄 법칙은 Jacobian의 곱이다", en: "Chain rule as matrix product",
+      sub: "선형층 h = A x 뒤에 손실 L = ½‖h − y‖²가 붙은 작은 망. 입력 x에 대한 손실의 미분을 구한다.",
+      narration: "{{연쇄 법칙}}을 모양 규칙으로 읽으면 dL/dh(1×2)와 dh/dx(2×3)의 행렬 곱이다. 맞닿는 안쪽 차원 2가 같아야 곱할 수 있고, 바깥 차원 1×3이 남는다. ½‖h − y‖²를 h로 미분하면 (h − y)ᵀ이므로 δ = dL/dh = [0.5  −1]이다. 이 δ는 다음 장면에서도 쓴다.",
+      figure: chainFig, layout: "split",
+      takeaway: "연쇄 법칙은 Jacobian의 곱이고, 맞닿는 안쪽 차원이 같아야 곱해진다: (1×2)(2×3) = 1×3.",
+      recall: "dL/dx를 구할 때 dL/dh와 dh/dx 중 무엇이 왼쪽에 오나?", basis: "MML 5.2.2, 5.3" },
+    { type: "figure", title: "가중치 A에 대한 gradient는 텐서를 δ로 접은 δᵀxᵀ다", en: "Gradient w.r.t. a matrix",
+      sub: "같은 망, 같은 x = (1, 2, −1)과 δ = [0.5  −1]. 이번에는 x가 아니라 가중치 A로 미분한다.",
+      figure: matrixFig,
+      caption: "① ∂hᵢ/∂A는 i행에만 x가 놓인 조각, 두 장을 쌓은 2×2×3 {{텐서}}가 dh/dA. ② 연쇄 법칙대로 조각마다 δᵢ를 곱한다. ③ 더하면 A와 같은 모양이라 경사 하강 A − η·dL/dA에 바로 쓴다(η: 학습률).",
+      takeaway: "선형층 h = Ax에서 dL/dA는 2×2×3 텐서를 δ로 접은 δᵀxᵀ이고, A와 같은 2×3 모양이다.",
+      recall: "dL/dA의 (i, j) 칸은 어떤 두 수의 곱인가?", basis: "MML 5.4 예 5.12" },
+    { title: "역전파는 출력에서 1을 놓고 국소 미분을 거꾸로 곱한다", en: "Backpropagation on a computation graph",
+      sub: "f(x) = √(x² + exp(x²)) + cos(x² + exp(x²)) (MML 예 5.14)를 {{자동미분}}으로 쪼갠 그래프. 앞으로는 노드 값(위 숫자)만, 뒤로는 f에 1을 놓고 간선의 국소 미분을 곱해 ∂f/∂·({{adjoint}}, 아래 숫자)를 채운다. a처럼 두 길로 f에 닿으면 두 길의 기여를 더한다.",
+      mount: backpropScene,
+      takeaway: "{{역전파}}는 앞으로 값을 계산해 둔 뒤, 출력에서 1을 놓고 국소 미분을 거꾸로 곱해 모든 중간 변수의 adjoint를 한 번에 채운다.",
+      recall: "∂f/∂a를 구할 때 왜 두 경로(a→c, a→b→c)를 더하나?", basis: "MML 5.6 예 5.14, 식 5.145–5.149" },
+    { title: "손실이 하나면 reverse 모드는 한 번에 끝난다", en: "Forward vs reverse mode",
+      sub: "f: ℝⁿ → ℝᵐ. 슬라이더로 입력 수 n과 출력 수 m을 바꾼다. 기본값은 매개변수 백만 개, 손실 1개.",
+      narration: "{{forward 모드}}는 입력 쪽부터 곱해 한 {{패스}}에 Jacobian의 열 하나를, {{reverse 모드}}는 출력 쪽부터 곱해 한 패스에 행 하나를 얻는다. 신경망 학습은 n이 매우 크고 m = 1이라 reverse 모드(역전파) 한 패스로 gradient 전체를 얻는다. 반대로 입력이 적고 출력이 많으면 forward 모드가 적게 지난다.",
+      mount: modeScene,
+      takeaway: "m×n Jacobian 전체를 얻는 데 forward 모드는 n번, reverse 모드는 m번 지난다. 손실이 스칼라(m = 1)면 reverse가 한 번으로 끝난다.",
+      recall: "입력 10⁶개, 출력 1개면 어느 모드를 쓰고, 몇 번 지나나?", basis: "Baydin et al. 2018, Automatic Differentiation in Machine Learning: a Survey §3" },
+    { title: "Hessian은 1차 근사가 놓친 휘어짐을 채운다", en: "Hessian and second-order Taylor",
+      sub: "다시 f = x₁²x₂ + x₁x₂³, x₀ = (1, 1). gradient를 한 번 더 미분해 모은 n×n 행렬이 {{Hessian}}이다. 방향 u로 자른 단면에서 1차 근사와, ½t²·uᵀHu를 더한 2차 {{테일러 전개}}를 비교한다. 다이얼을 90°(x₁ 방향)로 돌리면 단면이 x₁의 2차식이라 2차 근사가 실제와 겹친다.",
+      mount: taylorScene,
+      takeaway: "Hessian H는 gradient를 한 번 더 미분한 n×n 대칭 행렬이고, 2차 테일러 f(x₀+Δx) ≈ f + (df/dx)Δx + ½ΔxᵀHΔx의 곡률 항이다(Δx = t·u: x₀에서 움직인 변위).",
+      recall: "1차 근사가 빗나가는 정도를 무엇이 고쳐 주고, 그 모양은?", basis: "MML 5.7–5.8, 식 5.161" },
+    { type: "figure", title: "다음에 이어서 볼 개념", en: "Concept tree",
+      sub: "왼쪽은 이번 수업에서 다룬 개념, 오른쪽은 그 개념에서 바로 이어지는 다음 주제다.",
+      figure: treeFig },
+    { type: "summary", title: "한 장 정리" },
+    { type: "overview", title: "미분은 모양을 가진 선형 사상이고, 그 모양이 계산을 정한다", figure: overviewFig,
+      caption: "번호는 정리 카드 번호다." },
+    { type: "keywords", title: "찾아볼 말",
+      terms: [{ ko: "편미분", en: "partial derivative" }, { ko: "Jacobian 행렬", en: "Jacobian matrix" }, { ko: "분자 배치 표기", en: "numerator layout" }, { ko: "행렬에 대한 gradient", en: "gradient with respect to a matrix" }, { ko: "역방향 자동미분", en: "reverse-mode automatic differentiation" }, { ko: "Hessian", en: "Hessian matrix" }],
+      queries: ["numerator layout vs denominator layout", "vector-Jacobian product JAX vjp", "Mathematics for Machine Learning chapter 5"],
+      neighbors: [{ term: "분모 배치 표기 (denominator layout)", diff: "gradient를 열벡터로 두는 표기. 모양이 MML의 전치다." }, { term: "Jacobian vs Hessian", diff: "Jacobian은 벡터 함수의 1차 미분, Hessian은 스칼라 함수의 2차 미분이다(= gradient의 Jacobian)." }] }
+  ]
+});
+
+// 기대값 대조 (outline.md에서 손으로 구한 값)
+{
+  const [g1, g2] = G(1, 1);
+  LTT.expect("∂f/∂x₁ at (1,1)", g1, 3, { tol: 1e-12 });
+  LTT.expect("∂f/∂x₂ at (1,1)", g2, 4, { tol: 1e-12 });
+  LTT.expect("방향 미분 최댓값", Math.hypot(g1, g2), 5, { tol: 1e-12 });
+  const Hm = H(1, 1);
+  LTT.expect("Hessian (1,1) 비대각", Hm[0][1], 5, { tol: 1e-12 });
+  LTT.expect("uᵀHu, u=(0.6,0.8)", 2 * 0.36 + 2 * 5 * 0.48 + 6 * 0.64, 9.36, { tol: 1e-9 });
+  const gt = t => F(1 + 0.6 * t, 1 + 0.8 * t);
+  LTT.expect("단면 실제 t=0.5", gt(0.5), 5.9332, { tol: 1e-4 });
+  LTT.expect("2차 근사 t=0.5", 2 + 5 * 0.5 + 0.5 * 0.25 * 9.36, 5.67, { tol: 1e-9 });
+  const r = 2, th = Math.PI / 6, h = 0.2, pts = [], k = 400;
+  for (let i = 0; i <= k; i++) pts.push([r + h * i / k, th]);
+  for (let i = 0; i <= k; i++) pts.push([r + h, th + h * i / k]);
+  for (let i = k; i >= 0; i--) pts.push([r + h * i / k, th + h]);
+  for (let i = k; i >= 0; i--) pts.push([r, th + h * i / k]);
+  const area = Math.abs(d3.polygonArea(pts.map(([rr, t]) => [rr * Math.cos(t), rr * Math.sin(t)])));
+  LTT.expect("극좌표 실제 넓이비 r=2,h=0.2", area / (h * h), 2.1, { tol: 1e-3 });
+  LTT.expect("det J at r=2", Math.cos(th) * r * Math.cos(th) + r * Math.sin(th) * Math.sin(th), 2, { tol: 1e-12 });
+  const A = [[1, 0, 1], [0, 1, 1]], xv = [1, 2, -1], y = [-0.5, 2];
+  const hv = A.map(row => row.reduce((s, v, j) => s + v * xv[j], 0)), dl = hv.map((v, i) => v - y[i]);
+  LTT.expect("δ₁", dl[0], 0.5, { tol: 1e-12 }); LTT.expect("δ₂", dl[1], -1, { tol: 1e-12 });
+  const dLdx = [0, 1, 2].map(j => dl[0] * A[0][j] + dl[1] * A[1][j]);
+  LTT.expect("dL/dx₃", dLdx[2], -0.5, { tol: 1e-12 });
+  const Lf = M => { const hh = M.map(row => row.reduce((s, v, j) => s + v * xv[j], 0)); return 0.5 * ((hh[0] - y[0]) ** 2 + (hh[1] - y[1]) ** 2); };
+  LTT.expect("L", Lf(A), 0.625, { tol: 1e-12 });
+  const e = 1e-6, Ap = [[1 + e, 0, 1], [0, 1, 1]], Am = [[1 - e, 0, 1], [0, 1, 1]];
+  LTT.expect("dL/dA₁₁ (차분)", (Lf(Ap) - Lf(Am)) / (2 * e), 0.5, { tol: 1e-6 });
+  const A23p = [[1, 0, 1], [0, 1, 1 + e]], A23m = [[1, 0, 1], [0, 1, 1 - e]];
+  LTT.expect("dL/dA₂₃ (차분)", (Lf(A23p) - Lf(A23m)) / (2 * e), 1, { tol: 1e-6 });
+  const fx = x => Math.sqrt(x * x + Math.exp(x * x)) + Math.cos(x * x + Math.exp(x * x));
+  LTT.expect("f(1) 예 5.14", fx(1), 1.09001, { tol: 1e-4 });
+  LTT.expect("df/dx(1) 차분", (fx(1 + e) - fx(1 - e)) / (2 * e), 5.98308, { tol: 1e-4 });
+}
+</script>
+</body>
+</html>

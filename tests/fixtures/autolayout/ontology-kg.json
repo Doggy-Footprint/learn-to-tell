@@ -1,0 +1,274 @@
+{
+ "direction": "RIGHT",
+ "node": [
+  128,
+  54
+ ],
+ "spacing": [
+  24,
+  32
+ ],
+ "maxWidth": false,
+ "groups": [
+  {
+   "id": "abox",
+   "l": "ABox · 실제 데이터"
+  },
+  {
+   "id": "tbox",
+   "l": "TBox · 클래스 정의",
+   "k": "accent"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "mackay",
+   "l": "ex:mackay",
+   "s": "맥케이",
+   "group": "abox"
+  },
+  {
+   "id": "shannon",
+   "l": "ex:shannon",
+   "s": "섀넌 · 타입 없음",
+   "group": "abox"
+  },
+  {
+   "id": "itila",
+   "l": "ex:itila",
+   "s": "맥케이의 책",
+   "group": "abox"
+  },
+  {
+   "id": "mtc",
+   "l": "ex:mtc",
+   "s": "섀넌의 1948 논문",
+   "group": "abox"
+  },
+  {
+   "id": "y2003",
+   "l": "2003",
+   "s": "리터럴",
+   "k": "muted",
+   "w": 92,
+   "group": "abox"
+  },
+  {
+   "id": "y1948",
+   "l": "1948",
+   "s": "리터럴",
+   "k": "muted",
+   "w": 92,
+   "group": "abox"
+  },
+  {
+   "id": "entropy",
+   "l": "ex:entropy",
+   "s": "엔트로피",
+   "group": "abox"
+  },
+  {
+   "id": "condEntropy",
+   "l": "ex:condEntropy",
+   "s": "조건부 엔트로피",
+   "group": "abox"
+  },
+  {
+   "id": "mutualInfo",
+   "l": "ex:mutualInfo",
+   "s": "상호정보량",
+   "group": "abox"
+  },
+  {
+   "id": "kl",
+   "l": "ex:kl",
+   "s": "KL 발산",
+   "group": "abox"
+  },
+  {
+   "id": "Person",
+   "l": "ex:Person",
+   "s": "사람",
+   "k": "accent",
+   "group": "tbox"
+  },
+  {
+   "id": "Book",
+   "l": "ex:Book",
+   "s": "책",
+   "k": "accent",
+   "group": "tbox"
+  },
+  {
+   "id": "Paper",
+   "l": "ex:Paper",
+   "s": "논문",
+   "k": "accent",
+   "group": "tbox"
+  },
+  {
+   "id": "Work",
+   "l": "ex:Work",
+   "s": "저작물",
+   "k": "accent",
+   "group": "tbox"
+  },
+  {
+   "id": "Concept",
+   "l": "ex:Concept",
+   "s": "개념",
+   "k": "accent",
+   "group": "tbox"
+  }
+ ],
+ "edges": [
+  {
+   "f": "mackay",
+   "t": "itila",
+   "l": "wrote",
+   "k": "accent",
+   "dash": false
+  },
+  {
+   "f": "shannon",
+   "t": "mtc",
+   "l": "wrote",
+   "k": "accent",
+   "dash": false
+  },
+  {
+   "f": "itila",
+   "t": "y2003",
+   "l": "year",
+   "k": "",
+   "dash": false
+  },
+  {
+   "f": "mtc",
+   "t": "y1948",
+   "l": "year",
+   "k": "",
+   "dash": false
+  },
+  {
+   "f": "itila",
+   "t": "entropy",
+   "l": "covers",
+   "k": "",
+   "dash": false
+  },
+  {
+   "f": "itila",
+   "t": "mutualInfo",
+   "l": "covers",
+   "k": "",
+   "dash": false
+  },
+  {
+   "f": "mtc",
+   "t": "entropy",
+   "l": "covers",
+   "k": "",
+   "dash": false
+  },
+  {
+   "f": "entropy",
+   "t": "condEntropy",
+   "l": "prereqOf",
+   "k": "",
+   "dash": false
+  },
+  {
+   "f": "condEntropy",
+   "t": "mutualInfo",
+   "l": "prereqOf",
+   "k": "",
+   "dash": false
+  },
+  {
+   "f": "entropy",
+   "t": "kl",
+   "l": "relatedTo",
+   "k": "",
+   "dash": false
+  },
+  {
+   "f": "mackay",
+   "t": "Person",
+   "l": "a",
+   "k": "muted",
+   "dash": false
+  },
+  {
+   "f": "itila",
+   "t": "Book",
+   "l": "a",
+   "k": "muted",
+   "dash": false
+  },
+  {
+   "f": "mtc",
+   "t": "Paper",
+   "l": "a",
+   "k": "muted",
+   "dash": false
+  },
+  {
+   "f": "entropy",
+   "t": "Concept",
+   "l": "a",
+   "k": "muted",
+   "dash": false
+  },
+  {
+   "f": "Book",
+   "t": "Work",
+   "l": "subClassOf",
+   "k": "muted",
+   "dash": false
+  },
+  {
+   "f": "Paper",
+   "t": "Work",
+   "l": "subClassOf",
+   "k": "muted",
+   "dash": false
+  },
+  {
+   "f": "shannon",
+   "t": "Person",
+   "l": "a",
+   "k": "warn",
+   "dash": true,
+   "inf": true,
+   "main": false
+  },
+  {
+   "f": "mtc",
+   "t": "shannon",
+   "l": "writtenBy",
+   "k": "warn",
+   "dash": true,
+   "inf": true,
+   "main": false
+  },
+  {
+   "f": "entropy",
+   "t": "mutualInfo",
+   "l": "prereqOf",
+   "k": "warn",
+   "dash": true,
+   "inf": true,
+   "main": false
+  },
+  {
+   "f": "kl",
+   "t": "entropy",
+   "l": "relatedTo",
+   "k": "warn",
+   "dash": true,
+   "inf": true,
+   "main": false
+  }
+ ]
+}

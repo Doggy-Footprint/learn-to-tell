@@ -3,394 +3,214 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Learn to Tell 시나리오 모음</title>
+<title>Learn to Tell 갤러리</title>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-ui.js"></script>
 <style>
-  .pill { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 750; background: var(--ltt-card); padding: 6px 14px 6px 12px; border-radius: 999px; box-shadow: inset 0 0 0 1.5px var(--ltt-line); }
-  .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ltt-accent); }
-  h1 { margin-top: 18px; }
-  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 10px; }
-  .step { font-size: 14px; font-weight: 750; padding: 7px 14px; border-radius: 999px; background: var(--ltt-card); box-shadow: inset 0 0 0 1.5px var(--ltt-line-2); }
-  .step.on { background: var(--ltt-ink); color: var(--ltt-bg); box-shadow: none; }
-  .flow .to { color: var(--ltt-muted); }
-  .branches { display: grid; gap: 6px; margin: 10px 0 0; font-size: 14px; color: var(--ltt-muted); }
-  .branches b { color: var(--ltt-ink); }
-  h3.group { font-size: 14px; color: var(--ltt-accent); margin: 40px 0 14px; font-weight: 800; letter-spacing: .02em; }
-  .lib { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
-  .lib .ltt-card { margin: 0; display: flex; flex-direction: column; gap: 10px; }
-  .lib .dark { background: var(--ltt-dark); color: var(--ltt-on-dark); border-color: var(--ltt-dark); }
-  .lib .dark p { color: color-mix(in srgb, var(--ltt-on-dark) 78%, transparent); }
-  .lib h2 { margin: 0; font-size: 22px; }
-  .lib p { margin: 0; color: var(--ltt-muted); }
-  .lib code { color: var(--ltt-accent); }
-  .lib .dark code { color: var(--ltt-accent-on-dark); }
-  .go { margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap; padding-top: 8px; }
-  .go a { display: inline-flex; align-items: center; gap: 6px; font-weight: 750; color: var(--ltt-bg); background: var(--ltt-ink); padding: 9px 16px; border-radius: 999px; text-decoration: none; font-size: 14px; }
-  .go a.ghost { background: transparent; color: var(--ltt-ink); box-shadow: inset 0 0 0 1.5px var(--ltt-line-2); }
-  .dark .go a { background: var(--ltt-on-dark); color: var(--ltt-dark); }
-  .lessons { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
-  .ls { display: flex; flex-direction: column; gap: 10px; margin: 0; }
-  .ls .no { font-size: 40px; font-weight: 850; letter-spacing: -.05em; color: var(--ltt-accent); line-height: 1; }
-  .ls h2 { margin: 0; font-size: 19px; line-height: 1.35; }
-  .ls dl { display: grid; grid-template-columns: 56px 1fr; gap: 6px 10px; margin: 0; font-size: 14px; }
-  .ls dt { color: var(--ltt-muted); font-weight: 650; }
-  .ls dd { margin: 0; }
-  .scenarios { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
-  @media (max-width: 900px) { .scenarios, .lib { grid-template-columns: 1fr; } }
-  .sc { display: flex; flex-direction: column; margin: 0; }
-  .sc h2 { margin: 8px 0 10px; font-size: 18px; }
-  .sc dl { display: grid; grid-template-columns: 76px 1fr; gap: 6px 10px; margin: 0 0 12px; font-size: 14px; }
-  .sc dt { color: var(--ltt-muted); font-weight: 600; }
-  .sc dd { margin: 0; }
-  .ladder { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-  .ladder li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-  .ladder li .n { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--ltt-card-2); color: var(--ltt-muted); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
-  .ladder li.level .n { background: var(--ltt-accent); color: var(--ltt-on-accent); }
-  .ladder li.level { font-weight: 700; }
-  .ladder li.level::after { content: "← 학습 수준"; font-size: 12px; color: var(--ltt-accent); }
-  .ladder li.skip { color: var(--ltt-muted); }
-  .ans { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
-  .ans.know { background: var(--ltt-good-soft); color: var(--ltt-good); }
-  .ans.know::before { content: "✓ "; }
-  .ans.vague { background: var(--ltt-warn-soft); color: var(--ltt-warn); }
-  .ans.vague::before { content: "? "; }
-  .ans.none { background: var(--ltt-bad-soft); color: var(--ltt-bad); }
-  .ans.none::before { content: "✕ "; }
-  .ans.quiz { background: var(--ltt-accent-soft); color: var(--ltt-accent); }
-  .uses { margin: 0; padding-left: 18px; font-size: 14px; }
-  .chat { background: var(--ltt-card-2); border-radius: 12px; padding: 12px 14px; font-size: 14px; margin: 4px 0 0; }
-  .chat p { margin: 0 0 8px; }
-  .chat p:last-child { margin: 0; }
-  .chat .who { font-size: 12px; font-weight: 700; color: var(--ltt-muted); display: block; }
-  details summary { cursor: pointer; font-weight: 650; font-size: 14px; color: var(--ltt-accent); }
-  .sp-note { margin: 0 0 6px; color: var(--ltt-muted); }
-  .sp-h { font-size: 15px; margin: 22px 0 10px; }
-  .sp-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
-  .sp-chip { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border-radius: 14px; background: var(--ltt-card-2); color: var(--ltt-ink); text-decoration: none; font-size: 13px; min-width: 0; }
-  .sp-chip b { font-size: 14px; }
-  .sp-chip span { color: var(--ltt-muted); overflow-wrap: anywhere; }
-  .sp-scroll { overflow-x: auto; }
-  .sp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .sp-table th, .sp-table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--ltt-line); vertical-align: top; }
-  .sp-table th { color: var(--ltt-muted); font-weight: 650; white-space: nowrap; }
-  .sp-features { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; overflow-wrap: anywhere; }
+  main { max-width: 1240px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 { margin: 0 0 6px; }
+  .lead { color: var(--ltt-muted); margin: 0 0 28px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th { text-align: left; font-size: 12px; font-weight: 750; letter-spacing: .06em; color: var(--ltt-muted); padding: 10px 12px; border-bottom: 1.5px solid var(--ltt-line-2); }
+  td { padding: 14px 12px; border-bottom: 1px solid var(--ltt-line); vertical-align: top; line-height: 1.45; }
+  tr:hover td { background: var(--ltt-card); }
+  .no { font: 700 13px var(--ltt-mono); color: var(--ltt-accent); width: 36px; }
+  .cat { white-space: nowrap; font-weight: 700; color: var(--ltt-ink-2); width: 92px; }
+  .ttl a { font-weight: 750; font-size: 16px; color: var(--ltt-ink); text-decoration: none; }
+  .ttl a:hover { text-decoration: underline; }
+  .aud, .dec, .ver { color: var(--ltt-muted); font-size: 14px; }
+  .aud { margin-top: 4px; }
+  .kb { font: 13px var(--ltt-mono); color: var(--ltt-muted); white-space: nowrap; text-align: right; }
+  .more { margin-top: 40px; display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; }
+  .more a { color: var(--ltt-ink-2); font-weight: 700; }
+  @media (max-width: 900px) { .dec, .ver, .kb, th.h-dec, th.h-ver, th.h-kb { display: none; } }
 </style>
 </head>
 <body>
 <main>
-  <span class="pill">Learn to Tell · gallery</span>
-  <h1>시나리오와 수업 예시</h1>
-  <p class="ltt-lead">작업 상황마다 스킬이 어떤 경로로 어떤 자료를 내는지 보는 예시들이다. 새 수업은 아래 라이브러리의 부품을 조합해 빈 파일에서 짠다. 예시 수업은 조합 방법을 보여 줄 뿐, 복사해 고치는 템플릿이 아니다.</p>
-
-  <section class="ltt-card">
-    <h2>스킬의 흐름과 갈림길</h2>
-    <div class="flow">
-      <span class="step">0 시작</span><span class="to">→</span>
-      <span class="step">1 진단 (대화)</span><span class="to">→</span>
-      <span class="step">2 범위</span><span class="to">→</span>
-      <span class="step on">3 자료</span><span class="to">→</span>
-      <span class="step">4 서술 퀴즈 (대화)</span><span class="to">→</span>
-      <span class="step">5 작업 복귀</span><span class="to">→</span>
-      <span class="step">6 지식 map</span>
-    </div>
-    <div class="branches">
-      <span><b>시뮬레이션 경로</b> — 조작하며 관찰할 것이 있으면 kit 부품으로 <code>lesson.html</code>을 짠다. (아래 예시 수업)</span>
-      <span><b>simple 경로</b> — 관찰할 것이 없으면 3단계를 건너뛰고 대화 안의 짧은 자료와 퀴즈로 끝낸다. (6)</span>
-      <span><b>진단만</b> — 사다리 맨 위 단까지 알고, 확인 퀴즈도 통과하면 학습 없이 기록만 남긴다. (7)</span>
-      <span><b>회차 분할</b> — 자료가 20분을 넘으면 알리고 나눈다. (8)</span>
-    </div>
-  </section>
-
-  <h3 class="group">라이브러리</h3>
-  <div class="lib">
-    <section class="ltt-card">
-      <h2>kit 카탈로그</h2>
-      <p>모든 부품(용어 풀이, 번호 주석, BEFORE/AFTER, 목업, 격자 다이어그램, 단계 재생, 단위 그림…)을 실제로 띄우고 옆에 그 코드를 그대로 보여 준다. 시그니처와 언제 쓰는지는 <code>kit/API.md</code>(핵심)와 <code>kit/api/</code>(부품별).</p>
-      <div class="go"><a href="catalog.html">카탈로그 열기 →</a></div>
-    </section>
-    <section class="ltt-card dark">
-      <h2>장면 타입 데모</h2>
-      <p>hook, terms, explain(strip·stack·cards), figure, statement, contrast, predict, compare(table·카드), summary, keywords를 한 번씩 담은 덱. 같은 덱을 테마별로 볼 수 있다. 스타일 요구는 장면 타입 이름으로 말하면 된다 (예: "contrast 패널 간격을 넓게").</p>
-      <div class="go"><a href="scenes.html">덱 열기 →</a><a class="ghost" href="scenes.html?theme=paper">paper</a><a class="ghost" href="scenes.html?theme=blueprint">blueprint</a><a class="ghost" href="scenes.html?theme=terminal">terminal</a><a class="ghost" href="scenes.html?theme=ledger">ledger</a><a class="ghost" href="scenes.html?theme=lab">lab</a></div>
-    </section>
-  </div>
-
-  <section class="ltt-card" id="support">
-    <h2>지원 범위</h2>
-    <p class="sp-note">kit가 내는 부품 묶음, 함께 들어 있는 라이브러리, 기능별로 필요한 파일이다. 부품 하나하나는 카탈로그에서 실제로 볼 수 있다.</p>
-    <h3 class="sp-h">부품 묶음</h3>
-    <div class="sp-groups">
-      <a class="sp-chip" data-group="ltt.js" href="catalog.html"><b>기초 · ltt.js</b><span><code>tokens</code> · <code>LTT.icon</code> · <code>LTT.palette</code></span></a>
-      <a class="sp-chip" data-group="ltt-ui.js" href="catalog.html"><b>설명 · ltt-ui.js</b><span><code>LTT.narration</code> · <code>LTT.annotate</code> · <code>LTT.beforeAfter</code></span></a>
-      <a class="sp-chip" data-group="ltt-mock.js" href="catalog.html"><b>목업 · ltt-mock.js</b><span><code>mock.phone</code> · <code>mock.browser</code> · <code>mock.terminal</code></span></a>
-      <a class="sp-chip" data-group="ltt-parts.js" href="catalog.html"><b>움직이는 그림 · ltt-parts.js</b><span><code>LTT.diagram</code> · <code>LTT.sweep</code> · <code>LTT.sankey</code></span></a>
-      <a class="sp-chip" data-group="ltt-deck.js" href="catalog.html"><b>장면 덱 · ltt-deck.js</b><span><code>LTT.deck</code> · <code>figure</code> 장면 · <code>statement</code> 장면</span></a>
-    </div>
-    <h3 class="sp-h">들어 있는 라이브러리</h3>
-    <div class="sp-scroll">
-      <table class="sp-table">
-        <thead><tr><th>이름</th><th>버전</th><th>용도</th><th>kit 부품</th></tr></thead>
-        <tbody>
-          <tr data-vendor="@observablehq/plot"><td><code>@observablehq/plot</code></td><td>0.6.17</td><td>막대·선·점·분포 차트</td><td><code>LTT.plot</code></td></tr>
-          <tr data-vendor="d3"><td><code>d3</code></td><td>7.9.0</td><td>스케일·계층·도형 계산</td><td><code>LTT.plot</code> · <code>LTT.sankey</code> · d3.tree</td></tr>
-          <tr data-vendor="katex"><td><code>katex</code></td><td>0.16.11</td><td>수식 렌더</td><td><code>LTT.math</code> · 덱 <code>tex</code></td></tr>
-          <tr data-vendor="pretendard"><td><code>pretendard</code></td><td>1.3.9</td><td>본문·제목 한글 폰트</td><td><code>--ltt-font</code> · <code>--ltt-font-display</code></td></tr>
-          <tr data-vendor="noto-serif-kr"><td><code>noto-serif-kr</code></td><td>2.003</td><td>세리프 한글 폰트 (KS X 1001 부분집합)</td><td><code>--ltt-font-display</code></td></tr>
-          <tr data-vendor="d2coding"><td><code>d2coding</code></td><td>1.3.2</td><td>고정폭 한글 폰트 (KS X 1001 부분집합)</td><td><code>--ltt-mono</code></td></tr>
-          <tr data-vendor="lucide-static"><td><code>lucide-static</code></td><td>1.48.0</td><td>선 아이콘 16개 (ltt.js에 내장)</td><td><code>LTT.icon</code></td></tr>
-          <tr data-vendor="topojson-client"><td><code>topojson-client</code></td><td>3.1.0</td><td>지도 데이터 변환</td><td><code>LTT.map</code></td></tr>
-          <tr data-vendor="world-atlas"><td><code>world-atlas</code></td><td>2.0.2</td><td>국가 경계 데이터 (110m)</td><td><code>LTT.map</code></td></tr>
-          <tr data-vendor="d3-sankey"><td><code>d3-sankey</code></td><td>0.12.3</td><td>흐름 배치 계산</td><td><code>LTT.sankey</code></td></tr>
-          <tr data-vendor="prismjs"><td><code>prismjs</code></td><td>1.30.0</td><td>코드 색 입히기</td><td><code>mock.code</code>의 <code>lang</code></td></tr>
-          <tr data-vendor="elkjs"><td><code>elkjs</code></td><td>0.12.0</td><td>노드·엣지 자동 배치</td><td><code>LTT.autoLayout</code> · <code>LTT.state</code></td></tr>
-          <tr data-vendor="roughjs"><td><code>roughjs</code></td><td>4.6.6</td><td>손으로 그린 듯한 선</td><td><code>LTT.diagram</code>의 <code>sketch</code></td></tr>
-        </tbody>
-      </table>
-    </div>
-    <h3 class="sp-h">기능별 필요 파일</h3>
-    <ul class="sp-features">
-      <li data-feature="math"><b>수식</b> <code>LTT.math</code>와 덱 <code>tex</code> 필드는 KaTeX로 그린다. <code>/kit/vendor/katex/katex.min.js</code>와 <code>/kit/vendor/katex/katex.min.css</code>가 필요하다.</li>
-      <li data-feature="map"><b>지도</b> <code>LTT.map</code>은 Natural Earth 1:110m 국가 경계를 쓴다. <code>/kit/vendor/topojson-client.min.js</code>와 <code>/kit/vendor/world-atlas/countries-110m.json</code>이 필요하다.</li>
-      <li data-feature="code"><b>코드 강조</b> <code>mock.code</code>의 <code>lang</code>은 javascript, typescript, python, bash, json, sql을 지원한다. <code>/kit/vendor/prism/prism.min.js</code>가 필요하다.</li>
-      <li data-feature="layout"><b>자동 배치</b> <code>LTT.autoLayout</code>과 <code>LTT.state</code>는 좌표 없이 노드와 엣지만 받는다. <code>/kit/vendor/elk.bundled.js</code>가 필요하다.</li>
-      <li data-feature="flow"><b>흐름</b> <code>LTT.sankey</code>는 띠 굵기로 흐름량을 보인다. <code>/kit/vendor/d3-sankey.min.js</code>와 <code>/kit/vendor/d3.min.js</code>가 필요하다.</li>
-      <li data-feature="sketch"><b>손그림 느낌</b> <code>LTT.diagram</code>이 <code>sketch</code> 테마에서 쓴다. <code>/kit/vendor/rough.js</code>가 필요하다.</li>
-    </ul>
-  </section>
-
-  <h3 class="group">움직이는 장면 본보기</h3>
-  <div class="lib">
-    <section class="ltt-card">
-      <h2>본보기 51</h2>
-      <p>개념 구조(순환·순서·부분-전체·연결·공간·시간·분포·변환·계층·되먹임·트레이드오프), 테마, 움직임, 장면 역할, 구도를 겹치지 않게 조합해 kit으로 만든 장면 하나짜리 본보기다. 3B1B 영상과 설명 GIF처럼 그림 하나가 화면을 차지하고 저절로 움직인다. 모아 보기 화면에서 51개가 움직이는 채로 보이고, 카드마다 옮길 원리와 kit에 없어 손으로 그린 것을 적었다.</p>
-      <div class="go"><a href="shots/index.html">모아 보기 →</a></div>
-    </section>
-    <section class="ltt-card">
-      <details>
-        <summary>본보기 하나씩 열기</summary>
-        <div class="sp-groups" style="margin-top:10px">
-        <a class="sp-chip" href="shots/s01-cell-cycle.html"><b>01 · 세포 주기(G1→S→G2→M), 원 위 단계마다 세포 모양이 바뀜</b><span>paper · 모양이 바뀜</span></a>
-        <a class="sp-chip" href="shots/s02-rate-transmission.html"><b>02 · 기준금리 인상이 대출금리→소비→물가로 전달되는 시차</b><span>ledger · 입자가 흐름</span></a>
-        <a class="sp-chip" href="shots/s03-page-load-budget.html"><b>03 · 페이지 로드 시간 예산(DNS, TLS, TTFB, 렌더)이 쌓인 한 장 정리</b><span>sketch · 값이 쌓임</span></a>
-        <a class="sp-chip" href="shots/s04-kirchhoff-junction.html"><b>04 · 키르히호프 전류 법칙, 분기점에서 전하가 나뉘는 경로</b><span>blueprint · 점이 궤적을 그림</span></a>
-        <a class="sp-chip" href="shots/s05-microscope-na.html"><b>05 · 현미경 배율만 올릴 때 vs 개구수를 올릴 때 해상도</b><span>lab · 확대·축소</span></a>
-        <a class="sp-chip" href="shots/s06-shipping-leadtime.html"><b>06 · 출항·환적·통관 용어, 지도 위 항로와 리드타임</b><span>atlas · 선이 그려짐</span></a>
-        <a class="sp-chip" href="shots/s07-fanout-tail-latency.html"><b>07 · fan-out 수에 따라 p99 지연이 커지는 tail latency</b><span>terminal · 쪼개지고 합쳐짐</span></a>
-        <a class="sp-chip" href="shots/s08-hsl-oklch-lightness.html"><b>08 · 색상·채도·명도 용어, HSL과 OKLCH의 명도 차이</b><span>studio · 강조가 훑음</span></a>
-        <a class="sp-chip" href="shots/s09-working-set-hierarchy.html"><b>09 · 작업 세트 크기에 따라 맞는 메모리 계층(L1→DRAM)</b><span>blueprint · 모양이 바뀜</span></a>
-        <a class="sp-chip" href="shots/s10-thermostat-overshoot.html"><b>10 · 온도조절기 되먹임 루프와 오버슈트</b><span>lab · 입자가 흐름</span></a>
-        <a class="sp-chip" href="shots/s11-region-tradeoff.html"><b>11 · 리전을 늘릴수록 지연은 줄고 비용은 쌓임</b><span>atlas · 값이 쌓임</span></a>
-        <a class="sp-chip" href="shots/s12-node-event-loop.html"><b>12 · Node.js 이벤트 루프 단계 한 장 정리</b><span>terminal · 점이 궤적을 그림</span></a>
-        <a class="sp-chip" href="shots/s13-checkout-funnel-zoom.html"><b>13 · 결제 퍼널 단계, 이탈 지점으로 확대</b><span>studio · 확대·축소</span></a>
-        <a class="sp-chip" href="shots/s14-simpson-paradox-slopes.html"><b>14 · 심슨의 역설, 집단별 기울기 vs 합친 기울기</b><span>paper · 선이 그려짐</span></a>
-        <a class="sp-chip" href="shots/s15-securitization-tranches.html"><b>15 · 증권화, 대출을 묶어 트랜치로 나눔</b><span>ledger · 쪼개지고 합쳐짐</span></a>
-        <a class="sp-chip" href="shots/s16-room-daylight.html"><b>16 · 남향 vs 북향 방의 하루 채광</b><span>sketch · 강조가 훑음</span></a>
-        <a class="sp-chip" href="shots/s17-wal-checkpoint.html"><b>17 · WAL, 체크포인트, 복구 용어와 로그 타임라인</b><span>terminal · 선이 그려짐</span></a>
-        <a class="sp-chip" href="shots/s18-ab-power.html"><b>18 · A/B 테스트 표본 크기와 두 분포의 겹침(검정력)</b><span>studio · 쪼개지고 합쳐짐</span></a>
-        <a class="sp-chip" href="shots/s19-fourier-sweep.html"><b>19 · 푸리에 변환, 파형이 주파수 막대로</b><span>paper · 강조가 훑음</span></a>
-        <a class="sp-chip" href="shots/s20-equity-consolidation.html"><b>20 · 지분율 트리가 연결 범위로 바뀜</b><span>ledger · 모양이 바뀜</span></a>
-        <a class="sp-chip" href="shots/s21-predator-prey-cycle.html"><b>21 · 포식자-피식자 순환 한 장 정리</b><span>sketch · 입자가 흐름</span></a>
-        <a class="sp-chip" href="shots/s22-clock-power.html"><b>22 · 클럭을 올리면 동적 전력(∝ fV²)이 쌓임</b><span>blueprint · 값이 쌓임</span></a>
-        <a class="sp-chip" href="shots/s23-carnot-cycle.html"><b>23 · 카르노 사이클 P-V 궤적 한 장 정리</b><span>lab · 점이 궤적을 그림</span></a>
-        <a class="sp-chip" href="shots/s24-vaccine-cold-chain.html"><b>24 · 백신이 국가→도시→창고로 가는 순서, 지도 확대</b><span>atlas · 확대·축소</span></a>
-        <a class="sp-chip" href="shots/s25-cpi-basket-weights.html"><b>25 · CPI 바스켓 가중치가 바뀌면 같은 가격 변화도 다른 물가</b><span>ledger · 선이 그려짐</span></a>
-        <a class="sp-chip" href="shots/s26-git-branch-terms.html"><b>26 · 브랜치, 머지, 리베이스 용어</b><span>sketch · 쪼개지고 합쳐짐</span></a>
-        <a class="sp-chip" href="shots/s27-wifi-router-floorplan.html"><b>27 · 평면도 위 공유기 위치와 Wi-Fi 신호 세기</b><span>blueprint · 강조가 훑음</span></a>
-        <a class="sp-chip" href="shots/s28-dosing-interval.html"><b>28 · 투약 간격에 따른 혈중 농도 곡선과 반감기</b><span>lab · 모양이 바뀜</span></a>
-        <a class="sp-chip" href="shots/s29-transit-access.html"><b>29 · 노선 수에 따른 출근 인구의 대중교통 접근성</b><span>atlas · 입자가 흐름</span></a>
-        <a class="sp-chip" href="shots/s30-compile-pipeline.html"><b>30 · 소스→토큰→AST→바이트코드</b><span>terminal · 값이 쌓임</span></a>
-        <a class="sp-chip" href="shots/s31-visual-hierarchy-gaze.html"><b>31 · 시각적 위계와 시선이 지나는 길</b><span>studio · 점이 궤적을 그림</span></a>
-        <a class="sp-chip" href="shots/s32-ice-albedo-overview.html"><b>32 · 얼음-알베도 되먹임 한 장 정리</b><span>paper · 확대·축소</span></a>
-        <a class="sp-chip" href="shots/s33-bias-variance-error.html"><b>33 · 편향-분산, 모델 복잡도별 오차</b><span>lab · 값이 쌓임</span></a>
-        <a class="sp-chip" href="shots/s34-amoc-weakening.html"><b>34 · 열염순환 정상 vs 약화</b><span>atlas · 점이 궤적을 그림</span></a>
-        <a class="sp-chip" href="shots/s35-packet-layers.html"><b>35 · DNS·TCP·TLS·HTTP 용어, 패킷 캡처 확대</b><span>terminal · 확대·축소</span></a>
-        <a class="sp-chip" href="shots/s36-code-splitting.html"><b>36 · 앱 번들 구성, 코드 분할 전후</b><span>studio · 선이 그려짐</span></a>
-        <a class="sp-chip" href="shots/s37-dependency-parse.html"><b>37 · 의존 구문 분석의 핵심어·의존어·관계</b><span>paper · 쪼개지고 합쳐짐</span></a>
-        <a class="sp-chip" href="shots/s38-station-radius.html"><b>38 · 역에서의 거리 반경과 가격 띠</b><span>ledger · 강조가 훑음</span></a>
-        <a class="sp-chip" href="shots/s39-tech-debt-sprints.html"><b>39 · 스프린트마다 쌓이는 기술 부채</b><span>sketch · 모양이 바뀜</span></a>
-        <a class="sp-chip" href="shots/s40-wafer-yield.html"><b>40 · 웨이퍼 결함 분포와 칩 크기별 수율</b><span>blueprint · 입자가 흐름</span></a>
-        <a class="sp-chip" href="shots/s41-jpeg-pipeline.html"><b>41 · JPEG 압축 단계(YCbCr→DCT→양자화) 한 장 정리</b><span>studio · 값이 쌓임</span></a>
-        <a class="sp-chip" href="shots/s42-bst-search-path.html"><b>42 · 이진 탐색 트리 탐색 경로</b><span>paper · 점이 궤적을 그림</span></a>
-        <a class="sp-chip" href="shots/s43-bank-run-loop.html"><b>43 · 뱅크런 되먹임 한 장 정리</b><span>ledger · 확대·축소</span></a>
-        <a class="sp-chip" href="shots/s44-pacelc-latency.html"><b>44 · 일관성 수준과 지연(PACELC)</b><span>sketch · 선이 그려짐</span></a>
-        <a class="sp-chip" href="shots/s45-refrigerant-undercharge.html"><b>45 · 정상 vs 냉매 부족</b><span>blueprint · 쪼개지고 합쳐짐</span></a>
-        <a class="sp-chip" href="shots/s46-titration-terms.html"><b>46 · 적정 곡선의 당량점, 지시약, 완충 구간</b><span>lab · 강조가 훑음</span></a>
-        <a class="sp-chip" href="shots/s47-power-mix-sweep.html"><b>47 · 연도별 지역 전력 믹스</b><span>atlas · 모양이 바뀜</span></a>
-        <a class="sp-chip" href="shots/s48-ransomware-lateral.html"><b>48 · 랜섬웨어의 측면 이동</b><span>terminal · 입자가 흐름</span></a>
-        <a class="sp-chip" href="shots/s49-basketball-zone-value.html"><b>49 · 농구 구역별 기대 득점</b><span>sketch · 강조가 훑음</span></a>
-        <a class="sp-chip" href="shots/s50-moon-phase-orbit.html"><b>50 · 공전 위치에 따른 달의 위상</b><span>blueprint · 모양이 바뀜</span></a>
-        <a class="sp-chip" href="shots/s51-galton-board.html"><b>51 · 갈톤 보드와 정규분포</b><span>lab · 입자가 흐름</span></a>
-        </div>
-      </details>
-    </section>
-  </div>
-
-  <h3 class="group">예시 수업 · 시뮬레이션 경로</h3>
-  <div class="lessons">
-    <section class="ltt-card ls">
-      <span class="no">01</span>
-      <h2>캐시 TTL을 늘리면 무엇을 잃을까?</h2>
-      <dl><dt>대상</dt><dd>캐시가 무엇인지 알고 API를 만들어 봤다</dd><dt>결정</dt><dd>TTL (DB 부하와 오래된 응답 사이)</dd><dt>부품</dt><dd>타임라인 + 접근 로그 figure, 요청 틱 비교표, TTL 슬라이더</dd><dt>테마</dt><dd><code>terminal</code> · 터미널·로그 타임라인</dd></dl>
-      <div class="go"><a href="cache-ttl.html">열기 →</a></div>
-    </section>
-    <section class="ltt-card ls">
-      <span class="no">02</span>
-      <h2>회색 글자는 얼마나 옅어야 읽기 힘들어질까?</h2>
-      <dl><dt>대상</dt><dd>CSS 색상 코드를 읽을 수 있는 UI 개발자·디자이너</dd><dt>결정</dt><dd>글자색과 배경색이 WCAG 대비비 기준을 넘는지</dd><dt>부품</dt><dd>디자인 리뷰 figure(레드라인 + 대비 검사 패널), BEFORE/AFTER, 계산 타임라인, 비교표</dd><dt>테마</dt><dd><code>studio</code> · 실제 제품 화면</dd></dl>
-      <div class="go"><a href="uiux/color-contrast.html">열기 →</a></div>
-    </section>
-    <section class="ltt-card ls">
-      <span class="no">03</span>
-      <h2>GPU가 2배 빨라지면 글 생성도 2배 빨라질까?</h2>
-      <dl><dt>대상</dt><dd>Transformer 구조를 모름. 모델은 큰 숫자 표라는 정도만 안다</dd><dt>결정</dt><dd>토큰당 시간을 정하는 것이 대역폭인지 연산 속도인지, batch의 효과</dd><dt>부품</dt><dd>블록 도면 figure 2장, 시간 축 막대, 업그레이드·병목 비교표</dd><dt>테마</dt><dd><code>blueprint</code> · 블록 도면</dd></dl>
-      <div class="go"><a href="gpu/single-gpu-dataflow.html">열기 →</a></div>
-    </section>
-    <section class="ltt-card ls">
-      <span class="no">04</span>
-      <h2>공기저항이 있으면 가장 멀리 날아가는 각도는 얼마나 낮아질까?</h2>
-      <dl><dt>대상</dt><dd>등가속도 운동과 sin2θ 사거리 공식을 안다</dd><dt>결정</dt><dd>공기저항을 무시해도 되는지, 최적각을 45°로 둘 수 있는지</dd><dt>부품</dt><dd>축·눈금 있는 궤적 플롯 시뮬레이션, 원인 흐름(strip), 속력별 비교표</dd><dt>테마</dt><dd><code>lab</code> · 실험 노트·궤적 플롯</dd></dl>
-      <div class="go"><a href="physics/projectile-drag.html">열기 →</a></div>
-    </section>
-    <section class="ltt-card ls">
-      <span class="no">05</span>
-      <h2>처음 본 숫자가 내 추정을 끌어당길까?</h2>
-      <dl><dt>대상</dt><dd>견적이나 일정을 추정해 본 적이 있다</dd><dt>결정</dt><dd>견적 회의에서 첫 숫자를 보여 줄 시점</dd><dt>부품</dt><dd>수직선 결과 figure, 연구 비교표, 주장 장면 (predict 없음: 자기 편향 주제)</dd><dt>테마</dt><dd><code>paper</code> · 논문 결과 figure</dd></dl>
-      <div class="go"><a href="cognition/anchoring.html">열기 →</a></div>
-    </section>
-    <section class="ltt-card ls">
-      <span class="no">06</span>
-      <h2>두 자산을 섞으면 위험은 얼마나 줄까?</h2>
-      <dl><dt>대상</dt><dd>표준편차를 변동성(위험)으로 읽을 줄 안다</dd><dt>결정</dt><dd>상관계수와 비중이 포트폴리오 변동성을 얼마나 줄이는지</dd><dt>부품</dt><dd>신문식 꺾은선 figure, 상관계수 비교표, 고정 축 막대 차트</dd><dt>테마</dt><dd><code>ledger</code> · 경제 신문 차트·표</dd></dl>
-      <div class="go"><a href="finance/diversification.html">열기 →</a></div>
-    </section>
-    <section class="ltt-card ls">
-      <span class="no">07</span>
-      <h2>다시 읽기와 인출 연습, 1주 뒤엔 어느 쪽이 더 남을까?</h2>
-      <dl><dt>대상</dt><dd>전제 지식 없음</dd><dt>결정</dt><dd>복습 시간을 다시 읽기와 인출 연습 중 어디에 쓸지</dd><dt>부품</dt><dd>Method figure와 같은 그림의 Results figure, 공부법 비교표</dd><dt>테마</dt><dd><code>paper</code> · 논문 실험 설계 figure</dd></dl>
-      <div class="go"><a href="pedagogy/retrieval-practice.html">열기 →</a></div>
-    </section>
-    <section class="ltt-card ls">
-      <span class="no">08</span>
-      <h2>행렬은 공간을 어떻게 바꾸는가?</h2>
-      <dl><dt>대상</dt><dd>벡터와 행렬 곱셈 계산 규칙은 안다</dd><dt>결정</dt><dd>행렬의 열과 det로 변환의 모양·넓이·가역성을 읽고 곱 순서를 정한다</dd><dt>부품</dt><dd>큰 격자 변형 figure, det 슬라이더(full), 곱 순서 짐작</dd><dt>테마</dt><dd><code>paper</code> · 교과서 figure</dd></dl>
-      <div class="go"><a href="linear-algebra/matrix-as-transform.html">열기 →</a></div>
-    </section>
-    <section class="ltt-card ls">
-      <span class="no">09</span>
-      <h2>세련된 화면은 '차이'를 아껴 쓴다</h2>
-      <dl><dt>대상</dt><dd>UI를 가끔 직접 만드는 개발자. 간격을 감으로 맞추지만 이유는 설명하지 못한다</dd><dt>결정</dt><dd>무엇을 먼저 읽힐지와 그 수단(크기·굵기·회색), 묶음 안/사이 간격을 스케일의 어느 단계로 고를지</dd><dt>부품</dt><dd>레드라인 단계 재생 figure, 폼 BEFORE/AFTER, 간격 스케일 슬라이더, 실제 조각 비교</dd><dt>테마</dt><dd><code>studio</code> · 실제 제품 화면</dd></dl>
-      <div class="go"><a href="uiux/visual-hierarchy-spacing.html">열기 →</a></div>
-    </section>
-    <section class="ltt-card ls">
-      <span class="no">10</span>
-      <h2>테이블이면 충분할까, 온톨로지가 필요할까?</h2>
-      <dl><dt>대상</dt><dd>SQL 테이블과 JSON은 다뤄 봤다. RDF·OWL은 처음이다</dd><dt>결정</dt><dd>테이블 스키마로 충분한지, RDFS·OWL 추론과 SHACL 검증을 얹어야 하는지</dd><dt>부품</dt><dd>elk 자동 배치 지식 그래프(<code>LTT.autoLayout</code>) 단계 재생, 추론 규칙 단계 figure, OWA·CWA 비교표, OWL·SHACL contrast, Turtle 코드 목업</dd><dt>테마</dt><dd><code>paper</code> · 교과서 그림·코드 조각</dd></dl>
-      <div class="go"><a href="knowledge-graph/ontology-triples.html">열기 →</a></div>
-    </section>
-    <section class="ltt-card ls">
-      <span class="no">11</span>
-      <h2>HTTP/3와 0-RTT를 켤까?</h2>
-      <dl><dt>대상</dt><dd>TLS 핸드셰이크 실무 경험이 있는 엔지니어</dd><dt>결정</dt><dd>HTTP/3(QUIC)과 0-RTT를 켤지, 켠다면 어떤 요청과 어떤 망에 켤지</dd><dt>부품</dt><dd>RFC식 시퀀스 도면 단계 재생(<code>LTT.sequence</code>), 0-RTT 재전송 공격 시퀀스, RTT×왕복 수 조작, TCP·QUIC HOL 차단 조작, 연결 이전 diagram 단계 재생, 판단 비교표</dd><dt>테마</dt><dd><code>blueprint</code> · 패킷 시퀀스 도면</dd></dl>
-      <div class="go"><a href="network/tls13-quic.html">열기 →</a></div>
-    </section>
-  </div>
-
-  <h3 class="group">도메인별 UI 시연</h3>
-  <p class="sp-note">진단·퀴즈 없이 장면 3–4개로 줄여, 그 도메인에서 수업 화면이 어떻게 보이는지만 보이는 예시다.</p>
-  <div class="lessons">
-    <section class="ltt-card ls">
-      <span class="no">철학</span>
-      <h2>다섯을 위해 하나를 희생해도 될까?</h2>
-      <dl><dt>대상</dt><dd>트롤리 문제를 들어 본 적은 있다</dd><dt>결정</dt><dd>결과의 합으로 판단할지, 행위가 지키는 규칙으로 판단할지</dd><dt>부품</dt><dd>선로 도식 단계 재생 figure, 레버·육교 사례 비교표</dd><dt>테마</dt><dd><code>paper</code> · 윤리학 교과서 도해</dd></dl>
-      <div class="go"><a href="philosophy/trolley-ethics.html">열기 →</a></div>
-    </section>
-  </div>
-
-  <h3 class="group">진단 예시</h3>
-  <div class="scenarios">
-    <section class="ltt-card sc">
-      <div><span class="ltt-tag">수치 · sweep</span><span class="ltt-tag good">예측 → 공개</span></div>
-      <h2>캐시 TTL을 늘리면 무엇을 잃을까?</h2>
-      <dl>
-        <dt>작업</dt><dd>상품 정보 API에 캐시 붙이기</dd>
-        <dt>막힌 결정</dt><dd>TTL (원본 부하와 오래된 응답 사이)</dd>
-        <dt>진단</dt><dd><ol class="ladder">
-          <li class="skip"><span class="n">1</span>캐시</li>
-          <li><span class="n">2</span>적중률 <span class="ans know">알고 있음</span></li>
-          <li><span class="n">3</span>TTL 만료 <span class="ans vague">애매함</span></li>
-          <li class="level"><span class="n">4</span>오래된 응답 비율과 변경 빈도 <span class="ans none">아예 모름</span></li>
-        </ol></dd>
-        <dt>자료</dt><dd>'애매함'인 TTL과 적중·원본 조회를 terms 장면에서 먼저 풀고, 학습 수준(오래된 응답)으로 들어간다.</dd>
-      </dl>
-      <div class="go"><a href="cache-ttl.html" class="ghost">수업 보기 →</a></div>
-    </section>
-  </div>
-
-  <h3 class="group">HTML 없이 끝나는 경우</h3>
-  <div class="scenarios">
-
-    <section class="ltt-card sc">
-      <div><span class="ltt-tag">simple 경로</span><span class="ltt-tag">대화만</span></div>
-      <h2>6. 라이브러리의 의존성 버전 범위</h2>
-      <dl>
-        <dt>작업</dt><dd>배포할 npm 라이브러리의 package.json 정리</dd>
-        <dt>막힌 결정</dt><dd>의존성 버전 범위 (^ / ~ / 고정)</dd>
-        <dt>진단</dt><dd><ol class="ladder">
-          <li class="skip"><span class="n">1</span>패키지 버전</li>
-          <li><span class="n">2</span>semver (주.부.수) <span class="ans know">알고 있음</span></li>
-          <li><span class="n">3</span>^와 ~ 범위 <span class="ans vague">애매함</span></li>
-          <li class="level"><span class="n">4</span>lockfile이 미치는 범위 <span class="ans none">아예 모름</span></li>
-        </ol></dd>
-        <dt>경로</dt><dd>규칙만 알면 되고 조작해서 관찰할 것이 없다 → 3단계를 건너뛴다.</dd>
-      </dl>
-      <details>
-        <summary>대화 자료와 퀴즈 예시</summary>
-        <div class="chat">
-          <p><span class="who">agent · 자료</span><code>^1.2.3</code>은 2.0.0 미만, <code>~1.2.3</code>은 1.3.0 미만까지 허용한다. 단, <code>^0.2.3</code>은 0.3.0 미만만 허용한다.
-          package-lock.json은 배포되지 않는다(npm 기준). 그래서 라이브러리를 설치하는 쪽은 package.json의 범위 안에서 버전을 새로 고른다.</p>
-          <p><span class="who">agent · 퀴즈 1 (질문 만들기)</span>이 결정을 agent에게 맡기기 전에 꼭 물어볼 질문 하나를 써 주세요.</p>
-          <p><span class="who">agent · 퀴즈 2 (선택과 의미)</span>이 라이브러리에 <code>^</code>를 쓸지 정확한 버전으로 고정할지 고르고, 그 선택을 바꿀 조건을 한 문장으로 써 주세요.</p>
-        </div>
-      </details>
-    </section>
-
-    <section class="ltt-card sc">
-      <div><span class="ltt-tag">진단만</span></div>
-      <h2>7. 이미 알고 있는 경우</h2>
-      <dl>
-        <dt>작업</dt><dd>기능 브랜치를 main에 합치기</dd>
-        <dt>막힌 결정</dt><dd>merge와 rebase</dd>
-        <dt>진단</dt><dd><ol class="ladder">
-          <li class="skip"><span class="n">1</span>커밋</li>
-          <li><span class="n">2</span>브랜치 <span class="ans know">알고 있음</span></li>
-          <li><span class="n">3</span>merge <span class="ans know">알고 있음</span></li>
-          <li><span class="n">4</span>rebase는 커밋을 새로 만든다 <span class="ans know">알고 있음</span> <span class="ans quiz">퀴즈 통과</span></li>
-        </ol></dd>
-        <dt>결과</dt><dd>학습 없이 map에 "진단만"으로 기록하고 바로 작업으로 돌아간다.</dd>
-      </dl>
-      <details>
-        <summary>맨 위 단 확인 퀴즈 예시</summary>
-        <div class="chat">
-          <p><span class="who">agent · 퀴즈</span>이미 push해서 동료가 받아 간 브랜치를 rebase한 뒤 force push하면, 동료의 로컬 브랜치에는 무슨 일이 생기나요?</p>
-        </div>
-      </details>
-    </section>
-
-    <section class="ltt-card sc">
-      <div><span class="ltt-tag warn">회차 분할</span></div>
-      <h2>8. 20분을 넘는 경우</h2>
-      <dl>
-        <dt>작업</dt><dd>서비스 배포 전략 정하기</dd>
-        <dt>막힌 결정</dt><dd>rolling / blue-green / canary와 롤백 기준</dd>
-        <dt>범위</dt><dd>한 회차 자료가 20분을 넘는다고 알리고 나눈다 (묻지 않는다).
-          <ul class="uses">
-            <li>1회차: 옛 버전과 새 버전이 함께 도는 동안 생기는 일 (rolling과 blue-green)</li>
-            <li>2회차: canary 비율과 롤백 지표 → map의 "다음 후보"로 남긴다</li>
-          </ul></dd>
-      </dl>
-    </section>
-  </div>
+  <h1>Learn to Tell 갤러리</h1>
+  <p class="lead">실제 skill 사용을 가정해 서브에이전트가 고정 진단 결과로 생성한 수업 17개 (2026-10-22).</p>
+  <table>
+    <thead><tr><th>#</th><th>분야</th><th>수업 · 학습자</th><th class="h-dec">결정</th><th class="h-ver">검증</th><th class="h-kb">토큰</th><th class="h-kb">시간</th><th class="h-kb">크기</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="no">01</td>
+        <td class="cat">백엔드</td>
+        <td class="ttl"><a href="backend/cache-ttl.html">캐시 TTL: 원본 부하와 오래된 응답</a><div class="aud">HTTP API를 만들어 본 백엔드 주니어. hit/miss·TTL·stale은 이름만 안다.</div></td>
+        <td class="dec">상품 정보 API 캐시의 TTL을 몇 초로 할지</td>
+        <td class="ver">검증 2회, 남은 미충족 0</td>
+        <td class="kb">176,543</td>
+        <td class="kb">19분 01초</td>
+        <td class="kb">34 KB</td>
+      </tr>
+      <tr>
+        <td class="no">02</td>
+        <td class="cat">네트워크</td>
+        <td class="ttl"><a href="network/tls13-quic.html">TLS 1.3과 QUIC — 왕복을 세면 HTTP/3가 보인다</a><div class="aud">HTTPS 인증서 설정을 해 본 웹 백엔드 개발자</div></td>
+        <td class="dec">서비스에 HTTP/3를 켤지</td>
+        <td class="ver">검증 3회, 남은 미충족 3a, 5a, 8a(공개 상태 스크린샷 없음), 13·15(수정 후 미검증)</td>
+        <td class="kb">196,936</td>
+        <td class="kb">26분 28초</td>
+        <td class="kb">41 KB</td>
+      </tr>
+      <tr>
+        <td class="no">03</td>
+        <td class="cat">GPU·추론</td>
+        <td class="ttl"><a href="gpu/single-gpu-dataflow.html">GPU가 2배 빨라지면 글 생성도 2배?</a><div class="aud">백엔드 개발자, Transformer는 이름만 앎</div></td>
+        <td class="dec">추론 서버 GPU 선택: FLOPS가 2배면 토큰 생성도 2배인가</td>
+        <td class="ver">검증 3회, 남은 미충족 0</td>
+        <td class="kb">200,512</td>
+        <td class="kb">25분 12초</td>
+        <td class="kb">37 KB</td>
+      </tr>
+      <tr>
+        <td class="no">04</td>
+        <td class="cat">머신러닝</td>
+        <td class="ttl"><a href="ml/llm-hallucination-internal.html">LLM은 보이는 것보다 더 안다 — 환각의 내부 표현</a><div class="aud">Transformer를 막 배운 학습자. 은닉 상태·토큰은 안다.</div></td>
+        <td class="dec">논문 'LLMs Know More Than They Show'를 읽고 이해하기</td>
+        <td class="ver">검증 3회, 남은 미충족 0</td>
+        <td class="kb">161,455</td>
+        <td class="kb">20분 26초</td>
+        <td class="kb">35 KB</td>
+      </tr>
+      <tr>
+        <td class="no">05</td>
+        <td class="cat">지식 그래프</td>
+        <td class="ttl"><a href="knowledge-graph/ontology-triples.html">테이블이면 충분할까, 온톨로지가 필요할까</a><div class="aud">관계형 DB와 SQL에 익숙한 데이터 엔지니어</div></td>
+        <td class="dec">사내 데이터 통합: 관계형 테이블 유지 / 온톨로지(RDF) 도입 / 관계형 위 가상 그래프</td>
+        <td class="ver">검증 3회, 남은 미충족 19(3회째 보고: 장면 1 부제의 '추론'에 풀이 없음 → 부제를 '계층 질의'로 고쳤고 audit 0, 재검증은 하지 않음)</td>
+        <td class="kb">226,293</td>
+        <td class="kb">28분 10초</td>
+        <td class="kb">48 KB</td>
+      </tr>
+      <tr>
+        <td class="no">06</td>
+        <td class="cat">수학</td>
+        <td class="ttl"><a href="math/matrix-as-transform.html">행렬은 공간을 어떻게 바꾸는가</a><div class="aud">행렬 곱 계산은 할 줄 아는 공대 1학년</div></td>
+        <td class="dec">없음(선형대수 수업을 따라가기 위한 기본기)</td>
+        <td class="ver">검증 3회, 남은 미충족 0</td>
+        <td class="kb">209,073</td>
+        <td class="kb">25분 20초</td>
+        <td class="kb">39 KB</td>
+      </tr>
+      <tr>
+        <td class="no">07</td>
+        <td class="cat">수학</td>
+        <td class="ttl"><a href="math/vector-calculus-mml5.html">MML 5장 벡터 미적분 — 미분은 모양을 가진 선형 사상</a><div class="aud">AI 대학원 1년차. 학부 미적분·선형대수 수강, 다변수 미분을 행렬로 다루는 데 서툼</div></td>
+        <td class="dec">MML 5장을 읽을 때 미분의 모양(행·열)을 스스로 정하고 연쇄 법칙·역전파를 계산할 수 있는가</td>
+        <td class="ver">검증 3회, 남은 미충족 6, 8, 12, 24</td>
+        <td class="kb">306,581</td>
+        <td class="kb">35분 21초</td>
+        <td class="kb">67 KB</td>
+      </tr>
+      <tr>
+        <td class="no">08</td>
+        <td class="cat">물리</td>
+        <td class="ttl"><a href="physics/projectile-drag.html">공기저항과 최적 발사각</a><div class="aud">게임 클라이언트 개발자. 등가속도 포물선 운동과 sin2θ 사거리 공식은 안다</div></td>
+        <td class="dec">공 던지기 게임에서 공기저항을 어떻게 넣고, 가장 멀리 가는 조준각을 어떻게 정할지</td>
+        <td class="ver">검증 3회, 남은 미충족 5, 9, 19 (5: 장면 3 슬라이더 트랙이 거의 안 보임, 9: 장면 8 진공 사각형 오른쪽 점선이 &quot;착지 10.6&quot;·&quot;(진공의 0.51)&quot; 라벨을 가로지름, 19: 장면 2 x축 눈금 라벨을 오른쪽으로 4px 밀어 &quot;0 m&quot;가 발사점과 어긋나 착지점이 약 39.4 m로 읽힘)</td>
+        <td class="kb">208,067</td>
+        <td class="kb">28분 52초</td>
+        <td class="kb">41 KB</td>
+      </tr>
+      <tr>
+        <td class="no">09</td>
+        <td class="cat">UI·UX</td>
+        <td class="ttl"><a href="uiux/color-contrast.html">회색 글자의 대비</a><div class="aud">hex 색과 CSS에 익숙한 프론트엔드 개발자</div></td>
+        <td class="dec">디자인 시스템의 보조 텍스트 회색을 얼마나 옅게 할 수 있나</td>
+        <td class="ver">검증 2회, 남은 미충족 7</td>
+        <td class="kb">190,903</td>
+        <td class="kb">20분 27초</td>
+        <td class="kb">35 KB</td>
+      </tr>
+      <tr>
+        <td class="no">10</td>
+        <td class="cat">UI·UX</td>
+        <td class="ttl"><a href="uiux/visual-hierarchy-spacing.html">세련된 화면은 '차이'를 아껴 쓴다</a><div class="aud">디자인 교육을 받지 않은 백엔드 출신 풀스택 개발자</div></td>
+        <td class="dec">대시보드 화면에서 무엇을 강조하고 간격을 어떻게 나눌지</td>
+        <td class="ver">검증 2회, 남은 미충족 0</td>
+        <td class="kb">206,822</td>
+        <td class="kb">21분 42초</td>
+        <td class="kb">33 KB</td>
+      </tr>
+      <tr>
+        <td class="no">11</td>
+        <td class="cat">미술</td>
+        <td class="ttl"><a href="art/drawing-basics.html">드로잉 기본: 아는 모양 대신 보이는 모양</a><div class="aud">그림을 거의 그려 본 적 없는 성인 초보</div></td>
+        <td class="dec">없음(드로잉을 처음 배우기)</td>
+        <td class="ver">검증 3회, 남은 미충족 18, 26</td>
+        <td class="kb">250,867</td>
+        <td class="kb">29분 26초</td>
+        <td class="kb">47 KB</td>
+      </tr>
+      <tr>
+        <td class="no">12</td>
+        <td class="cat">금융</td>
+        <td class="ttl"><a href="finance/diversification.html">두 자산을 섞으면 위험은 얼마나 줄까</a><div class="aud">적립식 ETF를 사 본 개인 투자자. 평균·표준편차는 안다.</div></td>
+        <td class="dec">두 자산 포트폴리오의 비중 정하기</td>
+        <td class="ver">검증 3회, 남은 미충족 0</td>
+        <td class="kb">241,325</td>
+        <td class="kb">28분 31초</td>
+        <td class="kb">40 KB</td>
+      </tr>
+      <tr>
+        <td class="no">13</td>
+        <td class="cat">금융</td>
+        <td class="ttl"><a href="finance/investing-basics.html">투자의 기본</a><div class="aud">월급을 예금에만 넣어 온 사회초년생</div></td>
+        <td class="dec">처음 투자를 무엇에, 어떻게 나눠, 어떤 방식으로 시작할지</td>
+        <td class="ver">검증 3회, 남은 미충족 14, 15(검증표의 장면 번호가 lint가 강제한 순서와 다름: 개념 나무 15, 한 장 정리 17. 내용은 정답과 일치). 3회차 지적 12·16·21은 고친 뒤 audit만 통과(재검증 안 함)</td>
+        <td class="kb">234,375</td>
+        <td class="kb">29분 23초</td>
+        <td class="kb">44 KB</td>
+      </tr>
+      <tr>
+        <td class="no">14</td>
+        <td class="cat">인지과학</td>
+        <td class="ttl"><a href="cognition/anchoring.html">앵커링 효과</a><div class="aud">기획자. 인지 편향이라는 말은 알지만 실험 근거는 모른다</div></td>
+        <td class="dec">가격 제시·협상에서 첫 숫자를 먼저 던질지, 받은 숫자에 어떻게 대응할지</td>
+        <td class="ver">검증 2회, 남은 미충족 2, 4, 5</td>
+        <td class="kb">179,965</td>
+        <td class="kb">20분 29초</td>
+        <td class="kb">38 KB</td>
+      </tr>
+      <tr>
+        <td class="no">15</td>
+        <td class="cat">학습과학</td>
+        <td class="ttl"><a href="pedagogy/retrieval-practice.html">다시 읽기 vs 인출 연습 — 1주 뒤 무엇이 남나</a><div class="aud">시험을 준비하는 대학생, 주로 교재를 반복해 읽음</div></td>
+        <td class="dec">공부 방법을 다시 읽기에서 인출 연습으로 바꿀지</td>
+        <td class="ver">검증 3회, 남은 미충족 11</td>
+        <td class="kb">180,160</td>
+        <td class="kb">23분 32초</td>
+        <td class="kb">36 KB</td>
+      </tr>
+      <tr>
+        <td class="no">16</td>
+        <td class="cat">철학</td>
+        <td class="ttl"><a href="philosophy/trolley-ethics.html">다섯을 위해 하나를 희생해도 될까</a><div class="aud">철학 비전공 학부생</div></td>
+        <td class="dec">윤리학 교양 수업 토론: 다섯을 위해 하나를 희생해도 되는가</td>
+        <td class="ver">검증 3회, 남은 미충족 0</td>
+        <td class="kb">186,063</td>
+        <td class="kb">24분 44초</td>
+        <td class="kb">30 KB</td>
+      </tr>
+      <tr>
+        <td class="no">17</td>
+        <td class="cat">철학</td>
+        <td class="ttl"><a href="philosophy/art-of-loving.html">사랑의 기술</a><div class="aud">교양서를 즐겨 읽는 일반 독자. 프롬은 이름만 안다.</div></td>
+        <td class="dec">없음(요지 이해)</td>
+        <td class="ver">검증 3회, 남은 미충족 0(3회째 보고 11·8·16은 고쳐 audit 0을 확인했으나 재검증은 횟수 한도로 하지 않음: 미검증)</td>
+        <td class="kb">187,261</td>
+        <td class="kb">24분 10초</td>
+        <td class="kb">37 KB</td>
+      </tr>
+    </tbody>
+  </table>
+  <nav class="more">
+    <a href="catalog.html">kit 카탈로그</a>
+    <a href="scenes.html">장면 타입 데모</a>
+    <a href="shots/index.html">shot 카드</a>
+    <a href="archived/20261022/index.html">이전 갤러리(보관)</a>
+  </nav>
 </main>
 </body>
 </html>

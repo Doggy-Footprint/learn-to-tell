@@ -18,8 +18,9 @@ const SHOT_ID = /^[A-Za-z0-9_-]+$/;
 const LESSON_ID = /^[a-z0-9][a-z0-9-]*$/;
 // Linked from the gallery index but they hold no lesson of their own, so there is nothing to check.
 const GALLERY_SKIP = new Set(["index.html", "catalog.html"]);
-// stale/ needs the old kit; shots/ holds single-scene exemplars, not whole lessons.
-const GALLERY_SKIP_DIRS = ["stale/", "shots/"];
+// stale/ needs the old kit; shots/ holds single-scene exemplars, not whole lessons; archived/ keeps earlier
+// galleries as a record only and is not held to the current kit.
+const GALLERY_SKIP_DIRS = ["stale/", "shots/", "archived/"];
 const CHROME_PATHS = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"];
 const CHROME_NAMES = ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"];
 export const NO_CHROME = "Chrome을 찾지 못했다. --chrome <경로>나 LTT_CHROME으로 알려 주거나, 브라우저에서 수업 URL에 ?shot을 붙여 1440×900과 1280×800으로 열어 눈으로 본다.";

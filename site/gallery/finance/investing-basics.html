@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>투자의 기본</title>
+<script type="application/json" id="ltt-meta">{
+  "topic": "투자의 기본: 복리, 위험과 기대수익, 분산, 비용·세금, 적립식과 자산 배분",
+  "audience": "월급을 예금에만 넣어 온 사회초년생",
+  "theme": "ledger",
+  "medium": "deck",
+  "decision": "처음 투자를 무엇에, 어떻게 나눠, 어떤 방식으로 시작할지",
+  "glossary": {
+    "원금": "처음 넣은 돈. 이 수업의 예시는 1,000만원이다.",
+    "수익률": "1년 동안 돈이 몇 % 늘거나 줄었는지. 1,000만원이 1,070만원이 되면 7%다.",
+    "단리": "처음 넣은 원금에만 이자가 붙는 방식. 해마다 같은 금액이 늘어 직선이 된다.",
+    "복리": "지난해까지 붙은 이자에도 다시 이자가 붙는 방식. 늘어나는 금액이 해마다 커져 곡선이 된다.",
+    "기대수익": "여러 해를 평균했을 때 기대하는 한 해 수익률. 어느 한 해에 그만큼 번다는 뜻이 아니다.",
+    "변동성": "한 해 수익률이 평균에서 얼마나 흩어지는지(표준편차). 이 수업에서 '흔들림'이라고 부른다. 클수록 나쁜 해의 손실도 크다.",
+    "채권": "정부나 회사에 돈을 빌려주고 정해진 이자를 받는 증서. 주식보다 기대수익과 흔들림이 모두 작다.",
+    "분산투자": "돈을 여러 종목·자산에 나눠 담는 것. 기대수익은 평균 그대로 두고 흔들림을 줄인다.",
+    "상관관계": "두 종목이 같은 방향으로 움직이는 정도. 0이면 서로 무관, 1이면 똑같이 움직인다.",
+    "시장 위험": "모든 종목이 함께 겪는 흔들림(경기, 금리 등). 종목을 아무리 늘려도 사라지지 않는다.",
+    "보수": "펀드·ETF가 해마다 자산에서 떼어 가는 운용 비용(연 %). 수익률에서 그대로 빠진다.",
+    "과세 이연": "세금을 해마다 내지 않고 나중에 한 번에 내도록 미루는 것. 미룬 돈이 그동안 복리로 불어난다.",
+    "적립식": "가격과 상관없이 정해진 날 정해진 금액을 꾸준히 사는 방식.",
+    "평균 매입 단가": "산 주식 1주에 평균 얼마를 냈는지. 쓴 돈 ÷ 산 주식 수.",
+    "시장 타이밍": "오를 때 들어가고 떨어지기 전에 나오려고 사고파는 시점을 고르는 것.",
+    "자산 배분": "돈을 주식·채권처럼 성격이 다른 자산에 어떤 비중으로 나눌지 정하는 것.",
+    "인덱스펀드": "시장 전체(예: 코스피200, S&P500)를 그대로 따라 사는 펀드. 종목을 고르지 않아 보수가 낮다."
+  }
+}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.ib-svg { width: 100%; max-width: 760px; height: auto; max-height: 50vh; display: block; margin: 0 auto; }
+.ib-svg text { fill: var(--ltt-muted); font-size: 14px; }
+.ib-svg .lab { fill: var(--ltt-ink); font-size: 15px; font-weight: 600; }
+.ib-svg .big { fill: var(--ltt-ink); font-size: 17px; font-weight: 700; }
+.ib-svg .tick line, .ib-svg .domain { stroke: var(--ltt-line-2); }
+.ib-svg .grid line { stroke: var(--ltt-line); }
+.ib-knob { display: grid; gap: 12px; }
+.ib-knob .ltt-param b { display: inline-block; min-width: 4.5em; font-variant-numeric: tabular-nums; }
+.ib-stats { display: flex; gap: 28px; flex-wrap: wrap; }
+.ib-stats .ib-num { font-size: 15px; color: var(--ltt-muted); }
+.ib-stats .ib-num b { display: block; font-size: 26px; color: var(--ltt-ink); font-variant-numeric: tabular-nums; }
+.ib-note { color: var(--ltt-muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const P0 = 1000; // 만원
+const won = (v) => Math.round(v).toLocaleString("ko-KR") + "만원";
+const growth = (r, T) => P0 * Math.pow(1 + r, T);
+const sigmaBasket = (n) => 40 * Math.sqrt(1 / n + (1 - 1 / n) * 0.2);
+const sigmaMix = (w) => Math.sqrt((18 * w) ** 2 + (6 * (1 - w)) ** 2 + 2 * 0.2 * 18 * 6 * w * (1 - w));
+const expMix = (w) => 7 * w + 4 * (1 - w);
+const badYear = (mu, sg) => mu - 1.645 * sg;
+const normal = (v, mu, sg) => Math.exp(-(((v - mu) / sg) ** 2) / 2) / (sg * Math.sqrt(2 * Math.PI));
+
+// 같은 시드면 같은 경로: 해마다 시장 충격 f 하나를 뽑고 종목 순서대로 개별 충격 e를 뽑는다.
+function simStocks(seed) {
+  let a = seed >>> 0;
+  const rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const nrm = () => { const u = 1 - rnd(), v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  const n = 20, T = 20, sm = 0.4 * Math.sqrt(0.2), se = 0.4 * Math.sqrt(0.8), g = 0.07 - 0.4 * 0.4 / 2;
+  const paths = Array.from({ length: n }, () => [1]);
+  for (let y = 1; y <= T; y++) { const f = nrm(); for (const p of paths) p.push(p[y - 1] * Math.exp(g + sm * f + se * nrm())); }
+  const port = [];
+  for (let y = 0; y <= T; y++) port.push(paths.reduce((s, p) => s + p[y], 0) / n);
+  return { paths, port };
+}
+const SIM = simStocks(4);
+const FIN = SIM.paths.map((p) => p[20]);
+const PORT_END = SIM.port[20];
+
+const TIMING = [12, -18, 25, 8, -6, 30, 4, -12, 20, 9];
+const runSeq = (rs) => rs.reduce((v, r) => v * (1 + r / 100), P0);
+const BEST2 = [30, 25], WORST2 = [-18, -12];
+const timingRows = {
+  stay: runSeq(TIMING),
+  missBest: runSeq(TIMING.map((r) => (BEST2.includes(r) ? 3 : r))),
+  avoidWorst: runSeq(TIMING.map((r) => (WORST2.includes(r) ? 3 : r))),
+  missBoth: runSeq(TIMING.map((r) => (BEST2.includes(r) || WORST2.includes(r) ? 3 : r))),
+  deposit: growth(0.03, 10),
+};
+const DCA_PRICES = [10000, 5000, 10000, 20000];
+const DCA_SHARES = DCA_PRICES.map((p) => 100000 / p);
+const DCA_TOTAL = DCA_SHARES.reduce((a, b) => a + b, 0);
+
+function frame(el, w, h) {
+  const svg = d3.select(el).append("svg").attr("class", "ib-svg").attr("viewBox", `0 0 ${w} ${h}`);
+  svg.style("max-width", w + "px");
+  return svg;
+}
+function axes(svg, x, y, h, m, xf, yf, xt = 6, yt = 5) {
+  svg.append("g").attr("class", "grid").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(yt).tickSize(-(x.range()[1] - m.l)).tickFormat("")).select(".domain").remove();
+  svg.append("g").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(xt).tickFormat(xf));
+  svg.append("g").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(yt).tickFormat(yf));
+}
+const path = (svg, pts, x, y, color, width = 2.5, op = 1) =>
+  svg.append("path").attr("d", d3.line().x((p) => x(p[0])).y((p) => y(p[1]))(pts)).attr("fill", "none").style("stroke", color).attr("stroke-width", width).attr("opacity", op);
+const text = (svg, x, y, s, cls, anchor = "start") => svg.append("text").attr("x", x).attr("y", y).attr("class", cls || null).attr("text-anchor", anchor).text(s);
+
+// 3번·10번이 같은 축(0–30년, 0–8,000만원)을 쓴다.
+function growthAxes(el) {
+  const W = 720, H = 300, m = { l: 70, r: 150, t: 16, b: 34 };
+  const svg = frame(el, W, H);
+  const x = d3.scaleLinear([0, 30], [m.l, W - m.r]), y = d3.scaleLinear([0, 8000], [H - m.b, m.t]);
+  axes(svg, x, y, H, m, (d) => d + "년", (d) => d.toLocaleString("ko-KR") + "만");
+  return { svg, x, y, W, H, m };
+}
+const years = d3.range(0, 31);
+
+function compoundFig(el) {
+  const g = growthAxes(el);
+  const series = [
+    { id: "simple", pts: years.map((t) => [t, P0 * (1 + 0.07 * t)]), color: "var(--ltt-c2)", w: 2.5, label: "단리 7%" },
+    { id: "comp", pts: years.map((t) => [t, growth(0.07, t)]), color: "var(--ltt-c1)", w: 4, label: "복리 7%" },
+    { id: "dep", pts: years.map((t) => [t, growth(0.03, t)]), color: "var(--ltt-muted)", w: 2.5, label: "예금 복리 3%" },
+  ];
+  const parts = {};
+  for (const s of series) {
+    const grp = g.svg.append("g");
+    path(grp, s.pts, g.x, g.y, s.color, s.w);
+    const end = s.pts[30];
+    text(grp, g.x(30) + 8, g.y(end[1]) - 4, s.label, "lab");
+    text(grp, g.x(30) + 8, g.y(end[1]) + 15, won(end[1]));
+    parts[s.id] = grp;
+  }
+  text(g.svg, g.x(0) + 6, g.y(1000) + 22, "시작 1,000만원");
+  const show = (ids) => { for (const k in parts) parts[k].attr("opacity", ids.includes(k) ? 1 : 0); };
+  show(["simple", "comp", "dep"]);
+  return { el: g.svg.node(), show };
+}
+
+function riskFig(el) {
+  const W = 720, H = 400, m = { l: 30, r: 20, t: 30, b: 44 };
+  const svg = frame(el, W, H);
+  const x = d3.scaleLinear([-50, 60], [m.l, W - m.r]), y = d3.scaleLinear([0, 0.075], [H - m.b, m.t]);
+  svg.append("g").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(11).tickFormat((d) => d + "%"));
+  text(svg, W - m.r, H - 6, "한 해 수익률", null, "end");
+  svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", m.t).attr("y2", H - m.b).style("stroke", "var(--ltt-line-2)").attr("stroke-dasharray", "2 3");
+  const xs = d3.range(-50, 60.5, 0.5);
+  const area = (mu, sg, color) => svg.append("path").attr("d", d3.area().x((v) => x(v)).y0(y(0)).y1((v) => y(normal(v, mu, sg)))(xs)).style("fill", color).attr("opacity", 0.18);
+  area(7, 18, "var(--ltt-c1)"); area(4, 6, "var(--ltt-c2)");
+  path(svg, xs.map((v) => [v, normal(v, 4, 6)]), x, y, "var(--ltt-c2)", 2.5);
+  path(svg, xs.map((v) => [v, normal(v, 7, 18)]), x, y, "var(--ltt-c1)", 4);
+  svg.append("line").attr("x1", x(3)).attr("x2", x(3)).attr("y1", y(0)).attr("y2", y(0.072)).style("stroke", "var(--ltt-ink)").attr("stroke-width", 3);
+  text(svg, x(3) + 6, y(0.072) + 4, "예금 3% (매년 같음)", "lab");
+  text(svg, x(4) + 26, y(normal(4, 4, 6)) + 34, "채권 평균 4%", "lab");
+  text(svg, x(30), y(normal(30, 7, 18)) - 10, "주식 평균 7%", "lab");
+  const bad = (v, label, color, yy) => {
+    svg.append("line").attr("x1", x(v)).attr("x2", x(v)).attr("y1", yy).attr("y2", y(0)).style("stroke", color).attr("stroke-width", 2).attr("stroke-dasharray", "5 4");
+    text(svg, x(v), yy - 6, label, "lab", "middle");
+  };
+  bad(badYear(7, 18), "주식 나쁜 해 " + badYear(7, 18).toFixed(1) + "%", "var(--ltt-bad)", y(0.03));
+  bad(badYear(4, 6), "채권 나쁜 해 " + badYear(4, 6).toFixed(1) + "%", "var(--ltt-c2)", y(0.046));
+  text(svg, m.l, m.t - 10, "높을수록 그 수익률이 나오는 해가 흔하다. 나쁜 해 = 약 20년에 한 번(하위 5%)");
+  return { el: svg.node() };
+}
+
+function dragFig(el) {
+  const W = 640, H = 330, m = { l: 60, r: 170, t: 24, b: 44 };
+  const svg = frame(el, W, H);
+  const x = d3.scalePoint(["시작", "1년 뒤", "2년 뒤"], [m.l + 20, W - m.r]), y = d3.scaleLinear([50, 160], [H - m.b, m.t]);
+  axes(svg, x, y, H, m, (d) => d, (d) => d, 3, 5);
+  const a = [["시작", 100], ["1년 뒤", 150], ["2년 뒤", 75]], b = [["시작", 100], ["1년 뒤", 100], ["2년 뒤", 100]];
+  path(svg, b, x, y, "var(--ltt-muted)", 2.5);
+  path(svg, a, x, y, "var(--ltt-c1)", 4);
+  for (const [k, v] of a) svg.append("circle").attr("cx", x(k)).attr("cy", y(v)).attr("r", 6).style("fill", "var(--ltt-c1)");
+  text(svg, x("1년 뒤"), y(150) - 12, "+50% → 150", "lab", "middle");
+  text(svg, x("2년 뒤") + 12, y(75) + 5, "−50% → 75", "lab");
+  text(svg, x("2년 뒤") + 12, y(100) + 5, "매년 0% → 100");
+  return { el: svg.node() };
+}
+
+function pathsFig(el) {
+  const W = 760, H = 450, m = { l: 70, r: 190, t: 66, b: 40 };
+  const svg = frame(el, W, H);
+  const x = d3.scaleLinear([0, 20], [m.l, W - m.r]), y = d3.scaleLog([0.05, 30], [H - m.b, m.t]);
+  axes(svg, x, y, H, m, (d) => d + "년", (d) => d + "배", 5, 6);
+  svg.selectAll("g").filter(function () { return this.getAttribute("transform") === `translate(${m.l},0)`; }).remove();
+  svg.append("g").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues([0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20]).tickFormat((d) => d + "배"));
+  svg.append("line").attr("x1", x(0)).attr("x2", x(20)).attr("y1", y(1)).attr("y2", y(1)).style("stroke", "var(--ltt-ink-2)").attr("stroke-dasharray", "4 4");
+  text(svg, x(20) + 8, y(1) + 5, "원금 1배");
+  const line = d3.line().x((p) => x(p[0])).y((p) => y(p[1]));
+  const faint = SIM.paths.map(() => svg.append("path").attr("fill", "none").style("stroke", "var(--ltt-c2)").attr("stroke-width", 1.5).attr("opacity", 0.4));
+  const bold = svg.append("path").attr("fill", "none").style("stroke", "var(--ltt-c1)").attr("stroke-width", 4.5);
+  const endG = svg.append("g");
+  text(endG, x(20) + 8, y(PORT_END) - 6, "나눠 담은 바구니", "lab");
+  text(endG, x(20) + 8, y(PORT_END) + 14, PORT_END.toFixed(2) + "배", "big");
+  const below = FIN.filter((v) => v < PORT_END).length, under1 = FIN.filter((v) => v < 1).length;
+  text(endG, m.l, 22, `20개 중 ${below}개가 바구니보다 낮게, ${under1}개가 원금보다 낮게 끝났다`, "lab");
+  text(endG, m.l, 44, `가장 좋은 종목 ${Math.max(...FIN).toFixed(2)}배 · 가장 나쁜 종목 ${Math.min(...FIN).toFixed(2)}배`);
+  const draw = (t) => {
+    const k = Math.max(0, Math.min(20, Math.floor((t / 6000) * 20 + 1e-9)));
+    SIM.paths.forEach((p, i) => faint[i].attr("d", line(p.slice(0, k + 1).map((v, j) => [j, v]))));
+    bold.attr("d", line(SIM.port.slice(0, k + 1).map((v, j) => [j, v])));
+    endG.attr("opacity", k === 20 ? 1 : 0);
+  };
+  draw(0);
+  LTT.clock(svg.node(), draw, { dur: 6000, id: "paths" });
+  return { el: svg.node() };
+}
+
+const TV = {
+  "수익률": `<rect x="14" y="30" width="34" height="30" style="fill:var(--ltt-line-2)"/><rect x="72" y="26" width="34" height="34" style="fill:var(--ltt-c1)"/><text x="89" y="20" text-anchor="middle">+7%</text>`,
+  "복리": `<path d="M8 58 L112 34" style="stroke:var(--ltt-c2);stroke-width:2.5;fill:none"/><path d="M8 58 Q70 54 112 8" style="stroke:var(--ltt-c1);stroke-width:3.5;fill:none"/>`,
+  "변동성": `<path d="M8 36 H112" style="stroke:var(--ltt-muted);stroke-dasharray:4 4"/><path d="M8 36 L22 14 L36 54 L50 20 L64 58 L78 12 L92 48 L112 30" style="stroke:var(--ltt-c1);stroke-width:2.5;fill:none"/>`,
+  "분산투자": `<circle cx="28" cy="36" r="20" style="fill:var(--ltt-c2)"/>${[0, 1, 2, 3].map((r) => [0, 1, 2, 3].map((c) => `<circle cx="${70 + c * 13}" cy="${17 + r * 13}" r="5" style="fill:var(--ltt-c1)"/>`).join("")).join("")}`,
+  "보수": `<rect x="8" y="24" width="104" height="24" style="fill:var(--ltt-c1)"/><rect x="88" y="24" width="24" height="24" style="fill:var(--ltt-bad)"/><text x="100" y="16" text-anchor="middle">−</text>`,
+  "적립식": [0, 1, 2, 3].map((i) => `<rect x="${10 + i * 26}" y="20" width="18" height="32" style="fill:var(--ltt-c1)"/>`).join(""),
+};
+const tv = (k) => `<svg viewBox="0 0 120 70" width="120" height="70" style="font-size:14px;fill:var(--ltt-ink)">${TV[k]}</svg>`;
+
+function treeFig(el) {
+  const svg = el.appendChild(document.createElementNS(SVGNS, "svg"));
+  const dg = LTT.diagram(svg, {
+    cols: 3, rows: 4, cell: [270, 96], node: [210, 62],
+    nodes: [
+      { id: "now", c: 0, r: 1.5, l: "투자의 기본", s: "이번 수업", k: "accent", ring: true, icon: "trend" },
+      { id: "index", c: 1, r: 0, l: "인덱스펀드·ETF", icon: "layers" },
+      { id: "rebal", c: 2, r: 0, l: "리밸런싱", icon: "scale" },
+      { id: "tax", c: 1, r: 1, l: "연금저축·ISA 세제", icon: "shield-check" },
+      { id: "infl", c: 1, r: 2, l: "인플레이션과 실질수익률", icon: "gauge" },
+      { id: "bond", c: 2, r: 2, l: "채권 금리와 가격", icon: "doc" },
+      { id: "emerg", c: 1, r: 3, l: "비상금과 투자 순서", icon: "home" },
+    ],
+    edges: [
+      { f: "now", t: "index" }, { f: "index", t: "rebal" }, { f: "now", t: "tax" },
+      { f: "now", t: "infl" }, { f: "infl", t: "bond" }, { f: "now", t: "emerg" },
+    ],
+  });
+  return { el: svg, dg };
+}
+
+function overviewFig(el) {
+  const svg = el.appendChild(document.createElementNS(SVGNS, "svg"));
+  const dg = LTT.diagram(svg, {
+    cols: 6, rows: 2, cell: [190, 120], node: [160, 70],
+    nodes: [
+      { id: "pay", c: 0, r: 0.5, l: "월급", icon: "inbox" },
+      { id: "dca", c: 1, r: 0.5, l: "매달 같은 금액", s: "5단 적립식", icon: "clock" },
+      { id: "mix", c: 2, r: 0.5, l: "비중 나누기", s: "2·5단 위험·배분", icon: "scale" },
+      { id: "stock", c: 3, r: 0, l: "주식 바구니", s: "3단 분산", icon: "layers", k: "accent" },
+      { id: "bond", c: 3, r: 1, l: "채권", s: "2단 흔들림 작음", icon: "doc" },
+      { id: "acct", c: 4, r: 0.5, l: "낮은 보수·세금 미루는 계좌", s: "4단 비용·세금", icon: "shield-check" },
+      { id: "time", c: 5, r: 0.5, l: "오래 복리", s: "1단 30년", icon: "trend", k: "good" },
+    ],
+    edges: [
+      { f: "pay", t: "dca" }, { f: "dca", t: "mix" }, { f: "mix", t: "stock" }, { f: "mix", t: "bond" },
+      { f: "stock", t: "acct" }, { f: "bond", t: "acct" }, { f: "acct", t: "time" },
+    ],
+  });
+  return { el: svg, dg };
+}
+
+const scenes = [
+  {
+    type: "hook", art: "trend",
+    pre: "월급을 예금에만 넣어 왔다면",
+    text: "예금 3%로 30년, 1,000만원은 2,427만원이 된다",
+    sub: "투자는 한 해 {{수익률}}(3%)을 바꿔 이 숫자를 바꾸는 일이다. 무엇이 바꾸고, 무엇이 깎아 먹는지 다섯 단계로 본다: {{복리}} → 위험 → 분산 → 비용·세금 → 사는 방식과 비중.",
+  },
+  {
+    type: "terms", title: "먼저 이 다섯 낱말", en: "Five words first",
+    terms: [
+      { key: "복리", word: "복리", en: "compounding", icon: "trend", visual: tv("복리"), plain: "이자에도 다시 이자가 붙는 방식", example: "1년 뒤 1,070만원의 7%가 다음 해 이자" },
+      { key: "변동성", word: "변동성", en: "volatility", icon: "wind", visual: tv("변동성"), plain: "한 해 수익률이 평균에서 흩어지는 정도", example: "평균 7%여도 어떤 해는 −20%, 어떤 해는 +30%" },
+      { key: "분산투자", word: "분산투자", en: "diversification", icon: "layers", visual: tv("분산투자"), plain: "여러 종목·자산에 나눠 담기", example: "한 종목 대신 20종목에 1/20씩" },
+      { key: "보수", word: "보수", en: "fee", icon: "minus", visual: tv("보수"), plain: "펀드가 해마다 떼어 가는 비용(연 %)", example: "보수 1.5%면 7% 수익이 5.5%로" },
+      { key: "적립식", word: "적립식", en: "dollar-cost averaging", icon: "clock", visual: tv("적립식"), plain: "가격과 상관없이 매달 같은 금액을 사기", example: "매달 25일 10만원씩" },
+    ],
+  },
+  {
+    type: "figure", kicker: "1단 · 복리", title: "같은 7%라도 복리는 30년 뒤 단리의 두 배를 넘는다", en: "Compounding bends the line",
+    sub: "1,000만원을 30년 둔다. 매년 똑같은 수익률이 난다고 가정한 모델 계산이다(주식 장기 7%는 미국 대형주 1926년 이후 물가를 빼지 않은 연평균 약 10%를 보수적으로 낮춘 가정, 불확실. 예금 3%도 시점마다 다르다).",
+    figure: compoundFig,
+    steps: [
+      { caption: "① {{단리}} 7%는 매년 {{원금}}의 7%인 70만원씩 늘어 직선(3,100만원). 복리 7%는 늘어난 돈에도 7%가 붙어 증가분이 해마다 커진다(7,612만원).", enter: (k, f) => f.show(["simple", "comp"]) },
+      { caption: "② 예금 복리 3%를 더한다. 같은 복리라도 수익률 4%p 차이가 30년에 5,000만원 넘게 벌어진다.", enter: (k, f) => f.show(["simple", "comp", "dep"]) },
+    ],
+    takeaway: "복리에서는 시간이 길수록 수익률 차이가 크게 벌어진다.",
+    recall: "같은 7%에서 단리와 복리의 30년 뒤 값은 각각 얼마였나?",
+  },
+  {
+    type: "predict", kicker: "1단 · 복리", title: "연 7% 복리면 두 배까지 몇 년?",
+    question: "1,000만원을 연 7% 복리로 두면 2,000만원이 되는 데 몇 년 걸릴까?",
+    visual: () => LTT.facts([{ icon: "inbox", value: "1,000만원", label: "원금" }, { icon: "trend", value: "연 7%", label: "복리 수익률" }, { icon: "target", value: "2,000만원", label: "목표(두 배)" }]),
+    choices: [{ id: "5", text: "약 5년" }, { id: "10", text: "약 10년" }, { id: "15", text: "약 15년" }, { id: "20", text: "약 20년" }],
+    answer: "10",
+    why: "1.07을 10번 곱하면 약 1.97. 정확히는 10.2년이다. 72 ÷ 수익률(%)로 어림한다(72의 법칙: 72 ÷ 7 ≈ 10.3). 단리였다면 1,000 ÷ 70 ≈ 14.3년.",
+  },
+  {
+    type: "figure", kicker: "2단 · 위험과 기대수익", title: "기대수익이 높은 자산일수록 한 해 수익률이 넓게 흩어진다", en: "Higher expected return, wider spread",
+    sub: "앞 장의 '매년 7%'는 평균이다. 실제로는 해마다 다르게 나온다. 예금·{{채권}}·주식의 한 해 수익률을 비교한다. 곡선 아래 넓이가 넓은 곳일수록 자주 나오는 수익률이다.",
+    narration: "예금은 매년 3%로 같다. 채권은 평균 4% 근처에 좁게, 주식은 평균 7% 근처에 넓게 퍼진다. 평균이 높은 대가로 {{변동성}}이 크다. 그래서 약 20년에 한 번 오는 나쁜 해에 주식은 −22.6%, 채권은 −5.9%까지 내려간다. 높은 {{기대수익}}은 이 흔들림을 견딘 값이다.",
+    figure: riskFig, layout: "split",
+    basis: "<span class=\"ltt-tag warn\">모델</span> 정규분포로 단순화. 주식 평균 7%·흔들림 18%, 채권 4%·6%는 가정(실제 주식은 꼬리가 더 두껍다, 불확실).",
+    takeaway: "기대수익이 높을수록 흔들림과 나쁜 해의 손실도 크다.",
+    recall: "주식(평균 7%, 흔들림 18%)의 약 20년에 한 번 나쁜 해 손실은 몇 %였나?",
+  },
+  {
+    type: "figure", kicker: "2단 · 위험과 기대수익", title: "흔들림은 그 자체로 비용이다: +50% 뒤 −50%면 25%를 잃는다", en: "Volatility costs growth",
+    sub: "두 해 평균 수익률은 둘 다 0%다.",
+    narration: "100이 +50%로 150이 됐다가, 150의 −50%를 잃으면 75가 된다. 떨어진 해의 손실은 더 커진 금액에 붙기 때문이다. 같은 평균이라도 흔들림이 클수록 오래 굴린 결과는 낮아진다. 그러니 같은 기대수익이라면 흔들림을 줄이는 것이 이득이다.",
+    figure: dragFig,
+  },
+  {
+    type: "predict", kicker: "3단 · 분산투자", title: "한 종목에 몰까, 20개에 나눌까",
+    sub: "앞 장: 같은 평균이면 흔들림이 작을수록 낫다. 흔들림을 줄이는 첫 방법이 나눠 담기다.",
+    question: "기대수익이 모두 연 7%인 종목 20개. 20년 뒤, 20개에 똑같이 나눠 담은 바구니보다 낮게 끝나는 종목은 몇 개일까?",
+    visual: () => LTT.facts([{ icon: "layers", value: "20개", label: "종목" }, { icon: "trend", value: "연 7%", label: "기대수익(모두 같음)" }, { icon: "wind", value: "40%", label: "종목 하나의 흔들림" }, { icon: "clock", value: "20년", label: "기간" }]),
+    choices: [{ id: "a", text: "0–5개" }, { id: "b", text: "6–10개" }, { id: "c", text: "11–15개" }, { id: "d", text: "16–20개" }],
+    answer: "d",
+    why: "이 계산에서는 16개가 바구니보다 낮게 끝났다. 소수의 큰 상승 종목이 평균을 끌어올리고, 흔들림이 큰 종목 하나는 대개 평균에 못 미친다. 어느 종목이 그 소수일지는 미리 알 수 없다. <span class=\"ltt-tag warn\">모델로 계산한 예시</span>",
+  },
+  {
+    type: "figure", kicker: "3단 · 분산투자", title: "흐린 선은 종목 하나, 굵은 선은 20개를 나눠 담은 바구니", en: "One stock vs the basket",
+    sub: "앞 장 예측의 계산 과정이다. 세로축은 배수(로그 눈금: 한 칸 위로 갈 때마다 같은 배율).",
+    narration: "흐린 선 20개는 출발이 같고 기대수익도 같다. 그런데 20년 뒤 0.09배에서 18.99배까지 갈라진다. 바구니(굵은 선)는 20개 값의 평균이라 출렁임이 훨씬 작다. 바구니보다 높이 끝난 몇 종목이 '수익률 높은 종목'이지만, 출발점에서는 다른 선과 구별되지 않는다.",
+    figure: pathsFig, layout: "split",
+    basis: "<span class=\"ltt-tag warn\">모델로 계산한 예시</span> 종목 흔들림 40%, 종목끼리 {{상관관계}} 0.2, 난수 시드 4의 한 번. 실제 미국 주식 1926–2016에서도 절반 넘는 종목이 단기 국채보다 못했고, 순 부의 대부분은 상위 약 4% 종목이 만들었다(Bessembinder, 2018).",
+    sources: ["Bessembinder, H. (2018). Do stocks outperform Treasury bills? Journal of Financial Economics, 129(3)."],
+    takeaway: "{{분산투자}}는 기대수익을 그대로 두고 흔들림을 줄인다.",
+    recall: "분산하면 기대수익과 흔들림은 각각 어떻게 되나?",
+  },
+  {
+    title: "종목을 늘리면 흔들림은 줄지만 바닥이 있다", kicker: "3단 · 분산투자", en: "Diversification has a floor",
+    narration: "단계를 눌러 바구니에 담은 종목 수를 바꾼다. 곡선은 바구니의 한 해 수익률 분포이고, 평균(7%)은 그대로다. 종목들이 함께 움직이는 부분({{시장 위험}})은 나눠 담아도 남아서, 흔들림은 점선의 바닥 아래로 내려가지 않는다.",
+    mount(body) {
+      body.innerHTML = `<div class="ib-knob"><div id="g-nstk"></div>
+        <div class="ltt-param">담은 종목 수 <b id="nstk-v"></b><div id="nstk"></div></div>
+        <div class="ib-stats"><div class="ib-num">바구니 흔들림 <b id="nstk-s"></b></div><div class="ib-num">기대수익 <b>7%</b></div></div>
+        <div id="nstk-fig"></div><div class="ltt-basis"><span class="ltt-tag warn">모델</span> 종목 흔들림 40%, 종목끼리 상관관계 0.2. 흔들림 = 40% × √(1/N + (1 − 1/N) × 0.2), N = 담은 종목 수</div></div>`;
+      const W = 720, H = 300, m = { l: 20, r: 20, t: 20, b: 40 };
+      const svg = frame(body.querySelector("#nstk-fig"), W, H);
+      const x = d3.scaleLinear([-80, 90], [m.l, W - m.r]), y = d3.scaleLinear([0, 0.024], [H - m.b, m.t]);
+      svg.append("g").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(9).tickFormat((d) => d + "%"));
+      const xs = d3.range(-80, 90.5, 0.5);
+      path(svg, xs.map((v) => [v, normal(v, 7, sigmaBasket(1e9))]), x, y, "var(--ltt-ink-2)", 2).attr("stroke-dasharray", "6 5");
+      text(svg, x(7) + 30, y(normal(7, 7, sigmaBasket(1e9))) + 4, `바닥: 시장 위험 ${sigmaBasket(1e9).toFixed(1)}%`, "lab");
+      const cur = svg.append("path").attr("fill", "none").style("stroke", "var(--ltt-c1)").attr("stroke-width", 4);
+      const stops = [1, 2, 5, 10, 20, 50];
+      LTT.sweep({
+        params: { nstk: { kind: "steps", stops, value: 1, fmt: (v) => v + "개" } },
+        render: ({ nstk }) => {
+          const s = sigmaBasket(nstk);
+          cur.attr("d", d3.line().x((v) => x(v)).y((v) => y(normal(v, 7, s)))(xs));
+          body.querySelector("#nstk-s").textContent = s.toFixed(1) + "%";
+        },
+        goal: { el: "g-nstk", text: "흔들림이 20% 아래로 내려가는 가장 적은 종목 수를 찾는다", check: ({ nstk }) => sigmaBasket(nstk) < 20 && sigmaBasket(stops[stops.indexOf(nstk) - 1] ?? 1) >= 20 },
+      });
+      return {};
+    },
+  },
+  {
+    title: "보수 1.5%는 30년 뒤 돈의 3분의 1을 가져간다", kicker: "4단 · 비용과 세금", en: "Fees compound too",
+    narration: "3번 장면과 같은 축이다. 회색 선은 보수 없이 7% 복리(7,612만원). {{보수}}는 해마다 수익률에서 빠지므로, 깎인 수익률로 30년 복리가 된다. 단계를 눌러 보수를 바꿔 본다.",
+    mount(body) {
+      body.innerHTML = `<div class="ib-knob"><div class="ltt-param">연 보수 <b id="fee-v"></b><div id="fee"></div></div>
+        <div class="ib-stats"><div class="ib-num">30년 뒤 <b id="fee-end"></b></div><div class="ib-num">보수로 사라진 몫 <b id="fee-lost"></b></div></div>
+        <div id="fee-fig"></div></div>`;
+      const g = growthAxes(body.querySelector("#fee-fig"));
+      path(g.svg, years.map((t) => [t, growth(0.07, t)]), g.x, g.y, "var(--ltt-line-2)", 3);
+      text(g.svg, g.x(30) + 8, g.y(growth(0.07, 30)) - 4, "보수 0%", "lab");
+      text(g.svg, g.x(30) + 8, g.y(growth(0.07, 30)) + 15, won(growth(0.07, 30)));
+      const cur = g.svg.append("path").attr("fill", "none").style("stroke", "var(--ltt-c1)").attr("stroke-width", 4);
+      const lab = text(g.svg, g.x(30) + 8, 0, "", "lab"), val = text(g.svg, g.x(30) + 8, 0, "");
+      LTT.sweep({
+        params: { fee: { kind: "steps", stops: [0, 0.2, 0.5, 1, 1.5, 2], value: 1.5, fmt: (v) => v.toFixed(1) + "%" } },
+        render: ({ fee }) => {
+          const r = 0.07 - fee / 100, end = growth(r, 30);
+          cur.attr("d", d3.line().x((t) => g.x(t)).y((t) => g.y(growth(r, t)))(years));
+          lab.attr("y", g.y(end) + 40).text("보수 " + fee.toFixed(1) + "%");
+          val.attr("y", g.y(end) + 59).text(won(end));
+          body.querySelector("#fee-end").textContent = won(end);
+          body.querySelector("#fee-lost").textContent = ((1 - end / growth(0.07, 30)) * 100).toFixed(1) + "%";
+        },
+      });
+      return {};
+    },
+    basis: "주식 7%는 모델 가정. 시장 전체를 따르는 {{인덱스펀드}}·ETF는 연 보수 0.1–0.3%대가 흔하고, 종목을 고르는 펀드는 1%를 넘기도 한다(상품마다 다름).",
+    takeaway: "보수는 매년 수익률에서 빠져 복리로 쌓이므로 작은 %p도 30년 뒤 큰 차이가 된다.",
+    recall: "1,000만원, 7%, 30년에서 보수 1.5%면 끝값은 대략 얼마였나?",
+  },
+  {
+    type: "figure", kicker: "4단 · 비용과 세금", title: "같은 세율이라도 매년 내느냐, 끝에 한 번 내느냐가 다르다", en: "Tax timing matters",
+    sub: "1,000만원, 연 7%, 30년. 수익에 세금 15.4%를 매긴다.",
+    narration: "매년 수익에서 세금을 떼면 실제로 굴러가는 수익률은 7% × (1 − 0.154) = 5.92%다. 세금을 끝까지 미루면({{과세 이연}}) 7% 전체가 30년 복리로 굴러간 뒤 수익에 한 번 세금을 낸다. 미룬 세금도 그동안 불어나기 때문에 차이가 1,000만원 가까이 난다.",
+    figure: (el) => {
+      const f = LTT.chartFrame({ title: "30년 뒤 남는 돈", dek: "시작 1,000만원, 단위 만원", source: "모델로 계산한 예시. 15.4%는 한국 이자·배당소득세율(지방세 포함). ISA·연금저축 같은 계좌는 세금을 미루거나 줄여 준다. 실제 과세는 상품·계좌마다 다르다." });
+      el.appendChild(f.el);
+      const svg = f.el.appendChild(document.createElementNS(SVGNS, "svg"));
+      const hb = LTT.hbars(svg, {
+        domain: [0, 8000], ticks: [0, 2000, 4000, 6000, 8000], tickFormat: (d) => d.toLocaleString("ko-KR"), fmt: (v) => won(v),
+        rows: [
+          { label: "세금 없음", value: growth(0.07, 30), tone: "floor" },
+          { label: "끝에 한 번 낸다", value: P0 * (1 + (Math.pow(1.07, 30) - 1) * (1 - 0.154)) },
+          { label: "매년 낸다", value: P0 * Math.pow(1 + 0.07 * (1 - 0.154), 30) },
+        ],
+      });
+      f.foot();
+      hb.play && hb.play();
+      return { el: f.el };
+    },
+  },
+  {
+    type: "figure", kicker: "5단 · 사는 방식", title: "매달 같은 금액을 사면 싼 달에 더 많은 주식이 들어온다", en: "Dollar-cost averaging",
+    sub: "비용·세금 다음은 '언제 살까'다. 싼 때를 미리 맞히기는 어렵다. {{적립식}}은 이 문제를 규칙으로 푼다: 넉 달 동안 매달 10만원씩, 가격과 상관없이 산다.",
+    narration: "가격이 5,000원으로 떨어진 달에는 같은 10만원으로 20주를, 20,000원으로 오른 달에는 5주만 산다. 넉 달 동안 40만원으로 45주를 샀으니 {{평균 매입 단가}}는 400,000 ÷ 45 ≈ 8,889원. 네 달 가격의 평균 11,250원보다 낮다. 언제 쌀지 맞히지 않아도 규칙이 싼 때 더 많이 사게 만든다.",
+    layout: "split",
+    figure: (el) => {
+      const W = 640, H = 380, m = { l: 70, r: 30, t: 30, b: 40 };
+      el.style.maxWidth = "560px";
+      const svg = frame(el, W, H);
+      const months = ["1월", "2월", "3월", "4월"];
+      const x = d3.scaleBand(months, [m.l, W - m.r]).padding(0.35);
+      const yP = d3.scaleLinear([0, 22000], [150, m.t]), yS = d3.scaleLinear([0, 22], [H - m.b, 200]);
+      svg.append("g").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(yP).ticks(3).tickFormat((d) => d.toLocaleString("ko-KR") + "원"));
+      svg.append("g").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(yS).ticks(3).tickFormat((d) => d + "주"));
+      svg.append("g").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x));
+      text(svg, m.l + 6, m.t - 12, "가격 (1주)", "lab");
+      text(svg, m.l + 6, 190, "10만원으로 산 주식 수", "lab");
+      const cx = (k) => x(k) + x.bandwidth() / 2;
+      path(svg, months.map((k, i) => [k, DCA_PRICES[i]]), cx, yP, "var(--ltt-c2)", 3);
+      months.forEach((k, i) => {
+        svg.append("circle").attr("cx", cx(k)).attr("cy", yP(DCA_PRICES[i])).attr("r", 6).style("fill", "var(--ltt-c2)");
+        text(svg, cx(k), yP(DCA_PRICES[i]) + (i === 1 ? 24 : -12), DCA_PRICES[i].toLocaleString("ko-KR") + "원", null, "middle");
+        svg.append("rect").attr("x", x(k)).attr("width", x.bandwidth()).attr("y", yS(DCA_SHARES[i])).attr("height", yS(0) - yS(DCA_SHARES[i])).style("fill", "var(--ltt-c1)");
+        text(svg, cx(k), yS(DCA_SHARES[i]) - 6, DCA_SHARES[i] + "주", "lab", "middle");
+      });
+      return { el: svg.node() };
+    },
+    aside: () => LTT.facts([{ icon: "inbox", value: "40만원", label: "넉 달 쓴 돈" }, { icon: "layers", value: DCA_TOTAL + "주", label: "산 주식" }, { icon: "target", value: "8,889원", label: "평균 매입 단가", tone: "good" }, { icon: "chart", value: "11,250원", label: "네 달 평균 가격" }]),
+    takeaway: "적립식은 가격이 낮을 때 더 많이 사서 평균 매입 단가를 평균 가격보다 낮춘다.",
+    recall: "매달 10만원씩 10,000·5,000·10,000·20,000원에 사면 평균 매입 단가는?",
+  },
+  {
+    type: "figure", kicker: "5단 · 사는 방식", title: "좋은 해 두 번을 놓치면 예금보다 못하다", en: "Timing the market",
+    sub: "적립식의 반대는 때를 맞히는 {{시장 타이밍}}이다. 나쁜 해를 피하려고 빠져 있다가 좋은 해까지 놓치면? 1,000만원, 10년, 빠진 해는 예금 3%.",
+    narration: "계속 머물면 1,814만원. 가장 나쁜 두 해만 정확히 피하면 2,666만원으로 늘지만, 가장 좋은 두 해를 놓치면 1,184만원으로 예금(1,344만원)보다 낮아진다. 둘 다 놓치면 1,741만원. 나쁜 해를 피하는 이득만큼 좋은 해를 놓치는 손해도 크다. 어느 해가 어느 쪽인지 미리 알 수 없다면, 계속 머무는 것이 단순한 기본값이다.",
+    figure: (el) => {
+      const W = 720, H = 400, m = { l: 190, r: 120, t: 96, b: 30 };
+      const svg = frame(el, W, H);
+      const cw = (W - 40) / 10;
+      TIMING.forEach((r, i) => {
+        const tone = BEST2.includes(r) ? "var(--ltt-good-soft)" : WORST2.includes(r) ? "var(--ltt-bad-soft)" : "var(--ltt-card-2)";
+        svg.append("rect").attr("x", 20 + i * cw).attr("y", 30).attr("width", cw - 4).attr("height", 40).style("fill", tone).style("stroke", "var(--ltt-line)");
+        text(svg, 20 + i * cw + (cw - 4) / 2, 56, (r > 0 ? "+" : "−") + Math.abs(r) + "%", "lab", "middle");
+      });
+      text(svg, 20, 20, "10년 동안의 한 해 수익률(지어낸 예시, 평균 7.2%) · 초록 = 가장 좋은 두 해, 빨강 = 가장 나쁜 두 해");
+      const rows = [["나쁜 두 해만 피함", timingRows.avoidWorst, "var(--ltt-c3)"], ["계속 머묾", timingRows.stay, "var(--ltt-c1)"], ["둘 다 놓침", timingRows.missBoth, "var(--ltt-c4)"], ["예금만", timingRows.deposit, "var(--ltt-muted)"], ["좋은 두 해 놓침", timingRows.missBest, "var(--ltt-bad)"]];
+      const x = d3.scaleLinear([0, 3000], [m.l, W - m.r]), y = d3.scaleBand(rows.map((r) => r[0]), [m.t, H - m.b]).padding(0.3);
+      svg.append("g").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(6).tickFormat((d) => d.toLocaleString("ko-KR")));
+      rows.forEach(([l, v, c]) => {
+        svg.append("rect").attr("x", m.l).attr("y", y(l)).attr("height", y.bandwidth()).attr("width", x(v) - m.l).style("fill", c);
+        text(svg, m.l - 10, y(l) + y.bandwidth() / 2 + 5, l, "lab", "end");
+        text(svg, x(v) + 8, y(l) + y.bandwidth() / 2 + 5, won(v));
+      });
+      return { el: svg.node() };
+    },
+    basis: "<span class=\"ltt-tag warn\">모델로 계산한 예시</span> 수익률 열은 설명용으로 지어낸 것이다. 실제 시장의 같은 분석은 '찾아볼 곳'.",
+    sources: ["J.P. Morgan Asset Management, Guide to Retirement: 'best days' 분석(가장 좋은 날을 놓쳤을 때의 장기 수익)"],
+  },
+  {
+    title: "주식 비중은 견딜 수 있는 나쁜 해로 정한다", kicker: "5단 · 자산 배분", en: "Asset allocation",
+    narration: "주식과 채권을 섞는 비중을 바꾼다. 비중 100%와 0%는 2단 그림의 주식·채권 그대로다. 주식을 늘리면 기대수익이 오르고 나쁜 해의 손실도 커진다. {{자산 배분}}은 나쁜 해에 얼마까지 잃어도 팔지 않고 버틸지를 먼저 정하고, 그 안에서 기대수익이 가장 높은 비중을 고르는 일이다.",
+    mount(body) {
+      body.innerHTML = `<div class="ib-knob"><div id="g-wst"></div>
+        <div class="ltt-param">주식 비중 <b id="wst-v"></b><div id="wst"></div></div>
+        <div class="ltt-bar" id="wst-bar"></div>
+        <div class="ib-stats"><div class="ib-num">기대수익 <b id="wst-e"></b></div><div class="ib-num">흔들림 <b id="wst-s"></b></div><div class="ib-num">나쁜 해(약 20년에 한 번) <b id="wst-b"></b></div></div>
+        <div id="wst-fig"></div>
+        <div class="ltt-basis"><span class="ltt-tag warn">모델</span> 주식 7%·18%, 채권 4%·6%, 둘의 상관 0.2. 나쁜 해 = 기대수익 − 1.645 × 흔들림.</div></div>`;
+      const W = 720, H = 200, m = { l: 60, r: 150, t: 12, b: 30 };
+      const svg = frame(body.querySelector("#wst-fig"), W, H);
+      const x = d3.scaleLinear([0, 100], [m.l, W - m.r]), y = d3.scaleLinear([-25, 10], [H - m.b, m.t]);
+      axes(svg, x, y, H, m, (d) => d + "%", (d) => d + "%", 5, 7);
+      const ws = d3.range(0, 11).map((i) => i / 10);
+      path(svg, ws.map((w) => [w * 100, expMix(w)]), x, y, "var(--ltt-c1)", 3);
+      path(svg, ws.map((w) => [w * 100, badYear(expMix(w), sigmaMix(w))]), x, y, "var(--ltt-bad)", 3);
+      text(svg, x(100) + 8, y(7) + 5, "기대수익", "lab");
+      text(svg, x(100) + 8, y(badYear(7, 18)) + 5, "나쁜 해 " + badYear(7, 18).toFixed(1) + "%", "lab");
+      text(svg, x(0) + 8, y(badYear(4, 6)) + 22, "채권만 " + badYear(4, 6).toFixed(1) + "%", "lab");
+      svg.append("line").attr("x1", x(0)).attr("x2", x(100)).attr("y1", y(-15)).attr("y2", y(-15)).style("stroke", "var(--ltt-warn)").attr("stroke-dasharray", "5 4").attr("stroke-width", 2);
+      text(svg, x(100) + 8, y(-15) + 5, "목표선 −15%");
+      const mk = svg.append("line").attr("y1", m.t).attr("y2", H - m.b).style("stroke", "var(--ltt-ink)").attr("stroke-width", 2);
+      const bar = LTT.bar(body.querySelector("#wst-bar"), [{ color: "var(--ltt-c1)" }, { color: "var(--ltt-c2)" }]);
+      const stops = d3.range(0, 101, 10);
+      const ok = (p) => badYear(expMix(p / 100), sigmaMix(p / 100)) > -15;
+      LTT.sweep({
+        params: { wst: { kind: "steps", stops, value: 100, fmt: (v) => v + "%" } },
+        render: ({ wst }) => {
+          const w = wst / 100, e = expMix(w), s = sigmaMix(w);
+          bar.set([wst, 100 - wst], ["주식 " + wst + "%", "채권 " + (100 - wst) + "%"]);
+          body.querySelector("#wst-e").textContent = e.toFixed(1) + "%";
+          body.querySelector("#wst-s").textContent = s.toFixed(1) + "%";
+          body.querySelector("#wst-b").textContent = badYear(e, s).toFixed(1) + "%";
+          mk.attr("x1", x(wst)).attr("x2", x(wst));
+        },
+        goal: { el: "g-wst", text: "나쁜 해 손실이 −15%보다 작으면서 기대수익이 가장 높은 주식 비중을 찾는다", check: ({ wst }) => ok(wst) && !(wst < 100 && ok(wst + 10)) },
+      });
+      return {};
+    },
+    takeaway: "자산 배분은 견딜 수 있는 나쁜 해의 손실을 먼저 정하고 그 안에서 기대수익이 가장 높은 비중을 고르는 일이다.",
+    recall: "나쁜 해 손실을 −15% 안으로 두려면 이 모델에서 주식 비중은 최대 몇 %였나?",
+  },
+  {
+    type: "figure", title: "다음에 이어서 볼 개념", en: "What to learn next",
+    sub: "이번 수업에서 갈라져 나가는 개념들. 오른쪽으로 갈수록 앞 개념을 알아야 한다.",
+    figure: treeFig,
+  },
+  { type: "summary", title: "다섯 단을 다시 떠올린다" },
+  {
+    type: "overview", title: "처음 투자 계획 한 장", caption: "상자 아래 글은 그 내용을 다룬 단(각 장면 제목 위 작은 표시)이다. 월급에서 출발해 매달 같은 금액을 비중대로 나눠, 비용이 낮은 계좌에서 오래 굴린다.",
+    figure: overviewFig,
+  },
+  {
+    type: "keywords", title: "더 찾아볼 때 쓸 말",
+    terms: [{ ko: "복리", en: "compound interest" }, { ko: "변동성", en: "volatility" }, { ko: "분산투자", en: "diversification" }, { ko: "체계적 위험", en: "systematic risk" }, { ko: "총보수", en: "expense ratio" }, { ko: "과세 이연", en: "tax deferral" }, { ko: "적립식 투자", en: "dollar-cost averaging" }, { ko: "자산 배분", en: "asset allocation" }],
+    signals: ["상품 설명서의 '총보수'·'TER' 항목", "최근 수익률만 크게 보여 주는 광고", "'원금 보장'과 '고수익'을 함께 말하는 상품"],
+    queries: ["인덱스펀드 총보수 비교", "ISA 연금저축 세제 혜택 차이", "주식 채권 비중 나이별"],
+    neighbors: [{ term: "투기", diff: "기대수익보다 가격 움직임을 맞히는 데 거는 것" }, { term: "저축", diff: "원금이 흔들리지 않는 대신 기대수익이 낮다" }],
+  },
+];
+
+LTT.deck({ title: "투자의 기본", theme: "ledger", scenes });
+
+LTT.expect("복리 7% 30년(만원)", growth(0.07, 30), 7612.3, { tol: 0.1 });
+LTT.expect("단리 7% 30년(만원)", P0 * (1 + 0.07 * 30), 3100, { tol: 1e-9 });
+LTT.expect("예금 3% 30년(만원)", growth(0.03, 30), 2427.3, { tol: 0.1 });
+LTT.expect("두 배 햇수", Math.log(2) / Math.log(1.07), 10.24, { tol: 0.01 });
+LTT.expect("주식 나쁜 해(%)", badYear(7, 18), -22.61, { tol: 0.01 });
+LTT.expect("채권 나쁜 해(%)", badYear(4, 6), -5.87, { tol: 0.01 });
+LTT.expect("바구니 끝값(배)", PORT_END, 1.99, { tol: 0.005 });
+LTT.expect("바구니보다 낮은 종목 수", FIN.filter((v) => v < PORT_END).length, 16, { tol: 0 });
+LTT.expect("원금 아래 종목 수", FIN.filter((v) => v < 1).length, 11, { tol: 0 });
+LTT.expect("최고 종목(배)", Math.max(...FIN), 18.99, { tol: 0.005 });
+LTT.expect("최저 종목(배)", Math.min(...FIN), 0.09, { tol: 0.005 });
+LTT.expect("흔들림 N=1(%)", sigmaBasket(1), 40, { tol: 0.01 });
+LTT.expect("흔들림 N=10(%)", sigmaBasket(10), 21.17, { tol: 0.01 });
+LTT.expect("흔들림 N=20(%)", sigmaBasket(20), 19.60, { tol: 0.01 });
+LTT.expect("흔들림 바닥(%)", sigmaBasket(1e9), 17.89, { tol: 0.01 });
+LTT.expect("보수 1.5% 30년(만원)", growth(0.055, 30), 4984.0, { tol: 0.1 });
+LTT.expect("보수 0.2% 30년(만원)", growth(0.068, 30), 7196.8, { tol: 0.1 });
+LTT.expect("세금 매년(배)", Math.pow(1 + 0.07 * 0.846, 30), 5.618, { tol: 0.001 });
+LTT.expect("세금 끝에(배)", 1 + (Math.pow(1.07, 30) - 1) * 0.846, 6.594, { tol: 0.001 });
+LTT.expect("적립식 주식 수", DCA_TOTAL, 45, { tol: 1e-9 });
+LTT.expect("평균 매입 단가(원)", 400000 / DCA_TOTAL, 8888.9, { tol: 0.1 });
+LTT.expect("타이밍 계속(만원)", timingRows.stay, 1813.7, { tol: 0.1 });
+LTT.expect("타이밍 좋은 해 놓침(만원)", timingRows.missBest, 1184.1, { tol: 0.1 });
+LTT.expect("타이밍 나쁜 해 피함(만원)", timingRows.avoidWorst, 2666.5, { tol: 0.1 });
+LTT.expect("타이밍 둘 다(만원)", timingRows.missBoth, 1740.8, { tol: 0.1 });
+LTT.expect("예금 10년(만원)", timingRows.deposit, 1343.9, { tol: 0.1 });
+LTT.expect("비중 60% 나쁜 해(%)", badYear(expMix(0.6), sigmaMix(0.6)), -13.15, { tol: 0.01 });
+LTT.expect("비중 70% 나쁜 해(%)", badYear(expMix(0.7), sigmaMix(0.7)), -15.42, { tol: 0.01 });
+</script>
+</body>
+</html>

@@ -4,298 +4,469 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>세련된 화면은 '차이'를 아껴 쓴다</title>
-<script type="application/json" id="ltt-meta">{"domain":"UIUX","topic":"시각적 위계와 근접성·간격 스케일","audience":"UI를 가끔 직접 만드는 개발자. 간격을 '그냥 맞춰' 쓰지만 이유를 말로 설명하지는 못한다","pattern":["hook","terms","explain:strip","figure","explain","mock:split","mock:split","sweep","compare","statement","explain:stack","summary","summary","keywords"],"theme":"studio","medium":"실제 제품 화면(상품 카드·회원가입 폼 목업)에 디자인 리뷰처럼 간격 측정선을 그린다","mode":"체험형: 같은 상품 카드를 간격 측정선과 함께 단계별로 다듬고, 같은 폼의 BEFORE/AFTER를 번호 주석으로 읽은 뒤, 묶음 사이 간격을 직접 밀어 본다","decision":"무엇을 먼저 읽히게 할지와 그 수단(크기·굵기·회색 진하기), 묶음 안/사이 간격을 스케일의 어느 단계로 고를지"}</script>
+<script type="application/json" id="ltt-meta">{
+  "topic": "대시보드의 시각 위계와 간격: 근접성, 위계 신호, 간격 체계, 대비 예산",
+  "audience": "디자인 교육을 받지 않은 백엔드 출신 풀스택 개발자",
+  "theme": "studio",
+  "medium": "deck",
+  "decision": "대시보드 화면에서 무엇을 강조하고 간격을 어떻게 나눌지",
+  "glossary": {
+    "근접성": "가까이 놓인 요소를 한 묶음으로 보는 지각 경향(게슈탈트 원리 중 하나, Wertheimer 1923). 선이나 상자 없이 간격만으로 묶음이 생긴다.",
+    "위계 신호": "요소의 중요도 순서를 알리는 시각 차이. 크기·굵기·색(명도·채도)이 대표적이다. 절대값이 아니라 주변과의 차이로 읽힌다.",
+    "간격 체계": "간격을 4의 배수 같은 정해진 척도(예: 4, 8, 12, 16, 24, 32, 48)에서만 고르는 규칙. 묶음 안은 작은 값, 묶음 사이는 큰 값을 쓴다.",
+    "대비 예산": "한 화면에서 강한 강조(색, 큰 굵기)를 쓸 곳의 수를 미리 정해 두는 생각. 강조는 드물수록 주변과의 차이가 커진다.",
+    "8pt 격자": "간격과 크기를 8(작은 조정은 4)의 배수로 맞추는 규칙. pt는 디자인 툴의 길이 단위로, 웹 화면에서는 CSS px와 같은 값으로 쓰는 경우가 많다.",
+    "흐리게 보기": "화면을 흐리게(또는 눈을 가늘게 뜨고) 보아 세부를 지운 뒤 남는 덩어리로 위계를 점검하는 실무 요령(squint test). 경험칙이다.",
+    "주 버튼": "화면에서 가장 권하는 동작 하나에만 쓰는 채운 버튼(primary button). 나머지 동작은 테두리만 있는 버튼으로 둔다."
+  }
+}</script>
+<link rel="stylesheet" href="/kit/ltt.css">
+<link rel="stylesheet" href="/kit/ltt-parts.css">
+<link rel="stylesheet" href="/kit/ltt-ui.css">
+<link rel="stylesheet" href="/kit/ltt-mock.css">
+<link rel="stylesheet" href="/kit/ltt-deck.css">
+<style>
+  /* 목업 안은 '실제 화면'이라 hex를 쓴다 */
+  .db { font-family: "Pretendard", system-ui, sans-serif; color: #1f2430; background: #fff; padding: 24px; width: 600px; box-sizing: border-box; text-align: left; }
+  .db .row { display: flex; align-items: stretch; }
+  .db .head { display: flex; justify-content: space-between; align-items: center; }
+  .db .btn { font-size: 13px; padding: 6px 12px; border-radius: 6px; display: inline-block; }
+  .db .gap-v { position: relative; }
+  .db .gap-h { position: relative; flex: none; }
+  .db .ann { position: absolute; font: 600 11px/1 ui-monospace, monospace; color: #3b5bdb; background: #edf2ff; padding: 1px 3px; border-radius: 3px; }
+  .db .gap-v .ann { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+  .db .gap-h .ann { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+  .db .gap-v.show { background: repeating-linear-gradient(90deg, transparent 0 6px, #dbe4ff 6px 8px); }
+  .db .gap-h.show { background: repeating-linear-gradient(0deg, transparent 0 6px, #dbe4ff 6px 8px); }
+  .db .card { flex: 1; min-width: 0; position: relative; }
+  .db .lab, .db .val, .db .del { position: relative; white-space: nowrap; }
+  .db .bars { display: flex; align-items: flex-end; height: 96px; }
+  .db .bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; font-size: 12px; }
+  .db .bar i { display: block; width: 70%; }
+  .db .days { display: flex; font-size: 12px; margin-top: 4px; }
+  .db .days span { flex: 1; text-align: center; }
+  /* before */
+  .db.loud .title { font: 800 20px/1.2 inherit; font-family: inherit; color: #1d4ed8; }
+  .db.loud .card { border: 2px solid #4263eb; border-radius: 8px; padding: 12px; }
+  .db.loud .lab { font-weight: 700; font-size: 13px; line-height: 16px; }
+  .db.loud .val { font-weight: 800; font-size: 20px; line-height: 24px; }
+  .db.loud .del { font-weight: 700; font-size: 13px; line-height: 16px; }
+  .db.loud .del span { padding: 0 4px; border-radius: 4px; }
+  .db.loud .stitle { font-weight: 800; font-size: 15px; line-height: 18px; color: #1d4ed8; }
+  .db.loud .bar { font-weight: 700; }
+  /* after */
+  .db.calm .title { font-weight: 600; font-size: 18px; line-height: 22px; }
+  .db.calm .card { background: #f4f5f7; border-radius: 8px; padding: 16px; }
+  .db.calm .lab { font-size: 13px; line-height: 16px; color: #6b7280; }
+  .db.calm .val { font-weight: 600; font-size: 20px; line-height: 24px; }
+  .db.calm .del { font-size: 13px; line-height: 16px; color: #6b7280; }
+  .db.calm .del.bad { color: #e03131; font-weight: 700; }
+  .db.calm .stitle { font-weight: 600; font-size: 15px; line-height: 18px; }
+  .db.calm .bar { color: #6b7280; }
+  .db.calm .days { color: #6b7280; }
+  .db .mk { position: absolute; top: -10px; left: -10px; width: 22px; height: 22px; border-radius: 50%; background: var(--ltt-dark); color: var(--ltt-on-dark); font: 700 13px/22px system-ui, sans-serif; text-align: center; z-index: 2; }
+  .db.kpi-only { padding: 16px; }
+
+  /* 근접성 손잡이 장면 */
+  .vh-prox { display: grid; grid-template-columns: 300px 360px; gap: 48px; align-items: start; justify-content: center; }
+  .vh-list { position: relative; background: #fff; border: 1px solid var(--ltt-line); border-radius: 10px; padding: 24px 72px 24px 28px; font-family: "Pretendard", system-ui, sans-serif; color: #1f2430; }
+  .vh-list { padding-right: 112px; }
+  .vh-marks { position: absolute; inset: 0; pointer-events: none; }
+  .vh-gap { position: absolute; right: 20px; width: 80px; box-sizing: border-box; border-left: 4px solid; display: flex; align-items: center; }
+  .vh-gap span { font: 700 16px/1 system-ui, sans-serif; margin-left: 8px; white-space: nowrap; }
+  .vh-gap.in { border-color: #3b5bdb; color: #3b5bdb; background: #edf2ff; }
+  .vh-gap.out { border-color: #868e96; color: #495057; background: #f1f3f5; }
+  .vh-list > .l, .vh-list > .v { line-height: 20px; font-size: 16px; white-space: nowrap; }
+  .vh-list .l { color: #6b7280; }
+  .vh-list .v { font-weight: 600; font-size: 20px; line-height: 24px; }
+  .vh-read { display: flex; flex-direction: column; gap: 14px; }
+  .vh-knob { display: flex; flex-direction: column; gap: 6px; }
+  .vh-knob .name { font-size: 14px; color: var(--ltt-ink-2); }
+  .vh-num { font-variant-numeric: tabular-nums; min-width: 5.5em; display: inline-block; }
+  .vh-ratio { font-size: 44px; font-weight: 700; color: var(--ltt-ink); font-variant-numeric: tabular-nums; line-height: 1; }
+  .vh-ratio small { font-size: 15px; font-weight: 500; color: var(--ltt-muted); margin-left: 6px; }
+  .vh-verdict { min-height: 4.4em; font-size: 15px; line-height: 1.45; padding: 10px 12px; border-radius: 8px; background: var(--ltt-card-2); color: var(--ltt-ink); }
+  .vh-verdict b { color: var(--ltt-accent); }
+  .vh-verdict.bad b { color: var(--ltt-bad); }
+
+  /* 위계 신호 네 칸 */
+  .vh-four { display: grid; grid-template-columns: repeat(4, 200px); gap: 20px; justify-content: center; }
+  .vh-four .p { background: #fff; border: 1px solid var(--ltt-line); border-radius: 10px; padding: 16px 20px; font-family: "Pretendard", system-ui, sans-serif; }
+  .vh-four .p h4 { margin: 0 0 12px; font-size: 14px; color: #6b7280; font-weight: 600; }
+  .vh-four .w { font-size: 15px; line-height: 30px; color: #495057; white-space: nowrap; }
+
+  /* 간격 체계 */
+  .vh-scale-wrap { display: flex; gap: 48px; align-items: flex-start; justify-content: center; }
+  .vh-scale-wrap svg text { font-family: "Pretendard", system-ui, sans-serif; }
+
+  /* 대비 예산 2x2 */
+  .vh-budget { display: grid; grid-template-columns: 110px 470px 470px; gap: 14px 20px; align-items: center; justify-content: center; }
+  .vh-budget .hd { font-size: 14px; color: var(--ltt-ink-2); font-weight: 600; }
+  .vh-budget .rl { font-size: 14px; color: var(--ltt-ink); font-weight: 600; line-height: 1.4; }
+  .vh-budget .rl .ltt-tag { margin-top: 6px; display: inline-block; }
+  .vh-budget .blur .db { filter: blur(5px); }
+  .vh-budget .db { width: 470px; }
+  .vh-budget .db .val { font-size: 18px; }
+
+  .vh-tree svg { max-width: 100%; }
+  .vh-pair { display: grid; grid-template-columns: 600px 600px; gap: 40px; justify-content: center; }
+  .vh-pair .side { display: flex; flex-direction: column; gap: 10px; }
+  .vh-pair .ft { font-size: 14px; color: var(--ltt-ink-2); }
+  .vh-note { font-size: 13px; color: var(--ltt-muted); margin-top: 10px; text-align: center; }
+</style>
+</head>
+<body>
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
 <script src="/kit/ltt-ui.js"></script>
 <script src="/kit/ltt-mock.js"></script>
 <script src="/kit/ltt-deck.js"></script>
-<style>
-  .pc { display: flex; flex-direction: column; font-size: 15px; color: #222; }
-  .pc .img { height: 64px; border-radius: 10px; background: #eceae4; margin-bottom: 12px; }
-  .pc > * { position: relative; transition: all .35s ease; }
-  .pc .btn { margin-top: 10px; text-align: center; border-radius: 10px; padding: 9px; font-weight: 700; }
-  .fm { display: flex; flex-direction: column; font-size: 14px; color: #222; }
-  .fm .in { height: 24px; border: 1px solid #d6d2c8; border-radius: 8px; background: #fff; }
-  .fmwrap { display: flex; justify-content: center; }
-  .live { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
-  .live > * { min-width: 0; }
-  @media (max-width: 720px) { .live { grid-template-columns: 1fr; } }
-  .gapnote { font: 13px var(--ltt-mono); color: var(--ltt-muted); margin-top: 8px; }
-  .kpi { border-radius: 12px; padding: 14px; background: #fff; box-shadow: inset 0 0 0 1px #e6e3dc; color: #222; }
-  .lv { display: grid; gap: 8px; }
-  .lv div { display: flex; align-items: baseline; gap: 10px; }
-  .lv code { font: 11px var(--ltt-mono); color: var(--ltt-muted); width: 92px; flex: none; }
-  .scale { display: flex; align-items: flex-end; gap: 6px; }
-  .scale span { display: flex; flex-direction: column; align-items: center; font: 11px var(--ltt-mono); color: var(--ltt-muted); gap: 4px; }
-  .scale i { display: block; width: 16px; background: var(--ltt-accent-soft); box-shadow: inset 0 0 0 1px var(--ltt-accent); border-radius: 3px; }
-  .map { font: 13px var(--ltt-mono); line-height: 1.8; }
-  .map .v { color: var(--ltt-accent); font-weight: 700; }
-  .ov { display: flex; gap: 28px; align-items: center; justify-content: center; flex-wrap: wrap; }
-  .ov .pc > *, .ov .fm > * { position: relative; }
-  .ov .mk { position: absolute; right: -12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 800 13px var(--ltt-font); background: var(--ltt-accent); color: var(--ltt-on-accent); z-index: 2; }
-  .ov .pc .mk { right: 6px; }
-  .ov ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-width: 360px; font-size: 15px; line-height: 1.45; color: var(--ltt-ink); }
-  .ov li { display: flex; gap: 10px; align-items: baseline; }
-  .ov li i { flex: none; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font: 800 13px var(--ltt-font); font-style: normal; background: var(--ltt-accent); color: var(--ltt-on-accent); }
-</style>
-</head>
-<body>
 <script>
-  // 손계산: 스케일 [4,8,16,24,32,48]에서 가장 가까운 값. 14→16(차 2 vs 6), 13→16(차 3 vs 5), 10→8(차 2 vs 6), 22→24(차 2 vs 6).
-  const EXPECTED_BY_HAND = { s14: 16, s13: 16, s10: 8, s22: 24 };
-  const SCALE = [4, 8, 16, 24, 32, 48];
-  const snap = (v) => SCALE.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a));
-  LTT.expect("snap(14)", snap(14), EXPECTED_BY_HAND.s14, { tol: 0 });
-  LTT.expect("snap(13)", snap(13), EXPECTED_BY_HAND.s13, { tol: 0 });
-  LTT.expect("snap(10)", snap(10), EXPECTED_BY_HAND.s10, { tol: 0 });
-  LTT.expect("snap(22)", snap(22), EXPECTED_BY_HAND.s22, { tol: 0 });
+(() => {
+  const KPI = [
+    { lab: "매출", val: "4.2억 원", del: "+8.0%", good: true, vc: "#1971c2" },
+    { lab: "신규 가입", val: "1,284명", del: "+3.1%", good: true, vc: "#2f9e44" },
+    { lab: "이탈률", val: "5.6%", del: "+2.1%p", good: false, vc: "#e03131", alert: true },
+    { lab: "평균 주문액", val: "32,800원", del: "−1.2%", good: false, vc: "#7048e8" },
+  ];
+  const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+  const SALES = [0.52, 0.58, 0.61, 0.55, 0.66, 0.69, 0.59];
+  const LOUD_BAR = ["#1971c2", "#2f9e44", "#f08c00", "#e03131", "#7048e8", "#0c8599", "#d6336c"];
 
-  // Product card at hierarchy step k (0 = everything equal). Only inline styles change between steps.
-  const cardStyle = (k) => {
-    const base = "font-size:15px;font-weight:600;color:#222;margin-top:10px";
-    const low = "font-size:13px;font-weight:400;color:#6b6b6b";
-    return {
-      name: k >= 1 ? "font-size:17px;font-weight:700;color:#111;margin-top:0" : base.replace("margin-top:10px", "margin-top:0"),
-      price: k >= 1 ? `font-size:24px;font-weight:800;color:#111;margin-top:${k >= 3 ? 4 : 10}px` : base,
-      desc: k >= 2 ? `${low};margin-top:${k >= 3 ? 16 : 10}px` : base,
-      rate: k >= 2 ? `${low};margin-top:${k >= 3 ? 4 : 10}px` : base,
-      ship: k >= 2 ? `${low};margin-top:${k >= 3 ? 4 : 10}px` : base,
-      btn: k >= 4 ? `background:#2f5bff;color:#fff;margin-top:${k >= 3 ? 24 : 10}px` : `background:#fff;color:#222;box-shadow:inset 0 0 0 1px #222;margin-top:${k >= 3 ? 24 : 10}px`,
+  // 간격은 스페이서 요소로 넣어 측정 표시(ann)를 정확한 자리에 붙인다.
+  const SP = {
+    loud: { lv: 16, vd: 16, card: 16, section: 16, stitle: 16, head: 16 },
+    calm: { lv: 4, vd: 4, card: 24, section: 48, stitle: 12, head: 24 },
+  };
+  const gv = (h, ann) => `<div class="gap-v${ann ? " show" : ""}" style="height:${h}px">${ann ? `<span class="ann">${h}</span>` : ""}</div>`;
+  const gh = (w, ann) => `<div class="gap-h${ann ? " show" : ""}" style="width:${w}px">${ann ? `<span class="ann">${w}</span>` : ""}</div>`;
+  const mk = (n, on) => on && n in on ?`<span class="mk" style="${on[n]}">${n}</span>` : "";
+
+  function kpiRow(mode, o = {}) {
+    const s = SP[mode], loud = mode === "loud";
+    return `<div class="row">${KPI.map((k, i) => {
+      const lab = loud ? `<div class="lab" data-hue style="color:#1d4ed8">${k.lab}</div>` : `<div class="lab">${k.lab}</div>`;
+      const val = loud ? `<div class="val" data-hue style="color:${k.vc}">${k.val}${i === 1 ? mk(2, o.mk) : ""}</div>` : `<div class="val">${k.val}${i === 1 ? mk(2, o.mk) : ""}</div>`;
+      const del = loud
+        ? `<div class="del" data-hue style="color:${k.good ? "#2b8a3e" : "#c92a2a"}"><span style="background:${k.good ? "#d3f9d8" : "#ffe3e3"}">${k.del.startsWith("+") ? "▲" : "▼"} ${k.del}</span></div>`
+        : `<div class="del${k.alert ? " bad" : ""}"${k.alert ? " data-hue" : ""}>${k.del}${k.alert ? mk(4, o.mk) : ""}</div>`;
+      const card = `<div class="card">${i === 0 ? mk(1, o.mk) : ""}${lab}${gv(s.lv, o.ann && i === 0)}${val}${gv(s.vd, false)}${del}</div>`;
+      return (i ? gh(s.card, o.ann && i === 1) : "") + card;
+    }).join("")}</div>`;
+  }
+
+  function dashboard(mode, o = {}) {
+    const s = SP[mode], loud = mode === "loud";
+    const btns = loud
+      ? `<span class="btn" style="background:#f08c00;color:#fff;font-weight:700">필터</span> <span class="btn" style="background:#3b5bdb;color:#fff;font-weight:700">내보내기</span>`
+      : `<span class="btn" style="border:1px solid #cfd4da;color:#1f2430">필터</span> <span class="btn" style="background:#3b5bdb;color:#fff">내보내기</span>`;
+    const max = 0.7;
+    const bars = SALES.map((v, i) => `<div class="bar"><span>${v.toFixed(2)}</span><i style="height:${(v / max) * 70}px;background:${loud ? LOUD_BAR[i] : "#c5ccd6"}"></i></div>`).join("");
+    return `<div class="db ${mode}">
+      <div class="head"><div><div class="title">주간 운영 대시보드</div><div style="font-size:13px;color:${loud ? "#1d4ed8" : "#6b7280"};${loud ? "font-weight:700;" : ""}margin-top:4px">10.13 – 10.19</div></div><div>${btns}</div></div>
+      ${gv(s.head, false)}
+      ${kpiRow(mode, o)}
+      <div style="position:relative">${gv(s.section, o.ann)}${mk(3, o.mk)}</div>
+      <div class="stitle">일별 매출 (억 원)</div>
+      ${gv(s.stitle, false)}
+      <div class="bars">${bars}</div>
+      <div class="days">${DAYS.map(d => `<span>${d}</span>`).join("")}</div>
+    </div>`;
+  }
+  const kpiOnly = (mode, o) => `<div class="db ${mode} kpi-only">${kpiRow(mode, o)}</div>`;
+
+  // 기대값: outline.md "수치 모델과 기대값"
+  LTT.expect("일별 매출 합(억 원) = KPI 매출", SALES.reduce((a, b) => a + b, 0), 4.20, { tol: 0.001 });
+  const countHue = html => { const t = document.createElement("template"); t.innerHTML = html; return t.content.querySelectorAll("[data-hue]").length; };
+  LTT.expect("before KPI 줄 색 강조 요소 수", countHue(kpiOnly("loud")), 12);
+  LTT.expect("after KPI 줄 색 강조 요소 수", countHue(kpiOnly("calm")), 1);
+  const OUTER = 24;
+  const ratio = inner => OUTER / inner;
+  LTT.expect("근접성 비율(안쪽 8)", ratio(8), 3.0, { tol: 1e-9 });
+  LTT.expect("근접성 비율(안쪽 32)", ratio(32), 0.75, { tol: 1e-9 });
+  LTT.expect("after 간격 중 4의 배수가 아닌 값 수", Object.values(SP.calm).filter(v => v % 4).length, 0);
+  LTT.expect("카드 사이 ÷ 라벨→값", SP.calm.card / SP.calm.lv, 6);
+  LTT.expect("섹션 사이 ÷ 카드 사이", SP.calm.section / SP.calm.card, 2);
+
+  const browser = (mode, o) => (el) => {
+    const m = LTT.mock.browser({ title: "ops.example.com/weekly", width: 600, content: dashboard(mode, o) });
+    el.append(m.el);
+  };
+
+  // 장면 3: 근접성 손잡이
+  function proxScene(body) {
+    const wrap = LTT.h("div", "vh-prox");
+    const list = LTT.h("div", "vh-list");
+    list.innerHTML = KPI.slice(0, 3).map(k => `<div class="l">${k.lab}</div><div class="v">${k.val}</div>`).join("");
+    const read = LTT.h("div", "vh-read", `
+      <div class="vh-knob"><span class="name">안쪽 간격(라벨 → 값): <b id="inner-v" class="vh-num"></b></span><div id="inner"></div></div>
+      <div class="vh-knob"><span class="name">바깥 간격(값 → 다음 라벨): <b class="vh-num">${OUTER}px 고정</b></span></div>
+      <div><div class="vh-ratio"><span id="vh-r">×1.0</span><small>바깥 ÷ 안쪽</small></div></div>
+      <div class="vh-verdict" id="vh-verdict"></div>
+      <div id="vh-goal"></div>
+      <div class="ltt-basis">측정선은 줄 상자 사이 간격(CSS margin, px). 2배 기준은 실무 경험칙이다.</div>`);
+    wrap.append(list, read);
+    body.append(wrap);
+    list.querySelectorAll(".l").forEach((el, i) => { if (i) el.style.marginTop = OUTER + "px"; });
+    const marks = LTT.h("div", "vh-marks");
+    list.append(marks);
+    const drawMarks = () => {
+      marks.innerHTML = [...list.querySelectorAll(".l, .v")].slice(1).map(el => {
+        const m = parseFloat(el.style.marginTop) || 0, inner = el.classList.contains("v");
+        return `<div class="vh-gap ${inner ? "in" : "out"}" style="top:${el.offsetTop - m}px;height:${m}px"><span>${inner ? "안" : "밖"} ${m}</span></div>`;
+      }).join("");
     };
-  };
-  const cardMock = () => {
-    const b = LTT.mock.browser({ url: "shop.example.com", width: 300 });
-    b.screen.innerHTML = `<div class="pc"><div class="img"></div>
-      <div data-k="name">무선 키보드 K3</div><div data-k="price">₩89,000</div>
-      <div data-k="desc">저소음 스위치 · 블루투스 5.1</div><div data-k="rate">★ 4.7 (리뷰 1,284)</div>
-      <div data-k="ship">내일 도착 · 무료배송</div><div class="btn" data-k="btn">장바구니 담기</div></div>`;
-    const rl = LTT.redline(b.screen.querySelector(".pc"), { selector: "[data-k]" });
-    const paint = (k) => {
-      const s = cardStyle(k);
-      b.screen.querySelectorAll("[data-k]").forEach((n) => { n.style.cssText = s[n.dataset.k]; });
-      rl.update();
-    };
-    return { el: b.el, paint };
-  };
+    LTT.sweep({
+      params: { inner: { kind: "steps", stops: [4, 8, 12, 16, 24, 32], value: 24, stopLabel: v => v + "px", fmt: v => v + "px", label: "안쪽 간격" } },
+      render({ inner }) {
+        list.querySelectorAll(".v").forEach(el => { el.style.marginTop = inner + "px"; });
+        drawMarks();
+        const r = ratio(inner);
+        read.querySelector("#vh-r").textContent = "×" + r.toFixed(r < 1 ? 2 : 1);
+        const v = read.querySelector("#vh-verdict");
+        v.classList.toggle("bad", r <= 1);
+        v.innerHTML = r >= 2 ? "<b>한 쌍으로 묶인다.</b> 라벨이 바로 아래 값에 붙어 보인다."
+          : r > 1 ? "<b>묶이긴 하지만 흐릿하다.</b> 차이가 작아 한눈에 짝이 갈리지 않는다."
+          : r === 1 ? "<b>짝을 정할 수 없다.</b> '신규 가입'이 위 값과 아래 값에서 같은 거리에 있다."
+          : "<b>잘못 묶인다.</b> 라벨이 위쪽 값에 더 가까워 앞 쌍의 일부처럼 보인다.";
+        LTT.record("knob", { scene: "근접성", inner, ratio: r });
+      },
+      goal: { el: read.querySelector("#vh-goal"), text: "라벨과 값이 한 쌍으로 분명히 묶이게 안쪽 간격을 줄여 보세요.", target: "바깥 ÷ 안쪽 ≥ 2", check: v => ratio(v.inner) >= 2 },
+    });
+  }
 
-  // Signup form; o.lab = label→input, o.first = heading→first label, o.gaps = between fields, o.sec = before the 2nd section.
-  const formMock = (o) => () => {
-    const b = LTT.mock.browser({ url: "signup", width: o.w || 250 });
-    const field = (l, top) => `<div style="margin-top:${top}px;font-size:${o.labSize}px;font-weight:600;color:${o.labColor}">${l}</div><div class="in" style="margin-top:${o.lab}px"></div>`;
-    b.screen.innerHTML = `<div class="fm">
-      <div style="font-size:${o.hSize}px;font-weight:${o.hWeight};color:#111">회원 정보</div>
-      ${field("이름", o.first)}${field("이메일", o.gaps[0])}${field("전화번호", o.gaps[1])}
-      <div style="margin-top:${o.sec}px;font-size:${o.hSize}px;font-weight:${o.hWeight};color:#111">배송지</div>
-      ${field("주소", o.first)}</div>`;
-    return b.el;
-  };
+  // 장면 4: 위계 신호 네 칸
+  const WORDS = ["매출", "신규 가입", "이탈률", "평균 주문액", "방문 수", "전환율"];
+  const MIX = [[17, 700, "#1971c2"], [13, 400, "#2f9e44"], [15, 700, "#e03131"], [18, 400, "#7048e8"], [14, 700, "#f08c00"], [16, 400, "#0c8599"]];
+  function fourPanels(el) {
+    const panel = (title, f) => `<div class="p"><h4>${title}</h4>${WORDS.map((w, i) => `<div class="w" style="${f(w, i)}">${w}</div>`).join("")}</div>`;
+    const t = w => w === "이탈률";
+    el.innerHTML = `<div><div class="vh-four">
+      ${panel("① 크기만 다름", w => t(w) ? "font-size:21px;color:#495057" : "")}
+      ${panel("② 굵기만 다름", w => t(w) ? "font-weight:800;color:#1f2430" : "")}
+      ${panel("③ 색만 다름", w => t(w) ? "color:#e03131" : "")}
+      ${panel("④ 모두가 제각각", (w, i) => `font-size:${MIX[i][0]}px;font-weight:${MIX[i][1]};color:${MIX[i][2]}`)}
+    </div><div class="vh-note">네 칸 모두 '이탈률'이 세 번째 줄에 있다. ④의 '이탈률'은 ③과 같은 빨강에 굵기까지 더했다.</div></div>`;
+  }
 
-  const overview = () => {
-    const mk = (n) => `<span class="mk">${n}</span>`;
-    const card = cardMock();
-    card.paint(4);
-    const at = (root, sel, n) => root.querySelector(sel).insertAdjacentHTML("beforeend", mk(n));
-    at(card.el, '[data-k="price"]', 1);
-    at(card.el, '[data-k="desc"]', 2);
-    at(card.el, '[data-k="btn"]', 3);
-    const form = formMock({ lab: 8, first: 16, gaps: [24, 24], sec: 48, labSize: 13, labColor: "#444", hSize: 17, hWeight: 800 })();
-    const kids = form.querySelectorAll(".fm > *");
-    kids[2].insertAdjacentHTML("beforeend", mk(4));
-    kids[5].insertAdjacentHTML("beforeend", mk(5));
-    kids[7].insertAdjacentHTML("beforeend", mk(6));
-    const notes = ["가장 중요한 것 하나만 앞세우고 나머지는 작게·옅게 낮춘다", "크기·굵기·회색은 각각 2–4단계만 쓴다", "모든 것을 강조하면 아무것도 강조되지 않는다. 색은 누를 곳 하나에만",
-      "라벨↔입력칸은 좁게(8px), 같은 간격은 '관계없음'을 말한다", "항목 사이는 모두 24px. 같은 역할에는 같은 값", "섹션 앞 48px. 안 < 사이 < 섹션 순서로, 값은 관계로 고른다"];
-    const el = document.createElement("div");
-    el.className = "ov";
-    el.append(card.el, form);
-    el.insertAdjacentHTML("beforeend", `<ol>${notes.map((t, i) => `<li><i>${i + 1}</i><span>${t}</span></li>`).join("")}</ol>`);
-    return el;
-  };
+  // 장면 5: 간격 체계 (1.5배 확대 해부도)
+  function scaleFigure(el) {
+    const S = 1.5, used = { 4: "var(--ltt-c1)", 16: "var(--ltt-c3)", 24: "var(--ltt-c2)", 48: "var(--ltt-c4)" };
+    const steps = [4, 8, 12, 16, 24, 32, 48];
+    const ruler = `<svg width="250" height="${steps.length * 40 + 30}" viewBox="0 0 250 ${steps.length * 40 + 30}">
+      <text x="0" y="16" font-size="14" fill="var(--ltt-ink-2)" font-weight="600">4의 배수 척도 (px)</text>
+      ${steps.map((v, i) => `<g transform="translate(0,${36 + i * 40})">
+        <text x="30" y="17" font-size="15" text-anchor="end" fill="${used[v] ? "var(--ltt-ink)" : "var(--ltt-muted)"}" font-weight="${used[v] ? 700 : 400}">${v}</text>
+        <rect x="40" y="4" width="${v * S * 2}" height="18" rx="3" fill="${used[v] || "var(--ltt-line)"}"/>
+        ${used[v] ? "" : `<text x="${46 + v * S * 2}" y="17" font-size="12" fill="var(--ltt-muted)">안 씀</text>`}
+      </g>`).join("")}
+    </svg>`;
+    // 실제 px: 카드 폭 150, 여백 16, 라벨 16, 값 24, 변화율 16, 사이 4, 카드 사이 24, 섹션 사이 48
+    const cw = 150, pad = 16, lab = 16, val = 24, del = 16, g = 4, cg = 24, sg = 48;
+    const ch = pad + lab + g + val + g + del + pad;
+    const W = (cw * 2 + cg) * S + 120, H = (ch + sg + 18 + 30) * S + 20;
+    const X = v => 60 + v * S, Y = v => 10 + v * S;
+    const card = (x0, k) => `
+      <rect x="${X(x0)}" y="${Y(0)}" width="${cw * S}" height="${ch * S}" rx="${8 * S}" fill="var(--ltt-card-2)" stroke="var(--ltt-line-2)"/>
+      <text x="${X(x0 + pad)}" y="${Y(pad + lab - 3)}" font-size="${13 * S}" fill="var(--ltt-muted)">${k.lab}</text>
+      <text x="${X(x0 + pad)}" y="${Y(pad + lab + g + val - 5)}" font-size="${20 * S}" font-weight="400" fill="var(--ltt-muted)">${k.val}</text>
+      <text x="${X(x0 + pad)}" y="${Y(pad + lab + g + val + g + del - 3)}" font-size="${13 * S}" fill="var(--ltt-muted)">${k.del}</text>`;
+    const vgap = (x, y0, h, c, label, side = -1) => `
+      <rect x="${X(x) - (side < 0 ? 0 : 0)}" y="${Y(y0)}" width="${10 * S}" height="${h * S}" fill="${c}" opacity=".85" transform="translate(${side < 0 ? -10 * S : 0},0)"/>
+      <text x="${X(x) + side * (10 * S + 6)}" y="${Y(y0 + h / 2) + 7}" font-size="20" font-weight="800" fill="${c}" text-anchor="${side < 0 ? "end" : "start"}">${label}</text>`;
+    const hgap = (x0, y, w, c, label) => `
+      <rect x="${X(x0)}" y="${Y(y)}" width="${w * S}" height="${10 * S}" fill="${c}" opacity=".85"/>
+      <text x="${X(x0 + w / 2)}" y="${Y(y) - 8}" font-size="20" font-weight="800" fill="${c}" text-anchor="middle">${label}</text>`;
+    const anat = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+      ${card(0, KPI[0])}${card(cw + cg, KPI[1])}
+      ${vgap(cw - 12, pad + lab, g, "var(--ltt-c1)", "4")}
+      ${vgap(cw - 12, 0, pad, "var(--ltt-c3)", "16")}
+      ${hgap(cw, ch / 2 - 5, cg, "var(--ltt-c2)", "24")}
+      ${vgap(cw * 2 + cg, ch, sg, "var(--ltt-c4)", "48", 1)}
+      <line x1="${X(0)}" y1="${Y(ch + sg)}" x2="${X(cw * 2 + cg)}" y2="${Y(ch + sg)}" stroke="var(--ltt-line-2)" stroke-dasharray="4 4"/>
+      <text x="${X(0)}" y="${Y(ch + sg + 15)}" font-size="${15 * S}" font-weight="600" fill="var(--ltt-ink)">일별 매출 (억 원)</text>
+      <text x="${X(0)}" y="${Y(ch + sg + 42)}" font-size="13" fill="var(--ltt-muted)">다음 섹션 시작 · 그림은 실제 px의 1.5배로 확대</text>
+    </svg>`;
+    el.innerHTML = `<div class="vh-scale-wrap"><div>${ruler}</div><div>${anat}</div></div>`;
+  }
 
-  const tv = (label, inner) => `<svg class="ltt-svg" viewBox="0 0 220 100" style="max-height:110px" role="img" aria-label="${label}">${inner}</svg>`;
-  const tl = (x, y, t, c = "var(--ltt-muted)", a = "middle", w = 400) => `<text x="${x}" y="${y}" text-anchor="${a}" style="font-size:11px;font-weight:${w};fill:${c}">${t}</text>`;
-  const TERM_VIS = {
-    hierarchy: tv("굵고 큰 줄이 1번, 가늘고 옅은 줄이 3번으로 읽히는 순서",
-      [[12, 16, 150, "var(--ltt-ink)"], [44, 10, 118, "var(--ltt-ink)"], [72, 6, 86, "var(--ltt-muted)"]].map(([y, h, w, c], i) =>
-        `<circle cx="16" cy="${y + h / 2}" r="9" style="fill:none;stroke:var(--ltt-accent);stroke-width:1.5"/>` + tl(16, y + h / 2 + 4, i + 1, "var(--ltt-accent)", "middle", 800)
-        + `<rect x="36" y="${y}" width="${w}" height="${h}" rx="${h / 2}" style="fill:${c}"/>`).join("")),
-    proximity: tv("가까이 붙은 점 셋씩이 두 묶음으로 보인다",
-      [24, 48, 72, 148, 172, 196].map((x) => `<circle cx="${x}" cy="38" r="9" style="fill:var(--ltt-ink)"/>`).join("")
-      + tl(110, 42, "← 넓게 →") + [[14, 82], [138, 206]].map(([a, b], i) => `<path d="M${a} 58 V64 H${b} V58" style="fill:none;stroke:var(--ltt-accent);stroke-width:1.5"/>` + tl((a + b) / 2, 82, `묶음 ${i + 1}`, "var(--ltt-accent)", "middle", 700)).join("")),
-    scale: tv("정해 둔 4·8·16·24·32·48만 쓰고 13 같은 값은 쓰지 않는다",
-      SCALE.map((v, i) => `<rect x="${12 + i * 28}" y="${80 - v * 1.4}" width="16" height="${v * 1.4}" rx="2" style="fill:var(--ltt-accent-soft);stroke:var(--ltt-accent)"/>` + tl(20 + i * 28, 94, v)).join("")
-      + `<rect x="186" y="${80 - 13 * 1.4}" width="16" height="${13 * 1.4}" rx="2" style="fill:none;stroke:var(--ltt-bad);stroke-dasharray:3 2"/>` + tl(194, 94, "13 ✕", "var(--ltt-bad)", "middle", 700)),
-  };
+  // 장면 7: 대비 예산 2x2
+  function budgetFigure(el) {
+    el.innerHTML = `<div><div class="vh-budget">
+      <div></div><div class="hd">원래 화면</div><div class="hd">흐리게 보기 (blur 5px)</div>
+      <div class="rl">고치기 전<br><span class="ltt-tag bad">색 강조 12 / 12</span></div>
+      <div>${kpiOnly("loud")}</div><div class="blur">${kpiOnly("loud")}</div>
+      <div class="rl">고친 뒤<br><span class="ltt-tag good">색 강조 1 / 12</span></div>
+      <div>${kpiOnly("calm")}</div><div class="blur">${kpiOnly("calm")}</div>
+    </div><div class="vh-note">12 = 카드 4장 × (라벨·값·변화율). 흐리게 보기는 실무 점검 요령(경험칙)이다.</div></div>`;
+  }
 
-  // The recap splits at the hierarchy/spacing boundary because seven recall answers do not fit one screen; `recap` picks
-  // each summary scene's range of the cards the kit would gather.
-  const splitRecap = (spec) => {
-    const cards = LTT.summaryCards({}, spec.scenes);
-    spec.scenes.forEach((s) => { if (s.recap) s.cards = cards.slice(...s.recap); });
-    return spec;
-  };
+  // 장면 11: 개념 나무
+  function tree(el) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    el.classList.add("vh-tree");
+    el.append(svg);
+    LTT.diagram(svg, {
+      cols: 2, rows: 5, cell: [380, 92], node: [230, 60], maxWidth: 900,
+      nodes: [
+        { id: "prox", c: 0, r: 0.5, l: "근접성", s: "이번 수업", k: "good" },
+        { id: "sig", c: 0, r: 1.5, l: "위계 신호", s: "이번 수업", k: "good" },
+        { id: "space", c: 0, r: 2.5, l: "간격 체계", s: "이번 수업", k: "good" },
+        { id: "budget", c: 0, r: 3.5, l: "대비 예산", s: "이번 수업", k: "good" },
+        { id: "grid", c: 1, r: 0, l: "레이아웃 그리드·정렬", s: "열·여백으로 화면 나누기" },
+        { id: "type", c: 1, r: 1, l: "타입 스케일", s: "글자 크기 단계 정하기" },
+        { id: "wcag", c: 1, r: 2, l: "색 대비 비율 (WCAG)", s: "읽히는 최소 대비" },
+        { id: "token", c: 1, r: 3, l: "디자인 토큰", s: "간격·색을 이름으로 관리" },
+        { id: "pre", c: 1, r: 4, l: "차트의 전주의 속성", s: "차트에서 한 계열만 띄우기" },
+      ],
+      edges: [
+        { f: "prox", t: "grid", from: "right", to: "left" }, { f: "sig", t: "type", from: "right", to: "left" }, { f: "sig", t: "wcag", from: "right", to: "left" },
+        { f: "space", t: "grid", from: "right", to: "left", shape: "curve" }, { f: "space", t: "token", from: "right", to: "left" }, { f: "budget", t: "pre", from: "right", to: "left" },
+      ],
+    });
+  }
 
-  LTT.deck(splitRecap({
+
+  LTT.deck({
     title: "세련된 화면은 '차이'를 아껴 쓴다",
     theme: "studio",
-    glossary: {
-      "대비비": "글자색과 배경색의 밝기가 몇 배 차이 나는지 나타낸 숫자. 흰 배경의 일반 글자는 4.5:1 이상이어야 웹 접근성 국제 지침(WCAG)의 기본 등급 AA를 넘는다.",
-    },
     scenes: [
-      { type: "hook", art: "bulb", kicker: "세련된 UI 만들기, 1회차",
-        pre: "같은 내용, 같은 색인데 왜 한쪽만 '각이 잡혀' 보일까?",
-        text: "세련됨은 장식을 더해서가 아니라<br><u>차이를 아껴서</u> 나온다.",
-        sub: "어지러운 화면은 대부분 두 가지 결정을 안 한 화면이다. 무엇을 먼저 읽힐지, 무엇끼리 묶을지. 이 수업을 마치면 그 두 결정을 말로 설명하고, 간격 값을 감이 아니라 이유로 고를 수 있다." },
-
-      { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
+      {
+        type: "hook",
+        art: "eye",
+        pre: "주간 운영 대시보드 다듬기",
+        text: "세련된 화면은 '차이'를 아껴 쓴다",
+        sub: "대시보드를 열었을 때 가장 먼저 봐야 할 숫자가 정말 가장 먼저 보이는가? 이 수업은 KPI 카드 네 장과 일별 매출 막대가 있는 대시보드 하나를 네 단계로 고쳐 간다.",
+      },
+      {
+        type: "terms",
+        title: "고칠 때 쓰는 말 네 개",
+        sub: "모두 같은 대시보드 위에서 다시 만난다.",
         terms: [
-          { key: "시각적 위계", en: "visual hierarchy", icon: "layers", visual: TERM_VIS.hierarchy, plain: "눈이 화면에서 무엇을 먼저, 무엇을 나중에 읽을지의 순서. 크기·굵기·색 진하기의 차이로 만든다.", example: "상품 카드에서 가격이 가장 먼저, 배송 정보가 마지막에 읽힌다." },
-          { key: "근접성", en: "proximity · 게슈탈트(사람이 형태를 묶어 보는 방식) 원리", icon: "link", visual: TERM_VIS.proximity, plain: "가까이 붙은 것들을 사람이 자동으로 한 묶음으로 보는 성질. 선이나 박스 없이 간격만으로 그룹을 만든다.", example: "라벨과 입력칸은 붙이고, 다음 항목과는 띄운다. 이미 감으로 하고 있던 그것이다." },
-          { key: "간격 스케일", en: "spacing scale", icon: "ruler", visual: TERM_VIS.scale, plain: "여백 값을 미리 정한 몇 단계(예: 4·8·16·24·32·48)에서만 고르는 규칙.", example: "13px, 15px 대신 16px 하나만 쓴다." },
-        ] },
-
-      { type: "explain", form: "strip", kicker: "원인 → 과정 → 결과", title: "'어지럽다'는 눈이 길을 못 찾는다는 뜻이다", en: "Why it feels messy",
-        steps: [
-          { icon: "doc", title: "모두 같은 무게", text: "글자 크기·굵기·색이 다 비슷하면 눈이 출발할 곳이 없다. 즉 {{시각적 위계}}가 없다.",
-            visual: `<div style="font-weight:600;line-height:1.7">무선 키보드 K3<br>₩89,000<br>내일 도착</div>` },
-          { icon: "alert", title: "간격이 제각각", text: "13, 15, 18px처럼 의미 없는 차이가 섞이면, 눈은 어느 차이가 '묶음 경계'인지 판단하지 못한다. {{근접성}}이 신호 대신 잡음이 된다." },
-          { icon: "eye", title: "결과", text: "사용자는 화면 전체를 훑어야 한다. 이게 '어지럽다', '촌스럽다'로 느껴진다. 반대로 차이가 적고 각 차이에 뜻이 있으면 '각이 잡혀' 보인다." },
+          { key: "근접성", word: "근접성", en: "Proximity", plain: "가까이 놓인 것은 한 묶음으로 보인다. 선·상자 없이 간격만으로 묶음이 생긴다.", example: "카드 안 라벨과 숫자를 붙여 놓으면 한 쌍으로 읽힌다.",
+            visual: `<svg width="150" height="44"><g fill="#495057">${[0, 1, 2].map(i => `<circle cx="${12 + i * 16}" cy="22" r="6"/>`).join("")}${[0, 1, 2].map(i => `<circle cx="${92 + i * 16}" cy="22" r="6"/>`).join("")}</g></svg>` },
+          { key: "위계 신호", word: "위계 신호", en: "Hierarchy signal", plain: "중요도 순서를 알리는 시각 차이: 크기, 굵기, 색.", example: "KPI 값은 크게, 라벨은 작고 흐리게.",
+            visual: `<div style="font-family:system-ui;line-height:1.1"><span style="font-size:24px;font-weight:700">Aa</span> <span style="font-size:15px;font-weight:700">Aa</span> <span style="font-size:15px;color:#e03131">Aa</span> <span style="font-size:15px;color:#868e96">Aa</span></div>` },
+          { key: "간격 체계", word: "간격 체계", en: "Spacing scale", plain: "간격을 4의 배수 척도에서만 고른다. 묶음 안은 작게, 묶음 사이는 크게.", example: "라벨→값 4, 카드 사이 24, 섹션 사이 48.",
+            visual: `<svg width="150" height="44">${[4, 8, 16, 24, 48].map((v, i) => `<rect x="${i * 28}" y="${40 - v * 0.75}" width="20" height="${v * 0.75}" rx="2" fill="var(--ltt-accent)" opacity="${0.35 + i * 0.15}"/>`).join("")}</svg>` },
+          { key: "대비 예산", word: "대비 예산", en: "Contrast budget", plain: "강한 강조를 쓸 곳의 수를 미리 정해 둔다.", example: "한 화면에서 빨강은 진짜 경보 한 곳에만.",
+            visual: `<svg width="150" height="44">${Array.from({ length: 12 }, (_, i) => `<circle cx="${10 + (i % 6) * 24}" cy="${12 + Math.floor(i / 6) * 20}" r="6" fill="${i === 8 ? "#e03131" : "#ced4da"}"/>`).join("")}</svg>` },
         ],
-        takeaway: "어지러움은 '뜻 없는 차이'와 '차이 없는 중요도'에서 온다.",
-        recall: "화면이 '어지럽다'고 느껴지게 만드는 두 가지 원인은 무엇인가?" },
-
-      { type: "figure", kicker: "디자인 리뷰 · 단계별로 보기", title: "강조는 키우기보다 나머지를 낮춰서 만든다", en: "Building hierarchy",
-        caption: "측정선 = 각 줄 위 간격(px). 단계마다 눈이 먼저 가는 곳을 보자. 핵심은 2단계: 가격을 키우는 대신 나머지를 낮춘다.",
-        figure: cardMock,
-        steps: [
-            "<b>0. 모두 같은 무게</b>: 15px 굵게, 같은 색, 같은 간격 10px. 어디부터 읽을지 정해진 곳이 없다.",
-            "<b>1. 가장 중요한 것 하나</b>: 이 카드의 질문은 '뭐고 얼마냐'다. 이름과 가격만 키웠다.",
-            "<b>2. 나머지를 낮춘다</b>: 설명·평점·배송을 13px, 보통 굵기, 회색 #6b6b6b로. 지우지 않고 '나중에 읽게' 했다.",
-            "<b>3. 간격으로 묶는다</b>: 이름–가격 4px, 보조 정보끼리 4px, 묶음 사이 16px, 버튼 앞 24px. 선 없이 세 묶음이 보인다.",
-            "<b>4. 행동 하나에만 색</b>: 누를 곳만 파랑. 색이 하나뿐이라 '여기를 누르세요'라는 신호가 된다(색 체계는 다음 회차).",
-        ].map((caption) => ({ caption, enter: (k, card) => card.paint(k) })),
-        basis: "'덜 중요한 것을 낮춰 강조를 만든다'는 Wathan & Schoger, Refactoring UI의 'Emphasize by de-emphasizing'. 회색 #6b6b6b는 옅어도 흰 배경에서 읽기 기준을 넘는 진하기다(다음 장면에서 설명).",
-        takeaway: "가장 중요한 것 하나를 고르고, 나머지를 작게·옅게 낮춘다.",
-        recall: "상품 카드에서 가격이 먼저 읽히게 만든 핵심 단계에서는, 가격을 더 키우는 대신 무엇을 했나?",
-        sources: ["Refactoring UI — Hierarchy is everything"],
-        ask: "\"이 화면에서 사용자가 가장 먼저 읽어야 할 것 하나가 뭐야?\"" },
-
-      { type: "explain", kicker: "도구 세 가지", title: "위계를 만드는 손잡이는 크기·굵기·회색 진하기다", en: "Levers", arrows: false,
-        steps: [
-          { icon: "scale", title: "크기", text: "가장 강한 손잡이. 한 화면 안에서는 3–4단계로 제한하는 것이 흔한 경험칙이다. 단계가 많으면 서로 비슷해져 차이가 잘 드러나지 않는다.",
-            visual: `<div class="lv"><div><code>크기px / 굵기</code></div><div><code>24 / 800</code><b style="font-size:24px">₩89,000</b></div><div><code>15 / 600</code><span style="font-size:15px;font-weight:600">무선 키보드</span></div><div><code>13 / 400</code><span style="font-size:13px">내일 도착</span></div></div>` },
-          { icon: "pencil", title: "굵기", text: "크기를 바꾸기 어려운 곳(표, 목록)에서 쓴다. CSS font-weight 값으로 보통(400–500)과 굵게(600–700) 두 단계면 대부분 된다." },
-          { icon: "palette", title: "회색 진하기", text: "진함 / 중간 / 옅음 세 단계로 본문과 보조 정보를 나눈다. 단, 옅은 회색도 {{대비비}} 4.5:1은 넘겨야 읽힌다(흰 배경에서는 #767676까지).",
-            visual: `<div class="lv"><div><code>#111</code><span style="color:#111">제목</span></div><div><code>#444</code><span style="color:#444">본문</span></div><div><code>#6b6b6b</code><span style="color:#6b6b6b">보조 정보</span></div></div>` },
+      },
+      {
+        kicker: "1단 · 근접성",
+        title: "라벨이 어느 숫자의 것인지는 간격이 정한다",
+        en: "Proximity decides what belongs together",
+        sub: "KPI 카드에서 라벨·값 세 쌍만 떼어 세로로 놓았다. 바깥 간격은 24px로 두고 안쪽 간격만 바꿔 본다.",
+        mount(body) { proxScene(body); },
+        takeaway: "묶음 안 간격이 묶음 사이 간격보다 확실히 작아야 묶음이 보인다. 둘이 같으면 짝이 모호하다.",
+        recall: "라벨과 값의 간격이 쌍 사이 간격과 같으면 무엇이 문제인가?",
+        basis: "{{근접성}}: Wertheimer (1923), Laws of organization in perceptual forms.",
+      },
+      {
+        type: "figure",
+        kicker: "2단 · 위계 신호",
+        title: "크기·굵기·색은 주변과의 차이로 읽힌다",
+        en: "Signals work by difference",
+        sub: "같은 여섯 단어에서 '이탈률'을 찾아 보자. 어느 칸에서 가장 늦게 찾았는가?",
+        figure: fourPanels,
+        caption: "①–③은 신호 하나만 다르게 해도 '이탈률'이 바로 보인다. ④는 '이탈률'에 신호를 더 많이 실었지만, 주변 단어도 제각각이라 차이가 묻힌다(Duncan & Humphreys 1989: 주변끼리 다를수록 목표 찾기가 느려진다).",
+        takeaway: "{{위계 신호}}는 절대값이 아니라 주변과의 차이로 읽힌다. 주변이 제각각이면 목표가 묻힌다.",
+        recall: "④칸에서 '이탈률'이 ③칸보다 신호가 많은데도 덜 보이는 이유는?",
+        basis: "Duncan, J., & Humphreys, G. W. (1989). Visual search and stimulus similarity. Psychological Review, 96(3).",
+      },
+      {
+        type: "figure",
+        kicker: "3단 · 간격 체계",
+        title: "간격은 척도에서 고르고, 안쪽은 작게 바깥은 크게 둔다",
+        en: "Pick spacing from a scale",
+        sub: "{{8pt 격자}}: 간격을 4의 배수 척도에서만 고른다. 고친 대시보드는 그중 네 값만 쓴다.",
+        figure: scaleFigure,
+        caption: "라벨→값 4 < 카드 여백 16 < 카드 사이 24 < 섹션 사이 48. 안쪽 묶음일수록 작은 칸을 쓰니 묶음의 겹이 간격 크기 순서로 읽힌다. 카드 사이 ÷ 라벨→값 = 24 ÷ 4 = 6, 섹션 사이 ÷ 카드 사이 = 48 ÷ 24 = 2.",
+        takeaway: "{{간격 체계}}: 4의 배수 척도에서 간격을 고르고, 겹이 바깥일수록 큰 값을 준다.",
+        recall: "라벨→값, 카드 사이, 섹션 사이 간격은 어떤 순서로 커져야 하는가?",
+        basis: "Material Design: 8dp 격자(작은 요소는 4dp). Wathan & Schoger, Refactoring UI (2018): 미리 정한 간격 척도.",
+      },
+      {
+        type: "predict",
+        kicker: "4단 · 예측",
+        title: "이탈률을 가장 먼저 보이게 하려면?",
+        question: "이 KPI 줄에서 '이탈률 +2.1%p'가 가장 먼저 눈에 들어오게 하려면, 어느 방법의 효과가 가장 클까?",
+        visual: kpiOnly("loud"),
+        choices: [
+          { id: "a", text: "이탈률 카드를 더 크고 굵고 빨갛게 만든다" },
+          { id: "b", text: "나머지 11개 요소의 색과 굵기를 뺀다" },
+          { id: "c", text: "이탈률 카드에 경고 아이콘과 두꺼운 테두리를 더한다" },
         ],
-        basis: "#767676(4.54:1)과 #6b6b6b(약 5.3:1)는 WCAG 2.x 대비비 식으로 계산한 값(모델로 계산한 예시). 굵기 두 단계는 Refactoring UI의 권장. 크기 3–4단계는 경험칙. 색 체계 전체는 다음 회차.",
-        takeaway: "크기·굵기·회색 각각 2–4단계만 쓴다. 단계가 적을수록 차이에 뜻이 생긴다.",
-        recall: "위계를 만드는 세 손잡이는 무엇이고, 각 손잡이의 단계 수를 적게 두는 까닭은?",
-        ask: "\"이 화면에 글자 크기가 몇 종류 쓰였는지 세어 줘\"" },
-
-      { kicker: "같은 회원가입 폼 · BEFORE", title: "간격이 제각각이면 라벨이 어느 칸 것인지 모호하다", en: "Before", layout: "split", bare: true,
-        mount: (body) => { body.appendChild(LTT.h("div", "fmwrap")).appendChild(formMock({ lab: 14, first: 13, gaps: [10, 12], sec: 22, labSize: 14, labColor: "#222", hSize: 15, hWeight: 600, w: 320 })()); return {}; },
-        pointsOn: ".ltt-browser", pointsTone: "bad",
-        points: [
-          { at: [70, 30], title: "라벨↔입력칸 14px, 항목 사이 10·12px", text: "'이메일' 라벨이 자기 칸(14px)보다 위 칸(10px)에 더 가깝다.", tone: "bad" },
-          { at: [70, 55], title: "10 · 12 · 13 · 14px 제각각", text: "뜻 없는 차이라 눈이 헤맨다.", tone: "bad" },
-          { at: [40, 78], title: "섹션 제목 = 라벨과 같은 무게", text: "'배송지'가 새 묶음인지 그냥 항목인지 모호하다.", tone: "bad" },
-        ],
-        aside: (n) => { n.className = "ltt-ba-foot"; n.innerHTML = `<div class="lab">쓰인 간격</div>`; n.appendChild(LTT.swatches([10, 12, 13, 14, 22].map((v) => ({ color: "#d9d6cf", label: v + "px", w: 12, h: v, r: 2 })), { caption: "다섯 가지 값, 규칙 없음" })); } },
-
-      { kicker: "같은 폼, 간격과 글자 위계만 바꿨다 · AFTER", title: "묶음 안은 좁게, 묶음 사이는 넓게", en: "After", layout: "split", bare: true,
-        mount: (body) => { body.appendChild(LTT.h("div", "fmwrap")).appendChild(formMock({ lab: 8, first: 16, gaps: [24, 24], sec: 48, labSize: 13, labColor: "#444", hSize: 17, hWeight: 800, w: 320 })()); return {}; },
-        pointsOn: ".ltt-browser", pointsTone: "good",
-        points: [
-          { at: [70, 26], title: "라벨↔입력칸 14→8px, 항목 사이 10·12→24px", text: "묶음 안이 묶음 사이의 1/3이라 라벨이 제 칸에 붙는다.", tone: "good" },
-          { at: [70, 50], title: "항목 사이 10·12 → 모두 24px", text: "같은 역할은 같은 값.", tone: "good" },
-          { at: [40, 74], title: "섹션 앞 22 → 48px + 큰 제목", text: "간격과 크기가 함께 '새 묶음 시작'을 말한다.", tone: "good" },
-        ],
-        aside: (n) => { n.className = "ltt-ba-foot"; n.innerHTML = `<div class="lab">쓴 간격</div>`; n.appendChild(LTT.swatches([8, 16, 24, 48].map((v) => ({ color: "#2f5bff", label: v + "px", w: 12, h: v, r: 2 })), { caption: "스케일 4·8·16·24·32·48 중 네 단계" })); },
-        takeaway: "묶음 안 간격 < 묶음 사이 간격 < 섹션 사이 간격. 같은 역할에는 같은 값을 쓴다.",
-        recall: "라벨↔입력칸, 항목↔항목, 섹션↔섹션 간격은 서로 어떤 크기 순서여야 하고, 같은 역할의 간격끼리는 어떻게 맞추나?",
-        sources: ["NN/g — Proximity Principle in Visual Design"],
-        ask: "\"이 폼의 간격을 역할별(묶음 안·묶음 사이·섹션 사이)로 나눠서 스케일 값으로 바꿔 줘\"" },
-
-      { kicker: "직접 밀어 보기", title: "묶음 사이 간격을 벌리면 그룹이 생긴다", en: "Try it",
-        narration: [
-          "라벨↔입력칸 8px, 섹션 앞 48px은 고정하고, 단계 버튼으로 항목 사이 간격만 바꿔 보자. 버튼은 {{간격 스케일}}의 값이다.",
-          "8px(같은 값)에서는 라벨이 위아래 어느 칸에 붙는지 모호하다. 단계를 올릴수록 라벨-입력칸 쌍이 하나의 덩어리로 떨어져 보인다.",
-        ],
-        mount(body) {
-          body.innerHTML = `<div class="live"><div><div id="bg-goal"></div><div class="ltt-param">항목 사이(=묶음 사이) 간격<div id="bg"></div></div>
-            <p class="gapnote" id="bg-r"></p><span class="ltt-tag">예시 화면</span></div><div id="bg-f"></div></div>`;
-          const host = LTT.$("bg-f");
-          LTT.sweep({ params: { bg: { kind: "steps", stops: SCALE.slice(1), value: 8, fmt: (v) => v + "px", label: "항목 사이 간격" } },
-            render: ({ bg }) => {
-              host.innerHTML = "";
-              host.appendChild(formMock({ lab: 8, first: 16, gaps: [bg, bg], sec: 48, labSize: 13, labColor: "#444", hSize: 15, hWeight: 700, w: 320 })());
-              LTT.$("bg-r").textContent = `묶음 사이 ${bg}px ÷ 묶음 안 8px = ${(bg / 8).toFixed(1)}배`;
-            },
-            goal: { el: "bg-goal", text: "'이메일' 라벨이 아래 입력칸과 한 묶음으로 보이도록, 항목 사이를 묶음 안(8px)보다 스케일 한두 단계 위로 맞춰 본다",
-              check: ({ bg }) => bg >= 16 && bg <= 24 } });
-          return {};
+        answer: "b",
+        answerVisual: kpiOnly("calm"),
+        why: "주변이 이미 색과 굵기로 가득하면 하나를 더 키워도 차이는 조금만 늘고, 장식을 더하면 주변이 더 제각각이 된다. 나머지를 덜면 빨강이 화면에 하나뿐이 된다.",
+      },
+      {
+        type: "figure",
+        kicker: "4단 · 대비 예산",
+        title: "강조를 덜어 낸 쪽만 흐리게 봐도 이탈률이 남는다",
+        en: "Spend contrast where it matters",
+        sub: "같은 KPI 줄을 {{흐리게 보기}}로 점검한다. 세부가 지워지면 대비가 큰 것만 남는다.",
+        figure: budgetFigure,
+        caption: "고치기 전에는 흐린 화면에도 파랑·초록·빨강·보라 덩어리가 네 카드에 고르게 퍼져 서로 경쟁한다. 고친 뒤에는 회색 덩어리 네 개 위에 빨간 점 하나만 남는다. {{대비 예산}}을 한 곳에만 썼기 때문이다.",
+        takeaway: "강조는 더할수록 약해진다. 대비 예산을 정해 진짜 예외 한두 곳에만 쓰고, 나머지는 덜어 낸다.",
+        recall: "대시보드에서 이탈률을 띄우고 싶을 때, 이탈률을 더 키우는 것보다 나은 방법은?",
+        basis: "Wathan & Schoger, Refactoring UI (2018): 강조하려면 나머지를 덜 강조한다.",
+      },
+      {
+        type: "figure",
+        kicker: "합치기",
+        title: "같은 데이터, 같은 대시보드: 네 원리를 모두 적용하면",
+        sub: "파란 표시는 간격(px)이다. 고치기 전은 모든 간격이 16, 고친 뒤는 겹마다 다르다.",
+        figure: (el) => {
+          el.innerHTML = `<div class="vh-pair">
+            <div class="side"><div class="hd">${LTT.badge("before", "고치기 전")}</div><div class="frame" data-m="loud"></div><div class="ft">간격 16 하나, 채운 버튼 2개(필터·내보내기), 막대마다 다른 색</div></div>
+            <div class="side"><div class="hd">${LTT.badge("after", "고친 뒤")}</div><div class="frame" data-m="calm"></div><div class="ft">간격 4·24·48, 채운 버튼 1개(내보내기), 빨강은 이탈률 변화율 한 곳</div></div>
+          </div>`;
+          el.querySelectorAll(".frame").forEach(f => browser(f.dataset.m, { ann: true })(f));
         },
-        basis: "'몇 배 이상이면 묶음으로 보인다'는 표준 수치는 없다(불확실). 실무에서는 묶음 사이를 스케일에서 한두 단계 위로 고르는 경우가 많다.",
-        takeaway: "같은 간격은 '관계없음', 다른 간격은 '관계있음'을 말한다.",
-        recall: "모든 요소 사이 간격이 같을 때와, 어떤 쌍만 더 붙어 있을 때 사용자는 그 관계를 각각 어떻게 읽나?" },
-
-      { type: "compare", kicker: "실제 UI 조각", title: "어느 쪽이 먼저 읽을 곳을 정해 두었을까?", layout: "stack",
-        narration: "자주 보는 조각 세 가지다. 각각 1초만 보고 눈이 처음 닿은 곳을 기억한 뒤 '판정 보기'를 누르자.",
-        revealLabel: "판정 보기",
-        items: [
-          { label: "대시보드 숫자 A", tone: "bad", verdict: "라벨이 숫자를 이김",
-            visual: `<div class="kpi"><div style="font-size:16px;font-weight:700">이번 달 매출</div><div style="font-size:15px;margin-top:6px">₩48,200,000</div></div>`,
-            noteAfter: true, note: "사용자가 보러 온 것은 숫자다. 라벨이 더 크고 굵으면 순서가 뒤집힌다." },
-          { label: "대시보드 숫자 B", tone: "good", verdict: "숫자 → 라벨 순서",
-            visual: `<div class="kpi"><div style="font-size:12px;color:#6b6b6b">이번 달 매출</div><div style="font-size:26px;font-weight:800;margin-top:4px">₩48.2M</div></div>`,
-            noteAfter: true, note: "라벨을 작고 옅게 낮추자 숫자가 먼저 읽힌다." },
-          { label: "설정 목록", tone: "bad", verdict: "모두 강조 = 강조 없음",
-            visual: `<div class="kpi" style="font-weight:700">${["알림", "개인정보", "계정"].map((t) => `<div style="padding:7px 8px;margin-top:4px;border:1px solid #bbb;border-radius:6px;background:#f3f1ec">${t} ›</div>`).join("")}</div>`,
-            noteAfter: true, note: "굵은 글자, 테두리, 배경이 모든 줄에 같으니 아무것도 앞서지 않는다. 테두리를 빼고 간격으로만 나눠도 충분하다." },
-        ] },
-
-      { type: "statement", kicker: "강조의 역설", title: "굵은 글씨·테두리·배경을 모든 줄에 주면 <em>아무 줄도</em> 앞서지 않는다.",
-        sub: "강조는 주변과의 차이로만 생긴다. 하나를 앞세우려면 덧붙이지 말고 나머지를 낮춘다.",
-        takeaway: "모든 것을 강조하면 아무것도 강조되지 않는다.",
-        recall: "설정 목록의 모든 줄에 굵은 글씨·테두리·배경을 똑같이 주면 무엇이 먼저 읽히나? 그 까닭은?" },
-
-      { type: "explain", form: "stack", kicker: "진단 퀴즈의 답", title: "가장 가까운 값으로 맞추면 잘못된 관계까지 보존된다", en: "Recipe",
-        sub: "진단 퀴즈: 13·15·16·18·22·24px로 섞인 여백을 스케일 4·8·16·24·32·48로 정리하려면? 장면 6의 BEFORE 폼으로 풀어 본다.",
-        steps: [
-          { icon: "alert", title: "가까운 값으로만 맞추면", text: "값은 스케일에 들어왔지만 라벨은 여전히 위 칸에 더 가깝다.",
-            visual: `<div class="map">라벨↔입력칸 14 → <span class="v">16</span><br>항목 사이 10 → <span class="v">8</span> <span class="ltt-tag bad">관계 그대로</span></div>` },
-          { icon: "search", title: "역할부터 나눈다", text: "각 간격이 무엇과 무엇을 떼어 놓는지 본다: 묶음 안, 제목↔첫 항목, 묶음 사이, 섹션 사이.",
-            visual: `<div class="scale">${SCALE.map((v) => `<span><i style="height:${v}px"></i>${v}</span>`).join("")}</div>` },
-          { icon: "check", title: "역할마다 한 값, 안 < 사이", text: "가까운 정도가 관계의 순서를 따르게 고른다. 남은 차이가 모두 관계의 차이가 된다.",
-            visual: `<div class="map">라벨↔칸 14→<span class="v">8</span><br>제목↔항목 13→<span class="v">16</span><br>항목 사이 10·12→<span class="v">24</span><br>섹션 앞 22→<span class="v">48</span></div>` },
+        caption: "고친 뒤에는 {{주 버튼}}이 하나뿐이고, 섹션 사이(48)가 카드 사이(24)보다, 카드 사이가 카드 안(4)보다 넓다. 일별 매출 막대 일곱 개를 더하면 0.52+0.58+0.61+0.55+0.66+0.69+0.59 = 4.20, KPI 매출 4.2억 원과 같다.",
+      },
+      {
+        type: "figure",
+        title: "다음에 배울 것: 이번 네 개념에서 뻗는 가지",
+        en: "What to learn next",
+        figure: tree,
+        caption: "초록은 이번 수업에서 다룬 개념, 오른쪽은 이어서 배울 개념이다. 대시보드 작업이라면 타입 스케일과 차트의 전주의 속성이 가장 가깝다.",
+      },
+      {
+        type: "summary",
+        title: "정리: 차이를 아껴 쓰는 네 단계",
+      },
+      {
+        type: "overview",
+        title: "한 장으로: 고친 대시보드 위의 네 자리",
+        figure: browser("calm", { mk: { 1: "", 2: "top:1px;left:80px", 3: "top:12px;left:-14px", 4: "top:-3px;left:56px" } }),
+        caption: "① 근접성: 라벨·값·변화율이 4px로 붙어 한 카드가 된다. ② 위계 신호: 값만 크고 굵다. ③ 간격 체계: 섹션 사이 48 > 카드 사이 24. ④ 대비 예산: 빨강은 이탈률 변화율 한 곳.",
+        label: "고친 뒤",
+      },
+      {
+        type: "keywords",
+        title: "더 찾아볼 말",
+        terms: [
+          { ko: "근접성의 원리", en: "Gestalt law of proximity" },
+          { ko: "시각 위계", en: "visual hierarchy" },
+          { ko: "8pt 격자", en: "8-point grid system" },
+          { ko: "간격 척도", en: "spacing scale" },
+          { ko: "흐리게 보기", en: "squint test" },
+          { ko: "주변 유사성과 시각 탐색", en: "visual search, distractor similarity" },
         ],
-        basis: "역할별 한 값은 표준이 아닌 실무 관행이고, 8·16·24·48은 이 수업의 예시 선택이다. 스케일 단계는 팀마다 다르다.",
-        takeaway: "간격 값은 '얼마나 떨어뜨리나'가 아니라 '무엇과 무엇의 관계인가'로 고른다.",
-        recall: "13·15·22px처럼 섞인 간격을 스케일로 정리할 때, 가장 가까운 값으로만 맞추면 무엇이 남고, 대신 무엇을 기준으로 값을 골라야 하나?",
-        ask: "\"이 화면에서 쓰인 간격 값을 전부 뽑고, 역할별로 묶어 줘\"" },
-
-      { type: "summary", title: "화면을 다듬기 전에, 먼저 무엇을 앞세울지 떠올린다", en: "Recap 1 · 위계", recap: [0, 3] },
-
-      { type: "summary", title: "이어서 간격이 무엇을 묶고 떼는지 떠올린다", en: "Recap 2 · 간격", recap: [3] },
-
-      { type: "overview", title: "화면은 하나만 앞세우고, 간격의 크기로 묶음을 말한다",
-        figure: overview,
-        caption: "1~3은 상품 카드, 4~6은 회원가입 폼 위에 놓인 앞 장면의 정리다. 번호가 붙은 자리가 그 정리가 적용되는 곳이다." },
-
-      { type: "keywords", title: "다음에 비슷한 걸 만나면",
-        terms: [{ ko: "시각적 위계", en: "visual hierarchy" }, { ko: "근접성", en: "Gestalt principle of proximity (게슈탈트: 형태를 묶어 보는 지각 원리)" }, { ko: "간격 스케일", en: "spacing scale (8의 배수만 쓰면 8pt grid)" }],
-        signals: ["화면이 '어지럽다', '촌스럽다'는 말을 듣거나 스스로 느낄 때", "CSS에 13px, 15px 같은 제각각 여백이 보일 때", "구분하려고 테두리·배경·굵은 글씨를 계속 덧붙이고 있을 때"],
-        queries: ["visual hierarchy de-emphasize secondary text", "gestalt proximity form label spacing", "8pt grid spacing system", "Refactoring UI hierarchy"],
+        queries: ["Refactoring UI emphasize by de-emphasizing", "Material Design spacing 8dp grid", "dashboard design visual hierarchy KPI cards"],
         neighbors: [
-          { term: "공통 영역(common region)", diff: "박스·배경으로 묶는 방법. 근접성으로 충분한 곳에 쓰면 선과 박스가 늘어 어지러워진다." },
-          { term: "타이포 스케일(type scale)", diff: "글자 크기 단계를 비율로 정하는 규칙. 간격 스케일의 글자 버전. 다음 회차 후보." },
-          { term: "디자인 토큰", diff: "스케일 값에 이름(space-4, gray-600)을 붙여 코드 전체에서 같은 값을 쓰게 하는 장치." },
-        ] },
+          { term: "공통 영역(common region)", diff: "간격 대신 상자·배경으로 묶는다. 근접성과 함께 쓰되 상자가 늘면 그 자체가 소음이 된다." },
+          { term: "타입 스케일", diff: "위계 신호 중 크기만 척도로 정한다. 간격 체계의 글자판이다." },
+        ],
+      },
     ],
-  }));
+  });
+})();
 </script>
 </body>
 </html>

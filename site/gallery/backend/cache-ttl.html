@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>캐시 TTL: 원본 부하와 오래된 응답</title>
+<script type="application/json" id="ltt-meta">{
+  "topic": "캐시 TTL: 원본 부하와 오래된 응답의 맞바꿈",
+  "audience": "HTTP API를 만들어 본 백엔드 주니어. hit/miss·TTL·stale은 이름만 안다.",
+  "theme": "terminal",
+  "medium": "deck",
+  "decision": "상품 정보 API 캐시의 TTL을 몇 초로 할지",
+  "glossary": {
+    "hit": "요청이 왔을 때 캐시에 아직 유효한 복사본이 있어 캐시가 바로 답하는 경우. 원본까지 가지 않는다.",
+    "miss": "캐시에 유효한 복사본이 없어 원본(DB·상품 서비스)에 물어봐야 하는 경우. 받아 온 값은 캐시에 넣는다.",
+    "TTL": "Time To Live. 캐시가 원본에서 받아 온 복사본을 몇 초 동안 그대로 쓸지. 이 수업에서는 받아 온 순간부터 센다.",
+    "원본": "캐시 뒤에 있는 진짜 데이터 출처(예: 상품 DB, 상품 서비스). origin이라고도 한다.",
+    "stale": "원본 값은 이미 바뀌었는데 캐시가 아직 옛 복사본으로 답한 응답. '오래된 응답'.",
+    "λ": "람다. 상품 하나(캐시 키 하나)에 초당 들어오는 평균 요청 수. 예: 초당 10회면 λ = 10.",
+    "λT": "TTL T초 동안 들어오는 평균 요청 수. λ × T. 예: 초당 10회 × 60초 = 600.",
+    "포아송": "요청들이 서로 독립적으로, 평균 빈도 λ로 무작위로 오는 모형. 많은 사용자가 따로 요청하는 API 트래픽의 기본 근사."
+  }
+}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.tt-wrap{display:flex;flex-direction:column;gap:10px;width:100%}
+.tt-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.tt-steps{display:inline-flex;gap:6px}
+.tt-steps button{font:inherit;font-variant-numeric:tabular-nums;min-width:64px;padding:5px 10px;border-radius:6px;border:1px solid var(--ltt-line-2);background:var(--ltt-card);color:var(--ltt-ink-2);cursor:pointer}
+.tt-steps button[aria-pressed="true"]{background:var(--ltt-accent);border-color:var(--ltt-accent);color:var(--ltt-bg);font-weight:600}
+.tt-lab{color:var(--ltt-muted);font-size:14px}
+.tt-stats{display:flex;gap:22px;flex-wrap:wrap}
+.tt-stats .ltt-stat{font-variant-numeric:tabular-nums;min-width:120px}
+.tt-svg{width:100%;height:auto;display:block}
+.tt-svg text{font-family:var(--ltt-mono, ui-monospace, monospace)}
+.tt-num{font-variant-numeric:tabular-nums;display:inline-block;min-width:3.2em;text-align:right}
+.tt-dec{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:22px;align-items:start;width:100%}
+.tt-side{display:flex;flex-direction:column;gap:12px}
+.tt-stack{display:flex;height:26px;width:100%;border:1px solid var(--ltt-line-2);border-radius:4px;overflow:hidden;background:var(--ltt-card-2)}
+.tt-stack div{height:100%}
+.tt-axis{display:flex;justify-content:space-between;color:var(--ltt-muted);font-size:12px;font-variant-numeric:tabular-nums}
+.tt-key{display:flex;gap:14px;flex-wrap:wrap;color:var(--ltt-ink-2);font-size:14px}
+.tt-key i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.tt-row{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--ltt-line);padding:4px 0;font-variant-numeric:tabular-nums}
+.tt-row b{color:var(--ltt-ink)}
+.tt-facts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.tt-fact{border:1px solid var(--ltt-line-2);border-radius:8px;padding:12px 14px;background:var(--ltt-card)}
+.tt-fact h4{margin:0 0 6px;font-size:16px}
+.tt-fact p{margin:2px 0;color:var(--ltt-ink-2)}
+</style>
+</head>
+<body>
+<script>
+(function(){
+const REQ=[5,20,48,70,72,110,150,152,158,230,300,305,340];
+const SPAN=360, CHANGE=40;
+const css=v=>`var(${v})`;
+
+// 캐시 하나에 요청 열을 흘려 hit/miss와 옛 가격 응답을 판정한다.
+function simulate(T, change){
+  let exp=-1, fetched=0; const out=[];
+  for(const t of REQ){
+    if(t<exp) out.push({t, hit:true, fetched, stale: change!=null && fetched<change && t>=change});
+    else { fetched=t; exp=t+T; out.push({t, hit:false, fetched, stale:false}); }
+  }
+  return out;
+}
+const count=(T,c)=>{const r=simulate(T,c);return {miss:r.filter(x=>!x.hit).length, hit:r.filter(x=>x.hit).length, stale:r.filter(x=>x.stale).length, maxAge:Math.max(0,...r.filter(x=>x.stale).map(x=>x.t-x.fetched))};};
+const origin=(lam,T)=>lam/(1+lam*T);
+const catalog=T=>{const hot=100*origin(10,T), cold=9900*origin(0.01,T);return {hot, cold, total:hot+cold, hit:1-(hot+cold)/1099};};
+
+// 기대값: outline.md에서 손으로 구한 값
+[[30,7],[60,5],[120,3],[240,2]].forEach(([T,m])=>LTT.expect(`시간축 miss T=${T}`, count(T).miss, m));
+[[30,0],[60,1],[120,4],[240,8]].forEach(([T,s])=>LTT.expect(`옛 가격 응답 T=${T}`, count(T,CHANGE).stale, s));
+LTT.expect('옛 가격 최대 나이 T=120', count(120,CHANGE).maxAge, 105);
+LTT.expect('A 원본 T=60', origin(10,60), 0.016639, {tol:1e-5});
+LTT.expect('A 원본 T=120', origin(10,120), 0.008326, {tol:1e-5});
+LTT.expect('B miss 비율 T=60', 1/(1+0.6), 0.625, {tol:1e-6});
+LTT.expect('B miss 비율 T=120', 1/(1+1.2), 0.4545, {tol:1e-4});
+[[10,99.90],[30,79.48],[60,63.54],[120,45.83],[240,29.53],[600,14.31]].forEach(([T,v])=>LTT.expect(`카탈로그 원본 T=${T}`, catalog(T).total, v, {tol:0.01}));
+LTT.expect('카탈로그 hit 비율 T=60', catalog(60).hit, 0.9422, {tol:1e-4});
+
+function stepsControl(stops, value, unit, onPick, scene){
+  const box=document.createElement('div'); box.className='tt-steps'; box.setAttribute('role','group');
+  const btns=stops.map(s=>{const b=document.createElement('button');b.type='button';b.textContent=s+unit;b.setAttribute('aria-pressed', s===value);
+    b.addEventListener('click',()=>{btns.forEach(x=>x.setAttribute('aria-pressed', x===b));onPick(s);LTT.record('ttl',{scene, T:s});});return b;});
+  btns.forEach(b=>box.appendChild(b)); return box;
+}
+
+// 시간축 그림. tcur까지만 그린다(clock 재생용).
+function timelineSVG(svg, T, tcur, change){
+  const X=t=>80+t*(790/SPAN);
+  const rows=simulate(T, change);
+  let g='';
+  g+=`<text x="10" y="70" fill="${css('--ltt-ink-2')}" font-size="15">캐시</text>`;
+  g+=`<text x="10" y="136" fill="${css('--ltt-ink-2')}" font-size="15">요청</text>`;
+  g+=`<text x="10" y="206" fill="${css('--ltt-ink-2')}" font-size="15">원본</text>`;
+  for(let s=0;s<=SPAN;s+=60){g+=`<line x1="${X(s)}" y1="34" x2="${X(s)}" y2="210" stroke="${css('--ltt-line')}" stroke-dasharray="2 4"/><text x="${X(s)}" y="24" text-anchor="middle" fill="${css('--ltt-muted')}" font-size="14">${s}s</text>`;}
+  g+=`<line x1="${X(0)}" y1="130" x2="${X(Math.min(tcur,SPAN))}" y2="130" stroke="${css('--ltt-line-2')}" stroke-width="2"/>`;
+  g+=`<line x1="${X(0)}" y1="200" x2="${X(Math.min(tcur,SPAN))}" y2="200" stroke="${css('--ltt-line-2')}" stroke-width="2"/>`;
+  // 캐시 창 막대
+  rows.filter(r=>!r.hit && r.t<=tcur).forEach((r,i)=>{
+    const end=Math.min(r.t+T, SPAN, tcur), clip=r.t+T>SPAN;
+    const x0=X(r.t), x1=X(end);
+    if(change!=null && r.t<change && r.t+T>change && end>change){
+      g+=`<rect x="${x0}" y="56" width="${X(change)-x0}" height="22" rx="3" fill="${css('--ltt-accent-soft')}" stroke="${css('--ltt-accent')}"/>`;
+      g+=`<rect x="${X(change)}" y="56" width="${x1-X(change)}" height="22" rx="3" fill="${css('--ltt-bad-soft')}" stroke="${css('--ltt-bad')}"/>`;
+    } else g+=`<rect x="${x0}" y="56" width="${Math.max(0,x1-x0)}" height="22" rx="3" fill="${css('--ltt-accent-soft')}" stroke="${css('--ltt-accent')}"/>`;
+    if(clip && tcur>=SPAN) g+=`<text x="${X(SPAN)+4}" y="72" fill="${css('--ltt-muted')}" font-size="14">→</text>`;
+    if(i===0 && end-r.t>=28) g+=`<text x="${x0+6}" y="72" fill="${css('--ltt-ink')}" font-size="13">${T}s 보관</text>`;
+  });
+  // 요청 점: 2초 간격 점은 위아래로 비켜 놓는다(세로 위치에는 뜻이 없다)
+  let prev=-99, lift=0;
+  rows.filter(r=>r.t<=tcur).forEach(r=>{
+    lift = (r.t-prev<9) ? (lift? 0 : -17) : 0; prev=r.t;
+    const x=X(r.t), y=130+lift;
+    if(r.hit){
+      const col=r.stale?css('--ltt-bad'):css('--ltt-good');
+      g+=`<line x1="${x}" y1="${y-7}" x2="${x}" y2="78" stroke="${col}" stroke-width="1.5" opacity=".7"/>`;
+      g+=`<circle cx="${x}" cy="${y}" r="7" fill="${col}"/>`;
+    } else {
+      g+=`<line x1="${x}" y1="${y+7}" x2="${x}" y2="192" stroke="${css('--ltt-c2')}" stroke-width="2"/>`;
+      g+=`<path d="M${x-5} 188 L${x} 196 L${x+5} 188Z" fill="${css('--ltt-c2')}"/>`;
+      g+=`<line x1="${x}" y1="${y-7}" x2="${x}" y2="78" stroke="${css('--ltt-c2')}" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+      g+=`<rect x="${x-7}" y="${y-7}" width="14" height="14" fill="${css('--ltt-c2')}"/>`;
+    }
+  });
+  if(change!=null && tcur>=change){
+    g+=`<line x1="${X(change)}" y1="34" x2="${X(change)}" y2="212" stroke="${css('--ltt-bad')}" stroke-width="2" stroke-dasharray="6 4"/>`;
+    g+=`<text x="${X(change)+6}" y="232" fill="${css('--ltt-bad')}" font-size="14">↑ ${change}s: 원본의 가격이 바뀜</text>`;
+  }
+  if(tcur<SPAN) g+=`<line x1="${X(tcur)}" y1="34" x2="${X(tcur)}" y2="212" stroke="${css('--ltt-ink-2')}" stroke-width="1"/>`;
+  svg.innerHTML=g;
+}
+
+function timelineScene(body, {change, clockId}){
+  let T=60;
+  const wrap=document.createElement('div'); wrap.className='tt-wrap';
+  const bar=document.createElement('div'); bar.className='tt-bar';
+  const lab=document.createElement('span'); lab.className='tt-lab'; lab.textContent='TTL';
+  const stats=document.createElement('div'); stats.className='tt-stats';
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox', change!=null?'0 0 900 244':'0 0 900 222'); svg.classList.add('tt-svg'); svg.setAttribute('data-annotate','');
+  const key=document.createElement('div'); key.className='tt-key';
+  key.innerHTML = `<span><i style="background:var(--ltt-c2)"></i>miss: 원본까지 감</span><span><i style="background:var(--ltt-good);border-radius:50%"></i>hit: 캐시가 답함</span><span><i style="background:var(--ltt-accent-soft);border:1px solid var(--ltt-accent)"></i>캐시에 복사본이 있는 동안</span>` + (change!=null?`<span><i style="background:var(--ltt-bad)"></i>옛 가격으로 나간 응답(stale)</span>`:'') + `<span style="color:var(--ltt-muted)">상품 하나 · 6분 동안 요청 13개</span>`;
+  let tcur=SPAN;
+  const paintStats=()=>{const c=count(T,change);
+    stats.innerHTML = change==null
+      ? `<div class="ltt-stat"><span class="tt-num">${c.miss}</span><small> miss → 원본</small></div><div class="ltt-stat"><span class="tt-num">${c.hit}</span><small> hit</small></div>`
+      : `<div class="ltt-stat"><span class="tt-num">${c.stale}</span><small> 옛 가격 응답</small></div><div class="ltt-stat"><span class="tt-num">${c.maxAge}</span><small> 초: 그중 가장 오래된 복사본 나이 (≤ TTL ${T}s)</small></div><div class="ltt-stat"><span class="tt-num">${c.miss}</span><small> miss → 원본</small></div>`;};
+  const steps=stepsControl([30,60,120,240],60,'s',s=>{T=s;paintStats();timelineSVG(svg,T,SPAN,change);}, clockId);
+  bar.append(lab, steps, stats);
+  wrap.append(bar, svg, key); body.appendChild(wrap);
+  paintStats(); timelineSVG(svg,T,SPAN,change);
+  LTT.clock(svg, t=>{tcur=SPAN*t/3000; timelineSVG(svg,T,tcur,change);}, {dur:3000, id:clockId});
+  return {};
+}
+
+// 로그-로그 곡선: miss 비율 = 1/(1+λT)
+function curveFigure(el){
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 900 350'); svg.classList.add('tt-svg'); svg.setAttribute('data-annotate','');
+  el.appendChild(svg);
+  const X=l=>110+(l+2)*125, Y=l=>30+(-l)*68;
+  const pts=[]; for(let l=-2;l<=4.0001;l+=0.02) pts.push([X(l), Y(Math.log10(1/(1+10**l)))]);
+  const pathAll=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+','+p[1].toFixed(1)).join('');
+  const P=(lt)=>[X(Math.log10(lt)), Y(Math.log10(1/(1+lt)))];
+  function draw(t){
+    let g='';
+    [0,-1,-2,-3,-4].forEach(l=>{g+=`<line x1="${X(-2)}" y1="${Y(l)}" x2="${X(4)}" y2="${Y(l)}" stroke="${css('--ltt-line')}" stroke-dasharray="2 4"/><text x="${X(-2)-10}" y="${Y(l)+5}" text-anchor="end" fill="${css('--ltt-muted')}" font-size="14">${['100%','10%','1%','0.1%','0.01%'][-l]}</text>`;});
+    [-2,-1,0,1,2,3,4].forEach(l=>{g+=`<line x1="${X(l)}" y1="${Y(0)}" x2="${X(l)}" y2="${Y(-4)}" stroke="${css('--ltt-line')}" stroke-dasharray="2 4"/><text x="${X(l)}" y="${Y(-4)+22}" text-anchor="middle" fill="${css('--ltt-muted')}" font-size="14">${['0.01','0.1','1','10','100','1000','10000'][l+2]}</text>`;});
+    g+=`<text x="${X(1)}" y="${Y(-4)+46}" text-anchor="middle" fill="${css('--ltt-ink-2')}" font-size="15">λT = TTL 동안 들어오는 평균 요청 수 (로그 눈금)</text>`;
+    g+=`<text x="20" y="18" fill="${css('--ltt-ink-2')}" font-size="15">miss 비율 = 원본까지 가는 요청의 몫 (로그 눈금)</text>`;
+    const n=Math.max(2, Math.round(pts.length*Math.min(1,t/2000)));
+    const d=pts.slice(0,n).map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+','+p[1].toFixed(1)).join('');
+    g+=`<path d="${d}" fill="none" stroke="${css('--ltt-accent')}" stroke-width="3"/>`;
+    if(t>=2000){
+      g+=`<text x="${X(-1.9)}" y="${Y(-1.1)}" fill="${css('--ltt-ink-2')}" font-size="14">λT &lt; 1: 평평 — TTL을 늘려도 거의 그대로</text>`;
+      g+=`<text x="${X(2.05)}" y="${Y(-1.35)}" fill="${css('--ltt-ink-2')}" font-size="14">λT ≫ 1: 기울기 −1</text><text x="${X(2.05)}" y="${Y(-1.35)+18}" fill="${css('--ltt-ink-2')}" font-size="14">λT 두 배 → miss 비율 절반</text>`;
+    }
+    const mark=(a,b,name,label,col,dy,left)=>{const [x0,y0]=P(a),[x1,y1]=P(b);
+      g+=`<line x1="${x0}" y1="${y0}" x2="${x1-8}" y2="${y1}" stroke="${col}" stroke-width="2.5" marker-end="url(#tt-ah)"/>`;
+      g+=`<circle cx="${x0}" cy="${y0}" r="7" fill="none" stroke="${col}" stroke-width="2.5"/><circle cx="${x1}" cy="${y1}" r="7" fill="${col}"/>`;
+      const tx=left? x0-16 : x1+12, an=left?'end':'start';
+      g+=`<text x="${tx}" y="${y1+dy}" text-anchor="${an}" fill="${css('--ltt-ink')}" font-size="15" font-weight="600">${name}</text><text x="${tx}" y="${y1+dy+18}" text-anchor="${an}" fill="${css('--ltt-ink-2')}" font-size="14">${label}</text>`;};
+    if(t>=2600) mark(0.6,1.2,'B: 100초에 1회','λT 0.6→1.2 · 62.5% → 45.5% (×0.73)',css('--ltt-c2'),-34);
+    if(t>=3600) mark(600,1200,'A: 초당 10회','λT 600→1200 · 0.17% → 0.08% (×0.50)',css('--ltt-c1'),30,true);
+    g=`<defs><marker id="tt-ah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10Z" fill="${css('--ltt-ink-2')}"/></marker></defs>`+g;
+    svg.innerHTML=g;
+  }
+  draw(4500);
+  LTT.clock(svg, draw, {dur:4500, id:'curve'});
+}
+
+function decisionScene(body){
+  let T=60;
+  const wrap=document.createElement('div'); wrap.className='tt-wrap';
+  const bar=document.createElement('div'); bar.className='tt-bar';
+  const lab=document.createElement('span'); lab.className='tt-lab'; lab.textContent='TTL';
+  const grid=document.createElement('div'); grid.className='tt-dec';
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 600 370'); svg.classList.add('tt-svg'); svg.setAttribute('data-annotate','');
+  const side=document.createElement('div'); side.className='tt-side';
+  const X=t=>80+(Math.log10(t)-1)/Math.log10(60)*480, Y=v=>310-v*2.6;
+  function paint(){
+    const c=catalog(T); let g='';
+    [0,25,50,75,100].forEach(v=>{g+=`<line x1="${X(10)}" y1="${Y(v)}" x2="${X(600)}" y2="${Y(v)}" stroke="${css('--ltt-line')}" stroke-dasharray="2 4"/><text x="${X(10)-8}" y="${Y(v)+5}" text-anchor="end" fill="${css('--ltt-muted')}" font-size="14">${v}</text>`;});
+    [10,30,60,120,240,600].forEach(t=>{g+=`<text x="${X(t)}" y="${Y(0)+22}" text-anchor="middle" fill="${css('--ltt-muted')}" font-size="14">${t}s</text>`;});
+    g+=`<text x="${X(10)-8}" y="18" fill="${css('--ltt-ink-2')}" font-size="15">원본 요청 (req/s)</text>`;
+    g+=`<text x="${(X(10)+X(600))/2}" y="${Y(0)+48}" text-anchor="middle" fill="${css('--ltt-ink-2')}" font-size="15">TTL (로그 눈금)</text>`;
+    let d=''; for(let l=1;l<=Math.log10(600)+1e-9;l+=0.01){const t=10**l;d+=(d?'L':'M')+X(t).toFixed(1)+','+Y(catalog(t).total).toFixed(1);}
+    let dd=''; for(let l=Math.log10(60);l<=Math.log10(600)+1e-9;l+=0.01){const t=10**l;dd+=(dd?'L':'M')+X(t).toFixed(1)+','+Y(catalog(60).total*60/t).toFixed(1);}
+    g+=`<path d="${dd}" fill="none" stroke="${css('--ltt-muted')}" stroke-width="2" stroke-dasharray="7 5"/>`;
+    g+=`<path d="${d}" fill="none" stroke="${css('--ltt-accent')}" stroke-width="3"/>`;
+    g+=`<text x="${X(14)}" y="${Y(catalog(14).total)-14}" fill="${css('--ltt-accent')}" font-size="14">실제: 인기 + 비인기 원본 합</text>`;
+    g+=`<text x="${X(20)}" y="${Y(8)}" fill="${css('--ltt-muted')}" font-size="14">점선: 가정 "TTL 두 배 → 절반"</text>`;
+    g+=`<circle cx="${X(120)}" cy="${Y(63.54/2)}" r="5" fill="${css('--ltt-muted')}"/><text x="${X(120)+8}" y="${Y(63.54/2)+18}" fill="${css('--ltt-muted')}" font-size="13">31.8</text>`;
+    g+=`<line x1="${X(T)}" y1="${Y(100)}" x2="${X(T)}" y2="${Y(0)}" stroke="${css('--ltt-ink-2')}" stroke-width="1"/>`;
+    g+=`<circle cx="${X(T)}" cy="${Y(c.total)}" r="8" fill="${css('--ltt-accent')}"/><text x="${X(T)+12}" y="${Y(c.total)-10}" fill="${css('--ltt-ink')}" font-size="16" font-weight="600">${c.total.toFixed(1)}</text>`;
+    svg.innerHTML=g;
+    const hp=c.hot, cp=c.cold;
+    side.innerHTML=`
+      <div><div class="tt-lab">TTL ${T}s일 때 원본 요청 ${c.total.toFixed(1)} req/s의 구성</div>
+      <div class="tt-stack"><div style="width:${hp}%;background:var(--ltt-c3)"></div><div style="width:${cp}%;background:var(--ltt-c4)"></div></div>
+      <div class="tt-axis"><span>0</span><span>50</span><span>100 req/s</span></div>
+      <div class="tt-key"><span><i style="background:var(--ltt-c3)"></i>인기 100개: <span class="tt-num">${hp.toFixed(1)}</span></span><span><i style="background:var(--ltt-c4)"></i>비인기 9,900개: <span class="tt-num">${cp.toFixed(1)}</span></span></div></div>
+      <div class="tt-row"><span>캐시 hit 비율 (전체 1,099 req/s 중)</span><b class="tt-num">${(c.hit*100).toFixed(1)}%</b></div>
+      <div class="tt-row"><span>stale 응답의 최대 나이</span><b class="tt-num">${T}초</b></div>
+      <div class="tt-row"><span>인기 상품 하나의 가격이 바뀐 뒤 옛 가격 응답 (최악 ≈ λT = 10×T)</span><b class="tt-num">${(10*T).toLocaleString()}</b></div>
+      <div class="ltt-basis">가정: 인기 100개 × 초당 10회 + 비인기 9,900개 × 초당 0.01회(100초에 1회). 실제 카탈로그는 더 매끈한 긴 꼬리다. 요청은 서로 독립, 캐시 용량 제한 없음.</div>`;
+  }
+  const steps=stepsControl([10,30,60,120,240,600],60,'s',s=>{T=s;paint();},'decision');
+  bar.append(lab, steps);
+  grid.append(svg, side); wrap.append(bar, grid); body.appendChild(wrap); paint();
+  return {};
+}
+
+function cycleVisual(kind){
+  const W=360,H=90; let g='';
+  const X=t=>20+t*4.4;
+  if(kind==='cycle'){
+    g+=`<rect x="${X(5)}" y="12" width="${60*4.4}" height="18" rx="3" fill="var(--ltt-accent-soft)" stroke="var(--ltt-accent)"/><text x="${X(5)+6}" y="26" font-size="13" fill="var(--ltt-ink)">T초 보관</text>`;
+    g+=`<line x1="10" y1="60" x2="350" y2="60" stroke="var(--ltt-line-2)" stroke-width="2"/>`;
+    g+=`<rect x="${X(5)-6}" y="54" width="12" height="12" fill="var(--ltt-c2)"/>`;
+    [20,38,51].forEach(t=>g+=`<circle cx="${X(t)}" cy="60" r="6" fill="var(--ltt-good)"/>`);
+    g+=`<rect x="${X(70)-6}" y="54" width="12" height="12" fill="var(--ltt-c2)"/><text x="356" y="86" text-anchor="end" font-size="13" fill="var(--ltt-ink-2)">다음 miss</text>`;
+    g+=`<text x="${X(5)-8}" y="86" font-size="13" fill="var(--ltt-ink-2)">miss 1</text><text x="${X(28)}" y="86" font-size="13" fill="var(--ltt-ink-2)">hit 평균 λT개</text>`;
+  } else if(kind==='ratio'){
+    g+=`<rect x="20" y="20" width="40" height="40" fill="var(--ltt-c2)"/><text x="40" y="80" text-anchor="middle" font-size="13" fill="var(--ltt-ink-2)">1</text>`;
+    g+=`<rect x="64" y="20" width="270" height="40" fill="var(--ltt-good)" opacity=".8"/><text x="200" y="80" text-anchor="middle" font-size="13" fill="var(--ltt-ink-2)">λT</text>`;
+    g+=`<text x="200" y="45" text-anchor="middle" font-size="14" fill="var(--ltt-bg)">miss 비율 = 1 / (1 + λT)</text>`;
+  } else {
+    g+=`<line x1="20" y1="70" x2="340" y2="70" stroke="var(--ltt-line-2)" stroke-width="2"/>`;
+    [0,1,2,3].forEach(i=>{g+=`<rect x="${24+i*80}" y="40" width="74" height="16" rx="3" fill="var(--ltt-accent-soft)" stroke="var(--ltt-accent)"/><rect x="${24+i*80-5}" y="64" width="10" height="12" fill="var(--ltt-c2)"/>`;});
+    g+=`<text x="24" y="28" font-size="13" fill="var(--ltt-ink-2)">요청이 끝없이 많아도 T초마다 원본 1번</text>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" class="tt-svg" style="max-width:360px">${g}</svg>`;
+}
+
+function overviewFigure(el){
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 900 390'); svg.classList.add('tt-svg'); svg.setAttribute('data-annotate','');
+  const X=l=>90+(l+2)*110, Y=l=>40+(-l)*72;
+  let g='';
+  [0,-2,-4].forEach(l=>{g+=`<line x1="${X(-2)}" y1="${Y(l)}" x2="${X(4)}" y2="${Y(l)}" stroke="var(--ltt-line)" stroke-dasharray="2 4"/><text x="${X(-2)-8}" y="${Y(l)+5}" text-anchor="end" fill="var(--ltt-muted)" font-size="13">${['100%','','1%','','0.01%'][-l]}</text>`;});
+  [-2,0,2,4].forEach(l=>{g+=`<text x="${X(l)}" y="${Y(-4)+20}" text-anchor="middle" fill="var(--ltt-muted)" font-size="13">${{'-2':'0.01','0':'1','2':'100','4':'10000'}[l]}</text>`;});
+  g+=`<text x="${X(1)}" y="${Y(-4)+40}" text-anchor="middle" fill="var(--ltt-ink-2)" font-size="14">λT (로그 눈금)</text><text x="20" y="20" fill="var(--ltt-ink-2)" font-size="14">miss 비율 (로그 눈금)</text>`;
+  let d=''; for(let l=-2;l<=4.0001;l+=0.02){d+=(d?'L':'M')+X(l).toFixed(1)+','+Y(Math.log10(1/(1+10**l))).toFixed(1);}
+  g+=`<path d="${d}" fill="none" stroke="var(--ltt-accent)" stroke-width="3"/>`;
+  const note=(n,x,y,lines)=>{g+=`<circle cx="${x}" cy="${y-5}" r="11" fill="var(--ltt-accent)"/><text x="${x}" y="${y}" text-anchor="middle" fill="var(--ltt-bg)" font-size="13" font-weight="700">${n}</text>`;lines.forEach((s,i)=>g+=`<text x="${x+18}" y="${y+i*18}" fill="var(--ltt-ink)" font-size="14">${s}</text>`);};
+  note(1,110,105,['요청이 드문 키(λT < 1): 대부분 miss.','TTL을 늘려도 원본 요청은 조금만 준다']);
+  note(5,110,250,['카탈로그 원본 부하는 대부분 이런 키에서.','TTL 60 → 120초: 원본 −28%']);
+  note(2,480,48,['miss 비율 = 1/(1+λT),','키 하나의 원본 req/s ≤ 1/T']);
+  note(4,480,100,['비용: stale 나이 ≤ T,','값이 바뀐 뒤 최악 λT개 옛 값']);
+  note(3,620,180,['요청이 많은 키(λT ≫ 1)만','TTL 두 배 → 원본 절반']);
+  svg.innerHTML=g; el.appendChild(svg);
+}
+
+function treeScene(body){
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 900 400'); svg.classList.add('tt-svg'); svg.setAttribute('data-annotate','');
+  const learned=[['hitmiss','hit / miss와 TTL 창'],['ratio','miss 비율 1/(1+λT)'],['stale','stale 최대 나이 ≤ T'],['dist','요청 분포와 TTL 효과']];
+  const next=[['CDN·계층 캐시','hitmiss'],['캐시 스탬피드·요청 합치기','ratio'],['TTL 지터(만료 흩뿌리기)','ratio'],['stale-while-revalidate','stale'],['이벤트 기반 무효화(purge)','stale'],['긴 꼬리 분포(Zipf)','dist'],['캐시 용량과 축출(LRU)','dist']];
+  const ly={}; let g='';
+  g+=`<text x="40" y="24" fill="var(--ltt-ink-2)" font-size="15">이번 수업</text><text x="540" y="24" fill="var(--ltt-ink-2)" font-size="15">다음에 이어 볼 것</text>`;
+  learned.forEach(([id,l],i)=>{const y=60+i*88; ly[id]=y; g+=`<rect x="40" y="${y-20}" width="300" height="40" rx="6" fill="var(--ltt-accent-soft)" stroke="var(--ltt-accent)"/><text x="56" y="${y+5}" fill="var(--ltt-ink)" font-size="16">${l}</text>`;});
+  next.forEach(([l,from],i)=>{const y=50+i*50; g+=`<path d="M340 ${ly[from]} C440 ${ly[from]} 440 ${y} 540 ${y}" fill="none" stroke="var(--ltt-line-2)" stroke-width="1.5"/><rect x="540" y="${y-17}" width="330" height="34" rx="6" fill="var(--ltt-card)" stroke="var(--ltt-line-2)"/><text x="554" y="${y+5}" fill="var(--ltt-ink-2)" font-size="15">${l}</text>`;});
+  svg.innerHTML=g; body.appendChild(svg); return {};
+}
+
+LTT.deck({
+  title:'캐시 TTL: 원본 부하와 오래된 응답',
+  theme:'terminal',
+  scenes:[
+    {type:'hook', art:'cache', pre:'상품 정보 API에 캐시를 붙인다',
+     text:'{{TTL}}을 60초에서 120초로 늘리면, {{원본}} 요청은 절반이 될까?',
+     sub:'원본 부하와 오래된 응답 사이에서 TTL 값을 고를 근거를 만든다.'},
+    {type:'terms', title:'다섯 단어로 캐시 한 칸의 일생을 읽는다', en:'Vocabulary',
+     terms:[
+      {key:'hit', word:'hit', en:'cache hit', icon:'check', plain:'캐시에 유효한 복사본이 있어 캐시가 바로 답한다.', example:'60초 전에 받아 둔 상품 정보로 응답', visual:'<svg viewBox="0 0 120 50" class="tt-svg"><rect x="10" y="6" width="100" height="14" rx="3" fill="var(--ltt-accent-soft)" stroke="var(--ltt-accent)"/><line x1="60" y1="20" x2="60" y2="34" stroke="var(--ltt-good)"/><circle cx="60" cy="40" r="6" fill="var(--ltt-good)"/></svg>'},
+      {key:'miss', word:'miss', en:'cache miss', icon:'x', plain:'유효한 복사본이 없어 원본에 묻고, 받은 값을 캐시에 넣는다.', example:'처음 들어온 요청, 또는 만료 뒤 첫 요청', visual:'<svg viewBox="0 0 120 50" class="tt-svg"><rect x="54" y="4" width="12" height="12" fill="var(--ltt-c2)"/><line x1="60" y1="16" x2="60" y2="40" stroke="var(--ltt-c2)" stroke-width="2"/><path d="M55 38 L60 46 L65 38Z" fill="var(--ltt-c2)"/></svg>'},
+      {key:'TTL', word:'TTL', en:'time to live', icon:'timer', plain:'받아 온 복사본을 몇 초 동안 그대로 쓸지. 받은 순간부터 센다.', example:'TTL 60초 → 받은 뒤 60초 동안 hit 가능', visual:'<svg viewBox="0 0 120 50" class="tt-svg"><rect x="10" y="14" width="100" height="16" rx="3" fill="var(--ltt-accent-soft)" stroke="var(--ltt-accent)"/><text x="60" y="46" text-anchor="middle" font-size="11" fill="var(--ltt-ink-2)">← T초 →</text></svg>'},
+      {key:'원본', word:'원본', en:'origin', icon:'db', plain:'캐시 뒤의 진짜 데이터 출처. miss만 여기까지 온다.', example:'상품 DB, 상품 서비스', visual:'<svg viewBox="0 0 120 50" class="tt-svg"><line x1="10" y1="30" x2="110" y2="30" stroke="var(--ltt-line-2)" stroke-width="2"/><path d="M55 22 L60 30 L65 22Z" fill="var(--ltt-c2)"/><line x1="60" y1="4" x2="60" y2="24" stroke="var(--ltt-c2)" stroke-width="2"/></svg>'},
+      {key:'stale', word:'stale', en:'stale response', icon:'alert', plain:'원본 값이 바뀐 뒤에도 옛 복사본으로 나간 응답.', example:'가격이 바뀌었는데 옛 가격을 보여 줌', visual:'<svg viewBox="0 0 120 50" class="tt-svg"><rect x="10" y="6" width="45" height="14" rx="3" fill="var(--ltt-accent-soft)" stroke="var(--ltt-accent)"/><rect x="55" y="6" width="55" height="14" rx="3" fill="var(--ltt-bad-soft)" stroke="var(--ltt-bad)"/><line x1="55" y1="2" x2="55" y2="48" stroke="var(--ltt-bad)" stroke-dasharray="3 3"/><circle cx="85" cy="40" r="6" fill="var(--ltt-bad)"/></svg>'}
+     ]},
+    {title:'miss는 캐시가 비어 있을 때 온 첫 요청뿐이다', en:'One key on a timeline', kicker:'상품 하나',
+     sub:'TTL을 바꿔 보라. 막대(캐시에 복사본이 있는 동안) 안에 떨어진 요청은 {{hit}}, 막대 밖의 첫 요청만 {{miss}}가 되어 {{원본}}까지 간다.',
+     layout:'stack',
+     narration:'같은 요청 13개를 TTL만 바꿔 다시 흘린다. 60초 → 120초로 두 배가 되면 miss는 5개 → 3개. 절반(2.5개)보다 덜 준다. miss 뒤 막대가 길어져도, 막대가 끝난 뒤 다음 요청이 오기까지의 빈 시간은 그대로이기 때문이다.',
+     takeaway:'miss는 복사본이 없을 때 온 첫 요청이다. TTL이 길어지면 막대가 길어질 뿐, 요청이 드문 구간의 miss는 그대로 남는다.',
+     recall:'같은 요청 열에서 TTL을 두 배로 늘려도 miss가 절반이 되지 않는 이유는?',
+     mount(body){return timelineScene(body,{change:null, clockId:'timeline'});}},
+    {type:'explain', form:'stack', title:'한 주기는 miss 1번과 그 뒤 T초 동안의 hit', en:'One cycle', kicker:'공식',
+     sub:'시간축을 "miss 하나 + 그 막대 안의 hit들" 묶음으로 자른다. {{λ}}는 상품 하나에 초당 들어오는 평균 요청 수다.',
+     steps:[
+      {icon:'refresh', title:'한 주기 = miss 1 + T초 동안의 hit', text:'막대 안(T초)에 들어오는 요청은 평균 {{λT}}개. 막대가 끝나면 다음 요청이 다시 miss가 된다.', visual:cycleVisual('cycle')},
+      {icon:'gauge', title:'miss 비율 = 1 / (1 + λT)', text:'주기마다 요청 1 + λT개 중 1개가 miss. λT가 크면 miss 비율 ≈ 1/λT, 작으면 ≈ 1(거의 모두 miss).', visual:cycleVisual('ratio')},
+      {icon:'db', title:'원본 req/s = λ / (1 + λT) ≤ 1/T', text:'원본 요청 = 요청 수 × miss 비율. 요청이 아무리 많아도 키 하나당 T초에 한 번을 넘지 못한다.', visual:cycleVisual('cap')}
+     ],
+     basis:'가정: 요청이 서로 독립({{포아송}}), TTL은 원본에서 받은 시각부터, 캐시 용량 제한 없음. 근거: renewal-reward 정리, Jung·Berger·Balakrishnan, "Modeling TTL-based Internet Caches"(INFOCOM 2003).',
+     takeaway:'키 하나의 원본 req/s = λ/(1+λT). 상한은 1/T이다.',
+     recall:'키 하나의 miss 비율을 λ와 T로 쓰면? 원본 req/s의 상한은?'},
+    {type:'predict', title:'두 상품, 같은 TTL 변경', kicker:'예측',
+     question:'TTL을 60초에서 120초로 늘린다. 원본 요청이 거의 절반으로 줄어드는 상품은?',
+     visual:'<div class="tt-facts"><div class="tt-fact"><h4>상품 A (인기)</h4><p>초당 10회 요청 (λ = 10)</p><p>λT: 600 → 1200</p></div><div class="tt-fact"><h4>상품 B (비인기)</h4><p>100초에 1회 요청 (λ = 0.01)</p><p>λT: 0.6 → 1.2</p></div></div>',
+     choices:[{id:'a',text:'A만'},{id:'b',text:'B만'},{id:'both',text:'A와 B 둘 다'},{id:'none',text:'둘 다 거의 안 줄어든다'}],
+     answer:'a',
+     why:'A는 막대 안에 요청이 늘 가득해 원본 요청 ≈ T초에 1번 → T가 두 배면 절반(0.0166 → 0.0083 req/s). B는 막대가 끝난 뒤 다음 요청까지 평균 100초를 기다려 대부분 여전히 miss: miss 비율 62.5% → 45.5%(−27%).',
+    },
+    {type:'figure', title:'모든 상품은 한 곡선 위에 있다: 위치는 λT가 정한다', en:'miss ratio vs λT', kicker:'일반화',
+     figure:curveFigure,
+     caption:'x축 λT, y축 miss 비율 = 1/(1+λT). 두 축 모두 로그 눈금이라 "두 배"는 어디서나 같은 가로 거리다. 빈 원은 TTL 60초, 찬 원은 120초.',
+     takeaway:'λT ≫ 1이면 TTL 두 배 → 원본 절반. λT < 1이면 TTL을 늘려도 원본 요청은 조금만 준다.',
+     recall:'λT가 1보다 훨씬 작은 키에서 TTL을 늘리면 원본 요청은 어떻게 변하나?'},
+    {title:'TTL이 길수록 옛 값이 더 오래, 더 많이 나간다', en:'The cost: stale responses', kicker:'비용',
+     sub:'같은 13개 요청에서 40초에 원본 가격이 바뀐다. 그 전에 받아 둔 복사본으로 나간 응답이 {{stale}}이다.',
+     layout:'stack',
+     narration:'복사본은 받은 뒤 TTL 동안만 쓰이므로, 응답에 담긴 값의 나이는 TTL을 넘지 못한다. 대신 변경 뒤 최대 TTL초 동안 옛 값이 나가고, 그동안의 요청(최악 ≈ λT개)이 모두 옛 값을 받을 수 있다. TTL 30 → 240: 옛 가격 응답 0 → 8개.',
+     takeaway:'stale 응답의 나이 ≤ T. 값이 바뀐 뒤 옛 값 응답은 최대 T초 동안, 최악 약 λT개 나간다.',
+     recall:'TTL이 T일 때 stale 응답의 최대 나이와, 값이 바뀐 뒤 옛 값 응답 수의 최악은?',
+     mount(body){return timelineScene(body,{change:CHANGE, clockId:'stale'});}},
+    {title:'원본 부하는 대부분 요청이 드문 상품에서 온다', en:'Catalog: choose a TTL', kicker:'결정',
+     sub:'상품 A 같은 인기 상품 100개와 B 같은 비인기 상품 9,900개가 섞인 카탈로그. TTL을 골라 원본 부하와 옛 값의 비용을 함께 본다.',
+     layout:'full',
+     takeaway:'카탈로그 전체로는 TTL 60 → 120에서 원본 63.5 → 45.8 req/s(−28%). 남은 부하는 대부분 비인기 상품이 만든다.',
+     recall:'카탈로그에서 TTL을 두 배로 늘렸는데 원본 부하가 28%만 준 이유는?',
+     ask:'우리 상품 API의 키별 요청 빈도(λ) 분포를 어디서 볼 수 있나? 가격이 바뀌는 빈도는?',
+     mount(body){return decisionScene(body);}},
+    {title:'이어서 볼 것', en:'Concept tree', kicker:'개념 나무', layout:'full',
+     sub:'왼쪽은 이번에 다룬 개념, 오른쪽은 그 위에 이어지는 다음 주제다.',
+     mount(body){return treeScene(body);}},
+    {type:'summary', title:'정리: TTL을 고르는 근거'},
+    {type:'overview', title:'한 장 정리: 키마다 λT가 TTL의 이득을 정하고, 비용은 T가 정한다',
+     figure:overviewFigure,
+     caption:'곡선은 miss 비율 = 1/(1+λT)(두 축 로그 눈금). 번호는 앞 장면의 핵심 문장 자리다.'},
+    {type:'keywords', title:'검색과 질문에 쓸 말',
+     terms:[{ko:'캐시 적중률',en:'cache hit ratio'},{ko:'TTL 캐시',en:'TTL-based cache'},{ko:'원본 부하',en:'origin load / backend offload'},{ko:'오래된 응답',en:'stale response'},{ko:'신선도 수명',en:'freshness lifetime (RFC 9111)'},{ko:'긴 꼬리 분포',en:'long tail / Zipf'}],
+     signals:['원본 DB QPS가 TTL을 늘려도 기대만큼 안 준다 → 요청이 드문 키가 부하의 대부분','가격·재고 불일치 문의 → stale 비용이 TTL을 정한다'],
+     queries:['TTL cache hit ratio formula 1/(1+λT)','stale-while-revalidate product catalog','cache invalidation on price change'],
+     neighbors:[{term:'stale-while-revalidate',diff:'만료 뒤에도 잠깐 옛 값을 주며 뒤에서 새로 받는다: 지연과 원본 몰림을 줄인다'},{term:'이벤트 기반 무효화',diff:'TTL을 기다리지 않고 값이 바뀔 때 캐시를 지운다: stale 비용을 TTL과 분리한다'}]}
+  ]
+});
+})();
+</script>
+</body>
+</html>

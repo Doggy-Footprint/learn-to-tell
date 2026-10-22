@@ -3,284 +3,559 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>다시 읽기와 인출 연습, 1주 뒤엔 어느 쪽이 더 남을까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"교육학","topic":"인출 연습(testing effect)","audience":"전제 지식 없음","pattern":["hook","terms","explain","figure","predict","figure","statement","compare:table","explain","summary","keywords"],"theme":"paper","medium":"논문 Method figure: 조건별 복습 타임라인과 시험 칸, 같은 그림에 결과를 채운 Results figure","mode":"체험형: 용어와 원리를 풀고 실험 설계를 Method figure로 본 뒤, 다른 사람들이 참여한 실험 결과를 짐작하고 같은 그림에 채운 결과로 확인한다(사용자 자신의 편향을 시험하지 않는다)","decision":"복습 시간을 다시 읽기와 인출 연습 중 어디에 쓸지"}</script>
+<title>다시 읽기 vs 인출 연습 — 1주 뒤 무엇이 남나</title>
+<script type="application/json" id="ltt-meta">{
+  "topic": "다시 읽기와 인출 연습: 1주 뒤 기억",
+  "audience": "시험을 준비하는 대학생, 주로 교재를 반복해 읽음",
+  "theme": "paper",
+  "medium": "deck",
+  "decision": "공부 방법을 다시 읽기에서 인출 연습으로 바꿀지",
+  "glossary": {
+    "망각 곡선": "배운 뒤 시간이 지나며 기억이 얼마나 남는지를 그린 곡선. Ebbinghaus(1885)가 처음 측정했다.",
+    "다시 읽기": "이미 읽은 교재를 한 번 더 읽는 것. 답이 눈앞에 있다.",
+    "인출 연습": "책을 덮고 배운 내용을 기억에서 꺼내 보는 것(떠올려 쓰기, 문제 풀기, 플래시카드). 시험 효과(testing effect)라고도 한다.",
+    "지연 시험": "공부하고 며칠 이상 지난 뒤 치르는 시험. 실제 기말고사처럼.",
+    "직후 시험": "공부하고 몇 분 안에 치르는 시험.",
+    "절약률": "같은 목록을 다시 외울 때 처음보다 아낀 시간의 비율. 많이 남아 있을수록 덜 들여 다시 외우므로 남은 기억의 양으로 쓴다.",
+    "자유 회상": "단서나 보기 없이 기억나는 것을 모두 적는 시험.",
+    "유창성 착각": "글이 술술 읽히는 익숙함을 '안다'로 잘못 느끼는 것. 다시 읽을수록 익숙함은 커진다.",
+    "학습 판단": "공부 직후 '나중에 얼마나 기억할까'를 스스로 매긴 점수(judgment of learning).",
+    "간격 두기": "같은 횟수의 복습을 하루에 몰지 않고 날을 나눠 하는 것(spacing).",
+    "바람직한 어려움": "공부하는 동안은 더 힘들고 느리게 느껴지지만 나중에 더 오래 남게 하는 조건. 인출 연습과 간격 두기가 대표적이다(Bjork 1994).",
+    "아이디어 단위": "글을 뜻 있는 작은 조각(한 가지 사실이나 주장)으로 나눈 단위. 채점자는 학생이 적은 글에 이 조각이 몇 개 들어 있는지 센다.",
+    "시험 효과":"기억에서 꺼내 보는 것(시험)이 그 자체로 나중의 기억을 강하게 하는 현상(testing effect). 인출 연습 효과와 같은 말이다.",
+    "%p":"퍼센트포인트. 두 퍼센트 값의 차이. 56%와 42%의 차이는 14%p."
+  }
+}</script>
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/ltt.js"></script>
 <script src="/kit/ltt-parts.js"></script>
 <script src="/kit/ltt-ui.js"></script>
 <script src="/kit/ltt-deck.js"></script>
 <style>
-  :root { --read: color-mix(in srgb, var(--ltt-accent) 40%, var(--ltt-card)); --test: var(--ltt-accent); }
-  .pair { display: grid; gap: 8px; width: 100%; }
-  .pair .ltt-bar { height: 34px; }
-  .ex { display: flex; align-items: center; gap: 12px; font-size: clamp(14px, 1.2vw, 16px); line-height: 1.45; color: var(--ltt-ink-2); }
-  .ex .ci { display: flex; flex: none; width: 36px; height: 36px; align-items: center; justify-content: center; color: var(--ltt-accent); box-shadow: inset 0 0 0 1.5px var(--ltt-line-2); border-radius: var(--ltt-r-sm); }
-  .ex .ci .ltt-ic { width: 20px; height: 20px; }
-  .ltt-svg.mf { max-width: 1100px; max-height: 38vh; }
-  .tv { width: 100%; max-width: 240px; max-height: 110px; }
-  .tv text { font: 700 12px var(--ltt-font); fill: var(--ltt-ink-2); }
-  .ltt-svg.mf text { font-family: var(--ltt-font-display); font-size: 15px; }
-  .ltt-svg.mf .hd { font-weight: 700; fill: var(--ltt-ink); }
-  .ltt-svg.mf .sm { font-family: var(--ltt-font); font-size: 13px; fill: var(--ltt-muted); }
-  .ltt-svg.mf .ax { font-family: var(--ltt-mono); font-size: 13px; fill: var(--ltt-muted); }
-  /* 번호 주석이 캡션 줄의 모든 칸을 차지해 긴 근거가 한 칸 폭에 갇히므로, 근거도 줄 전체를 쓰게 한다. */
-  .dk-capbar > .ltt-basis { grid-column: 1 / -1; }
+  .rp-fig { width: 100%; max-width: 880px; margin: 0 auto; }
+  .rp-fig svg { width: 100%; height: auto; max-height: 58vh; display: block; overflow: visible; }
+  .rp-fig text { fill: var(--ltt-ink); font-size: 16px; }
+  .rp-fig .muted { fill: var(--ltt-muted); }
+  .rp-fig .small { font-size: 14px; }
+  .rp-fig .big { font-size: 22px; font-weight: 700; }
+  .rp-fig .axis { stroke: var(--ltt-line-2); stroke-width: 1.2; }
+  .rp-fig .grid { stroke: var(--ltt-line); stroke-width: 1; }
+  .rp-fig .note { fill: var(--ltt-muted); font-size: 14px; font-style: italic; }
+  .rp-row { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .rp-row > .rp-fig { flex: 1 1 520px; }
+  .rp-row > .rp-side { flex: 0 1 260px; }
+  .rp-mini svg { width: 120px; height: 72px; }
+  .rp-mini text { font-size: 13px; fill: var(--ltt-ink); }
 </style>
 </head>
 <body>
 <script>
-  // EXPECTED_BY_HAND: 논문 값(불확실)에서 손으로 뺀 차이. 5분 뒤 71-83=-12, 1주 뒤 61-40=21.
-  const DATA = [{ read: 83, test: 71 }, { read: 40, test: 61 }];
-  const EXPECTED_BY_HAND = { diff5min: -12, diff1wk: 21 };
-  DATA.forEach((d, i) => LTT.expect(i ? "1주 뒤 차이" : "5분 뒤 차이", d.test - d.read, i ? EXPECTED_BY_HAND.diff1wk : EXPECTED_BY_HAND.diff5min, { tol: 0 }));
-
-  // Bars start empty and grow on `fire`, so the ranking flip is seen as motion rather than read as numbers.
-  function pair(node, d) {
-    const box = document.createElement("div");
-    box.className = "pair";
-    node.appendChild(box);
-    const mk = (c) => { const e = document.createElement("div"); box.appendChild(e); return LTT.bar(e, [{ color: c }, { color: "transparent" }]); };
-    const r = mk("var(--read)"), t = mk("var(--test)");
-    r.set([0, 100]); t.set([0, 100]);
-    return () => { r.set([d.read, 100 - d.read], [`다시 읽기 조 ${d.read}%`, ""]); t.set([d.test, 100 - d.test], [`떠올리기 조 ${d.test}%`, ""]); };
+(function () {
+  const NS = 'http://www.w3.org/2000/svg';
+  const C_RET = 'var(--ltt-c1)';   // 인출 연습
+  const C_READ = 'var(--ltt-c2)';  // 다시 읽기
+  function S(tag, attrs, parent, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (text != null) n.textContent = text;
+    if (parent) parent.appendChild(n);
+    return n;
   }
-  const SRC = "Roediger & Karpicke (2006) Psychological Science 실험 2(대학생, 산문 글, 떠올릴 때 정답 안 알려 줌). 방향과 1주 뒤 차이 약 21%p는 검색으로 확인. 83/71, 40/61 개별 값은 기억에 의존했고 원문 표로 재확인하지 못했다(불확실).";
-  const ex = (icon, t) => `<div class="ex"><span class="ci">${LTT.icon(icon)}</span>${t}</div>`;
-  // One Method figure drawn twice: without `withResults` the test cells hold "?", with it they hold the measured recall, so the results read against the design.
-  function design(withResults) {
-    const fig = { replay: () => {} };
-    fig.draw = (node) => {
-      const W = 980, H = 334, bx = 200, bw = 86, bg = 8, ch = 56, cw = 132;
-      const bend = bx + 4 * bw + 3 * bg, tx = [690, 846];
-      const rows = [
-        { k: "read", y: 120, name: "다시 읽기 조", plan: "4번 읽기", blocks: ["읽기", "읽기", "읽기", "읽기"] },
-        { k: "test", y: 210, name: "떠올리기 조", plan: "1번 읽고 3번 쓰기", blocks: ["읽기", "쓰기", "쓰기", "쓰기"] },
-      ];
-      const svg = d3.select(node).append("svg").attr("class", "ltt-svg mf").attr("viewBox", `0 0 ${W} ${H}`);
-      const t = (x, y, txt, cls, anchor) => svg.append("text").attr("x", x).attr("y", y).attr("class", cls || null).attr("text-anchor", anchor || "start").text(txt);
-      t((bx + bend) / 2, 36, "복습 — 같은 글, 같은 시간", "hd", "middle");
-      t((tx[0] + tx[1] + cw) / 2, 36, "시험 — 참가자마다 둘 중 하나만", "hd", "middle");
-      svg.append("line").attr("x1", 0).attr("x2", W).attr("y1", 52).attr("y2", 52).style("stroke", "var(--ltt-ink)").style("stroke-width", 1.5);
-      tx.forEach((x, j) => t(x + cw / 2, 76, j ? "1주 뒤" : "5분 뒤", "sm", "middle"));
-      const bars = [];
-      rows.forEach((r) => {
-        t(0, r.y - 4, r.name, "hd");
-        t(0, r.y + 16, r.plan, "sm");
-        r.blocks.forEach((b, i) => {
-          const x = bx + i * (bw + bg), on = b === "쓰기";
-          svg.append("rect").attr("x", x).attr("y", r.y - ch / 2).attr("width", bw).attr("height", ch).attr("rx", 2)
-            .style("fill", on ? "var(--test)" : "var(--read)");
-          t(x + bw / 2, r.y + 5, b, null, "middle").style("fill", on ? "var(--ltt-on-accent)" : "var(--ltt-ink)").style("font-weight", 700);
-        });
-        svg.append("path").attr("d", `M${bend + 10},${r.y}H${tx[0] - 14}m-7,-6l7,6l-7,6`).style("fill", "none").style("stroke", "var(--ltt-ink-2)").style("stroke-width", 1.5);
-        tx.forEach((x, j) => {
-          svg.append("rect").attr("x", x).attr("y", r.y - ch / 2).attr("width", cw).attr("height", ch).attr("rx", 2)
-            .style("fill", "var(--ltt-card)").style("stroke", "var(--ltt-line-2)").style("stroke-dasharray", "5 4");
-          if (!withResults) { t(x + cw / 2, r.y + 6, "?", "ax", "middle"); return; }
-          const v = DATA[j][r.k];
-          const bar = svg.append("rect").attr("x", x + 8).attr("y", r.y + 2).attr("height", 18).attr("width", 0).style("fill", r.k === "test" ? "var(--test)" : "var(--read)");
-          t(x + 8, r.y - 8, `${v}%`, null).style("font-weight", 800).style("fill", "var(--ltt-ink)");
-          bars.push([bar, (cw - 16) * v / 100, j]);
-        });
-      });
-      svg.append("path").attr("d", `M${bx},258v6H${bend}v-6`).style("fill", "none").style("stroke", "var(--ltt-muted)");
-      t((bx + bend) / 2, 282, "두 조가 복습에 쓴 시간은 같다", "sm", "middle");
-      if (withResults) {
-        const lead = (d) => (d.read > d.test ? ["다시 읽기", d.read - d.test, "var(--ltt-warn)"] : ["떠올리기", d.test - d.read, "var(--ltt-good)"]);
-        tx.forEach((x, j) => { const [who, n, c] = lead(DATA[j]); t(x + cw / 2, 270, `${who} +${n}%p`, "hd", "middle").style("fill", c); });
-      }
-      svg.append("line").attr("x1", bx).attr("x2", W - 12).attr("y1", 306).attr("y2", 306).style("stroke", "var(--ltt-ink)");
-      svg.append("path").attr("d", `M${W - 20},300l8,6l-8,6`).style("fill", "none").style("stroke", "var(--ltt-ink)");
-      t(bx, 324, "공부", "ax"); tx.forEach((x, j) => t(x + cw / 2, 324, j ? "+1주" : "+5분", "ax", "middle")); t(W - 12, 324, "시간", "ax", "end");
-      fig.replay = () => bars.forEach(([b, w, j]) => b.interrupt().attr("width", 0).transition().delay(300 + j * 600).duration(LTT.MOTION_MS).attr("width", w));
-    };
-    return fig;
+  function box(el, w, h) {
+    const wrap = document.createElement('div');
+    wrap.className = 'rp-fig';
+    el.appendChild(wrap);
+    const svg = S('svg', { viewBox: `0 0 ${w} ${h}`, role: 'img' }, wrap);
+    return { wrap, svg };
   }
-  const METHOD = design(false), RESULT = design(true);
+  function markSquare(g, x, y, color, s = 11) { return S('rect', { x: x - s / 2, y: y - s / 2, width: s, height: s, fill: color }, g); }
+  function markDot(g, x, y, color, r = 6.5) { return S('circle', { cx: x, cy: y, r, fill: color }, g); }
 
-  // The Results figure's timeline plus numbered marks, so each recap takeaway sits at the place in the picture where it was shown.
-  function overview(node) {
-    const W = 980, H = 456, bx = 200, bw = 86, bg = 8, ch = 52, cw = 132;
-    const bend = bx + 4 * bw + 3 * bg, tx = [690, 846];
+  // ---- 데이터 (outline.md 주장과 근거) ----
+  const EBB = [ // [일, 절약률 %], Ebbinghaus 1885
+    [0.0139, 58.2], [0.0417, 44.2], [0.367, 35.8], [1, 33.7], [2, 27.8], [6, 25.4]
+  ];
+  const RK1 = { // Roediger & Karpicke 2006 실험 1, 아이디어 단위 회상 %
+    read: [81, 54, 42], ret: [75, 68, 56], days: [5 / 1440, 2, 7]
+  };
+  const RK2 = [ // 실험 2: 학습 판단(1–7), 1주 뒤 회상 %
+    { name: '읽기 4번', seq: 'RRRR', jol: 4.81, wk: 40 },
+    { name: '읽기 3 + 떠올리기 1', seq: 'RRRT', jol: 4.21, wk: 56 },
+    { name: '읽기 1 + 떠올리기 3', seq: 'RTTT', jol: 4.00, wk: 61 }
+  ];
+
+  LTT.expect('망각: 0→1일 감소 %p', 100 - EBB[3][1], 66.3, { tol: 0.05 });
+  LTT.expect('망각: 1→6일 감소 %p', EBB[3][1] - EBB[5][1], 8.3, { tol: 0.05 });
+  LTT.expect('실험1: 1주 차이 %p', RK1.ret[2] - RK1.read[2], 14, { tol: 0.01 });
+  LTT.expect('실험1: 5분 차이 %p', RK1.read[0] - RK1.ret[0], 6, { tol: 0.01 });
+  const lossRead = (RK1.read[0] - RK1.read[2]) / RK1.read[0];
+  const lossRet = (RK1.ret[0] - RK1.ret[2]) / RK1.ret[0];
+  LTT.expect('실험1: 다시 읽기 잃은 비율', lossRead, 0.4815, { tol: 0.001 });
+  LTT.expect('실험1: 인출 연습 잃은 비율', lossRet, 0.2533, { tol: 0.001 });
+  LTT.expect('실험2: RTTT−RRRR 1주 %p', RK2[2].wk - RK2[0].wk, 21, { tol: 0.01 });
+
+  // ---- 장면 3: 망각 곡선 ----
+  function forgetFig(el) {
+    const W = 760, H = 380, L = 70, R = 720, T = 30, B = 320;
+    const { svg } = box(el, W, H);
+    const x = d => L + d / 7 * (R - L), y = p => B - p / 100 * (B - T);
+    const g = S('g', {}, svg);
+    for (let p = 0; p <= 100; p += 25) {
+      S('line', { x1: L, x2: R, y1: y(p), y2: y(p), class: 'grid' }, g);
+      S('text', { x: L - 10, y: y(p) + 5, 'text-anchor': 'end', class: 'small muted' }, g, p + '%');
+    }
+    for (let d = 0; d <= 7; d++) {
+      S('text', { x: x(d), y: B + 24, 'text-anchor': 'middle', class: 'small muted' }, g, d === 0 ? '학습' : d + '일');
+    }
+    S('line', { x1: L, x2: R, y1: B, y2: B, class: 'axis' }, g);
+    S('line', { x1: L, x2: L, y1: T, y2: B, class: 'axis' }, g);
+    S('text', { x: R, y: B + 50, 'text-anchor': 'end', class: 'small muted' }, g, '학습 뒤 지난 시간 (일, 같은 간격 눈금)');
+    S('text', { x: L, y: T - 12, class: 'small muted' }, g, '남은 기억 (절약률 %)');
+    const clip = S('clipPath', { id: 'rp-forget-clip' }, svg);
+    const clipRect = S('rect', { x: 0, y: 0, width: L, height: H }, clip);
+    const curve = S('g', { 'clip-path': 'url(#rp-forget-clip)' }, svg);
+    const pts = [[0, 100]].concat(EBB);
+    S('polyline', { points: pts.map(([d, p]) => x(d) + ',' + y(p)).join(' '), fill: 'none', stroke: 'var(--ltt-accent)', 'stroke-width': 3 }, curve);
+    S('circle', { cx: x(0), cy: y(100), r: 6, fill: 'var(--ltt-card)', stroke: 'var(--ltt-accent)', 'stroke-width': 2 }, curve);
+    EBB.forEach(([d, p]) => S('circle', { cx: x(d), cy: y(p), r: 5, fill: 'var(--ltt-accent)' }, curve));
+    const labels = S('g', {}, svg);
+    S('text', { x: x(0) + 14, y: y(100) + 5, class: 'small' }, labels, '학습 직후 100% (정의값, 측정점 아님)');
+    S('text', { x: x(0.0417) + 14, y: y(44.2) - 4, class: 'small' }, labels, '1시간 44.2%');
+    S('text', { x: x(1) + 8, y: y(33.7) - 12, class: 'small' }, labels, '1일 33.7%');
+    S('text', { x: x(2) + 8, y: y(27.8) - 12, class: 'small' }, labels, '2일 27.8%');
+    S('text', { x: x(6) - 24, y: y(25.4) - 14, class: 'small', 'text-anchor': 'middle' }, labels, '6일 25.4%');
+    S('text', { x: R, y: y(25.4) + 34, class: 'note', 'text-anchor': 'end' }, labels, '31일 뒤 21% (축 밖)');
+    // 핵심 관계: 첫날 감소 vs 이후 5일 감소
+    const br = S('g', {}, svg);
+    S('line', { x1: x(1) + 4, x2: x(1) + 4, y1: y(100), y2: y(33.7), stroke: 'var(--ltt-bad)', 'stroke-width': 4 }, br);
+    S('text', { x: x(1) + 14, y: y(70), class: 'big', fill: 'var(--ltt-bad)' }, br, '첫날 −66.3%p');
+    S('line', { x1: x(6) + 22, x2: x(6) + 22, y1: y(33.7), y2: y(25.4), stroke: 'var(--ltt-ink-2)', 'stroke-width': 4 }, br);
+    S('text', { x: x(6) + 30, y: y(29.5) + 6, class: 'small' }, br, '1→6일 −8.3%p');
+    S('text', { x: L + 10, y: B - 10, class: 'note' }, svg, '점: 측정값 · 선: 측정점을 이은 직선 · Ebbinghaus (1885)');
+    LTT.clock(svg, t => {
+      const f = Math.min(1, t / 2200);
+      clipRect.setAttribute('width', L + f * (R - L + 20));
+      const show = t >= 2400 ? 1 : 0;
+      labels.style.opacity = f >= 1 ? 1 : 0.0001;
+      br.style.opacity = show || 0.0001;
+    }, { dur: 3000, id: 'forget' });
+  }
+
+  // ---- 장면 4: 실험 설계 ----
+  function designFig(el) {
+    const W = 800, H = 340;
+    const { svg } = box(el, W, H);
     const rows = [
-      { k: "read", y: 118, name: "다시 읽기 조", plan: "4번 읽기", blocks: ["읽기", "읽기", "읽기", "읽기"] },
-      { k: "test", y: 190, name: "떠올리기 조", plan: "1번 읽고 3번 쓰기", blocks: ["읽기", "쓰기", "쓰기", "쓰기"] },
+      { y: 70, name: '다시 읽기 집단', second: '같은 글 다시 읽기', color: C_READ, txt: 'var(--ltt-ink)' },
+      { y: 170, name: '인출 연습 집단', second: '책 덮고 떠올려 쓰기', color: C_RET, txt: 'var(--ltt-ink)' }
     ];
-    const svg = d3.select(node).append("svg").attr("class", "ltt-svg mf").attr("viewBox", `0 0 ${W} ${H}`);
-    const t = (x, y, txt, cls, anchor) => svg.append("text").attr("x", x).attr("y", y).attr("class", cls || null).attr("text-anchor", anchor || "start").text(txt);
-    const line = (d, stroke) => svg.append("path").attr("d", d).style("fill", "none").style("stroke", stroke || "var(--ltt-ink-2)").style("stroke-width", 1.5);
-    const mark = (x, y, n) => {
-      svg.append("circle").attr("cx", x).attr("cy", y).attr("r", 11).style("fill", "var(--ltt-accent)");
-      t(x, y + 5, n, null, "middle").style("fill", "var(--ltt-on-accent)").style("font-weight", 800).style("font-size", "14px");
-    };
-    const note = (x, y, n, lines) => { mark(x, y, n); lines.forEach((s, i) => t(x + 20, y + 5 + i * 18, s, "sm").style("fill", "var(--ltt-ink)")); };
-
-    t((bx + bend) / 2, 36, "복습 — 같은 글, 같은 시간", "hd", "middle");
-    t((tx[0] + tx[1] + cw) / 2, 36, "시험 — 참가자마다 둘 중 하나만", "hd", "middle");
-    svg.append("line").attr("x1", 0).attr("x2", W).attr("y1", 52).attr("y2", 52).style("stroke", "var(--ltt-ink)").style("stroke-width", 1.5);
-    tx.forEach((x, j) => t(x + cw / 2, 76, j ? "1주 뒤" : "5분 뒤", "sm", "middle"));
-    rows.forEach((r) => {
-      t(0, r.y - 4, r.name, "hd");
-      t(0, r.y + 16, r.plan, "sm");
-      r.blocks.forEach((b, i) => {
-        const x = bx + i * (bw + bg), on = b === "쓰기";
-        svg.append("rect").attr("x", x).attr("y", r.y - ch / 2).attr("width", bw).attr("height", ch).attr("rx", 2).style("fill", on ? "var(--test)" : "var(--read)");
-        t(x + bw / 2, r.y + 5, b, null, "middle").style("fill", on ? "var(--ltt-on-accent)" : "var(--ltt-ink)").style("font-weight", 700);
-      });
-      line(`M${bend + 10},${r.y}H${tx[0] - 14}m-7,-6l7,6l-7,6`);
-      tx.forEach((x, j) => {
-        const v = DATA[j][r.k];
-        svg.append("rect").attr("x", x).attr("y", r.y - ch / 2).attr("width", cw).attr("height", ch).attr("rx", 2)
-          .style("fill", "var(--ltt-card)").style("stroke", "var(--ltt-line-2)").style("stroke-dasharray", "5 4");
-        svg.append("rect").attr("x", x + 8).attr("y", r.y + 2).attr("height", 18).attr("width", (cw - 16) * v / 100).style("fill", r.k === "test" ? "var(--test)" : "var(--read)");
-        t(x + 8, r.y - 8, `${v}%`).style("font-weight", 800).style("fill", "var(--ltt-ink)");
-      });
+    S('text', { x: 200, y: 26, class: 'small muted', 'text-anchor': 'middle' }, svg, '첫 번째 시간');
+    S('text', { x: 380, y: 26, class: 'small muted', 'text-anchor': 'middle' }, svg, '두 번째 시간');
+    rows.forEach(r => {
+      S('text', { x: 10, y: r.y + 6 }, svg, r.name);
+      S('rect', { x: 125, y: r.y - 26, width: 150, height: 52, rx: 6, fill: 'var(--ltt-card-2)', stroke: 'var(--ltt-line-2)' }, svg);
+      S('text', { x: 200, y: r.y + 6, 'text-anchor': 'middle' }, svg, '글 읽기');
+      S('rect', { x: 290, y: r.y - 26, width: 180, height: 52, rx: 6, fill: 'none', stroke: r.color, 'stroke-width': 4 }, svg);
+      S('text', { x: 380, y: r.y + 6, 'text-anchor': 'middle', style: 'font-weight:700' }, svg, r.second);
+      S('path', { d: `M478 ${r.y} L 520 ${r.y} L 560 124`, stroke: 'var(--ltt-line-2)', 'stroke-width': 2, fill: 'none' }, svg);
     });
-    tx.forEach((x, j) => {
-      const d = DATA[j], readLeads = d.read > d.test;
-      t(x + cw / 2, 242, `${readLeads ? "다시 읽기" : "떠올리기"} +${Math.abs(d.read - d.test)}%p`, "hd", "middle").style("fill", readLeads ? "var(--ltt-warn)" : "var(--ltt-good)");
+    S('text', { x: 380, y: 222 + 0, class: 'note', 'text-anchor': 'middle' }, svg, '정답 확인(피드백) 없음');
+    S('text', { x: 680, y: 26, class: 'small muted', 'text-anchor': 'middle' }, svg, '최종 시험 (자유 회상)');
+    ['5분 뒤', '2일 뒤', '1주 뒤'].forEach((s, i) => {
+      const yy = 60 + i * 64;
+      S('rect', { x: 600, y: yy - 22, width: 160, height: 44, rx: 6, fill: 'var(--ltt-card-2)', stroke: 'var(--ltt-line-2)' }, svg);
+      S('text', { x: 680, y: yy + 6, 'text-anchor': 'middle' }, svg, s);
+      S('line', { x1: 560, y1: 124, x2: 598, y2: yy, stroke: 'var(--ltt-line-2)', 'stroke-width': 1.5 }, svg);
     });
-
-    note(bx + 11, 242, "1", ["시험에서 할 일(꺼내기)을", "미리 연습한 쪽이 오래 남는다"]);
-    line(`M${bx},268v6H${bend}v-6`, "var(--ltt-muted)");
-    note(bx + 11, 296, "2", ["비교한 것은 같은 시간을 읽기에 쓰느냐,", "꺼내기에 쓰느냐다"]);
-    note(tx[0] + 11, 276, "3", ["직후 느낌으로 고르면", "오래 남는 쪽을 놓친다"]);
-
-    svg.append("rect").attr("x", 0).attr("y", 332).attr("width", 480).attr("height", 112).attr("rx", 2).style("fill", "var(--ltt-card)").style("stroke", "var(--ltt-line-2)");
-    mark(24, 358, "4");
-    t(44, 363, "복습에 책 덮고 꺼내는 단계가 있나?", "hd");
-    [["var(--ltt-good)", "플래시카드·기출 문제·백지 복습 = 꺼내기 있음", 398], ["var(--ltt-warn)", "형광펜·요약 다시 보기 = 꺼내기 없음", 428]].forEach(([c, s, y]) => {
-      svg.append("circle").attr("cx", 28).attr("cy", y - 4).attr("r", 6).style("fill", c);
-      t(44, y, s, "sm").style("fill", "var(--ltt-ink)");
-    });
-
-    svg.append("rect").attr("x", 500).attr("y", 332).attr("width", 480).attr("height", 112).attr("rx", 2).style("fill", "var(--ltt-card)").style("stroke", "var(--ltt-line-2)");
-    mark(524, 358, "5");
-    t(544, 363, "순서를 지킨다", "hd");
-    ["이해 먼저", "꺼내기", "정답 확인"].forEach((s, i) => {
-      const x = 520 + i * 152;
-      svg.append("rect").attr("x", x).attr("y", 388).attr("width", 124).attr("height", 44).attr("rx", 2).style("fill", "var(--ltt-card)").style("stroke", "var(--test)").style("stroke-width", 2);
-      t(x + 62, 416, s, null, "middle").style("fill", "var(--ltt-ink)").style("font-weight", 700);
-      if (i < 2) line(`M${x + 130},410h14m-6,-5l6,5l-6,5`);
-    });
+    S('text', { x: 680, y: 274, class: 'small', 'text-anchor': 'middle' }, svg, '시점마다 다른 학생들');
+    S('text', { x: 680, y: 296, class: 'small', 'text-anchor': 'middle' }, svg, '(한 학생은 시험 한 번)');
+    S('text', { x: 10, y: 320, class: 'note' }, svg, '다른 것은 두 번째 시간 하나뿐 — Roediger & Karpicke (2006) 실험 1');
   }
 
-  const arrow = (x1, x2, y) => `<path d="M${x1},${y}H${x2}m-6,-5l6,5l-6,5" style="fill:none;stroke:var(--ltt-ink-2);stroke-width:1.5"/>`;
-  const TERM_RETRIEVE = `<svg class="tv" viewBox="0 0 220 100" role="img">`
-    + `<rect x="12" y="14" width="46" height="58" rx="3" style="fill:var(--read)"/><line x1="20" x2="20" y1="14" y2="72" style="stroke:var(--ltt-ink-2)"/>`
-    + arrow(66, 92, 43)
-    + `<rect x="100" y="14" width="46" height="58" rx="3" style="fill:var(--ltt-card);stroke:var(--ltt-line-2)"/>`
-    + [26, 38, 50].map((y, i) => `<line x1="108" x2="${138 - i * 8}" y1="${y}" y2="${y}" style="stroke:var(--test);stroke-width:3;stroke-linecap:round"/>`).join("")
-    + arrow(154, 176, 43)
-    + `<circle cx="196" cy="43" r="14" style="fill:var(--ltt-good-soft);stroke:var(--ltt-good);stroke-width:2"/><path d="M189,43l5,5l9,-10" style="fill:none;stroke:var(--ltt-good);stroke-width:2.5"/>`
-    + `<text x="35" y="92" text-anchor="middle">책 덮고</text><text x="123" y="92" text-anchor="middle">꺼내 쓰기</text><text x="196" y="92" text-anchor="middle">맞춰 보기</text></svg>`;
-  const TERM_DELAYED = `<svg class="tv" viewBox="0 0 220 100" role="img">`
-    + `<line x1="12" x2="208" y1="56" y2="56" style="stroke:var(--ltt-ink)"/>`
-    + `<rect x="12" y="40" width="34" height="32" rx="2" style="fill:var(--test)"/><text x="29" y="90" text-anchor="middle">공부</text>`
-    + `<rect x="54" y="42" width="26" height="28" rx="2" style="fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-dasharray:4 3"/><text x="67" y="30" text-anchor="middle" style="fill:var(--ltt-muted)">직후</text>`
-    + `<text x="122" y="50" text-anchor="middle" style="fill:var(--ltt-muted)">며칠…</text>`
-    + `<rect x="166" y="36" width="42" height="40" rx="2" style="fill:var(--ltt-card);stroke:var(--test);stroke-width:2.5"/><text x="187" y="61" text-anchor="middle" style="fill:var(--ltt-ink)">시험</text><text x="187" y="92" text-anchor="middle">1주 뒤</text></svg>`;
+  // ---- 장면 6: 역전 ----
+  function reversalFig(el) {
+    const W = 800, H = 400, L = 70, R = 640, T = 30, B = 330;
+    const { svg } = box(el, W, H);
+    const x = d => L + d / 7 * (R - L), y = p => B - (p - 30) / 60 * (B - T);
+    for (let p = 30; p <= 90; p += 10) {
+      S('line', { x1: L, x2: R, y1: y(p), y2: y(p), class: 'grid' }, svg);
+      S('text', { x: L - 10, y: y(p) + 5, 'text-anchor': 'end', class: 'small muted' }, svg, p + '%');
+    }
+    S('line', { x1: L, x2: R, y1: B, y2: B, class: 'axis' }, svg);
+    ['5분', '2일', '1주'].forEach((s, i) => S('text', { x: x(RK1.days[i]), y: B + 24, 'text-anchor': 'middle', class: 'small muted' }, svg, s));
+    S('text', { x: R, y: B + 50, 'text-anchor': 'end', class: 'small muted' }, svg, '최종 시험까지 지난 시간 (일, 같은 간격 눈금)');
+    S('text', { x: L, y: T - 12, class: 'small muted' }, svg, '최종 시험에서 떠올린 내용 (%, 세로축은 30%부터)');
+    const clip = S('clipPath', { id: 'rp-rev-clip' }, svg);
+    const cr = S('rect', { x: 0, y: 0, width: L, height: H }, clip);
+    const lines = S('g', { 'clip-path': 'url(#rp-rev-clip)' }, svg);
+    const series = [
+      { key: 'read', c: C_READ, mark: markSquare, label: '다시 읽기', dash: '' },
+      { key: 'ret', c: C_RET, mark: markDot, label: '인출 연습', dash: '' }
+    ];
+    series.forEach(s => {
+      const v = RK1[s.key];
+      S('polyline', { points: v.map((p, i) => x(RK1.days[i]) + ',' + y(p)).join(' '), fill: 'none', stroke: s.c, 'stroke-width': 3.5 }, lines);
+      v.forEach((p, i) => {
+        s.mark(lines, x(RK1.days[i]), y(p), s.c);
+        S('text', { x: x(RK1.days[i]) + (i === 0 ? 12 : 0), y: y(p) + (s.key === 'read' ? (i === 0 ? -8 : 26) : (i === 0 ? 26 : -14)), 'text-anchor': i === 0 ? 'start' : 'middle', class: 'small', style: 'font-weight:700' }, lines, p + '%');
+      });
+    });
+    const end = S('g', {}, svg);
+    S('line', { x1: R + 16, x2: R + 16, y1: y(56), y2: y(42), stroke: 'var(--ltt-ink)', 'stroke-width': 3 }, end);
+    S('text', { x: R + 26, y: y(49) + 8, class: 'big' }, end, '14%p');
+    S('text', { x: R + 26, y: y(56) - 4, class: 'small', fill: C_RET }, end, '인출 연습');
+    S('text', { x: R + 26, y: y(42) + 22, class: 'small', fill: C_READ }, end, '다시 읽기');
+    S('text', { x: x(2) + 18, y: y(78), class: 'small' }, end, '5분 값 대비 1주 뒤 잃은 비율:');
+    S('text', { x: x(2) + 18, y: y(78) + 22, class: 'small', fill: C_READ, style: 'font-weight:700' }, end, '다시 읽기 81→42, −48%');
+    S('text', { x: x(2) + 18, y: y(78) + 44, class: 'small', fill: C_RET, style: 'font-weight:700' }, end, '인출 연습 75→56, −25%');
+    S('text', { x: L + 10, y: B - 10, class: 'note' }, svg, '선: 측정 3시점을 이은 직선 — 그 사이는 측정하지 않음 · Roediger & Karpicke (2006) 실험 1');
+    const lg = S('g', {}, svg);
+    markSquare(lg, R - 150, T + 4, C_READ); S('text', { x: R - 140, y: T + 9, class: 'small' }, lg, '다시 읽기');
+    markDot(lg, R - 60, T + 4, C_RET); S('text', { x: R - 50, y: T + 9, class: 'small' }, lg, '인출 연습');
+    LTT.clock(svg, t => {
+      const f = Math.min(1, t / 2800);
+      cr.setAttribute('width', L + f * (R - L + 30));
+      end.style.opacity = t >= 3200 ? 1 : 0.0001;
+    }, { dur: 4000, id: 'reversal' });
+  }
+
+  // ---- 장면 7: 자신감 vs 실제 ----
+  function seqGlyph(g, x, yy, seq) {
+    [...seq].forEach((c, i) => S('rect', { x: x + i * 20, y: yy - 8, width: 16, height: 16, rx: 2, fill: c === 'T' ? C_RET : 'var(--ltt-card-2)', stroke: c === 'T' ? C_RET : 'var(--ltt-line-2)' }, g));
+  }
+  function illusionFig(el) {
+    const W = 860, H = 380;
+    const { svg } = box(el, W, H);
+    const rowsY = [110, 190, 270];
+    S('text', { x: 10, y: 40, class: 'small muted' }, svg, '공부한 4번의 시간');
+    const lg = S('g', {}, svg);
+    S('rect', { x: 10, y: 52, width: 14, height: 14, fill: 'var(--ltt-card-2)', stroke: 'var(--ltt-line-2)' }, lg);
+    S('text', { x: 30, y: 64, class: 'small' }, lg, '읽기');
+    S('rect', { x: 80, y: 52, width: 14, height: 14, fill: C_RET }, lg);
+    S('text', { x: 100, y: 64, class: 'small' }, lg, '떠올리기');
+    RK2.forEach((g, i) => {
+      seqGlyph(svg, 10, rowsY[i], g.seq);
+      S('text', { x: 100, y: rowsY[i] + 6, class: 'small' }, svg, g.name);
+    });
+    // 왼쪽: 학습 판단
+    const L1 = 290, W1 = 230;
+    S('text', { x: L1, y: 40, style: 'font-weight:700' }, svg, '공부 직후 자신감');
+    S('text', { x: L1, y: 62, class: 'small muted' }, svg, '"1주 뒤 얼마나 기억할까?" 1–7점');
+    const sx = v => L1 + (v - 1) / 6 * W1;
+    RK2.forEach((g, i) => {
+      const top = i === 0;
+      S('rect', { x: L1, y: rowsY[i] - 16, width: sx(g.jol) - L1, height: 32, fill: top ? 'var(--ltt-warn)' : 'var(--ltt-line-2)' }, svg);
+      S('text', { x: sx(g.jol) + 8, y: rowsY[i] + 6, style: 'font-weight:700' }, svg, g.jol.toFixed(1));
+    });
+    S('line', { x1: L1, x2: L1, y1: 86, y2: 294, class: 'axis' }, svg);
+    S('text', { x: L1, y: 316, class: 'small muted', 'text-anchor': 'middle' }, svg, '1점');
+    S('text', { x: L1 + W1, y: 316, class: 'small muted', 'text-anchor': 'middle' }, svg, '7점');
+    // 오른쪽: 1주 뒤 실제
+    const L2 = 590, W2 = 230;
+    S('text', { x: L2, y: 40, style: 'font-weight:700' }, svg, '1주 뒤 실제로 떠올린 양');
+    S('text', { x: L2, y: 62, class: 'small muted' }, svg, '아이디어 단위 %');
+    const sx2 = v => L2 + v / 100 * W2;
+    RK2.forEach((g, i) => {
+      const top = i === 2;
+      S('rect', { x: L2, y: rowsY[i] - 16, width: sx2(g.wk) - L2, height: 32, fill: top ? C_RET : 'var(--ltt-line-2)' }, svg);
+      S('text', { x: sx2(g.wk) + 8, y: rowsY[i] + 6, style: 'font-weight:700' }, svg, g.wk + '%');
+    });
+    S('line', { x1: L2, x2: L2, y1: 86, y2: 294, class: 'axis' }, svg);
+    S('text', { x: L2, y: 316, class: 'small muted', 'text-anchor': 'middle' }, svg, '0%');
+    S('text', { x: L2 + W2, y: 316, class: 'small muted', 'text-anchor': 'middle' }, svg, '100%');
+    S('text', { x: 10, y: 360, class: 'note' }, svg, 'Roediger & Karpicke (2006) 실험 2 — 실험 1과 다른 학생·다른 구성');
+  }
+
+  // ---- 장면 9: 간격 두기 ----
+  function spacingFig(el) {
+    const W = 760, H = 330;
+    const { svg } = box(el, W, H);
+    const L = 150, cw = 84;
+    const days = ['1일', '2일', '3일', '4일', '5일', '6일', '7일'];
+    days.forEach((d, i) => {
+      S('rect', { x: L + i * cw, y: 40, width: cw - 6, height: 230, rx: 4, fill: i === 6 ? 'var(--ltt-warn-soft)' : 'var(--ltt-card-2)', stroke: 'var(--ltt-line)' }, svg);
+      S('text', { x: L + i * cw + (cw - 6) / 2, y: 30, 'text-anchor': 'middle', class: 'small muted' }, svg, d);
+    });
+    S('text', { x: L + 6 * cw + (cw - 6) / 2, y: 160, 'text-anchor': 'middle', style: 'font-weight:700' }, svg, '시험');
+    const plans = [
+      { y: 100, name: '몰아서', at: [5, 5, 5] },
+      { y: 210, name: '나눠서', at: [0, 2, 4] }
+    ];
+    plans.forEach(p => {
+      S('text', { x: 10, y: p.y + 6, style: 'font-weight:700' }, svg, p.name);
+      S('rect', { x: L + 6, y: p.y - 34, width: cw - 18, height: 18, rx: 3, fill: 'var(--ltt-line-2)' }, svg);
+      S('text', { x: L + cw / 2 - 3, y: p.y - 20, 'text-anchor': 'middle', class: 'small' }, svg, '읽기');
+      const count = {};
+      p.at.forEach(d => {
+        const k = count[d] = (count[d] || 0) + 1;
+        S('rect', { x: L + d * cw + 6, y: p.y - 12 + (k - 1) * 22, width: cw - 18, height: 18, rx: 3, fill: C_RET }, svg);
+      });
+    });
+    const lg = S('g', {}, svg);
+    S('rect', { x: 10, y: 290, width: 14, height: 14, fill: C_RET }, lg);
+    S('text', { x: 30, y: 302, class: 'small' }, lg, '떠올리기 + 책으로 확인 1회');
+    S('text', { x: 280, y: 302, class: 'note' }, lg, '예시 계획: 두 줄 모두 떠올리기 3회 (같은 횟수)');
+  }
+  function spacingAside() {
+    const side = document.createElement('div');
+    side.appendChild(LTT.facts([
+      { icon: 'users', value: '90%', label: '나눠서 공부했을 때 더 많이 기억한 참가자', tone: 'good' },
+      { icon: 'alert', value: '72%', label: '그런데 몰아서가 더 효과적이었다고 답한 참가자', tone: 'warn' }
+    ]));
+    return side;
+  }
+
+  // ---- overview: 1주 계획 위에 앞 장면 정리 번호 ----
+  function overviewFig(el) {
+    const W = 880, H = 400;
+    const { svg } = box(el, W, H);
+    const L = 40, cw = 112;
+    const dx = i => L + i * cw;
+    ['1일', '2일', '3일', '4일', '5일', '6일', '7일'].forEach((d, i) => {
+      S('rect', { x: dx(i), y: 40, width: cw - 8, height: 150, rx: 4, fill: i === 6 ? 'var(--ltt-warn-soft)' : 'var(--ltt-card-2)', stroke: 'var(--ltt-line)' }, svg);
+      S('text', { x: dx(i) + (cw - 8) / 2, y: 30, 'text-anchor': 'middle', class: 'small muted' }, svg, d);
+    });
+    S('rect', { x: dx(0) + 8, y: 60, width: cw - 24, height: 24, rx: 3, fill: 'var(--ltt-line-2)' }, svg);
+    S('text', { x: dx(0) + (cw - 8) / 2, y: 77, 'text-anchor': 'middle', class: 'small' }, svg, '읽기');
+    [0, 2, 4].forEach(i => {
+      S('rect', { x: dx(i) + 8, y: 100, width: cw - 24, height: 24, rx: 3, fill: C_RET }, svg);
+      S('text', { x: dx(i) + (cw - 8) / 2, y: 117, 'text-anchor': 'middle', class: 'small', style: 'fill:var(--ltt-dark);font-weight:700' }, svg, '떠올리기');
+      S('rect', { x: dx(i) + 8, y: 132, width: cw - 24, height: 24, rx: 3, fill: 'none', stroke: C_RET, 'stroke-width': 2 }, svg);
+      S('text', { x: dx(i) + (cw - 8) / 2, y: 149, 'text-anchor': 'middle', class: 'small' }, svg, '책으로 확인');
+    });
+    S('text', { x: dx(6) + (cw - 8) / 2, y: 120, 'text-anchor': 'middle', style: 'font-weight:700' }, svg, '시험');
+    const num = (n, cx, cy) => {
+      S('circle', { cx, cy, r: 13, fill: 'var(--ltt-accent)' }, svg);
+      S('text', { x: cx, y: cy + 5, 'text-anchor': 'middle', style: 'fill:var(--ltt-on-dark);font-weight:700;font-size:15px' }, svg, n);
+    };
+    num(1, dx(0) + 6, 52);
+    num(2, dx(6) + 52, 160);
+    num(3, dx(1) + 52, 112);
+    num(4, dx(2) + 6, 100);
+    num(5, dx(4) + 6, 100);
+    num(6, dx(4) + cw - 10, 144);
+    const items = [
+      '첫날 가장 많이 잊는다 → 읽은 날 바로 떠올린다',
+      '1주 뒤 시험에선 인출 연습이 다시 읽기보다 남는다',
+      '다시 읽을 때의 익숙한 느낌은 믿지 않는다',
+      '떠올리기는 시험에서 할 "꺼내기"를 연습한다',
+      '같은 횟수를 날을 나눠 떠올린다',
+      '막혀도 괜찮다, 못 떠올린 것은 책으로 확인한다'
+    ];
+    items.forEach((t, i) => {
+      const cx = i < 3 ? 56 : 476, cy = 236 + (i % 3) * 40;
+      S('circle', { cx, cy, r: 11, fill: 'var(--ltt-accent)' }, svg);
+      S('text', { x: cx, y: cy + 5, 'text-anchor': 'middle', style: 'fill:var(--ltt-on-dark);font-weight:700;font-size:13px' }, svg, i + 1);
+      S('text', { x: cx + 20, y: cy + 6, style: 'font-size:15px' }, svg, t);
+    });
+    S('text', { x: L, y: 384, class: 'note' }, svg, '예시 계획: 시험 1주 전, 떠올리기 3회를 1·3·5일째로 나눔');
+  }
+
+  // ---- 장면 12: 개념 나무 ----
+  function treeFig(el) {
+    const W = 860, H = 380;
+    const { svg } = box(el, W, H);
+    const done = [
+      { id: 'f', t: '망각 곡선', x: 90, y: 190, n: 1 },
+      { id: 'r', t: '인출 연습', x: 260, y: 190, n: 4 },
+      { id: 'd', t: '지연 시험의 역전', x: 450, y: 100, n: 2 },
+      { id: 'i', t: '유창성 착각', x: 450, y: 190, n: 3 },
+      { id: 's', t: '간격 두기', x: 450, y: 280, n: 5 },
+      { id: 'h', t: '바람직한 어려움', x: 620, y: 190, n: 6 }
+    ];
+    const next = [
+      { t: '교차 연습', x: 790, y: 50, from: 'h' },
+      { t: '피드백 시점', x: 790, y: 120, from: 'h' },
+      { t: '생성 효과', x: 790, y: 190, from: 'h' },
+      { t: '메타인지', x: 790, y: 260, from: 'h' },
+      { t: '정교화 질문', x: 790, y: 330, from: 'h' }
+    ];
+    const pos = Object.fromEntries(done.map(n => [n.id, n]));
+    const edges = [['f', 'r'], ['r', 'd'], ['r', 'i'], ['r', 's'], ['d', 'h'], ['i', 'h'], ['s', 'h']];
+    edges.forEach(([a, b]) => S('line', { x1: pos[a].x + 70, y1: pos[a].y, x2: pos[b].x - 70, y2: pos[b].y, stroke: 'var(--ltt-line-2)', 'stroke-width': 2 }, svg));
+    next.forEach(n => S('line', { x1: pos[n.from].x + 70, y1: pos[n.from].y, x2: n.x - 70, y2: n.y, stroke: 'var(--ltt-line-2)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }, svg));
+    done.forEach(n => {
+      S('rect', { x: n.x - 70, y: n.y - 22, width: 140, height: 44, rx: 22, fill: 'var(--ltt-accent)' }, svg);
+      S('text', { x: n.x, y: n.y + 6, 'text-anchor': 'middle', fill: 'var(--ltt-on-dark)', style: 'fill:var(--ltt-on-dark);font-weight:700;font-size:15px' }, svg, n.t);
+      S('circle', { cx: n.x - 66, cy: n.y - 20, r: 12, fill: 'var(--ltt-card)', stroke: 'var(--ltt-ink)', 'stroke-width': 2 }, svg);
+      S('text', { x: n.x - 66, y: n.y - 15, 'text-anchor': 'middle', style: 'font-weight:700;font-size:14px' }, svg, n.n);
+    });
+    next.forEach(n => {
+      S('rect', { x: n.x - 70, y: n.y - 20, width: 140, height: 40, rx: 20, fill: 'var(--ltt-card)', stroke: 'var(--ltt-accent)', 'stroke-dasharray': '5 4', 'stroke-width': 1.5 }, svg);
+      S('text', { x: n.x, y: n.y + 5, 'text-anchor': 'middle', style: 'font-size:14px' }, svg, n.t);
+    });
+    S('rect', { x: 10, y: 350, width: 22, height: 14, rx: 7, fill: 'var(--ltt-accent)' }, svg);
+    S('text', { x: 40, y: 362, class: 'small' }, svg, '이번 수업');
+    S('rect', { x: 130, y: 350, width: 22, height: 14, rx: 7, fill: 'none', stroke: 'var(--ltt-accent)', 'stroke-dasharray': '4 3' }, svg);
+    S('text', { x: 160, y: 362, class: 'small' }, svg, '다음에 공부할 개념');
+    S('text', { x: 330, y: 362, class: 'small muted' }, svg, '번호: 앞 장 정리의 문장 번호');
+  }
+
+  function mini(inner) {
+    return `<div class="rp-mini"><svg viewBox="0 0 120 72">${inner}</svg></div>`;
+  }
 
   LTT.deck({
-    title: "다시 읽기와 인출 연습, 1주 뒤엔 어느 쪽이 더 남을까?",
-    theme: "paper",
+    title: '다시 읽기 vs 인출 연습',
+    theme: 'paper',
     scenes: [
-      { type: "hook", art: "doc", kicker: "시험 전 복습 계획 세우기",
-        pre: "네 번 읽으면 다 아는 것 같다.",
-        text: "그런데 <u>일주일 뒤</u>에도<br>남아 있을까?",
-        sub: "남은 복습 시간을 '다시 읽기'와 '책 덮고 떠올리기' 중 어디에 쓸지 정하는 이야기다. 이 수업을 마치면 어떤 공부법이 오래 남는지, 언제는 예외인지 말할 수 있다." },
-
-      { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
+      {
+        type: 'hook', art: 'doc',
+        pre: '시험 1주 전, 교재 앞에서',
+        text: '한 번 더 읽을까, 책을 덮고 떠올려 볼까?',
+        sub: '1주 뒤 시험장에서 무엇이 더 남는지, 실제 실험 결과로 확인한다.'
+      },
+      {
+        type: 'terms', title: '먼저 네 낱말', en: 'Four terms',
         terms: [
-          { key: "인출 연습", en: "retrieval practice", icon: "pencil", visual: TERM_RETRIEVE, plain: "배운 내용을 보지 않고 머릿속에서 꺼내 보는 연습. 꺼낸 뒤 맞았는지 확인한다.", example: "책을 덮고 방금 읽은 내용을 백지에 써 보기." },
-          { key: "지연 시험", en: "delayed test", icon: "clock", visual: TERM_DELAYED, plain: "공부하고 며칠 지난 뒤에 보는 시험. 오래 남았는지를 잰다. 공부 직후 시험과 결과가 다를 수 있다.", example: "공부 5분 뒤 시험 vs 1주 뒤 시험." },
-        ] },
-
-      { type: "explain", kicker: "원리", title: "꺼내 본 기억이 다음에도 꺼내진다", en: "Why it works",
-        steps: [
-          { icon: "eye", title: "다시 읽기", text: "글이 눈앞에 있어 술술 읽힌다. 이 익숙함이 '안다'는 느낌을 만들지만, 꺼내는 연습은 되지 않는다." },
-          { icon: "pencil", title: "떠올리기", text: "책을 덮고 꺼내려 애쓰는 과정이 그 기억으로 가는 길을 튼튼하게 만든다." },
-          { icon: "clock", title: "며칠 뒤 차이", text: "시험도 결국 '꺼내기'다. 꺼내 본 연습이 많을수록 {{지연 시험}}에서 더 남는다." },
-        ],
-        takeaway: "시험에서 하는 일(꺼내기)을 미리 연습한 쪽이 오래 남는다.",
-        recall: "책을 덮고 떠올려 보는 연습이 며칠 뒤 시험에서 도움이 되는 까닭은 무엇일까?" },
-
-      { type: "figure", kicker: "실험 설계", title: "같은 글, 다른 복습법, 두 번의 시험", en: "Method",
-        figure: METHOD.draw,
-        caption: "실험 설계. 대학생들이 같은 글을 공부했다. 한 조는 4번 읽었고, 다른 조는 1번 읽은 뒤 3번은 책을 덮고 기억나는 대로 썼다. 두 조 모두 일부는 5분 뒤, 일부는 1주 뒤에 같은 시험을 봤다(점선 칸 = 둘 중 한 시험만 봄). 복습에 쓴 시간은 같다.",
-        basis: SRC,
-        takeaway: "비교한 것은 같은 시간을 '읽기'에 쓰느냐 '꺼내기'에 쓰느냐다.",
-        recall: "이 실험에서 두 조가 똑같이 맞춘 조건은 무엇이고, 단 하나 다르게 한 것은 무엇이었나?" },
-
-      { type: "predict", kicker: "짐작해 보기", title: "1주 뒤 시험, 어느 조가 더 많이 기억했을까?",
-        sub: "그림 1의 두 조가 1주 뒤에 본 시험 결과다.",
-        visual: () => LTT.facts([
-          { icon: "eye", value: "4번 읽기", label: "다시 읽기 조" },
-          { icon: "pencil", value: "1번 읽고 3번 쓰기", label: "떠올리기 조" },
-          { icon: "clock", value: "1주 뒤", label: "시험 시점" },
+          { key: '망각 곡선', word: '망각 곡선', en: 'forgetting curve', icon: 'trend',
+            plain: '배운 뒤 시간이 지나며 기억이 얼마나 남는지 그린 곡선.', example: '어제 외운 단어 중 오늘 몇 개가 남았나.',
+            visual: mini('<path d="M8 10 Q20 52 50 56 T114 62" fill="none" stroke="var(--ltt-accent)" stroke-width="3"/><line x1="8" y1="66" x2="114" y2="66" stroke="var(--ltt-line-2)"/>') },
+          { key: '다시 읽기', word: '다시 읽기', en: 'restudy', icon: 'eye',
+            plain: '이미 읽은 내용을 한 번 더 읽는 것. 답이 눈앞에 있다.', example: '형광펜 친 교재를 처음부터 다시 훑기.',
+            visual: mini('<rect x="14" y="12" width="40" height="50" rx="3" fill="var(--ltt-card-2)" stroke="var(--ltt-line-2)"/><rect x="58" y="12" width="40" height="50" rx="3" fill="var(--ltt-card-2)" stroke="var(--ltt-line-2)"/><line x1="20" y1="26" x2="48" y2="26" stroke="var(--ltt-c2)" stroke-width="3"/><line x1="20" y1="36" x2="48" y2="36" stroke="var(--ltt-line-2)" stroke-width="3"/><line x1="64" y1="26" x2="92" y2="26" stroke="var(--ltt-line-2)" stroke-width="3"/>') },
+          { key: '인출 연습', word: '인출 연습', en: 'retrieval practice', icon: 'pencil',
+            plain: '책을 덮고 배운 것을 기억에서 꺼내 보는 것. 떠올려 쓰기, 문제 풀기, 플래시카드. 이것이 기억을 돕는 효과를 {{시험 효과}}라고 부른다.', example: '빈 종이에 오늘 배운 것을 기억나는 대로 적기.',
+            visual: mini('<rect x="10" y="20" width="44" height="40" rx="3" fill="var(--ltt-line-2)"/><text x="18" y="45">덮음</text><rect x="66" y="12" width="44" height="52" rx="3" fill="var(--ltt-card)" stroke="var(--ltt-c1)" stroke-width="2"/><line x1="72" y1="26" x2="102" y2="26" stroke="var(--ltt-c1)" stroke-width="3"/><line x1="72" y1="38" x2="94" y2="38" stroke="var(--ltt-c1)" stroke-width="3"/>') },
+          { key: '지연 시험', word: '지연 시험', en: 'delayed test', icon: 'clock',
+            plain: '공부하고 며칠 이상 지난 뒤 치르는 시험. 몇 분 안에 치르면 {{직후 시험}}.', example: '월요일에 공부하고 다음 월요일에 보는 기말고사.',
+            visual: mini('<line x1="8" y1="40" x2="112" y2="40" stroke="var(--ltt-line-2)" stroke-width="2"/><circle cx="14" cy="40" r="6" fill="var(--ltt-accent)"/><text x="4" y="64">공부</text><circle cx="104" cy="40" r="6" fill="var(--ltt-bad)"/><text x="88" y="64">시험</text>') }
+        ]
+      },
+      {
+        type: 'figure',
+        title: '외운 것은 첫날에 가장 많이 빠진다',
+        en: 'The forgetting curve',
+        sub: 'Ebbinghaus가 무의미 음절 목록을 외운 뒤, 시간이 지나 다시 외울 때 아낀 시간({{절약률}})으로 남은 기억을 쟀다. 줄어든 폭은 {{%p}}로 적는다.',
+        figure: forgetFig,
+        caption: '첫날에 66.3%p가 빠지고, 그다음 5일 동안은 8.3%p만 더 빠진다. 출처: Ebbinghaus (1885).',
+        takeaway: '기억은 첫날 가장 빠르게 사라지고, 그 뒤엔 천천히 줄어든다.',
+        recall: '망각 곡선에서 기억이 가장 빨리 줄어드는 때는 언제인가?'
+      },
+      {
+        type: 'figure',
+        title: '잊는 것을 늦추려면 무엇이 낫나: 두 번째 시간만 다르게 한 실험',
+        en: 'Restudy vs. retrieval — the design',
+        sub: '대학생들이 과학 산문을 읽은 뒤, 두 번째 시간에 한쪽은 같은 글을 다시 읽고 다른 쪽은 책을 덮고 기억나는 것을 적었다.',
+        figure: designFig,
+        caption: '최종 시험은 {{자유 회상}}이고, 점수는 글의 {{아이디어 단위}} 중 떠올린 비율이다. 5분·2일·1주 뒤 중 한 번만 치렀다.',
+        basis: 'Roediger & Karpicke (2006), Psychological Science 17(3). 실험 1.'
+      },
+      {
+        type: 'predict',
+        title: '5분 뒤엔 다시 읽기가 앞섰다. 1주 뒤엔?',
+        question: '5분 뒤 시험에서는 다시 읽기 집단이 81%, 인출 연습 집단이 75%를 떠올렸다. 1주 뒤 시험에서는 어느 쪽이 더 많이 떠올렸을까?',
+        visual: LTT.facts([
+          { icon: 'eye', value: '81%', label: '다시 읽기 · 5분 뒤 시험' },
+          { icon: 'pencil', value: '75%', label: '인출 연습 · 5분 뒤 시험' }
         ]),
-        question: "4번 읽기 vs 1번 읽고 3번 떠올리기, 1주 뒤 어느 쪽이 더 높은가",
-        choices: [{ id: "read", text: "4번 읽은 조" }, { id: "test", text: "떠올려 쓴 조" }, { id: "same", text: "비슷하다" }],
-        answer: "test",
-        why: "떠올려 쓴 조가 약 <b>21%포인트</b>(정답 비율의 차이) 높았다. 글을 본 횟수는 더 적었는데도 그렇다. 쓰면서 기억을 꺼내 본 연습이 1주 뒤의 '꺼내기'를 도왔다.",
-        answerVisual: (n) => { const fire = pair(n, DATA[1]); n.insertAdjacentHTML("beforeend", `<p class="ltt-basis">막대 = 1주 뒤 시험에서 기억해 낸 비율 · 출처 값 일부 불확실</p>`); setTimeout(fire, 100); } },
-
-      { type: "figure", kicker: "실험 결과", title: "5분 뒤와 1주 뒤, 순위가 뒤집혔다", en: "Results",
-        figure: RESULT.draw,
-        enter: () => RESULT.replay(),
-        caption: "그림 1의 시험 칸에 결과를 채웠다. 막대 = 기억해 낸 비율(연한 = 다시 읽기, 진한 = 떠올리기).",
-        points: [
-          { title: "5분 뒤: 다시 읽기가 12%포인트 앞섬", text: "막 읽은 내용은 아직 눈앞에 있다.", tone: "warn" },
-          { title: "1주 뒤: 떠올리기가 21%포인트 앞섬", text: "읽기 조는 절반 넘게 잊었고 떠올리기 조는 덜 잊었다.", tone: "good" },
+        choices: [
+          { id: 'read', text: '다시 읽기가 여전히 앞선다' },
+          { id: 'same', text: '둘이 비슷해진다' },
+          { id: 'ret', text: '인출 연습이 앞선다' }
         ],
-        basis: SRC,
-        takeaway: "공부 직후의 느낌으로 공부법을 고르면, 오래 남는 쪽을 놓친다.",
-        recall: "5분 뒤 시험과 1주 뒤 시험에서 두 조의 순위는 각각 어땠고, 그 결과로 보면 공부법은 언제의 성적으로 골라야 할까?",
-        ask: "\"이 자료로 나를 테스트할 문제를 만들어 줘\"" },
-
-      { type: "statement", kicker: "그래서", title: "공부 직후에 잘 나오는 방법이 <em>1주 뒤엔 진다</em>.",
-        sub: "막 공부한 직후에는 순위가 반대라서, 벼락치기가 효과 있어 보이는 것이다. 공부법은 며칠 뒤의 {{지연 시험}}으로 골라야 한다." },
-
-      { type: "compare", form: "table", kicker: "실제 공부법", title: "이 공부법들, '꺼내기'가 들어 있을까?", layout: "stack",
-        narration: "자주 쓰는 공부법 네 가지다. 행마다 같은 질문을 던진다: 책을 보지 않고 머릿속에서 꺼내는 단계가 있는가? 먼저 짐작해 보고 판정을 열자.",
-        revealLabel: "판정 보기",
-        head: ["공부법", "하는 일", "꺼내기가 있나"],
-        items: [
-          { label: "플래시카드", visual: ex("doc", "앞면 보고 뒷면 떠올리기"), tone: "good", verdict: "인출 연습" },
-          { label: "기출·연습 문제", visual: ex("pencil", "답을 만들어 낸 뒤 채점"), tone: "good", verdict: "인출 연습" },
-          { label: "백지 복습", visual: ex("inbox", "덮고 기억나는 대로 쓰기"), tone: "good", verdict: "인출 연습", noteAfter: true, note: "맞았는지 확인하는 단계를 꼭 붙인다." },
-          { label: "형광펜·요약 다시 보기", visual: ex("eye", "칠한 부분을 다시 읽기"), tone: "bad", verdict: "다시 읽기", noteAfter: true, note: "익숙함만 늘 수 있다." },
-        ],
-        takeaway: "복습에 '책 덮고 꺼내는' 단계가 있는지 확인한다.",
-        recall: "플래시카드는 인출 연습이고 형광펜 다시 보기는 아니라고 가른 기준은 무엇이었나?" },
-
-      { type: "explain", kicker: "한계", title: "그대로 옮기면 안 되는 곳", arrows: false,
+        answer: 'ret',
+        basis: 'Roediger & Karpicke (2006) 실험 1, 5분 뒤 시험 결과.',
+        why: '1주 뒤 다시 읽기 42%, 인출 연습 56%. 순위가 뒤집혔다.',
+        hint: '5분 뒤 점수와 1주 뒤 점수 사이에는 망각 곡선이 있다.'
+      },
+      {
+        type: 'figure',
+        title: '1주 뒤엔 인출 연습이 14%p 더 남았다',
+        en: 'The reversal',
+        sub: '직후 시험에선 다시 읽기가 이기고, {{지연 시험}}에선 인출 연습이 이긴다. 다시 읽기는 잃는 속도가 거의 두 배였다.',
+        figure: reversalFig,
+        caption: '같은 학생 집단이 아니라, 시점마다 다른 학생들의 평균이다.',
+        basis: 'Roediger & Karpicke (2006) 실험 1. 아이디어 단위 회상 비율: 다시 읽기 81·54·42%, 인출 연습 75·68·56%.',
+        takeaway: '직후 시험에선 다시 읽기가 앞서지만, 1주 뒤엔 인출 연습이 더 많이 남는다.',
+        recall: '5분 뒤 시험과 1주 뒤 시험에서 다시 읽기와 인출 연습의 순위는 어떻게 달랐나?'
+      },
+      {
+        type: 'figure',
+        title: '많이 읽은 쪽이 가장 자신했지만, 1주 뒤엔 가장 적게 남았다',
+        en: 'Confidence vs. memory',
+        sub: '같은 논문의 두 번째 실험. 네 번의 공부 시간을 읽기와 떠올리기로 다르게 나눴고, 공부 직후 "1주 뒤 얼마나 기억할까"를 매기게 했다({{학습 판단}}).',
+        figure: illusionFig,
+        caption: '자신감 순서와 실제 순서가 정반대다. 술술 읽히는 익숙함을 "안다"로 느끼는 {{유창성 착각}}이다.',
+        basis: 'Roediger & Karpicke (2006) 실험 2. 학습 판단 4.81·4.21·4.00, 1주 뒤 회상 40·56·61%.',
+        takeaway: '다시 읽을 때의 "아는 느낌"은 1주 뒤 기억을 거꾸로 예측한다.',
+        recall: '다시 읽기가 더 효과적이라고 느껴지는 이유는 무엇이고, 그 느낌은 실제 결과와 어떻게 달랐나?'
+      },
+      {
+        type: 'explain', form: 'cards',
+        title: '왜 떠올리기가 더 남을까: 유력한 설명 세 가지',
+        en: 'Why retrieval works (leading accounts)',
+        sub: '기제는 아직 연구 중이다. 아래는 결과와 맞는 대표 설명이며 확정이 아니다.',
         steps: [
-          { icon: "clock", title: "시험이 곧이면", text: "몇 분 뒤 시험에서는 다시 읽기가 앞섰다. 효과는 며칠 뒤에 드러난다." },
-          { icon: "question", title: "처음 배우는 어려운 내용", text: "아직 이해하지 못했으면 떠올릴 거리가 없다. 먼저 이해한 뒤에 꺼내기를 한다." },
-          { icon: "alert", title: "정답 확인 없음", text: "틀린 내용을 떠올리면 오답이 굳을 수 있다. 꺼낸 뒤 반드시 맞춰 본다." },
+          { icon: 'eye', title: '다시 읽기: 답이 눈앞에 있다', text: '글이 익숙해져 술술 읽히지만, 기억에서 답을 찾아가는 일은 하지 않는다.' },
+          { icon: 'route', title: '떠올리기: 찾아가는 길을 쓴다', text: '단서에서 답으로 가는 길을 직접 밟으며 그 길과 주변 연결이 강해진다.' },
+          { icon: 'search', title: '못 떠올린 곳이 드러난다', text: '빈칸이 곧 다시 볼 곳이다. 책으로 확인하면 그 빈칸이 채워진다.' }
         ],
-        basis: "한 편의 글, 대학생 조건의 결과라 다른 과목·연령에 수치를 그대로 옮길 수 없다.",
-        takeaway: "이해 먼저, 그다음 꺼내기, 그리고 정답 확인.",
-        recall: "처음 배우는 어려운 내용을 인출 연습으로 복습한다면, 꺼내기 앞과 뒤에 각각 무엇을 붙여야 할까?" },
-
-      { type: "summary", title: "복습 계획을 짜기 전에 물어볼 것", en: "Recap" },
-
-      { type: "overview", title: "같은 복습 시간이면, 책을 덮고 꺼낸 쪽이 1주 뒤에 더 남는다",
-        figure: overview,
-        caption: "1~5는 앞 장면의 정리가 놓인 자리다. 칸 안 막대 = 그 시험에서 기억해 낸 비율(연한 막대 다시 읽기, 진한 막대 떠올리기)." },
-
-      { type: "keywords", title: "다음에 비슷한 걸 만나면",
-        terms: [{ ko: "인출 연습", en: "retrieval practice" }, { ko: "시험 효과 (인출 연습으로 기억이 느는 현상)", en: "testing effect" }],
-        signals: ["복습 계획을 '다시 읽기'로만 채우고 있을 때", "\"다 아는 것 같은데 시험에선 안 나온다\"는 말을 들을 때", "교육 자료에 퀴즈를 넣을지 정할 때"],
-        queries: ["Roediger Karpicke 2006 testing effect", "retrieval practice vs restudy delayed test", "illusion of competence rereading", "successive relearning"],
+        basis: 'Carpenter (2009); Karpicke, Lehman & Aue (2014); Bjork & Bjork (1992).',
+        takeaway: '떠올리기는 시험장에서 할 일, 곧 기억에서 꺼내는 일을 미리 연습한다.',
+        recall: '책을 덮고 떠올리는 것이 다시 읽기와 다르게 연습하는 것은 무엇인가?'
+      },
+      {
+        type: 'figure',
+        title: '같은 3번이라도 날을 나눠 떠올리면 더 남는다',
+        en: 'Spacing',
+        sub: '떠올리기를 언제 할지의 문제다. 시험 전날 몰아서 3번 하는 것보다 1·3·5일째에 나눠 하는 것({{간격 두기}})이 더 오래 남는다.',
+        figure: spacingFig,
+        layout: 'split',
+        narration: '같은 효과는 여러 실험에서 반복됐다. 그런데 학생들은 대개 몰아서 하는 쪽이 더 잘 됐다고 느낀다. 몰아서 하면 방금 본 것이라 떠올리기가 쉽기 때문이다.',
+        aside: spacingAside(),
+        basis: 'Kornell (2009) 플래시카드 실험. 간격 효과 종합: Cepeda et al. (2006) 메타분석.',
+        caption: '나눠서 할 때마다 그 사이에 조금 잊어서 떠올리기가 더 힘들다. 그런데도 결과는 더 좋다.',
+        takeaway: '같은 횟수라면 하루에 몰지 말고 날을 나눠 떠올린다.',
+        recall: '떠올리기 3번을 시험 전날 몰아서 하는 것과 1·3·5일째로 나누는 것 중 어느 쪽이 더 남는가?'
+      },
+      {
+        type: 'statement',
+        title: '지금 <em>더 힘든</em> 방법이 1주 뒤에 남는다',
+        sub: '{{바람직한 어려움}}: 떠올리기와 간격 두기는 공부하는 동안 더 느리고 더 막힌다. 그 막힘이 기억을 강하게 한다. 단, 끝내 못 떠올린 것은 반드시 책으로 확인해야 어려움이 학습이 된다.',
+        basis: 'Bjork (1994). Memory and metamemory considerations in the training of human beings.',
+        takeaway: '공부 중 쉽고 익숙한 느낌은 1주 뒤 기억의 신호가 아니다. 막히고 확인하는 쪽이 남는다.',
+        recall: '"바람직한 어려움"이 학습이 되려면 무엇이 함께 필요한가?'
+      },
+      {
+        type: 'figure',
+        title: '시험 1주 전에 적용하면',
+        en: 'One-week plan',
+        figure: overviewFig,
+        caption: '번호마다 그 실천을 달력 위에서 하는 때를 표시했다.'
+      },
+      {
+        type: 'summary',
+        title: '한 장 정리: 답을 보기 전에 먼저 떠올려 본다'
+      },
+      {
+        type: 'overview',
+        title: '개념 나무: 이번에 배운 것과 다음에 이어 볼 것',
+        en: 'Concept tree',
+        figure: treeFig,
+        caption: '채운 칸은 이번 수업(번호는 한 장 정리의 문장), 점선 칸은 이어서 공부할 개념이다.'
+      },
+      {
+        type: 'keywords',
+        title: '찾아볼 말',
+        terms: [
+          { ko: '인출 연습', en: 'retrieval practice' },
+          { ko: '시험 효과', en: 'testing effect' },
+          { ko: '망각 곡선', en: 'forgetting curve' },
+          { ko: '간격 효과', en: 'spacing effect' },
+          { ko: '바람직한 어려움', en: 'desirable difficulties' },
+          { ko: '유창성 착각', en: 'fluency illusion' }
+        ],
+        queries: ['Roediger Karpicke 2006 test-enhanced learning', 'Dunlosky 2013 effective learning techniques', 'Kornell 2009 spacing flashcards'],
         neighbors: [
-          { term: "간격 효과", diff: "복습을 '언제' 할지의 문제. 인출 연습은 복습을 '어떻게' 할지의 문제." },
-          { term: "바람직한 어려움", diff: "인출·간격·섞어 연습을 묶는 상위 개념. 당장은 어렵지만 오래 남는 학습." },
-        ] },
-    ],
+          { term: '교차 연습', diff: '간격 두기는 "언제", 교차 연습은 "여러 유형을 섞어서"' },
+          { term: '생성 효과', diff: '인출은 배운 것을 꺼내기, 생성은 답을 스스로 만들어 보기' }
+        ]
+      }
+    ]
   });
+})();
 </script>
 </body>
 </html>

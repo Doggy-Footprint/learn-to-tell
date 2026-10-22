@@ -703,13 +703,9 @@ test("VO-9 PF1 30 nodes / 40 edges / 3 groups (2 levels): median of 3 calls (fir
 });
 
 // Labels are sized and placed by elk, so a labelled graph with cross-group and reversed edges must lay out with no
-// label/node/edge collisions. The ontology lesson's knowledge graph is the regression case (it had 18 before).
+// label/node/edge collisions. The fixture is the knowledge graph of the earlier ontology gallery lesson (it had 18 before).
 test("autoLayout: ontology knowledge graph has no label, node or edge collisions", async () => {
-  const html = readFileSync(new URL("../site/gallery/knowledge-graph/ontology-triples.html", import.meta.url), "utf8");
-  const src = html.slice(html.indexOf("  const C = (id"), html.indexOf("  const KG = LTT.autoLayout"));
-  const c = { LTT };
-  vm.createContext(c);
-  const spec = vm.runInContext(src.replace(/const /g, "var ") + ";KG_SPEC", c);
+  const spec = JSON.parse(readFileSync(new URL("./fixtures/autolayout/ontology-kg.json", import.meta.url), "utf8"));
   const out = await auto(spec);
   assert.deepEqual(J(LTT.graphOverlaps(out)), []);
   for (const e of out.edges) if (e.l) assert.ok(Array.isArray(e.at), `edge ${e.f}>${e.t} has an elk label position`);

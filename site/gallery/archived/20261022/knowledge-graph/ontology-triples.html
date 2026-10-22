@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>테이블이면 충분할까, 온톨로지가 필요할까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"지식 표현","topic":"온톨로지 기초: 트리플·RDF·Turtle·SPARQL·RDFS/OWL 추론·열린 세계 가정·SHACL·활용","audience":"SQL 테이블과 JSON은 다뤄 봤다. RDF·OWL은 처음이다","pattern":["hook","terms","compare:table","figure","mount","figure","compare:table","figure","mount","explain:stack","predict","figure","compare","statement","compare:table","contrast","explain:strip","compare:table","explain","explain:strip","predict","summary","summary","overview","keywords"],"theme":"paper","medium":"교과서 그림: 예제 지식 그래프 한 장(elk 자동 배치)을 TBox·ABox 영역으로 나눠 그리고, 같은 그래프 위에 질의 패턴·추론으로 생긴 점선 엣지를 단계적으로 얹는다. 표기는 Turtle·SPARQL 코드 조각","mode":"체험형: 다섯 단어를 그림으로 풀고 트리플로 그래프를 쌓은 뒤, 적히지 않은 사실을 짐작하고 추론 규칙을 하나씩 켜서 새 엣지가 생기는 것을 본다. OWA와 SHACL은 같은 질문을 두 세계관으로 비교한다","decision":"데이터를 테이블 스키마로 충분히 다룰 수 있는지, 온톨로지(RDFS·OWL 추론)와 SHACL 검증을 얹어야 하는지"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/elk.bundled.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-mock.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .kg { width: 100%; }
+  .kg.wide, .ladder { width: 880px; max-width: 100%; }
+  .ladder .ltt-code { width: 100%; font-size: 17px; }
+  .kg svg { width: 100%; max-height: 38vh; }
+  .kg.tight svg { max-height: 32vh; }
+  .rules { width: 100%; border-collapse: collapse; font-family: var(--ltt-mono); }
+  .rules th, .rules td { border-bottom: 1px solid var(--ltt-line); padding: 10px 16px; text-align: center; }
+  .rules th:first-child, .rules td:first-child { text-align: left; }
+  .rules thead th { color: var(--ltt-muted); font-weight: 600; }
+  .rules .y { color: var(--ltt-good); font-weight: 700; }
+  .rules .n { color: var(--ltt-muted); }
+  .wa { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; }
+  .wa b { font-family: var(--ltt-mono); color: var(--ltt-muted); font-weight: 600; }
+  .wa .t { color: var(--ltt-good); font-weight: 700; } .wa .f { color: var(--ltt-bad); font-weight: 700; } .wa .u { color: var(--ltt-warn); font-weight: 700; }
+  .feat { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 2px 14px; }
+  .feat dt { color: var(--ltt-muted); } .feat dd { margin: 0; }
+  /* 이 수업의 keywords는 신호와 이웃 개념이 가운데 칸에 몰려 있어, 가운데 칸을 넓혀 줄바꿈을 줄인다. */
+  @media (min-width: 1001px) { .dk-body .dk-kw { grid-template-columns: .85fr 1.45fr .8fr; } }
+</style>
+</head>
+<body>
+<script>
+  // 손으로 따라간 추론 결과 (추론기 코드보다 먼저)
+  // shannon a Person: wrote domain Person + shannon wrote mtc (rdfs:domain)
+  // mtc writtenBy shannon: wrote inverseOf writtenBy + shannon wrote mtc (owl:inverseOf)
+  // entropy prereqOf mutualInfo: entropy→condEntropy→mutualInfo, prereqOf는 추이적 (owl:TransitiveProperty)
+  // kl relatedTo entropy: relatedTo는 대칭 (owl:SymmetricProperty)
+  // mtc mentions entropy: covers subPropertyOf mentions (rdfs:subPropertyOf)
+  // itila covers kl: 적힌 적도, 유도되는 규칙도 없다 → 거짓
+  const EXPECTED_BY_HAND = { shannonPerson: true, mtcBy: true, chain: true, klSym: true, mention: true, itilaKl: false };
+
+  const T = (s, p, o) => ({ s, p, o });
+  const TBOX = [
+    T("Book", "subClassOf", "Work"), T("Paper", "subClassOf", "Work"),
+    T("wrote", "domain", "Person"), T("wrote", "range", "Work"), T("wrote", "inverseOf", "writtenBy"),
+    T("covers", "domain", "Work"), T("covers", "range", "Concept"), T("covers", "subPropertyOf", "mentions"),
+    T("prereqOf", "type", "Transitive"), T("prereqOf", "range", "Concept"), T("relatedTo", "type", "Symmetric"),
+  ];
+  const ABOX = [
+    T("mackay", "type", "Person"), T("mackay", "wrote", "itila"), T("itila", "type", "Book"), T("itila", "covers", "entropy"), T("itila", "covers", "mutualInfo"),
+    T("shannon", "wrote", "mtc"), T("mtc", "type", "Paper"), T("mtc", "covers", "entropy"),
+    T("entropy", "type", "Concept"), T("entropy", "prereqOf", "condEntropy"), T("condEntropy", "prereqOf", "mutualInfo"), T("entropy", "relatedTo", "kl"),
+  ];
+  const RULES = ["dom", "rng", "sct", "typ", "spo", "inv", "sym", "trn"];
+  // Forward chaining to a fixpoint; each derived triple keeps the rule that made it so captions can say why an edge appeared.
+  const reason = (on) => {
+    const all = [...TBOX, ...ABOX], seen = new Set(all.map((t) => t.s + "|" + t.p + "|" + t.o)), derived = [];
+    const add = (s, p, o, rule) => { const k = s + "|" + p + "|" + o; if (seen.has(k)) return false; seen.add(k); const t = { s, p, o, rule }; all.push(t); derived.push(t); return true; };
+    const schema = (s, p) => all.filter((u) => u.s === s && u.p === p).map((u) => u.o);
+    for (let changed = true; changed;) {
+      changed = false;
+      for (const t of all.slice()) {
+        if (on.sct && t.p === "subClassOf") for (const o of schema(t.o, "subClassOf")) changed = add(t.s, "subClassOf", o, "sct") || changed;
+        if (on.typ && t.p === "type") for (const o of schema(t.o, "subClassOf")) changed = add(t.s, "type", o, "typ") || changed;
+        if (["type", "subClassOf", "domain", "range", "inverseOf", "subPropertyOf"].includes(t.p)) continue;
+        if (on.dom) for (const c of schema(t.p, "domain")) changed = add(t.s, "type", c, "dom") || changed;
+        if (on.rng) for (const c of schema(t.p, "range")) changed = add(t.o, "type", c, "rng") || changed;
+        if (on.spo) for (const q of schema(t.p, "subPropertyOf")) changed = add(t.s, q, t.o, "spo") || changed;
+        if (on.inv) for (const q of schema(t.p, "inverseOf")) changed = add(t.o, q, t.s, "inv") || changed;
+        const kinds = schema(t.p, "type");
+        if (on.sym && kinds.includes("Symmetric")) changed = add(t.o, t.p, t.s, "sym") || changed;
+        if (on.trn && kinds.includes("Transitive")) for (const u of all.slice()) if (u.p === t.p && u.s === t.o && u.o !== t.s) changed = add(t.s, t.p, u.o, "trn") || changed;
+      }
+    }
+    return { derived, has: (s, p, o) => seen.has(s + "|" + p + "|" + o) };
+  };
+  const ruleSet = (ids) => Object.fromEntries(RULES.map((r) => [r, ids.includes(r)]));
+  const FULL = reason(ruleSet(RULES));
+  LTT.expect("shannon a Person", +FULL.has("shannon", "type", "Person"), +EXPECTED_BY_HAND.shannonPerson);
+  LTT.expect("mtc writtenBy shannon", +FULL.has("mtc", "writtenBy", "shannon"), +EXPECTED_BY_HAND.mtcBy);
+  LTT.expect("entropy prereqOf mutualInfo", +FULL.has("entropy", "prereqOf", "mutualInfo"), +EXPECTED_BY_HAND.chain);
+  LTT.expect("kl relatedTo entropy", +FULL.has("kl", "relatedTo", "entropy"), +EXPECTED_BY_HAND.klSym);
+  LTT.expect("mtc mentions entropy", +FULL.has("mtc", "mentions", "entropy"), +EXPECTED_BY_HAND.mention);
+  LTT.expect("itila covers kl", +FULL.has("itila", "covers", "kl"), +EXPECTED_BY_HAND.itilaKl);
+
+  // One knowledge graph for the whole lesson. Inferred edges are laid out together with asserted ones so the picture does not jump when they appear.
+  const C = (id, s) => ({ id, l: "ex:" + id, s, k: "accent", group: "tbox" });
+  const I = (id, s) => ({ id, l: "ex:" + id, s, group: "abox" });
+  const L = (id, l) => ({ id, l, s: "리터럴", k: "muted", w: 92, group: "abox" });
+  const E = (f, t, l, k) => ({ f, t, l, k: k || "", dash: false });
+  const X = (f, t, l) => ({ f, t, l, k: "warn", dash: true, inf: true, main: false });
+  const KG_SPEC = {
+    direction: "RIGHT", node: [128, 54], spacing: [24, 32], maxWidth: false,
+    groups: [{ id: "abox", l: "ABox · 실제 데이터" }, { id: "tbox", l: "TBox · 클래스 정의", k: "accent" }],
+    nodes: [
+      I("mackay", "맥케이"), I("shannon", "섀넌 · 타입 없음"), I("itila", "맥케이의 책"), I("mtc", "섀넌의 1948 논문"),
+      L("y2003", "2003"), L("y1948", "1948"),
+      I("entropy", "엔트로피"), I("condEntropy", "조건부 엔트로피"), I("mutualInfo", "상호정보량"), I("kl", "KL 발산"),
+      C("Person", "사람"), C("Book", "책"), C("Paper", "논문"), C("Work", "저작물"), C("Concept", "개념"),
+    ],
+    edges: [
+      E("mackay", "itila", "wrote", "accent"), E("shannon", "mtc", "wrote", "accent"),
+      E("itila", "y2003", "year"), E("mtc", "y1948", "year"),
+      E("itila", "entropy", "covers"), E("itila", "mutualInfo", "covers"), E("mtc", "entropy", "covers"),
+      E("entropy", "condEntropy", "prereqOf"), E("condEntropy", "mutualInfo", "prereqOf"), E("entropy", "kl", "relatedTo"),
+      E("mackay", "Person", "a", "muted"), E("itila", "Book", "a", "muted"), E("mtc", "Paper", "a", "muted"), E("entropy", "Concept", "a", "muted"),
+      E("Book", "Work", "subClassOf", "muted"), E("Paper", "Work", "subClassOf", "muted"),
+      X("shannon", "Person", "a"), X("mtc", "shannon", "writtenBy"), X("entropy", "mutualInfo", "prereqOf"), X("kl", "entropy", "relatedTo"),
+    ],
+  };
+  const KG = LTT.autoLayout(KG_SPEC);
+  const INF_KEY = { "shannon>Person": ["shannon", "type", "Person"], "mtc>shannon": ["mtc", "writtenBy", "shannon"], "entropy>mutualInfo": ["entropy", "prereqOf", "mutualInfo"], "kl>entropy": ["kl", "relatedTo", "entropy"] };
+  const svgEl = () => document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const sheet = (node) => {
+    const w = node.appendChild(Object.assign(document.createElement("div"), { className: "kg" }));
+    return { w, svg: w.appendChild(svgEl()) };
+  };
+  // keep(edge) decides which inferred edges are drawn; asserted edges are always drawn.
+  let kgLayout;
+  const drawKG = (svg, keep = () => false) => {
+    const spec = structuredClone(kgLayout);
+    spec.edges = spec.edges.filter((e) => !e.inf || keep(e.f + ">" + e.t));
+    svg.innerHTML = "";
+    return LTT.diagram(svg, spec);
+  };
+  const reasonedKeep = (ids) => { const r = reason(ruleSet(ids)); return (k) => r.has(...INF_KEY[k]); };
+
+  const LADDER = [
+    "ex:Book rdfs:subClassOf ex:Work .\nex:Paper rdfs:subClassOf ex:Work .\n\nex:wrote rdfs:domain ex:Person ;\n         rdfs:range  ex:Work .\nex:covers rdfs:subPropertyOf ex:mentions .",
+    "ex:wrote owl:inverseOf ex:writtenBy .\nex:relatedTo a owl:SymmetricProperty .\nex:prereqOf  a owl:TransitiveProperty .\nex:birthDate a owl:FunctionalProperty .\nex:hasISBN   a owl:InverseFunctionalProperty .",
+    "ex:Book rdfs:subClassOf [ a owl:Restriction ;\n  owl:onProperty ex:writtenBy ;\n  owl:minCardinality 1 ] .\n\nex:StudyMaterial owl:unionOf ( ex:Book ex:Paper ) .\nex:Person owl:disjointWith ex:Work .\nex:AdvancedTopic owl:equivalentClass [ a owl:Restriction ;\n  owl:onProperty ex:prereqCount ; owl:minCardinality 3 ] .",
+    "ex:shannon owl:sameAs dbr:Claude_Shannon .\nex:Person owl:equivalentClass foaf:Person .\nex:a owl:differentFrom ex:b .",
+  ];
+  const code = (src, title, marks) => LTT.mock.code({ code: src, title, marks, numbers: false }).el;
+
+  const tv = (body) => `<svg class="ltt-svg" viewBox="0 0 220 100" style="max-height:110px">${body}</svg>`;
+  const tx = (x, y, s, st = "") => `<text x="${x}" y="${y}" text-anchor="middle" style="${st}">${s}</text>`;
+  const box = (x, y, w, h, st) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" style="${st}"/>`;
+  const arrow = (x1, x2, y) => `<path d="M${x1} ${y}H${x2 - 6}" style="stroke:var(--ltt-ink-2);stroke-width:1.6"/><path d="M${x2 - 8} ${y - 5}L${x2} ${y}L${x2 - 8} ${y + 5}" style="fill:none;stroke:var(--ltt-ink-2);stroke-width:1.6"/>`;
+  const IND = "fill:var(--ltt-card-2);stroke:var(--ltt-line-2);stroke-width:1.5", CLS = "fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:1.8", LIT = "fill:none;stroke:var(--ltt-muted);stroke-width:1.4;stroke-dasharray:4 3";
+  const MUTED = "font-size:11px;fill:var(--ltt-muted)", BOLD = "font-size:12px;font-weight:700";
+  const TERM_VIS = {
+    entity: tv(box(50, 22, 120, 40, IND) + tx(110, 47, "ex:shannon", BOLD) + tx(110, 88, "이름 하나 = 대상 하나", MUTED)),
+    cls: tv(`<ellipse cx="110" cy="44" rx="92" ry="34" style="${CLS}"/>` + tx(110, 26, "ex:Person", BOLD)
+      + [[70, 52], [110, 58], [150, 50]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="6" style="fill:var(--ltt-ink-2)"/>`).join("") + tx(110, 94, "개체들의 집합", MUTED)),
+    rel: tv(box(6, 26, 74, 34, IND) + tx(43, 48, "shannon", BOLD) + box(140, 26, 74, 34, IND) + tx(177, 48, "mtc", BOLD) + arrow(80, 140, 43) + tx(110, 36, "wrote", "font-size:11px;fill:var(--ltt-accent);font-weight:700") + tx(110, 88, "개체 → 개체: 그래프의 화살표", MUTED)),
+    prop: tv(box(6, 26, 74, 34, IND) + tx(43, 48, "mtc", BOLD) + box(140, 26, 74, 34, LIT) + tx(177, 48, "1948", BOLD) + arrow(80, 140, 43) + tx(110, 36, "year", "font-size:11px;fill:var(--ltt-ink-2);font-weight:700") + tx(110, 88, "개체 → 값: 그래프의 잎", MUTED)),
+    axiom: tv(tx(110, 30, "wrote : Person → Work", "font-size:13px;font-weight:700;font-family:var(--ltt-mono)") + `<path d="M30 46H190" style="stroke:var(--ltt-line-2)"/>`
+      + tx(110, 66, "규칙도 데이터와 같은 자리에", "font-size:12px;fill:var(--ltt-ink-2)") + tx(110, 90, "추론용 · 검증용", MUTED)),
+  };
+
+  // Ten recall questions plus their reserved answer space overflow one screen, so the recap is two summary scenes;
+  // each takes its `recap` range of the cards the kit would gather, keeping every takeaway exactly once.
+  const splitRecap = (spec) => {
+    const cards = LTT.summaryCards({}, spec.scenes);
+    spec.scenes.forEach((s) => { if (s.recap) s.cards = cards.slice(...s.recap); });
+    return spec;
+  };
+
+  // The deck is built after elk finishes so figures (and ?audit) measure the drawn graph, not an empty svg.
+  KG.then((sp) => { kgLayout = sp; LTT.deck(splitRecap({
+    title: "테이블이면 충분할까, 온톨로지가 필요할까?",
+    theme: "paper",
+    glossary: {
+      "택소노미": "개념을 상위·하위 계층으로만 정리한 것. 폴더 트리나 태그 트리. 계층 말고 다른 종류의 연결은 적지 못한다.",
+      "트리플": "<주어, 술어, 목적어> 세 칸짜리 문장 하나. RDF는 모든 사실을 이 모양으로 적고, 트리플을 모은 것이 곧 그래프다.",
+      "RDF": "Resource Description Framework. 사실을 트리플로 적는 W3C 표준. '적는 법'만 정하고 의미는 RDFS·OWL이 얹는다.",
+      "TBox": "terminology box. 클래스와 관계의 정의(스키마에 해당). ABox와 같은 트리플 형식으로 같은 저장소에 산다.",
+      "ABox": "assertion box. 실제 개체에 대한 사실(데이터에 해당).",
+      "IRI": "URL 모양의 전역 식별자. https://example.org/study#shannon 같은 이름을 접두어로 줄여 ex:shannon이라 쓴다. 두 시스템이 같은 IRI를 쓰면 같은 것을 가리킨다.",
+      "리터럴": "문자열·숫자·날짜 같은 값. \"1948\"^^xsd:gYear처럼 데이터 타입이나 \"엔트로피\"@ko처럼 언어 태그를 붙인다. 목적어 칸에만 올 수 있어 항상 그래프의 잎이다.",
+      "공백 노드": "blank node. 이름(IRI) 없이 '무언가 하나가 있다'고만 말하는 노드. 주소·좌표처럼 구조는 있지만 전역 정체성이 없는 값에 쓴다. 밖에서 가리킬 수 없다.",
+      "Turtle": "사람이 손으로 읽고 쓰는 RDF 표기법(.ttl). '주어 술어 목적어 .'의 반복에 몇 가지 축약을 더했다.",
+      "SPARQL": "RDF 그래프 질의 언어. 찾을 모양을 트리플 패턴으로 적고 모르는 자리에 ?변수를 두면, 그 모양과 맞는 값을 돌려준다.",
+      "RDFS": "RDF Schema. 클래스 계층(subClassOf), 속성 계층(subPropertyOf), 정의역·치역(domain·range)만 다루는 가장 얕은 의미 층.",
+      "OWL": "Web Ontology Language. RDFS 위에 관계의 성격(역·대칭·추이), 개수 제약, 집합 연산으로 만든 클래스, 동일성(sameAs)을 더한 언어.",
+      "추론기": "reasoner. 명시된 트리플과 공리에 규칙을 반복 적용해 더 이상 새 사실이 나오지 않을 때까지 트리플을 만든다. 모순(일관성) 검사도 한다.",
+      "열린 세계 가정": "OWA(Open World Assumption). 적혀 있지 않은 사실은 거짓이 아니라 아직 모르는 것으로 본다. OWL이 이렇게 읽는다.",
+      "닫힌 세계 가정": "CWA(Closed World Assumption). 적혀 있지 않은 사실은 거짓으로 본다. SQL에서 행이 없으면 '없다'고 읽는 방식.",
+      "SHACL": "Shapes Constraint Language. RDF 데이터가 정해 둔 모양(필수 속성, 개수, 타입)을 지키는지 검사하고 위반 보고서를 낸다. 닫힌 세계로 읽는다.",
+      "SKOS": "개념과 '더 넓은·더 좁은 개념', 다른 체계와의 대응(exactMatch)만 다루는 가벼운 W3C 어휘. 용어 사전·태그 체계 정리에 맞다.",
+      "GraphRAG": "지식 그래프에서 질문과 관련된 부분 그래프를 찾아 LLM의 컨텍스트로 넣는 방법. 답의 근거를 트리플 단위로 가리킬 수 있다.",
+    },
+    scenes: [
+      { type: "hook", art: "network", kicker: "데이터 모델을 고르기 전에",
+        pre: "user_id는 무슨 뜻이고, status='A'는 어떤 상태일까?",
+        text: "그 뜻을 <u>사람 머릿속</u>이 아니라<br>데이터 옆에 적어 둘 수 있다면?",
+        sub: "테이블 스키마는 데이터를 어떻게 담을지만 정한다. 이 수업은 데이터의 뜻과 규칙을 기계가 읽게 적는 방법(온톨로지)을 다섯 단어에서 출발해 질의·추론·검증까지 따라간다. 마치면 내 데이터에 테이블이면 충분한지, 온톨로지와 검증 층을 얹어야 하는지 말할 수 있다." },
+
+      { type: "terms", title: "다섯 단어면 시작할 수 있다", en: "Five words",
+        terms: [
+          { key: "개체", en: "entity / individual", visual: TERM_VIS.entity, plain: "세상에서 하나로 식별되는 구체적 대상. 고유한 이름을 가지고, 이름이 곧 정체성이다.", example: "ex:shannon(클로드 섀넌), ex:itila(맥케이의 책)." },
+          { key: "클래스", en: "class", visual: TERM_VIS.cls, plain: "개체들의 집합. 타입 선언이 아니라 집합이라서 한 개체가 여러 클래스에 동시에, 나중에라도 속할 수 있다.", example: "ex:Person은 사람인 것들의 집합." },
+          { key: "관계", en: "object property", visual: TERM_VIS.rel, plain: "개체와 개체를 잇는 이름 붙은 화살표. 컬럼이 아니라 그 자체로 정의와 성격을 가진다.", example: "섀넌 —wrote→ 1948 논문." },
+          { key: "속성", en: "datatype property", visual: TERM_VIS.prop, plain: "개체에 값(문자열·숫자·날짜)을 붙이는 화살표. 값에서는 더 뻗어 나가지 않는다.", example: "1948 논문 —year→ 1948." },
+          { key: "제약", en: "constraint / axiom", visual: TERM_VIS.axiom, plain: "관계와 클래스에 거는 규칙. 새 사실을 만드는 데 쓰기도 하고(추론), 어긴 데이터를 잡는 데 쓰기도 한다(검증).", example: "wrote는 사람에서 출발해 저작물로 간다." },
+        ] },
+
+      { type: "compare", form: "table", kicker: "00 · 출발점", title: "스키마는 저장 방법, 온톨로지는 의미를 적는다", layout: "stack",
+        narration: "세 가지는 배타적이지 않고 표현력의 한 축 위에 있다. 오른쪽(아래)으로 갈수록 적을 수 있는 것이 늘고 다루기는 무거워진다. 요령은 필요한 만큼만 올라가는 것이다.",
+        head: ["방식", "적는 것", "무엇을 할 수 있나"],
+        items: [
+          { label: "스키마 (DDL)", visual: "테이블·컬럼·타입·FK. 컬럼의 뜻은 스키마 바깥 문서와 사람 머릿속에 있다.", verdict: "저장·무결성", note: "없는 행은 거짓으로 읽는다." },
+          { label: "{{택소노미}}", visual: "개념의 상위·하위 계층만. 폴더, 태그 트리.", verdict: "분류", note: "'다룬다'와 '선행 지식이다'를 구분하지 못한다." },
+          { label: "온톨로지", visual: "계층 + 이름 붙은 {{관계}} + {{제약}}(공리). 뜻과 규칙이 데이터와 같은 자리에 산다.", tone: "good", verdict: "의미·추론", note: "기계가 적히지 않은 사실을 유도한다." },
+        ],
+        takeaway: "온톨로지는 데이터에 딸려 다니는, 기계가 실행할 수 있는 도메인 문서다.",
+        recall: "테이블 스키마와 온톨로지는 각각 무엇을 적는가?" },
+
+      { type: "figure", kicker: "02 · RDF", title: "모든 사실을 세 칸짜리 문장 하나로 적는다", en: "Triples make a graph",
+        label: "그림 1.",
+        figure(node) {
+          const { w, svg } = sheet(node);
+          w.classList.add("tight");
+          drawKG(svg).player(w, [
+            { caption: "<b>① 트리플 하나</b> — <code>ex:mackay ex:wrote ex:itila .</code> 주어 → 술어 → 목적어가 화살표 하나가 된다.", hot: ["mackay", "itila", "mackay>itila"] },
+            { caption: "<b>② 목적어가 다음 문장의 주어</b> — itila가 entropy를 다루고, entropy가 condEntropy의 선행 개념이다. 문장이 이어지면 그래프가 된다.", hot: ["mackay", "itila", "entropy", "condEntropy", "mutualInfo", "mackay>itila", "itila>entropy", "entropy>condEntropy", "condEntropy>mutualInfo"] },
+            { caption: "<b>③ 값은 잎</b> — <code>ex:itila ex:year 2003</code>. 점선 상자(리터럴)에서는 화살표가 더 나가지 않는다.", hot: ["itila", "mtc", "y2003", "y1948", "itila>y2003", "mtc>y1948"] },
+            { caption: "<b>④ 클래스도 같은 그래프에</b> — <code>ex:itila a ex:Book</code>, <code>ex:Book rdfs:subClassOf ex:Work</code>. 정의(TBox)와 데이터(ABox)가 같은 형식의 트리플이다.", hot: ["itila", "mtc", "mackay", "entropy", "Book", "Paper", "Work", "Person", "Concept", "itila>Book", "mtc>Paper", "mackay>Person", "entropy>Concept", "Book>Work", "Paper>Work"] },
+          ]);
+        },
+        caption: "이 수업 내내 쓰는 예제 그래프. 왼쪽은 실제 데이터, 오른쪽은 클래스 정의.",
+        narration: [
+          "{{RDF}}는 모든 사실을 <주어, 술어, 목적어> 문장 하나, 곧 {{트리플}}로 적는다. 트리플을 모으면 그래프다.",
+          "클래스 정의({{TBox}})와 실제 데이터({{ABox}})가 같은 트리플로 같은 저장소에 산다. 스키마도 데이터처럼 질의하고 고친다.",
+        ],
+        takeaway: "RDF는 스키마와 데이터를 모두 트리플로 적고, 트리플이 모이면 그래프가 된다.",
+        recall: "TBox와 ABox는 각각 무엇이고, RDB의 스키마·데이터와 무엇이 다른가?" },
+
+      { kicker: "02 · RDF", title: "세 칸마다 들어갈 수 있는 것이 다르다", en: "What goes where", layout: "split",
+        narration: [
+          "이름은 {{IRI}}다. 이름 충돌을 도메인 소유권으로 풀기 때문에 남의 어휘(foaf:name)와 내 어휘를 한 개체에 섞어 붙일 수 있다.",
+          "{{리터럴}}은 목적어 자리에만 온다. 그래서 값은 늘 잎이다. {{공백 노드}}는 이름 없이 '무언가 있다'만 말한다. 밖에서 가리킬 수 없으니 공개할 데이터에는 IRI를 주는 편이 낫다.",
+        ],
+        mount(body) {
+          const slots = ["주어", "술어", "목적어"], kinds = [["IRI", [1, 1, 1]], ["리터럴", [0, 0, 1]], ["공백 노드", [1, 0, 1]]];
+          body.innerHTML = `<svg class="ltt-svg" data-annotate viewBox="0 0 640 250" style="width:100%;max-height:42vh">${slots.map((l, c) => box(170 + c * 156, 8, 140, 44, CLS) + tx(240 + c * 156, 36, l, BOLD)).join("")}
+            ${kinds.map(([l, ok], r) => tx(80, 98 + r * 62, l, BOLD) + ok.map((v, c) => v ? `<circle cx="${240 + c * 156}" cy="${93 + r * 62}" r="15" style="fill:var(--ltt-good-soft);stroke:var(--ltt-good);stroke-width:2.5"/>`
+              : `<path d="M${230 + c * 156} ${83 + r * 62}l20 20m0 -20l-20 20" style="stroke:var(--ltt-muted);stroke-width:2.5"/>`).join("")).join("")}</svg>`;
+          body.appendChild(code(`ex:mtc ex:year "1948"^^xsd:gYear ;\n  rdfs:label "통신의 수학적 이론"@ko ,\n             "A Mathematical Theory of Communication"@en .`, "리터럴: 타입 또는 언어 태그"));
+        }, },
+
+      { type: "figure", kicker: "03 · 표기법", title: "Turtle은 '주어 술어 목적어 .'의 반복이다", en: "Reading Turtle",
+        label: "그림 2.", layout: "split",
+        figure: () => code(`@prefix ex:   <https://example.org/study#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# TBox: 클래스와 관계의 정의
+ex:Book  a rdfs:Class ; rdfs:subClassOf ex:Work .
+ex:wrote a rdf:Property ;
+         rdfs:domain ex:Person ; rdfs:range ex:Work .
+
+# ABox: 실제 데이터
+ex:mackay a ex:Person ;
+          rdfs:label "David MacKay" ;
+          ex:wrote ex:itila .
+ex:itila  a ex:Book ;
+          ex:year 2003 ;
+          ex:covers ex:entropy , ex:mutualInfo .`, "study.ttl", { 1: "accent", 10: "warn", 11: "warn", 15: "good" }),
+        points: [
+          { at: [62, 7], title: "@prefix", text: "긴 IRI를 접두어로 줄인다. ex:itila는 https://example.org/study#itila다." },
+          { at: [22, 64], title: "a", text: "rdf:type의 줄임. '~의 한 사례다'." },
+          { at: [40, 69], title: "; 세미콜론", text: "주어를 그대로 두고 술어·목적어만 바꿔 이어 쓴다." },
+          { at: [74, 92], title: ", 쉼표", text: "주어와 술어를 그대로 두고 목적어만 더한다." },
+        ],
+        caption: "그림 1의 그래프 일부를 {{Turtle}}로 적은 파일. 번호를 따라 축약 네 가지를 읽는다.",
+        takeaway: "Turtle의 나머지 문법은 모두 반복을 줄이는 축약(a, ;, ,)이다.",
+        recall: "Turtle에서 세미콜론(;)과 쉼표(,)는 각각 무엇을 생략하는가?" },
+
+      { type: "compare", form: "table", kicker: "03 · 직렬화 포맷", title: "같은 그래프, 쓰임이 다른 네 가지 포맷", layout: "stack",
+        narration: "모두 같은 트리플을 적는다. 사람이 읽고 쓸지, 기계가 흘려보낼지, 기존 JSON API에 얹을지에 따라 고른다.",
+        head: ["포맷", "같은 사실", "언제 쓰나"],
+        items: [
+          { label: "Turtle", visual: () => code("ex:itila a ex:Book ; ex:year 2003 ."), tone: "good", verdict: "사람이 쓰고 읽을 때", note: "온톨로지 파일·문서·예제. .ttl" },
+          { label: "N-Triples", visual: () => code("<https://example.org/study#itila> <…rdf-syntax-ns#type> <https://example.org/study#Book> ."), verdict: "덤프·파이프라인", note: "축약 없이 한 줄에 트리플 하나. 정렬·diff·grep에 좋다." },
+          { label: "JSON-LD", visual: () => code(`{ "@context": { "ex": "https://example.org/study#" },\n  "@id": "ex:itila", "@type": "ex:Book", "ex:year": 2003 }`, null), tone: "good", verdict: "기존 JSON API에 얹을 때", note: "@context만 더하면 RDF. 가장 부담 없는 진입로." },
+          { label: "RDF/XML", visual: () => code(`<rdf:Description rdf:about="…#itila">\n  <rdf:type rdf:resource="…#Book"/> …`), tone: "bad", verdict: "레거시만", note: "1999년 원래 포맷. 오래된 파일을 열 때만 만난다." },
+        ], },
+
+      { type: "figure", kicker: "04 · 질의", title: "SPARQL은 찾고 싶은 모양을 그래프에 대 본다", en: "Pattern matching",
+        label: "그림 3.",
+        figure(node) {
+          const { w, svg } = sheet(node);
+          w.classList.add("tight");
+          drawKG(svg, (k) => k === "shannon>Person").player(w, [
+            { caption: "<b>조인 = 같은 변수 두 번</b> — <code>?who ex:wrote ?w . ?w ex:covers ex:entropy .</code> ?w가 두 패턴을 잇는다.", hot: ["mackay", "itila", "shannon", "mtc", "entropy", "mackay>itila", "shannon>mtc", "itila>entropy", "mtc>entropy"] },
+            { caption: "<b>재귀 = 속성 경로</b> — <code>ex:entropy ex:prereqOf+ ?c .</code> +는 한 번 이상 따라가기. 재귀 CTE가 한 줄이 된다.", hot: ["entropy", "condEntropy", "mutualInfo", "entropy>condEntropy", "condEntropy>mutualInfo"] },
+            { caption: "<b>추론 위에서 질의</b> — <code>?x a ex:Person .</code> 적힌 답은 mackay뿐. 추론을 켜면 shannon도 나온다(06에서).", hot: ["mackay", "shannon", "Person", "mackay>Person", "shannon>Person"] },
+          ]);
+        },
+        caption: "그림 1과 같은 그래프. 진하게 남은 곳이 패턴과 맞은 자리다.",
+        narration: [
+          "{{SPARQL}}은 찾을 모양을 트리플로 적고 모르는 자리에 ?변수를 둔다. 엔진이 그 모양을 찾아 변수를 채운다.",
+          "마지막 단계의 점선은 {{추론기}}가 만든 엣지다.",
+        ],
+        takeaway: "SPARQL은 트리플 패턴 매칭이고, 조인은 같은 변수를 두 번 쓰는 것이다.",
+        recall: "SPARQL에서 SQL의 JOIN과 재귀 CTE는 각각 무엇으로 바뀌는가?" },
+
+      { kicker: "04 · SQL과의 대응", title: "SQL을 알면 SPARQL은 대응표 한 장이다", en: "SQL ↔ SPARQL", layout: "split",
+        narration: [
+          "가장 다른 점은 술어도 데이터라는 것이다. 처음 보는 그래프는 <code>SELECT ?p (COUNT(*) AS ?n) WHERE { ?s ?p ?o } GROUP BY ?p</code> 한 줄로 어떤 관계가 있는지부터 센다.",
+          "OPTIONAL은 온톨로지 데이터에서 특히 자주 쓴다. 속성이 빠진 개체가 정상이기 때문이다(07에서).",
+        ],
+        mount(body) {
+          const rows = [["SELECT col", "SELECT ?var", "거의 같다"], ["FROM t JOIN u ON …", "패턴 두 줄에 같은 변수", "조인 조건이 사라진다"], ["WHERE x = 3", "FILTER(?x = 3)", "맞춘 뒤 걸러 낸다"],
+            ["LEFT JOIN", "OPTIONAL { … }", "없을 수도 있는 속성"], ["UNION ALL", "{ … } UNION { … }", "대안 패턴"], ["재귀 CTE", "ex:prereqOf+", "속성 경로"]];
+          body.innerHTML = `<table class="rules" data-annotate><thead><tr><th>SQL</th><th>SPARQL</th><th>메모</th></tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+        }, },
+
+      { type: "figure", kicker: "05 · 표현력", title: "의미 층은 필요한 만큼만 올라간다", en: "Expressivity ladder",
+        label: "그림 4.",
+        figure(node) {
+          const w = node.appendChild(Object.assign(document.createElement("div"), { className: "ladder" }));
+          return { el: w, show: (k) => { w.innerHTML = ""; w.appendChild(code(LADDER[k], "ontology.ttl")); } };
+        },
+        steps: [
+          { caption: "<b>RDFS · 계층과 정의역</b> — {{RDFS}}의 추론은 클래스 계층, 속성 계층, domain·range로 타입 유도뿐이다. 실무 온톨로지의 대부분은 여기서 끝난다.", enter: (k, fig) => fig.show(0) },
+          { caption: "<b>OWL · 관계의 성격</b> — {{OWL}}은 역관계·대칭·추이를 선언한다. InverseFunctional은 '사번이 같으면 같은 사람'처럼 자연키를 선언으로 처리한다.", enter: (k, fig) => fig.show(1) },
+          { caption: "<b>OWL · 개수 제약과 클래스 조립</b> — 공백 노드로 익명 클래스를 만들어 개수를 건다. equivalentClass로 정의한 클래스는 조건을 만족하는 개체를 자동으로 분류한다.", enter: (k, fig) => fig.show(2) },
+          { caption: "<b>OWL · 동일성</b> — RDF는 IRI가 다르다고 다른 개체라고 보지 않는다(고유 이름 가정 없음). 같음과 다름을 직접 말해야 한다.", enter: (k, fig) => fig.show(3) },
+        ],
+        caption: "같은 예제 온톨로지에 한 계단씩 공리를 더한다. 단계를 넘기면 코드가 바뀐다.",
+        basis: "OWL 2 전체(DL)는 추론 비용이 크다. 표준 프로파일 EL(큰 클래스 계층), QL(질의 재작성으로 RDB 위에), RL(규칙 엔진 전방 추론, 실무에서 가장 흔함) 중 모르겠으면 RDFS + OWL 2 RL에서 시작한다.",
+        takeaway: "RDFS로 대부분 충분하고, 관계 성격·개수·동일성이 필요할 때만 OWL로 올라간다.",
+        recall: "RDFS가 주는 추론 세 가지와, OWL에서 처음 생기는 것 두 가지는?" },
+
+      { type: "predict", kicker: "짐작해 보기", title: "적혀 있지 않은 타입을 물으면?",
+        sub: "그래프 어디에도 <code>ex:shannon a ex:Person</code>은 없다. 대신 아래 두 줄은 있다.",
+        visual: () => code("ex:wrote   rdfs:domain ex:Person .\nex:shannon ex:wrote    ex:mtc ."),
+        question: "추론기를 켜고 '?x a ex:Person'을 질의하면 shannon은 결과에 나오는가",
+        choices: [{ id: "yes", text: "나온다" }, { id: "no", text: "안 나온다. 적힌 적이 없다" }, { id: "error", text: "domain을 어겨 오류가 난다" }, { id: "unknown", text: "'알 수 없음'으로 나온다" }],
+        answer: "yes",
+        answerVisual(node) { drawKG(sheet(node).svg, (k) => k === "shannon>Person").highlight(["shannon", "mtc", "Person", "shannon>mtc", "shannon>Person"]); },
+        why: "나온다. domain은 검사가 아니라 선언이다. 'wrote의 주어는 Person이다' + 'shannon이 wrote했다'에서 추론기가 shannon a Person을 만든다. 같은 이유로 책이 무언가를 wrote했다고 잘못 넣으면 오류 대신 '책이 사람'이라는 타입이 조용히 생긴다." },
+
+      { type: "figure", kicker: "06 · 추론", title: "규칙을 켤수록 그래프에 없던 엣지가 생긴다", en: "Forward chaining",
+        label: "그림 5.",
+        figure(node) {
+          const { w, svg } = sheet(node);
+          w.classList.add("wide");
+          return { el: w, draw: (ids) => drawKG(svg, reasonedKeep(ids)) };
+        },
+        steps: [
+          { caption: "<b>규칙 끔</b> — 적힌 트리플만 있다. shannon에는 타입이 없다.", enter: (k, fig) => fig.draw([]) },
+          { caption: "<b>+ domain · range</b> — <code>p domain C, x p y ⇒ x a C</code>. 관계를 썼다는 것만으로 타입이 생긴다: shannon a Person.", enter: (k, fig) => fig.draw(["dom", "rng"]) },
+          { caption: "<b>+ subClassOf · subPropertyOf</b> — 하위 클래스의 개체는 상위 클래스의 개체다. covers는 mentions이기도 하다. 그림 밖에서 트리플이 늘어난다.", enter: (k, fig) => fig.draw(["dom", "rng", "sct", "typ", "spo"]) },
+          { caption: "<b>+ inverseOf · Symmetric</b> — 반대 방향을 따로 적지 않아도 생긴다: mtc writtenBy shannon, kl relatedTo entropy.", enter: (k, fig) => fig.draw(["dom", "rng", "sct", "typ", "spo", "inv", "sym"]) },
+          { caption: `<b>+ Transitive</b> — 선행 관계의 사슬을 끝까지 잇는다: entropy prereqOf mutualInfo. 모두 켜면 유도된 트리플은 ${FULL.derived.length}개.`, enter: (k, fig) => fig.draw(RULES) },
+        ],
+        caption: "점선은 {{추론기}}가 만든 엣지다. 원본 트리플은 건드리지 않고 그 위에 얹힌다. 단계를 넘기며 규칙을 하나씩 켠다.",
+        basis: "페이지 안의 교육용 전방 연쇄 추론기(RDFS 규칙 + OWL 2 RL 중 inverseOf·Symmetric·Transitive). 그림에는 유도된 트리플 중 네 개만 그렸다.",
+        takeaway: "추론기는 공리를 반복 적용해 적히지 않은 트리플을 만들고, 원본 위에 얹는다.",
+        recall: "rdfs:domain을 어긴 트리플이 들어오면 오류가 나는가, 무엇이 생기는가?" },
+
+      { type: "compare", kicker: "06 · 어디서 돌리나", title: "추론을 언제 계산할지 세 가지 선택이 있다", cols: 3,
+        items: [
+          { label: "적재 시 (materialize)", visual: LTT.icon("db"), tone: "good", verdict: "대부분의 실무", note: "저장할 때 추론 결과를 계산해 함께 저장. 질의가 빠르고 단순하다. 데이터가 늘고, 원본이 바뀌면 다시 계산한다." },
+          { label: "질의 시 (rewrite)", visual: LTT.icon("search"), verdict: "항상 최신", note: "질의를 확장해서 던진다. 저장 공간이 늘지 않는다. OWL 2 QL이 이 방식을 노리고 설계됐다." },
+          { label: "안 돌림", visual: LTT.icon("doc"), verdict: "문서·어휘로만", note: "온톨로지를 용어 정의로만 쓴다. 의외로 흔하고, 그래도 값어치가 있다." },
+        ],
+        narration: "추론기는 모순도 잡는다. disjointWith나 개수 제약을 어긴 데이터가 들어오면 '모순'이라고 알린다. 하지만 모순이 없다고 데이터가 완전하다는 뜻은 아니다.", },
+
+      { type: "statement", kicker: "07 · 제약", title: "OWL에서 안 적힌 것은 거짓이 아니라 <em>모르는 것</em>이다.",
+        sub: "SQL은 행이 없으면 거짓으로 읽고({{닫힌 세계 가정}}), OWL은 모른다고 읽는다({{열린 세계 가정}}). 웹 데이터는 늘 일부만 안다는 전제로 설계됐다." },
+
+      { type: "compare", form: "table", kicker: "07 · 두 세계관", title: "같은 질문에 OWA와 CWA는 다르게 답한다", layout: "stack", reveal: true, revealLabel: "답 보기",
+        narration: "네 질문에 OWA가 어떻게 답할지 짐작한 뒤 답을 연다. 개수·필수값 확정 검사는 다음 장면의 {{SHACL}} 몫이다.",
+        head: ["질문", "OWA (OWL) · CWA (SQL)", "갈리는 이유"],
+        items: [
+          { label: "shannon은 Person인가?", visual: `<div class="wa"><b>OWA</b><span class="t">참 · 추론으로</span><b>CWA</b><span class="t">참</span></div>`, tone: "good", verdict: "같다", note: "domain 공리가 사실을 만든다." },
+          { label: "mtc는 shannon이 썼는가?", visual: `<div class="wa"><b>OWA</b><span class="t">참 · 역관계로</span><b>CWA</b><span class="t">참</span></div>`, tone: "good", verdict: "같다", note: "반대 방향은 inverseOf가 만든다." },
+          { label: "itila는 KL 발산을 다루는가?", visual: `<div class="wa"><b>OWA</b><span class="u">알 수 없음</span><b>CWA</b><span class="f">거짓</span></div>`, tone: "warn", verdict: "갈린다", note: "적히지도 유도되지도 않았다. 나중에 누가 추가하면 참이 될 수 있다." },
+          { label: "mackay의 저작은 정확히 1개인가?", visual: `<div class="wa"><b>OWA</b><span class="u">알 수 없음</span><b>CWA</b><span class="t">참 (1개)</span></div>`, tone: "warn", verdict: "갈린다", note: "OWA는 세기를 거부한다. 확정하려면 maxCardinality를 적어야 한다." },
+        ],
+        takeaway: "OWL은 열린 세계로 읽으므로, 없는 사실을 거짓이라 하지 않고 개수도 확정하지 않는다.",
+        recall: "어떤 개체에 hasEmail 트리플이 하나도 없을 때 OWL 추론기는 뭐라고 답하는가?" },
+
+      { type: "contrast", kicker: "07 · 그래서 검증은 SHACL로", title: "'저자 필수'를 OWL로 적으면 검사가 되지 않는다",
+        before: { label: "OWL · 무엇이 참인가", tone: "bad",
+          visual: () => code(`ex:Book rdfs:subClassOf [\n  a owl:Restriction ;\n  owl:onProperty ex:writtenBy ;\n  owl:minCardinality 1 ] .`, "ontology.ttl"),
+          points: [{ title: "저자 없는 책을 넣으면", text: "오류가 없다. 대신 '이름 모를 저자가 어딘가 있다'고 추론한다.", tone: "bad" }] },
+        after: { label: "SHACL · 무엇이 유효한가", tone: "good",
+          visual: () => code(`ex:BookShape a sh:NodeShape ;\n  sh:targetClass ex:Book ;\n  sh:property [ sh:path ex:writtenBy ;\n    sh:minCount 1 ; sh:class ex:Person ] .`, "shapes.ttl"),
+          points: [{ title: "저자 없는 책을 넣으면", text: "위반 보고서가 나온다. JSON Schema나 CHECK 제약과 같은 감각이다.", tone: "good" }] },
+        takeaway: "추론은 OWL·RDFS로, 입력 검증은 SHACL로 나눈다.",
+        recall: "OWL의 minCardinality 1이 '필수 입력 검사'가 되지 못하는 이유는?" },
+
+      { type: "explain", form: "strip", kicker: "07 · 실무 순서", title: "검증한 뒤 적재하고, 그 위에서 추론한다", en: "Pipeline",
+        steps: [
+          { icon: "inbox", title: "수집", text: "여러 소스의 트리플을 모은다." },
+          { icon: "shield-check", title: "SHACL 검증", text: "{{SHACL}}로 모양을 검사한다. 닫힌 세계로 읽어 빠진 값을 잡는다." },
+          { icon: "db", title: "적재", text: "통과한 트리플만 저장소에 넣는다." },
+          { icon: "workflow", title: "추론", text: "RDFS·OWL 규칙으로 유도한 트리플을 얹는다." },
+          { icon: "search", title: "질의", text: "SPARQL로 원본 + 추론 결과를 묻는다." },
+        ], },
+
+      { type: "compare", form: "table", kicker: "08 · 고르기", title: "트랜잭션은 RDB, 통합과 의미는 RDF/OWL", layout: "stack",
+        narration: "온톨로지는 여러 시스템의 용어를 합칠 때, 스키마가 자주 바뀌거나 희소할 때, 도메인 규칙이 코드 곳곳에 흩어져 있을 때 값을 한다.",
+        head: ["모델", "특징", "맞는 곳"],
+        items: [
+          { label: "RDB", visual: `<dl class="feat"><dt>식별자</dt><dd>지역 PK</dd><dt>스키마</dt><dd>먼저, 강제</dd><dt>추론</dt><dd>없음</dd></dl>`, verdict: "트랜잭션", note: "쓰기가 가장 빠르다. 스키마가 안정적이면 여전히 정답." },
+          { label: "속성 그래프 (Neo4j)", visual: `<dl class="feat"><dt>식별자</dt><dd>내부 ID</dd><dt>스키마</dt><dd>선택</dd><dt>추론</dt><dd>없음(질의로 흉내)</dd></dl>`, verdict: "경로 탐색·추천", note: "관계에 값을 달기 쉽다. 통합은 약하다." },
+          { label: "RDF / OWL", visual: `<dl class="feat"><dt>식별자</dt><dd>전역 IRI</dd><dt>스키마</dt><dd>데이터와 같은 층, 나중에 추가</dd><dt>추론</dt><dd>내장(RDFS·OWL)</dd></dl>`, tone: "good", verdict: "메타데이터·마스터데이터·규제", note: "통합에 가장 강하다. 쓰기는 보통." },
+        ],
+        takeaway: "트랜잭션은 RDB, 경로 탐색은 속성 그래프, 시스템 간 의미 통합과 규칙은 RDF/OWL이 맞다.",
+        recall: "RDB를 두고 온톨로지를 얹을 가치가 생기는 세 가지 상황은?",
+        ask: "\"이 데이터는 몇 개의 시스템에서 오고, 같은 뜻의 필드 이름이 서로 다른가요?\"" },
+
+      { type: "explain", kicker: "08 · 어디에 쓰나", title: "작게 얹어서 시작하는 네 가지 쓰임", arrows: false,
+        steps: [
+          { icon: "pencil", title: "개인 노트", text: "태그를 이름 붙은 화살표로 바꾼다. 프론트매터에 <code>prereq_of</code>, <code>covered_by</code>를 적으면 그게 ABox, 술어 목록 문서가 TBox다. 술어는 20개 이하로." },
+          { icon: "database-zap", title: "데이터 사전", text: "컬럼과 API 필드의 뜻을 {{SKOS}}로 적고 시스템 간 같은 필드를 <code>skos:exactMatch</code>로 잇는다. 위험이 거의 없는 첫 도입." },
+          { icon: "bulb", title: "LLM으로 그래프 만들기", text: "TBox를 프롬프트에 주고 허용된 클래스·술어로만 트리플을 뽑게 한 뒤 SHACL로 거른다. 자유 추출은 술어가 수백 개로 흩어진다." },
+          { icon: "git-branch", title: "그래프로 LLM 돕기", text: "{{GraphRAG}}: 관련 부분 그래프를 컨텍스트로 넣어 여러 단계 건너는 질문에 답하고, 근거를 트리플로 인용한다." },
+        ],
+        basis: "설계는 답하고 싶은 질문 10개(competency question)부터 적고, 그 답에 필요한 클래스·술어만 만든다. 새 술어를 만들기 전에 RDFS·OWL·SKOS·Dublin Core·schema.org·PROV-O 같은 표준 어휘를 먼저 찾는다.",
+        takeaway: "온톨로지는 데이터 사전·노트 프론트매터처럼 기존 시스템 옆에 얇게 얹을 때 이득이 크다.",
+        recall: "온톨로지를 처음 설계할 때 클래스보다 먼저 적을 것은?" },
+
+      { type: "explain", form: "strip", kicker: "09 · 로드맵", title: "손에 익히는 순서", en: "Roadmap",
+        steps: [
+          { icon: "link", title: "트리플·IRI·Turtle", text: "노트 10개를 트리플 30줄로. .ttl 파일 하나를 손으로." },
+          { icon: "layers", title: "클래스와 RDFS 추론", text: "Protégé의 Pizza 튜토리얼로 domain이 추론임을 눈으로 확인." },
+          { icon: "search", title: "SPARQL", text: "query.wikidata.org에서 실제 질의 20개." },
+          { icon: "scale", title: "OWL과 OWA·SHACL", text: "관계 성격을 켜고 끄며 비교. 검증은 SHACL로 분리." },
+          { icon: "package", title: "도구와 규모", text: "rdflib 파이프라인, 저장소 선택, 추론 물질화, GraphRAG." },
+        ],
+        sources: "W3C RDF 1.1 Primer · Protégé Pizza 튜토리얼 · Allemang & Hendler, Semantic Web for the Working Ontologist · W3C SHACL · SPARQL 1.1 스펙", },
+
+      { type: "predict", kicker: "10 · 점검", title: "두 시스템의 같은 사람을 하나로 묶으려면?",
+        sub: "시스템 A의 <code>ex:user_1174</code>와 시스템 B의 <code>ex:emp-33</code>는 같은 사람이다. IRI가 다르다.",
+        question: "추론기가 두 레코드를 같은 개체로 다루게 하려면 무엇을 선언하는가",
+        choices: [{ id: "same", text: "owl:sameAs, 또는 사번을 InverseFunctionalProperty로" }, { id: "sub", text: "rdfs:subClassOf" }, { id: "label", text: "같은 rdfs:label을 붙인다" }, { id: "none", text: "할 필요 없다. 추론기가 알아서 안다" }],
+        answer: "same",
+        why: "RDF는 고유 이름 가정을 하지 않는다. IRI가 다르다고 다른 개체라는 보장도, 같다는 추론도 없다. sameAs로 직접 선언하거나, 사번처럼 값이 개체를 식별하는 속성을 InverseFunctionalProperty로 선언하면 추론기가 합친다." },
+
+      { type: "summary", title: "온톨로지를 고르기 전에, 먼저 적고 묻는 법을 떠올린다", en: "Recap 1 · 00–05", recap: [0, 5] },
+
+      { type: "summary", title: "이어서 추론·검증과 고르는 기준을 떠올린다", en: "Recap 2 · 06–08", recap: [5] },
+
+      { type: "overview", title: "트리플로 적고, 규칙으로 늘리고, 모양으로 검사한다",
+        figure(node) {
+          const { svg } = sheet(node);
+          LTT.diagram(svg, {
+            cols: 5, rows: 2, cell: [236, 96], node: [196, 74], maxWidth: false,
+            zones: [{ c0: 0, r0: 0, c1: 2, r1: 1, l: "온톨로지 (뜻과 규칙)", k: "accent" }, { c0: 3, r0: 0, c1: 4, r1: 1, l: "운영", k: "good" }],
+            nodes: [
+              { id: "t", c: 0, r: 0, l: "트리플", s: "TBox·ABox 모두 같은 문장", icon: "link" },
+              { id: "f", c: 0, r: 1, l: "포맷", s: "Turtle·N-Triples·JSON-LD", icon: "doc" },
+              { id: "r", c: 1, r: 0, l: "RDFS → OWL", s: "필요한 만큼만 올라간다", icon: "layers" },
+              { id: "i", c: 2, r: 0, l: "추론", s: "domain은 검사가 아니라 유도", icon: "workflow", k: "warn" },
+              { id: "o", c: 2, r: 1, l: "열린 세계", s: "없음 ≠ 거짓, 모름", icon: "question", k: "warn" },
+              { id: "s", c: 3, r: 1, l: "SHACL", s: "입력 검증은 여기서", icon: "shield-check", k: "good" },
+              { id: "q", c: 3, r: 0, l: "SPARQL", s: "패턴 매칭, 같은 변수 = 조인", icon: "search" },
+              { id: "u", c: 4, r: 0.5, l: "얇게 얹기", s: "데이터 사전·통합·GraphRAG", icon: "database-zap", k: "good" },
+            ],
+            edges: [{ f: "t", t: "r" }, { f: "r", t: "i" }, { f: "i", t: "q" }, { f: "o", t: "s", k: "good" }, { f: "i", t: "o", k: "warn" }, { f: "q", t: "u" }, { f: "s", t: "u", k: "good" }, { f: "t", t: "f", arrow: false }],
+          });
+        },
+        caption: "스키마와 데이터를 모두 트리플로 적고(①), RDFS·OWL 공리로 적히지 않은 사실을 유도한다(②). OWL은 열린 세계로 읽으니 필수값 검사는 SHACL이 맡는다(③). 질의는 SPARQL 패턴 매칭이고, 도입은 기존 시스템 옆에 얇게 얹는 데서 시작한다(④)." },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [
+          { ko: "온톨로지", en: "ontology" }, { ko: "지식 그래프", en: "knowledge graph" }, { ko: "트리플 스토어", en: "triple store" },
+          { ko: "기술 논리", en: "description logic" }, { ko: "열린 세계 가정", en: "open world assumption" }, { ko: "형상 제약", en: "SHACL shapes" },
+        ],
+        signals: [
+          "같은 뜻의 필드가 시스템마다 다른 이름으로 있을 때",
+          "도메인 규칙(무엇이 무엇의 일종인가)이 코드 여러 곳에 흩어져 있을 때",
+          "RDFS domain을 '타입 검사'로 쓰려 할 때",
+          "LLM이 뽑은 관계 종류가 걷잡을 수 없이 늘어날 때",
+        ],
+        queries: ["RDF 1.1 Primer", "OWL 2 profiles EL QL RL", "SHACL vs OWL open world", "SPARQL property paths", "JSON-LD context schema.org", "SKOS exactMatch data catalog"],
+        neighbors: [
+          { term: "속성 그래프", diff: "관계에 값을 달기 쉽고 경로 탐색에 강하다. 전역 식별자와 표준 추론이 없다." },
+          { term: "SKOS", diff: "OWL의 클래스·개체 구분 없이 개념과 넓고 좁음만 다룬다. 태그·용어 사전 정리에 먼저 쓴다." },
+          { term: "JSON Schema", diff: "SHACL의 가까운 사촌. 닫힌 세계로 문서 모양을 검사한다." },
+        ] },
+    ],
+  })); });
+</script>
+</body>
+</html>

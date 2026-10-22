@@ -3,8 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>두 자산을 섞으면 위험은 얼마나 줄까?</title>
-<script type="application/json" id="ltt-meta">{"domain":"경제·금융","topic":"분산투자와 상관계수","audience":"표준편차를 변동성(위험)으로 읽을 줄 아는 사람","pattern":["hook","terms","figure","predict","compare:table","bars:full","bars","statement","summary","keywords"],"theme":"ledger","medium":"경제 신문 차트·표","mode":"체험형: 용어를 풀고 엇갈림이 상쇄를 만드는 모습을 신문식 꺾은선으로 단계별로 본 뒤, 섞은 변동성을 짐작하고 100칸으로 답을 본다","decision":"자산 간 상관계수와 비중이 포트폴리오 변동성을 얼마나 줄이는지"}</script>
+<title>두 자산을 섞으면 위험은 얼마나 줄까</title>
+<script type="application/json" id="ltt-meta">{
+  "topic": "두 자산 분산 투자: 상관계수, 포트폴리오 분산, 최소분산 비중, 효율적 경계",
+  "audience": "적립식 ETF를 사 본 개인 투자자. 평균·표준편차는 안다.",
+  "theme": "ledger",
+  "medium": "deck",
+  "decision": "두 자산 포트폴리오의 비중 정하기",
+  "glossary": {
+    "표준편차": "수익률이 평균에서 얼마나 벗어나는지의 크기. 이 수업에서 <b>위험</b>은 연 수익률의 표준편차(%)다. 기호 σ(시그마).",
+    "위험": "이 수업에서는 연 수익률의 <b>표준편차</b>(%). 기호 σ.",
+    "기대수익률": "평균적으로 기대하는 연 수익률(%). 기호 E.",
+    "분산": "표준편차의 제곱(σ²). 위험 20%면 분산 400. 포트폴리오 계산은 분산으로 하고 마지막에 √를 씌워 표준편차로 돌아온다.",
+    "상관계수": "두 자산 수익률이 같은 방향으로 움직이는 정도. −1(늘 정반대) ~ 0(따로) ~ +1(늘 같이). 기호 ρ(로).",
+    "공분산": "ρ × σ_A × σ_B. 두 자산이 함께 흔들리는 양. 넓이 그림의 겹친 칸 크기를 정한다.",
+    "비중": "전체 금액 중 한 자산에 넣은 몫. w_A + w_B = 1(100%). 기호 w.",
+    "포트폴리오": "여러 자산을 정한 비중으로 묶은 것.",
+    "최소분산 포트폴리오": "두 자산의 모든 비중 가운데 위험(분산)이 가장 낮은 비중. 위험-수익 평면에서 곡선의 가장 왼쪽 점.",
+    "효율적 경계": "같은 위험에서 기대수익률이 가장 높은 조합들. 최소분산점에서 위로 뻗은 곡선 가지."
+  }
+}</script>
 <link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
 <script src="/kit/vendor/d3.min.js"></script>
 <script src="/kit/vendor/katex/katex.min.js"></script>
@@ -13,275 +31,494 @@
 <script src="/kit/ltt-ui.js"></script>
 <script src="/kit/ltt-deck.js"></script>
 <style>
-  .ltt-cf text { font-family: var(--ltt-mono); font-size: 13px; fill: var(--ltt-muted); }
-  .ltt-cf .grid line { stroke: var(--ltt-line-2); stroke-width: 1; }
-  .ltt-cf .zero { stroke: var(--ltt-ink); stroke-width: 1.2; }
-  .spark svg { width: 260px; max-width: 100%; height: auto; }
-  .wl { display: flex; gap: 14px; font-size: 13px; color: var(--ltt-muted); margin-top: 6px; }
-  .tv { width: 100%; max-width: 240px; max-height: 110px; }
-  .tv text { font: 700 12px var(--ltt-font); fill: var(--ltt-ink-2); }
-  .wl i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; }
+svg.fig{width:100%;height:auto;display:block;overflow:visible}
+.fig text{fill:var(--ltt-ink);font-size:16px}
+.fig .note{fill:var(--ltt-muted);font-size:14px}
+.fig .tick{fill:var(--ltt-muted);font-family:var(--ltt-mono);font-size:14px}
+.fig .axl{fill:var(--ltt-ink-2);font-size:14px}
+.fig .lab{font-size:18px;font-weight:600}
+.fig .strong{font-weight:700}
+.fig .num{font-family:var(--ltt-mono);font-size:17px;fill:var(--ltt-ink-2)}
+.fig .accent{fill:var(--ltt-accent);font-weight:700}
+.fig .mean{stroke:var(--ltt-line-2);stroke-dasharray:4 4;stroke-width:1.5}
+.fig .grid{stroke:var(--ltt-line);stroke-width:1}
+.fig .bar.c1,.fig .cell.c1,.fig .asset.c1{fill:var(--ltt-c1)}
+.fig .bar.c2,.fig .cell.c2,.fig .asset.c2{fill:var(--ltt-c2)}
+.fig .bar.cm{fill:var(--ltt-accent)}
+.fig .pt{fill:var(--ltt-c1);fill-opacity:.8;stroke:var(--ltt-card);stroke-width:1}
+.fig .frame{fill:none;stroke:var(--ltt-ink);stroke-width:2}
+.fig .cell{fill-opacity:.55;stroke:var(--ltt-ink);stroke-width:1}
+.fig .cell.cx{fill:var(--ltt-c3)}
+.fig .cell.neg{fill:var(--ltt-bad);fill-opacity:.35}
+.fig .slot{fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-dasharray:5 4;stroke-width:1.5}
+.fig .cellv{font-family:var(--ltt-mono);font-size:18px;font-weight:700}
+.fig.big .cellv{font-size:30px}
+.fig .nmk{fill:var(--ltt-accent);stroke:var(--ltt-card);stroke-width:2}
+.fig .nmt{fill:var(--ltt-bg);font-size:15px;font-weight:700;font-family:var(--ltt-mono)}
+.fig .dim{stroke:var(--ltt-ink-2);stroke-width:1.5}
+.fig .diml{font-family:var(--ltt-mono);font-size:14px;fill:var(--ltt-ink-2)}
+.fig .curve{fill:none;stroke:var(--ltt-c3);stroke-width:2.5}
+.fig .curve.r1{stroke:var(--ltt-muted);stroke-dasharray:6 5}
+.fig .curve.r2{stroke:var(--ltt-c3)}
+.fig .curve.r3{stroke:var(--ltt-c4)}
+.fig .curve.front{stroke:var(--ltt-accent);stroke-width:4.5}
+.fig .curve.ineff{stroke:var(--ltt-muted);stroke-dasharray:5 5;stroke-width:2}
+.fig .clab{font-size:15px;font-weight:600}
+.fig .clab.r1{fill:var(--ltt-muted)}
+.fig .mvp{fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:2.5}
+.fig .mk{fill:var(--ltt-card);stroke:var(--ltt-ink-2);stroke-width:2.5}
+.fig .mk.good{fill:var(--ltt-accent);stroke:var(--ltt-ink)}
+.fig .mlab{font-size:15px}
+.fig .mlab.good{fill:var(--ltt-good);font-weight:700}
+.fig .gap{stroke:var(--ltt-good);stroke-width:2.5}
+.fig .cur{fill:var(--ltt-accent);stroke:var(--ltt-ink);stroke-width:2}
+.fig .asset{stroke:var(--ltt-ink);stroke-width:1.5}
+.fig .link{fill:none;stroke:var(--ltt-line-2);stroke-width:2}
+.fig .tbox{fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:1.5}
+.fig .troot{fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:2}
+.fig .tlab{font-size:17px}
+
+.two{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:32px;align-items:center}
+.two.wide{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}
+.side{display:flex;flex-direction:column;gap:12px}
+.side .cap{color:var(--ltt-ink-2);font-size:15px;margin:0}
+.v{display:inline-block;min-width:4.5em;font-variant-numeric:tabular-nums;font-family:var(--ltt-mono)}
+.readout{font-family:var(--ltt-mono);font-variant-numeric:tabular-nums;font-size:16px;line-height:1.6}
+.readout b{color:var(--ltt-accent)}
+.meter{height:14px;background:var(--ltt-card-2);border:1px solid var(--ltt-line);position:relative}
+.meter i{position:absolute;left:0;top:0;bottom:0;background:var(--ltt-accent)}
+.meter .ref{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ltt-ink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:var(--ltt-ink-2)}
+.legend span::before{content:"";display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-1px;border:1px solid var(--ltt-ink)}
+.legend .lA::before{background:var(--ltt-c1);opacity:.7}
+.legend .lB::before{background:var(--ltt-c2);opacity:.7}
+.legend .lX::before{background:var(--ltt-c3);opacity:.7}
+.legend .lN::before{background:var(--ltt-bad);opacity:.45}
+.legend .lS::before{background:var(--ltt-card);border-style:dashed}
+.sqbox{max-width:300px}
+#sc5{max-width:400px;justify-self:center;width:100%}
+.tex{font-size:17px}
+.params{display:flex;flex-direction:column;gap:10px}
+.params .ltt-param input[type=range]{width:220px}
 </style>
 </head>
 <body>
 <script>
-  // EXPECTED_BY_HAND (모델 코드보다 먼저 손계산. σ1=σ2=20, 분산 0.04 기준)
-  // w=.5, ρ=.3: .25*.04 + .25*.04 + 2*.25*.3*.04 = .01+.01+.006 = .026 -> sqrt = 16.1245%
-  // w=.5, ρ=1: 분산 .04 -> 20%.  w=.5, ρ=-1: .01+.01-.02 = 0 -> 0%.  ρ=0: .02 -> 14.1421%
-  // N=10, ρ=.3: .04*(.1+.9*.3) = .0148 -> 12.1655%.  N->inf: sqrt(.3)*20 = 10.9545%
-  // ρ=.8, w=.5: .02+2*.25*.8*.04 = .036 -> 18.9737%.  하한 sqrt(.8)*20 = 17.8885%
-  // 기대수익률 w=.5: .5*8+.5*5 = 6.5%
-  const EXPECTED_BY_HAND = { base: 16.1245, rho1: 20, rhoM1: 0, rho0: 14.1421, n10: 12.1655, floor: 10.9545, crisis: 18.9737, crisisFloor: 17.8885, ret: 6.5 };
-  const S = 20, MU1 = 8, MU2 = 5;
-  const vol = (w, rho) => Math.sqrt(Math.max(0, w * w * S * S + (1 - w) ** 2 * S * S + 2 * w * (1 - w) * rho * S * S));
-  const volN = (n, rho) => S * Math.sqrt(1 / n + (1 - 1 / n) * rho);
-  const floorVol = (rho) => S * Math.sqrt(Math.max(rho, 0));
-  const ret = (w) => w * MU1 + (1 - w) * MU2;
-  LTT.expect("w=.5 ρ=.3", vol(0.5, 0.3), EXPECTED_BY_HAND.base, { tol: 1e-3 });
-  LTT.expect("ρ=1", vol(0.5, 1), EXPECTED_BY_HAND.rho1, { tol: 1e-9 });
-  LTT.expect("ρ=-1", vol(0.5, -1), EXPECTED_BY_HAND.rhoM1, { tol: 1e-6 });
-  LTT.expect("ρ=0", vol(0.5, 0), EXPECTED_BY_HAND.rho0, { tol: 1e-3 });
-  LTT.expect("N=10 ρ=.3", volN(10, 0.3), EXPECTED_BY_HAND.n10, { tol: 1e-3 });
-  LTT.expect("하한 ρ=.3", floorVol(0.3), EXPECTED_BY_HAND.floor, { tol: 1e-3 });
-  LTT.expect("위기 ρ=.8", vol(0.5, 0.8), EXPECTED_BY_HAND.crisis, { tol: 1e-3 });
-  LTT.expect("위기 하한", floorVol(0.8), EXPECTED_BY_HAND.crisisFloor, { tol: 1e-3 });
-  LTT.expect("기대수익률", ret(0.5), EXPECTED_BY_HAND.ret, { tol: 1e-9 });
-
-  const f1 = d3.format(".1f"), pc = (v) => f1(v) + "%";
-  // Two equal-amplitude sines with phase gap acos(ρ) have correlation ρ, so their average has amplitude √((1+ρ)/2) — the same ratio as vol(0.5, ρ)/σ.
-  function waves(node, rho) {
-    const VW = 240, VH = 50, phi = Math.acos(rho), xs = d3.range(0, 4 * Math.PI, 0.1);
-    const svg = d3.select(node).append("svg").attr("class", "ltt-svg").attr("viewBox", `0 0 ${VW} ${VH}`);
-    const x = d3.scaleLinear([0, 4 * Math.PI], [0, VW]), y = (v) => VH / 2 - v * 21;
-    const path = (f, c, wd, op) => svg.append("path").attr("fill", "none").attr("stroke", c).attr("stroke-width", wd).attr("opacity", op)
-      .attr("d", d3.line().x(x).y((t) => y(f(t)))(xs));
-    path((t) => Math.sin(t), "var(--ltt-muted)", 2, 0.6);
-    path((t) => Math.sin(t + phi), "var(--ltt-warn)", 2, 0.6);
-    const avg = path((t) => (Math.sin(t) + Math.sin(t + phi)) / 2, "var(--ltt-accent)", 3.5, 1);
-    const len = avg.node().getTotalLength();
-    avg.attr("stroke-dasharray", len).attr("stroke-dashoffset", len).transition().duration(LTT.MOTION_MS * 2).attr("stroke-dashoffset", 0);
+const F = (() => {
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function normals(n, seed) { const r = rng(seed), o = []; while (o.length < n) { const u = r() || 1e-9, v = r(); o.push(Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v)); } return o; }
+  function stdz(x) { const n = x.length, m = x.reduce((a, b) => a + b, 0) / n, c = x.map(v => v - m), s = Math.sqrt(c.reduce((a, v) => a + v * v, 0) / n); return c.map(v => v / s); }
+  // 표본 상관이 정확히 rho, 모표준편차가 정확히 sd가 되도록 중심화·직교화한다(그림의 숫자와 공식이 정확히 맞게).
+  function pair(n, rho, seed, sd = 20, mean = 5) {
+    const z1 = stdz(normals(n, seed)); let z2 = stdz(normals(n, seed + 101));
+    const k = z2.reduce((a, v, i) => a + v * z1[i], 0) / n;
+    z2 = stdz(z2.map((v, i) => v - k * z1[i]));
+    const q = Math.sqrt(Math.max(0, 1 - rho * rho));
+    return { a: z1.map(v => mean + sd * v), b: z1.map((v, i) => mean + sd * (rho * v + q * z2[i])) };
   }
-  const rhoItem = (label, rho, tone, note) => ({ label, tone, verdict: "변동성 " + pc(vol(0.5, rho)), noteAfter: true, note,
-    visual: (n) => { n.classList.add("spark"); waves(n, rho); } });
+  const mean = x => x.reduce((a, b) => a + b, 0) / x.length;
+  const sd = x => { const m = mean(x); return Math.sqrt(mean(x.map(v => (v - m) ** 2))); };
+  const corr = (x, y) => { const mx = mean(x), my = mean(y); return mean(x.map((v, i) => (v - mx) * (y[i] - my))) / (sd(x) * sd(y)); };
+  const sig = (w, sa, sb, r) => Math.sqrt(Math.max(0, w * w * sa * sa + (1 - w) ** 2 * sb * sb + 2 * w * (1 - w) * r * sa * sb));
+  const wmin = (sa, sb, r) => { const d = sa * sa + sb * sb - 2 * r * sa * sb; return d < 1e-9 ? 0 : clamp((sb * sb - r * sa * sb) / d, 0, 1); };
+  const f1 = v => (Math.round(v * 10) / 10).toFixed(1);
+  const f2 = v => (Math.round(v * 100) / 100).toFixed(2);
+  const fz = v => f1(v).replace(/\.0$/, '');
+  function svg(el, w, h, cls) {
+    let s = d3.select(el).select(':scope > svg');
+    if (s.empty()) { el.innerHTML = ''; s = d3.select(el).append('svg'); } else s.selectAll('*').remove();
+    return s.attr('viewBox', `0 0 ${w} ${h}`).attr('class', 'fig ' + (cls || ''));
+  }
 
-  const np = (title, dek, source) => LTT.chartFrame({ title, dek, source });
-
-  // Fixed 0–20% axis, so every chart in the lesson is measured against the unmixed 20%.
-  const volBars = (title, dek, rows) => (body) => {
-    const f = np(title, dek, "계산: 변동성 20%짜리 자산, 모델로 계산한 예시");
-    body.appendChild(f.el);
-    const bars = LTT.hbars(f.el, { rowH: 42, domain: [0, 20], ticks: [0, 5, 10, 15, 20], tickFormat: (t) => (t === 20 ? "20%" : t), fmt: pc,
-      rows: rows.map(([label, value, tone]) => ({ label, value, tone })) });
-    f.foot();
-    return { enter: bars.play };
-  };
-
-  const LEG = `<div class="wl"><span><i style="background:var(--ltt-muted)"></i>자산 A</span><span><i style="background:var(--ltt-warn)"></i>자산 B</span><span><i style="background:var(--ltt-accent);height:4px"></i>반반 섞은 결과</span></div>`;
-
-  const tv = (inner) => `<svg class="tv" viewBox="0 0 220 100" role="img">${inner}</svg>`;
-  const sinPath = (x0, w, y0, amp, phase) => d3.range(0, 3 * Math.PI + 0.01, 0.15)
-    .map((t, i) => (i ? "L" : "M") + (x0 + t / (3 * Math.PI) * w).toFixed(1) + "," + (y0 - amp * Math.sin(t + phase)).toFixed(1)).join("");
-  const TERM_PORTFOLIO = tv(`<path d="M20,22v-8H200v8" style="fill:none;stroke:var(--ltt-ink-2);stroke-width:1.5"/><text x="110" y="10" text-anchor="middle">한 묶음</text>`
-    + `<rect x="20" y="30" width="90" height="34" style="fill:var(--ltt-accent)"/><rect x="110" y="30" width="90" height="34" style="fill:var(--ltt-warn)"/>`
-    + `<text x="65" y="84" text-anchor="middle">주식 50%</text><text x="155" y="84" text-anchor="middle">채권 50%</text>`);
-  const TERM_VOL = tv(`<rect x="34" y="22" width="150" height="56" style="fill:var(--ltt-card-2)"/>`
-    + `<line x1="34" x2="184" y1="50" y2="50" style="stroke:var(--ltt-muted);stroke-dasharray:4 3"/><text x="30" y="54" text-anchor="end" style="fill:var(--ltt-muted)">평균</text>`
-    + `<polyline points="34,50 46,30 58,64 70,38 82,74 94,26 106,58 118,44 130,72 142,28 154,60 166,40 178,66 184,50" style="fill:none;stroke:var(--ltt-ink);stroke-width:2"/>`
-    + `<path d="M190,22h6v56h-6" style="fill:none;stroke:var(--ltt-accent);stroke-width:1.5"/><text x="200" y="54" style="fill:var(--ltt-accent)">±</text>`
-    + `<text x="110" y="94" text-anchor="middle">평균에서 벗어나는 폭</text>`);
-  const TERM_CORR = tv([[1, "ρ = 1", 0], [0, "ρ = 0", Math.PI / 2], [-1, "ρ = −1", Math.PI]].map(([, label, ph], i) => {
-    const x0 = 8 + i * 72;
-    return `<path d="${sinPath(x0, 60, 40, 22, 0)}" style="fill:none;stroke:var(--ltt-muted);stroke-width:2"/>`
-      + `<path d="${sinPath(x0, 60, 40, 22, ph)}" style="fill:none;stroke:var(--ltt-warn);stroke-width:2;stroke-dasharray:${ph ? "none" : "5 4"}"/>`
-      + `<text x="${x0 + 30}" y="90" text-anchor="middle">${label}</text>`;
-  }).join(""));
-
-  function waveFigure(stage) {
-    const f = np("두 자산과 반반 섞은 포트폴리오, 상관계수 0", "", "실제 수익률 경로가 아니라 상관만 보이려고 그린 도식");
-    stage.appendChild(f.el);
-    f.el.insertAdjacentHTML("beforeend", LEG);
-    const W = 820, H = 160, L = 60, xs = d3.range(0, 4 * Math.PI + 0.05, 0.05), phi = Math.acos(0), amp = Math.sqrt(0.5);
-    const x = d3.scaleLinear([0, 4 * Math.PI], [L, W - 150]), y = d3.scaleLinear([-1.2, 1.2], [H - 10, 10]);
-    const svg = d3.select(f.el).append("svg").attr("viewBox", `0 0 ${W} ${H}`);
-    const grid = svg.append("g").attr("class", "grid");
-    [-1, 1].forEach((v) => grid.append("line").attr("x1", L).attr("x2", W - 150).attr("y1", y(v)).attr("y2", y(v)));
-    svg.append("line").attr("class", "zero").attr("x1", L).attr("x2", W - 150).attr("y1", y(0)).attr("y2", y(0));
-    svg.append("text").attr("x", L - 10).attr("y", y(0) + 4).attr("text-anchor", "end").text("평균");
-    svg.append("text").attr("x", L - 10).attr("y", y(1) + 4).attr("text-anchor", "end").text("+");
-    svg.append("text").attr("x", L - 10).attr("y", y(-1) + 4).attr("text-anchor", "end").text("−");
-    const line = (fn) => d3.line().x(x).y((t) => y(fn(t)))(xs);
-    const pa = svg.append("path").attr("d", line(Math.sin)).style("fill", "none").style("stroke", "var(--ltt-muted)").style("stroke-width", 2.5);
-    const pb = svg.append("path").attr("d", line((t) => Math.sin(t + phi))).style("fill", "none").style("stroke", "var(--ltt-warn)").style("stroke-width", 2.5);
-    const pm = svg.append("path").attr("d", line((t) => (Math.sin(t) + Math.sin(t + phi)) / 2)).style("fill", "none").style("stroke", "var(--ltt-accent)").style("stroke-width", 4);
-    const len = pm.node().getTotalLength();
-    const guides = svg.append("g");
-    [[1, "자산 하나의 흔들림", "var(--ltt-muted)"], [amp, "섞은 결과의 흔들림", "var(--ltt-accent)"]].forEach(([v, t, c]) => {
-      guides.append("line").attr("x1", L).attr("x2", W - 150).attr("y1", y(v)).attr("y2", y(v)).style("stroke", c).style("stroke-width", 1.5).style("stroke-dasharray", "4 4");
-      guides.append("text").attr("x", W - 142).attr("y", y(v) + 4).text(t).style("fill", c).style("font-family", "var(--ltt-font)").style("font-weight", 700);
+  function bars(el, { rho = 0, seed = 7, n = 12, t0 = 0 } = {}) {
+    const d = pair(n, rho, seed), mix = d.a.map((v, i) => (v + d.b[i]) / 2);
+    const rows = [
+      { key: 'A', name: 'A만', vals: d.a, cls: 'c1', s: sd(d.a) },
+      { key: 'B', name: 'B만', vals: d.b, cls: 'c2', s: sd(d.b) },
+      { key: 'M', name: '반반', vals: mix, cls: 'cm', s: sd(mix) }];
+    const s = svg(el, 720, 400, 'bars');
+    s.append('text').attr('x', 0).attr('y', 18).attr('class', 'note').text('가상 예시 · 12개 기간의 수익률 · 가운데 점선 = 평균 5%');
+    const g = rows.map((r, j) => {
+      const cy = 90 + j * 115, row = s.append('g');
+      row.append('text').attr('x', 0).attr('y', cy - 6).attr('class', 'lab ' + (r.key === 'M' ? 'strong' : '')).text(r.name);
+      const sl = row.append('text').attr('x', 0).attr('y', cy + 20).attr('class', 'num ' + (r.key === 'M' ? 'accent' : '')).text('σ ' + f1(r.s) + '%');
+      row.append('line').attr('x1', 150).attr('x2', 715).attr('y1', cy).attr('y2', cy).attr('class', 'mean');
+      const rects = r.vals.map((v, i) => row.append('rect').attr('x', 168 + i * 46).attr('width', 28).attr('class', 'bar ' + r.cls));
+      return { r, cy, rects, sl };
     });
-    const ms = LTT.MOTION_MS, show = (sel, on) => sel.transition().duration(ms / 2).style("opacity", on ? 1 : 0.3);
-    const steps = [
-      { caption: "<b>① 각자 흔들린다</b> — 두 자산 모두 {{변동성}} 20%라고 둔다(계산용 가정). 올랐다 내렸다를 반복한다.",
-        enter: () => { show(pa, 1); show(pb, 1); pm.interrupt().attr("stroke-dasharray", len).attr("stroke-dashoffset", len); guides.style("opacity", 0); } },
-      { caption: "<b>② 엇갈린 만큼 상쇄</b> — 한쪽이 오를 때 다른 쪽이 덜 오르거나 내리면, 둘을 합친 값은 덜 흔들린다.",
-        enter: () => { show(pa, 0); show(pb, 0); guides.style("opacity", 0); pm.attr("stroke-dasharray", len).attr("stroke-dashoffset", len).transition().duration(ms * 2).attr("stroke-dashoffset", 0); } },
-      { caption: "<b>③ 얼마나 엇갈리나가 결정</b> — {{상관계수}}가 1이면 상쇄가 없고, 0이면 꽤 상쇄되고, −1이면 완전히 상쇄된다. 이 그림은 0인 경우다.",
-        enter: () => { show(pa, 0); show(pb, 0); pm.interrupt().attr("stroke-dashoffset", 0); guides.transition().duration(ms).style("opacity", 1); } },
-    ];
-    LTT.stepper(f.el, steps);
-    f.foot();
+    function draw(t) {
+      g.forEach((o, j) => {
+        const start = [0, 1000, 2200][j], len = [900, 900, 1400][j];
+        const e = clamp((t - start) / len, 0, 1);
+        o.rects.forEach((rc, i) => {
+          const dev = (o.r.vals[i] - 5) * e;
+          rc.attr('y', o.cy - Math.max(dev, 0)).attr('height', Math.abs(dev));
+        });
+        o.sl.attr('opacity', e >= 1 ? 1 : 0);
+      });
+    }
+    draw(t0);
+    return { el, draw, sds: rows.map(r => r.s) };
   }
 
-  function overviewFigure(stage) {
-    const host = document.createElement("div");
-    host.className = "ltt-cf";
-    stage.appendChild(host);
-    const W = 1240, H = 520, L = 96, R = 190, T = 30, B = 70;
-    const x = d3.scaleLinear([-1, 1], [L, W - R]), y = d3.scaleLinear([0, S * 1.1], [H - B, T]);
-    const svg = d3.select(host).append("svg").attr("viewBox", `0 0 ${W} ${H}`).style("width", "100%").style("height", "auto");
-    const txt = (px, py, t, c, o = {}) => svg.append("text").attr("x", px).attr("y", py).attr("text-anchor", o.anchor || "start").text(t)
-      .style("fill", c).style("font-family", o.mono ? "var(--ltt-mono)" : "var(--ltt-font)").style("font-size", (o.size || 18) + "px").style("font-weight", o.bold ? 700 : 400)
-      .style("stroke", "var(--ltt-bg)").style("stroke-width", 5).style("paint-order", "stroke");
-    const mark = (px, py, n) => {
-      svg.append("circle").attr("cx", px).attr("cy", py).attr("r", 15).style("fill", "var(--ltt-ink)");
-      txt(px, py + 6, n, "var(--ltt-on-dark)", { anchor: "middle", bold: true, size: 17 }).style("stroke", "none");
-    };
-    const rhos = d3.range(-1, 1.001, 0.01);
-    const curve = (fn) => d3.line().x(x).y((r) => y(fn(r)))(rhos);
-
-    svg.append("line").attr("x1", L).attr("x2", W - R).attr("y1", H - B).attr("y2", H - B).style("stroke", "var(--ltt-ink-2)");
-    svg.append("line").attr("x1", L).attr("x2", L).attr("y1", T).attr("y2", H - B).style("stroke", "var(--ltt-ink-2)");
-    [-1, -0.5, 0, 0.3, 0.8, 1].forEach((r) => txt(x(r), H - B + 26, r === 0.3 || r === 0.8 ? r : String(r).replace("-", "−"), "var(--ltt-muted)", { anchor: "middle", mono: true, size: 16 }));
-    [0, S / 2, S].forEach((v) => txt(L - 12, y(v) + 6, pc(v), "var(--ltt-muted)", { anchor: "end", mono: true, size: 16 }));
-    txt((L + W - R) / 2, H - 12, "두 자산이 같이 움직이는 정도 (상관계수 ρ) →", "var(--ltt-ink-2)", { anchor: "middle", size: 17 });
-
-    svg.append("line").attr("x1", L).attr("x2", W - R).attr("y1", y(S)).attr("y2", y(S)).style("stroke", "var(--ltt-muted)").style("stroke-dasharray", "5 5");
-    txt(W - R + 10, y(S) + 6, "섞기 전 20%", "var(--ltt-muted)", { size: 17 });
-    svg.append("path").attr("d", d3.area().x(x).y0(y(S)).y1((r) => y(vol(0.5, r)))(rhos)).style("fill", "var(--ltt-accent-soft)");
-    svg.append("path").attr("d", curve((r) => vol(0.5, r))).style("fill", "none").style("stroke", "var(--ltt-accent)").style("stroke-width", 4);
-    txt(W - R + 10, y(vol(0.5, 1)) + 30, "두 자산 반반", "var(--ltt-accent)", { bold: true });
-    svg.append("path").attr("d", d3.line().x(x).y((r) => y(floorVol(r)))(rhos.filter((r) => r >= 0))).style("fill", "none").style("stroke", "var(--ltt-ink-2)").style("stroke-width", 3).style("stroke-dasharray", "2 6").style("stroke-linecap", "round");
-    txt(W - R + 10, y(floorVol(1)) + 56, "N → ∞ 바닥", "var(--ltt-ink-2)", { bold: true });
-
-    mark(x(-0.85), y((S + vol(0.5, -0.85)) / 2), "1");
-    txt(x(-0.85) + 24, y((S + vol(0.5, -0.85)) / 2) + 6, "칠한 틈 = 엇갈려 상쇄된 위험", "var(--ltt-ink)", { bold: true });
-
-    const p03 = [x(0.3), y(vol(0.5, 0.3))], p08 = [x(0.8), y(vol(0.5, 0.8))], f03 = [x(0.3), y(floorVol(0.3))], f08 = [x(0.8), y(floorVol(0.8))];
-    [[p03, "var(--ltt-accent)"], [p08, "var(--ltt-bad)"], [f03, "var(--ltt-ink-2)"], [f08, "var(--ltt-bad)"]].forEach(([p, c]) => svg.append("circle").attr("cx", p[0]).attr("cy", p[1]).attr("r", 7).style("fill", c));
-    mark(x(-0.62), y(vol(0.5, -0.62)) + 44, "2");
-    txt(x(-0.62) + 24, y(vol(0.5, -0.62)) + 50, "ρ가 낮은 짝일수록 아래로", "var(--ltt-ink)", { bold: true });
-
-    svg.append("line").attr("x1", p03[0]).attr("x2", f03[0]).attr("y1", p03[1] + 9).attr("y2", f03[1] - 9).style("stroke", "var(--ltt-ink-2)").style("stroke-width", 2);
-    mark(x(0.3) - 28, (p03[1] + f03[1]) / 2, "3");
-    txt(x(0.3) - 52, (p03[1] + f03[1]) / 2 + 6, `더 섞어도 ${pc(floorVol(0.3))}에서 멈춤`, "var(--ltt-ink)", { anchor: "end", bold: true });
-
-    svg.append("defs").append("marker").attr("id", "ov-arr").attr("viewBox", "0 0 10 10").attr("refX", 9).attr("refY", 5).attr("markerWidth", 7).attr("markerHeight", 7).attr("orient", "auto")
-      .append("path").attr("d", "M0 0L10 5L0 10z").style("fill", "var(--ltt-bad)");
-    [[p03, p08], [f03, f08]].forEach(([s0, s1]) => svg.append("line").attr("x1", s0[0] + 10).attr("y1", s0[1]).attr("x2", s1[0] - 10).attr("y2", s1[1]).style("stroke", "var(--ltt-bad)").style("stroke-width", 2.5).attr("marker-end", "url(#ov-arr)"));
-    mark(x(0.8) + 2, y(vol(0.5, 0.8)) - 32, "4");
-    txt(x(0.8) + 24, y(vol(0.5, 0.8)) - 26, "위기: ρ가 0.8로 → 둘 다 20%로 붙는다", "var(--ltt-bad)", { bold: true, anchor: "end" }).attr("x", x(0.8) - 20);
+  function scatter(el, rho, { seed = 11, n = 40 } = {}) {
+    const d = pair(n, rho, seed);
+    const s = svg(el, 440, 430, 'scatter');
+    const X = d3.scaleLinear([-55, 65], [62, 425]), Y = d3.scaleLinear([-55, 65], [380, 24]);
+    [-40, -20, 0, 20, 40, 60].forEach(v => {
+      s.append('line').attr('x1', X(v)).attr('x2', X(v)).attr('y1', 24).attr('y2', 380).attr('class', 'grid');
+      s.append('line').attr('y1', Y(v)).attr('y2', Y(v)).attr('x1', 62).attr('x2', 425).attr('class', 'grid');
+      s.append('text').attr('x', X(v)).attr('y', 400).attr('class', 'tick').attr('text-anchor', 'middle').text(v);
+      s.append('text').attr('x', 54).attr('y', Y(v) + 5).attr('class', 'tick').attr('text-anchor', 'end').text(v);
+    });
+    s.append('text').attr('x', 425).attr('y', 425).attr('text-anchor', 'end').attr('class', 'axl').text('A 수익률(%) →');
+    s.append('text').attr('transform', 'translate(14,24) rotate(90)').attr('class', 'axl').text('B 수익률(%) →');
+    d.a.forEach((v, i) => s.append('circle').attr('cx', X(v)).attr('cy', Y(d.b[i])).attr('r', 5.5).attr('class', 'pt'));
+    s.append('text').attr('x', 74).attr('y', 50).attr('class', 'note').text('가상 예시 · 40개 기간, 점 하나 = 한 기간');
+    return { el, r: corr(d.a, d.b), sa: sd(d.a), sb: sd(d.b), smix: sd(d.a.map((v, i) => (v + d.b[i]) / 2)) };
   }
 
-  LTT.deck({
-    title: "두 자산을 섞으면 위험은 얼마나 줄까?",
-    theme: "ledger",
-    glossary: {
-      "체계적 위험": "시장 전체가 함께 움직여서 생기는 위험. 자산을 아무리 많이 섞어도 없어지지 않는다(경기 침체, 금리 변화 등).",
+  function square(el, { a, b, rho, la = 'w_Aσ_A', lb = 'w_Bσ_B', dims = true }) {
+    const k = 15, x0 = 40, y0 = dims ? 46 : 10, s = svg(el, 390, dims ? 370 : 330, dims ? 'square' : 'square big');
+    const cells = [
+      { x: x0, y: y0, w: a, h: a, v: a * a, cls: 'c1', diag: true },
+      { x: x0 + a * k, y: y0 + a * k, w: b, h: b, v: b * b, cls: 'c2', diag: true },
+      { x: x0 + a * k, y: y0, w: b, h: a, v: rho * a * b },
+      { x: x0, y: y0 + a * k, w: a, h: b, v: rho * a * b }];
+    s.append('rect').attr('x', x0).attr('y', y0).attr('width', (a + b) * k).attr('height', (a + b) * k).attr('class', 'frame');
+    cells.forEach(c => {
+      const W = c.w * k, H = c.h * k;
+      if (W < 0.5 || H < 0.5) return;
+      if (c.diag) s.append('rect').attr('x', c.x).attr('y', c.y).attr('width', W).attr('height', H).attr('class', 'cell ' + c.cls);
+      else {
+        s.append('rect').attr('x', c.x).attr('y', c.y).attr('width', W).attr('height', H).attr('class', 'slot');
+        const fw = W * Math.abs(rho);
+        if (fw > 0.5) s.append('rect').attr('x', c.x).attr('y', c.y).attr('width', fw).attr('height', H).attr('class', 'cell ' + (rho > 0 ? 'cx' : 'neg'));
+      }
+      if (Math.min(W, H) >= 34) s.append('text').attr('x', c.x + W / 2).attr('y', c.y + H / 2 + 6).attr('text-anchor', 'middle').attr('class', 'cellv').text((c.v < 0 ? '−' : c.v > 0 && !c.diag ? '+' : '') + fz(Math.abs(c.v)));
+    });
+    const seg = (x, len, txt) => { if (len * k < 40) return; s.append('line').attr('x1', x + 2).attr('x2', x + len * k - 2).attr('y1', y0 - 14).attr('y2', y0 - 14).attr('class', 'dim'); s.append('text').attr('x', x + len * k / 2).attr('y', y0 - 22).attr('text-anchor', 'middle').attr('class', 'diml').text(txt); };
+    if (dims) { seg(x0, a, la + ' = ' + fz(a)); seg(x0 + a * k, b, lb + ' = ' + fz(b)); }
+    if (dims) s.append('text').attr('x', x0).attr('y', 366).attr('class', 'note').text('가상 예시 · 단위 %, 넓이 단위 %²');
+    const total = a * a + b * b + 2 * rho * a * b;
+    return { el, total, sigma: Math.sqrt(Math.max(0, total)), cells: cells.map(c => c.v) };
+  }
+
+  const AS = { sa: 20, sb: 10, ea: 8, eb: 3 };
+  function plane(el, st) {
+    const { sa, sb, ea, eb } = AS;
+    const s = svg(el, 620, 430, 'plane');
+    const X = d3.scaleLinear([0, 22], [72, 600]), Y = d3.scaleLinear([2, 9], [380, 24]);
+    [0, 5, 10, 15, 20].forEach(v => { s.append('line').attr('x1', X(v)).attr('x2', X(v)).attr('y1', 24).attr('y2', 380).attr('class', 'grid'); s.append('text').attr('x', X(v)).attr('y', 402).attr('text-anchor', 'middle').attr('class', 'tick').text(v); });
+    [2, 4, 6, 8].forEach(v => { s.append('line').attr('y1', Y(v)).attr('y2', Y(v)).attr('x1', 72).attr('x2', 600).attr('class', 'grid'); s.append('text').attr('x', 62).attr('y', Y(v) + 5).attr('text-anchor', 'end').attr('class', 'tick').text(v); });
+    s.append('text').attr('x', 600).attr('y', 426).attr('text-anchor', 'end').attr('class', 'axl').text('위험 = 표준편차(%) →');
+    s.append('text').attr('transform', 'translate(16,24) rotate(90)').attr('class', 'axl').text('기대수익률(%) →');
+    s.append('text').attr('x', 84).attr('y', 46).attr('class', 'note').text(st.note || '가상 예시 · A 주식형(8%, 20%), B 채권형(3%, 10%)');
+    const line = d3.line().x(p => X(p[0])).y(p => Y(p[1]));
+    const at = (w, r) => [sig(w, sa, sb, r), w * ea + (1 - w) * eb];
+    const pts = (r, w0 = 0, w1 = 1) => d3.range(0, 201).map(i => at(w0 + (w1 - w0) * i / 200, r));
+    (st.curves || []).forEach(c => {
+      if (c.frontier) {
+        const wm = wmin(sa, sb, c.rho);
+        s.append('path').attr('d', line(pts(c.rho, 0, wm))).attr('class', 'curve ineff');
+        s.append('path').attr('d', line(pts(c.rho, wm, 1))).attr('class', 'curve front');
+      } else s.append('path').attr('d', line(pts(c.rho))).attr('class', 'curve ' + (c.cls || ''));
+      if (c.label) { const p = at(c.labelAt, c.rho); s.append('text').attr('x', X(p[0]) + (c.dx || 10)).attr('y', Y(p[1]) + (c.dy || 4)).attr('class', 'clab ' + (c.cls || '')).attr('text-anchor', c.anchor || 'start').text(c.label); }
+      if (c.mvp) {
+        const p = at(wmin(sa, sb, c.rho), c.rho);
+        s.append('circle').attr('cx', X(p[0])).attr('cy', Y(p[1])).attr('r', 7).attr('class', 'mvp');
+        if (c.mvpLabel) s.append('text').attr('x', X(p[0]) - 12).attr('y', Y(p[1]) + (c.mvpDy || 5)).attr('text-anchor', 'end').attr('class', 'mlab').text(c.mvpLabel);
+      }
+    });
+    (st.marks || []).forEach(m => {
+      s.append('circle').attr('cx', X(m.x)).attr('cy', Y(m.y)).attr('r', 7).attr('class', 'mk ' + (m.cls || ''));
+      if (m.label) s.append('text').attr('x', X(m.x) + (m.dx || 12)).attr('y', Y(m.y) + (m.dy || 5)).attr('text-anchor', m.anchor || 'start').attr('class', 'mlab ' + (m.cls || '')).text(m.label);
+    });
+    if (st.gap) { const [x, y1, y2] = st.gap; s.append('line').attr('x1', X(x) + 22).attr('x2', X(x) + 22).attr('y1', Y(y1) - 4).attr('y2', Y(y2) + 4).attr('class', 'gap'); s.append('text').attr('x', X(x) + 32).attr('y', (Y(y1) + Y(y2)) / 2 + 5).attr('class', 'mlab good').text(st.gapLabel); }
+    [['A', sa, ea, 'A 주식형 100%', -12, -12, 'end'], ['B', sb, eb, 'B 채권형 100%', 12, 24, 'start']].forEach(([kk, x, y, t, dx, dy, an]) => {
+      s.append('rect').attr('x', X(x) - 7).attr('y', Y(y) - 7).attr('width', 14).attr('height', 14).attr('class', 'asset ' + (kk === 'A' ? 'c1' : 'c2'));
+      s.append('text').attr('x', X(x) + dx).attr('y', Y(y) + dy).attr('text-anchor', an).attr('class', 'mlab').text(t);
+    });
+    (st.nums || []).forEach(([x, y], i) => { s.append('circle').attr('cx', X(x)).attr('cy', Y(y)).attr('r', 13).attr('class', 'nmk'); s.append('text').attr('x', X(x)).attr('y', Y(y) + 5).attr('text-anchor', 'middle').attr('class', 'nmt').text(i + 1); });
+    if (st.point) { const p = at(st.point.w, st.point.rho); s.append('circle').attr('cx', X(p[0])).attr('cy', Y(p[1])).attr('r', 9).attr('class', 'cur'); s.append('text').attr('x', X(p[0]) + 14).attr('y', Y(p[1]) - 10).attr('class', 'mlab strong').text('지금 비중'); }
+    return { el, X, Y };
+  }
+
+  function tree(el) {
+    const s = svg(el, 780, 400, 'tree');
+    const root = { x: 10, y: 150, w: 250, h: 96 };
+    const kids = ['N개 자산과 공분산 행렬', '무위험자산·자본배분선·샤프 비율', '리밸런싱: 비중 되돌리기', '위기 때 상관이 오르는 현상', '체계적 위험과 베타(CAPM)'];
+    kids.forEach((t, i) => {
+      const y = 12 + i * 78, x = 400;
+      s.append('path').attr('d', `M${root.x + root.w},${root.y + root.h / 2} C330,${root.y + root.h / 2} 330,${y + 27} ${x},${y + 27}`).attr('class', 'link');
+      s.append('rect').attr('x', x).attr('y', y).attr('width', 370).attr('height', 54).attr('class', 'tbox');
+      s.append('text').attr('x', x + 18).attr('y', y + 33).attr('class', 'tlab').text(t);
+    });
+    s.append('rect').attr('x', root.x).attr('y', root.y).attr('width', root.w).attr('height', root.h).attr('class', 'troot');
+    s.append('text').attr('x', root.x + 18).attr('y', root.y + 40).attr('class', 'tlab strong').text('이번 수업');
+    s.append('text').attr('x', root.x + 18).attr('y', root.y + 70).attr('class', 'tlab').text('두 자산의 분산·최소분산·경계');
+    return { el };
+  }
+  return { pair, sd, corr, sig, wmin, f1, f2, bars, scatter, square, plane, tree, AS };
+})();
+
+const RHO_LABEL = v => (v < 0 ? '−' : '') + Math.abs(v);
+const box = (w, cls) => { const el = document.createElement('div'); el.style.width = w + 'px'; el.style.maxWidth = '100%'; if (cls) el.className = cls; return el; };
+function staged(id, stages, nums) {
+  return () => {
+    const el = box(660);
+    let cur = -1;
+    const draw = t => { const k = stages.reduce((a, s, i) => (t >= s.at ? i : a), 0); if (k !== cur) { cur = k; F.plane(el, Object.assign({}, stages[k].st, { nums: nums.slice(0, k + 1) })); } };
+    draw(0);
+    LTT.clock(el, draw, { dur: stages[stages.length - 1].at + 1200, id });
+    return el;
+  };
+}
+const MINI = {
+  rho() {
+    return [1, 0, -1].map(r => {
+      const d = F.pair(24, r, 3), c = v => Math.max(-38, Math.min(38, v * 0.6)), X = v => 45 + c(v), Y = v => 45 - c(v);
+      return `<svg viewBox="0 0 90 112" class="fig" style="width:90px"><rect x="2" y="2" width="86" height="86" fill="none" stroke="var(--ltt-line-2)"/>${d.a.map((v, i) => `<circle cx="${X(v - 5).toFixed(1)}" cy="${Y(d.b[i] - 5).toFixed(1)}" r="3" fill="var(--ltt-c1)"/>`).join('')}<text x="45" y="108" text-anchor="middle" style="font-size:15px">ρ = ${RHO_LABEL(r)}</text></svg>`;
+    }).join(' ');
+  },
+  variance: `<svg viewBox="0 0 200 130" class="fig" style="width:200px"><rect x="40" y="20" width="100" height="100" fill="var(--ltt-c1)" fill-opacity=".55" stroke="var(--ltt-ink)"/><text x="90" y="76" text-anchor="middle" style="font-size:18px;font-family:var(--ltt-mono)">400</text><text x="90" y="14" text-anchor="middle" style="font-size:15px">σ = 20</text><text x="146" y="76" style="font-size:15px">σ² = 넓이</text></svg>`,
+  weight: `<svg viewBox="0 0 220 70" class="fig" style="width:220px"><rect x="0" y="10" width="110" height="34" fill="var(--ltt-c1)" fill-opacity=".7"/><rect x="110" y="10" width="110" height="34" fill="var(--ltt-c2)" fill-opacity=".7"/><text x="55" y="64" text-anchor="middle" style="font-size:15px">w_A = 0.5</text><text x="165" y="64" text-anchor="middle" style="font-size:15px">w_B = 0.5</text></svg>`
+};
+const SRC = ['Markowitz (1952) “Portfolio Selection”, Journal of Finance 7(1)', 'Bodie·Kane·Marcus, Investments, 최적 위험 포트폴리오 장'];
+
+LTT.deck({
+  title: '두 자산을 섞으면 위험은 얼마나 줄까',
+  theme: 'ledger',
+  scenes: [
+    {
+      type: 'hook', art: 'scale', pre: '두 자산 {{포트폴리오}} · diversification',
+      text: '{{위험}} 20%짜리 둘을 반반 섞으면, 위험은 몇 %일까',
+      sub: '평균({{기대수익률}})과 {{표준편차}}만 알면 숫자로 답할 수 있다. 끝에는 내 {{비중}}을 정하는 네 단계가 남는다.'
     },
-    scenes: [
-      { type: "hook", art: "chart", kicker: "{{포트폴리오}} 비중 정하기",
-        pre: "흔들림이 20%인 자산 둘을 반반 섞으면",
-        text: "여전히 <u>20%</u>만큼 흔들릴까?",
-        sub: "결과를 정하는 것은 두 자산이 '얼마나 같이 움직이나'다. 이 수업을 마치면 섞을 자산을 고를 때 무엇을 물어야 하는지, 섞어도 남는 위험이 무엇인지 말할 수 있다. 투자 조언이 아니라 계산 예시다." },
+    {
+      type: 'predict', title: '먼저 짐작해 보자',
+      question: 'A와 B는 {{위험}}이 20%로 같고 서로 관계없이 움직인다. 반반 섞은 묶음의 위험은 몇 %일까?',
+      visual: LTT.facts([
+        { icon: 'chart', value: '20%', label: 'A의 위험(표준편차)' },
+        { icon: 'chart', value: '20%', label: 'B의 위험(표준편차)' },
+        { icon: 'scale', value: '50 : 50', label: '섞는 비중' },
+        { icon: 'dice', value: '따로', label: '한쪽 결과가 다른 쪽을 알려 주지 않는다' }]),
+      choices: [
+        { id: 'up', text: '20%보다 커진다' },
+        { id: 'same', text: '20% 그대로다' },
+        { id: 'down', text: '약 14%로 줄어든다' },
+        { id: 'zero', text: '0%가 된다' }],
+      answer: 'down',
+      why: '엇갈린 기간에는 한쪽 손실을 다른 쪽 이익이 메워 반반 묶음이 평균 근처에 머문다. 20% 그대로인 경우는 두 자산이 늘 똑같이 움직일 때뿐이다. 다음 장면에서 막대로 확인한다.'
+    },
+    {
+      type: 'figure',
+      title: '엇갈린 기간에는 반반 묶음이 평균 쪽으로 모인다',
+      sub: '세 줄은 같은 12개 기간이다. 반반 줄의 막대 = A 막대와 B 막대의 평균. σ = {{표준편차}}(위험).',
+      figure: () => { const el = box(860); const b = F.bars(el, { rho: 0 }); LTT.clock(el, b.draw, { dur: 4000, id: 'cancel' }); return el; },
+      caption: 'A·B는 각각 σ 20%. 서로 관계없이 움직이게 만든 가상 수익률이라 반반 묶음은 σ 14.1%다.',
+      takeaway: '위험이 같은 두 자산도 따로 움직이면 반반 묶음의 위험은 20%가 아니라 약 14%다.',
+      recall: '위험 20%인 두 자산을 반반 섞어도 위험이 20% 그대로인 경우는 언제인가?',
+      sources: SRC
+    },
+    {
+      type: 'terms', title: '세 가지 말로 이 현상을 계산한다',
+      terms: [
+        { key: '상관계수', word: '상관계수 ρ', en: 'correlation', icon: 'link', visual: MINI.rho(), plain: '두 자산이 같은 방향으로 움직이는 정도. +1이면 늘 같이, 0이면 따로, −1이면 늘 반대로.', example: '앞 장면의 A와 B는 ρ = 0이다.' },
+        { key: '분산', word: '분산 σ²', en: 'variance', icon: 'layers', visual: MINI.variance, plain: '표준편차의 제곱. 포트폴리오 계산은 분산으로 하고 마지막에 √를 씌운다.', example: '위험 20% → 분산 400, 분산 200 → 위험 √200 ≈ 14.1%' },
+        { key: '비중', word: '비중 w', en: 'weight', icon: 'scale', visual: MINI.weight, plain: '전체 금액 중 한 자산에 넣은 몫. w_A + w_B = 1.', example: '반반이면 w_A = w_B = 0.5' }]
+    },
+    {
+      title: '같이 움직일수록 섞어도 위험이 덜 준다',
+      sub: '손잡이로 {{상관계수}} ρ를 바꾸면 왼쪽 점구름 모양과 오른쪽 반반 묶음의 위험이 함께 바뀐다. 두 자산의 위험은 늘 20%.',
+      mount(body) {
+        body.innerHTML = `<div class="two"><div id="sc5"></div><div class="side">
+          <div class="ltt-param"><span>상관계수 ρ</span><div id="rho5"></div></div>
+          <div class="ltt-hero" id="h5"></div><p class="cap">반반 묶음의 위험(표준편차). 검은 눈금 = 한 자산만 담았을 때의 20%.</p>
+          <div class="meter"><i id="m5"></i><span class="ref" style="left:100%"></span></div>
+          <p class="ltt-basis">점이 오른쪽 위로 기운 띠일수록 ρ가 +1에 가깝다. ρ = −1이면 한쪽이 오를 때 다른 쪽이 정확히 같은 만큼 내린다.</p></div></div>`;
+        LTT.sweep({
+          params: { rho5: { kind: 'steps', stops: [-1, -0.5, 0, 0.5, 1], value: 0.5, stopLabel: RHO_LABEL, fmt: v => 'ρ = ' + RHO_LABEL(v), label: '상관계수' } },
+          render: v => {
+            const r = F.scatter(body.querySelector('#sc5'), v.rho5);
+            body.querySelector('#h5').innerHTML = F.f1(r.smix) + '<small>%</small>';
+            body.querySelector('#m5').style.width = (r.smix / 20 * 100) + '%';
+            LTT.record('sweep', { scene: 'rho-scatter', rho: v.rho5, sigma: +F.f1(r.smix) });
+          }
+        });
+      },
+      takeaway: '상관계수 ρ가 낮을수록 반반 묶음의 위험이 더 줄어든다. ρ = 1일 때만 그대로 20%다.',
+      recall: 'ρ를 +1에서 −1로 낮추면 반반 묶음의 위험은 어떻게 변하나?'
+    },
+    {
+      title: '포트폴리오 분산은 네 칸의 넓이다',
+      sub: '한 변 = w_Aσ_A + w_Bσ_B인 정사각형을 네 칸으로 나눈다. 대각선 두 칸은 그대로, 나머지 두 칸은 ρ만큼만 채워진다. A·B 모두 위험 20%, 반반.',
+      mount(body) {
+        body.innerHTML = `<div class="two"><div class="sqbox" id="sq6"></div><div class="side">
+          <div class="ltt-param"><span>상관계수 ρ</span><div id="rho6"></div></div>
+          <div class="tex" data-tex="\\sigma_p^2 = w_A^2\\sigma_A^2 + w_B^2\\sigma_B^2 + 2\\,w_A w_B\\,\\rho\\,\\sigma_A\\sigma_B"></div>
+          <div class="readout" id="r6"></div>
+          <div class="legend"><span class="lA">A 칸 w_A²σ_A²</span><span class="lB">B 칸 w_B²σ_B²</span><span class="lX">겹친 칸: ρ만큼 더함</span><span class="lN">ρ &lt; 0: 그만큼 뺌</span><span class="lS">비어 있는 몫</span></div></div></div>`;
+        LTT.math(body);
+        LTT.sweep({
+          params: { rho6: { kind: 'steps', stops: [-1, -0.5, 0, 0.5, 1], value: 0, stopLabel: RHO_LABEL, fmt: v => 'ρ = ' + RHO_LABEL(v), label: '상관계수' } },
+          render: v => {
+            const q = F.square(body.querySelector('#sq6'), { a: 10, b: 10, rho: v.rho6 });
+            const c = q.cells, sgn = x => (x < 0 ? '− ' : '+ ') + Math.abs(Math.round(x));
+            body.querySelector('#r6').innerHTML = `넓이 합 = 100 + 100 ${sgn(c[2])} ${sgn(c[3])} = ${Math.round(q.total)}<br>σ_p = √${Math.round(q.total)} = <b>${F.f1(q.sigma)}%</b>`;
+            LTT.record('sweep', { scene: 'area-square', rho: v.rho6, sigma: +F.f1(q.sigma) });
+          }
+        });
+      },
+      tex: '\\sigma_p^2 = w_A^2\\sigma_A^2 + w_B^2\\sigma_B^2 + 2\\,w_A w_B\\,\\rho\\,\\sigma_A\\sigma_B',
+      basis: '두 자산 포트폴리오 분산 공식(Markowitz 1952). 겹친 칸 넓이 ρσ_Aσ_B를 {{공분산}}이라 부른다.',
+      takeaway: '분산 = 자기 칸 둘 + 겹친 칸 둘. ρ < 1이면 겹친 칸이 깎여 위험이 준다.',
+      recall: '포트폴리오 분산 공식의 세 항은 각각 무엇이고, ρ는 어느 항에 들어가나?'
+    },
+    {
+      type: 'predict', title: '위험이 다른 두 자산이면?',
+      question: '주식형 A는 기대수익률도 위험도 크다. 채권형 B만 100% 담는 것보다 위험이 더 낮은 A·B 조합이 있을까?',
+      visual: LTT.facts([
+        { icon: 'trend', value: '8% · 20%', label: 'A 주식형: 기대수익률 · 위험' },
+        { icon: 'shield-check', value: '3% · 10%', label: 'B 채권형: 기대수익률 · 위험' },
+        { icon: 'link', value: 'ρ = 0.2', label: '둘의 상관계수' }]),
+      choices: [
+        { id: 'none', text: '없다 — 위험이 낮은 B 100%가 가장 낮다' },
+        { id: 'little', text: '있다 — A를 조금 섞으면 B 100%보다 낮아진다' },
+        { id: 'half', text: '있다 — 반반일 때 가장 낮다' }],
+      answer: 'little',
+      why: 'A를 약 14% 섞으면 위험이 9.56%로 B 100%(10%)보다 낮다. A 칸이 조금 늘지만 B 칸이 줄어드는 몫이 더 크고, ρ가 낮아 겹친 칸이 작다. 반반이면 12.0%.'
+    },
+    {
+      title: '비중을 옮기면 점이 왼쪽으로 휜 곡선을 따라간다',
+      sub: '{{비중}} w_A를 움직이면 오른쪽 네 칸 넓이가 바뀌고, 그 √가 왼쪽 평면의 가로 위치(위험)가 된다.',
+      mount(body) {
+        body.innerHTML = `<div class="two wide"><div id="pl8"></div><div class="side">
+          <div class="params">
+            <div class="ltt-param"><span>A 주식형 비중</span><input type="range" id="w8" min="0" max="100" step="1" value="50"><b id="w8-v" class="v"></b></div>
+            <div class="ltt-param"><span>상관계수 ρ</span><div id="rho8"></div></div>
+          </div>
+          <div class="sqbox" id="sq8" style="max-width:300px"></div>
+          <div class="readout" id="r8"></div>
+          <div id="g8"></div></div></div>`;
+        LTT.sweep({
+          params: {
+            w8: { kind: 'range', map: x => +x, fmt: v => v + '%', label: 'A 비중' },
+            rho8: { kind: 'steps', stops: [-0.5, 0, 0.2, 0.5, 1], value: 0.2, stopLabel: RHO_LABEL, fmt: v => 'ρ = ' + RHO_LABEL(v), label: '상관계수' }
+          },
+          render: v => {
+            const w = v.w8 / 100, r = v.rho8;
+            F.plane(body.querySelector('#pl8'), { curves: [{ rho: r }], point: { w, rho: r } });
+            const q = F.square(body.querySelector('#sq8'), { a: w * 20, b: (1 - w) * 10, rho: r, dims: false });
+            const c = q.cells, n = x => (Math.round(x * 10) / 10).toString();
+            body.querySelector('#r8').innerHTML = `넓이 ${n(c[0])} + ${n(c[1])} ${c[2] < 0 ? '−' : '+'} ${n(Math.abs(c[2]))} ${c[3] < 0 ? '−' : '+'} ${n(Math.abs(c[3]))} = ${n(q.total)}<br>위험 σ_p = <b>${F.f2(q.sigma)}%</b> · 기대수익률 <b>${F.f2(w * 8 + (1 - w) * 3)}%</b>`;
+            LTT.record('sweep', { scene: 'weight-plane', w: v.w8, rho: r, sigma: +F.f2(q.sigma) });
+          },
+          goal: { el: body.querySelector('#g8'), text: 'ρ = 0.2에서 위험이 가장 낮은 A 비중을 찾아라', target: '곡선의 가장 왼쪽 점', check: v => v.rho8 === 0.2 && Math.abs(v.w8 - 14) <= 1 }
+        });
+      },
+      takeaway: '위험이 낮은 자산 100%보다 다른 자산을 조금 섞은 쪽이 위험이 더 낮을 수 있다(ρ = 0.2면 A 약 14%에서 9.56%).',
+      recall: '채권형 100%보다 주식형을 조금 섞은 쪽이 위험이 더 낮아지는 까닭을 네 칸 넓이로 설명하면?'
+    },
+    {
+      type: 'figure',
+      title: '최소분산점 아래 가지는 고를 이유가 없다',
+      sub: '가로 = 위험, 세로 = 기대수익률. 곡선 위 점 하나가 A·B 비중 하나다(ρ = 0.2). 번호 순서대로 읽는다.',
+      figure: staged('frontier', [
+        { at: 0, st: { curves: [{ rho: 0.2 }] } },
+        { at: 1500, st: { curves: [{ rho: 0.2, mvp: true, mvpLabel: '최소분산 9.56%' }] } },
+        { at: 3000, st: { curves: [{ rho: 0.2, mvp: true, mvpLabel: '최소분산 9.56%' }], marks: [{ x: 10, y: 3 + 5 * 2 / 7, cls: 'good', label: 'A 28.6% · 기대 4.43%', dy: -12 }], gap: [10, 3, 3 + 5 * 2 / 7], gapLabel: '같은 위험, +1.43%p' } },
+        { at: 4500, st: { curves: [{ rho: 0.2, frontier: true, mvp: true, mvpLabel: '최소분산 9.56%' }], marks: [{ x: 10, y: 3 + 5 * 2 / 7, cls: 'good', label: 'A 28.6% · 기대 4.43%', dy: -12 }], gap: [10, 3, 3 + 5 * 2 / 7], gapLabel: '같은 위험, +1.43%p' } }], [[14.2, 5.7], [3.7, 3.71], [17.2, 4.62], [16.6, 7.6]]),
+      points: [
+        { text: 'A 비중을 0%→100%로 옮기며 찍은 곡선. 아래 끝 B 100%, 위 끝 A 100%.' },
+        { text: '가장 왼쪽 점이 {{최소분산 포트폴리오}}: A 14.3%, 위험 9.56%, 기대 3.71%.' },
+        { text: '위험 10%인 점이 둘: B 100%(기대 3.0%)와 A 28.6%(기대 4.43%). 같은 위험이면 위쪽이 1.43%p 더 번다.' },
+        { text: '그래서 최소분산점 아래 가지(점선)는 고르지 않는다. 위로 뻗은 굵은 가지가 {{효율적 경계}}다.' }],
+      takeaway: '최소분산점보다 위험 낮은 자산을 더 담으면 위험도 수익도 손해다. 고를 곳은 그 위 가지(효율적 경계)뿐이다.',
+      recall: '최소분산점 아래 가지의 비중을 고르지 않는 까닭은?'
+    },
+    {
+      type: 'figure',
+      title: 'ρ가 낮을수록 곡선이 더 왼쪽으로 휜다',
+      sub: '같은 두 자산에서 ρ만 바꿨다. ρ ≥ σ_B/σ_A = 0.5면 B 100%보다 왼쪽으로 가지 못한다.',
+      figure: staged('curves', [
+        { at: 0, st: { curves: [{ rho: 1, cls: 'r1', label: 'ρ = 1', labelAt: 0.8 }] } },
+        { at: 1500, st: { curves: [{ rho: 1, cls: 'r1', label: 'ρ = 1', labelAt: 0.8 }, { rho: 0.2, cls: 'r2', label: 'ρ = 0.2', labelAt: 0.5, dx: 8, mvp: true, mvpLabel: '9.56%', mvpDy: -12 }] } },
+        { at: 3000, st: { curves: [{ rho: 1, cls: 'r1', label: 'ρ = 1', labelAt: 0.8 }, { rho: 0.2, cls: 'r2', label: 'ρ = 0.2', labelAt: 0.5, dx: 8, mvp: true, mvpLabel: '9.56%', mvpDy: -12 }, { rho: -0.5, cls: 'r3', label: 'ρ = −0.5', labelAt: 0.5, dx: -12, anchor: 'end', mvp: true, mvpLabel: '6.55%' }] } }], [[14.6, 4.4], [10.6, 3.8], [3.6, 4.43]]),
+      points: [
+        { text: 'ρ = 1: 두 점을 잇는 직선. 위험도 비중대로의 평균이라 섞어서 줄지 않는다.' },
+        { text: 'ρ = 0.2: 왼쪽으로 휜다. 최소 위험 9.56%.' },
+        { text: 'ρ = −0.5: 더 휜다. 최소 위험 6.55%(A 28.6%).' }],
+      takeaway: 'ρ가 낮을수록 같은 기대수익률을 더 낮은 위험으로 얻는다. 섞는 상대는 위험보다 상관으로 고른다.',
+      recall: '같은 두 자산에서 ρ만 낮아지면 위험-수익 곡선은 어떻게 바뀌나?'
+    },
+    {
+      type: 'explain', form: 'cards', title: '내 비중을 정하는 네 단계',
+      steps: [
+        { icon: 'ruler', title: '① 두 숫자를 추정한다', text: '각 자산의 σ(과거 연 수익률의 표준편차)와 둘 사이 ρ. ETF·지수의 과거 5–10년 값이 출발점이다.' },
+        { icon: 'target', title: '② 최소분산 비중을 계산한다', text: 'w_A* = (σ_B² − ρσ_Aσ_B) ÷ (σ_A² + σ_B² − 2ρσ_Aσ_B). 이보다 A를 적게 담으면 위험도 수익도 손해다.' },
+        { icon: 'trend', title: '③ 경계 위에서 감당할 위험을 고른다', text: '최소분산점에서 A를 늘릴수록 기대수익과 위험이 함께 오른다. 기대보다 2σ 낮은 해(정규분포면 약 44년에 한 번)를 견딜 수 있는 위험까지만.' },
+        { icon: 'alert', title: '④ ρ가 움직여도 버티는지 본다', text: '주식·채권 상관은 2000–2020년 대체로 음수였다가 2022년 양수로 바뀌었다. ρ를 0.5 높여 다시 계산해도 받아들일 비중인지 확인한다.' }],
+      takeaway: '비중은 σ·ρ 추정 → 최소분산 비중 → 경계 위 위험 고르기 → ρ가 바뀌는 경우 점검 순서로 정한다.',
+      recall: '내 비중을 정할 때 필요한 입력 세 가지와 마지막 점검은?',
+      ask: '내가 가진 두 ETF의 과거 σ와 ρ를 구해, 최소분산 비중과 ρ가 0.5 오를 때의 비중을 계산해 줄 수 있어?',
+      sources: ['Brixton et al. (2023) “A Changing Stock–Bond Correlation: Drivers and Implications”, Journal of Portfolio Management'].concat(SRC)
+    },
+    {
+      type: 'figure', title: '여기서 이어 배울 수 있는 것',
+      figure: () => { const el = box(860); F.tree(el); return el; },
+      caption: '두 자산에서 익힌 넓이 그림은 N개 자산에서는 N×N 칸(공분산 행렬)이 된다.'
+    },
+    { type: 'summary', title: '한 장 정리' },
+    {
+      type: 'overview', title: '한 장 그림: 섞기 → 최소분산점 → 효율적 경계',
+      figure: () => { const el = box(760); F.plane(el, { curves: [{ rho: 1, cls: 'r1', label: 'ρ = 1', labelAt: 0.8 }, { rho: 0.2, frontier: true, mvp: true, mvpLabel: '최소분산 9.56%' }], nums: [[14.6, 4.4], [13.2, 5.5], [3.7, 3.71], [16.6, 7.6]] }); return el; },
+      points: [
+        { text: 'ρ = 1이면 직선: 섞어도 위험이 비중대로의 평균이다.' },
+        { text: 'ρ < 1이면 겹친 칸이 깎여 곡선이 왼쪽으로 휜다(분산 = 네 칸 넓이).' },
+        { text: '최소분산점: B 100%보다 위험이 낮다.' },
+        { text: '굵은 효율적 경계 위에서 감당할 위험을 고른다. 점선 아래 가지는 고르지 않는다.' }]
+    },
+    {
+      type: 'keywords', title: '더 찾아볼 때 쓸 말',
+      terms: [
+        { ko: '분산 투자', en: 'diversification' }, { ko: '상관계수', en: 'correlation coefficient' },
+        { ko: '포트폴리오 분산', en: 'portfolio variance' }, { ko: '최소분산 포트폴리오', en: 'minimum variance portfolio' },
+        { ko: '효율적 경계', en: 'efficient frontier' }, { ko: '현대 포트폴리오 이론', en: 'modern portfolio theory' }],
+      queries: ['two asset portfolio variance correlation', 'minimum variance portfolio weight formula', 'stock bond correlation regime change'],
+      neighbors: [
+        { term: '샤프 비율', diff: '위험 한 단위당 초과수익. 경계 위 어느 점을 고를지 무위험자산과 함께 정한다.' },
+        { term: '리밸런싱', diff: '시장이 움직여 바뀐 비중을 목표 비중으로 되돌리는 일.' }]
+    }
+  ]
+});
 
-      { type: "terms", title: "먼저, 이 수업에서 쓰는 말", en: "Terms",
-        terms: [
-          { key: "포트폴리오", en: "portfolio", icon: "layers", visual: TERM_PORTFOLIO, plain: "여러 자산을 정한 비중으로 함께 담은 묶음.", example: "주식 ETF 50% + 채권 ETF 50%." },
-          { key: "변동성", en: "volatility", icon: "trend", visual: TERM_VOL, plain: "수익률이 평균에서 얼마나 크게 흔들리는지를 표준편차로 잰 값. 클수록 위험하다.", example: "연 변동성 20%면 한 해 수익률이 평균에서 ±20%쯤 흔들리는 게 보통이다." },
-          { key: "상관계수", en: "correlation ρ", icon: "link", visual: TERM_CORR, plain: "두 자산이 같은 방향으로 움직이는 정도. 1이면 늘 같이, 0이면 무관, −1이면 늘 반대로.", example: "같은 지수를 따르는 ETF 둘은 거의 1." },
-        ] },
-
-      { type: "figure", kicker: "원리", title: "따로 흔들리면 서로 상쇄한다", en: "Why it works",
-        figure: waveFigure,
-        caption: "가로는 시간, 세로는 평균에서 벗어난 정도. 회색·주황 선이 두 자산, 굵은 선이 반반 섞은 결과다.",
-        tex: "\\sigma_p^2=w^2\\sigma_1^2+(1-w)^2\\sigma_2^2+2w(1-w)\\rho\\,\\sigma_1\\sigma_2\\quad(w\\text{: 비중, }\\sigma\\text{: 변동성, }\\rho\\text{: 상관계수})",
-        takeaway: "섞어서 줄어드는 위험은 두 자산이 엇갈리는 만큼이다.",
-        recall: "변동성 20%짜리 두 자산을 반반 섞었을 때, 섞은 결과가 덜 흔들리게 되는 까닭은 무엇일까?" },
-
-      { type: "predict", kicker: "짐작해 보기", title: "반반 섞으면 변동성은 얼마가 될까?",
-        sub: "변동성이 같은 두 자산을 50:50으로 담는다. 둘은 약간만 같이 움직인다.",
-        visual: () => LTT.facts([
-          { icon: "trend", value: "20% · 20%", label: "두 자산의 변동성" },
-          { icon: "link", value: "0.3", label: "상관계수 (약간 같이 움직임)" },
-          { icon: "layers", value: "50 : 50", label: "비중" },
-        ]),
-        question: "ρ=0.3, 변동성 각 20%인 두 자산을 50:50으로 섞은 포트폴리오 변동성(%)",
-        choices: [{ id: "20", text: "20% 그대로" }, { id: "16", text: "약 16%" }, { id: "10", text: "약 10% (절반)" }, { id: "0", text: "거의 0%" }],
-        answer: "16",
-        why: `<b>${pc(vol(0.5, 0.3))}</b>. 섞기만으로 약 4%p 줄었다. 분산 = 0.25×0.04 + 0.25×0.04 + 2×0.25×0.3×0.04 = 0.026, √0.026 ≈ 16.1%. 완전히 따로 움직이지 않아 절반까지는 못 간다. 칸 4개 = 변동성 1%p. <span class="ltt-tag">모델로 계산한 예시</span>`,
-        answerVisual(n) {
-          const u = document.createElement("div");
-          n.appendChild(u);
-          const grid = LTT.units(u, 100, 25);
-          u.style.maxWidth = "520px";
-          n.insertAdjacentHTML("beforeend", `<p class="ltt-basis">연한 청록 80칸 = 섞기 전 20% · 진한 청록 = 섞은 뒤 · 빨강 = 줄어든 만큼</p>`);
-          grid.paint(80, "guess");
-          setTimeout(() => grid.paint(Math.round(vol(0.5, 0.3) * 4), "on", 80 - Math.round(vol(0.5, 0.3) * 4)), 400);
-        } },
-
-      { type: "compare", form: "table", kicker: "상관에 따라", title: "같은 20%짜리 둘도 짝에 따라 다르다", layout: "stack",
-        narration: "네 행 모두 20%짜리 두 자산을 반반 섞었고, 상관계수만 다르다. 봉우리가 어긋날수록 ρ가 낮다. 굵은 청록 물결이 얼마나 납작해지는지 보고 판정을 열어 보자.",
-        revealLabel: "변동성 보기",
-        items: [
-          rhoItem("ρ = 1 · 같은 지수 ETF 둘", 1, "bad", "늘 같이 움직여 상쇄가 없다."),
-          rhoItem("ρ = 0.3", 0.3, "warn", "앞 장면의 조건."),
-          rhoItem("ρ = 0 · 서로 무관", 0, "good", "셋째 항이 0 → 분산 절반, 20% ÷ √2."),
-          rhoItem("ρ = −1 · 이론상", -1, "good", "완전 상쇄. 현실엔 드물다."),
-        ],
-        basis: "ρ는 계산용 가정, 물결은 실제 경로가 아닌 도식이다.",
-        takeaway: "섞을 자산을 고를 때는 수익률보다 '얼마나 같이 움직이나'를 먼저 본다.",
-        recall: "같은 20%짜리 두 자산을 반반 섞었는데 결과가 20%부터 0%까지 갈렸다. 무엇이 그 차이를 만들었고, 그래서 섞을 자산을 고를 때 무엇을 먼저 확인해야 할까?",
-        ask: "\"이 두 자산의 과거 상관계수는 얼마인가요?\"" },
-
-      { kicker: "개수를 늘리면", title: "자산을 계속 더해도 바닥이 있다", en: "Diversification limit", layout: "full",
-        narration: [
-          "처음 몇 개에서 크게 줄고, 그 뒤로는 거의 줄지 않는다.",
-          "N이 커지면 따로 흔들리는 1/N 항은 사라지고 같이 움직이는 ρ 항만 남는다. 이 바닥이 {{체계적 위험}}이다.",
-        ],
-        mount: volBars("같은 비중으로 N개를 섞은 포트폴리오의 변동성", "모든 자산 변동성 20%, 서로 상관계수 0.3", [["N = 1", S], ["N = 2", vol(0.5, 0.3)], ["N = 10", volN(10, 0.3)], ["N → ∞ (바닥)", floorVol(0.3), "floor"]]),
-        tex: "\\sigma_N=\\sigma\\sqrt{\\tfrac{1}{N}+\\left(1-\\tfrac{1}{N}\\right)\\rho}\\;\\to\\;\\sqrt{\\rho}\\,\\sigma",
-        basis: "모델로 계산한 예시. 축 끝 = 20%(섞기 전).",
-        takeaway: "분산투자로 줄일 수 있는 위험에는 바닥이 있다.",
-        recall: "상관계수 0.3인 자산을 10개, 100개로 계속 늘려도 변동성이 0에 가까워지지 않는 까닭은 무엇일까?" },
-
-      { kicker: "주의", title: "위기 때는 같이 떨어져 효과가 줄어든다", en: "Correlation in crises",
-        narration: [
-          "위기 때는 자산들이 함께 떨어져 상관계수가 평소보다 오르는 경향이 보고되어 왔다. 상관계수만 0.3에서 0.8로 바꿔 계산해 보면 반반 섞은 효과가 거의 사라진다.",
-          "그래서 평소 데이터로 잰 상관계수만 믿고 '충분히 분산됐다'고 판단하면 가장 필요한 때 위험을 과소평가한다.",
-        ],
-        mount: volBars("평시와 위기, 같은 포트폴리오의 변동성", "상관계수만 0.3에서 0.8로 바꿔 계산", [["평시 ρ=0.3, 50:50", vol(0.5, 0.3)], ["위기 ρ=0.8, 50:50", vol(0.5, 0.8), "bad"], ["위기 ρ=0.8, N→∞ 바닥", floorVol(0.8), "floor"]]),
-        basis: "모델로 계산한 예시. 위기 때 상관이 얼마나 오르는지는 이 페이지에서 검증하지 않았다(불확실).",
-        takeaway: "분산 효과는 위기 때 가장 약해진다.",
-        recall: "평소 데이터로 잰 상관계수만 믿고 '충분히 분산됐다'고 판단하면, 언제 어떤 일이 생길까?" },
-
-      { type: "statement", title: "분산 효과는 <em>가장 필요할 때</em> 가장 약해진다.",
-        sub: `평시 상관계수 0.3에서 ${pc(vol(0.5, 0.3))}였던 반반 포트폴리오가, 0.8에서는 ${pc(vol(0.5, 0.8))}로 섞기 전 20%에 거의 돌아간다.` },
-
-      { type: "summary", title: "자산을 섞기 전에 물어볼 것", en: "Recap" },
-
-      { type: "overview", title: "섞는 효과는 엇갈림에서 나오고, 바닥이 있고, 위기엔 줄어든다", figure: overviewFigure,
-        caption: "실선은 두 자산을 반반 섞은 변동성, 점선 곡선은 아무리 많이 섞어도 남는 바닥이다. 번호는 앞 장면의 정리 순서이고, 값은 변동성 20%짜리 자산으로 계산한 예시다." },
-
-      { type: "keywords", title: "다음에 비슷한 걸 만나면",
-        terms: [{ ko: "분산투자와 상관계수", en: "diversification, correlation" }, { ko: "체계적 위험", en: "systematic risk" }],
-        signals: ["\"여러 종목에 나눠 담았으니 안전하다\"는 말을 들을 때", "비슷해 보이는 펀드·ETF 두 개를 같이 담으려 할 때", "위기 때 분산 효과가 사라졌다는 뉴스를 볼 때"],
-        queries: ["portfolio variance two assets correlation", "diversification limit systematic risk", "correlation breakdown in crises", "efficient frontier two asset"],
-        neighbors: [
-          { term: "리밸런싱", diff: "비중을 다시 맞추는 일. 상관이 아니라 비중이 흐트러진 것을 다룬다." },
-          { term: "베타", diff: "시장 전체와의 민감도. 두 자산끼리의 상관계수와 다르다." },
-        ] },
-    ],
-  });
+window.addEventListener('load', () => {
+  const s = F.sig;
+  LTT.expect('같은 위험 반반 σ (ρ=1)', s(0.5, 20, 20, 1), 20, { tol: 0.005 });
+  LTT.expect('같은 위험 반반 σ (ρ=0.5)', s(0.5, 20, 20, 0.5), 17.32, { tol: 0.005 });
+  LTT.expect('같은 위험 반반 σ (ρ=0)', s(0.5, 20, 20, 0), 14.14, { tol: 0.005 });
+  LTT.expect('같은 위험 반반 σ (ρ=−0.5)', s(0.5, 20, 20, -0.5), 10, { tol: 0.005 });
+  LTT.expect('같은 위험 반반 σ (ρ=−1)', s(0.5, 20, 20, -1), 0, { tol: 0.005 });
+  const d = F.pair(12, 0, 7), mix = d.a.map((v, i) => (v + d.b[i]) / 2);
+  LTT.expect('막대 데이터 A σ', F.sd(d.a), 20, { tol: 0.005 });
+  LTT.expect('막대 데이터 반반 σ', F.sd(mix), 14.14, { tol: 0.005 });
+  const p = F.pair(40, 0.5, 11);
+  LTT.expect('산점도 표본 ρ', F.corr(p.a, p.b), 0.5, { tol: 0.001 });
+  LTT.expect('주식·채권 반반 σ (ρ=0.2)', s(0.5, 20, 10, 0.2), 12.04, { tol: 0.005 });
+  LTT.expect('주식·채권 반반 분산', s(0.5, 20, 10, 0.2) ** 2, 145, { tol: 0.01 });
+  LTT.expect('최소분산 비중 (ρ=0.2)', F.wmin(20, 10, 0.2), 0.1429, { tol: 0.0005 });
+  LTT.expect('최소분산 σ (ρ=0.2)', s(F.wmin(20, 10, 0.2), 20, 10, 0.2), 9.56, { tol: 0.005 });
+  LTT.expect('최소분산 기대수익률 (ρ=0.2)', 3 + 5 * F.wmin(20, 10, 0.2), 3.71, { tol: 0.005 });
+  LTT.expect('σ=10인 다른 비중의 σ', s(2 / 7, 20, 10, 0.2), 10, { tol: 0.005 });
+  LTT.expect('σ=10인 다른 비중의 기대수익률', 3 + 5 * 2 / 7, 4.43, { tol: 0.005 });
+  LTT.expect('최소분산 σ (ρ=0)', s(F.wmin(20, 10, 0), 20, 10, 0), 8.94, { tol: 0.005 });
+  LTT.expect('최소분산 비중 (ρ=−0.5)', F.wmin(20, 10, -0.5), 0.2857, { tol: 0.0005 });
+  LTT.expect('최소분산 σ (ρ=−0.5)', s(F.wmin(20, 10, -0.5), 20, 10, -0.5), 6.55, { tol: 0.005 });
+  LTT.expect('최소분산 비중 (ρ=0.5)', F.wmin(20, 10, 0.5), 0, { tol: 1e-9 });
+  LTT.expect('목표 범위 끝 σ (w=13%)', s(0.13, 20, 10, 0.2), 9.565, { tol: 0.002 });
+});
 </script>
 </body>
 </html>

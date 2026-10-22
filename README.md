@@ -116,7 +116,7 @@ node skills/learn-to-tell/server/server.mjs
 
 서버는 127.0.0.1에만 열리고 40분 동안 요청이 없으면 스스로 종료된다. 포트는 `LTT_PORT`, 종료 대기 시간은 `LTT_IDLE_MINUTES`로 바꾼다. 같은 포트에 이미 learn-to-tell 서버가 떠 있으면 새로 띄우지 않고 그대로 종료하므로, 다른 worktree의 파일을 보려면 포트를 바꿔 띄운다.
 
-`npm run audit`은 `skills/learn-to-tell/server/audit.mjs`로 갤러리 수업마다 `?audit`을 헤드리스 Chrome에서 열어 장면별 경고를 표로 보여 준다(수업 하나는 `node skills/learn-to-tell/server/audit.mjs <lesson.html 경로>`). `tests/gallery-audit.baseline.json`은 페이지·크기별로 허용하는 경고 수의 상한이고, 테스트는 실제 건수가 그 이하인지만 본다. 갤러리 경고를 줄이면 `npm run audit:baseline`으로 상한을 내린다. 크기는 창 크기라 실제 화면은 Chrome 툴바만큼 낮고(1440×900 → 1440×813), 요약 줄에 실제 화면 크기가 찍힌다. 이 테스트는 Chrome이 없거나 `CI`가 설정된 환경에서는 건너뛴다(`LTT_AUDIT=1`로 강제, `LTT_AUDIT=0`으로 끔).
+`npm run audit`은 `skills/learn-to-tell/server/audit.mjs`로 갤러리 수업마다 `?audit`을 헤드리스 Chrome에서 열어 장면별 경고를 표로 보여 준다(수업 하나는 `node skills/learn-to-tell/server/audit.mjs <lesson.html 경로>`). `tests/gallery-audit.baseline.json`은 페이지·크기별 경고 수이고, 테스트는 실제 건수가 이와 같은지 본다. 갤러리 수업을 바꾸면 `npm run audit:baseline`으로 기준선을 다시 쓴다. `site/gallery/archived/`는 이전 갤러리를 기록으로만 남긴 것이라 점검과 테스트 대상이 아니다. 크기는 창 크기라 실제 화면은 Chrome 툴바만큼 낮고(1440×900 → 1440×813), 요약 줄에 실제 화면 크기가 찍힌다. 이 테스트는 Chrome이 없거나 `CI`가 설정된 환경에서는 건너뛴다(`LTT_AUDIT=1`로 강제, `LTT_AUDIT=0`으로 끔).
 
 ### 릴리스
 
