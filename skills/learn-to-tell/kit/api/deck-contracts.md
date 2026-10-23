@@ -16,7 +16,7 @@
 - 장면에 들어올 때와 창 크기가 바뀔 때 모든 단계의 `enter`를 한 번씩 미리 돌려 그림 높이와 자막 칸 위치를 정하므로, 단계를 넘겨도 배율과 배치가 바뀌지 않는다. 그래서 `enter`는 멱등이어야 하고(반복 재생도 마지막에서 첫 단계로 바로 간다) 기록·전역 상태를 건드리지 않아야 한다.
 - 미리 돌리는 동안 kit의 `send`(패킷 연출)는 아무것도 하지 않고, 그림 안의 CSS transition은 꺼져 끝 크기로 잰다. 직접 만든 d3 transition·`setTimeout`으로 크기를 바꾸는 그리기는 끝 크기를 알 수 없으니 `enter`에 넣지 않는다.
 - 자막 칸 높이는 가장 긴 단계 자막에 맞춰 고정되어 단계를 넘겨도 버튼이 움직이지 않는다.
-- `figure` 함수가 `{el, ...}`를 돌려주면 `enter`의 `fig`로 그 객체가 온다(같은 그림의 여러 상태). 장면에 들어올 때마다 다시 그리려면 공통 필드 `enter(body, ctx)`.
+- `figure` 함수가 `{el, ...}`를 돌려주면 `enter`의 `fig`로 그 객체가 온다(같은 그림의 여러 상태). `el`이 받은 노드이거나 그 안에 이미 있으면 다시 넣지 않고, 받은 노드 자신을 돌려줘도 오류가 아니다(steps 유무 같다). 장면에 들어올 때마다 다시 그리려면 공통 필드 `enter(body, ctx)`.
 
 ## predict `rest`·배율·`answerVisual`
 
@@ -28,6 +28,7 @@
 
 ## summary·keywords
 
+- summary 항목(카드형은 카드, recall형은 항목, `extra` 포함)이 7개 이상이면 6개씩 쪽으로 나뉜다. 장면 안 `이전 쪽`·`다음 쪽` 버튼과 "k / m"이 있고, 화면 속 쪽 넘김이 보이면 ←/→ 키가 쪽 끝에 닿을 때까지 쪽을 먼저 넘긴다. 배율은 가장 큰 쪽에 맞춰 고정되어 쪽을 넘겨도 바뀌지 않는다. 6개 이하면 쪽이 없다.
 - `recall`이 있으면 summary는 글 목록의 인출 연습이 된다. summary가 질문을 먼저 보이고 답(takeaway)은 "답 보기" 뒤에 연다. 답 칸은 열기 전에도 빈자리로 잡혀 있어 열어도 배율이 바뀌지 않는다. 공개할 때 `recall` 이벤트(`{scene, question, answer}`)를 남긴다.
 - keywords의 `next: [{term, why, from?}]`는 덱 제목을 뿌리로 한 개념 나무로 그려진다. `from`이 다른 `next` 항목의 `term`이면 그 아래 가지이고, 없거나 어느 항목과도 맞지 않거나 순환하면 뿌리 아래에 둔다(오류 없음). 항목마다 `term`과 `why`가 보인다. `terms`·`signals`·`neighbors`·`queries`는 그 옆 칸으로 그대로 그려진다.
 - keywords 뒤에 `map-related` 장면이 `/map/data.json`에서 자동으로 붙는다(이어진 개념이 없으면 없음). 직접 쓰지 않는다.
@@ -48,7 +49,7 @@
 ## 화면 확인 (`?check`·`?shot`) 세부
 
 - `?check`나 `?shot`이면 덱이 모든 장면을 그려 `#ltt-check`의 목표 판정에 넣는다(없으면 그려진 장면만). `?shot`의 `#n`은 n번 장면을 고르고, `?shot&clock=<id>&t=<ms>`는 그 clock이 든 장면을 보인다. 결과의 `scenes`는 덱 장면 수다.
-- `?shot&state=reveal#n`은 n번 predict를 `answer`를 고른 공개 상태로, compare(`reveal: false`가 아님)를 판정 공개 상태로 그린다. `?shot&state=step-<k>#n`은 n번 figure의 `steps`를 k단계(1부터)로 그린다. 모르는 값이거나 그 장면에 없는 상태면 상태 없이 그린다(오류 없음). `#ltt-check`의 `sceneList`가 장면마다 `{n, title, states}`를 담고(`map-related` 제외), `states`는 predict·compare면 `["reveal"]`, steps가 m개면 `["step-2", …, "step-m"]`, 그 밖은 `[]`이다. `audit.mjs --shots`는 `states`마다 `<slug>-<size>-sNN-reveal.png`·`-sNN-step<k>.png`를 찍는다.
+- `?shot&state=reveal#n`은 n번 predict를 `answer`를 고른 공개 상태로, compare(`reveal: false`가 아님)를 판정 공개 상태로 그린다. `?shot&state=step-<k>#n`은 n번 figure의 `steps`를 k단계(1부터)로 그린다. 모르는 값이거나 그 장면에 없는 상태면 상태 없이 그린다(오류 없음). `#ltt-check`의 `sceneList`가 장면마다 `{n, title, states}`를 담고(`map-related` 제외), `states`는 predict·compare면 `["reveal"]`, steps가 m개면 `["step-2", …, "step-m"]`, 쪽이 m개인 summary면 `["page-2", …, "page-m"]`, 그 밖은 `[]`이다. `?shot&state=page-<k>#n`은 k쪽을 그린다. `audit.mjs --shots`는 `states`마다 `<slug>-<size>-sNN-reveal.png`·`-sNN-step<k>.png`·`-sNN-page<k>.png`를 찍는다.
 - 한 장면을 그리다(render·`mount`·`enter`) 예외가 나면 그 장면만 빈 본문으로 남고 check에 `scene-error`(`장면 n`)가 나며, 나머지 장면은 그대로 mount된다. 그 장면에 있던 `LTT.clock`·`sweep`은 만들어지지 않지만 다른 장면의 것은 동작한다.
 - `goal-unreachable`·`goal-at-start`는 손잡이마다 최대 201곳(dial은 최대 360곳, pad·drag는 축마다 41곳), 조합이 2만 개를 넘으면 고정 시드로 2만 개를 뽑아 `check`를 부른다.
 

@@ -305,7 +305,8 @@ test("VO-8 C-16 QR-6: a </script> and <!-- inside a marked key keep #ltt-check p
 test("VO-8 C-16 QR-6: a checkSource message with </script> and <!-- round-trips exactly", T, async () => {
   const r = await runPage("serialize-source.html");
   assert.ok(!r.rawCheck.includes("</script") && !r.rawCheck.includes("<!--"));
-  assert.deepEqual(r.check.errors, [E("w", "r", "a </script> b <!-- c")]);
+  // Spec e48ead05eb246d3c FR-15: the fixture's rule id "r" is unregistered, so the check adds a check-failed after the original item.
+  assert.deepEqual(r.check.errors, [E("w", "r", "a </script> b <!-- c"), E("페이지", "check-failed", "등록되지 않은 rule r")]);
   assert.equal(r.probe.errs, 0);
 });
 

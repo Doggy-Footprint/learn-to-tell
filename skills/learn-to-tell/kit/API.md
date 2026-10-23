@@ -11,7 +11,7 @@ kit은 기능을 제공하고 그리는 방법을 정하지 않는다. 필요한
 
 페이지를 열면 kit이 결정적 결함을 스스로 검사한다. 결과는 `#ltt-check`(`<script type="application/json" id="ltt-check">{"source": "deck"|"page", "viewport": [w, h], "errors": [{where, rule, msg}], "advice": [같은 꼴], "scroll", "scenes", "sceneList": [{n, title, states}], "clocks": [{id, dur}]}</script>`, `scenes`·`sceneList`는 덱만), `<html data-ltt-check="errors 건수">`, 패널 경고, `lint` 이벤트다. `errors`는 고칠 결함이다: 등급 "고침" 덱 lint(`where`는 `장면 n`·`덱`), 로드 중 예외 `script-error`, 장면을 그리다 난 예외 `scene-error`(그 장면은 빈 본문). 등급 "권고"는 `advice`에만 있고 건수에 안 든다. `clocks`는 id를 붙인 `LTT.clock`을 만든 순서로 담고(같은 id는 `clock-duplicate-id`), 덱이 아닌 페이지는 h1–h3 구역이 `where`다.
 
-`?shot`은 스크린샷 모드다: `#ltt-expect` 패널이 숨고 모든 `LTT.clock`이 `draw(dur)`만 그린다. `?shot&y=<px>`는 검사 뒤 그 높이로 스크롤하고, `?shot&clock=<id>&t=<ms>`는 그 clock만 `draw(t)`로 그려(다른 clock은 `dur`) 화면 안에 오게 스크롤한다(덱이면 그 장면). 덱의 `#n`은 `?shot`에서도 n번 장면을 고르고, `&state=reveal|step-<k>`는 공개·단계 상태를 그린다(`kit/api/deck-contracts.md`). `audit.mjs --shots`가 이 모드로 PNG와 `index.md`를 만든다.
+`?shot`은 스크린샷 모드다: `#ltt-expect` 패널이 숨고 모든 `LTT.clock`이 `draw(dur)`만 그린다. `?shot&y=<px>`는 검사 뒤 그 높이로 스크롤하고, `?shot&clock=<id>&t=<ms>`는 그 clock만 `draw(t)`로 그려(다른 clock은 `dur`) 화면 안에 오게 스크롤한다(덱이면 그 장면). 같은 장면의 `LTT.sweep` 첫 render나 `enter`가 그림을 덮어써도 kit이 신호 직전에 멈추지 않은 모든 clock을 한 번 더 그리므로(고른 clock은 `draw(t)`, 나머지는 `draw(dur)`) 찍히는 상태는 이 시점이다. 덱의 `#n`은 `?shot`에서도 n번 장면을 고르고, `&state=reveal|step-<k>|page-<k>`는 공개·단계·쪽 상태를 그린다(`kit/api/deck-contracts.md`). `audit.mjs --shots`가 이 모드로 PNG와 `index.md`를 만든다.
 
 ## 불러오기
 
@@ -44,7 +44,7 @@ kit은 기능을 제공하고 그리는 방법을 정하지 않는다. 필요한
 | `LTT.palette()`, `LTT.palette(theme, "light"\|"dark")` | 범주형 색 6개. 계열 구분에만 |
 | `LTT.mark(kind, {size, color, weight, fill, inline})`, `LTT.marks` | 모양 표식(square, ring, dot, diamond, cross). 색만으로 계열을 가르지 않게 |
 | `{{용어}}`, `{{보이는 말\|용어}}` | 본문 속 용어. 풀이 팝오버가 된다 |
-| `LTT.expect(label, actual, expected, {tol})` | 기대값 대조. 불일치는 패널과 서버에 남는다 |
+| `LTT.expect(label, actual, expected, {tol})` | 기대값 대조. 불일치는 패널과 서버에 남는다. 둘 다 유한 수면 `\|actual − expected\| <= tol`(기본 `1e-9 × max(1, \|expected\|)`), 둘 다 문자열·boolean·null이면 `===`, 둘 다 배열이면 길이가 같고 원소마다 같은 규칙(수 원소의 tol은 주어진 `tol` 또는 그 원소의 기본값). 타입이 다르거나 NaN·±Infinity·undefined·객체면 불일치 |
 | `LTT.check()` | 결함 검사를 지금 다시 돌려 `#ltt-check`와 같은 객체를 돌려주고 `data-ltt-check`·패널을 갱신한다 |
 | `LTT.clock(el, draw, {dur, loop, id})` | 움직이는 그림의 시계 → `{play, pause, seek}`. `draw(t)`(t는 0~`dur` ms)를 `el`이 보이는 동안 프레임마다 부르고 `loop`이 아니면 `draw(dur)`에서 멈춘다. reduced-motion·`?shot`이면 `draw(dur)` 한 번뿐. `id`를 붙이면 checklist `[shot <id> <ms>]`로 그 시점을 찍는다 |
 | `LTT.lintDeck(spec)` | 덱 장면 데이터 점검 `[{scene, rule, msg}]`. 덱이 시작할 때 실행한다 |
@@ -98,7 +98,7 @@ kit은 기능을 제공하고 그리는 방법을 정하지 않는다. 필요한
 
 | type | 필드 |
 | --- | --- |
-| `hook` | `art`(아이콘 이름·HTML), `pre`, `text`, `sub`. 첫 장면 |
+| `hook` | `art`(아이콘 이름·HTML 문자열·노드·`(el, ctx) => …`. 이름이나 마크업 없는 글(이모지)은 둥근 아이콘 칸, 마크업·노드·함수는 칸 폭이 hook 행의 40% 이하인 자유 크기 칸에 그려지고 안의 `svg`·`img`·`canvas`는 칸 폭에 맞춰 줄어든다), `pre`, `text`, `sub`. 첫 장면 |
 | `terms` | `terms: [{key, word, en, icon, visual, plain, example}]`. key는 glossary에 등록. `visual`은 그 말이 가리키는 것을 보이는 작은 그림 |
 | `explain` | `steps: [{icon, title, text, visual}]`, `form`: `"cards"`(독립 요소), `"strip"`(한 줄 흐름), `"stack"`(세로 타임라인, 단계마다 그림), `arrows` |
 | `figure` | `figure`(노드·HTML·함수), `caption`, `label`, `steps`. 그림 하나가 화면을 차지한다. `figure` 필드는 `type`이 `figure`·`overview`일 때만 그려진다 |
@@ -107,11 +107,13 @@ kit은 기능을 제공하고 그리는 방법을 정하지 않는다. 필요한
 | `contrast` | `before`, `after`(`LTT.beforeAfter`의 각 쪽) |
 | `compare` | `items: [{label, visual, tone, verdict, note, noteAfter}]`, `form: "table"`·`head`, `cols`, `reveal`. 판정은 공개 뒤 |
 | `predict` | `question`(화면에 보이는 질문, 조건 `visual` 위에 그려진다), `choices: [{id, text}]`(2개 이상), `answer: id`(choices 중 하나), `visual`(조건, `LTT.facts`), `answerVisual`, `why`, `hint`, `rest` |
-| `summary` | 앞 takeaway를 모은다. `recall`이 있으면 질문 → "답 보기"의 인출 연습. `cards`로 직접 줄 수도 있다 |
+| `summary` | 앞 takeaway를 모은다. `recall`이 있으면 질문 → "답 보기"의 인출 연습. `cards`로 직접 줄 수도 있다. 항목(`extra` 포함)이 7개 이상이면 6개씩 쪽으로 나뉘고 쪽 넘김 버튼과 "k / m"이 생긴다 |
 | `keywords` | `terms: [{ko, en}]`, `signals`, `queries`, `neighbors: [{term, diff}]`, `next: [{term, why, from?}]`. 수업의 마지막 작성 장면이고 `next`가 개념 나무다: 덱 제목이 뿌리, `from`이 다른 항목의 `term`이면 그 아래 가지, 아니면 뿌리 아래 |
 | (없음) | `mount`로 그리는 커스텀 장면(손잡이 장면) |
 
-시각 칸(`figure`, `visual`, `answerVisual`)은 HTML 문자열, 노드, 또는 `(el) => …` 함수를 받는다.
+시각 칸(`figure`, `visual`, `answerVisual`, `aside`, hook `art`)은 HTML 문자열, 노드, 또는 `(el) => …` 함수를 받는다. 함수는 이미 문서에 붙은 장면 안의 노드로 불리므로 그 안에서 `document.getElementById`·`LTT.sweep`(`#id`)·`getTotalLength()`가 바로 동작한다. figure 함수는 (a) 받은 노드를 채우고 아무것도 안 돌려주거나 (b) 새 노드·HTML 문자열을 돌려주거나(넣어진다) (c) `{el, ...api}`를 돌려줄 수 있다(`el`이 새 노드면 넣고, 받은 노드이거나 그 안에 있으면 다시 넣지 않는다. `steps`의 `enter(k, fig)`는 이 객체를 받는다) (d) 받은 노드 자신을 돌려줘도 된다. 한 칸에 형제를 여럿 넣으면 가로로 놓인다.
+
+화면에서 10px 아래로 그려지는 SVG `<text>`(아이콘 제외)는 kit이 글자 크기를 화면 10px로 키운다(덱 장면과 덱이 아닌 페이지 모두, 보고하지 않는다). 카드 제목(terms `word`, explain `title`, compare `label`, summary 카드 제목)은 긴 낱말도 칸 안에서 줄바꿈된다. SVG `<text>` 안의 `{{보이는 말|용어}}`는 `tspan`이 되어 용어 표시로 센다.
 
 ### 덱의 고정 순서
 
@@ -119,7 +121,7 @@ hook(처음) → 본문 장면 → summary → overview → keywords(마지막) 
 
 ## 부품 찾기
 
-kit 코드 부품마다 머리에 `// @ltt-part LTT.이름 | 대상: … | 방식: … | 그림: … | 문서: kit/api/….md`가 있다. 설명 대상·방식·그림 종류의 말로 `grep -n "@ltt-part" <skill>/kit/*.js | grep -i "<키워드>"`를 실행해 걸린 줄의 `문서:`만 읽는다. 걸리지 않으면 다른 축의 말로 한 번 더 찾고, 그래도 없으면 직접 짠다.
+kit 코드 부품마다 머리에 `// @ltt-part LTT.이름 | 대상: … | 방식: … | 그림: … | 문서: kit/api/….md`가 있다. 설명 대상·방식·그림 종류의 말로 `grep -n "@ltt-part" <skill>/kit/*.js | grep -i "<키워드>"`를 실행해 걸린 줄의 `문서:`만 읽는다.
 
 ## 조합 조각
 
@@ -160,4 +162,4 @@ LTT.expect("라인 8개 분류 시간", hours(8), 1, { tol: 1e-9 });
 - 범위와 상수에는 `basis`를 적고, 근거가 약하면 "불확실", 화면 수치에는 "모델로 계산한 예시" 태그를 단다. 근거 없는 수치를 지어내지 않는다.
 - lint는 `{{}}`로 표시된 용어만 안다. 표시하지 않은 전문 용어는 쓰는 사람이 풀어 둔다.
 - 작성·점검 기준은 1280px 이상 데스크톱이다.
-- figure 그림 폭을 `vw`로 고정하지 않는다(kit이 칸 폭을 준다).
+- figure 그림 폭을 `vw`로 고정하지 않는다(kit이 칸 폭을 준다). `width`·`min-width`·`max-width`·`flex-basis`·`inline-size` 계열을 `vw`로 쓰면 check가 `vw-size`를 낸다.

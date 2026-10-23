@@ -132,6 +132,7 @@
   if (typeof document !== "undefined") {
     var style = document.createElement("style");
     style.id = "ltt-mock-style";
+    style.setAttribute("data-ltt-kit", "");
     style.textContent = STYLE;
     document.head.appendChild(style);
   }

@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import * as AUDIT_RULES from "../skills/learn-to-tell/server/audit.mjs";
 
 // Spec 753ff3c539424409 v1 VO-1, VO-9, VO-10, VO-11. Expected values come from the spec's FR/Cases and from independent
 // reference definitions written in this file, never from running the implementation.
@@ -262,11 +263,14 @@ const tableIds = (text) => {
   }
   return ids;
 };
+// Spec e48ead05eb246d3c FR-15: the expected set is the kit registry (LTT.ruleIds) plus AUDIT_RULE_IDS instead of a hand-maintained
+// superset; the hand lists above stay as required members so a rule dropped from the registry still fails here.
 test("VO-11 QR-7 rules.md tables list every lint and check rule id, and nothing else (incl. clock-duplicate-id and the 3 shot-* ids)", () => {
   const listed = new Set(tableIds(RULES));
-  const want = new Set([...LINT_IDS, ...CHECK_IDS, ...MARK_IDS]);
-  const missing = [...want].filter((i) => !listed.has(i));
-  const extra = [...listed].filter((i) => !want.has(i));
+  const registry = new Set([...Array.from(LTT.ruleIds ?? []), ...Array.from(AUDIT_RULES.AUDIT_RULE_IDS ?? [])]);
+  assert.deepEqual([...LINT_IDS, ...CHECK_IDS, ...MARK_IDS].filter((i) => !registry.has(i)), [], "hand-listed rule missing from the registry");
+  const missing = [...registry].filter((i) => !listed.has(i));
+  const extra = [...listed].filter((i) => !registry.has(i));
   assert.deepEqual({ missing, extra }, { missing: [], extra: [] });
 });
 

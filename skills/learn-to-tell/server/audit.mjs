@@ -23,6 +23,8 @@ const GALLERY_SKIP = new Set(["index.html", "catalog.html"]);
 const GALLERY_SKIP_DIRS = ["stale/", "shots/", "archived/"];
 const CHROME_PATHS = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"];
 const CHROME_NAMES = ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"];
+// Rule ids only this file emits; the kit lists the rest in LTT.ruleIds, which the page reports in its check result.
+export const AUDIT_RULE_IDS = ["control-shift", "probe-failed", "shot-format", "shot-unknown-clock", "shot-bad-time"];
 export const NO_CHROME = "Chrome을 찾지 못했다. --chrome <경로>나 LTT_CHROME으로 알려 주거나, 브라우저에서 수업 URL에 ?shot을 붙여 1440×900과 1280×800으로 열어 눈으로 본다.";
 
 const USAGE = `사용법: node audit.mjs <대상>... [옵션]
@@ -332,7 +334,7 @@ async function takeShot(call, budget, file, url) {
 }
 
 // A state string comes from the page's own #ltt-check, and it ends up in a file name, so only the kit's two forms pass.
-const STATE_NAME = /^(reveal|step-([1-9]\d{0,2}))$/;
+const STATE_NAME = /^(reveal|step-([1-9]\d{0,2})|page-([1-9]\d{0,2}))$/;
 
 async function takeShots(call, run, check, validMarks, budget, dir) {
   const slug = run.target.replace(/^https?:\/\//, "").replace(/\.html$/, "").replace(/[^\w.-]+/g, "-");
@@ -349,7 +351,7 @@ async function takeShots(call, run, check, validMarks, budget, dir) {
       for (const state of Array.isArray(s.states) ? s.states : []) {
         const m = typeof state === "string" ? STATE_NAME.exec(state) : null;
         if (!m) continue;
-        states.push({ name: `${slug}-${run.size}-s${pad(s.n)}-${m[2] ? "step" + m[2] : "reveal"}.png`, url: withQuery(page, "shot&state=" + state) + "#" + s.n, n: s.n, title: titles.get(s.n) ?? "", state, hold: true });
+        states.push({ name: `${slug}-${run.size}-s${pad(s.n)}-${m[2] ? "step" + m[2] : m[3] ? "page" + m[3] : "reveal"}.png`, url: withQuery(page, "shot&state=" + state) + "#" + s.n, n: s.n, title: titles.get(s.n) ?? "", state, hold: true });
       }
     }
     jobs.push(...states);
@@ -448,6 +450,7 @@ export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrom
         const advice = unique([...(learner.check.advice || []), ...(check.advice || [])]);
         const marks = checkMarks(parsed, check.clocks || []);
         const result = { ...base, viewport: check.viewport, scroll: check.scroll, check: errors, advice, marks: marks.errors, shots: [], truncated: false };
+        const known = new Set([...AUDIT_RULE_IDS, ...(check.ruleIds || [])]);
         if (shots) {
           const t = await takeShots(call, run, check, marks.valid, budget, shots);
           result.shots = t.files;
@@ -456,6 +459,14 @@ export async function audit({ targets, sizes = DEFAULT_SIZES, chrome = findChrom
         }
         if (typeof check.scenes === "number") await probing(() => probeDeck(call, run, deckScenes, budget));
         result.check.push(...probeErrors);
+        // A page from an older kit reports no ruleIds, so there is nothing to compare against.
+        if (Array.isArray(check.ruleIds)) {
+          const unknown = new Set([...result.check, ...result.advice, ...result.marks].map((e) => e.rule).filter((id) => !known.has(id)));
+          for (const id of unknown) {
+            const msg = `등록되지 않은 rule ${id}`;
+            if (!result.check.some((e) => e.rule === "check-failed" && e.msg === msg)) result.check.push({ where: "페이지", rule: "check-failed", msg });
+          }
+        }
         return result;
       } catch (err) {
         return { ...base, error: err.message };

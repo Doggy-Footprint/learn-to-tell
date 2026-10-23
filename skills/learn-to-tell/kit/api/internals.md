@@ -6,7 +6,10 @@ kit 개발자용 · 수업에서 부르지 않는 kit 내부 이름이다. kit �
 | --- | --- |
 | `LTT.kitBase` | `ltt.js`를 불러온 `<script>`의 디렉터리 URL(알 수 없으면 `/kit/`). 폰트와 지도 데이터(`vendor/world-atlas/countries-110m.json`)를 이 위치 기준으로 찾는다. |
 | `LTT.lessonId(pathname)` | `/lessons/<id>/` 경로에서 lesson id를 꺼낸다. 아니면 `null`. `record`가 이 값이 있을 때만 서버로 보낸다. |
-| `LTT.compare(actual, expected, tol)` | `expect`의 수치 대조 → `{ok, diff, tol}`. `tol`이 없으면 `1e-9 × max(1, \|expected\|)`. |
+| `LTT.compare(actual, expected, tol)` | `expect`의 대조 → `{ok, diff, tol}`. 비교 규칙은 `kit/API.md`의 `LTT.expect` 행. `tol`이 없고 `expected`가 수면 `1e-9 × max(1, \|expected\|)`. |
+| `LTT.ruleIds` | kit의 check·lint가 낼 수 있는 모든 rule id(권고 포함) 배열. `#ltt-check.ruleIds`로도 나온다. check는 이 밖 rule을 `errors`·`advice`에 담게 되면 그 항목은 두고 `check-failed` "등록되지 않은 rule <id>"를 더한다. audit만 내는 id(`control-shift`·`probe-failed`·`shot-format`·`shot-unknown-clock`·`shot-bad-time`)는 `audit.mjs`가 내보내는 `AUDIT_RULE_IDS`에 있다. 둘의 합집합은 `kit/api/rules.md` 표 첫 칸 rule 집합과 같아야 한다. |
+| `LTT.renderedText(el)` | `el`에 그려진 글(`aria-hidden` 하위 제외, 용어 표시 요소는 `{{key}}`)을 한 문자열로. 덱이 mount된 장면의 용어 검사에 쓴다. |
+| `LTT.fixSvgText(scope)` | `scope`(기본 `body`) 안 글이 있는 SVG `<text>` 중 화면 글자 크기(글자 크기 × svg 상자 폭 ÷ viewBox 폭, 아이콘 `.ltt-ic` 제외)가 10px 미만인 것을 인라인 style로 10px이 되게 키운다. 덱이 fit 뒤, `?shot` 신호 직전, 덱 아닌 페이지의 check 직전에 부른다(폰 제외). |
 | `LTT.termsIn(text)` | 문자열 속 `{{용어}}`·`{{보이는 말\|용어}}` 표시를 나온 순서대로 `[{key, shown}]`로. |
 | `LTT.sceneText(scene)` | 장면에서 독자가 읽는 글 필드만 모아 한 문자열로(`type`·`tone`·`answer`·`id` 같은 필드와 DOM 노드는 뺀다). lint가 쓴다. |
 | `LTT.termIndex(spec)` | glossary 용어마다 처음 표시되거나 terms 장면에서 정의된 장면 번호 `{용어: 번호}`. |
@@ -19,8 +22,8 @@ kit 개발자용 · 수업에서 부르지 않는 kit 내부 이름이다. kit �
 | `LTT.setGlossary(defs, first)` | `linkTerms`와 팝오버가 쓸 용어 풀이와 용어별 첫 장면을 정한다. 풀이는 합쳐지고 같은 용어는 먼저 등록된 것이 남는다(`#ltt-meta`의 `glossary`가 가장 먼저 읽힌다). 덱이 시작할 때 부른다. |
 | `LTT.termIssues(units, glossary)` | 용어 검사 → `[{where, rule, msg}]`. `units: [{where, text, defines?, skipUnknown?}]`는 읽는 순서의 단위(덱은 장면, 페이지는 구역), `text`의 `{{}}`가 표시다. 단위마다 `unknown-term` → `used-before-defined` → `filler-content` 순. `defines`는 그 단위가 정의하는 key(terms 장면), `skipUnknown`은 `unknown-term`을 건너뛴다. |
 | `LTT.goalIssues(goals)` | `goals: [{where, hits, samples, start}]`마다 `goal-unreachable`(`hits`가 0) → `goal-at-start`(`start`) → `[{where, rule, msg}]`. |
-| `LTT.deckIssues(spec, extraGlossary)` | 덱 장면 데이터의 `unknown-term`(terms 항목의 plain 누락 포함)·`used-before-defined`·`predict-new-term`·`filler-content` → `[{where: "장면 n", rule, msg}]`. `extraGlossary`(`{용어: 풀이}`)의 key도 풀이가 있는 용어로 치고, key 순서는 등록 순서(`extraGlossary` → `spec.glossary` → terms 장면)다. |
-| `LTT.checkSource({issues, prepare, whereOf, scenes, reveal})` | `check()`가 쓸 검사 원천을 등록한다(덱이 등록한다). 등록하지 않은 페이지는 `body`의 구역을 쓴다. `issues(glossary)` → 정적 오류 목록, `prepare()`는 검사 전에 불린다(덱은 `?check`·`?shot`이면 모든 장면을 그린다), `whereOf(el)`은 목표 요소가 속한 위치 문자열, `scenes()`는 장면 수(`#ltt-check.scenes`), `reveal(el)`은 `?shot&clock=`일 때 `el`이 든 장면을 보인다. |
+| `LTT.deckIssues(spec, extraGlossary)` | `spec.rendered(i)`가 글(mount된 장면의 그려진 글)을 돌려주면 장면 데이터 글에 더해 보고 같은 (where, rule, msg)는 한 번만 낸다. 덱 장면 데이터의 `unknown-term`(terms 항목의 plain 누락 포함)·`used-before-defined`·`predict-new-term`·`filler-content` → `[{where: "장면 n", rule, msg}]`. `extraGlossary`(`{용어: 풀이}`)의 key도 풀이가 있는 용어로 치고, key 순서는 등록 순서(`extraGlossary` → `spec.glossary` → terms 장면)다. |
+| `LTT.checkSource({issues, advice, prepare, layout, whereOf, scenes, sceneList, state, reveal})` | `check()`가 쓸 검사 원천을 등록한다(덱이 등록한다). 등록하지 않은 페이지는 `body`의 구역을 쓴다. `issues(glossary)` → 정적 오류 목록, `prepare()`는 검사 전에 불린다(덱은 `?check`·`?shot`이면 모든 장면을 그린다), `whereOf(el)`은 목표 요소가 속한 위치 문자열, `scenes()`는 장면 수(`#ltt-check.scenes`), `reveal(el)`은 `?shot&clock=`일 때 `el`이 든 장면을 보인다. `layout()`은 데스크톱에서만 불리는 레이아웃 측정(`scene-overflow`·`box-overflow` 목록)이고 던지면 check가 `check-failed` 하나만 더한다. |
 | `LTT.mobile()` | `<html data-ltt-mobile>`가 붙어 있는가(폰 재배치 중인가). |
 | `LTT.placement` | `{zoomLock}`. `zoomLock(question, zs)` → 배율. `question`은 질문 상태(정답 숨김)를 상한 1에서 맞춘 배율, `zs`는 선택지별 정답을 흐름 안에 둔 상태를 상한 1에서 맞춘 배율의 배열. `Math.min(question, ...zs)`를 돌려주고 `zs`가 비면 `question`. 잘못된 입력(`question`이나 원소가 number가 아니거나 유한수가 아니거나 0 이하이거나 1 초과, `zs`가 배열이 아님)이면 1. DOM·전역을 읽지 않고 인자를 바꾸지 않는다. predict 배율 잠금이 `ctx.zmax`를 이것으로 정한다. |
 | `LTT.measure(fn)` | `fn`을 측정 모드로 실행한다. 그동안 diagram·sequence·map의 `send` 패킷(단계 반복 포함)은 아무것도 하지 않는다. 덱이 figure 단계·predict 정답을 미리 잴 때 쓴다. |

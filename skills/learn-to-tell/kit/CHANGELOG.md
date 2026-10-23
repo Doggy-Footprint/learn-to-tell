@@ -5,6 +5,12 @@
 ## 미출시
 
 작가 계약
+- check가 `scene-overflow`(78%까지 줄여도 장면이 화면보다 큼)·`box-overflow`(kit 칸 밖으로 나간 내용)·`vw-size`(페이지 CSS의 폭을 vw로 고정)와 lint `unknown-icon`을 낸다. SVG `<text>`가 화면 10px 아래면(덱 장면과 덱이 아닌 페이지 모두) kit이 키우고, 카드 제목(terms `word`, explain `title`, compare `label`, summary 카드 제목)은 긴 낱말도 칸 안에서 줄바꿈된다.
+- hook `art`가 HTML 문자열·노드·함수도 받고(칸 폭 hook 행의 40% 이하), 시각 칸 함수는 문서에 붙은 노드로 불린다. figure 함수가 `{el}`로 받은 노드를 돌려줘도 오류가 아니다.
+- summary가 7개 이상이면 6개씩 쪽으로 나뉘고 `?shot&state=page-<k>`, audit `sNN-page<k>.png`가 생긴다.
+- 용어 검사가 mount된 장면에 그려진 글도 본다. SVG `<text>` 안 `{{}}`는 `tspan`이 된다.
+- `LTT.expect`가 문자열·boolean·null·배열도 대조하고 타입이 다르면 불일치다. `?shot`은 신호 직전에 모든 clock을 다시 그린다.
+- check의 rule id 등록부와 미등록 rule의 `check-failed`. 부품 검색 재시도 문장은 SKILL.md로 옮겼다.
 - 수업의 기본 형식이 `LTT.deck` 슬라이드가 됐다. 스크롤·한 화면은 장면으로 나뉘지 않는 내용일 때만 쓰고 이유를 `outline.md`에 적는다.
 - 테마 9개 추가(`essay` `chalk` `notebook` `atelier` `spec` `clinic` `field` `playbook` `score`). `LTT.themes` 항목에 `keywords`가 생겼고, `kit/API.md` 테마 표의 키워드 열로 고른다. 덱의 `theme`이 없는 이름이면 경고하고 `studio`로 그린다.
 - 덱 predict의 `question`이 장면 맨 위(`visual` 앞)에 `.dk-pq` 글로 보인다. `question`이 없거나 빈 문자열이면 `.dk-pq`가 없다.
@@ -19,6 +25,7 @@
 - 부품은 kit 코드의 `// @ltt-part LTT.이름 | 대상 | 방식 | 그림 | 문서` 주석을 grep해 찾는다. `kit/API.md`의 "부품 고르기" 표를 없애고, 손잡이 모양 표는 `kit/api/controls.md`로 옮겼다.
 - `LTT.recall`로 덱 밖에서도 떠올리기 질문과 `recall` 이벤트를 쓸 수 있다.
 kit 개발자용 · 수업에서 부르지 않는 kit 내부 이름이다. kit 모듈끼리, 테스트, 서버 쪽 계산이 쓴다.
+- `LTT.ruleIds`·`renderedText`·`fixSvgText`, audit의 `AUDIT_RULE_IDS` 추가. `checkSource`에 `layout`, `deckIssues`에 `spec.rendered`가 생겼다.
 - `LTT.termIssues`·`goalIssues`·`deckIssues`·`checkSource` 추가. `lintDeck`은 용어·채움 글 규칙을 더는 내지 않는다. 장면 타입 메타의 `sumVisualAreas`·`auditHero`·`auditSmallVisual`·`auditLooseFigure`와 `LTT.auditScene`을 없앴다.
 - `LTT.setGlossary`는 풀이를 합치고 먼저 등록된 것을 남긴다.
 - `server/audit.mjs`는 `?shot`으로 `#ltt-check`만 읽는다. `--shots`는 덱은 장면마다, 덱 아닌 페이지는 스크롤 위치마다 PNG를 남기고, `--checklist`의 `[shot <id> <ms>]` 표식마다 한 장 더 찍는다. 결과 필드가 `check`·`marks`·`shots`·`truncated`·`scroll`로 바뀌었다(`audit`·`lint`·`expectFails`·`scenes` 삭제). `checkSource`에 `scenes`·`reveal`이 더해졌다.

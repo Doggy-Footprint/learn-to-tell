@@ -259,14 +259,25 @@ test("VO-11 FR-15: each new check name is defined in exactly its declared doc fi
 });
 
 // Spec 753ff3c539424409 v3 Signatures: LTT.usesTerm and LTT.isAdvice join the public set (83 names); both are documented in kit/api/internals.md.
-const NEW_NAMES = ["usesTerm", "isAdvice"];
-test("VO-2 FR-3 QR-2: the runtime LTT public names are exactly the 81 oracle names plus usesTerm and isAdvice (83)", () => {
+// Spec e48ead05eb246d3c v3 Signatures: LTT.ruleIds, LTT.fixSvgText and LTT.renderedText join the public set (86 names); defined only in kit/api/internals.md.
+const V3_NAMES = ["ruleIds", "fixSvgText", "renderedText"];
+const NEW_NAMES = ["usesTerm", "isAdvice", ...V3_NAMES];
+test("VO-2 FR-3 QR-2: the runtime LTT public names are exactly the 81 oracle names plus usesTerm, isAdvice, ruleIds, fixSvgText and renderedText (86)", () => {
   const expected = [...Object.values(BASE_DEFINITIONS).flatMap((s) => s.split(", ")), ...NEW_NAMES].sort();
   const names = Object.keys(loadLTT()).sort();
   const missing = expected.filter((n) => !names.includes(n));
   const extra = names.filter((n) => !expected.includes(n));
   assert.deepEqual({ missing, extra }, { missing: [], extra: [] }, `runtime LTT differs from the oracle: missing [${missing.join(", ")}], extra [${extra.join(", ")}]`);
-  assert.equal(names.length, 83);
+  assert.equal(names.length, 86);
+});
+
+test("VO-11 e48ead05eb246d3c Signatures: ruleIds, fixSvgText and renderedText are each defined in exactly kit/api/internals.md", () => {
+  const defs = definitions(realDocs());
+  const wrong = V3_NAMES.flatMap((name) => {
+    const files = [...(defs.get(name) ?? [])].sort();
+    return files.length === 1 && files[0] === "kit/api/internals.md" ? [] : [`${name}: expected only kit/api/internals.md, got [${files.join(", ")}]`];
+  });
+  assert.deepEqual(wrong, [], wrong.join("\n"));
 });
 
 for (const name of NEW_NAMES) {

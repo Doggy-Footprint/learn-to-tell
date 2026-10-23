@@ -200,11 +200,13 @@
 
   // @ltt-part LTT.beforeAfter | 대상: 전후 비교, 고치기 전과 후, 대조, before after, contrast | 방식: 나란히 두 쪽, side by side | 그림: 두 칸 비교 | 문서: kit/api/ui.md
   // side: {visual, points, label, tone, foot: {label, caption, visual}, pointsOn}; `pointsOn` picks the marker target inside the stage.
-  function beforeAfter(spec, ctx) {
+  // With `host` the pair is attached there before any visual function runs, so those functions get nodes that are in the document.
+  function beforeAfter(spec, ctx, host) {
     var w = h("div", "ltt-ba"), sides = {}, annos = [];
+    if (host) host.appendChild(w);
     ["before", "after"].forEach(function (key, k) {
       var s = spec[key] || {};
-      var side = h("div", "ltt-ba-side"), stage = h("div", "ltt-ba-stage"), rail = h("div", "ltt-ba-rail");
+      var side = w.appendChild(h("div", "ltt-ba-side")), stage = side.appendChild(h("div", "ltt-ba-stage")), rail = side.appendChild(h("div", "ltt-ba-rail"));
       fill(stage, s.visual, ctx);
       rail.innerHTML = badge(s.tone || (key === "before" ? "before" : "after"), s.label);
       if (s.points) {
@@ -214,14 +216,11 @@
         annos.push(a);
       }
       if (s.foot) {
-        var f = h("div", "ltt-ba-foot");
+        var f = rail.appendChild(h("div", "ltt-ba-foot"));
         if (s.foot.label) f.appendChild(h("div", "lab", s.foot.label));
         fill(f.appendChild(h("div")), s.foot.visual, ctx);
         if (s.foot.caption) f.appendChild(h("div", "cap", s.foot.caption));
-        rail.appendChild(f);
       }
-      side.append(stage, rail);
-      w.appendChild(side);
       if (k === 0) w.appendChild(h("div", "ltt-ba-arrow", LTT.icon("arrow", { weight: 2.4 })));
       sides[key] = { side: side, stage: stage, rail: rail };
     });
@@ -365,6 +364,7 @@
   if (typeof document !== "undefined") {
     var style = document.createElement("style");
     style.id = "ltt-ui-style";
+    style.setAttribute("data-ltt-kit", "");
     style.textContent = STYLE;
     document.head.appendChild(style);
   }

@@ -145,8 +145,8 @@ test("VO-2 FR-3: LTT.deckTypes is the same object as LTT.sceneTypes", () => {
 test("VO-2 FR-11 C-3 (74cb05d7da21907e FR-3): public names are the 73 base names (auditScene out, clock in) plus sceneTypes, placement and the 6 check names", () => {
   assert.equal(new Set(BASE_NAMES).size, 73);
   const checkNames = ["check", "recall", "termIssues", "goalIssues", "deckIssues", "checkSource"];
-  // Spec 753ff3c539424409 v3 Signatures: plus usesTerm and isAdvice.
-  assert.deepEqual(Object.keys(loadDeck()).sort(), [...BASE_NAMES, "sceneTypes", "placement", ...checkNames, "usesTerm", "isAdvice"].sort());
+  // Spec 753ff3c539424409 v3 Signatures: plus usesTerm and isAdvice. Spec e48ead05eb246d3c v3 Signatures: plus ruleIds, fixSvgText and renderedText.
+  assert.deepEqual(Object.keys(loadDeck()).sort(), [...BASE_NAMES, "sceneTypes", "placement", ...checkNames, "usesTerm", "isAdvice", "ruleIds", "fixSvgText", "renderedText"].sort());
 });
 
 // ---------- VO-3 load errors (error guessing) ----------

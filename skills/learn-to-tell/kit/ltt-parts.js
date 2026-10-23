@@ -1611,6 +1611,7 @@
   if (typeof document !== "undefined") {
     var style = document.createElement("style");
     style.id = "ltt-parts-style";
+    style.setAttribute("data-ltt-kit", "");
     style.textContent = STYLE;
     document.head.appendChild(style);
     document.addEventListener("DOMContentLoaded", function () { math(); });

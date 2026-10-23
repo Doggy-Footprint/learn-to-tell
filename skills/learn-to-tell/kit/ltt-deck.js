@@ -43,6 +43,9 @@
     ".dk-hook{display:grid;grid-template-columns:auto minmax(0,1fr);gap:clamp(20px,5vw,72px);align-items:center;padding:clamp(8px,3vh,40px) 0}",
     ".dk-hook .art{width:clamp(120px,18vw,240px);aspect-ratio:1;border-radius:max(var(--ltt-r-lg),min(36%,calc(var(--ltt-r-lg) * 4)));display:flex;align-items:center;justify-content:center;background:var(--ltt-card);box-shadow:var(--ltt-shadow),inset 0 0 0 1.5px var(--ltt-line);font-size:clamp(60px,9vw,120px);color:var(--ltt-accent)}",
     ".dk-hook .art .ltt-ic{width:52%;height:52%}",
+    ".dk-hook.free{grid-template-columns:fit-content(40%) minmax(0,1fr)}",
+    ".dk-hook .art.free{width:auto;min-width:0;aspect-ratio:auto;border-radius:0;display:block;background:none;box-shadow:none;font-size:inherit;color:inherit}",
+    ".dk-hook .art.free :is(svg,img,canvas){max-width:100%;height:auto}",
     ".dk-hook .tx{display:flex;flex-direction:column;gap:clamp(12px,2.4vh,22px)}",
     ".dk-hook .pre{font-size:clamp(18px,2.4vw,32px);font-weight:400;color:var(--ltt-muted);letter-spacing:-.03em;margin:0;line-height:1.25}",
     ".dk-hook .big{font-family:var(--ltt-font-display);font-size:clamp(32px,5.6vw,78px);font-weight:var(--ltt-display-weight);line-height:1.1;letter-spacing:calc(var(--ltt-display-track) - .015em);margin:0}",
@@ -53,7 +56,7 @@
     ".dk-step .no{font-size:15px;font-weight:800;color:var(--ltt-accent);font-variant-numeric:tabular-nums}",
     ".dk-step .ic{width:clamp(44px,4.6vw,60px);height:clamp(44px,4.6vw,60px);border-radius:var(--ltt-r-md);background:var(--ltt-accent-soft);color:var(--ltt-accent);display:flex;align-items:center;justify-content:center;font-size:clamp(24px,2.6vw,32px);margin:4px 0 6px}",
     ".dk-step .ic .ltt-ic{width:56%;height:56%}",
-    ".dk-step b{display:block;font-family:var(--ltt-font-display);font-size:clamp(19px,1.9vw,27px);font-weight:var(--ltt-display-weight);letter-spacing:-.03em;line-height:1.3}",
+    ".dk-step b{display:block;overflow-wrap:anywhere;font-family:var(--ltt-font-display);font-size:clamp(19px,1.9vw,27px);font-weight:var(--ltt-display-weight);letter-spacing:-.03em;line-height:1.3}",
     ".dk-step p{margin:0;color:var(--ltt-muted);font-size:clamp(15px,1.3vw,18px);line-height:1.6}",
     ".dk-step .vis{margin-top:auto;padding-top:8px}",
     ".dk-step>.ar{position:absolute;z-index:2;right:calc(-1 * clamp(12px,2.4vw,36px) / 2 - 15px);top:50%;width:30px;height:30px;margin-top:-15px;border-radius:50%;background:var(--ltt-ink);color:var(--ltt-bg);display:flex;align-items:center;justify-content:center}",
@@ -76,7 +79,7 @@
     ".dk-tm .top{display:flex;align-items:center;gap:12px}",
     ".dk-tm .ic{flex:none;width:52px;height:52px;border-radius:16px;background:var(--ltt-dark);color:var(--ltt-on-dark);display:flex;align-items:center;justify-content:center;font-size:22px}",
     ".dk-tm .ic .ltt-ic{width:24px;height:24px}",
-    ".dk-tm .w{font-family:var(--ltt-font-display);font-size:clamp(24px,2.5vw,34px);font-weight:var(--ltt-display-weight);letter-spacing:-.04em;line-height:1.15}",
+    ".dk-tm .w{min-width:0;overflow-wrap:anywhere;font-family:var(--ltt-font-display);font-size:clamp(24px,2.5vw,34px);font-weight:var(--ltt-display-weight);letter-spacing:-.04em;line-height:1.15}",
     ".dk-tm .w small{display:block;font-size:13px;font-weight:600;color:var(--ltt-muted);letter-spacing:0}",
     ".dk-tm .vis{display:flex;align-items:center;justify-content:center;min-height:clamp(56px,11vh,120px)}",
     ".dk-tm .p{margin:4px 0 0;font-size:clamp(16px,1.45vw,19.5px);line-height:1.6}",
@@ -84,7 +87,7 @@
     ".dk-tm .ex::before{content:'예) ';font-weight:800;color:var(--ltt-ink-2)}",
     ".dk-cmp{display:grid;grid-template-columns:repeat(var(--m,var(--n)),minmax(0,1fr));gap:clamp(10px,1.6vw,22px)}",
     ".dk-item{display:flex;flex-direction:column;gap:10px;background:var(--ltt-card);border-radius:var(--ltt-r-lg);box-shadow:var(--ltt-shadow),inset 0 0 0 1.5px var(--ltt-line);padding:clamp(14px,1.6vw,22px);transition:box-shadow .3s}",
-    ".dk-item .lab{font-size:clamp(14px,1.2vw,16px);font-weight:750;color:var(--ltt-ink-2);line-height:1.35}",
+    ".dk-item .lab{overflow-wrap:anywhere;font-size:clamp(14px,1.2vw,16px);font-weight:750;color:var(--ltt-ink-2);line-height:1.35}",
     ".dk-item .vis{flex:1;display:flex;align-items:center;justify-content:center;min-height:90px}",
     ".dk-item .vd{display:flex;align-items:center;gap:8px;font-weight:800;font-size:clamp(15px,1.3vw,17px);opacity:0;transform:translateY(6px);transition:opacity .4s,transform .4s}",
     ".dk-item .vd .ltt-ic{flex:none;width:22px;height:22px;padding:4px;border-radius:50%;color:#fff;background:var(--ltt-muted);box-sizing:border-box}",
@@ -214,7 +217,10 @@
     ".dk-rc .a .ask b{color:var(--ltt-accent);font-size:12px;margin-right:6px}",
     ".dk-sum{display:grid;grid-template-columns:repeat(var(--c,4),minmax(0,1fr));gap:clamp(10px,1.4vw,20px)}",
     ".dk-sc{display:flex;flex-direction:column;gap:12px;min-height:min(22vh,200px);background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:var(--ltt-r-lg);padding:clamp(16px,2vw,28px);box-shadow:var(--ltt-shadow)}",
+    ".dk-sc .t span{min-width:0;overflow-wrap:anywhere}",
     ".dk-sc .t{display:flex;align-items:baseline;gap:10px;font-family:var(--ltt-font-display);font-size:clamp(18px,1.75vw,24px);font-weight:var(--ltt-display-weight);letter-spacing:-.03em;line-height:1.3}",
+    ".dk-pager{margin-top:4px}",
+    ".dk-pager .dk-pg{font-size:14px;font-weight:700;color:var(--ltt-muted);font-variant-numeric:tabular-nums}",
     ".dk-sc .t i{font-style:normal;color:var(--ltt-accent);font-variant-numeric:tabular-nums}",
     ".dk-sc p{margin:0;font-size:clamp(15px,1.4vw,19px);color:var(--ltt-ink-2);line-height:1.55}",
     ".dk-sc .ask{margin-top:auto;font-size:clamp(13.5px,1.15vw,15.5px);background:var(--ltt-card-2);border-radius:12px;padding:9px 12px}",
@@ -257,6 +263,7 @@
     "[data-ltt-mobile] .dk-cmp.table .dk-head{display:none}",
     "[data-ltt-mobile] .dk-sum{--c:1!important}",
     "[data-ltt-mobile] .dk-hook .art{width:96px;font-size:48px}",
+    "[data-ltt-mobile] .dk-hook .art.free{width:auto;max-width:100%;font-size:inherit}",
     "[data-ltt-mobile] .dk-hook .big{font-size:32px}",
     "[data-ltt-mobile] .dk-nav{padding:8px 0 calc(10px + env(safe-area-inset-bottom))}",
     "[data-ltt-mobile] .dk-nav button{padding:10px 18px}",
@@ -457,6 +464,22 @@
         unplace: unfloat
       };
     },
+    // Summary pages: the zoom is fixed to the smallest any page needs, so turning a page never rescales the scene.
+    pages: function (ctx, o) {
+      var size = placement.sizeWatch();
+      function lock() {
+        var cur = o.current(), zs = [];
+        ctx.zmax = 1;
+        placement.still(o.root, function () {
+          for (var k = 0; k < o.count; k++) { o.show(k); zs.push(ctx.refit()); }
+        }, function (e) {
+          zs = [];
+          LTT.warn("장면 " + (ctx.index + 1) + ": 쪽을 미리 그려 보다 실패해 쪽마다 배율이 바뀔 수 있다 (" + e.message + ")");
+        }, function () { o.show(cur); });
+        ctx.zmax = zoomLock(1, zs);
+      }
+      return { place: function () { if (size.changed()) lock(); ctx.refit(); } };
+    },
     // Summary recall: the answer keeps its space while hidden, so the scene's zoom already counts it and revealing never rescales.
     reserve: function (a) { a.classList.add("pending"); },
     release: function (a) { a.classList.remove("pending"); }
@@ -467,11 +490,63 @@
     if (ctx.takeawayEl) ctx.takeawayEl.classList.toggle("dk-hold", on);
   }
 
+  var PAGE = 6;
+
+  function summaryPages(s, scenes) {
+    var n = LTT.summaryCards(s, scenes).length + (s.extra ? 1 : 0);
+    return n > PAGE ? Math.ceil(n / PAGE) : 1;
+  }
+
+  // Summaries of seven or more items show PAGE per page, so the scene stays one screen instead of shrinking below 78%.
+  function paged(w, body, ctx) {
+    var items = [].slice.call(w.children), m = Math.ceil(items.length / PAGE), at = 0;
+    function visible() { return items.filter(function (it) { return !it.classList.contains("ltt-hidden"); }); }
+    if (m < 2) return { enter: function () { rise(w.children); } };
+    var bar = body.appendChild(h("div", "ltt-stepper dk-pager"));
+    var prev = bar.appendChild(h("button", "ghost", "← 이전 쪽")), next = bar.appendChild(h("button", null, "다음 쪽 →"));
+    var pg = bar.appendChild(h("span", "dk-pg"));
+    pg.setAttribute("aria-live", "polite");
+    function show(k) {
+      at = k;
+      items.forEach(function (it, i) { it.classList.toggle("ltt-hidden", Math.floor(i / PAGE) !== k); });
+      prev.disabled = k === 0;
+      next.disabled = k === m - 1;
+      pg.textContent = k + 1 + " / " + m;
+    }
+    function turn(k) { show(k); rise(visible()); ctx.fit(); }
+    prev.onclick = function () { turn(at - 1); };
+    next.onclick = function () { turn(at + 1); };
+    show(0);
+    ctx.showState = function (st) {
+      var k = /^page-(\d+)$/.exec(st);
+      if (!k || +k[1] < 2 || +k[1] > m) return false;
+      show(+k[1] - 1);
+      ctx.fit();
+      return true;
+    };
+    var pp = placement.pages(ctx, { count: m, show: show, current: function () { return at; }, root: w });
+    ctx.place = pp.place;
+    return { enter: function () { rise(visible()); } };
+  }
+
+  // A figure function gets the box already in the document. It may fill the box and return nothing, return a new node or HTML
+  // (inserted), return {el, ...api} (el inserted unless it is the box or already inside it; api is what step `enter` receives),
+  // or return the box itself (nothing to insert).
+  function mountFigure(box, v, ctx) {
+    if (typeof v !== "function") { fill(box, v, ctx); return box; }
+    var ret = v(box, ctx);
+    if (ret && typeof ret === "object" && !(ret instanceof Node) && ret.el) {
+      if (ret.el instanceof Node && ret.el !== box && !box.contains(ret.el)) box.appendChild(ret.el);
+      return ret;
+    }
+    if ((typeof ret === "string" || ret instanceof Node) && ret !== box && !(ret instanceof Node && box.contains(ret))) fill(box, ret, ctx);
+    return box;
+  }
+
   var RENDERS = {
-    hook: function (s, body) {
+    hook: function (s, body, ctx) {
       var w = h("div", "dk-hook");
-      var art = h("div", "art", iconOr(s.art));
-      if (!s.art) art.style.display = "none";
+      var art = h("div", "art");
       var tx = h("div", "tx");
       if (s.kicker) tx.appendChild(h("span", "dk-kicker", s.kicker));
       if (s.pre) tx.appendChild(h("p", "pre", s.pre));
@@ -480,6 +555,10 @@
       if (s.chips) tx.appendChild(LTT.chips(s.chips));
       w.append(art, tx);
       body.appendChild(w);
+      if (!s.art) art.style.display = "none";
+      // Text without markup (an icon name, an emoji) keeps the round icon box; markup, nodes and functions get a free-sized box.
+      else if (typeof s.art === "string" && s.art.indexOf("<") < 0) art.innerHTML = iconOr(s.art);
+      else { w.classList.add("free"); art.classList.add("free"); fill(art, s.art, ctx); }
       return { enter: function () { rise([art].concat([].slice.call(tx.children))); } };
     },
     // form: "cards" (independent parts), "strip" (one connected sequence), "stack" (vertical timeline with a visual per step).
@@ -487,8 +566,9 @@
       var form = s.form || "cards";
       var w = h("div", "dk-steps " + form);
       w.style.setProperty("--n", s.steps.length);
+      body.appendChild(w);
       s.steps.forEach(function (st, i) {
-        var c = h("div", "dk-step");
+        var c = w.appendChild(h("div", "dk-step"));
         if (form === "cards") {
           c.append(h("span", "no", pad2(i + 1)));
           if (st.icon) c.append(h("div", "ic", iconOr(st.icon)));
@@ -501,26 +581,23 @@
           tx.append(h("b", null, st.title), h("p", null, st.text || ""));
         }
         if (st.visual) fill(c.appendChild(h("div", "vis")), st.visual, ctx);
-        w.appendChild(c);
       });
-      body.appendChild(w);
       return { enter: function () { rise(w.children); } };
     },
     // Introduces glossary terms in plain words before they are used; each card = one term.
     terms: function (s, body, ctx) {
       var w = h("div", "dk-terms");
       w.style.setProperty("--n", s.terms.length);
+      body.appendChild(w);
       s.terms.forEach(function (t) {
-        var c = h("div", "dk-tm");
+        var c = w.appendChild(h("div", "dk-tm"));
         c.innerHTML = "<div class='top'>" + (t.icon ? "<span class='ic'>" + iconOr(t.icon) + "</span>" : "") + "<span class='w'></span></div><p class='p'></p>";
         c.querySelector(".w").innerHTML = (t.word || t.key) + (t.en ? "<small>" + t.en + "</small>" : "");
         c.querySelector(".p").innerHTML = t.plain || "";
         if (t.visual) c.insertBefore(h("div", "vis"), c.querySelector(".p"));
         if (t.visual) fill(c.querySelector(".vis"), t.visual, ctx);
         if (t.example) c.appendChild(h("div", "ex", t.example));
-        w.appendChild(c);
       });
-      body.appendChild(w);
       return { enter: function () { rise(w.children); } };
     },
     // Verdicts stay hidden until the viewer asks, so side-by-side cases are judged before being labelled.
@@ -528,22 +605,21 @@
       var w = h("div", "dk-cmp" + (s.form === "table" ? " table" : ""));
       w.style.setProperty("--n", s.items.length);
       if (s.cols) w.style.setProperty("--m", s.cols);
+      body.appendChild(w);
       if (s.form === "table" && s.head) {
         var hd = w.appendChild(h("div", "dk-head"));
         s.head.forEach(function (t) { hd.appendChild(h("span", null, t)); });
       }
       var cells = [];
       s.items.forEach(function (it) {
-        var c = h("div", "dk-item " + (it.tone || ""));
+        var c = w.appendChild(h("div", "dk-item " + (it.tone || "")));
         cells.push(c);
         var vis = h("div", "vis");
         var ic = { good: "check", bad: "x", warn: "alert" }[it.tone];
         c.append(h("div", "lab", it.label), vis, h("div", "vd", (ic ? LTT.icon(ic, { weight: 3 }) : "") + "<span>" + (it.verdict || "") + "</span>"),
           it.note ? h("p", "note" + (it.noteAfter ? " after" : ""), it.note) : "");
         fill(vis, it.visual, ctx);
-        w.appendChild(c);
       });
-      body.appendChild(w);
       if (s.reveal === false) w.classList.add("shown");
       else {
         var b = h("button", null, s.revealLabel || "판정 보기"), rs = h("button", "ghost dk-off", "초기화");
@@ -578,14 +654,10 @@
       var f = h("figure", "dk-fig");
       var st = f.appendChild(h("div", "dk-fig-stage"));
       st.setAttribute("data-annotate", "");
+      body.appendChild(f);
       if (s.steps) {
-        var row = st.appendChild(h("div", "dk-figsteps")), pic = row.appendChild(h("div", "pic")), ret = null;
-        if (typeof s.figure === "function") {
-          ret = s.figure(pic, ctx);
-          if (ret && ret.el instanceof Node) pic.appendChild(ret.el);
-          else if (ret != null && !(ret && ret.el)) fill(pic, ret, ctx);
-        } else fill(pic, s.figure, ctx);
-        var api = ret && ret.el ? ret : pic;
+        var row = st.appendChild(h("div", "dk-figsteps")), pic = row.appendChild(h("div", "pic"));
+        var api = mountFigure(pic, s.figure, ctx);
         var ctl = row.appendChild(h("div", "ctl"));
         var sp, fp = placement.steps(ctx, { count: s.steps.length, pic: pic, ctl: ctl, row: row,
           draw: function (k) { var x = s.steps[k]; if (x.enter) x.enter(k, api, 1); },
@@ -610,14 +682,13 @@
         ctl.__lttPlace = { scope: pic, keepFaded: true };
         ctx.place = fp.place;
         ctx.unplace = fp.unplace;
-      } else fill(st, s.figure, ctx);
+      } else mountFigure(st, s.figure, ctx);
       if (s.caption) {
         var n = ctx.scenes.slice(0, ctx.index + 1).filter(function (x) { return x.type === "figure"; }).length;
         var cap = f.appendChild(h("figcaption", null, "<b></b><span></span>"));
         cap.firstChild.textContent = s.label || "그림 " + n + ".";
         cap.lastChild.innerHTML = s.caption;
       }
-      body.appendChild(f);
       return {};
     },
     // Shown after the recall list, never before it: a finished map seen first would replace the attempt to recall.
@@ -632,13 +703,12 @@
       tx.appendChild(h("p", "claim", s.title));
       if (s.sub) tx.appendChild(h("p", "dk-sub", s.sub));
       if (s.chips) tx.appendChild(LTT.chips(s.chips));
-      if (s.visual) fill(w.appendChild(h("div", "vis")), s.visual, ctx);
       body.appendChild(w);
+      if (s.visual) fill(w.appendChild(h("div", "vis")), s.visual, ctx);
       return { enter: function () { rise(w.children); } };
     },
     contrast: function (s, body, ctx) {
-      var ba = LTT.beforeAfter({ before: s.before, after: s.after }, ctx);
-      body.appendChild(ba.el);
+      var ba = LTT.beforeAfter({ before: s.before, after: s.after }, ctx, body);
       return { enter: function () { rise(ba.el.children); ba.replay(); } };
     },
     // A low-stakes guess, not a quiz: "모르겠다" is always offered and the answer arrives as an infographic.
@@ -646,6 +716,7 @@
       var rest = s.rest || ctx.predictRest || "hide";
       if (["hide", "dim", "dot"].indexOf(rest) < 0) { LTT.warn("predict rest \"" + rest + "\"는 hide·dim·dot 중 하나여야 한다. hide로 둔다."); rest = "hide"; }
       var w = h("div", "dk-pred rest-" + rest);
+      body.appendChild(w);
       var box = h("div");
       var choices = s.choices.concat(s.unsure === false ? [] : [{ id: "unsure", text: "잘 모르겠다" }]);
       choices.forEach(function (c) {
@@ -687,7 +758,6 @@
         chosen: function () { return chosen; } });
       ctx.place = pp.place;
       ctx.unplace = pp.unplace;
-      body.appendChild(w);
       var gate = { btn: lock, alt: box, word: "정답" };
       ctx.gate = gate;
       var pr = LTT.predict({ question: s.question || s.title, choices: box, button: lock, answer: s.answer, show: [ans],
@@ -722,6 +792,7 @@
       var cards = LTT.summaryCards(s, ctx.scenes);
       if (cards.some(function (c) { return c.recall; })) return recallList(s, cards, body, ctx);
       var w = h("div", "dk-sum");
+      body.appendChild(w);
       cards.forEach(function (c) {
         var d = h("div", "dk-sc");
         d.innerHTML = "<div class='t'>" + (c.n ? "<i>" + pad2(c.n) + "</i>" : "") + "<span></span></div><p></p>";
@@ -737,10 +808,9 @@
         x.querySelector("p").innerHTML = s.extra.text;
         w.appendChild(x);
       }
-      var n = w.children.length;
+      var n = Math.min(w.children.length, PAGE);
       w.style.setProperty("--c", s.cols || (n <= 4 ? n : Math.min(4, Math.ceil(n / 2))));
-      body.appendChild(w);
-      return { enter: function () { rise(w.children); } };
+      return paged(w, body, ctx);
     },
     keywords: function (s, body, ctx) {
       var w = h("div", "dk-kw" + (nextItems(s).length ? " has-tree" : ""));
@@ -881,7 +951,7 @@
       x.querySelector(".a p").innerHTML = s.extra.text;
     }
     if (w.children.length > 3) w.style.setProperty("--c", 2);
-    return { enter: function () { rise(w.children); } };
+    return paged(w, body, ctx);
   }
 
   var SCENE_TYPES = LTT.sceneTypes;
@@ -916,6 +986,9 @@
   function zoomTo(inner, z) {
     inner.style.zoom = z < 1 ? z : "";
     inner.style.width = z < 1 ? z * 100 + "%" : "";
+    // Reduced motion gives every property a 1ms transition, so zoom and width would read their old values until the next frame
+    // and every size measured after fitting would be stale.
+    if (inner.getAnimations) inner.getAnimations().forEach(function (a) { if (a.transitionProperty) a.finish(); });
   }
 
   // On phones a scene scrolls instead of shrinking. A drawing whose text would fall below ~10px at column width keeps
@@ -1002,12 +1075,109 @@
     return false;
   }
 
+  var CELLS = [
+    { sel: ".dk-hook > .art", kind: "hook 그림 칸", label: ".dk-hook .big" },
+    { sel: ".dk-steps > .dk-step", kind: "explain 단계 카드", label: "b" },
+    { sel: ".dk-terms > .dk-tm", kind: "용어 카드", label: ".w" },
+    { sel: ".dk-cmp > .dk-item", kind: "compare 항목", label: ".lab" },
+    { sel: ".dk-sum > .dk-sc", kind: "summary 카드", label: ".t span" },
+    { sel: ".dk-rc > li", kind: "recall 항목", label: ".q" },
+    { sel: ".ltt-ba > .ltt-ba-side", kind: "contrast 쪽", label: ".ltt-badge" }
+  ];
+  var SVG_NS = "http://www.w3.org/2000/svg";
+
+  // The most any descendant sticks out of `cell`, measured by a scrolling (overflow auto|scroll) ancestor's box when one lies between; hidden/clip does not hide an overflow. Only the outermost <svg> of a drawing
+  // counts (its inner shapes are the drawing's own business), and the explain arrow badge sits on the card edge by design.
+  function stickOut(cell) {
+    var cr = cell.getBoundingClientRect(), worst = 0;
+    if (!cr.width || !cr.height) return 0;
+    var walker = document.createTreeWalker(cell, NodeFilter.SHOW_ELEMENT, {
+      acceptNode: function (n) { return n.namespaceURI === SVG_NS && n.parentNode.namespaceURI === SVG_NS ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT; }
+    }), d;
+    while ((d = walker.nextNode())) {
+      if (d.closest(".dk-step > .ar")) continue;
+      var b = d.getBoundingClientRect();
+      if (!b.width || !b.height) continue;
+      var over = Math.max(cr.left - b.left, b.right - cr.right, cr.top - b.top, b.bottom - cr.bottom);
+      if (over <= 1) continue;
+      var r = { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
+      for (var a = d.parentElement; a && a !== cell; a = a.parentElement) {
+        var cs = getComputedStyle(a), ar = null;
+        var scrollX = cs.overflowX === "auto" || cs.overflowX === "scroll", scrollY = cs.overflowY === "auto" || cs.overflowY === "scroll";
+        if (!scrollX && !scrollY) continue;
+        ar = a.getBoundingClientRect();
+        if (scrollX) { r.left = Math.max(r.left, ar.left); r.right = Math.min(r.right, ar.right); }
+        if (scrollY) { r.top = Math.max(r.top, ar.top); r.bottom = Math.min(r.bottom, ar.bottom); }
+      }
+      if (r.right <= r.left || r.bottom <= r.top) continue;
+      worst = Math.max(worst, cr.left - r.left, r.right - cr.right, cr.top - r.top, r.bottom - cr.bottom);
+    }
+    return worst > 1 ? Math.round(worst) : 0;
+  }
+
+  var SPILL_REPLACED = "img,canvas,video,iframe,input,button,select,textarea";
+
+  // How far content reaches past the scene's padding box on each side. Only content counts: text line boxes (SVG text is
+  // stood for by its outermost svg), svg, replaced elements and controls. Empty boxes, padding and backgrounds are not content.
+  // Content under an in-scene overflow auto|scroll|hidden|clip box is clipped to that box first.
+  function sceneSpill(sec) {
+    var sr = sec.getBoundingClientRect(), box = { left: sr.left + sec.clientLeft, top: sr.top + sec.clientTop }, over = { top: 0, bottom: 0, left: 0, right: 0 };
+    box.right = box.left + sec.clientWidth;
+    box.bottom = box.top + sec.clientHeight;
+    var clips = [];
+    function clipOf(e) {
+      var c = clips.filter(function (k) { return k.el === e; })[0];
+      if (!c) {
+        var cs = getComputedStyle(e);
+        c = { el: e, x: cs.overflowX !== "visible", y: cs.overflowY !== "visible", r: null };
+        clips.push(c);
+      }
+      if (!c.r && (c.x || c.y)) c.r = e.getBoundingClientRect();
+      return c;
+    }
+    function add(b, holder) {
+      if (!b.width || !b.height) return;
+      var r = { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
+      for (var a = holder; a && a !== sec; a = a.parentElement) {
+        var c = clipOf(a);
+        if (c.x) { r.left = Math.max(r.left, c.r.left); r.right = Math.min(r.right, c.r.right); }
+        if (c.y) { r.top = Math.max(r.top, c.r.top); r.bottom = Math.min(r.bottom, c.r.bottom); }
+      }
+      if (r.right <= r.left || r.bottom <= r.top) return;
+      over.top = Math.max(over.top, box.top - r.top);
+      over.bottom = Math.max(over.bottom, r.bottom - box.bottom);
+      over.left = Math.max(over.left, box.left - r.left);
+      over.right = Math.max(over.right, r.right - box.right);
+    }
+    var walker = document.createTreeWalker(sec, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        if (n.nodeType === 3) return n.nodeValue.trim() && n.parentNode.namespaceURI !== SVG_NS ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        return n.namespaceURI === SVG_NS && n.parentNode.namespaceURI === SVG_NS ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+      }
+    }), n, range = document.createRange();
+    while ((n = walker.nextNode())) {
+      if (n.nodeType === 3) {
+        range.selectNodeContents(n);
+        // A line box taller than its line-height (a big number set at line-height .86) pokes out of its block without being cut off,
+        // so vertically the text counts only as far as the nearest non-inline ancestor's box.
+        var blk = n.parentElement;
+        while (blk !== sec && /^inline/.test(getComputedStyle(blk).display)) blk = blk.parentElement;
+        var br = blk === sec ? null : blk.getBoundingClientRect();
+        [].forEach.call(range.getClientRects(), function (r) {
+          add(br ? { left: r.left, right: r.right, top: Math.max(r.top, br.top), bottom: Math.min(r.bottom, br.bottom), width: r.width, height: Math.min(r.bottom, br.bottom) - Math.max(r.top, br.top) } : r, n.parentElement);
+        });
+      } else if ((n.namespaceURI === SVG_NS && n.localName === "svg") || n.matches(SPILL_REPLACED)) add(n.getBoundingClientRect(), n.parentElement);
+    }
+    return over;
+  }
+
   var VISUALS = "svg.ltt-svg,svg.ltt-dg,.ltt-phone,.ltt-browser,.ltt-term-mock,.ltt-code,canvas,img,.ltt-ba,.dk-fig-stage>*,[data-visual]";
 
   // @ltt-part LTT.deck | 대상: 순서대로 넘기는 설명, 슬라이드, slides | 방식: 장면 덱, deck, 발표, 넘김 | 그림: 한 화면씩 장면 | 문서: kit/API.md
   // Scenes mount lazily on first visit; `enter` runs on every visit so motion replays when the viewer comes back.
   function deck(spec) {
     var style = h("style");
+    style.setAttribute("data-ltt-kit", "");
     style.textContent = STYLE;
     document.head.appendChild(style);
     if (!LTT.theme(spec.theme || "studio")) LTT.warn("알 수 없는 theme \"" + spec.theme + "\": studio로 그린다. 이름은 kit/API.md 테마 표에 있다");
@@ -1109,9 +1279,9 @@
       }
       LTT.linkTerms(el, i);
       ctx.fit = function () {
-        if (LTT.mobile()) { if (ctx.unplace) ctx.unplace(); mobileFit(el, inner); }
-        else if (ctx.place) ctx.place();
-        else fit(el, inner, ctx.zmax);
+        if (LTT.mobile()) { if (ctx.unplace) ctx.unplace(); mobileFit(el, inner); return; }
+        if (ctx.place) ctx.place(); else fit(el, inner, ctx.zmax);
+        LTT.fixSvgText(inner);
       };
       mounted[i] = { ctx: ctx, fit: ctx.fit, enter: function () {
         if (r && r.enter) r.enter();
@@ -1249,17 +1419,41 @@
     }
     function stateList(s) {
       if (s.type === "predict" || (s.type === "compare" && s.reveal !== false)) return ["reveal"];
-      var m = s.type === "figure" && Array.isArray(s.steps) ? s.steps.length : 0, out = [];
-      for (var k = 2; k <= m; k++) out.push("step-" + k);
+      var m = s.type === "figure" && Array.isArray(s.steps) ? s.steps.length : s.type === "summary" ? summaryPages(s, scenes) : 0, out = [];
+      for (var k = 2; k <= m; k++) out.push((s.type === "summary" ? "page-" : "step-") + k);
       return out;
     }
     LTT.checkSource({
       issues: function (known) {
-        return LTT.deckIssues({ glossary: spec.glossary, scenes: written() }, known)
+        return LTT.deckIssues({ glossary: spec.glossary, scenes: written(),
+          rendered: function (i) { return mounted[i] ? LTT.renderedText(stage.children[i]) : null; } }, known)
           .concat(lintFindings().filter(function (w) { return !LTT.isAdvice(w.rule); }), sceneErrors);
       },
       advice: function () { return lintFindings().filter(function (w) { return LTT.isAdvice(w.rule); }); },
       prepare: function () { if (/[?&](check|shot)\b/.test(location.search)) mountAll(); },
+      // Only the state the page loaded in is judged; reveal, step and page states are not drawn here.
+      layout: function () {
+        var out = [];
+        written().forEach(function (s, i) {
+          if (!mounted[i]) return;
+          var sec = stage.children[i], where = "장면 " + (i + 1);
+          var ov = sceneSpill(sec), parts = [];
+          [["세로(아래)", ov.bottom], ["세로(위)", ov.top], ["가로(오른쪽)", ov.right], ["가로(왼쪽)", ov.left]].forEach(function (d) { if (d[1] > 1) parts.push(d[0] + " " + Math.round(d[1]) + "px"); });
+          if (parts.length) {
+            out.push({ where: where, rule: "scene-overflow", msg: "내용이 78%까지 줄여도 장면 상자 밖으로 " + parts.join(", ") + " 나간다. 장면은 스크롤된다. 내용을 줄이거나 나눈다" });
+          }
+          CELLS.forEach(function (c) {
+            [].forEach.call(sec.querySelectorAll(c.sel), function (cell) {
+              var px = stickOut(cell);
+              if (!px) return;
+              var named = cell.querySelector(c.label) || (c.sel.indexOf(".art") > 0 ? sec.querySelector(c.label) : null);
+              var label = named ? named.textContent.replace(/\s+/g, " ").trim().slice(0, 30) : "";
+              out.push({ where: where, rule: "box-overflow", msg: c.kind + (label ? " '" + label + "'" : "") + "의 안쪽이 칸 밖으로 " + px + "px 나간다. 칸 폭에 맞게 줄이거나 칸 안에 넣는다" });
+            });
+          });
+        });
+        return out;
+      },
       scenes: function () { return written().length; },
       sceneList: function () {
         return written().map(function (s, i) {

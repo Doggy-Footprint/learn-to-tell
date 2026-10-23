@@ -7,6 +7,8 @@
     var src = typeof document !== "undefined" && document.currentScript && document.currentScript.src;
     return src ? src.replace(/[^/]*$/, "") : "/kit/";
   })();
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  var SVG_TEXT = /^(text|tspan|textPath)$/;
   var TERM = /\{\{([^{}|]+?)(?:\|([^{}]+?))?\}\}/g;
 
   var TOKENS_LIGHT = "--ltt-bg:#f2f1ec;--ltt-card:#fff;--ltt-card-2:#f7f6f2;--ltt-line:#e6e3dc;--ltt-line-2:#d6d2c8;" +
@@ -478,10 +480,19 @@
     return m ? m[1] : null;
   }
 
+  // Mixed types, NaN, ±Infinity, undefined and objects never match, so a wrong-typed value cannot pass silently.
+  function same(a, e, tol) {
+    if (typeof a === "number" && typeof e === "number") {
+      return isFinite(a) && isFinite(e) && Math.abs(a - e) <= (tol == null ? 1e-9 * Math.max(1, Math.abs(e)) : tol);
+    }
+    if ((typeof a === "string" && typeof e === "string") || (typeof a === "boolean" && typeof e === "boolean") || (a === null && e === null)) return a === e;
+    if (Array.isArray(a) && Array.isArray(e)) return a.length === e.length && a.every(function (x, i) { return same(x, e[i], tol); });
+    return false;
+  }
+
   function compare(actual, expected, tol) {
-    var t = tol == null ? 1e-9 * Math.max(1, Math.abs(expected)) : tol;
-    var ok = typeof actual === "number" && isFinite(actual) && Math.abs(actual - expected) <= t;
-    return { ok: ok, diff: actual - expected, tol: t };
+    var t = tol == null && typeof expected === "number" ? 1e-9 * Math.max(1, Math.abs(expected)) : tol;
+    return { ok: same(actual, expected, tol), diff: actual - expected, tol: t };
   }
 
   function record(type, data) {
@@ -666,6 +677,7 @@
   var FILLER = /lorem|ipsum|\bTODO\b|\bTBD\b|xxx|더미 ?(텍스트|데이터)|샘플 ?텍스트|임시 ?텍스트|\bItem [A-D]\b|항목 ?[0-9]\b/i;
 
   var has = Object.prototype.hasOwnProperty;
+  var ICON_NAME = /^[a-z][a-z0-9-]*$/;
 
   // Shared by pages (sections) and decks (scenes). `hooks` lets deckIssues slot deck-only rules in at the positions lintDeck
   // used to emit them: afterUnknown(i, u) after the unknown-term marks, afterUsed(i, u, first) after used-before-defined.
@@ -717,11 +729,13 @@
     [extraGlossary, spec.glossary].forEach(function (g) {
       Object.keys(g || {}).forEach(function (k) { if (!has.call(glossary, k)) glossary[k] = g[k]; });
     });
+    var drawn = false;
     var units = scenes.map(function (s, i) {
-      var terms = s.type === "terms";
-      return { where: "장면 " + (i + 1), text: sceneText(s), defines: terms ? (s.terms || []).map(function (t) { return t.key; }) : [], skipUnknown: terms };
+      var terms = s.type === "terms", text = sceneText(s), shown = typeof spec.rendered === "function" ? spec.rendered(i) : null;
+      if (typeof shown === "string") { text += "\n" + shown; drawn = true; }
+      return { where: "장면 " + (i + 1), text: text, defines: terms ? (s.terms || []).map(function (t) { return t.key; }) : [], skipUnknown: terms };
     });
-    return termCheck(units, glossary, {
+    var found = termCheck(units, glossary, {
       afterUnknown: function (i) {
         var s = scenes[i];
         return (s.type === "terms" ? s.terms || [] : []).filter(function (t) { return !t.plain; })
@@ -738,6 +752,13 @@
         });
         return out;
       }
+    });
+    if (!drawn) return found;
+    // The drawn text repeats most of the data text, so the same finding would otherwise appear twice.
+    var seenIssue = Object.create(null);
+    return found.filter(function (f) {
+      var k = JSON.stringify([f.where, f.rule, f.msg]);
+      return seenIssue[k] ? false : (seenIssue[k] = true);
     });
   }
 
@@ -779,6 +800,19 @@
     } },
     { id: "no-title", scene: function (s, i) {
       return !sceneMeta(s.type, "titleOptional") && !s.title ? [[i, "no-title", "제목이 없다"]] : [];
+    } },
+    { id: "unknown-icon", scene: function (s, i) {
+      var vals = [];
+      if (s.type === "hook") vals.push(["art", s.art]);
+      if (s.type === "explain") (Array.isArray(s.steps) ? s.steps : []).forEach(function (x) { if (x) vals.push(["steps[].icon", x.icon]); });
+      if (s.type === "terms") (Array.isArray(s.terms) ? s.terms : []).forEach(function (x) { if (x) vals.push(["terms[].icon", x.icon]); });
+      var seen = Object.create(null);
+      return vals.filter(function (v) {
+        if (typeof v[1] !== "string" || !ICON_NAME.test(v[1]) || has.call(ICONS, v[1]) || seen[v[1]]) return false;
+        return (seen[v[1]] = true);
+      }).map(function (v) {
+        return [i, "unknown-icon", "아이콘 이름 '" + v[1] + "'(" + v[0] + ")이 LTT.icons에 없다. 목록의 이름을 쓰거나 HTML·노드를 넘긴다"];
+      });
     } },
     { id: "card-monotony", deck: function (c) {
       var out = [], run = 0, cards = 0, body = 0;
@@ -949,6 +983,7 @@
       t = at;
       paint(at);
       want = false;
+      if (shot) entry.repaint = function () { if (!dead) paint(at); };
     } else {
       if (typeof root.IntersectionObserver === "function" && el) {
         visible = false;
@@ -1026,11 +1061,14 @@
       TERM.lastIndex = 0;
       while ((m = TERM.exec(text))) {
         frag.appendChild(document.createTextNode(text.slice(last, m.index)));
-        var key = (m[2] || m[1]).trim(), span = document.createElement("span");
-        span.className = "ltt-term" + (sceneIndex != null && glossaryState.first[key] === sceneIndex ? " first" : "");
+        var key = (m[2] || m[1]).trim(), inSvg = node.parentNode.namespaceURI === SVG_NS && SVG_TEXT.test(node.parentNode.localName);
+        // An HTML span inside <svg> is not drawn, so SVG text gets a tspan; the kit stylesheet's border cannot style it.
+        var span = inSvg ? document.createElementNS(SVG_NS, "tspan") : document.createElement("span");
+        span.setAttribute("class", "ltt-term" + (sceneIndex != null && glossaryState.first[key] === sceneIndex ? " first" : ""));
         span.tabIndex = 0;
         span.dataset.term = key;
         span.textContent = m[1];
+        if (inSvg) { span.style.textDecoration = "underline dotted"; span.style.cursor = "help"; }
         frag.appendChild(span);
         last = TERM.lastIndex;
       }
@@ -1090,6 +1128,92 @@
     return at.where;
   }
 
+  function checkFailed(e) { return { where: "페이지", rule: "check-failed", msg: e && e.message ? e.message : String(e) }; }
+
+  // Every rule id the kit's check and lint can emit (audit-only ids live in audit.mjs); the check reports any other id as check-failed.
+  var RULE_IDS = ["term-no-visual", "summary-no-recall", "overview-no-visual", "predict-choices", "figure-no-type", "no-reading-guide", "no-title",
+    "unknown-icon", "card-monotony", "no-signature", "no-theme", "unknown-theme", "keywords-last", "keywords-no-next", "overview-missing",
+    "overview-order", "unused-term", "unknown-term", "used-before-defined", "predict-new-term", "filler-content", "goal-unreachable",
+    "goal-at-start", "expect-mismatch", "script-error", "scene-error", "clock-duplicate-id", "check-failed", "scene-overflow", "box-overflow", "vw-size"];
+
+  // Text a viewer reads in `el`: aria-hidden subtrees are out, and a linked term counts as its `{{key}}` mark like pageUnits does.
+  function renderedText(el) {
+    var out = "";
+    (function walk(n) {
+      if (n.nodeType === 3) { out += n.nodeValue; return; }
+      if (n.nodeType !== 1 || n.matches(SKIP_SEL) || n.getAttribute("aria-hidden") === "true") return;
+      if (n.namespaceURI === SVG_NS && (n.localName === "title" || n.localName === "desc")) return;
+      if (n.classList.contains("ltt-term") && n.dataset.term) { out += "{{" + n.dataset.term + "}}"; return; }
+      var line = BLOCK.test(n.localName) || n.localName === "text";
+      if (line) out += "\n";
+      for (var c = n.firstChild; c; c = c.nextSibling) walk(c);
+      if (line) out += "\n";
+    })(el);
+    return out;
+  }
+
+  // An SVG label is drawn at font-size × (svg box width ÷ viewBox width), so a wide viewBox squeezed into a narrow box shrinks
+  // its text below reading size. Raising the size is deterministic, so it is fixed here and never reported.
+  var MIN_SVG_TEXT = 10;
+  function fixSvgText(scope) {
+    var svgs = [], scales = [];
+    [].forEach.call((scope || document.body).querySelectorAll("svg text"), function (t) {
+      if (!t.textContent.trim() || t.closest(".ltt-ic")) return;
+      var svg = t.ownerSVGElement, at = svgs.indexOf(svg);
+      if (at < 0) {
+        var vb = svg.viewBox && svg.viewBox.baseVal, w = svg.getBoundingClientRect().width;
+        svgs.push(svg);
+        scales.push(w > 0 ? (vb && vb.width ? w / vb.width : 1) : 0);
+        at = svgs.length - 1;
+      }
+      var scale = scales[at];
+      if (!scale) return;
+      var px = parseFloat(getComputedStyle(t).fontSize);
+      if (px * scale < MIN_SVG_TEXT - 1e-6) t.style.fontSize = MIN_SVG_TEXT / scale + "px";
+    });
+  }
+
+  var WIDTH_PROPS = ["width", "min-width", "max-width", "flex-basis", "inline-size", "min-inline-size", "max-inline-size"];
+  var VW_UNIT = /\d(?:s|l|d)?vw\b/i;
+
+  // Page CSS that pins a width to the viewport width: kit styles are skipped, cross-origin sheets cannot be read.
+  function vwIssues() {
+    var out = [];
+    function note(where, prop, val, imp) {
+      out.push({ where: "페이지", rule: "vw-size", msg: where + " { " + prop + ": " + val + (imp ? " !important" : "") + " }: 폭을 뷰포트 폭(vw)으로 고정하면 kit이 준 칸 폭을 따르지 않는다. %, px와 max-width:100%, 또는 칸 폭을 쓴다" });
+    }
+    function scan(rules) {
+      for (var i = 0; i < rules.length; i++) {
+        var r = rules[i];
+        if (r.selectorText != null && r.style) {
+          WIDTH_PROPS.forEach(function (p) {
+            var v = r.style.getPropertyValue(p);
+            if (v && VW_UNIT.test(v)) note(r.selectorText, p, v, r.style.getPropertyPriority(p));
+          });
+        }
+        if (r.cssRules) scan(r.cssRules);
+      }
+    }
+    [].forEach.call(document.styleSheets, function (sheet) {
+      var owner = sheet.ownerNode;
+      if (owner && owner.hasAttribute && owner.hasAttribute("data-ltt-kit")) return;
+      if (owner && owner.localName === "link" && new URL(owner.href, document.baseURI).pathname.indexOf("/kit/") === 0) return;
+      var rules;
+      try { rules = sheet.cssRules; } catch (e) { return; }
+      if (rules) scan(rules);
+    });
+    [].forEach.call(document.body.querySelectorAll("[style]"), function (el) {
+      WIDTH_PROPS.forEach(function (p) {
+        var v = el.style.getPropertyValue(p);
+        if (v && VW_UNIT.test(v)) {
+          var cls = (el.getAttribute("class") || "").trim().split(/\s+/).filter(Boolean).join(".");
+          note(el.localName + (el.id ? "#" + el.id : "") + (cls ? "." + cls : "") + "[style]", p, v, el.style.getPropertyPriority(p));
+        }
+      });
+    });
+    return out;
+  }
+
   function runCheck(auto) {
     var errors, advice = [], units = null;
     try {
@@ -1110,8 +1234,15 @@
         return { where: "페이지", rule: "expect-mismatch", msg: f.label + " (모델 " + f.actual + ", 기대 " + f.expected + ")" };
       }));
     } catch (e) {
-      errors = [{ where: "페이지", rule: "check-failed", msg: e && e.message ? e.message : String(e) }];
+      errors = [checkFailed(e)];
     }
+    // Measuring is isolated from the checks above: a throw here adds one check-failed and keeps every other finding.
+    function measured(fn) { try { errors = errors.concat(fn() || []); } catch (e) { errors.push(checkFailed(e)); } }
+    if (!mobile()) {
+      if (!checkSrc) measured(function () { fixSvgText(document.body); });
+      if (checkSrc && checkSrc.layout) measured(checkSrc.layout);
+    }
+    measured(vwIssues);
     errors = errors.concat(scriptErrors);
     var seen = {}, dups = [];
     clocks.forEach(function (c) {
@@ -1122,7 +1253,12 @@
     dups.forEach(function (d) {
       errors.push({ where: "페이지", rule: "clock-duplicate-id", msg: "LTT.clock id '" + d + "'가 둘 이상이다. id는 페이지에서 하나씩만 쓴다" });
     });
-    var result = { source: checkSrc ? "deck" : "page", viewport: [root.innerWidth, root.innerHeight], errors: errors, advice: advice };
+    var unregistered = Object.create(null);
+    errors.concat(advice).forEach(function (e) {
+      if (RULE_IDS.indexOf(e.rule) < 0 && !unregistered[e.rule]) unregistered[e.rule] = 1;
+    });
+    Object.keys(unregistered).forEach(function (id) { errors.push({ where: "페이지", rule: "check-failed", msg: "등록되지 않은 rule " + id }); });
+    var result = { source: checkSrc ? "deck" : "page", viewport: [root.innerWidth, root.innerHeight], errors: errors, advice: advice, ruleIds: RULE_IDS };
     if (typeof document !== "undefined") result.scroll = document.documentElement.scrollHeight;
     if (checkSrc && checkSrc.scenes) result.scenes = checkSrc.scenes();
     if (checkSrc && checkSrc.sceneList) result.sceneList = checkSrc.sceneList();
@@ -1169,7 +1305,12 @@
     // A revealed answer lands after the choice click's own delay, so the signal waits for it.
     var st = queryParam("state"), applied = st !== null && id === null && checkSrc && checkSrc.state ? checkSrc.state(st) : false;
     // The signal audit.mjs waits for before capturing.
-    var signal = function () { document.documentElement.setAttribute("data-ltt-shot", ""); };
+    // The check and the state applied above can redraw what a clock drew (a sweep's first render, a scene's enter), so each clock paints its shot frame, and the small-text fix runs after that because a repaint can redraw tiny text.
+    var signal = function () {
+      clocks.forEach(function (c) { if (c.repaint) c.repaint(); });
+      if (!mobile()) fixSvgText(document.body);
+      document.documentElement.setAttribute("data-ltt-shot", "");
+    };
     if (applied && typeof setTimeout === "function") setTimeout(signal, 450); else signal();
   }
 
@@ -1218,6 +1359,7 @@
   if (typeof document !== "undefined") {
     var style = document.createElement("style");
     style.id = "ltt-style";
+    style.setAttribute("data-ltt-kit", "");
     // The panel overlays the right and bottom edge of a screenshot, so a shot document drops it.
     style.textContent = STYLE + (queryParam("shot") !== null ? "#ltt-expect{display:none!important}" : "");
     document.head.appendChild(style);
@@ -1248,6 +1390,6 @@
     termsIn: termsIn, usesTerm: usesTerm, sceneText: sceneText, summaryCards: summaryCards, termIndex: termIndex, lintDeck: lintDeck, isAdvice: isAdvice,
     termIssues: termIssues, goalIssues: goalIssues, deckIssues: deckIssues, check: check, checkSource: checkSource, clock: clock, sceneTypes: SCENE_TYPES, rectHit: rectHit, freeSlot: freeSlot,
     stepValues: stepValues, goalReach: goalReach,
-    setGlossary: setGlossary, linkTerms: linkTerms, mobile: mobile
+    setGlossary: setGlossary, linkTerms: linkTerms, mobile: mobile, ruleIds: RULE_IDS, renderedText: renderedText, fixSvgText: fixSvgText
   };
 })(typeof globalThis !== "undefined" ? globalThis : this);
