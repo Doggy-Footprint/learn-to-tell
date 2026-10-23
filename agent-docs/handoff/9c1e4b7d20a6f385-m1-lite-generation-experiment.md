@@ -42,6 +42,11 @@ M1-lite를 새 workflow-approach run으로 시작한다(intent.md 마일스톤 M
    - **생성:** compare1 3주제를 처음부터 끝까지 만든다. 생성은 새 context의 서브에이전트가 한다.
    - **측정:** 주제마다 토큰과 시간, 렌더 뒤 레이아웃 수정 횟수, spec 크기를 잰다. 독립 정답 검산 서브에이전트를 켜고 잡은 오류 수와 토큰을 잰다.
 3. 끝 조건: 주제마다 120k 토큰·12분 이하, 렌더 뒤 레이아웃 수정 1회 이하. 넘으면 대조군(같은 3주제를 "agent가 페이지를 쓰는 작은 library"로)과 비교해 구조를 다시 검토한다.
+4. 범위에 더한다(사용자 승인). 걱정의 근거는 v1이다: 생성 agent가 라이브러리를 몰라 렌더 뒤 디버깅을 반복했고, 그만큼 생성 비용이 늘었다.
+   - **의미 검사를 M2에서 M1로 당긴다.** tsc와 stub을 통과해도 뜻이 틀린 수업이 남는다. 근거는 M0 예시 수업에서 R2가 찾은 결함 7건과 감사 조각의 표현자 오류다. M0에서 실제로 결함을 잡은 rules.md check 층 규칙을 생성 루프의 check에 넣는다: data-in-domain, goal-reachable, goal-at-start, reveal-figure-exists와 reveal.marks id 존재, input-binding, term-defined-before-use, accent-focus-only. 지금은 `packages/runtime/test/example-fr43.test.mjs` 안에만 있는 검사다. 오류 메시지는 spec 경로와 규칙 id를 담아, 렌더 없이 고칠 수 있게 한다.
+   - **runtime 디버깅을 생성 agent에서 떼어 낸다.** check를 통과했는데 렌더가 이상하면 runtime 버그로 본다. 생성 agent는 runtime 소스를 읽거나 고치거나 우회하지 않고 기록만 남긴다. SKILL 초안과 생성 서브에이전트 지시에 이 규칙을 적는다.
+   - **반복을 원인별로 센다.** 주제마다 tsc, check, 렌더 뒤 수정, 정답 검산 횟수와 각 토큰을 따로 기록한다. 렌더 뒤 수정이 주제당 1회를 넘으면 v1 문제가 다시 생긴 것으로 보고 구조를 재검토한다.
+   - intent.md의 마일스톤 표(M1·M2 끝 조건, `ltt check`의 일부를 M1로)는 이 run의 brief 승인 뒤에 고친다.
 
 ## Open Questions
 
