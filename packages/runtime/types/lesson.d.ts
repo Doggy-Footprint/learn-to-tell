@@ -7,18 +7,25 @@ declare const brand: unique symbol;
 /** Point in the frame's data units, not pixels. */
 export type P = [x: number, y: number];
 export type Axis = [min: number, max: number, unit: string];
+/** Keys in any scene, item, option, reveal or compare params are declared view params; that params value is the start value. */
+/** Precedence, later wins: model defaults, scene/item params, explore knob/handle, committed Option params, reveal.params, compare a/b, multiples over. Split children get the same resolved params. */
 export type Params = Record<string, number | string | boolean>;
 /** Model name to its output. Inside figure draw it is untyped. */
 export type Outputs = Record<string, any>;
 /** Functions are re-evaluated with current model outputs. */
 export type Text<O = Outputs> = string | ((m: O) => string);
-/** Runtime picks colors. focus is the accent; good, warn, bad are semantic; series1–6 stay mutually distinguishable, colorblind-safe. */
-export type Tone = "focus" | "ref" | "muted" | "good" | "warn" | "bad" | "series1" | "series2" | "series3" | "series4" | "series5" | "series6";
-/** Later marks in MarkTree paint on top; marks are clipped to the frame. */
+/** Runtime picks colors. focus is the accent; good, warn, bad are semantic. */
+export type Tone =
+  | "focus" | "ref" | "muted" | "good" | "warn" | "bad"
+  /** series1–6 are mutually distinguishable and colorblind-safe, but unordered categories. */
+  | "series1" | "series2" | "series3" | "series4" | "series5" | "series6";
+/** Later marks in MarkTree paint on top; marks are clipped to the frame, except text. */
 export type MarkOpts = {
   /** Target for scene focus and reveal lists. */
   id?: string;
+  /** Within one tone, contrast vs background rises with fill none < soft < solid and with opacity. */
   tone?: Tone;
+  /** Text beside the mark; runtime chooses its position, avoiding other text and frame edges. */
   label?: Text;
   /** Drawn fraction 0–1, by arc length from the path start. */
   reveal?: number;
@@ -26,10 +33,12 @@ export type MarkOpts = {
   from?: string;
   weight?: "thin" | "normal" | "bold";
   size?: "s" | "m" | "l";
-  /** Defaults: area soft, dot solid, rect, circle, arc, path none (outline). */
+  /** Defaults: area soft, dot solid, rect, circle, arc, path none (outline). Not a physical lightness guarantee. */
   fill?: "none" | "soft" | "solid";
   /** 0–1. */
   opacity?: number;
+  /** Draw the outline or line dashed. */
+  dash?: boolean;
 };
 
 export interface Mark { readonly [brand]: "mark" }
@@ -70,7 +79,7 @@ export type Meta = {
   domains: [string, ...string[]];
 };
 
-/** params apply to the figure while this option is selected. */
+/** params apply only after the choice is committed; no preview while selecting. */
 export type Option<O = Outputs> = { text: Text<O>; correct: true; params?: Params } | { text: Text<O>; feedback: Text<O>; params?: Params };
 export type ChoiceInput<O = Outputs> = { kind: "choice"; options: Option<O>[] };
 /** Learner drags mark along axis; correct within tol data units. The learner's answer is drawn as mark id "guess". */
@@ -78,6 +87,7 @@ export type DragInput<O = Outputs> = { kind: "drag"; mark: string; axis: "x" | "
 /** Learner sketches over x range, drawn as mark id "guess"; answer is the correct curve's mark id; tol in data units. */
 export type DrawInput = { kind: "draw"; x: [number, number]; answer: string; tol: number };
 
+/** Focus lists: runtime emphasizes listed marks and draws others at lower contrast, tone unchanged. No focus list, no emphasis: quiz item figure, summary, reveal.figure. */
 export type Hook<O = Outputs, F = FigKey> = { type: "hook"; title: Text<O>; say: Text<O>; figure: F; focus: string[]; params?: Params };
 /** Ask before explaining. reveal.marks stay hidden until answered; reveal.figure and reveal.params show after. targets names a misconception. */
 export type Predict<O = Outputs, F = FigKey> = {
@@ -95,13 +105,14 @@ export type Explain<O = Outputs, F = FigKey> = { type: "explain"; title: Text<O>
 export type Define<O = Outputs, F = FigKey> = { type: "define"; term: string; definition: Text<O>; figure?: F; focus: string[] };
 /** Each step advances the figure's steps index. */
 export type Steps<O = Outputs, F = FigKey> = { type: "steps"; title: Text<O>; figure: F; steps: { say: Text<O>; focus: string[] }[] };
-/** knobs: model param to slider, choices, or toggle. Dragging a handle mark sets params x, y to its data coordinates, clamped. */
+/** knobs: declared params (model defaults or view params) as slider, choices or toggle. A dragged handle sets params x, y to its data coordinates, clamped. */
 export type Explore<O = Outputs, F = FigKey> = {
   type: "explore";
   title: Text<O>;
   say: Text<O>;
   figure: F;
   focus: string[];
+  params?: Params;
   knobs: Record<string, [min: number, max: number, step?: number] | { range: [number, number]; step?: number; log?: true } | string[] | boolean>;
   handles?: { mark: string; x?: string; y?: string }[];
   goal?: { say: Text<O>; done: (m: O) => boolean };
@@ -118,7 +129,7 @@ export type QuizItem<O = Outputs, F = FigKey> =
   | { kind: "order"; prompt: Text<O>; items: Text<O>[]; objective: string; transfer?: true }
   | { kind: "classify"; prompt: Text<O>; bins: string[]; items: { text: Text<O>; bin: string }[]; objective: string; transfer?: true };
 
-/** Shown after a choice or numeric answer is submitted. */
+/** Shown after a choice or numeric answer is submitted, correct or not; marks are not drawn before. Item figure uses item params before submission. */
 export type QuizReveal<O = Outputs, F = FigKey> = { say?: Text<O>; marks?: string[]; figure?: F; params?: Params };
 
 /** level: 1 basic to 5 advanced. requires and leadsTo are concept ids. */
@@ -127,7 +138,7 @@ export type Section<O = Outputs, F = FigKey> = { concept: Concept; scenes: Scene
 
 export type LessonInput<M = Record<string, Model<any, any>>, F extends string = string, O = OutputsOf<M>> = {
   meta: Meta;
-  /** Term to short definition; scene text may use only defined terms. */
+  /** Term to short definition. Every define-scene term must be a key here (rule term-unknown). */
   glossary?: Record<string, string>;
   checks: NoInfer<Check<M>>[];
   models: M;
@@ -156,6 +167,7 @@ export type PathCmd =
   | ["A", rx: number, ry: number, rotationDeg: number, largeArc: 0 | 1, sweep: 0 | 1, x: number, y: number]
   | ["Z"];
 
+/** Preferred side of the text. Text is never clipped, an exception to mark clipping; size, wrap and offset are runtime constants. */
 type Anchor = "c" | "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 /** Lesson files default-export this; the runtime injects api. No imports, no DOM. */
@@ -166,7 +178,7 @@ export interface Api {
   lesson<M extends Record<string, Model<any, any>>, F extends string>(input: LessonInput<M, F>): LessonSpec;
   /** fn must be pure and deterministic. src cites the formula or source; illustrative marks made-up numbers. */
   model<P extends Params, O>(defaults: P, fn: (p: Widen<P>) => O, src: string | { illustrative: true }): Model<Widen<P>, O>;
-  /** draw is sampled over the frame's time; ctx.params are the scene's params merged over defaults. */
+  /** draw is sampled over the frame's time; ctx.params is the resolved params, view params included. */
   figure(frame: Frame, draw: (m: Outputs, t: number, ctx: { step: number; params: Params }) => MarkTree): Figure;
   /** Escape hatch; check rule custom-why. bounds is its data-space box. */
   custom(opts: { id: string; why: string; bounds: [P, P] }, render: (ctx: { h: H; m: Outputs; t: number }) => VNode | VNode[]): Mark;
@@ -177,7 +189,7 @@ export interface Api {
   polar(o: { r: Axis; theta?: [number, number]; ring?: boolean } & TimeSpec): Frame;
   /** Points are [time, lane index]. */
   lanes(o: { time: Axis; lanes: string[] } & TimeSpec): Frame;
-  /** Runtime lays out node and edge marks. */
+  /** Data window is [0,1]×[0,1]; layout places nodes inside it. Other marks in the frame use the same window. */
   graph(o: { layout: "tree" | "layered" | "force" | "sankey"; direction?: "down" | "right" } & TimeSpec): Frame;
   /** Points are [col, row]. */
   cells(o: { cols: number; rows: number } & TimeSpec): Frame;
@@ -185,13 +197,14 @@ export interface Api {
   /** Points are [lon, lat] degrees. */
   geo(o: GeoOpts & TimeSpec): Frame;
 
+  /** Runtime chooses tick count and number format, and appends the axis unit. */
   axis(which: "x" | "y" | "r" | "theta" | "time", o?: { label?: Text; ticks?: number | number[] } & MarkOpts): Mark;
   /** Grid lines at spacing or positions. */
   grid(o?: { x?: number | number[]; y?: number | number[] } & MarkOpts): Mark;
-  line(pts: P[], o?: { curve?: "linear" | "smooth" | "step"; dash?: boolean } & MarkOpts): Mark;
+  line(pts: P[], o?: { curve?: "linear" | "smooth" | "step" } & MarkOpts): Mark;
   /** Filled between pts and y = base (default 0). */
   area(pts: P[], o?: { base?: number } & MarkOpts): Mark;
-  /** tone/text pairs. */
+  /** tone/text pairs. Without at, placed outside the plot area. */
   legend(entries: { tone: Tone; text: Text }[], o?: { at?: P } & MarkOpts): Mark;
   dot(at: P, o?: MarkOpts): Mark;
   /** radius in x-axis data units. */
@@ -202,16 +215,17 @@ export interface Api {
   arrow(from: P, to: P, o?: MarkOpts): Mark;
   /** "A" sweep 1 is counterclockwise in data coordinates (y up). */
   path(cmds: PathCmd[], o?: MarkOpts): Mark;
-  /** leader draws a line from the label to that point. */
-  label(at: P, text: Text, o?: { anchor?: Anchor; leader?: P } & MarkOpts): Mark;
-  /** Dimension line between two points with its measured text. */
+  /** at is the point the text refers to, not a shifted position. Runtime moves text off other text and frame edges, drawing a leader. */
+  label(at: P, text: Text, o?: { anchor?: Anchor; /** Always draw a leader line from the label to this point. */ leader?: P } & MarkOpts): Mark;
+  /** Dimension line between two points with its measured text; runtime places the text. */
   dim(from: P, to: P, text: Text, o?: MarkOpts): Mark;
-  /** Angle arc at vertex between rays to from and to. */
+  /** Angle arc at vertex between rays to from and to; runtime places text outside the arc. */
   angle(vertex: P, from: P, to: P, o?: { text?: Text } & MarkOpts): Mark;
+  /** Runtime places the text outside the brace, centered. */
   brace(from: P, to: P, text: Text, o?: MarkOpts): Mark;
-  /** Graph frame node; id is also its mark id. at overrides layout. */
+  /** Graph frame node; id is also its mark id. at pins it in the [0,1]² window, overriding layout. */
   node(id: string, text: Text, o?: { at?: P; shape?: "box" | "round" | "circle"; group?: string } & MarkOpts): Mark;
-  /** Between node ids; default mark id is "from->to". value sets sankey width. */
+  /** Between node ids; default mark id is "from->to". value sets sankey width. Runtime places text at the line middle. */
   edge(from: string, to: string, o?: { text?: Text; value?: number; directed?: boolean } & MarkOpts): Mark;
   /** value is colored on the runtime's sequential scale. */
   cell(col: number, row: number, o?: { value?: number; text?: Text } & MarkOpts): Mark;
@@ -229,15 +243,15 @@ export interface Api {
 
   /** Path of series up to model time t; dims picks state components as x and y. */
   trace(s: Series, t: number, o?: { trail?: boolean; head?: boolean; dims?: [number, number] } & MarkOpts): MarkTree;
-  /** n particles moving along pts at rate per time unit; seed fixes their offsets. */
+  /** n particles along pts; rate is the fraction of full path length per unit t; seed fixes offsets. */
   flow(pts: P[], o: { n: number; rate: number; seed: number; t: number } & MarkOpts): MarkTree;
   /** Line across the frame at a data value; width in data units. */
   sweep(axis: "x" | "y", at: number, o?: { width?: number } & MarkOpts): Mark;
   /** With source: magnified source box, connected to its origin. Without: whole figure as thumbnail. Placed at box at. */
   inset(figure: FigKey, o: { source?: [P, P]; at: [P, P] } & MarkOpts): Mark;
-  /** Both share t, step, params, knobs, reveal, focus; mark ids unique across both. link: param or mark id highlighted in both. */
+  /** Both share t, step, params, knobs, reveal, focus; mark ids unique across both. link: declared param or mark id highlighted in both. */
   split(figures: [FigKey, FigKey], o?: { link?: string }): Figure;
-  /** over keys are model params; one copy per value, sharing frame, axes, t, step, knobs. */
+  /** over keys are declared params; one copy per value, sharing frame, axes, t, step, knobs. */
   multiples(figure: FigKey, o: { over: Record<string, Array<number | string | boolean>> }): Figure;
 
   /** Fixed-step RK4. Stops at the first sign change of event from nonnegative to negative. */

@@ -45,6 +45,7 @@ const table = [
   ["C-8 value(run) boolean true vs expect true", { model: "s", value: (o, run) => run({ x: 2 }) > run({ x: 1 }), expect: true }, true],
   ["C-8 value(run) boolean true vs expect false", { model: "s", value: (o, run) => run({ x: 2 }) > run({ x: 1 }), expect: false }, false],
   ["value number uses returned value not output", { model: "o", value: (o) => o.range * 2, expect: 81.54, tol: 1e-9 }, true],
+  ["V1-8 FR-13 epsilon: value 0.1+0.2 vs expect 0.3, tol 0", { model: "s", value: () => 0.1 + 0.2, expect: 0.3, tol: 0 }, true],
   ["value receives at-merged output", { model: "s", at: { x: 3 }, value: (o) => o, expect: 3, tol: 0 }, true],
 ];
 for (const [name, check, pass] of table) {
@@ -313,5 +314,42 @@ for (const [name, mut, section, scene, id] of bindCases) {
     assert.ok(e.message.length > 0);
     if (section !== null) assert.deepEqual([e.section, e.scene], [section, scene]);
     assert.equal(rep.ok, false);
+  });
+}
+
+// V1-2 (FR-16): focus on multiples figures and on predict / define / explore scenes.
+function focusSceneLesson(scenes) {
+  return (api) => api.lesson(input({
+    models: { m: api.model({ k: 1 }, (p) => ({ v: p.k }), "m") },
+    figures: {
+      base: api.figure(api.cartesian({ x: [0, 1, "u"], y: [0, 1, "u"], static: "s" }), () => [api.dot([0, 0], { id: "a" })]),
+      many: api.multiples("base", { over: { k: [1, 2] } }),
+    },
+    sections: [{ concept: { id: "k", title: "k", definition: "d", level: 1 }, scenes }],
+  }));
+}
+const idsOf = (rep) => rep.focusErrors.map((e) => `${e.section}/${e.scene}/${e.id}`);
+test("V1-2 multiples figure: base figure id in focus -> no focusError; unknown id -> one", () => {
+  const ok = evaluate(focusSceneLesson([{ type: "explain", title: "e", say: "s", figure: "many", focus: ["a"] }]));
+  assert.deepEqual(ok.focusErrors, []);
+  const bad = evaluate(focusSceneLesson([{ type: "explain", title: "e", say: "s", figure: "many", focus: ["a", "ghost"] }]));
+  assert.deepEqual(idsOf(bad), ["0/0/ghost"]);
+  assert.equal(bad.ok, false);
+});
+const choice = { kind: "choice", options: [{ text: "a", correct: true }] };
+const focusScenes = {
+  predict: { type: "predict", title: "p", ask: "a", figure: "base", focus: ["ghost"], input: choice, reveal: { say: "r" } },
+  define: { type: "define", term: "t", definition: "d", figure: "base", focus: ["ghost"] },
+  explore: { type: "explore", title: "x", say: "s", figure: "base", focus: ["ghost"], knobs: { k: [0, 1] } },
+};
+for (const [kind, scene] of Object.entries(focusScenes)) {
+  test(`V1-2 ${kind} scene with unknown focus id -> exactly one focusError at its position`, () => {
+    const rep = evaluate(focusSceneLesson([{ type: "explain", title: "e", say: "s", figure: "base", focus: ["a"] }, scene]));
+    assert.deepEqual(idsOf(rep), ["0/1/ghost"]);
+    assert.equal(rep.ok, false);
+  });
+  test(`V1-2 ${kind} scene with known focus id -> no focusError`, () => {
+    const rep = evaluate(focusSceneLesson([{ ...scene, focus: ["a"] }]));
+    assert.deepEqual(rep.focusErrors, []);
   });
 }

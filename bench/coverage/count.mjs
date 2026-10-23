@@ -3,7 +3,7 @@ import { existsSync, statSync } from "node:fs";
 import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
-import { createApi } from "../../packages/runtime/dev/spec-stub.mjs";
+import { createApi, bindingErrors } from "../../packages/runtime/dev/spec-stub.mjs";
 
 const CORPORA = ["shot", "shot-extra", "lesson", "new-b1", "new-b2"];
 const VERDICTS = ["V", "C", "G", "X", "N"];
@@ -125,7 +125,14 @@ export async function aggregate(dir) {
     }
     const { api, usage } = createApi();
     try {
-      drawFigures(mod.default(api), api);
+      const spec = mod.default(api);
+      drawFigures(spec, api);
+      const { models, figures, scenes } = spec;
+      const counted = new Map(usage);
+      const found = bindingErrors({ models, figures, sections: scenes ? [{ scenes }] : [] });
+      usage.clear();
+      for (const [k, v] of counted) usage.set(k, v);
+      for (const b of found) fail(`binding ${b.id}: ${b.message}`);
     } catch (err) {
       fail(`factory threw: ${err instanceof Error ? err.message : String(err)}`);
       continue;

@@ -87,7 +87,7 @@ export default (api) => {
       { type: "steps", title: "표본을 또 뽑으면", figure: "f1", steps: [1, 2, 3, 4, 5].map((i) => ({ say: `표본 ${i}`, focus: ["rate"] })) },
       { type: "explore", title: "표본 크기와 흔들림", say: "n을 바꾼다", figure: "f3", focus: ["curve", "se-label"], knobs: { n: { range: [100, 10000], step: 1, log: true } },
         goal: { say: "±1%p 안에 95%가 들어오게 하는 n을 찾아라", done: (m) => m.se.ok && m.se.n <= 1600 } },
-      { type: "explore", title: "표준오차 공식 읽기", say: "항을 골라 곡선 폭과 잇는다", figure: "f4", focus: ["sqrt"], knobs: { term: ["p(1−p)", "n", "√"], n: [100, 10000, 100] } },
+      { type: "explore", title: "표준오차 공식 읽기", say: "항을 골라 곡선 폭과 잇는다", figure: "f4", focus: ["sqrt"], params: { term: "p(1−p)" }, knobs: { term: ["p(1−p)", "n", "√"], n: [100, 10000, 100] } },
       { type: "steps", title: "신뢰구간 100개", figure: "f5", steps: [{ say: "1개", focus: ["ci-0"] }, { say: "10개", focus: ["counter"] }, { say: "100개", focus: ["counter", "fixed"] }] },
       { type: "compare", title: "n=500 대 n=5000", say: "폭은 줄고 적중률은 같다", figure: "f6", focus: ["hit-rate"], a: { n: 500 }, b: { n: 5000 }, labels: ["n=500", "n=5,000"] },
     ],

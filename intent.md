@@ -35,7 +35,7 @@ Status: draft (2026-10-23). v1 전체는 태그 `archive/v1`(`0da38db`)에 있�
 
 1. agent는 수업 spec(수치 모델, 데이터 단위 그림, 장면)만 쓴다. 레이아웃·CSS·DOM·애니메이션 코드는 쓰지 않는다. 미리 만들어 검증한 runtime이 전부 그린다. ADR `3c44a1f91bcb8367`(v1 ADR `6ff15ad3eef7b88d` 대체).
 2. 인포그래픽은 `model → view`다. model은 매개변수·시간 → 수치를 내는 순수 함수, view는 수치를 데이터 단위 도형으로 바꾼다. px는 runtime의 scale만 계산한다.
-3. 검사(`ltt check`)는 브라우저 없이 Node에서 결정적으로 돈다. 화면은 마지막에 contact sheet로 한 번 본다. 검증 서브에이전트는 기본으로 쓰지 않는다(bench에서 수치 오류가 나오면 켠다).
+3. 검사(`ltt check`)는 브라우저 없이 Node에서 결정적으로 돈다. 화면은 마지막에 contact sheet로 한 번 본다. checks는 수치만 잡고 정답 표시·데이터 값 오류는 못 잡는다(감사 반박 기록에서 약 17%로 추정). 그래서 M1 생성 실험에서는 독립 정답 검산(문항·공개 결론·데이터만 읽고 따로 푸는 서브에이전트)을 켜고, 잡은 오류 수와 토큰을 잰다. 기본으로 켤지는 그 결과로 정한다.
 4. 교수 설계 규칙은 장면 타입의 구조로 강제한다. 예측 장면의 공개 내용은 확정 전에 렌더되지 않는다.
 5. 외부 라이브러리는 runtime 안에서만 쓴다. 수업 파일은 라이브러리를 부르지 않는다.
 
@@ -97,16 +97,28 @@ export default lesson({
 });
 ```
 
-어휘는 차트 종류 목록이 아니라 서로 독립인 층으로 둔다. 층끼리 조합하므로 문서 크기는 항목 수의 합으로 늘고, 표현할 수 있는 그림은 곱으로 는다.
+어휘는 차트 종류 목록이 아니라 서로 독립인 층으로 둔다. 층끼리 조합하므로 문서 크기는 항목 수의 합으로 늘고, 표현할 수 있는 그림은 곱으로 는다. 계약은 `packages/runtime/types/lesson.d.ts`(v4)다.
 
 | 층 | 항목 |
 |---|---|
-| 좌표계 | cartesian(선형·로그), polar(고리 포함), lanes(시간축 레인), graph(tree·layered·force·sankey 자동 배치), grid(셀·단위 칸), space3d(정사영·원근 투영), geo(지도 투영, 지연 로드) |
-| 도형 | axis, grid, line, area, dot, rect, arc, arrow, path, label, dim(치수선), angle, brace, node/edge, cell, field(f(x,y)의 색·화살표장), glyph(회로·광학·사람·서버 등 기호), icon, math, code(줄·구간 강조), mock(UI 틀) |
-| 움직임 | morph, flow(입자), accumulate, trace, draw, split/merge, camera(확대·인셋), sweep(훑는 강조). v1 `look/look.md`의 움직임 8종과 같다 |
-| 구도 | full, hero, split(같은 변수 동시 강조 `link`), multiples(축 공유 강제), overlay |
-| 모델 도우미 | ode(RK4), rng(seed), sample·histogram, particles, argmax·root, interpolate, 단위 변환 |
+| 좌표계 | cartesian(선형·로그, camera), polar(고리 포함), lanes(시간축 레인), graph(tree·layered·force·sankey 자동 배치, 데이터 창 [0,1]²), cells(셀·단위 칸), space3d(정사영·원근, ext), geo(지도 투영, ext) |
+| 도형 | axis, grid, legend, line, area, dot, circle, rect, arc, arrow, path, label, dim(치수선), angle, brace, node, edge, cell, field(f(x,y)의 색·화살표장), glyph(회로·광학·사람·서버 등 기호), icon, math, code(줄·구간 강조), mock(UI 틀) |
+| 움직임 | trace(잔상), flow(입자), sweep(훑는 강조), inset(확대·축소판), mark 옵션 reveal(그려지기)·from(분리·합침), 같은 id의 장면 간 이동·변형 |
+| 구도 | split(같은 변수 동시 강조 `link`), multiples(축 공유 강제), compare 장면(a·b params) |
+| 모델 도우미 | ode(RK4, event), rng(mulberry32), sample·histogram, argmax·root, interpolate |
 | plugin(지연 로드, 후보) | 악보, 화학 구조식, 소리(Web Audio) |
+
+어휘의 근거는 표현 범위가 아니라 runtime이 지는 보장이다. 기본 도형(line, rect, path, area, dot, circle, arc)만으로도 거의 모든 그림을 그릴 수 있지만(범위 감사, `bench/coverage/report.md`), 그러면 agent가 글자와 보조선의 좌표를 직접 정한다. 그러면 v1의 레이아웃 결함(넘침, 겹침, 작은 글자)이 그림 안으로 옮겨 간다. 상위 mark는 그 일을 runtime으로 가져오고, 기본 도형 서너 개와 좌표 계산을 한 줄로 줄인다.
+
+- mark를 더하는 기준: runtime이 새로 보장하는 것(글자 배치, 자동 배치, 형식)이 있거나, 생성 실험에서 같은 조합이 반복되어 spec을 줄인다. 범위만 넓히는 항목은 더하지 않는다.
+- 구현 순서: 감사 조각의 사용 빈도 순이다. frame은 cartesian 238, graph 32, cells 12, polar 2, geo 2, lanes 1, space3d 0이다. M1은 cartesian·graph·cells와 시험 주제가 쓰는 mark부터 구현한다. 아직 구현하지 않은 mark는 check가 오류로 막아, 렌더할 수 없는 수업이 조용히 만들어지지 않게 한다.
+
+글자 배치(runtime 소유):
+
+- 글자를 지닌 mark: label, mark의 `label` 옵션, axis, legend, dim, angle, brace, node, edge, cell, math, code, mock.
+- agent는 글자가 가리키는 데이터 점과 선호 방향(`anchor`)만 준다. 글자 크기·줄바꿈 폭·offset은 runtime 상수다.
+- runtime은 글자끼리, 그리고 frame 가장자리와 겹치지 않게 글자를 옮긴다. 기준점에서 멀어지면 leader 선을 긋는다. 글자는 frame에 잘리지 않는다.
+- dim·brace·angle·edge의 글자는 runtime이 그 도형에 맞춰 둔다. axis 눈금은 runtime이 개수·형식·단위를 정한다. legend는 그림 영역 밖이 기본이다.
 
 - 시간: `loop`(모델 시간 반복), `steps`(단계 반복), `idle`(은은한 반복), 정적 그림은 `static: "<이유>"`.
 - agent가 처음 읽는 계약(`lesson.d.ts`)에는 core 층 전체를 한 줄씩 둔다. plugin·geo의 자세한 문서는 정확한 이름으로만 연다(`ltt docs <이름>`). v1처럼 키워드 grep으로 부품을 찾지 않는다.
@@ -116,8 +128,11 @@ export default lesson({
 
 ### 표현 범위
 
-- `custom`은 v1처럼 SVG를 직접 그리되 model·시간 계약 안에서 그린다. 그래서 표현 범위는 v1보다 좁아지지 않는다. 레이아웃 보장은 어휘가 덮는 그림에만 있다. 따라서 범위의 지표는 `custom`을 쓴 그림의 비율이다.
-- v1 shot 49개(`look/look.md`, s05·s08 없음)를 위 어휘로 지면 대조한 결과(2026-10-23): 49개 모두 core 층으로 표현할 수 있다. 렌더로 확인한 것은 아니다. 처음 제안한 어휘(좌표계 5, 도형 14, 시간 3)로는 움직임 operator, 로그·고리 좌표, `link`, camera, glyph, code, mock이 없어 부족했다. gallery-v2 수업에서는 space3d(drawing-basics 원근), mock(visual-hierarchy), 로그-로그(single-gpu roofline)가 추가로 필요했다.
+- `custom`은 v1처럼 SVG를 직접 그리되 model·시간 계약 안에서 그린다. 그래서 표현 범위는 v1보다 좁아지지 않는다. 레이아웃 보장은 어휘가 덮는 그림에만 있다.
+- 지면 범위 감사(2026-10-23, `bench/coverage/report.md`)를 했다. 대상은 v1 shot 49개, gallery 수업 7개, v1 밖 6분야 12주제였다.
+  - custom이 필요한 그림은 1개뿐이었다. 다만 어휘가 데이터 좌표의 기본 도형을 포함하므로, 이것은 계약의 질이 아니라 "무엇이든 그릴 수 있음"만 보인다. custom 비율은 지표로 쓰지 않는다.
+  - 표현자 판정의 반박률이 23–42%였고, 렌더한 그림은 0개였다. 그래서 감사를 중단했다.
+  - 범위는 M1 생성 실험의 실제 수업으로 확인한다.
 - 잘 덮지 못하는 주제:
   - 사실적 일러스트(해부도, 식물 형태, 미술 작품), 사진·영상이 본질인 절차(실험 술기, 운동 자세). 도식으로만 대신한다.
   - 글이 본질인 인문 주제(문학 해석, 역사 서술). 연표·논증 지도로 구조만 보이고, 절마다 그림 필수 규칙의 예외(`figure: none, reason`)를 허용한다.
@@ -169,7 +184,11 @@ v1 SKILL.md §1·§4·§5·§6과 `skills/learn-to-tell/map/`(archive/v1)을 이
 | 생성 시간 | 12분 이하 |
 | check 실행 | 3회 이하 |
 | sheet 확인 | 1회 |
-| contact sheet 블라인드 쌍 비교 (같은 prompt의 일반 요청 대비) | v2 우세 80% 이상 |
+| 렌더 뒤 레이아웃 수정 반복(그림 안 글자 포함) | 1회 이하 |
+| contact sheet 블라인드 쌍 비교 (같은 prompt의 일반 요청 대비, 10쌍 이상) | v2 우세 80% 이상 |
+
+- 쌍 비교는 10쌍 이상으로 한다. v1의 3쌍으로는 차이를 구분하지 못했다.
+- 비용(토큰·시간)은 M1 생성 실험에서 처음 재고, 그 뒤 마일스톤마다 다시 잰다.
 
 ### 품질 판정 (bench)
 
@@ -181,10 +200,10 @@ v1 SKILL.md §1·§4·§5·§6과 `skills/learn-to-tell/map/`(archive/v1)을 이
 
 | | 내용 | 끝 조건 |
 |---|---|---|
-| M0 | 범위 지면 감사 + `lesson.d.ts` 계약 + 손으로 쓴 예시 수업 1개 | v1 shot 49개, gallery-v2 17개 수업의 그림, v1에 없던 분야 12개 × 2주제를 어휘만으로 적어 `custom` 비율 10% 이하. 타입 검사 통과, 사용자 검토 |
-| M1 | runtime: stage·card, 감사에서 많이 쓰인 층부터(space3d·geo·plugin은 뒤로), predict 3방식, quiz, summary 전환. v1 shot 12개(움직임 8종·구도 5종을 한 번 이상)를 v2 spec으로 다시 써서 회귀 corpus로 둔다 | 예시 수업과 corpus가 데스크톱·모바일에서 렌더 |
-| M2 | `ltt check`, `ltt sheet` | 예시 수업의 고의 결함 목록을 모두 잡음 |
-| M3 | SKILL.md, 예시 2개, bench 3주제 | 목표 수치 측정 |
+| M0 | `lesson.d.ts` 계약(글자 배치 포함) + spec stub + 손으로 쓴 예시 수업 1개 | 양성·음성 타입 fixture 통과, stub(checks, 결정성, figure 평가, param binding), 예시 수업 검산 통과, 감사 조각 전체가 binding 포함 count 통과, 사용자 검토 |
+| M1 | 생성 실험: 얇은 runtime(stage·card, 장면 타입, predict·quiz UI, cartesian·graph·cells와 시험 주제가 쓰는 mark, 글자 배치), SKILL 초안, compare1 3주제를 처음부터 끝까지 생성 | 주제마다 120k 토큰·12분 이하, 렌더 뒤 레이아웃 수정 반복 1회 이하. 넘으면 구조를 다시 검토한다(대조군: 같은 3주제를 "agent가 페이지를 쓰는 작은 library"로) |
+| M2 | runtime 확장(나머지 frame·mark, summary 전환, 장면 간 변형), `ltt check`, `ltt sheet`. 감사 조각에서 v1 shot 12개를 골라 회귀 corpus로 둔다 | 예시 수업의 고의 결함 목록을 모두 잡음, corpus가 데스크톱·모바일에서 렌더 |
+| M3 | SKILL.md, 예시 2개, bench 10주제 이상 | 목표 수치, 블라인드 쌍 10개 이상 |
 | M4 | 진단·`ltt open`·`ltt result`·map 이식 | v1 흐름 전체가 한 주제로 끝까지 돎 |
 | M5 | npm 배포, claude.ai standalone, import | claude.ai에서 수업 1개 생성·열람 |
 
@@ -194,15 +213,19 @@ v1 SKILL.md §1·§4·§5·§6과 `skills/learn-to-tell/map/`(archive/v1)을 이
 |---|---|
 | v1식 자유 HTML + 보조 kit | 토큰 8.2×(compare1), 결함이 렌더해야만 보여 audit·검증 반복이 시간의 58% |
 | v1 kit처럼 차트 종류별 부품 목록(hbars, lanes, sankey, plane 등 35개) | 필요가 생길 때마다 부품과 문서가 하나씩 늘고(부품 문서 85KB), 부품끼리 조합되지 않는다 |
-| headless audit 반복 + 검증 서브에이전트 기본 사용 | 위와 같음. 구조 보장으로 대체 |
+| headless audit 반복 | 위와 같음. 구조 보장으로 대체(정답 검산 서브에이전트는 별도. 핵심 결정 3) |
 | Manim · Motion Canvas · Remotion | 빌드·렌더 파이프라인이 필요하고 결과가 영상이라 조작 불가 |
 | Observable Plot · Vega-Lite를 그림 층으로 | 프레임마다 모델을 그리는 애니메이션과 도식(궤적, 프로토콜 사다리)에 맞지 않고 agent가 배울 계약이 하나 더 생긴다 |
 | 스크롤리텔링 | 예측 확정 지점을 두기 어렵고 모바일 스크롤과 충돌 |
 | View Transitions API만으로 전환 | SVG 내부 도형 단위 모핑을 못 한다 |
 | storyboard 단계 유지 | 2–3안을 그리는 시간과 사용자 대기. 절 목록 공지로 대체 |
+| agent가 페이지를 쓰고 작은 library가 돕는 구조 | v1과 같은 방식으로 실패한다. v1 생성 시간의 58%는 렌더 뒤에만 보이는 결함을 고치는 반복이었다. regen-fix2에서 검사를 늘리자 audit 횟수는 줄었지만 시간(29–33분)은 그대로였다 |
+| 그림 층을 기본 도형 7개(line, path, area, dot, rect, label, arrow)로 최소화 | 글자·보조선 좌표를 agent가 다시 정하게 되어 v1의 레이아웃 결함이 그림 안으로 옮겨 간다. 상위 mark 하나가 대신하던 도형 여러 개를 spec에 써야 해서 spec도 커진다 |
+| 렌더 전에 지면 범위 감사로 계약을 고정 | 약 3.3M 토큰을 썼지만 렌더한 수업은 0개였다. 판정 반박률이 23–42%였다. 큰 위험(그림 안 글자 배치, spec 크기, 정답 오류)이 감사로는 보이지 않았다(`bench/coverage/report.md`) |
 
 ## 열린 질문
 
 - claude.ai 코드 실행 환경에서 Node로 `ltt check`를 돌릴 수 있는가 (M5에서 확인).
 - claude.ai artifact에서 runtime이 쓸 글꼴(예: Pretendard)을 불러올 수 있는가 (M5에서 확인).
-- 독립 검산 서브에이전트를 켤지 (M3 bench의 수치 오류율로 정함).
+- 독립 정답 검산 서브에이전트를 기본으로 켤지 (M1 생성 실험에서 잡은 오류 수와 토큰으로 정함).
+- 생성 spec 크기: 예시 수업 16.8 KB에서 25–40 KB로 추정한다(v1 HTML 30–68 KB). 절약은 쓰는 양이 아니라 반복을 줄여서 생긴다는 가정을 M1에서 확인한다.

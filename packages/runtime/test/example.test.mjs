@@ -126,3 +126,72 @@ test("VO-10 C-36/FR-42 evaluate(example).ok", () => {
   assert.deepEqual(rep.bindingErrors, []);
   assert.equal(rep.ok, true, JSON.stringify({ c: rep.checks.filter((c) => !c.pass), d: rep.deterministic.filter((d) => !d.ok), f: rep.figureErrors, x: rep.focusErrors, b: rep.bindingErrors }));
 });
+
+// v6 FR-43 (R2 1st-round fixes), observed through load(factory).input. Oracle: spec FR-43 values.
+const sec = (i, j) => inp.sections[i].scenes[j];
+const outsAt = (scene, extra = {}) => Object.fromEntries(Object.keys(inp.models).map((k) => {
+  const defs = inp.models[k].args[0];
+  const p = Object.fromEntries(Object.entries(extra).filter(([n]) => n in defs));
+  return [k, L.run(k, p)];
+}));
+const knobRange = (k) => (Array.isArray(k) ? k.slice(0, 2) : k.range);
+
+test("VO-10 FR-43 s0.1 predict asks on 'traj' and reveals 'angles'", () => {
+  const s = sec(0, 1);
+  assert.equal(s.type, "predict");
+  assert.equal(s.figure, "traj");
+  assert.equal(s.reveal.figure, "angles");
+});
+test("VO-10 FR-43 s2.2 explore uses 'traj' with knobs exactly [vt]; summary.figures has 'byvt'", () => {
+  const s = sec(2, 2);
+  assert.equal(s.type, "explore");
+  assert.equal(s.figure, "traj");
+  assert.deepEqual(Object.keys(s.knobs), ["vt"]);
+  assert.ok(inp.summary.figures.includes("byvt"));
+});
+test("VO-10 FR-43 s3.0 predict figure is multiples('vx', over {deg:[30,60]}) and reveal.marks has 'vx-area'", () => {
+  const s = sec(3, 0);
+  assert.equal(s.type, "predict");
+  const d = inp.figures[s.figure];
+  assert.equal(d.kind, "multiples");
+  assert.equal(d.args[0], "vx");
+  assert.deepEqual(d.args[1].over, { deg: [30, 60] });
+  assert.ok(s.reveal.marks.includes("vx-area"));
+});
+test("VO-10 FR-43 s3.2 explore uses 'both' with knobs exactly [deg] range [10,55]", () => {
+  const s = sec(3, 2);
+  assert.equal(s.type, "explore");
+  assert.equal(s.figure, "both");
+  assert.deepEqual(Object.keys(s.knobs), ["deg"]);
+  assert.deepEqual(knobRange(s.knobs.deg), [10, 55]);
+});
+test("VO-10 FR-43 final numeric quiz items have no figure", () => {
+  const nums = inp.quiz.filter((q) => q.kind === "numeric");
+  assert.ok(nums.length >= 1);
+  for (const q of nums) assert.equal(q.figure, undefined);
+});
+test("VO-10 FR-43 no scene text before the define scene (s0.2) contains '항력'", () => {
+  assert.equal(sec(0, 2).type, "define");
+  const outs = outsAt(null);
+  const TEXT_KEYS = new Set(["title", "say", "ask", "text", "feedback"]);
+  const texts = [];
+  const walk = (v, key) => {
+    if (typeof v === "function") { if (TEXT_KEYS.has(key)) texts.push(v(outs)); return; }
+    if (typeof v === "string") { if (TEXT_KEYS.has(key)) texts.push(v); return; }
+    if (Array.isArray(v)) { v.forEach((x) => walk(x, key)); return; }
+    if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) if (k !== "answer" && k !== "done") walk(x, k);
+  };
+  for (const j of [0, 1]) walk(sec(0, j));
+  assert.ok(texts.length >= 4, String(texts.length));
+  for (const t of texts) assert.doesNotMatch(t, /항력/, t);
+});
+test("VO-10 FR-43 goal reachability: s2.2 false at defaults, true at vt=5", () => {
+  const g = sec(2, 2).goal.done;
+  assert.equal(g(outsAt(null)), false);
+  assert.equal(g(outsAt(null, { vt: 5 })), true);
+});
+test("VO-10 FR-43 goal reachability: s3.2 false at defaults, true at deg=36", () => {
+  const g = sec(3, 2).goal.done;
+  assert.equal(g(outsAt(null)), false);
+  assert.equal(g(outsAt(null, { deg: 36 })), true);
+});

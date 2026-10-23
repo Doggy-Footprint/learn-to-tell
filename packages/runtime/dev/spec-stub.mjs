@@ -347,33 +347,9 @@ function samplesFor(frame, S) {
 }
 
 /**
- * @param {import("ltt").LessonFactory} factory
- * @param {{ samples?: number }} [o]
+ * @param {any} input @param {Record<string, unknown>} outputs @param {Record<string, unknown>} params @param {number} S
  */
-export function evaluate(factory, o = {}) {
-  const S = o.samples ?? 5;
-  const { input: raw } = load(factory);
-  /** @type {any} */
-  const input = raw;
-  const models = input.models ?? {};
-  const checks = evaluateChecks(input);
-
-  /** @type {Record<string, unknown>} */
-  const outputs = {};
-  /** @type {Record<string, unknown>} */
-  const params = {};
-  const deterministic = Object.entries(models).map(([model, /** @type {any} */ m]) => {
-    Object.assign(params, m.args[0]);
-    try {
-      const a = m.args[1]({ ...m.args[0] });
-      const b = m.args[1]({ ...m.args[0] });
-      outputs[model] = a;
-      return { model, ok: same(a, b) };
-    } catch {
-      return { model, ok: false };
-    }
-  });
-
+function sampleFigures(input, outputs, params, S) {
   /** @type {{ figure: string; t: number; step: number; message: string }[]} */
   const figureErrors = [];
   /** @type {Map<string, Set<string>>} */
@@ -409,6 +385,59 @@ export function evaluate(factory, o = {}) {
     return /** @type {Set<string>} */ (ownIds.get(name));
   };
 
+  return { figureErrors, idsOf };
+}
+
+/**
+ * @param {any} input @param {{ samples?: number }} [o]
+ * @returns {{ section: number; scene: number; id: string; message: string }[]}
+ */
+export function bindingErrors(input, o = {}) {
+  /** @type {Record<string, unknown>} */
+  const outputs = {};
+  /** @type {Record<string, unknown>} */
+  const params = {};
+  for (const [model, /** @type {any} */ m] of Object.entries(input.models ?? {})) {
+    Object.assign(params, m.args[0]);
+    try {
+      outputs[model] = m.args[1]({ ...m.args[0] });
+    } catch {
+      // a throwing model is reported by evaluate; binding only needs params
+    }
+  }
+  const { idsOf } = sampleFigures(input, outputs, params, o.samples ?? 5);
+  return bindings(input, params, idsOf);
+}
+
+/**
+ * @param {import("ltt").LessonFactory} factory
+ * @param {{ samples?: number }} [o]
+ */
+export function evaluate(factory, o = {}) {
+  const S = o.samples ?? 5;
+  const { input: raw } = load(factory);
+  /** @type {any} */
+  const input = raw;
+  const models = input.models ?? {};
+  const checks = evaluateChecks(input);
+
+  /** @type {Record<string, unknown>} */
+  const outputs = {};
+  /** @type {Record<string, unknown>} */
+  const params = {};
+  const deterministic = Object.entries(models).map(([model, /** @type {any} */ m]) => {
+    Object.assign(params, m.args[0]);
+    try {
+      const a = m.args[1]({ ...m.args[0] });
+      const b = m.args[1]({ ...m.args[0] });
+      outputs[model] = a;
+      return { model, ok: same(a, b) };
+    } catch {
+      return { model, ok: false };
+    }
+  });
+
+  const { figureErrors, idsOf } = sampleFigures(input, outputs, params, S);
   /** @type {{ section: number; scene: number; step?: number; id: string }[]} */
   const focusErrors = [];
   (input.sections ?? []).forEach((/** @type {any} */ sec, /** @type {number} */ section) => {
@@ -425,10 +454,45 @@ export function evaluate(factory, o = {}) {
     });
   });
 
-  const bindingErrors = bindings(input, params, idsOf);
+  const bindingErrs = bindings(input, params, idsOf);
   const ok =
-    checks.every((c) => c.pass) && deterministic.every((d) => d.ok) && figureErrors.length === 0 && focusErrors.length === 0 && bindingErrors.length === 0;
-  return { ok, checks, deterministic, figureErrors, focusErrors, bindingErrors };
+    checks.every((c) => c.pass) && deterministic.every((d) => d.ok) && figureErrors.length === 0 && focusErrors.length === 0 && bindingErrs.length === 0;
+  return { ok, checks, deterministic, figureErrors, focusErrors, bindingErrors: bindingErrs };
+}
+
+/** @param {any} input @param {Record<string, unknown>} defaults */
+function declaredParams(input, defaults) {
+  const keys = new Set(Object.keys(defaults));
+  /** @param {any} p */
+  const add = (p) => {
+    if (isPlainObject(p)) for (const k of Object.keys(p)) keys.add(k);
+  };
+  /** @param {any} o */
+  const option = (o) => add(o?.params);
+  /** @param {any} items */
+  const quiz = (items) => {
+    for (const q of items ?? []) {
+      add(q?.params);
+      add(q?.reveal?.params);
+      (q?.options ?? []).forEach(option);
+    }
+  };
+  for (const sec of input.sections ?? []) {
+    for (const sc of sec.scenes ?? []) {
+      add(sc.params);
+      if (sc.type === "predict") {
+        add(sc.reveal?.params);
+        (sc.input?.options ?? []).forEach(option);
+      }
+      if (sc.type === "compare") {
+        add(sc.a);
+        add(sc.b);
+      }
+      if (sc.type === "quiz") quiz(sc.items);
+    }
+  }
+  quiz(input.quiz);
+  return keys;
 }
 
 /**
@@ -441,9 +505,10 @@ function bindings(input, params, idsOf) {
   const figures = input.figures ?? {};
   /** @param {number} section @param {number} scene @param {string} id @param {string} message */
   const err = (section, scene, id, message) => out.push({ section, scene, id, message });
+  const declared = declaredParams(input, params);
   /** @param {number} section @param {number} scene @param {string} key */
   const param = (section, scene, key) => {
-    if (!(key in params)) err(section, scene, key, `not a model param: ${key}`);
+    if (!declared.has(key)) err(section, scene, key, `not a declared param: ${key}`);
   };
   /** @param {number} section @param {number} scene @param {unknown} key @param {string} what */
   const fig = (section, scene, key, what) => {
@@ -452,7 +517,7 @@ function bindings(input, params, idsOf) {
   for (const [name, /** @type {any} */ f] of Object.entries(figures)) {
     if (f?.kind === "multiples") for (const k of Object.keys(f.args[1]?.over ?? {})) param(-1, -1, k);
     const link = f?.kind === "split" ? f.args[1]?.link : undefined;
-    if (typeof link === "string" && !(link in params) && !idsOf(name).has(link)) err(-1, -1, link, `split link is neither a mark id nor a model param: ${link}`);
+    if (typeof link === "string" && !declared.has(link) && !idsOf(name).has(link)) err(-1, -1, link, `split link is neither a mark id nor a declared param: ${link}`);
   }
   /** @param {any[]} items @param {number} section @param {number} scene */
   const quizReveals = (items, section, scene) => {

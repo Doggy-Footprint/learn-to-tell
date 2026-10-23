@@ -135,7 +135,7 @@ export default (api) => {
       f3: split(["f3loop", "f3gauge"]),
     },
     scenes: [
-      { type: "explore", title: "두 시장, 두 주체", say: "노드를 골라 나가고 들어오는 흐름을 본다.", figure: "f2", focus: ["m-spend", "r-goods"], knobs: { node: ["hh", "firm", "goods", "factor"] } },
+      { type: "explore", title: "두 시장, 두 주체", say: "노드를 골라 나가고 들어오는 흐름을 본다.", figure: "f2", focus: ["m-spend", "r-goods"], params: { node: "hh" }, knobs: { node: ["hh", "firm", "goods", "factor"] } },
       { type: "steps", title: "한 바퀴를 추적하기", figure: "f3", steps: [
         { say: "가계가 100만 원을 지출한다.", focus: ["m-spend", "g-지출"] }, { say: "기업 매출 = 생산 100.", focus: ["m-revenue", "g-생산"] },
         { say: "기업이 요소 대가로 지급한다.", focus: ["m-wage"] }, { say: "가계 소득 100.", focus: ["m-income", "g-소득"] }] },
@@ -144,7 +144,7 @@ export default (api) => {
         goal: { say: "매출 합과 부가가치 합의 차이를 0으로 만들어라", done: (m) => m.chain.sumSales === m.chain.sumVA } },
       { type: "steps", title: "정부와 해외가 끼어들면", figure: "f7steps", steps: [
         { say: "2부문", focus: [] }, { say: "정부", focus: ["tax", "gov-buy", "transfer"] }, { say: "금융", focus: ["saving", "invest"] }, { say: "해외", focus: ["export", "import"] }] },
-      { type: "explore", title: "식의 항과 화살표", say: "항을 고르면 대응 화살표가 강조된다.", figure: "f7", focus: ["identity"], knobs: { term: ["C", "I", "G", "X−M"] } },
+      { type: "explore", title: "식의 항과 화살표", say: "항을 고르면 대응 화살표가 강조된다.", figure: "f7", focus: ["identity"], params: { term: "C" }, knobs: { term: ["C", "I", "G", "X−M"] } },
       { type: "quiz", items: /** @type {[import("ltt").QuizItem, ...import("ltt").QuizItem[]]} */ ([
         ...[["구독료 결제", true, "", "c-hi"], ["중고폰 거래", false, "기존 자산 이전이라 새 생산이 아니다", "identity"], ["클라우드 요금(앱 회사가 지불)", false, "중간재라 최종재 가격에 이미 들어 있다", "identity"],
           ["정부 실업급여", false, "이전지출: 생산물과 교환되지 않는다", "transfer"], ["해외 사용자 구독료", true, "", "export"], ["주식 매수", false, "금융 거래: 소유권 이전일 뿐이다", "saving"]].map(([card, inc, why, mark]) => (/** @type {import("ltt").QuizItem} */ ({

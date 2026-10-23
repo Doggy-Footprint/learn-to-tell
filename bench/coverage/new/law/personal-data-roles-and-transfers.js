@@ -157,8 +157,8 @@ export default (api) => {
     models: { classify: classModel },
     figures: { arch: archFig, archNote, roles: rolesFig, archWithNote: api.split(["arch", "archNote"]), flowchart, purpose: purposeFig, classify: classifyFig, liability, procMap },
     scenes: [
-      { type: "explore", title: "우리 파이프라인의 화살표는 모두 같은 화살표인가", say: "법적 관점을 켜 보라.", figure: "archWithNote", focus: ["api->ads"], knobs: { legal: false } },
-      { type: "explore", title: "처리자, 정보주체, 그리고 근거", say: "탭을 바꿔 자사의 위치를 보라.", figure: "roles", focus: ["trustee-zone", "consent-one"], knobs: { tab: ["B2C", "B2B"] } },
+      { type: "explore", title: "우리 파이프라인의 화살표는 모두 같은 화살표인가", say: "법적 관점을 켜 보라.", figure: "archWithNote", focus: ["api->ads"], params: { legal: false }, knobs: { legal: false } },
+      { type: "explore", title: "처리자, 정보주체, 그리고 근거", say: "탭을 바꿔 자사의 위치를 보라.", figure: "roles", focus: ["trustee-zone", "consent-one"], params: { tab: "B2C" }, knobs: { tab: ["B2C", "B2B"] } },
       { type: "predict", title: "이메일 발송 대행사에 주소를 넘기면?", ask: "이 흐름은?", figure: "roles", focus: ["mailer"], params: { mailer: true, placed: false, tab: "B2C" }, input: { kind: "choice", options: [{ text: "위탁", correct: true }, { text: "제3자 제공", feedback: "대행사는 자기 목적으로 쓰지 않는다." }, { text: "어느 쪽도 아님", feedback: "처리자 밖으로 데이터가 이동한다." }] }, reveal: { say: "대행사는 수탁자 영역에 들어간다.", params: { placed: true }, marks: ["mailer-why", "mailer-cond"] }, targets: "외부 서버 전송 = 제3자 제공" },
       { type: "steps", title: "위탁과 제3자 제공을 가르는 질문", figure: "flowchart", steps: [{ say: "누구의 이익인가", focus: ["q1"] }, { say: "자기 목적 이용", focus: ["q2"] }, { say: "지휘·감독", focus: ["q3"] }, { say: "결론과 절차", focus: ["entrust", "provide", "substance"] }] },
       { type: "compare", title: "같은 데이터 이동, 다른 목적", say: "바뀐 것은 목적뿐이다.", figure: "purpose", focus: ["purpose", "own-store"], a: { own: false }, b: { own: true }, labels: ["A: 대시보드만", "B: 자기 광고 상품에도"] },

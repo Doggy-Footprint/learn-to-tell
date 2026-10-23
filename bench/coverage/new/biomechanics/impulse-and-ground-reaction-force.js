@@ -161,11 +161,11 @@ export default (api) => {
       { type: "hook", title: "같은 속도, 다른 GCT", say: "힘은 접촉 칸에만 있다.", figure: "timeline", focus: ["contact"] },
       { type: "predict", title: "GCT 200 vs 300 ms", ask: "어느 쪽 최대 수직력이 큰가?", figure: "predict", focus: ["slot-0", "slot-1"], input: { kind: "choice", options: [{ text: "200 ms", correct: true }, { text: "300 ms", feedback: "짧은 접촉 = 더 큰 힘. 같은 충격량을 더 짧은 시간에 내야 한다." }] }, reveal: { say: "2.78 BW vs 1.85 BW", marks: ["bar-0", "bar-1", "val-0", "val-1"] }, targets: "짧은 접촉 = 작은 부하" },
       { type: "define", term: "충격량", definition: "J = ∫F dt = Δp", figure: "def", focus: ["J-eq"] },
-      { type: "explore", title: "곡선 아래 넓이가 속도 변화다", say: "커서를 움직여 보라.", figure: "grf", focus: ["net-area", "debt"], knobs: { tc: [0, 353, 1] } },
+      { type: "explore", title: "곡선 아래 넓이가 속도 변화다", say: "커서를 움직여 보라.", figure: "grf", focus: ["net-area", "debt"], params: { tc: 0 }, knobs: { tc: [0, 353, 1] } },
       { type: "steps", title: "한 걸음 평균력 4단계", figure: "steps", steps: [{ say: "①", focus: ["step-line"] }, { say: "②", focus: ["impulse-rect"] }, { say: "③", focus: ["impulse-rect"] }, { say: "④", focus: ["sine"] }] },
       { type: "explore", title: "피크 2.0 BW 이하 맞추기", say: "슬라이더를 움직여라.", figure: "explore", focus: ["target"], knobs: { cadence: [150, 190, 1], gct: [0.18, 0.32, 0.005] }, goal: { say: "피크 ≤ 2.0 BW, 체공 ≥ 0", done: (m) => m.gr.peak <= 2 && !m.gr.impossible } },
       { type: "explain", title: "뒤꿈치 vs 앞꿈치", say: "넓이는 같고 부하율이 다르다.", figure: "strikeBoth", focus: ["early", "rates"] },
-      { type: "quiz", items: [{ kind: "choice", prompt: "피크 BW가 가장 큰 주자는?", options: [{ text: "185/210", correct: true }, { text: "175/230", feedback: "2.34 < 2.43" }, { text: "160/280", feedback: "2.10" }], objective: "peak", figure: "quizCards", params: { shown: false }, reveal: { params: { shown: true }, marks: ["mini", "pk"] } }] },
+      { type: "quiz", items: [{ kind: "choice", prompt: "피크 BW가 가장 큰 주자는?", options: [{ text: "185/210", correct: true }, { text: "175/230", feedback: "2.34 < 2.43" }, { text: "160/280", feedback: "2.10" }], objective: "peak", figure: "quizCards", params: { shown: false, runner: 0 }, reveal: { params: { shown: true }, marks: ["mini", "pk"] } }] },
     ],
   };
 };

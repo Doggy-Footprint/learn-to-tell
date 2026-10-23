@@ -220,3 +220,28 @@ test("VO-8 v3 candidates ordered by count desc then text asc", async () => {
   const s = await aggregate(dir);
   assert.deepEqual(s.candidates.map((c) => [c.text, c.count]), [["beta", 2], ["zeta", 2], ["alpha", 1], ["gamma", 1]]);
 });
+
+// VO-19 C-50 / FR-34: binding sampling must not add to usage; explore-with-knobs scenes present.
+test("VO-19 C-50 fragment with scenes, knobs, handles: usage = factory calls + one draw per figure", async () => {
+  const dir = tmpdir("ltt-c50-");
+  const body = `(api) => ({
+  models: { m: api.model({ q: 1 }, (p) => ({ v: p.q }), "m") },
+  figures: {
+    a: api.figure(api.cartesian({ x: [0, 1, "u"], y: [0, 1, "u"], static: "s" }), () => [api.dot([0, 0], { id: "h" }), api.line([[0, 0], [1, 1]])]),
+    b: api.figure(api.cartesian({ x: [0, 1, "u"], y: [0, 1, "u"], static: "s" }), () => [api.dot([1, 1], { id: "k" })]),
+  },
+  scenes: [
+    { type: "explain", title: "e", say: "s", figure: "a", focus: ["h"], params: { tab: "x" } },
+    { type: "explore", title: "x", say: "s", figure: "a", focus: ["h"], knobs: { q: [0, 1], tab: ["x", "y"] }, handles: [{ mark: "h", x: "q" }] },
+  ],
+})`;
+  writeFragment(dir, "a.js", [valid.V()], { body });
+  const s = await aggregate(dir);
+  const u = s.usage.total;
+  assert.equal(u.dot, 2, JSON.stringify(u));
+  assert.equal(u.line, 1);
+  assert.equal(u.figure, 2);
+  assert.equal(u.cartesian, 2);
+  assert.equal(u.model, 1);
+  assert.equal(s.usage.byCorpus.shot.dot, 2);
+});

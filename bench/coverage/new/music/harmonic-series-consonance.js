@@ -98,6 +98,7 @@ export default (api) => {
   };
   /** @type {import("ltt").Scene[]} */
   const scenes = [
+    { type: "explain", title: "현의 모드", say: "n번째 모드는 n×110 Hz로 떤다.", figure: "modes", focus: ["string"], params: { n: 1 } },
     { type: "predict", title: "어디서 부딪히나", ask: "C–G와 C–C# 중 부딪힘이 많은 쪽은?", figure: "partials", focus: ["a0", "b0"], params: { cents: 700 },
       input: { kind: "choice", options: [{ text: "C–C#", correct: true, params: { cents: 100 } }, { text: "C–G", feedback: "배음이 일치한다.", params: { cents: 700 } }] }, reveal: { say: "C–C#은 배음마다 임계대역 안에서 부딪힌다." } },
     { type: "explore", title: "맥놀이", say: "f2를 바꿔 보자.", figure: "beats", focus: ["env", "fb"], knobs: { f2: [440, 480, 1] } },

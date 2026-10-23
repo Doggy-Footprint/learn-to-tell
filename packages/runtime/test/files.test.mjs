@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT, EXAMPLE } from "./fixtures/helpers.mjs";
 
-const RULE_IDS = "first-scene, section-count, scene-count, predict-before-explain, section-quiz, final-quiz-count, misconception-predict, predict-reveal-hidden, focus-required, focus-unknown-id, accent-focus-only, quiz-objective, quiz-distractor-feedback, quiz-transfer, term-defined-before-use, term-unknown, model-limit-check, check-tol-required, provenance, illustrative-label, model-pure, figure-or-none, time-declared, custom-why, custom-bounds, id-unique, data-in-domain, text-length, goal-reachable, goal-at-start, input-binding, figure-eval, handle-binding, multiples-param, reveal-figure-exists, legend-for-series".split(", ");
+const RULE_IDS = "first-scene, section-count, scene-count, predict-before-explain, section-quiz, final-quiz-count, misconception-predict, predict-reveal-hidden, focus-required, focus-unknown-id, accent-focus-only, quiz-objective, quiz-distractor-feedback, quiz-transfer, term-defined-before-use, term-unknown, model-limit-check, check-tol-required, provenance, illustrative-label, model-pure, figure-or-none, time-declared, custom-why, custom-bounds, id-unique, data-in-domain, text-length, goal-reachable, goal-at-start, input-binding, figure-eval, handle-binding, multiples-param, reveal-figure-exists, legend-for-series, label-anchor".split(", ");
 
 function rulesRows() {
   const md = fs.readFileSync(path.join(ROOT, "packages/runtime/rules.md"), "utf8");
@@ -16,10 +16,10 @@ function rulesRows() {
   return { header, rows };
 }
 test("VO-11 rules.md header has 6 columns", () => {
-  assert.equal(RULE_IDS.length, 36);
+  assert.equal(RULE_IDS.length, 37);
   assert.equal(rulesRows().header.length, 6);
 });
-test("VO-11 C-39 all 36 FR-50 ids present, every row has 6 non-empty cells, layer is type/check/runtime", () => {
+test("VO-11 C-39 all 37 FR-50 ids present, every row has 6 non-empty cells, layer is type/check/runtime", () => {
   const { rows } = rulesRows();
   const ids = rows.map((r) => r[0].replace(/`/g, ""));
   assert.deepEqual(RULE_IDS.filter((id) => !ids.includes(id)), []);
@@ -33,6 +33,15 @@ test("VO-11 text-length row states 40 / 160 / 50", () => {
   const r = rulesRows().rows.find((x) => x[0].replace(/`/g, "") === "text-length");
   const t = r.join(" ");
   for (const n of ["40", "160", "50"]) assert.match(t, new RegExp(`(^|\\D)${n}(\\D|$)`), n);
+});
+
+test("VO-11 V1-6 v6 sentences in accent-focus-only, term-defined-before-use, handle-binding, multiples-param", () => {
+  const rows = rulesRows().rows;
+  const cell = (id) => rows.find((x) => x[0].replace(/`/g, "") === id)[1];
+  assert.match(cell("accent-focus-only"), /보이는 모든 장면/);
+  assert.match(cell("term-defined-before-use"), /앞선 장면/);
+  assert.match(cell("handle-binding"), /선언된 param/);
+  assert.match(cell("multiples-param"), /선언된 param/);
 });
 
 const TYPES = path.join(ROOT, "packages/runtime/types");

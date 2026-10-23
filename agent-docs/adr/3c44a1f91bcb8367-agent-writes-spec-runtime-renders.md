@@ -12,6 +12,7 @@
 
 - agent는 수업 spec만 쓴다: 기대값(`checks`), 순수 함수 수치 모델(`models`), 데이터 단위 좌표의 그림(`figures`), 절과 장면(`sections`). 레이아웃·CSS·DOM·애니메이션 코드는 쓰지 않는다.
 - 레이아웃, UI, 애니메이션, 장면 전환은 버전을 고정한 runtime(`@doggy-footprint/ltt-runtime`)이 맡는다. 최소 글자 크기, 대비, 여백, 글 분량 상한은 runtime 상수다.
+- 그림 안 글자의 위치도 runtime이 정한다. agent는 글자가 가리키는 데이터 점과 선호 방향만 준다. runtime은 글자끼리, 그리고 frame 가장자리와 겹치지 않게 배치하고, 글자를 잘리지 않게 한다.
 - 검사(`ltt check`)는 브라우저 없이 Node에서 spec을 검사한다. 렌더 결과는 contact sheet로 한 번 본다.
 - 어휘 밖의 그림은 `custom`(frame 안의 SVG 그룹)으로 그린다.
 
@@ -23,4 +24,4 @@
 ## Consequences
 
 - Positive: 레이아웃 값은 runtime이 정하므로 수업마다 레이아웃 결함을 고치는 렌더 반복이 없다. spec 형식 오류는 `ltt check`가 spec 경로와 함께 보고한다.
-- Negative: `custom`으로 그린 그림에는 레이아웃 보장이 없다. 수업을 생성하기 전에 runtime과 검사기를 먼저 구현해야 한다.
+- Negative: `custom`으로 그린 그림에는 레이아웃 보장이 없다. 수업을 생성하기 전에 runtime과 검사기를 먼저 구현해야 한다. 글자를 지닌 mark마다 runtime이 배치 규칙을 구현하고 검증해야 하므로, renderer 작업량이 어휘 크기에 비례해 늘어난다.
