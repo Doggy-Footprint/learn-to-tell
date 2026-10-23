@@ -1160,6 +1160,7 @@
     [].forEach.call((scope || document.body).querySelectorAll("svg text"), function (t) {
       if (!t.textContent.trim() || t.closest(".ltt-ic")) return;
       var svg = t.ownerSVGElement, at = svgs.indexOf(svg);
+      if (!svg) return;
       if (at < 0) {
         var vb = svg.viewBox && svg.viewBox.baseVal, w = svg.getBoundingClientRect().width;
         svgs.push(svg);
@@ -1168,8 +1169,14 @@
       }
       var scale = scales[at];
       if (!scale) return;
+      // Undo an earlier raise first, so a box that grew again gets the author's size back instead of the last small-box size.
+      if (t.__lttFont && t.style.fontSize === t.__lttFont.set) t.style.fontSize = t.__lttFont.own;
       var px = parseFloat(getComputedStyle(t).fontSize);
-      if (px * scale < MIN_SVG_TEXT - 1e-6) t.style.fontSize = MIN_SVG_TEXT / scale + "px";
+      if (px * scale < MIN_SVG_TEXT - 1e-6) {
+        var own = t.style.fontSize;
+        t.style.fontSize = MIN_SVG_TEXT / scale + "px";
+        t.__lttFont = { own: own, set: t.style.fontSize };
+      }
     });
   }
 

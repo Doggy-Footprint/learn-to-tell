@@ -5,9 +5,9 @@
 ## 미출시
 
 작가 계약
-- check가 `scene-overflow`(78%까지 줄여도 장면이 화면보다 큼)·`box-overflow`(kit 칸 밖으로 나간 내용)·`vw-size`(페이지 CSS의 폭을 vw로 고정)와 lint `unknown-icon`을 낸다. SVG `<text>`가 화면 10px 아래면(덱 장면과 덱이 아닌 페이지 모두) kit이 키우고, 카드 제목(terms `word`, explain `title`, compare `label`, summary 카드 제목)은 긴 낱말도 칸 안에서 줄바꿈된다.
+- check가 `scene-overflow`(78%까지 줄여도 장면이 화면보다 큼)·`box-overflow`(kit 칸 밖으로 나간 내용)·`vw-size`(페이지 CSS의 폭을 vw로 고정)와 lint `unknown-icon`을 낸다. SVG `<text>`가 화면 10px 아래면(덱 장면과 덱이 아닌 페이지 모두) kit이 키우고, 카드 제목(terms `word`, explain `title`, compare `label`, summary 카드 제목)은 긴 낱말도 칸 안에서 줄바꿈된다. 키운 SVG 글자는 창이 넓어지면 쓴 크기로 돌아간다. 가로 넘침의 `scene-overflow` msg에는 "78%까지 줄여도"가 없다.
 - hook `art`가 HTML 문자열·노드·함수도 받고(칸 폭 hook 행의 40% 이하), 시각 칸 함수는 문서에 붙은 노드로 불린다. figure 함수가 `{el}`로 받은 노드를 돌려줘도 오류가 아니다.
-- summary가 7개 이상이면 6개씩 쪽으로 나뉘고 `?shot&state=page-<k>`, audit `sNN-page<k>.png`가 생긴다.
+- summary가 7개 이상이면 6개씩 쪽으로 나뉘고 `?shot&state=page-<k>`, audit `sNN-page<k>.png`가 생긴다. 목록 높이는 가장 긴 쪽에 맞춰 쪽을 넘겨도 제목·쪽 버튼이 움직이지 않는다.
 - 용어 검사가 mount된 장면에 그려진 글도 본다. SVG `<text>` 안 `{{}}`는 `tspan`이 된다.
 - `LTT.expect`가 문자열·boolean·null·배열도 대조하고 타입이 다르면 불일치다. `?shot`은 신호 직전에 모든 clock을 다시 그린다.
 - check의 rule id 등록부와 미등록 rule의 `check-failed`. 부품 검색 재시도 문장은 SKILL.md로 옮겼다.

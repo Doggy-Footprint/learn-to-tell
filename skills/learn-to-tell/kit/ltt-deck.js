@@ -464,19 +464,24 @@
         unplace: unfloat
       };
     },
-    // Summary pages: the zoom is fixed to the smallest any page needs, so turning a page never rescales the scene.
+    // Summary pages: the zoom is fixed to the smallest any page needs, and the list keeps the tallest page's height, so turning
+    // a page never rescales the scene or moves the title and pager of a vertically centered scene.
     pages: function (ctx, o) {
       var size = placement.sizeWatch();
       function lock() {
-        var cur = o.current(), zs = [];
+        var cur = o.current(), zs = [], hs = [];
         ctx.zmax = 1;
+        o.root.style.minHeight = "";
         placement.still(o.root, function () {
           for (var k = 0; k < o.count; k++) { o.show(k); zs.push(ctx.refit()); }
+          ctx.zmax = zoomLock(1, zs);
+          for (k = 0; k < o.count; k++) { o.show(k); ctx.refit(); hs.push(o.root.offsetHeight); }
+          o.root.style.minHeight = Math.max.apply(null, hs) + "px";
         }, function (e) {
-          zs = [];
+          ctx.zmax = 1;
+          o.root.style.minHeight = "";
           LTT.warn("장면 " + (ctx.index + 1) + ": 쪽을 미리 그려 보다 실패해 쪽마다 배율이 바뀔 수 있다 (" + e.message + ")");
         }, function () { o.show(cur); });
-        ctx.zmax = zoomLock(1, zs);
       }
       return { place: function () { if (size.changed()) lock(); ctx.refit(); } };
     },
@@ -1440,7 +1445,7 @@
           var ov = sceneSpill(sec), parts = [];
           [["세로(아래)", ov.bottom], ["세로(위)", ov.top], ["가로(오른쪽)", ov.right], ["가로(왼쪽)", ov.left]].forEach(function (d) { if (d[1] > 1) parts.push(d[0] + " " + Math.round(d[1]) + "px"); });
           if (parts.length) {
-            out.push({ where: where, rule: "scene-overflow", msg: "내용이 78%까지 줄여도 장면 상자 밖으로 " + parts.join(", ") + " 나간다. 장면은 스크롤된다. 내용을 줄이거나 나눈다" });
+            out.push({ where: where, rule: "scene-overflow", msg: "내용이 " + (ov.bottom > 1 || ov.top > 1 ? "78%까지 줄여도 " : "") + "장면 상자 밖으로 " + parts.join(", ") + " 나간다. 장면은 스크롤된다. 내용을 줄이거나 나눈다" });
           }
           CELLS.forEach(function (c) {
             [].forEach.call(sec.querySelectorAll(c.sel), function (cell) {

@@ -111,9 +111,9 @@ kit은 기능을 제공하고 그리는 방법을 정하지 않는다. 필요한
 | `keywords` | `terms: [{ko, en}]`, `signals`, `queries`, `neighbors: [{term, diff}]`, `next: [{term, why, from?}]`. 수업의 마지막 작성 장면이고 `next`가 개념 나무다: 덱 제목이 뿌리, `from`이 다른 항목의 `term`이면 그 아래 가지, 아니면 뿌리 아래 |
 | (없음) | `mount`로 그리는 커스텀 장면(손잡이 장면) |
 
-시각 칸(`figure`, `visual`, `answerVisual`, `aside`, hook `art`)은 HTML 문자열, 노드, 또는 `(el) => …` 함수를 받는다. 함수는 이미 문서에 붙은 장면 안의 노드로 불리므로 그 안에서 `document.getElementById`·`LTT.sweep`(`#id`)·`getTotalLength()`가 바로 동작한다. figure 함수는 (a) 받은 노드를 채우고 아무것도 안 돌려주거나 (b) 새 노드·HTML 문자열을 돌려주거나(넣어진다) (c) `{el, ...api}`를 돌려줄 수 있다(`el`이 새 노드면 넣고, 받은 노드이거나 그 안에 있으면 다시 넣지 않는다. `steps`의 `enter(k, fig)`는 이 객체를 받는다) (d) 받은 노드 자신을 돌려줘도 된다. 한 칸에 형제를 여럿 넣으면 가로로 놓인다.
+시각 칸(`figure`, `visual`, `answerVisual`, `aside`, hook `art`)은 HTML 문자열, 노드, 또는 `(el) => …` 함수를 받는다. 함수는 이미 문서에 붙은 장면 안의 노드로 불리므로 그 안에서 `document.getElementById`·`LTT.sweep`(`#id`)·`getTotalLength()`가 바로 동작한다. figure 함수는 (a) 받은 노드를 채우고 아무것도 안 돌려주거나 (b) 새 노드·HTML 문자열을 돌려주거나(넣어진다) (c) `{el, ...api}`를 돌려줄 수 있다(`el`이 새 노드면 넣고, 받은 노드이거나 그 안에 있으면 다시 넣지 않는다. `steps`의 `enter(k, fig)`는 이 객체를 받는다) (d) 받은 노드 자신을 돌려줘도 된다. 한 칸에 형제를 여럿 넣으면 figure 무대, terms·compare·statement의 `visual`, contrast 쪽에서는 가로로, 나머지 칸(explain 단계 `visual`, `answerVisual`, `aside`, 글·노드 hook `art`, 자막이 옆에 놓인 `steps` 그림)에서는 세로로 놓인다. 다른 배치가 필요하면 감싸는 요소 하나에 배치를 준다.
 
-화면에서 10px 아래로 그려지는 SVG `<text>`(아이콘 제외)는 kit이 글자 크기를 화면 10px로 키운다(덱 장면과 덱이 아닌 페이지 모두, 보고하지 않는다). 카드 제목(terms `word`, explain `title`, compare `label`, summary 카드 제목)은 긴 낱말도 칸 안에서 줄바꿈된다. SVG `<text>` 안의 `{{보이는 말|용어}}`는 `tspan`이 되어 용어 표시로 센다.
+화면에서 10px 아래로 그려지는 SVG `<text>`(아이콘 제외)는 kit이 글자 크기를 화면 10px로 키운다(덱 장면과 덱이 아닌 페이지 모두, 보고하지 않는다). 창이 다시 넓어지면 쓴 크기로 돌아간다. 키우는 때는 페이지 로드, 덱 장면의 배율 맞춤(장면 진입·창 크기 변경), `?shot` 신호 직전이라, 그 뒤 clock·`enter`가 새로 그린 `<text>`는 화면에서 작게 남을 수 있다(`?shot` PNG에는 키운 크기로 찍힌다). 그런 글은 처음부터 10px 이상으로 쓴다. 카드 제목(terms `word`, explain `title`, compare `label`, summary 카드 제목)은 긴 낱말도 칸 안에서 줄바꿈된다. SVG `<text>` 안의 `{{보이는 말|용어}}`는 `tspan`이 되어 용어 표시로 센다.
 
 ### 덱의 고정 순서
 
