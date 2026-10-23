@@ -9,7 +9,7 @@
 
 ## State
 
-- 2026-10-23 run `e48ead05eb246d3c` 완료(spec `agent-docs/spec-logs/e48ead05eb246d3c-layout-check-and-kit-defects.md` v6, complete, base `9636962`, 커밋하지 않음). 결함 2(측정 가능한 범위), 8 후반, 10, 11, 12, 14, 15, 18, A-2, 부품 찾기 문장 이동을 고쳤다. 남은 것: 13(이번에 동작을 바꾸지 않은 미문서화 필드), 16, 20, A-4와 아래 "이번 run 비차단 권고".
+- 2026-10-23 run `e48ead05eb246d3c` 완료(spec `agent-docs/spec-logs/e48ead05eb246d3c-layout-check-and-kit-defects.md` v6, complete, base `9636962`, 이후 `5aac51f`·`c8ca763`으로 커밋). 결함 2(측정 가능한 범위), 8 후반, 10, 11, 12, 14, 15, 18, A-2, 부품 찾기 문장 이동을 고쳤다. 남은 것: 13(이번에 동작을 바꾸지 않은 미문서화 필드), 16, 20, A-4와 아래 "이번 run 비차단 권고".
   - 코드: `kit/ltt.js`, `ltt-deck.js`, `ltt-deck.css`, `ltt-ui.js`, `ltt-parts.js`·`ltt-mock.js`(kit style 표지만), `server/audit.mjs`, `packages/ltt-kit/`(build). 문서: `SKILL.md`, `kit/API.md`, `kit/api/{deck-contracts,rules,internals}.md`, `kit/CHANGELOG.md`.
   - 테스트: 새 `tests/layout-check.test.mjs`, `tests/kit-defects.test.mjs`, `tests/rule-registry.test.mjs`, `tests/expect-compare.fuzz.mjs`(npm test 밖), `tests/fixtures/layout-check/`; 갱신 `api-docs`, `check-page`, `generator-defects`, `scene-types` 테스트, `tests/gallery-audit.baseline.json`(ontology-triples 1→2 `used-before-defined owl:hasKey`, matrix-as-transform 1→2 `vw-size`, vector-calculus-mml5 1→2 `scene-overflow` 장면 7, scenes.html 1→8 `vw-size` 7, 두 크기 같음; PNG·원문으로 모두 실제 결함 확인).
   - `npm test` 1466/1466(연속 2회), fuzz 20,000건 차이 0, 손 mutation 13개 모두 검출, 갤러리 audit 27.92 s → 28.58 s.
@@ -156,7 +156,7 @@
 
 ## Next Step
 
-1. run e48ead05 변경을 검토·커밋한다(아직 커밋하지 않음).
+1. (완료) run e48ead05 변경은 `5aac51f`·`c8ca763`으로 커밋했다(push 안 함). 그 커밋의 리뷰 결과와 남은 결함(BUG 2, RISK 5, 미커밋 사소한 수정)은 `agent-docs/handoff/267a46f546464f79-review-findings-after-e48ead05.md`에 있다. 다음 run 범위와 묶을지 사용자가 정한다.
 2. 다음 run: 13(미문서화 필드: `LTT.plane`, sweep `stops`/`stopLabel`/`goal.target`/`#id-v`, keywords `signals`/`queries`, compare `form:"table"`, contrast `before`/`after`, `aside`, `LTT.facts`, `LTT.record` 용도, `hbars` `play()`, `redline` 글자 크기, `points`의 SVG 무동작, 레이아웃별 그림 크기, kit CSS 링크), 16(팔레트 순서·SVG `fill="var()"`), A-4, 위 비차단 권고. 20번은 재생성 시험에서 확인.
 3. 고친 뒤 3–4개 주제로 같은 조건(prompts/common.md, 진단 고정)에서 다시 생성해 audit 회차·검증 회차·미충족이 줄었는지 이 표와 비교한다. 재생성 결과는 새 run 디렉터리(`measurements/<date>-…/`)에 둔다.
 4. 생성 시간 목표(10분대)와 겹치는 항목은 시간 handoff와 함께 본다.
