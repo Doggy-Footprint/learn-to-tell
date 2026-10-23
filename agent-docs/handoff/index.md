@@ -1,5 +1,5 @@
 File: 7a0ce2dc6e07a3ca-gallery-v2-test-results-and-generator-fixes.md
-Summary: gallery v2 시험 생성(17개 주제) 수업별 결과와 생성기 결함 20개. run 753ff3c539424409로 1·3–9·17·19 고침, 2(레이아웃 탐지)·10–16·18 남음
+Summary: gallery v2 시험 생성(17개 주제) 수업별 결과와 생성기 결함 20개. run 753ff3c539424409로 1·3–9·17·19, run e48ead05eb246d3c로 2·8후반·10–12·14·15·18·A-2 고침, 13·16·20·A-4 남음
 Related Files: skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/kit/api/deck-contracts.md, skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/server/audit.mjs, site/gallery/index.html
 Related Symbols: LTT.deck, LTT.lintDeck, LTT.usesTerm, LTT.isAdvice, LTT.sweep, LTT.clock, LTT.expect, audit
 ---

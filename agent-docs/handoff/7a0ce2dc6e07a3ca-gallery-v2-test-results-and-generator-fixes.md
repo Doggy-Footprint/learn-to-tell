@@ -9,6 +9,10 @@
 
 ## State
 
+- 2026-10-23 run `e48ead05eb246d3c` 완료(spec `agent-docs/spec-logs/e48ead05eb246d3c-layout-check-and-kit-defects.md` v6, complete, base `9636962`, 커밋하지 않음). 결함 2(측정 가능한 범위), 8 후반, 10, 11, 12, 14, 15, 18, A-2, 부품 찾기 문장 이동을 고쳤다. 남은 것: 13(이번에 동작을 바꾸지 않은 미문서화 필드), 16, 20, A-4와 아래 "이번 run 비차단 권고".
+  - 코드: `kit/ltt.js`, `ltt-deck.js`, `ltt-deck.css`, `ltt-ui.js`, `ltt-parts.js`·`ltt-mock.js`(kit style 표지만), `server/audit.mjs`, `packages/ltt-kit/`(build). 문서: `SKILL.md`, `kit/API.md`, `kit/api/{deck-contracts,rules,internals}.md`, `kit/CHANGELOG.md`.
+  - 테스트: 새 `tests/layout-check.test.mjs`, `tests/kit-defects.test.mjs`, `tests/rule-registry.test.mjs`, `tests/expect-compare.fuzz.mjs`(npm test 밖), `tests/fixtures/layout-check/`; 갱신 `api-docs`, `check-page`, `generator-defects`, `scene-types` 테스트, `tests/gallery-audit.baseline.json`(ontology-triples 1→2 `used-before-defined owl:hasKey`, matrix-as-transform 1→2 `vw-size`, vector-calculus-mml5 1→2 `scene-overflow` 장면 7, scenes.html 1→8 `vw-size` 7, 두 크기 같음; PNG·원문으로 모두 실제 결함 확인).
+  - `npm test` 1466/1466(연속 2회), fuzz 20,000건 차이 0, 손 mutation 13개 모두 검출, 갤러리 audit 27.92 s → 28.58 s.
 - 2026-10-23 갱신: workflow run `753ff3c539424409`(spec `agent-docs/spec-logs/753ff3c539424409-generator-defects-audit-lint-docs.md` v4, complete)로 결함 1, 3, 4, 5, 6, 7, 8(전반), 9, 17, 19를 고쳤다. 브랜치 `test`, HEAD `bd8e3e4` 위 커밋하지 않은 변경:
   - 코드: `skills/learn-to-tell/kit/ltt.js`, `ltt-deck.js`, `ltt-deck.css`, `server/audit.mjs`.
   - 지시 rewrite: `SKILL.md`, `kit/API.md`, `kit/api/deck-contracts.md`, `kit/api/rules.md`, `kit/api/internals.md`. run 뒤 사용자 지시로 문서 분량 상한 테스트를 모두 지웠다(`tests/api-docs.test.mjs` API.md 11,500 code points·API.md+부품 문서 18,000·표 행 300, `tests/generator-defects.test.mjs` SKILL.md+API.md 36,139 B). 문서 분량은 사용자가 직접 관리한다. 같은 때 RV-1이 놓친 두 가지를 고쳤다: API.md "부품 찾기"의 "걸리지 않으면 다른 축의 말로 한 번 더 찾고, 그래도 없으면 직접 짠다" 복원, SKILL.md 검증 절의 중복 문장(`check`는 … 두 상태에서 읽어 합친다) 제거.
@@ -130,8 +134,16 @@
 | 17 | 고침 | SKILL.md: frontmatter 문자열에 `: `·`#`·따옴표가 있으면 큰따옴표, 템플릿 `definition`은 기본 큰따옴표 |
 | 19 | 고침 | 검증 서브에이전트에 `background.md`는 있을 때만, shot `index.md` 전달. "미검증"은 검증 못 한 항목만, 못 고친 advice는 result.md "남은 권고" |
 | 20 | 원인 일부 제거 | 9번으로 audit이 콘솔 예외를 보여 준다. symlink 생성 경로는 미확인 |
-| 2, 10–16, 18 | 남음 | 이번 run 범위 밖(사용자 결정: 2번은 다음 run) |
-| 8 후반, 20 | 일부 남음 | 8: mount/figure HTML·SVG 안 용어 검사. 20: self symlink 생성 경로 확인 |
+| 2 | 고침(run e48ead05) | check `scene-overflow`(78% fit 뒤 글 줄·svg·미디어·컨트롤이 장면 padding 상자 밖, 빈 상자 폭·배경·line-height<1 글 줄 상자는 안 셈), `box-overflow`(kit 칸 7종, hidden 잘림도 셈, auto/scroll은 그 상자로), SVG `<text>` 화면 10px 미만은 kit이 10px로 키움(보고 안 함), 카드 제목 줄바꿈. 겹침·HTML 글자 크기·공개/단계/쪽 상태는 판정 안 함 |
+| 8 후반 | 고침(run e48ead05) | mount된 장면의 그려진 글(HTML·SVG, aria-hidden 제외)도 used-before-defined·unknown-term에 셈. SVG `<text>` 안 `{{}}`는 tspan |
+| 10 | 고침(run e48ead05) | 시각 칸 함수 12곳이 문서에 붙은 노드로 불림. figure 반환 (a)–(d), `{el: 받은 노드}`도 오류 없음 |
+| 11 | 고침(run e48ead05) | hook `art`가 HTML·노드·함수(칸 폭 hook 행 40% 이하), lint `unknown-icon` |
+| 12 | 고침(run e48ead05) | summary 7개 이상이면 6개씩 쪽, `page-<k>` 상태·shot |
+| 14 | 고침(run e48ead05) | `LTT.expect` 문자열·boolean·null·배열 비교 |
+| 15 | 고침(run e48ead05) | `?shot` 신호 직전 모든 clock 다시 그림 |
+| 18 | 고침(run e48ead05) | check `vw-size`(폭 계열 7속성, kit 스타일 제외) |
+| 13, 16 | 남음 | 다음 run. 13 중 이번 run이 동작을 바꾼 것(hook art, figure 반환, `{{}}` SVG 범위, summary)은 문서화됨 |
+| 20 | 일부 남음 | self symlink 생성 경로 확인(재생성 시험) |
 
 ## Failed Attempts
 
@@ -144,8 +156,8 @@
 
 ## Next Step
 
-1. 남은 2번(레이아웃 결함 탐지: 넘침·하단 내비 가림·겹침·SVG 축소로 작은 글자·카드 제목 넘침·hook `art` 넘침)을 다음 workflow run으로 한다. 지금 rules.md는 "그려진 화면의 레이아웃은 판정하지 않는다"이므로 이 원칙을 바꾸는 결정부터 필요하다. 결정적으로 고칠 수 있는 것은 자동 보정(Design Principle 3).
-2. 이어서 10–16, 18번과 8번 후반. 20번은 서브에이전트가 `kit/kit` self symlink를 만든 경로를 재생성 시험에서 확인한다.
+1. run e48ead05 변경을 검토·커밋한다(아직 커밋하지 않음).
+2. 다음 run: 13(미문서화 필드: `LTT.plane`, sweep `stops`/`stopLabel`/`goal.target`/`#id-v`, keywords `signals`/`queries`, compare `form:"table"`, contrast `before`/`after`, `aside`, `LTT.facts`, `LTT.record` 용도, `hbars` `play()`, `redline` 글자 크기, `points`의 SVG 무동작, 레이아웃별 그림 크기, kit CSS 링크), 16(팔레트 순서·SVG `fill="var()"`), A-4, 위 비차단 권고. 20번은 재생성 시험에서 확인.
 3. 고친 뒤 3–4개 주제로 같은 조건(prompts/common.md, 진단 고정)에서 다시 생성해 audit 회차·검증 회차·미충족이 줄었는지 이 표와 비교한다. 재생성 결과는 새 run 디렉터리(`measurements/<date>-…/`)에 둔다.
 4. 생성 시간 목표(10분대)와 겹치는 항목은 시간 handoff와 함께 본다.
 
@@ -153,12 +165,15 @@
 
 - (해결) 개념 나무 → keywords `next`(사용자 답 1-A). 공개 상태 → audit이 찍음. 장면 지칭 → 제목, 지칭만 고침 허용(사용자 답 2-A). 새 갤러리 커밋 → `f2ce682`.
 - (해결) run 753ff3c539424409 변경 → `9f9c720`으로 커밋.
-- API.md "부품 찾기"의 "걸리지 않으면 다른 축의 말로 한 번 더 찾는다"는 생성 agent가 읽는 네 절 밖에 있다. SKILL.md의 grep 안내로 옮길지(사용자 결정 대기).
-- run 753ff…의 비차단 권고: 규칙 표 테스트의 기대 rule id 집합이 손으로 적은 목록이라 kit이 새 rule을 내고 rules.md·목록 모두에서 빠지면 못 잡는다(A-2). 문서 사실 테스트는 "한 곳에만"·지정 파일을 검사하지 않는다(A-4). 테스트를 강화할지.
-- 2번에서 레이아웃을 audit이 판정하게 할지(지금 원칙과 충돌), 판정 범위(넘침·작은 글자·겹침 중 어디까지).
+- (해결, 사용자 답: 옮김) API.md "부품 찾기"의 "걸리지 않으면 다른 축의 말로 한 번 더 찾는다" → SKILL.md grep 안내로, run e48ead05eb246d3c.
+- (해결, run e48ead05) A-2 → `LTT.ruleIds`·`AUDIT_RULE_IDS` 등록부, rules.md 집합 같음 테스트, 미등록 rule은 check·audit 모두 `check-failed`.
+- (다음 run) run e48ead05 비차단 권고: scene-overflow 위·왼쪽 방향과 img·컨트롤·1/2px 경계 테스트 없음(A-2'), expect fuzz가 0 아닌 tol 정확 경계를 비교하지 않음(A-3'), summary 쪽 나눔 중 recall 이벤트 미관찰(A-4'), VO-7·VO-13 추측 결함 목록 미기재(A-5'), layout-check 9회 중 1회 원인 미상 일시 실패(재현 안 됨), `unused-term` 권고가 그려진 글의 `{{}}` 표시를 세지 않음, `tests/diagram.test.mjs` PF1(20ms) perf가 npm test 병렬 부하에서 1회 실패(단독 12ms, 기존 불안정).
+- (다음 run) A-4: 문서 사실 테스트는 "한 곳에만"·지정 파일을 검사하지 않는다. 사실마다 지정 파일 한 곳에만 있는지 검사하도록 강화할지.
+- (해결, 사용자 답 1-A) 2번 레이아웃: 측정으로 확정되는 넘침·작은 글자·칸 넘침만, 결정적 보정은 kit이, 겹침은 판정하지 않는다.
 
 ## Spec
 
+- run `e48ead05eb246d3c`: `agent-docs/spec-logs/e48ead05eb246d3c-layout-check-and-kit-defects.md`, v6, status complete. 검증 2/2회(1회 retry F-1..F-4 → 2회 pass), 보정 묶음 7회.
 - 처음 작성 시: 없음(workflow-approach를 쓰지 않은 시험 생성).
 - run `753ff3c539424409`: `agent-docs/spec-logs/753ff3c539424409-generator-defects-audit-lint-docs.md`, v4, status complete. 검증 2/2회(1회 retry → 2회 pass), 보정 묶음 3회.
 
