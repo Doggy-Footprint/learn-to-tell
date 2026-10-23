@@ -1,6 +1,9 @@
 # Project Definition
 
-[#TODO][3-5 lines of description of the project]
+Learn to Tell은 coding agent(Claude Code, claude.ai)가 skill로 제공하는 인터랙티브 학습 자료 생성기다.
+대화 진단으로 사용자가 모르는 결정 변수와 오개념을 찾고, 교과서 한 챕터 분량(15–20분)의 수업을 만든 뒤, 퀴즈 결과를 원래 작업과 지식 map(`~/.learn-to-tell/`)으로 돌려준다.
+agent는 수업 spec(수치 모델, 데이터 단위 그림, 장면)만 쓰고, 레이아웃·UI·애니메이션은 미리 검증한 runtime(`@doggy-footprint/ltt-runtime`)이 그린다.
+설계와 목표 수치는 `intent.md`에 있다.
 
 <!-- harness:begin 0.28.0 -->
 # Documentation Guide
