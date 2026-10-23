@@ -11,7 +11,7 @@
 
 - 브랜치 `dev`, HEAD `46fcb17`(v4 계약과 중단한 감사 기록). 아래 변경은 모두 커밋 전이다.
 - 바뀐 파일:
-  - 문서: `intent.md`, `agent-docs/adr/3c44a1f91bcb8367-agent-writes-spec-runtime-renders.md`(Decision 1줄, Negative 1문장)
+  - 문서: `plan.md`, `agent-docs/adr/3c44a1f91bcb8367-agent-writes-spec-runtime-renders.md`(Decision 1줄, Negative 1문장)
   - 계약·도구: `packages/runtime/types/lesson.d.ts`, `packages/runtime/dev/spec-stub.mjs`, `packages/runtime/rules.md`, `bench/coverage/count.mjs`
   - 예시: `skill/learn-to-tell/examples/projectile-drag.js`
   - 테스트: `packages/runtime/test/`(binding.test.mjs, example-fr43.test.mjs, types/infer-checks-first.js 새 파일, 나머지 수정)

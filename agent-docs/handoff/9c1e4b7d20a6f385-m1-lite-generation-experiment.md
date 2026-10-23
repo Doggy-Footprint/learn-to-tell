@@ -34,9 +34,9 @@
 
 ## Next Step
 
-M1 생성 실험을 새 workflow-approach run으로 시작한다(intent.md 마일스톤 M1).
+M1 생성 실험을 새 workflow-approach run으로 시작한다(plan.md 마일스톤 M1).
 
-1. 이해 확인(understanding round). 이 handoff, `intent.md`(핵심 결정, 인포그래픽 계약, 글자 배치, 생성 흐름, 목표 수치, M1), ADR `agent-docs/adr/3c44a1f91bcb8367-agent-writes-spec-runtime-renders.md`, 마감한 spec `agent-docs/spec-logs/c30ff9a3faa18a2a-m0-contract-coverage.md`(Signatures가 계약의 의미 결정을 담음), `bench/v1-results.md` compare1을 읽는다.
+1. 이해 확인(understanding round). 이 handoff, `plan.md`(핵심 결정, 인포그래픽 계약, 글자 배치, 생성 흐름, 목표 수치, M1), ADR `agent-docs/adr/3c44a1f91bcb8367-agent-writes-spec-runtime-renders.md`, 마감한 spec `agent-docs/spec-logs/c30ff9a3faa18a2a-m0-contract-coverage.md`(Signatures가 계약의 의미 결정을 담음), `bench/v1-results.md` compare1을 읽는다.
 2. 범위 초안:
    - **범위를 좁힌 runtime:** 구현하는 종류를 시험 주제가 쓰는 것으로 줄인다. stage·card, 장면 타입 8종, predict·quiz UI, cartesian·graph·cells frame과 시험 주제가 쓰는 mark가 대상이다. 줄이는 것은 종류뿐이다. 구현한 mark는 글자 배치(겹침·가장자리 회피, leader, 잘림 없음), 최소 글자 크기·대비, 검사까지 완성한다. 빈틈이 있으면 runtime 결함이 생성 비용으로 잡히거나, 생성 agent가 runtime을 우회한다. 아직 구현하지 않은 mark는 check가 오류로 막는다.
    - **SKILL 초안.**

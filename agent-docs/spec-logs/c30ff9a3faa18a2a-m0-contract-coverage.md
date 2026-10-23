@@ -18,7 +18,7 @@ handoff: agent-docs/handoff/stale/f28686a679afa0f4-m0-contract-verifier-limit.md
 | UI-6 | 생성 agent·사용자 | 그림 안 글자 배치를 runtime이 맡는다(v1 레이아웃 결함이 그림 안으로 옮겨 가지 않음) | 글자를 지닌 mark의 JSDoc이 배치 보장을 적고, agent는 기준점과 선호 방향만 준다 |
 
 # Scope
-In scope: 개발 도구(package.json, tsconfig, typescript 고정), 계약 타입(`packages/runtime/types/` core·internal·ext), 측정용 stub(`packages/runtime/dev/spec-stub.mjs`: API 기술자, 수치 도우미, check·figure 평가, 사용 빈도), 감사 조각 형식과 집계(`bench/coverage/fragment.d.ts`, `bench/coverage/count.mjs`), 예시 수업 1개, 규칙 카탈로그, 범위 감사 중단 기록(`bench/coverage/report.md`, v5에서 끝 조건에서 뺌), 글자 배치·미정 의미의 계약 문장(v5), 조각 binding 검사, intent.md 수정.
+In scope: 개발 도구(package.json, tsconfig, typescript 고정), 계약 타입(`packages/runtime/types/` core·internal·ext), 측정용 stub(`packages/runtime/dev/spec-stub.mjs`: API 기술자, 수치 도우미, check·figure 평가, 사용 빈도), 감사 조각 형식과 집계(`bench/coverage/fragment.d.ts`, `bench/coverage/count.mjs`), 예시 수업 1개, 규칙 카탈로그, 범위 감사 중단 기록(`bench/coverage/report.md`, v5에서 끝 조건에서 뺌), 글자 배치·미정 의미의 계약 문장(v5), 조각 binding 검사, plan.md 수정.
 Out of scope: 렌더링·UI·애니메이션 구현(M1), `ltt check`·`ltt sheet` CLI(M2), SKILL.md(M3), npm 배포·claude.ai(M5), 진단·map·result.md(M4), glyph·icon의 실제 목록(M1), plugin(악보·화학 구조식·소리) 타입, 범위 감사 재개·batch 2, 승격 후보 step-tween·tap-select(M1 생성 실험에서 반복될 때만).
 
 # Paths
@@ -355,7 +355,7 @@ Mutation tool: none — Stryker 등 미설치. 손 mutation 8–10개로 대신�
 | FR-36 | C-29 | VO-9 | Test command |
 | FR-40–FR-42 | C-31–C-38 | VO-10, VO-15 | Test command, R2 |
 | FR-50 | C-39 | VO-11, VO-15 | Test command, R2 |
-| FR-64 | — | — | main이 intent.md 수정, 사용자 검토 |
+| FR-64 | — | — | main이 plan.md 수정, 사용자 검토 |
 | (기록) | C-40 | VO-14 | R1 |
 | QR-1–QR-9 | — | VO-1, VO-2, VO-6, VO-7, VO-9, VO-10, VO-12, VO-13, VO-16 | Test command, R3 |
 
