@@ -1,8 +1,0 @@
-# R-1 dom-match (spec bf761aaf871d8d45): base = git archive 8522f70 dumps 1-5, final = scratchpad 'final' copy dumps
-## final dumps 1-3 (run while npm test was running)
-NOMATCH 1280x800__philosophy__trolley-ethics.html
-files=26 nomatch=1
-## final dumps 1-5
-files=26 nomatch=0
-## tests/gallery-audit.baseline.json sha256 (unchanged vs HEAD: git diff --quiet)
-644c2b2fa72c738894854d8bea24d96149c324c3284f5dcc7988e6cae92a5b7e  tests/gallery-audit.baseline.json

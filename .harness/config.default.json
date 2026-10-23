@@ -1,4 +1,0 @@
-{
-  "docs_root": "agent-docs",
-  "exclude_dirs": [".git", "node_modules", ".harness"]
-}
