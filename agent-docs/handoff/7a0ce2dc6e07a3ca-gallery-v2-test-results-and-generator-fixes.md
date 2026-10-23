@@ -131,6 +131,7 @@
 | 19 | 고침 | 검증 서브에이전트에 `background.md`는 있을 때만, shot `index.md` 전달. "미검증"은 검증 못 한 항목만, 못 고친 advice는 result.md "남은 권고" |
 | 20 | 원인 일부 제거 | 9번으로 audit이 콘솔 예외를 보여 준다. symlink 생성 경로는 미확인 |
 | 2, 10–16, 18 | 남음 | 이번 run 범위 밖(사용자 결정: 2번은 다음 run) |
+| 8 후반, 20 | 일부 남음 | 8: mount/figure HTML·SVG 안 용어 검사. 20: self symlink 생성 경로 확인 |
 
 ## Failed Attempts
 
@@ -163,7 +164,7 @@
 
 ## Execution Ledger
 
-- findings: 위 "고쳐야 할 항목" 20개. 처리 현황 표대로 10개 고침·1개 일부, 2·10–16·18번 open. run의 finding(F-1..F-6, G-1..G-6, S-1, A-1..A-4)과 처분은 spec 실행 원장에 있다.
+- findings: 위 "고쳐야 할 항목" 20개. 처리 현황 표대로 9개 고침(1, 3–7, 9, 17, 19)·2개 일부(8, 20), 2·10–16·18번과 8 후반·20 open. run의 finding(F-1..F-6, G-1..G-6, S-1, A-1..A-4)과 처분은 spec 실행 원장에 있다.
 - evidence: 수업 에이전트 17개의 최종 보고(이 세션), `measurements/20261022-gallery-v2/cost.md`, 각 `home/lessons/<id>/result.md`·`events.jsonl`·`shots/`.
 - fuzz·mutation(run 753ff…): `tests/term-boundary.fuzz.mjs` 20,000건 seed 1 차이 0. 손 mutation M1–M14 모두 의도한 단언이 검출. mutation 도구 없음.
 - 검증 회차: 수업별 표의 "검증 회차" 열. 이 handoff 작업 자체의 verifier는 없음.
