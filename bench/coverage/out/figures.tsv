@@ -1,0 +1,255 @@
+corpus	domain	fig	src	verdict	custom	lost_essential
+lesson	미술	drawing-basics#hook	archive/v1:site/gallery/art/drawing-basics.html	V		
+lesson	미술	drawing-basics#table	archive/v1:site/gallery/art/drawing-basics.html	V		
+lesson	미술	drawing-basics#contour	archive/v1:site/gallery/art/drawing-basics.html	V		
+lesson	미술	drawing-basics#negative	archive/v1:site/gallery/art/drawing-basics.html	V		
+lesson	미술	drawing-basics#pencil	archive/v1:site/gallery/art/drawing-basics.html	V		
+lesson	미술	drawing-basics#head	archive/v1:site/gallery/art/drawing-basics.html	V		
+lesson	미술	drawing-basics#shapes	archive/v1:site/gallery/art/drawing-basics.html	V		
+lesson	미술	drawing-basics#ellipse	archive/v1:site/gallery/art/drawing-basics.html	V		
+lesson	미술	drawing-basics#perspective	archive/v1:site/gallery/art/drawing-basics.html	V		
+lesson	미술	drawing-basics#light	archive/v1:site/gallery/art/drawing-basics.html	G		
+lesson	미술	drawing-basics#tree	archive/v1:site/gallery/art/drawing-basics.html	V		
+lesson	미술	drawing-basics#overview	archive/v1:site/gallery/art/drawing-basics.html	V		
+lesson	금융	investing-basics#hook-art	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#term-복리	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#term-변동성	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#term-분산투자	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#term-보수	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#term-적립식	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#compound	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#risk	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#drag	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#paths	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#nstk	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#fee	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#tax	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#dca	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#timing	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#alloc	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#tree	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	금융	investing-basics#overview	archive/v1:site/gallery/finance/investing-basics.html	V		
+lesson	ML	llm-hallucination-internal#stream	archive/v1:site/gallery/ml/llm-hallucination-internal.html	V		
+lesson	ML	llm-hallucination-internal#probe	archive/v1:site/gallery/ml/llm-hallucination-internal.html	V		
+lesson	ML	llm-hallucination-internal#exact	archive/v1:site/gallery/ml/llm-hallucination-internal.html	V		
+lesson	ML	llm-hallucination-internal#general	archive/v1:site/gallery/ml/llm-hallucination-internal.html	V		
+lesson	ML	llm-hallucination-internal#types	archive/v1:site/gallery/ml/llm-hallucination-internal.html	V		
+lesson	ML	llm-hallucination-internal#pick	archive/v1:site/gallery/ml/llm-hallucination-internal.html	V		
+lesson	ML	llm-hallucination-internal#tree	archive/v1:site/gallery/ml/llm-hallucination-internal.html	V		
+lesson	ML	llm-hallucination-internal#pipeline	archive/v1:site/gallery/ml/llm-hallucination-internal.html	V		
+lesson	ML	llm-hallucination-internal#term-hidden	archive/v1:site/gallery/ml/llm-hallucination-internal.html	V		
+lesson	ML	llm-hallucination-internal#term-stream	archive/v1:site/gallery/ml/llm-hallucination-internal.html	V		
+lesson	ML	llm-hallucination-internal#term-probe	archive/v1:site/gallery/ml/llm-hallucination-internal.html	V		
+lesson	ML	llm-hallucination-internal#term-exact	archive/v1:site/gallery/ml/llm-hallucination-internal.html	V		
+lesson	ML	llm-hallucination-internal#tokens	archive/v1:site/gallery/ml/llm-hallucination-internal.html	V		
+lesson	ML	llm-hallucination-internal#hook-art	archive/v1:site/gallery/ml/llm-hallucination-internal.html	N		
+lesson	지식 그래프	ontology-triples#hook-network	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	V		
+lesson	지식 그래프	ontology-triples#terms	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	G		
+lesson	지식 그래프	ontology-triples#row2triples	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	G		
+lesson	지식 그래프	ontology-triples#join	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	V		
+lesson	지식 그래프	ontology-triples#cert-given	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	V		
+lesson	지식 그래프	ontology-triples#cert-answer	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	V		
+lesson	지식 그래프	ontology-triples#infer	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	G		
+lesson	지식 그래프	ontology-triples#tag-vs-onto	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	V		
+lesson	지식 그래프	ontology-triples#domain-given	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	V		
+lesson	지식 그래프	ontology-triples#domain-answer	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	V		
+lesson	지식 그래프	ontology-triples#merge	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	V		
+lesson	지식 그래프	ontology-triples#erp-compare	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	V		
+lesson	지식 그래프	ontology-triples#decide	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	V		
+lesson	지식 그래프	ontology-triples#tree	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	V		
+lesson	지식 그래프	ontology-triples#overview	archive/v1:site/gallery/knowledge-graph/ontology-triples.html	V		
+lesson	GPU	single-gpu-dataflow#hook-art	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#term-flops	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#term-hbm	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#term-bw	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#term-weights	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#term-decode	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#term-batch	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#gpu	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#decode	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#answer	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#times	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#intensity	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#batch	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#roofline	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#compare-prefill-decode	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	N		
+lesson	GPU	single-gpu-dataflow#choose	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#concept-tree	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	GPU	single-gpu-dataflow#overview	archive/v1:site/gallery/gpu/single-gpu-dataflow.html	V		
+lesson	철학	trolley-ethics#hook	archive/v1:site/gallery/philosophy/trolley-ethics.html	G		
+lesson	철학	trolley-ethics#term-consequentialism	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#term-deontology	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#term-side-effect	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#term-means	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#switch	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#bridge	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#ledger	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#chains	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#kant	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#loop	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#features	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#bars	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#debate-consequentialist	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#debate-deontologist	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	철학	trolley-ethics#tree	archive/v1:site/gallery/philosophy/trolley-ethics.html	G		
+lesson	철학	trolley-ethics#overview	archive/v1:site/gallery/philosophy/trolley-ethics.html	V		
+lesson	UI/UX	visual-hierarchy-spacing#hook	archive/v1:site/gallery/uiux/visual-hierarchy-spacing.html	V		
+lesson	UI/UX	visual-hierarchy-spacing#term-proximity	archive/v1:site/gallery/uiux/visual-hierarchy-spacing.html	V		
+lesson	UI/UX	visual-hierarchy-spacing#term-signal	archive/v1:site/gallery/uiux/visual-hierarchy-spacing.html	V		
+lesson	UI/UX	visual-hierarchy-spacing#term-scale	archive/v1:site/gallery/uiux/visual-hierarchy-spacing.html	V		
+lesson	UI/UX	visual-hierarchy-spacing#term-budget	archive/v1:site/gallery/uiux/visual-hierarchy-spacing.html	V		
+lesson	UI/UX	visual-hierarchy-spacing#prox	archive/v1:site/gallery/uiux/visual-hierarchy-spacing.html	G		
+lesson	UI/UX	visual-hierarchy-spacing#four	archive/v1:site/gallery/uiux/visual-hierarchy-spacing.html	V		
+lesson	UI/UX	visual-hierarchy-spacing#scale	archive/v1:site/gallery/uiux/visual-hierarchy-spacing.html	V		
+lesson	UI/UX	visual-hierarchy-spacing#kpi-predict	archive/v1:site/gallery/uiux/visual-hierarchy-spacing.html	V		
+lesson	UI/UX	visual-hierarchy-spacing#budget	archive/v1:site/gallery/uiux/visual-hierarchy-spacing.html	V		
+lesson	UI/UX	visual-hierarchy-spacing#dash	archive/v1:site/gallery/uiux/visual-hierarchy-spacing.html	G		
+lesson	UI/UX	visual-hierarchy-spacing#tree	archive/v1:site/gallery/uiux/visual-hierarchy-spacing.html	V		
+lesson	UI/UX	visual-hierarchy-spacing#overview	archive/v1:site/gallery/uiux/visual-hierarchy-spacing.html	G		
+new-b1	생명과학	dna-replication#F1	bench/coverage/new/biology/dna-replication.brief.md	V		
+new-b1	생명과학	dna-replication#F2	bench/coverage/new/biology/dna-replication.brief.md	V		
+new-b1	생명과학	dna-replication#F3	bench/coverage/new/biology/dna-replication.brief.md	G		
+new-b1	생명과학	dna-replication#F4	bench/coverage/new/biology/dna-replication.brief.md	V		
+new-b1	생명과학	dna-replication#F5	bench/coverage/new/biology/dna-replication.brief.md	V		
+new-b1	생명과학	dna-replication#F6	bench/coverage/new/biology/dna-replication.brief.md	V		
+new-b1	생명과학	dna-replication#F7	bench/coverage/new/biology/dna-replication.brief.md	V		
+new-b1	생명과학	dna-replication#F8	bench/coverage/new/biology/dna-replication.brief.md	V		
+new-b1	생명과학	dna-replication#F9	bench/coverage/new/biology/dna-replication.brief.md	V		
+new-b1	생명과학	enzyme-kinetics#F1	bench/coverage/new/biology/enzyme-kinetics.brief.md	V		
+new-b1	생명과학	enzyme-kinetics#F2	bench/coverage/new/biology/enzyme-kinetics.brief.md	V		
+new-b1	생명과학	enzyme-kinetics#F3	bench/coverage/new/biology/enzyme-kinetics.brief.md	V		
+new-b1	생명과학	enzyme-kinetics#F4	bench/coverage/new/biology/enzyme-kinetics.brief.md	V		
+new-b1	생명과학	enzyme-kinetics#F5	bench/coverage/new/biology/enzyme-kinetics.brief.md	V		
+new-b1	생명과학	enzyme-kinetics#F6	bench/coverage/new/biology/enzyme-kinetics.brief.md	V		
+new-b1	생명과학	enzyme-kinetics#F7	bench/coverage/new/biology/enzyme-kinetics.brief.md	V		
+new-b1	생명과학	enzyme-kinetics#F8	bench/coverage/new/biology/enzyme-kinetics.brief.md	V		
+new-b1	생명과학	enzyme-kinetics#F9	bench/coverage/new/biology/enzyme-kinetics.brief.md	V		
+new-b1	운동역학	impulse-and-ground-reaction-force#F1	bench/coverage/new/biomechanics/impulse-and-ground-reaction-force.brief.md	V		
+new-b1	운동역학	impulse-and-ground-reaction-force#F2	bench/coverage/new/biomechanics/impulse-and-ground-reaction-force.brief.md	V		
+new-b1	운동역학	impulse-and-ground-reaction-force#F3	bench/coverage/new/biomechanics/impulse-and-ground-reaction-force.brief.md	V		
+new-b1	운동역학	impulse-and-ground-reaction-force#F4	bench/coverage/new/biomechanics/impulse-and-ground-reaction-force.brief.md	V		
+new-b1	운동역학	impulse-and-ground-reaction-force#F5	bench/coverage/new/biomechanics/impulse-and-ground-reaction-force.brief.md	G		
+new-b1	운동역학	impulse-and-ground-reaction-force#F6	bench/coverage/new/biomechanics/impulse-and-ground-reaction-force.brief.md	V		
+new-b1	운동역학	impulse-and-ground-reaction-force#F7	bench/coverage/new/biomechanics/impulse-and-ground-reaction-force.brief.md	V		
+new-b1	운동역학	impulse-and-ground-reaction-force#F8	bench/coverage/new/biomechanics/impulse-and-ground-reaction-force.brief.md	V		
+new-b1	운동역학	joint-moments-in-running-stance#F1	bench/coverage/new/biomechanics/joint-moments-in-running-stance.brief.md	V		
+new-b1	운동역학	joint-moments-in-running-stance#F2	bench/coverage/new/biomechanics/joint-moments-in-running-stance.brief.md	G		P4
+new-b1	운동역학	joint-moments-in-running-stance#F3	bench/coverage/new/biomechanics/joint-moments-in-running-stance.brief.md	V		
+new-b1	운동역학	joint-moments-in-running-stance#F4	bench/coverage/new/biomechanics/joint-moments-in-running-stance.brief.md	V		
+new-b1	운동역학	joint-moments-in-running-stance#F5	bench/coverage/new/biomechanics/joint-moments-in-running-stance.brief.md	G		
+new-b1	운동역학	joint-moments-in-running-stance#F6	bench/coverage/new/biomechanics/joint-moments-in-running-stance.brief.md	V		
+new-b1	운동역학	joint-moments-in-running-stance#F7	bench/coverage/new/biomechanics/joint-moments-in-running-stance.brief.md	G		P2
+new-b1	운동역학	joint-moments-in-running-stance#F8	bench/coverage/new/biomechanics/joint-moments-in-running-stance.brief.md	V		
+new-b1	경제학	circular-flow-of-income#F1	bench/coverage/new/economics/circular-flow-of-income.brief.md	V		
+new-b1	경제학	circular-flow-of-income#F2	bench/coverage/new/economics/circular-flow-of-income.brief.md	V		
+new-b1	경제학	circular-flow-of-income#F3	bench/coverage/new/economics/circular-flow-of-income.brief.md	G		
+new-b1	경제학	circular-flow-of-income#F4	bench/coverage/new/economics/circular-flow-of-income.brief.md	V		
+new-b1	경제학	circular-flow-of-income#F5	bench/coverage/new/economics/circular-flow-of-income.brief.md	V		
+new-b1	경제학	circular-flow-of-income#F6	bench/coverage/new/economics/circular-flow-of-income.brief.md	V		
+new-b1	경제학	circular-flow-of-income#F7	bench/coverage/new/economics/circular-flow-of-income.brief.md	V		
+new-b1	경제학	circular-flow-of-income#F8	bench/coverage/new/economics/circular-flow-of-income.brief.md	V		
+new-b1	경제학	price-elasticity-of-demand#F1	bench/coverage/new/economics/price-elasticity-of-demand.brief.md	V		
+new-b1	경제학	price-elasticity-of-demand#F2	bench/coverage/new/economics/price-elasticity-of-demand.brief.md	V		
+new-b1	경제학	price-elasticity-of-demand#F3	bench/coverage/new/economics/price-elasticity-of-demand.brief.md	V		
+new-b1	경제학	price-elasticity-of-demand#F4	bench/coverage/new/economics/price-elasticity-of-demand.brief.md	V		
+new-b1	경제학	price-elasticity-of-demand#F5	bench/coverage/new/economics/price-elasticity-of-demand.brief.md	V		
+new-b1	경제학	price-elasticity-of-demand#F6	bench/coverage/new/economics/price-elasticity-of-demand.brief.md	G		
+new-b1	경제학	price-elasticity-of-demand#F7	bench/coverage/new/economics/price-elasticity-of-demand.brief.md	V		
+new-b1	경제학	price-elasticity-of-demand#F8	bench/coverage/new/economics/price-elasticity-of-demand.brief.md	V		
+new-b1	법	contract-formation-and-terms#F1	bench/coverage/new/law/contract-formation-and-terms.brief.md	V		
+new-b1	법	contract-formation-and-terms#F2	bench/coverage/new/law/contract-formation-and-terms.brief.md	V		
+new-b1	법	contract-formation-and-terms#F3	bench/coverage/new/law/contract-formation-and-terms.brief.md	G		
+new-b1	법	contract-formation-and-terms#F4	bench/coverage/new/law/contract-formation-and-terms.brief.md	V		
+new-b1	법	contract-formation-and-terms#F5	bench/coverage/new/law/contract-formation-and-terms.brief.md	V		
+new-b1	법	contract-formation-and-terms#F6	bench/coverage/new/law/contract-formation-and-terms.brief.md	V		
+new-b1	법	contract-formation-and-terms#F7	bench/coverage/new/law/contract-formation-and-terms.brief.md	V		
+new-b1	법	contract-formation-and-terms#F8	bench/coverage/new/law/contract-formation-and-terms.brief.md	V		
+new-b1	법	personal-data-roles-and-transfers#F1	bench/coverage/new/law/personal-data-roles-and-transfers.brief.md	V		
+new-b1	법	personal-data-roles-and-transfers#F2	bench/coverage/new/law/personal-data-roles-and-transfers.brief.md	V		
+new-b1	법	personal-data-roles-and-transfers#F3	bench/coverage/new/law/personal-data-roles-and-transfers.brief.md	V		
+new-b1	법	personal-data-roles-and-transfers#F4	bench/coverage/new/law/personal-data-roles-and-transfers.brief.md	V		
+new-b1	법	personal-data-roles-and-transfers#F5	bench/coverage/new/law/personal-data-roles-and-transfers.brief.md	V		
+new-b1	법	personal-data-roles-and-transfers#F6	bench/coverage/new/law/personal-data-roles-and-transfers.brief.md	V		
+new-b1	법	personal-data-roles-and-transfers#F7	bench/coverage/new/law/personal-data-roles-and-transfers.brief.md	V		
+new-b1	법	personal-data-roles-and-transfers#F8	bench/coverage/new/law/personal-data-roles-and-transfers.brief.md	V		
+new-b1	음악	harmonic-series-consonance#F1	bench/coverage/new/music/harmonic-series-consonance.brief.md	V		
+new-b1	음악	harmonic-series-consonance#F2	bench/coverage/new/music/harmonic-series-consonance.brief.md	V		
+new-b1	음악	harmonic-series-consonance#F3	bench/coverage/new/music/harmonic-series-consonance.brief.md	V		
+new-b1	음악	harmonic-series-consonance#F4	bench/coverage/new/music/harmonic-series-consonance.brief.md	V		
+new-b1	음악	harmonic-series-consonance#F5	bench/coverage/new/music/harmonic-series-consonance.brief.md	V		
+new-b1	음악	harmonic-series-consonance#F6	bench/coverage/new/music/harmonic-series-consonance.brief.md	V		
+new-b1	음악	harmonic-series-consonance#F7	bench/coverage/new/music/harmonic-series-consonance.brief.md	V		
+new-b1	음악	harmonic-series-consonance#F8	bench/coverage/new/music/harmonic-series-consonance.brief.md	G		P1,P2
+new-b1	음악	triads-inversions-voicing#F1	bench/coverage/new/music/triads-inversions-voicing.brief.md	G		P4
+new-b1	음악	triads-inversions-voicing#F2	bench/coverage/new/music/triads-inversions-voicing.brief.md	V		
+new-b1	음악	triads-inversions-voicing#F3	bench/coverage/new/music/triads-inversions-voicing.brief.md	V		
+new-b1	음악	triads-inversions-voicing#F4	bench/coverage/new/music/triads-inversions-voicing.brief.md	G		
+new-b1	음악	triads-inversions-voicing#F5	bench/coverage/new/music/triads-inversions-voicing.brief.md	V		
+new-b1	음악	triads-inversions-voicing#F6	bench/coverage/new/music/triads-inversions-voicing.brief.md	V		
+new-b1	음악	triads-inversions-voicing#F7	bench/coverage/new/music/triads-inversions-voicing.brief.md	V		
+new-b1	음악	triads-inversions-voicing#F8	bench/coverage/new/music/triads-inversions-voicing.brief.md	V		
+new-b1	통계	confidence-interval#F1	bench/coverage/new/statistics/confidence-interval.brief.md	V		
+new-b1	통계	confidence-interval#F2	bench/coverage/new/statistics/confidence-interval.brief.md	V		
+new-b1	통계	confidence-interval#F3	bench/coverage/new/statistics/confidence-interval.brief.md	V		
+new-b1	통계	confidence-interval#F4	bench/coverage/new/statistics/confidence-interval.brief.md	V		
+new-b1	통계	confidence-interval#F5	bench/coverage/new/statistics/confidence-interval.brief.md	V		
+new-b1	통계	confidence-interval#F6	bench/coverage/new/statistics/confidence-interval.brief.md	V		
+new-b1	통계	confidence-interval#F7	bench/coverage/new/statistics/confidence-interval.brief.md	V		
+new-b1	통계	confounding-and-randomization#F1	bench/coverage/new/statistics/confounding-and-randomization.brief.md	V		
+new-b1	통계	confounding-and-randomization#F2	bench/coverage/new/statistics/confounding-and-randomization.brief.md	V		
+new-b1	통계	confounding-and-randomization#F3	bench/coverage/new/statistics/confounding-and-randomization.brief.md	V		
+new-b1	통계	confounding-and-randomization#F4	bench/coverage/new/statistics/confounding-and-randomization.brief.md	V		
+new-b1	통계	confounding-and-randomization#F5	bench/coverage/new/statistics/confounding-and-randomization.brief.md	V		
+new-b1	통계	confounding-and-randomization#F6	bench/coverage/new/statistics/confounding-and-randomization.brief.md	V		
+new-b1	통계	confounding-and-randomization#F7	bench/coverage/new/statistics/confounding-and-randomization.brief.md	V		
+shot	생물	s01	archive/v1:site/gallery/shots/s01-cell-cycle.html	V		
+shot	거시경제	s02	archive/v1:site/gallery/shots/s02-rate-transmission.html	V		
+shot	웹 성능	s03	archive/v1:site/gallery/shots/s03-page-load-budget.html	V		
+shot	전기 회로	s04	archive/v1:site/gallery/shots/s04-kirchhoff-junction.html	V		
+shot-extra	광학	s05	archive/v1:site/gallery/shots/s05-microscope-na.html	V		
+shot	해운 물류	s06	archive/v1:site/gallery/shots/s06-shipping-leadtime.html	V		
+shot	백엔드	s07	archive/v1:site/gallery/shots/s07-fanout-tail-latency.html	V		
+shot-extra	UI 색	s08	archive/v1:site/gallery/shots/s08-hsl-oklch-lightness.html	C	color-swatch	
+shot	컴퓨터 구조	s09	archive/v1:site/gallery/shots/s09-working-set-hierarchy.html	V		
+shot	제어 · 온도조절기 되먹임 루프와 오버슈트	s10	archive/v1:site/gallery/shots/s10-thermostat-overshoot.html	G		
+shot	클라우드 · 리전을 늘릴수록 지연은 줄고 비용은 쌓임	s11	archive/v1:site/gallery/shots/s11-region-tradeoff.html	V		
+shot	런타임 · Node.js 이벤트 루프 단계 한 장 정리	s12	archive/v1:site/gallery/shots/s12-node-event-loop.html	V		
+shot	UX · 결제 퍼널 단계, 이탈 지점으로 확대	s13	archive/v1:site/gallery/shots/s13-checkout-funnel-zoom.html	V		
+shot	통계 · 심슨의 역설, 집단별 기울기 vs 합친 기울기	s14	archive/v1:site/gallery/shots/s14-simpson-paradox-slopes.html	G		
+shot	금융 · 증권화, 대출을 묶어 트랜치로 나눔	s15	archive/v1:site/gallery/shots/s15-securitization-tranches.html	V		
+shot	건축 · 남향 vs 북향 방의 하루 채광	s16	archive/v1:site/gallery/shots/s16-room-daylight.html	V		
+shot	DB · WAL, 체크포인트, 복구 용어와 로그 타임라인	s17	archive/v1:site/gallery/shots/s17-wal-checkpoint.html	V		
+shot	실험 · A/B 테스트 표본 크기와 두 분포의 겹침(검정력)	s18	archive/v1:site/gallery/shots/s18-ab-power.html	V		
+shot	신호처리 · 푸리에 변환, 파형이 주파수 막대로	s19	s19-fourier-sweep.html	V		
+shot	회계 · 지분율 트리가 연결 범위로 바뀜	s20	s20-equity-consolidation.html	G		
+shot	생태 · 포식자-피식자 순환 한 장 정리	s21	s21-predator-prey-cycle.html	V		
+shot	칩 설계 · 클럭을 올리면 동적 전력(∝ fV²)이 쌓임	s22	s22-clock-power.html	V		
+shot	열역학 · 카르노 사이클 P-V 궤적 한 장 정리	s23	s23-carnot-cycle.html	V		
+shot	콜드체인 · 백신이 국가→도시→창고로 가는 순서, 지도 확대	s24	s24-vaccine-cold-chain.html	G		b2,b3,p1
+shot	물가 · CPI 바스켓 가중치가 바뀌면 같은 가격 변화도 다른 물가	s25	s25-cpi-basket-weights.html	V		
+shot	git · 브랜치, 머지, 리베이스 용어	s26	s26-git-branch-terms.html	V		
+shot	무선 · 평면도 위 공유기 위치와 Wi-Fi 신호 세기	s27	s27-wifi-router-floorplan.html	V		
+shot	약리 · 투약 간격에 따른 혈중 농도 곡선과 반감기	s28	s28-dosing-interval.html	V		
+shot	도시 · 노선 수에 따른 출근 인구의 대중교통 접근성	s29	s29-transit-access.html	V		
+shot	컴파일러 · 소스→토큰→AST→바이트코드	s30	s30-compile-pipeline.html	V		
+shot	디자인 · 시각적 위계와 시선이 지나는 길	s31	s31-visual-hierarchy-gaze.html	V		
+shot	기후 · 얼음-알베도 되먹임 한 장 정리	s32	s32-ice-albedo-overview.html	V		
+shot	ML · 편향-분산, 모델 복잡도별 오차	s33	s33-bias-variance-error.html	V		
+shot	해양 · 열염순환 정상 vs 약화	s34	s34-amoc-weakening.html	V		
+shot	네트워크 · DNS·TCP·TLS·HTTP 용어, 패킷 캡처 확대	s35	s35-packet-layers.html	V		
+shot	프런트엔드 · 앱 번들 구성, 코드 분할 전후	s36	s36-code-splitting.html	V		
+shot	언어학 · 의존 구문 분석의 핵심어·의존어·관계	s37	s37-dependency-parse.html	V		
+shot	부동산 · 역에서의 거리 반경과 가격 띠	s38	s38-station-radius.html	V		
+shot	제품 · 스프린트마다 쌓이는 기술 부채	s39	s39-tech-debt-sprints.html	G		
+shot	반도체 · 웨이퍼 결함 분포와 칩 크기별 수율	s40	s40-wafer-yield.html	V		
+shot	이미지 · JPEG 압축 단계(YCbCr→DCT→양자화) 한 장 정리	s41	s41-jpeg-pipeline.html	V		
+shot	알고리즘 · 이진 탐색 트리 탐색 경로	s42	s42-bst-search-path.html	V		
+shot	금융 안정 · 뱅크런 되먹임 한 장 정리	s43	s43-bank-run-loop.html	G		
+shot	분산 시스템 · 일관성 수준과 지연(PACELC)	s44	s44-pacelc-latency.html	V		
+shot	냉동 사이클 · 정상 vs 냉매 부족	s45	s45-refrigerant-undercharge.html	V		
+shot	화학 · 적정 곡선의 당량점, 지시약, 완충 구간	s46	s46-titration-terms.html	V		
+shot	에너지 · 연도별 지역 전력 믹스	s47	s47-power-mix-sweep.html	V		
+shot	보안 · 랜섬웨어의 측면 이동	s48	s48-ransomware-lateral.html	V		
+shot	스포츠 분석 · 농구 구역별 기대 득점	s49	s49-basketball-zone-value.html	V		
+shot	천문 · 공전 위치에 따른 달의 위상	s50	s50-moon-phase-orbit.html	V		
+shot	물리 · 갈톤 보드와 정규분포	s51	s51-galton-board.html	V		

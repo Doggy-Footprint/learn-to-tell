@@ -6,3 +6,6 @@ agent-docs/specs/.seed/
 .harness/**/__pycache__
 tmp/
 dist/
+measurements/
+.DS_Store
+node_modules/

@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "strict": true,
+    "noEmit": true,
+    "target": "es2022",
+    "lib": ["es2022"],
+    "types": [],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "paths": { "ltt": ["./packages/runtime/types/lesson.d.ts"] }
+  },
+  "include": [
+    "packages/runtime/types",
+    "packages/runtime/dev",
+    "skill/learn-to-tell/examples",
+    "bench/coverage/fragment.d.ts"
+  ]
+}

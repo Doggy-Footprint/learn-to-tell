@@ -1,0 +1,13 @@
+{
+  "name": "learn-to-tell",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "verify:example": "node packages/runtime/dev/spec-stub.mjs skill/learn-to-tell/examples/projectile-drag.js",
+    "coverage": "node bench/coverage/count.mjs bench/coverage --out bench/coverage/out"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}
