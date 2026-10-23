@@ -1,6 +1,6 @@
 # 수업 규칙 카탈로그
 
-`ltt check`(M2)가 강제할 규칙. "예시 수업 고의 결함"은 `skill/learn-to-tell/examples/projectile-drag.js`에 이 편집을 하면 그 규칙이 걸려야 한다는 뜻이다. type 층은 `packages/runtime/types/lesson.d.ts`가 tsc로 막는다.
+수업 규칙과 강제 층. type 층은 `packages/runtime/types/lesson.d.ts`가 tsc로, check 층은 `ltt check`(M2)가 렌더 전에, runtime 층은 runtime이 렌더할 때 강제한다. "예시 수업 고의 결함"은 `skill/learn-to-tell/examples/projectile-drag.js`에 이 편집을 하면 그 규칙이 걸려야 한다는 뜻이다.
 
 | id | 규칙 | 근거 | 강제 층(type/check/runtime) | 예시 수업 고의 결함 | 상태 |
 | --- | --- | --- | --- | --- | --- |

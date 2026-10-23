@@ -35,8 +35,8 @@ Status: draft (2026-10-23). v1 전체는 태그 `archive/v1`(`0da38db`)에 있�
 
 1. agent는 수업 spec(수치 모델, 데이터 단위 그림, 장면)만 쓴다. 레이아웃·CSS·DOM·애니메이션 코드는 쓰지 않는다. 미리 만들어 검증한 runtime이 전부 그린다. ADR `3c44a1f91bcb8367`(v1 ADR `6ff15ad3eef7b88d` 대체).
 2. 인포그래픽은 `model → view`다. model은 매개변수·시간 → 수치를 내는 순수 함수, view는 수치를 데이터 단위 도형으로 바꾼다. px는 runtime의 scale만 계산한다.
-3. 검사(`ltt check`)는 브라우저 없이 Node에서 결정적으로 돈다. 화면은 마지막에 contact sheet로 한 번 본다. checks는 수치만 잡고 정답 표시·데이터 값 오류는 못 잡는다(감사 반박 기록에서 약 17%로 추정). 그래서 M1 생성 실험에서는 독립 정답 검산(문항·공개 결론·데이터만 읽고 따로 푸는 서브에이전트)을 켜고, 잡은 오류 수와 토큰을 잰다. 기본으로 켤지는 그 결과로 정한다.
-4. 교수 설계 규칙은 장면 타입의 구조로 강제한다. 예측 장면의 공개 내용은 확정 전에 렌더되지 않는다.
+3. 검사(`ltt check`)는 브라우저 없이 Node에서 결정적으로 돈다. 화면은 마지막에 contact sheet로 한 번 본다. `checks`는 model 수치만 확인한다. 정답 표시나 데이터 값이 틀린 수업은 통과한다(독립 검토가 감사 반박 기록에서 약 17%로 추정). 그래서 M1 생성 실험에서는 독립 정답 검산(문항·공개 결론·데이터만 읽고 따로 푸는 서브에이전트)을 켜고, 잡은 오류 수와 토큰을 잰다. 기본으로 켤지는 그 결과로 정한다.
+4. 교수 설계 규칙은 타입(tsc), check, runtime 세 층에서 강제하고, 규칙마다 층을 `packages/runtime/rules.md`에 적는다. 예를 들어 predict의 공개 mark는 확정 전에 그리지 않는다(runtime).
 5. 외부 라이브러리는 runtime 안에서만 쓴다. 수업 파일은 라이브러리를 부르지 않는다.
 
 ### 수업 구조
@@ -45,11 +45,11 @@ Status: draft (2026-10-23). v1 전체는 태그 `archive/v1`(`0da38db`)에 있�
 
 ```
 hook
-절 × 3–5:  predict → define/steps → explore/compare → 중간 확인 1문항
+절 × 3–5:  predict → define/steps/explain → explore/compare → 중간 확인 quiz
 quiz (6–8문항) → summary
 ```
 
-- 장면 16–24개, 학습 15–20분.
+- 장면 18–24개(절 장면의 합 + 최종 quiz·summary 2), 학습 15–20분.
 - 절마다 중간 확인 문항을 둔다. 긴 온라인 강의에서 중간 시험은 딴생각을 줄이고 마지막 시험 성적을 올렸다(Szpunar, Khan & Schacter 2013).
 
 장면 타입(닫힌 목록):
@@ -58,46 +58,50 @@ quiz (6–8문항) → summary
 |---|---|---|
 | hook | 현상·질문 | 움직이는 그림 |
 | predict | 확정 → 공개 (공개 단계 내장) | 선택 / 그래프 위 끌기 / 곡선 그리기. 예측은 유령선으로 남아 실제와 겹쳐 보인다(Kim, Reinecke & Hullman 2017) |
-| define | 용어 사전 학습 | 작은 그림 + 한 줄 정의, 이후 `{{용어}}` 팝오버 |
+| define | 용어 사전 학습 | 작은 그림 + 한 줄 정의, 이후 glossary 팝오버 |
+| explain | 그림과 글로 설명 | 움직이는 그림 |
 | steps | 메커니즘 단계 | 자동 반복, 멈춤·되감기 |
 | explore | 직접 조작 | knob, 그림 위 핸들, 도전 목표 |
 | compare | 대비 사례 | 같은 scale의 두 패널 |
 | quiz | 인출 연습 | 선택·수치(허용 오차)·순서·분류, 즉시 피드백, 오답별 설명 |
 | summary | 한 장 정리 | 앞 장면 그림이 제자리로 모이는 공유 요소 전환 |
 
-check가 강제하는 문법:
+주요 문법 규칙(전체 목록과 강제 층은 `packages/runtime/rules.md`):
 
-- 첫 장면은 hook 또는 predict. 절마다 첫 설명 장면 앞에 predict 1개.
-- `meta.learner.misconceptions`마다 그것을 겨냥한 predict 1개.
-- 모든 장면에 `focus`. 강조색은 focus 도형에만, 나머지는 중립색.
-- 퀴즈 문항마다 `meta.objectives` 중 하나에 연결, 오답 선택지마다 피드백, 전이 문항 1개 이상.
-- `{{용어}}`는 define 또는 glossary로 정의한 뒤에만 쓴다.
-- 수치 모델마다 해석해가 알려진 극한 check 1개 이상.
-- 출처 없는 수치는 `illustrative: true` → 화면에 "가상 예시" 표시.
+- 첫 절의 첫 장면은 hook이다. 절마다 define·steps보다 predict가 먼저 온다.
+- `meta.learner.misconceptions[0]`을 `targets`로 겨냥한 predict가 첫 두 절 안에 있다.
+- figure가 있는 장면은 `focus`를 가진다. runtime은 focus mark를 강조하고 나머지를 낮은 대비로 그린다. tone `focus`는 그 mark가 보이는 모든 장면에서 focus 목록에 있을 때만 쓴다.
+- 퀴즈 문항마다 `meta.objectives` 중 하나에 연결, 오답 선택지마다 피드백, 최종 quiz에 전이 문항 1개 이상.
+- define 장면의 용어는 glossary에 있고, 그 장면보다 앞선 장면 글에 나오지 않는다.
+- 출처를 적은 model(`src`가 문자열)마다 해석해가 알려진 극한 check(`limit`) 1개 이상.
+- 출처 없는 수치는 model의 `src`를 `{ illustrative: true }`로 두고, 그 값을 보이는 장면에 가정 값임을 적는다.
 
 ### 인포그래픽 계약
 
 ```js
-export default lesson({
-  meta: { title, objectives: [...], learner: { knows, misconceptions, review } },
-  checks: [   // 모델보다 먼저 쓴다. 한 번에 Write하면 파일 앞쪽이 먼저 생성된다
-    { model: "flight", at: { v0: 20, deg: 45, k: 0 }, expect: { range: 40.8 }, tol: 0.2 },
+/** @type {import("ltt").LessonFactory} */
+export default (api) => api.lesson({
+  meta: { title, objectives: [...], learner: { knows, misconceptions }, domains: [...] },
+  checks: [   // models보다 먼저 쓴다. 한 번에 Write하면 파일 앞쪽이 먼저 생성된다
+    { model: "flight", expect: { range: 48.07 }, tol: 0.05 },
   ],
-  models: { flight: model({ v0: 20, deg: 45, k: 0.02 }, p => simulate(p)) },
+  models: { flight: api.model({ v0: 40, deg: 45, vt: 20, drag: true }, fly, "RK4, a = g − (g/vt²)|v|v") },
   figures: {
-    field: figure({ x: [0, 45, "m"], y: [0, 15, "m"], aspect: "equal", loop: 2600 },
-      ({ flight }, t) => [
-        line(flight.path.until(t), { id: "drag", tone: "focus" }),
-        dot(flight.at(t), { id: "ball" }),
-        dim([0, 0], [flight.range, 0], { id: "R", text: `${flight.range.toFixed(1)} m` }),
+    traj: api.figure(api.cartesian({ x: [0, 170, "m"], y: [0, 60, "m"], aspect: "equal", loop: { ms: 4000, span: [0, 6] } }),
+      (m, t) => [
+        api.trace(m.flight.path, t, { id: "drag-path", head: true, dims: [0, 1] }),
+        api.dim([0, 2], [m.flight.range, 2], `${m.flight.range.toFixed(1)} m`, { id: "range-dim" }),
       ]),
   },
-  sections: [{ concept: { id, title, definition, level, requires }, scenes: [ /* 위 장면 타입 */ ] }],
+  sections: [{ concept: { id, title, definition, level }, scenes: [ /* 위 장면 타입 */ ] }],
   quiz: [...],
+  summary: { figures: ["traj"] },
 });
 ```
 
-어휘는 차트 종류 목록이 아니라 서로 독립인 층으로 둔다. 층끼리 조합하므로 문서 크기는 항목 수의 합으로 늘고, 표현할 수 있는 그림은 곱으로 는다. 계약은 `packages/runtime/types/lesson.d.ts`(v4)다.
+수업 파일은 import 없이 팩토리를 default export하고, runtime이 `api`를 넣어 준다. 전체 예시는 `skill/learn-to-tell/examples/projectile-drag.js`다.
+
+어휘는 차트 종류 목록이 아니라 서로 독립인 층으로 둔다. 층끼리 조합하므로 문서 크기는 항목 수의 합으로 늘고, 표현할 수 있는 그림은 곱으로 는다. 계약은 `packages/runtime/types/lesson.d.ts`다.
 
 | 층 | 항목 |
 |---|---|
@@ -121,10 +125,10 @@ export default lesson({
 - dim·brace·angle·edge의 글자는 runtime이 그 도형에 맞춰 둔다. axis 눈금은 runtime이 개수·형식·단위를 정한다. legend는 그림 영역 밖이 기본이다.
 
 - 시간: `loop`(모델 시간 반복), `steps`(단계 반복), `idle`(은은한 반복), 정적 그림은 `static: "<이유>"`.
-- agent가 처음 읽는 계약(`lesson.d.ts`)에는 core 층 전체를 한 줄씩 둔다. plugin·geo의 자세한 문서는 정확한 이름으로만 연다(`ltt docs <이름>`). v1처럼 키워드 grep으로 부품을 찾지 않는다.
+- agent가 처음 읽는 계약(`lesson.d.ts`)에 core 층 전체를 둔다. space3d·geo의 옵션 타입은 `types/ext/`에 두고 core에는 한 줄씩만 둔다. plugin 문서는 정확한 이름으로만 연다(`ltt docs <이름>`). v1처럼 키워드 grep으로 부품을 찾지 않는다.
 - 움직임: 개념의 시간·변화를 보일 때만 크게 움직인다. 연속 애니메이션은 지나간 정보를 붙잡게 해 부담을 키우므로(Ayres & Paas 2007) 멈춤·되감기를 늘 두고, 잔상(trail)으로 멈춘 화면에서도 시간을 읽게 한다. `prefers-reduced-motion`이면 루프를 멈추고 잔상만 보인다.
 - 장면 전환: 같은 `id` 도형은 새 위치로 이동·변형한다. 전환 중간 프레임은 UI 보간이고, 수치를 보이는 프레임은 늘 `model(t)` 값이다.
-- 탈출구: `custom(ctx => …)`는 frame 안 SVG 그룹만 받고, check가 경계를 검사한다. 쓰면 result.md "어휘 후보"에 적는다.
+- 탈출구: `custom({ id, why, bounds }, render)`는 가상 SVG 노드를 데이터 좌표 `bounds` 안에 그린다. runtime이 bounds를 지키게 하고, `why`는 result.md "어휘 후보"로 모은다.
 
 ### 표현 범위
 
@@ -135,7 +139,7 @@ export default lesson({
   - 범위는 M1 생성 실험의 실제 수업으로 확인한다.
 - 잘 덮지 못하는 주제:
   - 사실적 일러스트(해부도, 식물 형태, 미술 작품), 사진·영상이 본질인 절차(실험 술기, 운동 자세). 도식으로만 대신한다.
-  - 글이 본질인 인문 주제(문학 해석, 역사 서술). 연표·논증 지도로 구조만 보이고, 절마다 그림 필수 규칙의 예외(`figure: none, reason`)를 허용한다.
+  - 글이 본질인 인문 주제(문학 해석, 역사 서술). 연표·논증 지도로 구조만 보인다. 지금 계약은 hook·predict·explain·steps·explore·compare에 figure를 요구한다. 그림 없는 장면의 예외는 생성 실험에서 필요가 확인되면 더한다.
   - 큰 실데이터(수천 행). spec 토큰이 커진다. 요약 표 + 출처, 또는 seed 기반 가상 데이터(`illustrative`)로 대신한다.
   - 본격 3D(메시·조명). space3d는 점·선·면의 가벼운 투영까지다.
 
@@ -200,8 +204,8 @@ v1 SKILL.md §1·§4·§5·§6과 `skills/learn-to-tell/map/`(archive/v1)을 이
 
 | | 내용 | 끝 조건 |
 |---|---|---|
-| M0 | `lesson.d.ts` 계약(글자 배치 포함) + spec stub + 손으로 쓴 예시 수업 1개 | 양성·음성 타입 fixture 통과, stub(checks, 결정성, figure 평가, param binding), 예시 수업 검산 통과, 감사 조각 전체가 binding 포함 count 통과, 사용자 검토 |
-| M1 | 생성 실험: 얇은 runtime(stage·card, 장면 타입, predict·quiz UI, cartesian·graph·cells와 시험 주제가 쓰는 mark, 글자 배치), SKILL 초안, compare1 3주제를 처음부터 끝까지 생성 | 주제마다 120k 토큰·12분 이하, 렌더 뒤 레이아웃 수정 반복 1회 이하. 넘으면 구조를 다시 검토한다(대조군: 같은 3주제를 "agent가 페이지를 쓰는 작은 library"로) |
+| M0 (완료) | `lesson.d.ts` 계약(글자 배치 포함) + spec stub + 규칙 목록 + 손으로 쓴 예시 수업 1개 | 양성·음성 타입 fixture 통과, stub(checks, 결정성, figure 평가, param binding), 예시 수업 검산 통과, 감사 조각 전체가 binding 포함 count 통과, 사용자 검토 |
+| M1 | 생성 실험: 범위를 좁힌 runtime(시험 주제가 쓰는 frame·mark만 구현하되, 구현한 것은 글자 배치와 검사까지 완성. stage·card, 장면 타입, predict·quiz UI, cartesian·graph·cells), SKILL 초안, compare1 3주제를 처음부터 끝까지 생성 | 주제마다 120k 토큰·12분 이하, 렌더 뒤 레이아웃 수정 반복 1회 이하. 넘으면 구조를 다시 검토한다(대조군: 같은 3주제를 "agent가 페이지를 쓰는 작은 library"로) |
 | M2 | runtime 확장(나머지 frame·mark, summary 전환, 장면 간 변형), `ltt check`, `ltt sheet`. 감사 조각에서 v1 shot 12개를 골라 회귀 corpus로 둔다 | 예시 수업의 고의 결함 목록을 모두 잡음, corpus가 데스크톱·모바일에서 렌더 |
 | M3 | SKILL.md, 예시 2개, bench 10주제 이상 | 목표 수치, 블라인드 쌍 10개 이상 |
 | M4 | 진단·`ltt open`·`ltt result`·map 이식 | v1 흐름 전체가 한 주제로 끝까지 돎 |
@@ -213,7 +217,7 @@ v1 SKILL.md §1·§4·§5·§6과 `skills/learn-to-tell/map/`(archive/v1)을 이
 |---|---|
 | v1식 자유 HTML + 보조 kit | 토큰 8.2×(compare1), 결함이 렌더해야만 보여 audit·검증 반복이 시간의 58% |
 | v1 kit처럼 차트 종류별 부품 목록(hbars, lanes, sankey, plane 등 35개) | 필요가 생길 때마다 부품과 문서가 하나씩 늘고(부품 문서 85KB), 부품끼리 조합되지 않는다 |
-| headless audit 반복 | 위와 같음. 구조 보장으로 대체(정답 검산 서브에이전트는 별도. 핵심 결정 3) |
+| headless audit 반복 | 렌더 뒤에만 보이는 결함을 고치는 반복이 v1 생성 시간의 58%였다. 구조 보장으로 대체한다(정답 검산 서브에이전트는 별도. 핵심 결정 3) |
 | Manim · Motion Canvas · Remotion | 빌드·렌더 파이프라인이 필요하고 결과가 영상이라 조작 불가 |
 | Observable Plot · Vega-Lite를 그림 층으로 | 프레임마다 모델을 그리는 애니메이션과 도식(궤적, 프로토콜 사다리)에 맞지 않고 agent가 배울 계약이 하나 더 생긴다 |
 | 스크롤리텔링 | 예측 확정 지점을 두기 어렵고 모바일 스크롤과 충돌 |
@@ -228,4 +232,4 @@ v1 SKILL.md §1·§4·§5·§6과 `skills/learn-to-tell/map/`(archive/v1)을 이
 - claude.ai 코드 실행 환경에서 Node로 `ltt check`를 돌릴 수 있는가 (M5에서 확인).
 - claude.ai artifact에서 runtime이 쓸 글꼴(예: Pretendard)을 불러올 수 있는가 (M5에서 확인).
 - 독립 정답 검산 서브에이전트를 기본으로 켤지 (M1 생성 실험에서 잡은 오류 수와 토큰으로 정함).
-- 생성 spec 크기: 예시 수업 16.8 KB에서 25–40 KB로 추정한다(v1 HTML 30–68 KB). 절약은 쓰는 양이 아니라 반복을 줄여서 생긴다는 가정을 M1에서 확인한다.
+- 생성 spec 크기: 예시 수업(16.4 KB, 18장면)에서 25–40 KB로 추정한다(v1 HTML 30–68 KB). 절약은 쓰는 양이 아니라 반복을 줄여서 생긴다는 가정을 M1에서 확인한다.

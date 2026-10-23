@@ -1,14 +1,15 @@
-# M1-lite 생성 실험 시작 전 인계
+# M1 생성 실험 시작 전 인계
 
 ## User Query
 
-- M0 방향(미래 세션과 논의한 메모, 사용자 전달): "종이 감사를 닫고 얇은 runtime을 만든다. M1-lite에서 compare1 3주제로 실제 수업을 생성해 120k 토큰·12분과 레이아웃 수정 반복 거의 없음 기준으로 잰다."
+- M0 방향(사용자가 전달한 미래 세션 메모의 요약, 원문 아님): 지면 감사를 닫고 runtime을 먼저 만든다. compare1 3주제로 실제 수업을 생성해 수업당 120k 토큰·12분, 렌더 뒤 레이아웃 수정 거의 없음을 기준으로 잰다. 메모의 "얇은 runtime"은 아래 Next Step의 "범위를 좁힌 runtime"으로 고쳐 쓴다.
 - "근데 난 그림 층을 최소로 두고 싶지 않은 걸. 그림은 유지하는 방법도 있어? 내 말도 맞고 니 말도 맞다식의 표현 말고, 방향을 정해서 대답해"
 - "커밋하고 다음 세션에 전달할 준비하고, 지시어 알려줘"
+- "왜 얇은 runtime이라고 이해하고 있어?", "응. 다른 문서도 체크해서 내용 교정해. 추가보다는 내용을 정확히 표현하기 위한 rewrite 방향으로"
 
 ## State
 
-- 브랜치 `dev`. M0 커밋 `728187b`(그 앞 `46fcb17`, `4f3c605`). 이 handoff는 그 다음 커밋에 들어 있다. 미커밋 변경은 없다.
+- 브랜치 `dev`. M0 결과는 커밋 `728187b`에 있다(그 앞 `46fcb17`, `4f3c605`). 이 handoff는 `99eb39f`에 처음 들어갔다.
 - M0 산출물:
   - 계약 `packages/runtime/types/lesson.d.ts`(+ `internal.d.ts`, `ext/`)
   - stub `packages/runtime/dev/spec-stub.mjs`
@@ -33,11 +34,11 @@
 
 ## Next Step
 
-M1-lite를 새 workflow-approach run으로 시작한다(intent.md 마일스톤 M1).
+M1 생성 실험을 새 workflow-approach run으로 시작한다(intent.md 마일스톤 M1).
 
 1. 이해 확인(understanding round). 이 handoff, `intent.md`(핵심 결정, 인포그래픽 계약, 글자 배치, 생성 흐름, 목표 수치, M1), ADR `agent-docs/adr/3c44a1f91bcb8367-agent-writes-spec-runtime-renders.md`, 마감한 spec `agent-docs/spec-logs/c30ff9a3faa18a2a-m0-contract-coverage.md`(Signatures가 계약의 의미 결정을 담음), `bench/v1-results.md` compare1을 읽는다.
 2. 범위 초안:
-   - **얇은 runtime:** stage·card, 장면 타입 8종, predict·quiz UI, cartesian·graph·cells frame과 시험 주제가 쓰는 mark, 글자 배치(겹침·가장자리 회피, leader, 잘림 없음). 아직 구현하지 않은 mark는 check가 오류로 막는다.
+   - **범위를 좁힌 runtime:** 구현하는 종류를 시험 주제가 쓰는 것으로 줄인다. stage·card, 장면 타입 8종, predict·quiz UI, cartesian·graph·cells frame과 시험 주제가 쓰는 mark가 대상이다. 줄이는 것은 종류뿐이다. 구현한 mark는 글자 배치(겹침·가장자리 회피, leader, 잘림 없음), 최소 글자 크기·대비, 검사까지 완성한다. 빈틈이 있으면 runtime 결함이 생성 비용으로 잡히거나, 생성 agent가 runtime을 우회한다. 아직 구현하지 않은 mark는 check가 오류로 막는다.
    - **SKILL 초안.**
    - **생성:** compare1 3주제를 처음부터 끝까지 만든다. 생성은 새 context의 서브에이전트가 한다.
    - **측정:** 주제마다 토큰과 시간, 렌더 뒤 레이아웃 수정 횟수, spec 크기를 잰다. 독립 정답 검산 서브에이전트를 켜고 잡은 오류 수와 토큰을 잰다.
