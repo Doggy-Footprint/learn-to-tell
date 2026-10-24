@@ -1,11 +1,13 @@
 # Project Definition
 
-[#TODO][3-5 lines of description of the project]
+Learn to Tell은 agent skill이다. 작업의 결정 변수 중 사용자가 모르는 것을 짧은 진단으로 찾고, 그것을 익히는 학습 자료 HTML 한 장을 만든 뒤 결과를 원래 작업으로 돌려준다.
+v3에서 그래프·차트는 Vega-Lite 공개 API로 쓰고 Node에서 rule로 검사한다. 나머지는 자유 HTML로 쓰고 서브에이전트가 한 번 검증한다.
+Claude Code와 claude.ai 두 곳에서 동작한다. 설계는 `plan.md`다. plan의 설계가 완료되면 삭제하고 Project Definition을 업데이트 한다.
 
 ## Aborted History
 - v1 (태그 `archive/v1`, `0da38db`): agent가 수업 HTML을 직접 쓰고 보조 kit이 돕는다. 일반 요청 대비 토큰 8.2배, 생성 19–35분으로 닫았다.
 - v2 (태그 `archive/v2`, `23a8a96`): agent는 수업 spec만 쓰고 미리 검증한 runtime이 그린다. 일반 요청보다 낫다는 것을 증명하지 못해 닫았다.
-- v3 (현재): 미정. 시작 인계는 `agent-docs/handoff/86bf8c8f61fad9f3-v3-start.md`.
+- v3 (현재): 외부 라이브러리(Vega-Lite)와 rule 검사, 자유 HTML. 설계는 `plan.md`, 시작 인계는 `agent-docs/handoff/86bf8c8f61fad9f3-v3-start.md`.
 
 <!-- harness:begin 0.28.0 -->
 # Documentation Guide
