@@ -11,7 +11,12 @@
 ## State
 
 - 브랜치 `dev`. v2 전체를 `23a8a96`으로 커밋하고 태그 `archive/v2`를 달았다. v1은 태그 `archive/v1`(`0da38db`)이다.
-- 이 인계를 커밋한 뒤 저장소를 비운다(v1 → v2 때처럼). 그래서 이 문서가 가리키는 저장소 경로는 대부분 태그 `archive/v2` 기준이다. 열 때는 `git show archive/v2:<path>`를 쓴다.
+- 이 인계를 `b61b369`로 커밋한 뒤 "v3 start" 커밋에서 저장소를 비웠다(v1 → v2 때처럼).
+  - 남긴 것: `vercel.json`, `site/gallery/index.html`("안녕하세요?"), `LICENSE`, `.gitignore`, `.github/workflows/master-source-gate.yml`, `AGENTS.md`, `CLAUDE.md`, `agent-docs/`.
+  - 지운 것: harness 전체(`.harness`, `.agents`, `.claude`의 agents·settings·skills, `.codex`, harness CI). harness는 다시 설치한다. `git config core.hooksPath`는 아직 `.harness/git`을 가리킨다.
+  - 이 인계를 뺀 문서는 모두 stale로 옮겼다. ADR 3c44a1f9도 포함한다. spec-logs는 stale 대상이 아니라서 지웠다.
+  - git 밖에 있던 `measurements/`(v1 측정 원본, 580 MB)와 `tmp/`는 지우지 않았다.
+- 그래서 이 문서가 가리키는 저장소 경로는 대부분 태그 `archive/v2` 기준이다. 열 때는 `git show archive/v2:<path>`를 쓴다.
 - v2에서 바꾼 파일(`23a8a96`):
   - **v2 runtime**: `packages/runtime/{package.json,build.mjs,bin/,src/,dev/spec-stub.mjs,rules.md,types/}`, 시험 `packages/runtime/test/`(604개)
   - **SKILL**: `skill/learn-to-tell/{SKILL.md,verify-answers.md}`, `skill/learn-to-tell/examples/projectile-drag.js`(angles 그림에 축을 넣음)
@@ -69,9 +74,9 @@
    - 실험 장치: `bench/m1/gen/run.sh`, `bench/m1/gen/analyze.py`. analyze는 python·sed 수정과 `node $L sheet` 실행을 세지 못하므로 고쳐 써야 한다.
    - 시험 주제와 고정 진단: `bench/topics.md`.
 5. **v3 시작 때 할 일**
-   - `AGENTS.md`의 버전 문장을 고치고, `plan.md`를 새로 쓴다.
-   - ADR 3c44a1f9의 상태를 정한다. 대체할지는 초안을 보여 주고 승인받은 뒤 쓴다.
-   - v2 커밋과 `archive/v2` 태그는 사용자 지시가 있을 때 한다.
+   - harness를 다시 설치한다(사용자).
+   - v3 설계 문서를 새로 쓴다.
+   - 이미 한 것: `AGENTS.md` Project Definition을 v1·v2·v3 목록으로 정리했다. ADR 3c44a1f9는 stale로 옮겼다. v2는 커밋했고 `archive/v2` 태그를 달았다.
 
 ## Open Questions
 
