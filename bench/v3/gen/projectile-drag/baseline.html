@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>공기저항과 최적 발사각 — 공 던지기 게임 물리</title>
+<style>
+  :root { --bg:#fbfaf7; --fg:#222; --mute:#666; --acc:#c4432b; --acc2:#2b6cc4; --card:#fff; --line:#e2ded6; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.7 -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:1.8em; line-height:1.3; margin:0 0 .3em; }
+  h2 { margin-top:2.2em; border-bottom:2px solid var(--line); padding-bottom:.2em; }
+  .lead { color:var(--mute); font-size:1.05em; }
+  .answer { background:#fff4ef; border-left:4px solid var(--acc); padding:14px 18px; border-radius:4px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:1.2em 0; }
+  code, pre { font-family: ui-monospace, Menlo, monospace; font-size:.9em; }
+  pre { background:#1e1f24; color:#e8e6e3; padding:14px 16px; border-radius:6px; overflow-x:auto; line-height:1.5; }
+  .eq { text-align:center; font-family: "Times New Roman", serif; font-size:1.2em; margin:.8em 0; }
+  table { border-collapse:collapse; width:100%; margin:.6em 0; }
+  th, td { border-bottom:1px solid var(--line); padding:6px 8px; text-align:right; }
+  th:first-child, td:first-child { text-align:left; }
+  canvas { width:100%; background:#fff; border:1px solid var(--line); border-radius:6px; display:block; }
+  .controls { display:grid; grid-template-columns: 150px 1fr 70px; gap:6px 12px; align-items:center; margin:12px 0; }
+  .controls input { width:100%; }
+  .out { font-weight:600; }
+  .note { color:var(--mute); font-size:.92em; }
+  details { margin:.8em 0; } summary { cursor:pointer; font-weight:600; }
+  .quiz button { margin:4px 6px 4px 0; padding:6px 12px; border:1px solid var(--line); background:#fff; border-radius:5px; cursor:pointer; }
+  .quiz .fb { margin-top:6px; font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>공기저항이 있으면 최적 발사각은 얼마나 낮아질까?</h1>
+<p class="lead">sin2θ 공식에서 출발해 공 던지기 게임에 바로 넣을 수 있는 코드까지. 아래 숫자는 모두 이 페이지가 브라우저에서 직접 적분해서 계산한 값입니다.</p>
+
+<div class="answer">
+<b>짧은 답:</b> 하나의 수치로 정해지지 않습니다. <b>발사 속도 v₀와 종단속도 v<sub>t</sub>의 비율</b>에 따라 달라집니다.
+v₀가 v<sub>t</sub>보다 훨씬 작으면 거의 45°이고, v₀ ≈ v<sub>t</sub>면 40°를 조금 넘는 정도, v₀가 v<sub>t</sub>의 몇 배가 되면 30° 근처나 그보다 낮게 내려갑니다.
+게임 감각으로 말하면 <b>"세게 던질수록, 가벼운 공일수록 최적각이 낮아진다"</b>입니다.
+</div>
+
+<h2>1. 출발점: 진공에서는 왜 45°인가</h2>
+<p>아는 내용을 짧게 정리합니다. 진공에서 지면에서 쏘면</p>
+<div class="eq">R = v₀² sin2θ / g</div>
+<p>sin2θ는 θ = 45°에서 최대입니다. 이 결과에는 <b>대칭</b> 하나가 깔려 있습니다. 올라가는 시간과 내려오는 시간이 같고, 수평 속도는 끝까지 그대로입니다. 각을 높이면 체공 시간을 얻는 대신 수평 속도를 잃는데, 그 둘이 정확히 맞바뀌는 지점이 45°입니다.</p>
+<p>공기저항은 이 대칭을 깹니다. 그래서 45°라는 답도 함께 사라집니다.</p>
+
+<h2>2. 공기저항 모델: 속도의 제곱</h2>
+<p>공 정도 크기와 속도(야구공, 테니스공, 수류탄)에서는 항력이 속도의 제곱에 비례합니다. 방향은 속도와 반대입니다.</p>
+<div class="eq">F<sub>drag</sub> = −½ ρ C<sub>d</sub> A |v| <b>v</b> &nbsp;⇒&nbsp; <b>a</b> = <b>g</b> − k |v| <b>v</b>, &nbsp; k = ρC<sub>d</sub>A / (2m)</div>
+<p>파라미터를 하나로 묶는 게 핵심입니다. 공을 떨어뜨리면 항력이 중력과 같아지는 속도에서 더 이상 가속하지 않습니다. 이것이 <b>종단속도</b>입니다.</p>
+<div class="eq">k v<sub>t</sub>² = g &nbsp;⇒&nbsp; v<sub>t</sub> = √(g/k)</div>
+<p>이렇게 하면 k 대신 직관적인 "m/s" 단위 하나로 공의 성질을 표현할 수 있습니다. 대략의 값은 다음과 같습니다.</p>
+<table>
+<tr><th>물체</th><th>종단속도 v<sub>t</sub> (대략)</th></tr>
+<tr><td>탁구공</td><td>~9 m/s</td></tr>
+<tr><td>배드민턴 셔틀콕</td><td>~7 m/s</td></tr>
+<tr><td>테니스공</td><td>~20–25 m/s</td></tr>
+<tr><td>야구공</td><td>~35–40 m/s</td></tr>
+<tr><td>포환(쇠공)</td><td>~100 m/s 이상</td></tr>
+</table>
+<p class="note">공기 밀도, 표면, 회전 등에 따라 달라지는 대략값입니다. 게임에서는 "느낌이 맞는" 값으로 튜닝하면 됩니다.</p>
+
+<p><b>왜 비율 하나로 충분한가:</b> 속도를 v<sub>t</sub>로, 길이를 v<sub>t</sub>²/g로, 시간을 v<sub>t</sub>/g로 나누면 운동방정식에서 g와 k가 모두 사라집니다. 남는 변수는 <b>v₀/v<sub>t</sub></b> 하나뿐입니다. 따라서 최적각은 θ*(v₀/v<sub>t</sub>)라는 곡선 하나로 완전히 정해집니다.</p>
+
+<h2>3. 왜 낮아지는가: 직관</h2>
+<div class="card">
+<ol>
+<li><b>오래 떠 있으면 손해가 커진다.</b> 항력은 비행 내내 수평 속도를 깎습니다. 높게 쏘면 체공 시간은 늘지만, 그 시간 동안 수평 속도는 계속 줄어듭니다. 체공 시간의 가치가 진공일 때보다 떨어집니다.</li>
+<li><b>빠를 때 손해가 가장 크다.</b> 항력은 v²에 비례하므로 발사 직후 손실이 압도적입니다. 처음 속도의 수평 성분을 최대한 살려 두는 쪽, 즉 낮은 각이 유리해집니다.</li>
+<li><b>궤적이 비대칭이 된다.</b> 올라갈 때는 길고 완만하게, 내려올 때는 짧고 가파르게 떨어집니다. 꼭짓점이 착지점 쪽으로 쏠립니다. 이 비대칭이 게임에서 "진짜 같은" 느낌을 만듭니다.</li>
+</ol>
+</div>
+
+<h2>4. 직접 해보기</h2>
+<p>슬라이더를 움직이세요. 매번 0.1° 간격으로 모든 각도를 시뮬레이션해서 사거리가 가장 긴 각도를 찾습니다.</p>
+<div class="card">
+<div class="controls">
+  <label for="v0">발사 속도 v₀</label><input id="v0" type="range" min="2" max="80" step="0.5" value="40"><span class="out" id="v0o"></span>
+  <label for="vt">종단속도 v<sub>t</sub></label><input id="vt" type="range" min="3" max="150" step="0.5" value="35"><span class="out" id="vto"></span>
+  <label for="ang">내 발사각</label><input id="ang" type="range" min="5" max="85" step="0.5" value="45"><span class="out" id="ango"></span>
+  <label for="h0">발사 높이</label><input id="h0" type="range" min="0" max="20" step="0.5" value="0"><span class="out" id="h0o"></span>
+</div>
+<canvas id="cv" width="820" height="360"></canvas>
+<p id="info" style="margin-top:10px"></p>
+<p class="note">회색 점선 = 진공 45° &nbsp;·&nbsp; <span style="color:var(--acc)">빨강</span> = 공기저항 있는 최적각 &nbsp;·&nbsp; <span style="color:var(--acc2)">파랑</span> = 내 발사각</p>
+</div>
+
+<h3>v₀/v<sub>t</sub>에 따른 최적각 곡선</h3>
+<canvas id="curve" width="820" height="280"></canvas>
+<table id="tbl"></table>
+<p class="note">지면 발사(높이 0) 기준. 표 값은 이 페이지가 RK4 적분(dt = 비행시간의 약 1/2000)으로 계산합니다.</p>
+
+<h2>5. 한 걸음 더: 같이 영향을 주는 것들</h2>
+<ul>
+<li><b>발사 높이.</b> 진공에서도 손 높이에서 던지면 최적각은 45°보다 낮습니다. 공기저항과 같은 방향으로 작용해서 효과가 겹칩니다. 위 시뮬레이터에서 발사 높이를 올려 확인해 보세요. 캐릭터가 어깨 높이에서 던진다면 이 효과를 무시하면 안 됩니다.</li>
+<li><b>사거리 손실.</b> 최적각을 써도 사거리는 진공보다 크게 줄어듭니다. v₀ = v<sub>t</sub>이면 대략 진공의 절반 남짓입니다. 각도 변화보다 이쪽이 플레이어 체감에 훨씬 큽니다.</li>
+<li><b>최적점은 평평하다.</b> 최적각 근처 ±5°에서는 사거리가 몇 %밖에 변하지 않습니다. 정확한 각도가 플레이어에게 보이지는 않지만, 궤적 모양은 보입니다.</li>
+<li><b>회전(마그누스 효과).</b> 백스핀은 양력을 만들어 최적각을 더 낮춥니다. 골프 드라이버 발사각이 10°대인 이유입니다. 여기서는 다루지 않습니다.</li>
+<li><b>선형 항력 (a = g − c·v).</b> 아주 느리거나 작은 물체 모델입니다. 해석해가 있어서 편하지만 공 던지기에는 맞지 않습니다. 이 경우에도 최적각은 45°보다 낮아집니다.</li>
+</ul>
+
+<h2>6. 게임 코드로 옮기기</h2>
+<p>제곱 항력은 해석해가 없어서(정확히는 다루기 힘든 형태) 수치 적분해야 합니다. 게임에서는 프레임마다 적분하므로 사실 진공보다 코드가 한 줄 늘 뿐입니다.</p>
+<pre><code>// 파라미터: 디자이너가 만지기 쉬운 형태로 노출
+const g  = 9.81;
+const vt = 30;            // 종단속도 [m/s] — "공의 가벼움"
+const k  = g / (vt * vt); // 항력 계수
+
+function accel(vx, vy) {
+  const s = Math.hypot(vx, vy);
+  return [-k * s * vx, -g - k * s * vy];
+}
+
+// 고정 타임스텝 (예: 1/120 s), semi-implicit Euler
+function step(b, dt) {
+  const [ax, ay] = accel(b.vx, b.vy);
+  b.vx += ax * dt;  b.vy += ay * dt;   // 속도 먼저
+  b.x  += b.vx * dt; b.y += b.vy * dt; // 갱신된 속도로 위치
+}</code></pre>
+
+<h3>실전 체크리스트</h3>
+<ul>
+<li><b>고정 타임스텝을 쓰세요.</b> 가변 dt로 적분하면 프레임레이트에 따라 사거리가 달라집니다. 멀티플레이나 리플레이에서 결과가 어긋납니다.</li>
+<li><b>Euler라면 dt를 작게 잡으세요.</b> semi-implicit Euler에 dt = 1/60이면 k·|v|·dt ≪ 1일 때 충분합니다. 아주 가벼운 공(작은 v<sub>t</sub>)을 빠르게 쏘면 k|v|dt가 커져 불안정해질 수 있습니다. 서브스텝을 나누거나 RK4를 쓰세요.</li>
+<li><b>착지점은 보간하세요.</b> y가 음수가 된 프레임에서 직전 위치와 선형 보간하면 dt에 덜 민감한 착지점을 얻습니다.</li>
+<li><b>조준 보조 / AI 투척.</b> "목표 거리 D에 맞는 각도"는 공식으로 못 구합니다. 같은 step 함수로 오프라인 시뮬레이션을 돌린 뒤 이분 탐색하거나, (v₀/v<sub>t</sub>, 각도) → 사거리 표를 미리 구워 두세요. 궤적 미리보기 점선도 <b>반드시 같은 적분기와 같은 dt</b>로 그려야 실제 궤적과 일치합니다.</li>
+<li><b>무차원화를 활용하세요.</b> 사거리 표는 v₀/v<sub>t</sub>에 대해서만 만들면 됩니다. 실제 거리는 결과에 v<sub>t</sub>²/g를 곱해서 얻습니다. 공 종류마다 표를 따로 만들 필요가 없습니다.</li>
+</ul>
+
+<details>
+<summary>최적각 탐색 코드 (이 페이지가 쓰는 것)</summary>
+<pre><code>function range(v0, deg, vt, h0 = 0) {
+  const k = g / (vt * vt), th = deg * Math.PI / 180;
+  let x = 0, y = h0, vx = v0 * Math.cos(th), vy = v0 * Math.sin(th);
+  const dt = /* 예상 비행시간 / 2000 */;
+  while (true) {
+    const px = x, py = y;
+    [x, y, vx, vy] = rk4(x, y, vx, vy, dt);
+    if (y &lt; 0 &amp;&amp; vy &lt; 0) return px + (x - px) * py / (py - y); // 보간
+  }
+}
+// 0.1° 간격 전수 탐색 → 최대 사거리 각도</code></pre>
+</details>
+
+<h2>7. 확인 문제</h2>
+<div class="quiz" id="quiz"></div>
+
+<h2>요약</h2>
+<div class="answer">
+<ul style="margin:0">
+<li>제곱 항력에서 최적각은 <b>v₀/v<sub>t</sub></b> 하나로 정해집니다.</li>
+<li>v₀ ≪ v<sub>t</sub>이면 약 45°, v₀ ≈ v<sub>t</sub>이면 40°대 초반, v₀가 v<sub>t</sub>의 몇 배면 30° 근처나 그 아래입니다. 정확한 값은 위 표를 보세요.</li>
+<li>원인: 체공 시간 동안 수평 속도를 잃고, 항력은 빠른 초반에 가장 셉니다.</li>
+<li>게임에서는 v<sub>t</sub>를 튜닝 파라미터로 노출하고, 고정 dt로 적분하고, 조준 보조는 같은 적분기로 시뮬레이션하세요.</li>
+</ul>
+</div>
+
+</main>
+
+<script>
+const g = 9.81;
+
+function deriv(s, k) {
+  const sp = Math.hypot(s[2], s[3]);
+  return [s[2], s[3], -k * sp * s[2], -g - k * sp * s[3]];
+}
+function rk4(s, dt, k) {
+  const a = deriv(s, k);
+  const b = deriv(s.map((v, i) => v + a[i] * dt / 2), k);
+  const c = deriv(s.map((v, i) => v + b[i] * dt / 2), k);
+  const d = deriv(s.map((v, i) => v + c[i] * dt), k);
+  return s.map((v, i) => v + dt / 6 * (a[i] + 2 * b[i] + 2 * c[i] + d[i]));
+}
+// 궤적 시뮬레이션. path=true면 점 목록도 반환
+function simulate(v0, deg, vt, h0, path) {
+  const k = g / (vt * vt), th = deg * Math.PI / 180;
+  let s = [0, h0, v0 * Math.cos(th), v0 * Math.sin(th)];
+  // 비행시간 추정: 진공 비행시간과 종단속도 기준 시간 중 작은 쪽 기반
+  const tv = (s[3] + Math.sqrt(s[3] * s[3] + 2 * g * h0)) / g;
+  const dt = Math.max(Math.min(tv, 4 * vt / g + tv * 0.1) / 2000, 1e-5);
+  const pts = path ? [[s[0], s[1]]] : null;
+  for (let i = 0; i < 200000; i++) {
+    const p = s;
+    s = rk4(s, dt, k);
+    if (path) pts.push([s[0], s[1]]);
+    if (s[1] < 0 && s[3] < 0) {
+      const x = p[0] + (s[0] - p[0]) * p[1] / (p[1] - s[1]);
+      if (path) pts[pts.length - 1] = [x, 0];
+      return { R: x, pts };
+    }
+  }
+  return { R: s[0], pts };
+}
+function optimum(v0, vt, h0) {
+  let best = 0, bestA = 45;
+  // 거친 탐색 후 정밀 탐색
+  for (let a = 1; a <= 89; a += 1) { const r = simulate(v0, a, vt, h0).R; if (r > best) { best = r; bestA = a; } }
+  const c = bestA;
+  for (let a = c - 1; a <= c + 1; a += 0.1) { const r = simulate(v0, a, vt, h0).R; if (r > best) { best = r; bestA = a; } }
+  return { angle: bestA, R: best };
+}
+function vacOpt(v0, h0) { // 진공, 발사 높이 h0 최적각 (해석해)
+  return Math.atan(v0 / Math.sqrt(v0 * v0 + 2 * g * h0)) * 180 / Math.PI;
+}
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+
+function draw() {
+  const v0 = +$("v0").value, vt = +$("vt").value, ang = +$("ang").value, h0 = +$("h0").value;
+  $("v0o").textContent = v0 + " m/s"; $("vto").textContent = vt + " m/s";
+  $("ango").textContent = ang + "°"; $("h0o").textContent = h0 + " m";
+
+  const opt = optimum(v0, vt, h0);
+  const best = simulate(v0, opt.angle, vt, h0, true);
+  const mine = simulate(v0, ang, vt, h0, true);
+  const vac = simulate(v0, 45, 1e7, h0, true);
+
+  const all = [...best.pts, ...mine.pts, ...vac.pts];
+  const maxX = Math.max(...all.map(p => p[0])) * 1.05;
+  const maxY = Math.max(...all.map(p => p[1])) * 1.1 + 0.01;
+  const W = cv.width, H = cv.height, pad = 30;
+  const sc = Math.min((W - 2 * pad) / maxX, (H - 2 * pad) / maxY);
+  const X = x => pad + x * sc, Y = y => H - pad - y * sc;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = "#ccc"; ctx.lineWidth = 1; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(pad, Y(0)); ctx.lineTo(W - 10, Y(0)); ctx.stroke();
+  ctx.fillStyle = "#999"; ctx.font = "12px sans-serif";
+  const tick = Math.pow(10, Math.floor(Math.log10(maxX / 2)));
+  for (let x = 0; X(x) < W - 10; x += tick) { ctx.fillText(x + "m", X(x) - 8, Y(0) + 16); }
+
+  const line = (pts, col, dash, w) => {
+    ctx.strokeStyle = col; ctx.lineWidth = w; ctx.setLineDash(dash);
+    ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1]))); ctx.stroke();
+  };
+  line(vac.pts, "#aaa", [5, 5], 1.5);
+  line(mine.pts, "#2b6cc4", [], 2);
+  line(best.pts, "#c4432b", [], 2.5);
+  ctx.setLineDash([]);
+
+  const ratio = v0 / vt;
+  const loss = (1 - mine.R / opt.R) * 100;
+  $("info").innerHTML =
+    `v₀/v<sub>t</sub> = <b>${ratio.toFixed(2)}</b> &nbsp;→&nbsp; 최적각 <b style="color:var(--acc)">${opt.angle.toFixed(1)}°</b> ` +
+    `(진공 최적 ${vacOpt(v0, h0).toFixed(1)}°), 최대 사거리 ${opt.R.toFixed(1)} m (진공 45°: ${vac.R.toFixed(1)} m, ${(opt.R / vac.R * 100).toFixed(0)}%)<br>` +
+    `내 각도 ${ang}° 사거리: <b style="color:var(--acc2)">${mine.R.toFixed(1)} m</b> — 최적 대비 ${loss < 0.05 ? "손실 거의 없음" : loss.toFixed(1) + "% 짧음"}`;
+}
+["v0", "vt", "ang", "h0"].forEach(id => $(id).addEventListener("input", draw));
+
+// 최적각 곡선과 표 (무차원: vt=1, g는 그대로여도 비율만 중요)
+function buildCurve() {
+  const vt = 30, pts = [];
+  for (let r = 0.05; r <= 6.001; r += 0.1) pts.push([r, optimum(r * vt, vt, 0).angle]);
+  const c = $("curve"), x = c.getContext("2d"), W = c.width, H = c.height, pl = 45, pb = 32;
+  const X = r => pl + r / 6 * (W - pl - 15), Y = a => H - pb - (a - 15) / 32 * (H - pb - 12);
+  x.font = "12px sans-serif"; x.fillStyle = "#888"; x.strokeStyle = "#eee";
+  for (let a = 15; a <= 45; a += 5) { x.beginPath(); x.moveTo(pl, Y(a)); x.lineTo(W - 15, Y(a)); x.stroke(); x.fillText(a + "°", 10, Y(a) + 4); }
+  for (let r = 0; r <= 6; r++) x.fillText(r, X(r) - 3, H - 12);
+  x.fillText("v₀ / v_t", W - 70, H - 12);
+  x.strokeStyle = "#c4432b"; x.lineWidth = 2.5; x.beginPath();
+  pts.forEach((p, i) => i ? x.lineTo(X(p[0]), Y(p[1])) : x.moveTo(X(p[0]), Y(p[1]))); x.stroke();
+
+  let html = "<tr><th>v₀ / v<sub>t</sub></th><th>최적각</th><th>최대 사거리 / 진공 사거리</th></tr>";
+  for (const r of [0.25, 0.5, 1, 1.5, 2, 3, 5]) {
+    const o = optimum(r * vt, vt, 0), vac = (r * vt) ** 2 / g;
+    html += `<tr><td>${r}</td><td>${o.angle.toFixed(1)}°</td><td>${(o.R / vac * 100).toFixed(0)}%</td></tr>`;
+  }
+  $("tbl").innerHTML = html;
+}
+
+// 퀴즈
+const Q = [
+  { q: "같은 공을 더 세게 던지면 최적각은?", a: ["높아진다", "그대로 45°", "낮아진다"], c: 2,
+    e: "v₀/v<sub>t</sub>가 커지면 항력 영향이 커져서 최적각이 낮아집니다." },
+  { q: "같은 속도로 탁구공과 야구공을 던진다. 최적각이 더 낮은 쪽은?", a: ["탁구공", "야구공", "같다"], c: 0,
+    e: "탁구공은 v<sub>t</sub>가 작아서 v₀/v<sub>t</sub>가 훨씬 큽니다." },
+  { q: "궤적 미리보기 점선이 실제 궤적과 살짝 어긋난다. 가장 먼저 의심할 것은?", a: ["중력 값", "미리보기와 실제의 적분기·dt 불일치", "공의 질량"], c: 1,
+    e: "수치 적분 결과는 dt와 방법에 의존합니다. 같은 step 함수와 같은 고정 dt를 쓰세요." },
+];
+$("quiz").innerHTML = Q.map((q, i) => `<div class="card"><b>Q${i + 1}. ${q.q}</b><br>` +
+  q.a.map((a, j) => `<button data-q="${i}" data-a="${j}">${a}</button>`).join("") + `<div class="fb" id="fb${i}"></div></div>`).join("");
+$("quiz").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const q = Q[b.dataset.q], ok = +b.dataset.a === q.c;
+  const fb = $("fb" + b.dataset.q);
+  fb.innerHTML = (ok ? "정답. " : "다시 생각해 보세요. ") + q.e;
+  fb.style.color = ok ? "#2a7a3a" : "#c4432b";
+});
+
+draw();
+setTimeout(buildCurve, 0);
+</script>
+</body>
+</html>

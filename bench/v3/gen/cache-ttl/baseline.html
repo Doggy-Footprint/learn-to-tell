@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>캐시 TTL을 어떻게 정할까 — 상품 정보 API 편</title>
+<style>
+  :root { --bg:#fafaf7; --fg:#222; --muted:#666; --accent:#2b6cb0; --warn:#c05621; --ok:#2f855a; --card:#fff; --line:#e2e2dc; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.7 -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 1.9rem; line-height:1.3; margin-bottom: 4px; }
+  h2 { margin-top: 56px; padding-top: 12px; border-top: 2px solid var(--line); font-size: 1.4rem; }
+  h3 { margin-top: 28px; font-size: 1.1rem; }
+  .sub { color: var(--muted); margin-top: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; margin: 18px 0; }
+  .key { border-left: 4px solid var(--accent); }
+  .warn { border-left: 4px solid var(--warn); }
+  code { background:#eef0f3; padding: 1px 5px; border-radius: 4px; font-size: .92em; }
+  pre { background:#1e1e24; color:#e8e8e8; padding:14px 16px; border-radius:8px; overflow-x:auto; font-size:.88rem; line-height:1.5; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: .95rem; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0f0ea; }
+  nav ol { padding-left: 20px; }
+  nav a { color: var(--accent); text-decoration: none; }
+  .timeline { font-family: ui-monospace, Menlo, monospace; font-size: .85rem; white-space: pre; overflow-x:auto; background:#fff; border:1px solid var(--line); padding:12px; border-radius:8px; }
+  /* 시뮬레이터 */
+  .sim label { display:block; margin-top: 14px; font-weight: 600; }
+  .sim input[type=range] { width: 100%; }
+  .sim .val { color: var(--accent); font-weight: 700; }
+  .meters { display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+  .meter { background:#f6f7f9; border-radius:8px; padding:10px; text-align:center; }
+  .meter b { display:block; font-size:1.4rem; }
+  .bar { height: 8px; background:#ddd; border-radius:4px; overflow:hidden; margin-top:6px; }
+  .bar > i { display:block; height:100%; }
+  canvas { width:100%; height:240px; margin-top:16px; background:#fff; border:1px solid var(--line); border-radius:8px; }
+  .quiz details { margin: 10px 0; background:#fff; border:1px solid var(--line); border-radius:8px; padding: 10px 14px; }
+  .quiz summary { cursor:pointer; font-weight:600; }
+  .small { font-size: .88rem; color: var(--muted); }
+  @media (max-width:600px){ .meters{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+
+<h1>캐시 TTL을 어떻게 정할까</h1>
+<p class="sub">상품 정보 API에 캐시를 붙이는 백엔드 개발자를 위한 학습 자료 · 30~40분</p>
+
+<div class="card key">
+  <b>이 자료를 다 읽으면 할 수 있는 것</b>
+  <ul>
+    <li>hit / miss / TTL / stale을 요청 흐름으로 설명한다.</li>
+    <li>"TTL을 늘리면 무엇이 좋아지고 무엇이 나빠지는지"를 숫자로 말한다.</li>
+    <li>상품 정보의 필드별로 TTL을 다르게 잡고, 그 이유를 팀에 설명한다.</li>
+    <li>TTL만으로 부족할 때 쓰는 도구(무효화, stale-while-revalidate, jitter)를 안다.</li>
+  </ul>
+</div>
+
+<nav class="card">
+<b>목차</b>
+<ol>
+  <li><a href="#s1">용어를 요청 흐름으로 이해하기</a></li>
+  <li><a href="#s2">TTL은 두 비용의 줄다리기</a></li>
+  <li><a href="#s3">직접 돌려보는 TTL 시뮬레이터</a></li>
+  <li><a href="#s4">TTL 결정 절차 (실전 체크리스트)</a></li>
+  <li><a href="#s5">상품 정보 API에 적용하기</a></li>
+  <li><a href="#s6">TTL만으로 부족할 때</a></li>
+  <li><a href="#s7">흔한 실수</a></li>
+  <li><a href="#s8">확인 문제</a></li>
+</ol>
+</nav>
+
+<!-- 1 -->
+<h2 id="s1">1. 용어를 요청 흐름으로 이해하기</h2>
+<p>캐시는 "원본(DB나 다른 서비스)에서 가져온 응답을 잠시 보관해 두었다가, 같은 요청이 오면 원본을 거치지 않고 돌려주는 저장소"입니다. 보통 Redis나 서버 메모리를 씁니다.</p>
+
+<pre>
+GET /products/123
+   │
+   ▼
+[캐시에 product:123 있나?]
+   ├─ 있음, 아직 유효 ──▶ <b>HIT</b>  : 캐시 값 즉시 반환 (빠름, 원본 부하 0)
+   └─ 없음 또는 만료 ──▶ <b>MISS</b> : 원본 조회 → 캐시에 저장(TTL 설정) → 반환
+</pre>
+
+<table>
+<tr><th>용어</th><th>뜻</th><th>상품 API에서의 예</th></tr>
+<tr><td><b>Hit</b></td><td>캐시에 유효한 값이 있어서 바로 응답</td><td>1초 전에 누가 조회한 123번 상품을 또 조회</td></tr>
+<tr><td><b>Miss</b></td><td>캐시에 없거나 만료되어 원본까지 감</td><td>처음 조회되는 상품, 또는 TTL이 지난 상품</td></tr>
+<tr><td><b>Hit rate</b></td><td>hit 수 ÷ 전체 요청 수</td><td>90%면 원본은 요청 10개 중 1개만 받음</td></tr>
+<tr><td><b>TTL</b> (Time To Live)</td><td>저장 후 유효하다고 간주하는 시간</td><td><code>SET product:123 {...} EX 300</code> → 5분</td></tr>
+<tr><td><b>Stale</b></td><td>원본은 바뀌었는데 캐시는 옛 값을 들고 있는 상태</td><td>가격이 9,900원 → 8,900원으로 바뀌었는데 캐시가 9,900원 응답</td></tr>
+</table>
+
+<h3>타임라인으로 보기 (TTL = 60초)</h3>
+<div class="timeline">시각    0s      20s     45s     60s     61s     90s
+요청    A       B       C               D       E
+캐시    MISS    HIT     HIT     (만료)   MISS    HIT
+원본    조회                            조회
+가격    9,900 ─────────▶ 30s에 8,900으로 변경
+응답    9,900   9,900   <span style="color:#c05621">9,900(stale)</span>         8,900   8,900</div>
+<p>요청 C는 hit이라 빨랐지만 <b>틀린 가격</b>을 받았습니다. 30초에 바뀐 가격이 사용자에게 보이기까지 최대 TTL(60초)만큼 걸릴 수 있다는 뜻입니다.</p>
+
+<div class="card key"><b>핵심 한 줄:</b> TTL은 "원본이 바뀐 뒤 사용자가 옛 값을 볼 수 있는 <u>최대 시간</u>"이다. (무효화를 따로 하지 않는 한)</div>
+
+<!-- 2 -->
+<h2 id="s2">2. TTL은 두 비용의 줄다리기</h2>
+
+<table>
+<tr><th></th><th>TTL 짧게 (예: 5초)</th><th>TTL 길게 (예: 1시간)</th></tr>
+<tr><td>Hit rate</td><td>낮음</td><td>높음</td></tr>
+<tr><td>원본 부하</td><td><span style="color:#c05621">큼</span></td><td><span style="color:#2f855a">작음</span></td></tr>
+<tr><td>응답 신선도</td><td><span style="color:#2f855a">거의 최신</span></td><td><span style="color:#c05621">최대 1시간 옛 값</span></td></tr>
+<tr><td>캐시 메모리</td><td>적게 씀</td><td>많이 씀</td></tr>
+</table>
+
+<h3>숫자로 감 잡기 — 키 하나 기준</h3>
+<p>어떤 상품이 초당 <b>r</b>번 조회되고 TTL이 <b>T</b>초라면, 대략 TTL 한 주기마다 miss가 1번 납니다.</p>
+<ul>
+  <li>원본 조회 횟수 ≈ <b>1 / (T + 1/r)</b> 회/초 &nbsp;(≈ T마다 1번)</li>
+  <li>Hit rate ≈ <b>rT / (1 + rT)</b></li>
+</ul>
+<p>예) 초당 10번 조회되는 인기 상품:</p>
+<table>
+<tr><th>TTL</th><th>Hit rate</th><th>원본 조회/분</th></tr>
+<tr><td>1초</td><td>91%</td><td>약 55회</td></tr>
+<tr><td>10초</td><td>99%</td><td>약 6회</td></tr>
+<tr><td>60초</td><td>99.8%</td><td>약 1회</td></tr>
+<tr><td>600초</td><td>99.98%</td><td>약 0.1회</td></tr>
+</table>
+
+<div class="card key">
+<b>관찰 1 — 수익 체감:</b> 인기 키는 TTL 몇 초만으로 hit rate가 이미 90%를 넘습니다. 1분 → 10분으로 늘려도 부하 절감은 미미한데, stale 위험은 10배가 됩니다.<br><br>
+<b>관찰 2 — 롱테일:</b> 하루에 몇 번 조회될까 말까 한 상품은 TTL 1분이면 거의 항상 miss입니다. 이런 키들은 TTL을 꽤 길게 잡아야 효과가 있습니다. 즉 <u>"부하 절감 효과"는 TTL보다 트래픽 분포가 결정</u>합니다.
+</div>
+
+<h3>Stale은 얼마나 생기나</h3>
+<p>데이터가 평균 <b>U</b>초마다 한 번 바뀐다면, hit 응답 중 stale 비율은 대략 <b>T / (2U)</b> 정도입니다 (T가 U보다 꽤 작을 때).
+예: 가격이 하루(86,400초)에 한 번 바뀌고 TTL 5분이면 → 300 / 172,800 ≈ <b>0.17%</b>.
+그리고 stale 응답의 최대 지연은 언제나 <b>T</b>입니다.</p>
+<p>즉 판단 질문은 두 개로 줄어듭니다.</p>
+<ol>
+  <li><b>최대 몇 초까지 옛 값을 보여줘도 괜찮은가?</b> → TTL의 상한 (비즈니스가 정함)</li>
+  <li><b>원본이 버틸 수 있는 miss량은 얼마인가?</b> → TTL의 하한 (인프라가 정함)</li>
+</ol>
+<p>상한 ≥ 하한이면 그 사이에서 고르면 되고, 상한 &lt; 하한이면 TTL로는 해결이 안 되니 6장의 도구가 필요합니다.</p>
+
+<!-- 3 -->
+<h2 id="s3">3. 직접 돌려보는 TTL 시뮬레이터</h2>
+<div class="card sim">
+  <label>상품 하나의 조회 빈도: <span class="val" id="rv"></span></label>
+  <input type="range" id="r" min="0" max="100" value="60">
+  <label>데이터가 바뀌는 평균 주기: <span class="val" id="uv"></span></label>
+  <input type="range" id="u" min="0" max="100" value="70">
+  <label>TTL: <span class="val" id="tv"></span></label>
+  <input type="range" id="t" min="0" max="100" value="45">
+
+  <div class="meters">
+    <div class="meter">Hit rate<b id="hit"></b><div class="bar"><i id="hitb" style="background:#2f855a"></i></div></div>
+    <div class="meter">원본 조회<b id="load"></b><span class="small" id="loadsub"></span></div>
+    <div class="meter">Stale 응답 비율<b id="stale"></b><div class="bar"><i id="staleb" style="background:#c05621"></i></div></div>
+  </div>
+  <p class="small" id="note"></p>
+  <canvas id="cv" width="760" height="240"></canvas>
+  <p class="small">그래프: 가로축 TTL(로그 스케일). <span style="color:#2f855a">초록 = hit rate</span>, <span style="color:#c05621">주황 = stale 비율</span>, 세로선 = 현재 TTL. 모델: 조회·변경이 무작위(포아송)로 일어난다고 가정한 근사치.</p>
+</div>
+<p><b>해 볼 것:</b> ① 조회 빈도를 "초당 10회"로 두고 TTL을 늘려 보세요 — 초록선이 금방 천장에 붙습니다. ② 조회 빈도를 "시간당 1회"로 낮춰 보세요 — TTL을 크게 해야 초록선이 올라옵니다. ③ 변경 주기를 "1분"으로 줄여 보세요 — 같은 TTL에서 주황선이 치솟습니다.</p>
+
+<!-- 4 -->
+<h2 id="s4">4. TTL 결정 절차 (실전 체크리스트)</h2>
+<ol>
+  <li><b>데이터를 필드 단위로 나눈다.</b> 상품명·설명·이미지와 가격·재고는 바뀌는 빈도도, 틀렸을 때 피해도 전혀 다릅니다.</li>
+  <li><b>필드마다 "허용 가능한 최대 지연"을 기획/운영과 합의한다.</b> "가격 변경이 반영되기까지 최대 몇 분이면 괜찮나요?"라고 물으세요. 이게 TTL 상한입니다.</li>
+  <li><b>stale이 일으키는 피해를 확인한다.</b> 보여주기만 하는가(상세 페이지), 돈이 오가는가(결제)? 돈·재고 확정 단계는 <u>캐시를 읽지 않고 원본으로 재검증</u>하는 것이 원칙입니다.</li>
+  <li><b>트래픽을 측정한다.</b> 전체 QPS, 상위 키 집중도(상위 1% 상품이 트래픽 몇 %?), 원본이 감당 가능한 QPS. 이것으로 TTL 하한을 구합니다.<br>
+    <span class="small">예: 상품 조회 2,000 QPS, DB 허용 200 QPS → hit rate 90% 이상 필요.</span></li>
+  <li><b>상한 안에서 하한을 넘는 가장 짧은 값</b>을 고른다. 애매하면 짧게 시작하세요. 늘리는 건 쉽고, 긴 TTL로 사고가 난 후 줄이는 건 늦습니다.</li>
+  <li><b>배포 후 지표로 조정한다.</b> hit rate, 원본 QPS, p99 응답시간, "가격 불일치" 문의/에러 건수.</li>
+</ol>
+
+<!-- 5 -->
+<h2 id="s5">5. 상품 정보 API에 적용하기</h2>
+<p>아래는 출발점 예시입니다. 실제 값은 4장 절차로 여러분 서비스에 맞춰 정해야 합니다.</p>
+<table>
+<tr><th>데이터</th><th>변경 빈도</th><th>stale 피해</th><th>TTL 예시</th><th>보완</th></tr>
+<tr><td>상품명, 설명, 이미지, 카테고리</td><td>드묾 (주 단위)</td><td>낮음</td><td>10분~1시간</td><td>수정 시 키 삭제</td></tr>
+<tr><td>가격</td><td>가끔 (일 단위, 프로모션 시 정각에 일괄)</td><td>중간~높음 (표시가 ≠ 결제가 → 클레임)</td><td>30초~5분</td><td>가격 변경 이벤트로 무효화, 결제 시 원본 재확인</td></tr>
+<tr><td>재고 수량 / 품절 여부</td><td>잦음 (주문마다)</td><td>높음 (품절 상품 주문)</td><td>0~10초 또는 캐시 안 함</td><td>"품절 여부"만 짧게 캐시, 주문 시 원본 차감</td></tr>
+<tr><td>리뷰 수, 평점</td><td>잦음</td><td>매우 낮음</td><td>5~30분</td><td>-</td></tr>
+</table>
+
+<p>필드별 TTL을 쓰려면 캐시 키를 나누면 됩니다.</p>
+<pre>
+product:123:info   → EX 1800   (이름/설명/이미지)
+product:123:price  → EX 60
+product:123:stock  → EX 5
+</pre>
+
+<p>기본 패턴(cache-aside) 코드 스케치:</p>
+<pre>
+async function getProductInfo(id) {
+  const key = `product:${id}:info`;
+  const cached = await redis.get(key);
+  if (cached) return JSON.parse(cached);          // HIT
+
+  const info = await db.findProductInfo(id);      // MISS → 원본
+  const ttl = 1800 + Math.floor(Math.random() * 300); // jitter (6장)
+  await redis.set(key, JSON.stringify(info), 'EX', ttl);
+  return info;
+}
+
+// 상품 수정 API에서
+async function updateProduct(id, data) {
+  await db.update(id, data);
+  await redis.del(`product:${id}:info`);           // 무효화: 다음 조회 때 새로 채움
+}
+</pre>
+
+<!-- 6 -->
+<h2 id="s6">6. TTL만으로 부족할 때</h2>
+
+<h3>① 명시적 무효화 (invalidation)</h3>
+<p>데이터를 바꾸는 쪽이 캐시 키를 지웁니다. 그러면 TTL은 "무효화가 실패했을 때의 안전망"이 되어 <b>길게 잡아도 됩니다</b>. 단, 변경 경로가 여러 개(관리자 페이지, 배치, 다른 팀 서비스)면 하나라도 빠뜨리면 TTL만큼 stale이 납니다. 그래서 무효화를 해도 TTL은 반드시 둡니다.</p>
+<p class="small">주의: "DB 갱신 → 캐시 삭제" 순서를 지키세요. 삭제 후 갱신하면 그 사이 조회가 옛 값을 다시 캐시에 넣을 수 있습니다.</p>
+
+<h3>② TTL jitter</h3>
+<p>배치로 상품 1만 개를 동시에 캐시에 채우면 정확히 TTL 후 1만 개가 <b>동시에 만료</b>되어 원본에 몰립니다. TTL에 ±10% 정도 무작위 값을 더해 만료 시점을 흩으세요.</p>
+
+<h3>③ 캐시 스탬피드 (thundering herd) 방지</h3>
+<p>초당 1,000번 조회되는 인기 상품의 키가 만료되는 순간, 원본 조회가 끝나기 전 들어온 수십~수백 요청이 모두 miss가 되어 DB로 갑니다. 대책:</p>
+<ul>
+  <li><b>락/싱글플라이트:</b> 한 요청만 원본을 조회하고 나머지는 기다렸다 그 결과를 씀.</li>
+  <li><b>stale-while-revalidate:</b> 만료된 값을 일단 응답하고, 백그라운드에서 한 번만 갱신. "조금 옛 값 OK"인 데이터에 아주 효과적.</li>
+</ul>
+
+<h3>④ 소프트 TTL / 하드 TTL</h3>
+<p>값에 "갱신 권장 시각(soft, 예: 60초)"을 같이 저장하고 Redis TTL(hard)은 더 길게(예: 10분) 둡니다. soft가 지나면 응답은 캐시로 하되 비동기로 갱신, 원본이 죽었을 때도 hard까지는 서비스가 유지됩니다. 신선도와 장애 내성을 동시에 얻는 방법입니다.</p>
+
+<h3>⑤ 네거티브 캐싱</h3>
+<p>존재하지 않는 상품 ID 조회(잘못된 링크, 크롤러)도 매번 DB까지 갑니다. "없음" 결과도 짧은 TTL(예: 30초)로 캐시하세요.</p>
+
+<h3>⑥ HTTP 캐시 헤더 (CDN/브라우저)</h3>
+<pre>Cache-Control: public, max-age=60, stale-while-revalidate=300</pre>
+<p>서버 캐시와 별개로 CDN·브라우저에도 캐시가 생깁니다. 이쪽은 <b>서버가 지울 수 없는</b> 경우가 많으니(특히 브라우저), 서버 내부 캐시보다 TTL을 짧게 잡는 게 안전합니다. 개인화된 응답에는 <code>private</code> 또는 <code>no-store</code>를 쓰세요.</p>
+
+<!-- 7 -->
+<h2 id="s7">7. 흔한 실수</h2>
+<div class="card warn">
+<ul>
+  <li><b>모든 키에 같은 TTL</b> — 이름과 재고는 다른 데이터입니다.</li>
+  <li><b>결제·주문에서 캐시된 가격/재고를 그대로 사용</b> — 표시용은 캐시, 확정은 원본.</li>
+  <li><b>TTL 없이 무효화만 의존</b> — 무효화 누락 시 영원히 stale.</li>
+  <li><b>hit rate만 보고 TTL을 계속 늘림</b> — 1분 이후 개선은 대부분 미미하고 stale만 늘어납니다.</li>
+  <li><b>캐시가 죽었을 때를 고려 안 함</b> — hit rate 99%에 의존하던 DB는 캐시 장애 시 100배 부하를 받습니다. 원본 보호(타임아웃, 서킷 브레이커)도 필요합니다.</li>
+  <li><b>지표 없이 배포</b> — hit/miss 카운터와 원본 QPS를 반드시 대시보드에 올리세요.</li>
+</ul>
+</div>
+
+<!-- 8 -->
+<h2 id="s8">8. 확인 문제</h2>
+<div class="quiz">
+<details><summary>Q1. TTL 5분, 가격이 12:00:00에 바뀌었다. 사용자가 옛 가격을 볼 수 있는 가장 늦은 시각은? (무효화 없음)</summary>
+<p>최대 12:05:00 직전까지. 11:59:59에 캐시가 채워졌다면 그 값은 12:04:59까지 유효합니다. TTL = 최대 지연.</p></details>
+
+<details><summary>Q2. 상품 A는 초당 50회, 상품 B는 하루 3회 조회된다. TTL 30초면 각각 hit rate는 대략?</summary>
+<p>A: rT = 1500 → 약 99.9%. B: 조회 간격(약 8시간)이 TTL보다 훨씬 길어서 거의 0%. B에게 캐시 효과를 주려면 TTL을 시간 단위로 해야 하고, 그만큼 stale 허용이 가능한 데이터인지 따져야 합니다.</p></details>
+
+<details><summary>Q3. 기획: "가격 변경은 즉시 반영돼야 해요." 그런데 DB는 캐시 없이는 못 버틴다. 어떻게?</summary>
+<p>TTL로는 상한(≈0)과 하한이 충돌합니다. 가격 변경 시 명시적 무효화(또는 새 값으로 덮어쓰기)를 하고, TTL은 안전망으로 수 분 정도 둡니다. 결제 단계에서는 원본 가격으로 재검증합니다. "즉시"가 정말 0초인지, "수 초 이내"면 되는지도 다시 합의해 보세요.</p></details>
+
+<details><summary>Q4. 매일 자정 배치로 전 상품 캐시를 워밍하고 TTL을 정확히 1시간으로 줬다. 무슨 일이 생길까?</summary>
+<p>매일 01:00에 전 상품이 동시에 만료되어 원본 부하가 급증합니다. TTL jitter를 넣어 만료를 분산하세요.</p></details>
+
+<details><summary>Q5. hit rate가 60%밖에 안 나온다. TTL을 늘리기 전에 확인할 것은?</summary>
+<p>트래픽이 롱테일인지(키가 너무 다양), 캐시 키에 불필요한 값(쿼리스트링 순서, 사용자 ID 등)이 섞여 같은 데이터가 다른 키로 저장되는지, 메모리 부족으로 eviction이 일어나는지 확인합니다. TTL이 원인이 아닐 때가 많습니다.</p></details>
+</div>
+
+<div class="card key">
+<b>요약</b>
+<ol>
+  <li>TTL = 옛 값을 보여줄 수 있는 최대 시간. <b>상한은 비즈니스</b>가 정한다.</li>
+  <li>TTL 하한은 <b>원본이 감당 가능한 miss량</b>이 정한다. 인기 키는 짧은 TTL로도 충분하다.</li>
+  <li>데이터를 필드별로 나누어 TTL을 다르게. 돈·재고 확정은 원본으로.</li>
+  <li>둘이 충돌하면 무효화, stale-while-revalidate, soft/hard TTL을 쓴다. jitter는 기본.</li>
+  <li>짧게 시작하고 지표를 보며 늘린다.</li>
+</ol>
+</div>
+
+</main>
+
+<script>
+// 슬라이더 → 실제 값 (로그 스케일)
+const rMap = v => Math.pow(10, -4 + v/100*6);      // 0.0001 ~ 100 회/초
+const uMap = v => Math.pow(10, 0 + v/100*6);       // 1초 ~ 1e6초
+const tMap = v => Math.pow(10, 0 + v/100*4.5);     // 1초 ~ ~31600초
+
+function fmtRate(r){
+  if (r >= 1) return `초당 ${r.toFixed(r<10?1:0)}회`;
+  if (r*60 >= 1) return `분당 ${(r*60).toFixed(1)}회`;
+  if (r*3600 >= 1) return `시간당 ${(r*3600).toFixed(1)}회`;
+  return `하루 ${(r*86400).toFixed(1)}회`;
+}
+function fmtSec(s){
+  if (s < 60) return `${s.toFixed(s<10?1:0)}초`;
+  if (s < 3600) return `${(s/60).toFixed(1)}분`;
+  if (s < 86400) return `${(s/3600).toFixed(1)}시간`;
+  return `${(s/86400).toFixed(1)}일`;
+}
+function model(r, U, T){
+  const hit = r*T/(1+r*T);
+  const load = 1/(T + 1/r);           // 원본 조회/초
+  const mu = 1/U, x = mu*T;
+  // hit 시점 캐시 나이 ~ U(0,T) 근사, 변경은 포아송
+  const stale = x < 1e-6 ? x/2 : 1 - (1 - Math.exp(-x))/x;
+  return { hit, load, stale };
+}
+const $ = id => document.getElementById(id);
+function pct(x){ return (x*100 < 0.1 && x>0) ? (x*100).toFixed(3)+'%' : (x*100).toFixed(1)+'%'; }
+
+function update(){
+  const r = rMap(+$('r').value), U = uMap(+$('u').value), T = tMap(+$('t').value);
+  $('rv').textContent = fmtRate(r);
+  $('uv').textContent = fmtSec(U) + '에 한 번';
+  $('tv').textContent = fmtSec(T);
+  const m = model(r, U, T);
+  $('hit').textContent = pct(m.hit);
+  $('hitb').style.width = (m.hit*100)+'%';
+  $('stale').textContent = pct(m.stale);
+  $('staleb').style.width = Math.min(100, m.stale*100)+'%';
+  $('load').textContent = fmtRate(m.load);
+  $('loadsub').textContent = `캐시 없을 때 대비 ${pct(m.load/r)}`;
+  let note = `변경 후 최대 ${fmtSec(T)} 동안 옛 값이 보일 수 있습니다. `;
+  if (m.hit < 0.5) note += '조회가 드물어 캐시 효과가 작습니다 — TTL을 늘리거나 캐시 필요성 자체를 재검토하세요. ';
+  if (m.stale > 0.1) note += 'stale 비율이 높습니다 — TTL을 줄이거나 변경 시 무효화를 고려하세요.';
+  $('note').textContent = note;
+  draw(r, U, T);
+}
+
+function draw(r, U, T){
+  const c = $('cv'), g = c.getContext('2d'), W = c.width, H = c.height, P = 30;
+  g.clearRect(0,0,W,H);
+  g.strokeStyle = '#ddd'; g.fillStyle = '#888'; g.font = '11px sans-serif';
+  for (let i=0;i<=4;i++){ const y = P + (H-2*P)*i/4; g.beginPath(); g.moveTo(P,y); g.lineTo(W-10,y); g.stroke(); g.fillText((100-25*i)+'%', 0, y+4); }
+  const xs = s => P + (W-P-10) * (Math.log10(s)/4.5);
+  [[1,'1s'],[10,'10s'],[60,'1m'],[600,'10m'],[3600,'1h'],[21600,'6h']].forEach(([s,l])=>g.fillText(l, xs(s)-8, H-8));
+  const line = (key, color) => {
+    g.strokeStyle = color; g.lineWidth = 2.5; g.beginPath();
+    for (let i=0;i<=200;i++){ const s = Math.pow(10, 4.5*i/200); const v = model(r,U,s)[key];
+      const x = xs(s), y = P + (H-2*P)*(1-v); i ? g.lineTo(x,y) : g.moveTo(x,y); }
+    g.stroke(); g.lineWidth = 1;
+  };
+  line('hit', '#2f855a'); line('stale', '#c05621');
+  g.strokeStyle = '#2b6cb0'; g.setLineDash([4,4]); g.beginPath(); g.moveTo(xs(T),P-5); g.lineTo(xs(T),H-P); g.stroke(); g.setLineDash([]);
+}
+['r','u','t'].forEach(id => $(id).addEventListener('input', update));
+update();
+</script>
+</body>
+</html>

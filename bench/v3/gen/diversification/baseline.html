@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>두 자산을 섞으면 위험은 얼마나 줄까?</title>
+<style>
+  :root { --a:#2563eb; --b:#ea580c; --p:#16a34a; --ink:#1f2937; --mute:#6b7280; --bg:#f8fafc; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; color:var(--ink); background:var(--bg); line-height:1.75; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 1.9rem; line-height:1.3; margin-bottom: .3em; }
+  h2 { margin-top: 2.6em; border-bottom: 2px solid #e5e7eb; padding-bottom:.3em; }
+  .lead { color: var(--mute); font-size:1.05rem; }
+  .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:20px; margin:18px 0; }
+  .note { background:#eff6ff; border-left:4px solid var(--a); padding:12px 16px; border-radius:6px; margin:16px 0; }
+  .warn { background:#fff7ed; border-left:4px solid var(--b); padding:12px 16px; border-radius:6px; margin:16px 0; }
+  .formula { font-family: "SF Mono", Menlo, monospace; background:#f1f5f9; padding:12px 16px; border-radius:8px; overflow-x:auto; white-space:nowrap; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:14px 24px; }
+  label { display:block; font-size:.92rem; color:var(--mute); }
+  label b { color:var(--ink); }
+  input[type=range] { width:100%; }
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:10px; margin-top:14px; }
+  .stat { background:#f8fafc; border-radius:8px; padding:10px 12px; }
+  .stat .k { font-size:.8rem; color:var(--mute); }
+  .stat .v { font-size:1.35rem; font-weight:700; }
+  canvas { width:100%; height:auto; display:block; background:#fff; border-radius:8px; }
+  table { border-collapse: collapse; width:100%; font-size:.95rem; }
+  th, td { border-bottom:1px solid #e5e7eb; padding:8px; text-align:center; }
+  th { background:#f1f5f9; }
+  .A { color:var(--a); font-weight:700; } .B { color:var(--b); font-weight:700; } .P { color:var(--p); font-weight:700; }
+  details { margin:10px 0; } summary { cursor:pointer; font-weight:600; }
+  button { border:1px solid #cbd5e1; background:#fff; border-radius:6px; padding:6px 10px; cursor:pointer; margin:4px 4px 0 0; }
+  button:hover { background:#f1f5f9; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>두 자산을 섞으면 위험은 얼마나 줄까?</h1>
+<p class="lead">평균과 표준편차를 아는 적립식 ETF 투자자를 위한, 분산투자와 포트폴리오 비중 정하기 입문</p>
+
+<h2>1. 출발점: 평균은 그냥 섞이는데, 위험은 아니다</h2>
+<p>주식 ETF <span class="A">A</span>(기대수익 연 8%, 표준편차 18%)와 채권 ETF <span class="B">B</span>(기대수익 연 3%, 표준편차 6%)를 반반씩 샀다고 해 봅시다.</p>
+<ul>
+  <li><b>기대수익</b>은 비중대로 평균내면 끝입니다: 0.5×8% + 0.5×3% = <b>5.5%</b></li>
+  <li><b>위험(표준편차)</b>은 0.5×18% + 0.5×6% = 12%가 <b>아닐 수 있습니다.</b> 보통은 그보다 <b>작습니다.</b></li>
+</ul>
+<p>왜일까요? 두 자산이 늘 같은 방향으로 움직이지는 않기 때문입니다. A가 크게 빠지는 해에 B가 덜 빠지거나 오히려 오르면, 두 손실이 서로를 일부 상쇄합니다. 이 "얼마나 같이 움직이는가"를 숫자로 나타낸 것이 <b>상관계수 ρ(로)</b>입니다.</p>
+
+<h2>2. 상관계수 ρ: −1부터 +1까지</h2>
+<table>
+  <tr><th>ρ</th><th>의미</th><th>섞었을 때 위험</th></tr>
+  <tr><td>+1</td><td>완전히 같이 움직임</td><td>단순 가중평균. 위험 감소 <b>없음</b></td></tr>
+  <tr><td>0</td><td>서로 무관</td><td>꽤 줄어듦</td></tr>
+  <tr><td>−1</td><td>정확히 반대로 움직임</td><td>특정 비중에서 <b>0까지</b> 가능</td></tr>
+</table>
+<div class="note">핵심: <b>ρ가 1보다 작기만 하면</b> 섞은 포트폴리오의 표준편차는 단순 가중평균보다 작아집니다. 이것이 분산투자의 "공짜 점심"입니다.</div>
+
+<h2>3. 공식 한 줄</h2>
+<p>A의 비중을 w, B의 비중을 1−w라 하면</p>
+<div class="formula">기대수익 μ<sub>p</sub> = w·μ<sub>A</sub> + (1−w)·μ<sub>B</sub></div>
+<div class="formula">분산 σ<sub>p</sub>² = w²σ<sub>A</sub>² + (1−w)²σ<sub>B</sub>² + 2·w(1−w)·ρ·σ<sub>A</sub>σ<sub>B</sub></div>
+<p>앞의 두 항은 각자의 위험, 마지막 항이 "같이 움직이는 정도"입니다. ρ가 작을수록(음수일수록) 마지막 항이 작아져 전체 위험이 줄어듭니다. 표준편차는 이 값의 제곱근입니다.</p>
+
+<details class="card"><summary>손으로 계산해 보기 (w = 0.5, ρ = 0.2)</summary>
+<p>σ<sub>p</sub>² = 0.25×18² + 0.25×6² + 2×0.25×0.2×18×6<br>
+= 81 + 9 + 10.8 = 100.8 → σ<sub>p</sub> ≈ <b>10.0%</b></p>
+<p>단순 평균 12%보다 약 2%p 낮습니다. 수익은 그대로 5.5%인데 위험만 줄었습니다.</p>
+</details>
+
+<h2>4. 직접 움직여 보기</h2>
+<div class="card">
+  <div class="grid">
+    <label><span class="A">A</span> 기대수익: <b id="muAv"></b><input id="muA" type="range" min="0" max="15" step="0.5" value="8"></label>
+    <label><span class="A">A</span> 표준편차: <b id="sAv"></b><input id="sA" type="range" min="1" max="40" step="1" value="18"></label>
+    <label><span class="B">B</span> 기대수익: <b id="muBv"></b><input id="muB" type="range" min="0" max="15" step="0.5" value="3"></label>
+    <label><span class="B">B</span> 표준편차: <b id="sBv"></b><input id="sB" type="range" min="1" max="40" step="1" value="6"></label>
+    <label>상관계수 ρ: <b id="rhov"></b><input id="rho" type="range" min="-1" max="1" step="0.05" value="0.2"></label>
+    <label><span class="A">A</span> 비중 w: <b id="wv"></b><input id="w" type="range" min="0" max="100" step="1" value="50"></label>
+  </div>
+  <div>
+    프리셋:
+    <button data-p="8,18,3,6,0.2">주식+채권 (평소)</button>
+    <button data-p="8,18,3,6,-0.3">주식+채권 (음의 상관)</button>
+    <button data-p="8,18,7,17,0.85">국내주식+해외주식</button>
+    <button data-p="8,18,8,18,1">ρ=1 극단</button>
+    <button data-p="8,18,3,6,-1">ρ=−1 극단</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="k">포트폴리오 기대수익</div><div class="v P" id="oMu"></div></div>
+    <div class="stat"><div class="k">포트폴리오 표준편차</div><div class="v P" id="oS"></div></div>
+    <div class="stat"><div class="k">단순 가중평균 위험</div><div class="v" id="oNaive"></div></div>
+    <div class="stat"><div class="k">분산 효과로 줄어든 위험</div><div class="v" id="oGain"></div></div>
+    <div class="stat"><div class="k">최소분산 비중 (A)</div><div class="v" id="oMinW"></div></div>
+    <div class="stat"><div class="k">그때의 표준편차</div><div class="v" id="oMinS"></div></div>
+  </div>
+</div>
+
+<div class="card">
+  <b>그래프 ①</b> 위험(가로)–수익(세로) 평면. 곡선은 w를 0%→100%로 움직일 때의 모든 포트폴리오, 점선은 ρ=1일 때의 직선입니다.
+  <canvas id="c1" width="800" height="420"></canvas>
+</div>
+<div class="card">
+  <b>그래프 ②</b> A 비중별 표준편차. 곡선이 가장 낮은 지점이 <b>최소분산 포트폴리오</b>입니다.
+  <canvas id="c2" width="800" height="300"></canvas>
+</div>
+
+<div class="note">
+<b>관찰해 볼 것</b>
+<ol>
+  <li>ρ를 1로 올리면 곡선이 점선(직선)과 겹칩니다. 분산 효과가 사라집니다.</li>
+  <li>ρ를 낮추면 곡선이 왼쪽으로 휘어집니다. 같은 수익에서 위험이 더 작습니다.</li>
+  <li>B만 100% 가진 것보다 <b>A를 조금 섞은 쪽이 오히려 위험이 낮은</b> 경우가 많습니다. 위험한 자산을 더했는데 위험이 줄어듭니다!</li>
+  <li>"국내+해외 주식" 프리셋(ρ≈0.85)에서는 위험 감소 폭이 작습니다. 비슷한 자산끼리는 섞어도 효과가 작습니다.</li>
+</ol>
+</div>
+
+<h2>5. 그래서 비중은 어떻게 정하나?</h2>
+<h3>① 최소분산 비중 — 가장 덜 흔들리는 조합</h3>
+<div class="formula">w* = (σ<sub>B</sub>² − ρσ<sub>A</sub>σ<sub>B</sub>) / (σ<sub>A</sub>² + σ<sub>B</sub>² − 2ρσ<sub>A</sub>σ<sub>B</sub>)</div>
+<p>위 시뮬레이터의 "최소분산 비중"이 이 값입니다(0~100% 범위로 자름). 기본값에서는 A 약 5% 정도입니다. 하지만 이건 <b>수익은 전혀 고려하지 않은</b> 답입니다.</p>
+
+<h3>② 효율적인 구간만 고르기</h3>
+<p>그래프 ①에서 최소분산점보다 <b>아래쪽</b> 곡선은 쓸 이유가 없습니다. 같은 위험으로 더 높은 수익을 내는 위쪽 점이 있기 때문입니다. 최소분산점에서 A 100%까지의 위쪽 곡선이 <b>효율적 투자선</b>이고, 합리적인 비중은 그 안에 있습니다.</p>
+
+<h3>③ 그 안에서 어디? — 내가 견딜 수 있는 손실로 정하기</h3>
+<p>대략 "나쁜 해"의 손실은 <b>기대수익 − 2×표준편차</b>로 어림할 수 있습니다(약 20년에 한 번 꼴, 정규분포 가정).</p>
+<div class="card">
+  <label>한 해에 견딜 수 있는 최대 손실: <b id="lossv"></b><input id="loss" type="range" min="2" max="40" step="1" value="15"></label>
+  <p id="lossOut" style="margin:.6em 0 0"></p>
+</div>
+<div class="warn">이 어림은 평소 숫자일 뿐입니다. 2008년, 2020년 3월처럼 위기에는 상관계수가 갑자기 올라가(같이 폭락) 분산 효과가 평소보다 작아집니다. 여유를 두고 정하세요.</div>
+
+<h2>6. 적립식 투자자를 위한 실전 정리</h2>
+<ul>
+  <li><b>비중을 먼저 정하고, 매달 그 비중대로 산다.</b> 예: 주식 ETF 60 : 채권 ETF 40.</li>
+  <li><b>리밸런싱</b>: 시간이 지나면 많이 오른 쪽 비중이 커집니다. 1년에 한 번, 또는 목표에서 5%p 이상 벗어나면 매수 금액을 조절해 원래 비중으로 되돌립니다. 적립식이면 "덜 오른 쪽을 더 사는" 방식으로 팔지 않고도 맞출 수 있습니다.</li>
+  <li><b>섞을 자산은 "다르게 움직이는 것"으로.</b> S&P500 ETF와 나스닥100 ETF는 ρ가 0.9 안팎이라 섞어도 위험이 별로 안 줄어듭니다. 주식과 국채, 혹은 지역·자산군이 다른 것을 고려하세요.</li>
+  <li><b>입력값은 추정치다.</b> 과거 평균·표준편차·상관계수는 미래에 그대로 반복되지 않습니다. 소수점까지 최적화하기보다 60/40, 70/30처럼 반올림한 비중이 현실적입니다.</li>
+</ul>
+
+<h2>7. 스스로 점검</h2>
+<details class="card"><summary>Q1. ρ = 1이면 50:50 포트폴리오의 표준편차는? (σA=18%, σB=6%)</summary>
+<p>정확히 가중평균인 12%입니다. 분산 효과가 전혀 없습니다.</p></details>
+<details class="card"><summary>Q2. ρ = 0, σA = σB = 20%일 때 50:50이면?</summary>
+<p>σ² = 0.25×400 + 0.25×400 = 200 → σ ≈ 14.1%. 같은 위험의 두 자산을 섞었는데 위험이 약 30% 줄었습니다(÷√2).</p></details>
+<details class="card"><summary>Q3. 채권 100%보다 주식을 조금 섞은 게 위험이 더 낮을 수 있는 이유는?</summary>
+<p>상관이 낮으면 작은 비중의 주식이 채권의 흔들림 일부를 상쇄하기 때문입니다. 비중이 작을 때는 상쇄 효과(교차항)가 주식 자체의 위험(w²σA², w의 제곱이라 아주 작음)보다 커집니다.</p></details>
+<details class="card"><summary>Q4. 상관계수를 낮추는 것과 수익률을 높이는 것 중 분산투자로 얻는 건?</summary>
+<p>분산투자는 기대수익을 높여주지 않습니다(가중평균 그대로). 같은 수익에서 <b>위험을 줄여주는</b> 것입니다.</p></details>
+
+<p style="color:var(--mute);font-size:.85rem;margin-top:3em">이 자료는 학습용이며 특정 상품의 투자 권유가 아닙니다. 예시 수치는 설명을 위한 가정입니다.</p>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const ids = ["muA","sA","muB","sB","rho","w"];
+function get() {
+  return { muA:+$("muA").value, sA:+$("sA").value, muB:+$("muB").value, sB:+$("sB").value, rho:+$("rho").value, w:+$("w").value/100 };
+}
+const port = (p, w) => ({
+  mu: w*p.muA + (1-w)*p.muB,
+  s: Math.sqrt(Math.max(0, w*w*p.sA*p.sA + (1-w)*(1-w)*p.sB*p.sB + 2*w*(1-w)*p.rho*p.sA*p.sB))
+});
+function minW(p) {
+  const d = p.sA*p.sA + p.sB*p.sB - 2*p.rho*p.sA*p.sB;
+  if (d < 1e-9) return 0.5;
+  return Math.min(1, Math.max(0, (p.sB*p.sB - p.rho*p.sA*p.sB) / d));
+}
+const f1 = x => x.toFixed(1) + "%";
+
+function setupCanvas(c) {
+  const ctx = c.getContext("2d");
+  return { ctx, W:c.width, H:c.height };
+}
+
+function drawRiskReturn(p) {
+  const {ctx,W,H} = setupCanvas($("c1"));
+  ctx.clearRect(0,0,W,H);
+  const L=60,R=20,T=20,B=45;
+  const pts=[]; for(let i=0;i<=100;i++){pts.push(port(p,i/100));}
+  const xMax = Math.max(p.sA,p.sB)*1.1, yMin = Math.min(0,p.muA,p.muB), yMax = Math.max(p.muA,p.muB)*1.15+0.5;
+  const X = s => L + s/xMax*(W-L-R), Y = m => H-B - (m-yMin)/(yMax-yMin)*(H-T-B);
+  // axes
+  ctx.strokeStyle="#cbd5e1"; ctx.fillStyle="#6b7280"; ctx.font="13px sans-serif"; ctx.lineWidth=1;
+  for(let i=0;i<=5;i++){ const s=xMax*i/5, x=X(s); ctx.beginPath(); ctx.moveTo(x,T); ctx.lineTo(x,H-B); ctx.stroke(); ctx.fillText(s.toFixed(0)+"%", x-12, H-B+18); }
+  for(let i=0;i<=4;i++){ const m=yMin+(yMax-yMin)*i/4, y=Y(m); ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(W-R,y); ctx.stroke(); ctx.fillText(m.toFixed(1)+"%", 8, y+4); }
+  ctx.fillText("위험 (표준편차) →", W/2-50, H-6);
+  ctx.save(); ctx.translate(14,T+60); ctx.rotate(-Math.PI/2); ctx.fillText("기대수익 →",0,0); ctx.restore();
+  // rho=1 line
+  ctx.setLineDash([6,5]); ctx.strokeStyle="#9ca3af"; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(X(p.sB),Y(p.muB)); ctx.lineTo(X(p.sA),Y(p.muA)); ctx.stroke(); ctx.setLineDash([]);
+  // curve: inefficient part lighter
+  const mw = Math.round(minW(p)*100);
+  ctx.lineWidth=3;
+  const segment=(a,b,col)=>{ ctx.strokeStyle=col; ctx.beginPath(); for(let i=a;i<=b;i++){const q=pts[i]; i===a?ctx.moveTo(X(q.s),Y(q.mu)):ctx.lineTo(X(q.s),Y(q.mu));} ctx.stroke(); };
+  const efficientUp = p.muA >= p.muB;
+  if (efficientUp) { segment(0,mw,"#86efac"); segment(mw,100,"#16a34a"); }
+  else { segment(0,mw,"#16a34a"); segment(mw,100,"#86efac"); }
+  const dot=(q,col,r,label)=>{ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(X(q.s),Y(q.mu),r,0,7); ctx.fill(); if(label){ctx.fillStyle="#1f2937"; ctx.font="bold 13px sans-serif"; ctx.fillText(label,X(q.s)+9,Y(q.mu)-8);} };
+  dot(pts[0],"#ea580c",7,"B 100%"); dot(pts[100],"#2563eb",7,"A 100%");
+  dot(pts[mw],"#111827",5,"최소분산");
+  dot(port(p,p.w),"#16a34a",9,"현재 A "+Math.round(p.w*100)+"%");
+}
+
+function drawWeight(p) {
+  const {ctx,W,H} = setupCanvas($("c2"));
+  ctx.clearRect(0,0,W,H);
+  const L=60,R=20,T=15,B=40;
+  const yMax = Math.max(p.sA,p.sB)*1.1;
+  const X = w => L + w*(W-L-R), Y = s => H-B - s/yMax*(H-T-B);
+  ctx.strokeStyle="#cbd5e1"; ctx.fillStyle="#6b7280"; ctx.font="13px sans-serif"; ctx.lineWidth=1;
+  for(let i=0;i<=10;i+=2){ const x=X(i/10); ctx.beginPath(); ctx.moveTo(x,T); ctx.lineTo(x,H-B); ctx.stroke(); ctx.fillText(i*10+"%", x-12, H-B+18); }
+  for(let i=0;i<=4;i++){ const s=yMax*i/4, y=Y(s); ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(W-R,y); ctx.stroke(); ctx.fillText(s.toFixed(0)+"%",12,y+4); }
+  ctx.fillText("A 비중 →", W/2-25, H-4);
+  ctx.setLineDash([6,5]); ctx.strokeStyle="#9ca3af"; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(X(0),Y(p.sB)); ctx.lineTo(X(1),Y(p.sA)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle="#16a34a"; ctx.lineWidth=3; ctx.beginPath();
+  for(let i=0;i<=100;i++){ const s=port(p,i/100).s; i?ctx.lineTo(X(i/100),Y(s)):ctx.moveTo(X(0),Y(s)); } ctx.stroke();
+  const mw=minW(p), ms=port(p,mw).s;
+  ctx.fillStyle="#111827"; ctx.beginPath(); ctx.arc(X(mw),Y(ms),5,0,7); ctx.fill();
+  const cs=port(p,p.w).s;
+  ctx.fillStyle="#16a34a"; ctx.beginPath(); ctx.arc(X(p.w),Y(cs),8,0,7); ctx.fill();
+}
+
+function update() {
+  const p = get();
+  $("muAv").textContent=f1(p.muA); $("sAv").textContent=p.sA+"%";
+  $("muBv").textContent=f1(p.muB); $("sBv").textContent=p.sB+"%";
+  $("rhov").textContent=p.rho.toFixed(2); $("wv").textContent=Math.round(p.w*100)+"% (B "+Math.round((1-p.w)*100)+"%)";
+  const q = port(p,p.w), naive = p.w*p.sA+(1-p.w)*p.sB;
+  $("oMu").textContent=f1(q.mu); $("oS").textContent=f1(q.s);
+  $("oNaive").textContent=f1(naive); $("oGain").textContent="−"+(naive-q.s).toFixed(1)+"%p";
+  const mw=minW(p); $("oMinW").textContent=Math.round(mw*100)+"%"; $("oMinS").textContent=f1(port(p,mw).s);
+  drawRiskReturn(p); drawWeight(p); updateLoss(p);
+}
+
+function updateLoss(p) {
+  const L = +$("loss").value; $("lossv").textContent = "−"+L+"%";
+  // find the highest-return weight such that mu - 2s >= -L
+  let best=-1, bestMu=-Infinity;
+  for(let i=0;i<=100;i++){ const q=port(p,i/100); if(q.mu-2*q.s >= -L && q.mu>bestMu){bestMu=q.mu;best=i;} }
+  if(best<0){ $("lossOut").innerHTML="현재 가정에서는 어떤 비중도 이 기준을 만족하지 못합니다. 기준을 완화하거나 더 안전한 자산을 고려하세요."; return; }
+  const q=port(p,best/100);
+  $("lossOut").innerHTML = `현재 슬라이더 가정에서 이 기준을 지키며 기대수익이 가장 높은 비중은 <b class="A">A ${best}%</b> : <b class="B">B ${100-best}%</b> 입니다. (기대수익 ${f1(q.mu)}, 표준편차 ${f1(q.s)}, 나쁜 해 어림 ${f1(q.mu-2*q.s)}) <button id="applyW">이 비중 적용</button>`;
+  $("applyW").onclick=()=>{ $("w").value=best; update(); };
+}
+
+ids.forEach(id=>$(id).addEventListener("input",update));
+$("loss").addEventListener("input",()=>updateLoss(get()));
+document.querySelectorAll("button[data-p]").forEach(b=>b.addEventListener("click",()=>{
+  const v=b.dataset.p.split(",").map(Number); ["muA","sA","muB","sB","rho"].forEach((id,i)=>$(id).value=v[i]); update();
+}));
+update();
+</script>
+</body>
+</html>
