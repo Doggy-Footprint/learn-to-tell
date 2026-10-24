@@ -1,5 +1,4 @@
 #!/bin/bash
-# usage: run.sh <workdir> <prompt-file>
 # Runs outside the repo so that the repo's CLAUDE.md/AGENTS.md is not loaded.
 d=$1; p=$2; mkdir -p "$d"; cd "$d"
 start=$(date +%s)

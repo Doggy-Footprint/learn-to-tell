@@ -1,4 +1,3 @@
-# usage: python3 analyze.py <workdir-root>   (root/<topic>/{skill,baseline}/out.jsonl)
 import json, os, sys
 
 def tok(u):
