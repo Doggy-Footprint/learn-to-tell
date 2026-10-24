@@ -1,0 +1,17 @@
+{
+  "name": "learn-to-tell",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "ltt-check": "packages/check/bin/ltt-check.mjs"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "parse5": "^8.0.0",
+    "vega": "6.4.0",
+    "vega-lite": "6.5.0"
+  }
+}
