@@ -1,0 +1,5 @@
+{"ts":"2026-10-24T01:43:25.150Z","cmd":"check","file":"$G/skill-attacker-moves-second/lesson.js","ms":506,"exit":1,"counts":{"type":0,"check":7,"layout":4}}
+{"ts":"2026-10-24T01:43:31.957Z","cmd":"check","file":"$G/skill-attacker-moves-second/lesson.js","ms":428,"exit":0,"counts":{"type":0,"check":0,"layout":0}}
+{"ts":"2026-10-24T01:44:03.192Z","cmd":"sheet","file":"$G/skill-attacker-moves-second/lesson.js","ms":27199,"exit":0,"counts":{"runtimeErrors":0,"layoutViolations":0,"images":8}}
+{"ts":"2026-10-24T01:44:03.329Z","cmd":"digest","file":"$G/skill-attacker-moves-second/lesson.js","ms":3,"exit":0,"counts":{}}
+{"ts":"2026-10-24T01:44:28.827Z","cmd":"check","file":"$G/skill-attacker-moves-second/lesson.js","ms":406,"exit":0,"counts":{"type":0,"check":0,"layout":0}}

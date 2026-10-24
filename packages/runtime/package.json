@@ -1,0 +1,17 @@
+{
+  "name": "@doggy-footprint/ltt-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "ltt": "bin/ltt.mjs" },
+  "exports": {
+    ".": "./dist/ltt-runtime.js",
+    "./core": "./src/core/index.mjs",
+    "./layout": "./src/layout/index.mjs",
+    "./check": "./src/check/index.mjs",
+    "./digest": "./src/cli/digest.mjs"
+  },
+  "scripts": {
+    "build": "node build.mjs"
+  }
+}

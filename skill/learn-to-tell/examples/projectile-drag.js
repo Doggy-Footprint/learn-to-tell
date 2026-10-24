@@ -166,6 +166,8 @@ export default (api) => {
             return /** @type {[number, number]} */ ([deg, fly({ v0: 40, deg, vt: 20, drag: true }).range]);
           });
           return [
+            api.axis("x", { label: "발사각" }),
+            api.axis("y", { label: "사거리" }),
             api.grid({ x: 15 }),
             api.line(pts, { id: "range-curve", curve: "smooth" }),
             api.dot([45, pts[8][1]], { id: "deg45", tone: "ref", label: "45°" }),

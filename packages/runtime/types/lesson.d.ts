@@ -189,12 +189,12 @@ export interface Api {
   polar(o: { r: Axis; theta?: [number, number]; ring?: boolean } & TimeSpec): Frame;
   /** Points are [time, lane index]. */
   lanes(o: { time: Axis; lanes: string[] } & TimeSpec): Frame;
-  /** Data window is [0,1]×[0,1]; layout places nodes inside it. Other marks in the frame use the same window. */
+  /** Window [0,1]² maps to the node bounding box; ELK places the union of all samples once, so nodes stay fixed over t and step. */
   graph(o: { layout: "tree" | "layered" | "force" | "sankey"; direction?: "down" | "right" } & TimeSpec): Frame;
-  /** Points are [col, row]. */
+  /** Points are [col, row]; row 0 is the top row and rows grow downward. */
   cells(o: { cols: number; rows: number } & TimeSpec): Frame;
   space3d(o: Space3dOpts & TimeSpec): Frame;
-  /** Points are [lon, lat] degrees. */
+  /** Points are [lon, lat] degrees; region fits a named area; line, path and arrow follow great circles. */
   geo(o: GeoOpts & TimeSpec): Frame;
 
   /** Runtime chooses tick count and number format, and appends the axis unit. */
@@ -238,7 +238,7 @@ export interface Api {
   math(at: P, tex: string, o?: MarkOpts): Mark;
   /** highlight: 1-based line numbers. */
   code(at: P, source: string, o?: { lang?: string; highlight?: number[] } & MarkOpts): Mark;
-  /** Device frame around children placed in box. */
+  /** box is the content area; the device frame sits outside it. Children use parent data coordinates, clipped to box. */
   mock(kind: "browser" | "phone" | "window", box: [P, P], children: MarkTree, o?: { title?: Text } & MarkOpts): Mark;
 
   /** Path of series up to model time t; dims picks state components as x and y. */

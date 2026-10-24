@@ -1,0 +1,5 @@
+{"ts":"2026-10-24T01:44:23.836Z","cmd":"check","file":"$G/skill-global-supply-chain/lesson.js","ms":573,"exit":1,"counts":{"type":0,"check":1,"layout":1}}
+{"ts":"2026-10-24T01:44:32.091Z","cmd":"check","file":"$G/skill-global-supply-chain/lesson.js","ms":486,"exit":1,"counts":{"type":0,"check":1,"layout":0}}
+{"ts":"2026-10-24T01:44:39.728Z","cmd":"check","file":"$G/skill-global-supply-chain/lesson.js","ms":520,"exit":1,"counts":{"type":0,"check":1,"layout":0}}
+{"ts":"2026-10-24T01:45:16.533Z","cmd":"sheet","file":"$G/skill-global-supply-chain/lesson.js","ms":26961,"exit":0,"counts":{"runtimeErrors":0,"layoutViolations":0,"images":8}}
+{"ts":"2026-10-24T01:45:16.669Z","cmd":"digest","file":"$G/skill-global-supply-chain/lesson.js","ms":3,"exit":0,"counts":{}}

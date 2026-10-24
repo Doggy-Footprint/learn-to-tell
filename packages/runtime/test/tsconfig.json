@@ -11,5 +11,5 @@
     "moduleResolution": "bundler",
     "paths": { "ltt": ["../types/lesson.d.ts"] }
   },
-  "include": ["types/**/*.js", "../../../skill/learn-to-tell/examples/projectile-drag.js"]
+  "include": ["types/**/*.js", "lessons/**/*.js", "../../../skill/learn-to-tell/examples/projectile-drag.js"]
 }

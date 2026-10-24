@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>"투박하다"를 분해하기 — 세련된 관리자 UI의 구성 요소</title>
+<style>
+  :root{
+    --bg:#f7f7f8; --surface:#fff; --text:#18181b; --muted:#71717a; --faint:#a1a1aa;
+    --line:#e4e4e7; --accent:#4f46e5; --accent-soft:#eef2ff;
+    --ok:#15803d; --ok-soft:#f0fdf4; --warn:#b45309; --warn-soft:#fffbeb; --bad:#b91c1c; --bad-soft:#fef2f2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    line-height:1.7;font-size:16px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:56px 24px 120px}
+  header h1{font-size:34px;line-height:1.25;letter-spacing:-.02em;margin:0 0 12px}
+  header p{color:var(--muted);margin:0;max-width:680px}
+  nav.toc{margin:32px 0 8px;display:flex;flex-wrap:wrap;gap:8px}
+  nav.toc a{font-size:13px;color:var(--muted);text-decoration:none;border:1px solid var(--line);
+    background:var(--surface);padding:4px 10px;border-radius:999px}
+  nav.toc a:hover{color:var(--accent);border-color:var(--accent)}
+  section{margin-top:72px}
+  h2{font-size:24px;letter-spacing:-.01em;margin:0 0 6px}
+  h2 .n{color:var(--accent);margin-right:8px;font-variant-numeric:tabular-nums}
+  .lede{color:var(--muted);margin:0 0 20px}
+  h3{font-size:16px;margin:28px 0 8px}
+  p{margin:0 0 12px}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em;background:#f1f1f3;padding:1px 5px;border-radius:4px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:24px}
+  .callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:14px 18px;border-radius:0 8px 8px 0;margin:16px 0}
+  .callout b{color:var(--accent)}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+  @media(max-width:720px){.pair{grid-template-columns:1fr}}
+  .pair figure{margin:0}
+  .pair figcaption{font-size:12px;font-weight:600;letter-spacing:.04em;margin-bottom:6px}
+  .pair .bad figcaption{color:var(--bad)} .pair .good figcaption{color:var(--ok)}
+  .stage{background:var(--surface);border:1px dashed #d4d4d8;border-radius:10px;padding:20px;min-height:140px}
+  .why{font-size:14px;color:var(--muted);margin-top:8px}
+  ul.tight{margin:0 0 12px;padding-left:20px} ul.tight li{margin:4px 0}
+  table.ref{width:100%;border-collapse:collapse;font-size:14px;margin:12px 0}
+  table.ref th,table.ref td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  table.ref th{font-size:12px;color:var(--muted);font-weight:600}
+
+  /* ---------- 인터랙티브 랩 ---------- */
+  .lab-controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .lab-controls label{display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;
+    border:1px solid var(--line);background:var(--surface);padding:6px 12px;border-radius:8px;user-select:none}
+  .lab-controls label:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .lab-controls button{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--surface);padding:6px 12px;border-radius:8px;cursor:pointer}
+  .lab-note{font-size:14px;color:var(--muted);min-height:1.7em;margin:-4px 0 12px}
+
+  /* 기본(투박) 상태: 브라우저 기본값 + 흔한 실수 */
+  #lab{font-family:Arial,sans-serif;font-size:14px;line-height:1.3;color:#000;background:#fff;border:1px solid #999;padding:6px}
+  #lab .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+  #lab .title{font-size:20px;font-weight:bold;color:#000}
+  #lab .sub{font-size:14px;color:#000}
+  #lab .actions{display:flex;gap:2px}
+  #lab .btn{font:inherit;padding:2px 6px;border:1px solid #666;background:#ddd;color:#000;border-radius:0;cursor:pointer}
+  #lab .btn.primary{background:#0000ff;color:#fff;border-color:#00f}
+  #lab .btn.danger{background:#ff0000;color:#fff;border-color:#f00}
+  #lab .filters{display:flex;gap:2px;margin-bottom:4px}
+  #lab input.search{font:inherit;padding:2px;border:1px solid #666;width:200px}
+  #lab table{width:100%;border-collapse:collapse}
+  #lab th,#lab td{border:1px solid #999;padding:3px;text-align:center}
+  #lab th{background:#ccc;font-weight:bold}
+  #lab .badge{font-weight:bold}
+  #lab .badge.ok{color:#00ff00} #lab .badge.warn{color:#ff9900} #lab .badge.bad{color:#ff0000}
+  #lab .num{}
+  #lab .empty-email{}
+  #lab .row-actions .btn{padding:1px 4px}
+
+  /* 1. 간격 */
+  #lab.f-space{padding:24px}
+  #lab.f-space .top{margin-bottom:20px}
+  #lab.f-space .sub{margin-top:4px}
+  #lab.f-space .actions,#lab.f-space .filters{gap:8px}
+  #lab.f-space .filters{margin-bottom:16px}
+  #lab.f-space .btn{padding:7px 14px}
+  #lab.f-space input.search{padding:7px 10px}
+  #lab.f-space th,#lab.f-space td{padding:12px 14px}
+  #lab.f-space .row-actions .btn{padding:4px 10px}
+
+  /* 2. 타이포그래피 */
+  #lab.f-type{font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo",sans-serif;line-height:1.5}
+  #lab.f-type .title{font-size:20px;font-weight:650;letter-spacing:-.01em}
+  #lab.f-type .sub{font-size:13px}
+  #lab.f-type th{font-size:12px;font-weight:600;letter-spacing:.02em}
+  #lab.f-type td{font-size:14px}
+  #lab.f-type .btn{font-weight:500}
+  #lab.f-type .num{font-variant-numeric:tabular-nums}
+
+  /* 3. 색 */
+  #lab.f-color{color:#18181b}
+  #lab.f-color .title{color:#18181b}
+  #lab.f-color .sub{color:#71717a}
+  #lab.f-color th{background:#fafafa;color:#71717a}
+  #lab.f-color .btn{background:#fff;color:#27272a;border-color:#d4d4d8}
+  #lab.f-color .btn.primary{background:#4f46e5;border-color:#4f46e5;color:#fff}
+  #lab.f-color .btn.danger{background:#fff;color:#b91c1c;border-color:#fecaca}
+  #lab.f-color .badge{font-weight:500;padding:2px 8px;border-radius:999px;font-size:12px}
+  #lab.f-color .badge.ok{color:#15803d;background:#f0fdf4}
+  #lab.f-color .badge.warn{color:#b45309;background:#fffbeb}
+  #lab.f-color .badge.bad{color:#b91c1c;background:#fef2f2}
+  #lab.f-color .empty-email{color:#a1a1aa}
+  #lab.f-color .sub-cell{color:#71717a}
+
+  /* 4. 경계·깊이 */
+  #lab.f-edge{border:1px solid #e4e4e7;border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  #lab.f-edge th,#lab.f-edge td{border:0;border-bottom:1px solid #f0f0f2}
+  #lab.f-edge tbody tr:last-child td{border-bottom:0}
+  #lab.f-edge th{border-bottom:1px solid #e4e4e7}
+  #lab.f-edge .btn{border-radius:8px}
+  #lab.f-edge input.search{border-radius:8px;border-color:#d4d4d8}
+  #lab.f-edge.f-color input.search{border-color:#e4e4e7}
+
+  /* 5. 정렬 */
+  #lab.f-align th,#lab.f-align td{text-align:left}
+  #lab.f-align th.r,#lab.f-align td.r{text-align:right}
+  #lab.f-align .top{align-items:center}
+  #lab.f-align .row-actions{text-align:right}
+
+  /* 6. 상태·피드백 */
+  #lab.f-state tbody tr{transition:background .12s}
+  #lab.f-state tbody tr:hover{background:#fafafa}
+  #lab.f-state .btn{transition:background .12s,border-color .12s}
+  #lab.f-state .btn:hover{filter:brightness(.96)}
+  #lab.f-state .btn:focus-visible,#lab.f-state input.search:focus{outline:2px solid #4f46e5;outline-offset:2px}
+  #lab.f-state .row-actions .btn{opacity:0;transition:opacity .12s}
+  #lab.f-state tbody tr:hover .row-actions .btn{opacity:1}
+
+  /* ---------- 미니 데모 공용 ---------- */
+  .d-btn{font:inherit;font-size:14px;border-radius:8px;padding:8px 14px;border:1px solid #d4d4d8;background:#fff;cursor:pointer}
+  .swatch{display:flex;gap:6px;flex-wrap:wrap}
+  .swatch span{width:44px;height:44px;border-radius:8px;display:flex;align-items:flex-end;padding:3px;font-size:10px}
+  .spacing-ruler{display:flex;align-items:flex-end;gap:10px;margin:12px 0;font-size:12px;color:var(--muted)}
+  .spacing-ruler div{background:var(--accent);opacity:.8;border-radius:2px;width:14px}
+  .checklist li{margin:8px 0}
+  .checklist input{margin-right:8px;transform:translateY(1px)}
+  .score{font-weight:600;color:var(--accent)}
+  footer{margin-top:80px;color:var(--faint);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>"투박하다"를 분해하기</h1>
+  <p>세련됨은 감각이 아니라 <b>여러 개의 작은 결정이 일관되게 쌓인 결과</b>다. 이 문서는 관리자 화면을 "투박하게" 만드는 요소를 6가지로 쪼개고, 각각을 직접 켜고 끄며 차이를 체감한 뒤, 우리 화면에서 어디부터 고칠지 판단하는 체크리스트로 마무리한다.</p>
+  <nav class="toc">
+    <a href="#lab">0. 실험실</a><a href="#s1">1. 간격</a><a href="#s2">2. 타이포</a><a href="#s3">3. 색</a>
+    <a href="#s4">4. 경계·깊이</a><a href="#s5">5. 정렬</a><a href="#s6">6. 상태</a><a href="#s7">7. 일관성</a><a href="#check">진단 체크리스트</a>
+  </nav>
+</header>
+
+<section id="s0">
+  <h2><span class="n">0</span>실험실: 하나씩 켜 보기</h2>
+  <p class="lede">아래는 흔한 "투박한" 회원 관리 화면이다. 데이터·기능·마크업은 그대로 두고 <b>CSS만</b> 원리별로 덧입힌다. 하나씩 켜면서 어느 것이 가장 큰 차이를 내는지 느껴 보자.</p>
+  <div class="lab-controls" id="controls">
+    <label><input type="checkbox" data-f="f-space">1. 간격</label>
+    <label><input type="checkbox" data-f="f-type">2. 타이포</label>
+    <label><input type="checkbox" data-f="f-color">3. 색</label>
+    <label><input type="checkbox" data-f="f-edge">4. 경계·깊이</label>
+    <label><input type="checkbox" data-f="f-align">5. 정렬</label>
+    <label><input type="checkbox" data-f="f-state">6. 상태</label>
+    <button type="button" id="all">모두 켜기</button>
+    <button type="button" id="none">초기화</button>
+  </div>
+  <div class="lab-note" id="note">체크박스를 눌러 보자. 추천 순서: 간격 → 색 → 타이포.</div>
+
+  <div id="lab">
+    <div class="top">
+      <div><div class="title">회원 관리</div><div class="sub">전체 회원 1,284명</div></div>
+      <div class="actions"><button class="btn">내보내기</button><button class="btn primary">회원 추가</button></div>
+    </div>
+    <div class="filters"><input class="search" placeholder="이름, 이메일 검색"><button class="btn">상태: 전체</button><button class="btn">가입일</button></div>
+    <table>
+      <thead><tr><th>이름</th><th>이메일</th><th>상태</th><th class="r">결제액</th><th class="r">가입일</th><th class="r"></th></tr></thead>
+      <tbody>
+        <tr><td>김지훈</td><td class="sub-cell">jihoon@corp.kr</td><td><span class="badge ok">활성</span></td><td class="r num">1,250,000원</td><td class="r num sub-cell">2025.03.14</td><td class="row-actions"><button class="btn">편집</button> <button class="btn danger">삭제</button></td></tr>
+        <tr><td>이서연</td><td class="sub-cell">seoyeon@corp.kr</td><td><span class="badge warn">대기</span></td><td class="r num">89,000원</td><td class="r num sub-cell">2025.11.02</td><td class="row-actions"><button class="btn">편집</button> <button class="btn danger">삭제</button></td></tr>
+        <tr><td>박민준</td><td class="empty-email">—</td><td><span class="badge bad">정지</span></td><td class="r num">0원</td><td class="r num sub-cell">2024.07.21</td><td class="row-actions"><button class="btn">편집</button> <button class="btn danger">삭제</button></td></tr>
+        <tr><td>최유나</td><td class="sub-cell">yuna.choi@corp.kr</td><td><span class="badge ok">활성</span></td><td class="r num">11,400원</td><td class="r num sub-cell">2026.01.09</td><td class="row-actions"><button class="btn">편집</button> <button class="btn danger">삭제</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout"><b>관찰 포인트.</b> 대부분의 사람은 "간격"과 "색"을 켰을 때 가장 큰 변화를 느낀다. 투박함의 70%는 <i>숨 쉴 공간이 없고</i>, <i>모든 것이 같은 세기로 소리친다</i>는 데서 온다. 새로운 장식을 더하는 게 아니라 <b>덜어내고 위계를 만드는 것</b>이 핵심이다.</div>
+</section>
+
+<section id="s1">
+  <h2><span class="n">1</span>간격 (Spacing)</h2>
+  <p class="lede">가장 효과가 크고, 가장 쉽게 고칠 수 있다.</p>
+  <h3>원리 ① 스케일을 정하고 그 값만 쓴다</h3>
+  <p>4px 배수(4·8·12·16·24·32·48·64)만 허용하면, 개별 결정이 사라지고 화면 전체에 리듬이 생긴다. <code>margin: 13px</code>, <code>padding: 7px 9px</code> 같은 값이 코드에 흩어져 있다면 그 자체가 투박함의 신호다.</p>
+  <div class="spacing-ruler">
+    <div style="height:4px"></div>4<div style="height:8px"></div>8<div style="height:12px"></div>12<div style="height:16px"></div>16
+    <div style="height:24px"></div>24<div style="height:32px"></div>32<div style="height:48px"></div>48<div style="height:64px"></div>64
+  </div>
+  <h3>원리 ② 근접성: 관련된 것은 가깝게, 다른 그룹은 멀게</h3>
+  <p>간격 자체보다 <b>간격의 차이</b>가 정보를 전달한다. 라벨과 입력창 사이(4–8px)는 필드와 필드 사이(16–24px)보다 확실히 좁아야 그룹이 읽힌다.</p>
+  <div class="pair">
+    <figure class="bad"><figcaption>✕ 모든 간격이 같음</figcaption><div class="stage" style="font-size:14px">
+      <div style="margin-bottom:12px">이름</div><div style="margin-bottom:12px;border:1px solid #ccc;padding:6px;border-radius:6px">김지훈</div>
+      <div style="margin-bottom:12px">이메일</div><div style="border:1px solid #ccc;padding:6px;border-radius:6px">jihoon@corp.kr</div></div>
+      <div class="why">라벨이 위 입력창 소속인지 아래 입력창 소속인지 애매하다.</div></figure>
+    <figure class="good"><figcaption>✓ 그룹 내 6px, 그룹 간 20px</figcaption><div class="stage" style="font-size:14px">
+      <div style="margin-bottom:6px;font-weight:500">이름</div><div style="margin-bottom:20px;border:1px solid #d4d4d8;padding:8px 10px;border-radius:8px">김지훈</div>
+      <div style="margin-bottom:6px;font-weight:500">이메일</div><div style="border:1px solid #d4d4d8;padding:8px 10px;border-radius:8px">jihoon@corp.kr</div></div>
+      <div class="why">눈이 자동으로 [라벨+입력] 묶음 두 개로 읽는다.</div></figure>
+  </div>
+  <h3>원리 ③ 생각보다 넉넉하게</h3>
+  <p>개발자가 "적당하다"고 느끼는 패딩은 대개 디자이너 기준의 절반이다. 의심되면 <b>두 배로 늘려본 뒤 줄여 나가라</b>. 관리자 화면은 밀도가 중요하지만, 밀도는 행 높이(테이블 셀 패딩)로 조절하고 컨테이너 바깥 여백은 아끼지 않는다.</p>
+</section>
+
+<section id="s2">
+  <h2><span class="n">2</span>타이포그래피</h2>
+  <p class="lede">크기 하나로 위계를 만들려 하면 투박해진다. 크기·굵기·색 세 축을 같이 쓴다.</p>
+  <div class="pair">
+    <figure class="bad"><figcaption>✕ 크기로만 위계</figcaption><div class="stage" style="font-family:Arial">
+      <div style="font-size:26px;font-weight:bold">이번 달 매출</div><div style="font-size:22px;font-weight:bold">₩48,210,000</div><div style="font-size:16px">전월 대비 +12.4%</div></div></figure>
+    <figure class="good"><figcaption>✓ 크기 + 굵기 + 색</figcaption><div class="stage">
+      <div style="font-size:13px;color:#71717a;font-weight:500">이번 달 매출</div>
+      <div style="font-size:28px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0 4px">₩48,210,000</div>
+      <div style="font-size:13px;color:#15803d;font-weight:500">▲ 12.4% <span style="color:#a1a1aa;font-weight:400">전월 대비</span></div></div></figure>
+  </div>
+  <p class="why">세련된 쪽은 오히려 <b>라벨을 작고 흐리게</b> 했다. 중요한 것을 키우는 것만큼 덜 중요한 것을 낮추는 게 효과적이다.</p>
+  <table class="ref">
+    <tr><th>요소</th><th>흔한 실수</th><th>권장</th></tr>
+    <tr><td>크기 단계</td><td>13, 14, 15, 17, 18px가 섞여 있음</td><td>12 / 14 / 16 / 20 / 24 / 30 정도로 5–6단계 고정</td></tr>
+    <tr><td>굵기</td><td>regular(400)와 bold(700)만 사용</td><td>400 본문 · 500 라벨/버튼 · 600 제목. 700은 드물게</td></tr>
+    <tr><td>행간</td><td>브라우저 기본 / 1.2로 빽빽</td><td>본문 1.5–1.7, 큰 제목은 1.2–1.3</td></tr>
+    <tr><td>자간</td><td>건드리지 않음</td><td>24px 이상 제목은 <code>-0.01~-0.02em</code></td></tr>
+    <tr><td>숫자</td><td>비례폭이라 열에서 들쭉날쭉</td><td><code>font-variant-numeric: tabular-nums</code></td></tr>
+    <tr><td>폰트</td><td>Arial/굴림 폴백, 한글·영문 불일치</td><td>Pretendard 또는 시스템 폰트 스택 하나로 통일</td></tr>
+  </table>
+</section>
+
+<section id="s3">
+  <h2><span class="n">3</span>색</h2>
+  <p class="lede">투박한 화면은 색이 "많아서"가 아니라 "세서" 투박하다.</p>
+  <h3>원리 ① 화면의 90%는 무채색이다</h3>
+  <p>배경·텍스트·테두리는 회색 계열 한 팔레트(예: zinc, slate)에서 고른다. 순수 <code>#000</code> 텍스트 대신 <code>#18181b</code> 같은 아주 짙은 회색을 쓰면 대비는 유지하면서 날카로움이 빠진다.</p>
+  <div class="swatch">
+    <span style="background:#fafafa;border:1px solid #eee">50</span><span style="background:#f4f4f5">100</span><span style="background:#e4e4e7">200</span><span style="background:#d4d4d8">300</span>
+    <span style="background:#a1a1aa">400</span><span style="background:#71717a;color:#fff">500</span><span style="background:#3f3f46;color:#fff">700</span><span style="background:#18181b;color:#fff">900</span>
+    <span style="background:#4f46e5;color:#fff;margin-left:12px">accent</span>
+  </div>
+  <p class="why">텍스트 3단계: 900(본문) · 500(보조) · 400(비활성/플레이스홀더). 테두리: 200. 배경 구분: 50.</p>
+  <h3>원리 ② 강조색은 하나, 그리고 아껴 쓴다</h3>
+  <p>화면에서 강조색(primary)이 칠해진 버튼은 보통 하나다. "회원 추가"와 "저장"이 둘 다 파란색이면 어느 것도 강조되지 않는다.</p>
+  <h3>원리 ③ 상태색은 "연한 배경 + 진한 글자"</h3>
+  <div class="pair">
+    <figure class="bad"><figcaption>✕ 원색 글자 / 원색 배경</figcaption><div class="stage" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-family:Arial">
+      <span style="color:#0f0;font-weight:bold">활성</span><span style="background:#ff0;padding:2px 6px">대기</span><span style="background:#f00;color:#fff;padding:2px 6px">정지</span>
+      <button style="background:#f00;color:#fff;border:0;padding:4px 8px">삭제</button></div>
+      <div class="why">형광 초록은 흰 배경에서 읽히지도 않는다. 삭제 버튼이 화면에서 가장 눈에 띄는 요소가 된다.</div></figure>
+    <figure class="good"><figcaption>✓ 톤다운된 의미색</figcaption><div class="stage" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px">
+      <span style="color:#15803d;background:#f0fdf4;padding:2px 10px;border-radius:999px;font-weight:500">활성</span>
+      <span style="color:#b45309;background:#fffbeb;padding:2px 10px;border-radius:999px;font-weight:500">대기</span>
+      <span style="color:#b91c1c;background:#fef2f2;padding:2px 10px;border-radius:999px;font-weight:500">정지</span>
+      <button class="d-btn" style="color:#b91c1c;border-color:#fecaca;font-size:13px">삭제</button></div>
+      <div class="why">위험한 동작은 "눈에 띄게"가 아니라 "구분되게". 진짜 빨간 버튼은 확인 모달 안에서만.</div></figure>
+  </div>
+</section>
+
+<section id="s4">
+  <h2><span class="n">4</span>경계와 깊이</h2>
+  <p class="lede">선을 그어 나누는 대신, 공간과 배경으로 나눈다.</p>
+  <ul class="tight">
+    <li><b>테두리를 줄여라.</b> 테이블의 모든 칸에 세로선까지 긋는 "엑셀 격자"는 투박함의 대표 원인. 가로 구분선 하나(또는 줄무늬 없이 여백만)로 충분하다.</li>
+    <li><b>테두리는 연하게.</b> <code>#999</code>가 아니라 <code>#e4e4e7</code>. 선은 보일 듯 말 듯해야 구조만 남고 소음은 사라진다.</li>
+    <li><b>그림자는 아주 약하게.</b> <code>0 1px 2px rgba(0,0,0,.05)</code> 수준. 진하고 퍼진 그림자는 2010년대 느낌을 준다. 떠 있는 요소(드롭다운, 모달)만 조금 더 진하게.</li>
+    <li><b>둥근 모서리를 통일.</b> 버튼·입력 6–8px, 카드 10–12px, 배지는 완전 원형(999px). 0px과 4px과 12px이 섞이면 어색하다.</li>
+    <li><b>중첩 반경 규칙.</b> 안쪽 반경 = 바깥 반경 − 패딩. 카드(12px) 안에 패딩 4px로 버튼이 꽉 차면 버튼 반경은 8px.</li>
+  </ul>
+  <div class="pair">
+    <figure class="bad"><figcaption>✕ 선으로 나눔</figcaption><div class="stage" style="padding:0;border:2px solid #888;font-family:Arial;font-size:14px">
+      <div style="padding:8px;border-bottom:2px solid #888;background:#ddd;font-weight:bold">알림 설정</div>
+      <div style="padding:8px;border-bottom:1px solid #888">이메일 알림 <input type="checkbox" checked></div>
+      <div style="padding:8px">SMS 알림 <input type="checkbox"></div></div></figure>
+    <figure class="good"><figcaption>✓ 여백과 아주 연한 선</figcaption><div class="stage" style="border:1px solid #e4e4e7;border-style:solid;box-shadow:0 1px 2px rgba(0,0,0,.04);border-radius:12px;font-size:14px;padding:20px">
+      <div style="font-weight:600;margin-bottom:2px">알림 설정</div><div style="color:#71717a;font-size:13px;margin-bottom:16px">중요한 변경 사항을 받아볼 채널</div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid #f0f0f2">이메일 알림 <input type="checkbox" checked></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid #f0f0f2">SMS 알림 <input type="checkbox"></div></div></figure>
+  </div>
+</section>
+
+<section id="s5">
+  <h2><span class="n">5</span>정렬</h2>
+  <p class="lede">보이지 않는 선이 많을수록 정돈돼 보인다.</p>
+  <ul class="tight">
+    <li><b>텍스트는 왼쪽, 숫자는 오른쪽.</b> 테이블의 가운데 정렬은 거의 항상 틀렸다. 금액·수량은 오른쪽 정렬 + tabular-nums 로 자릿수가 맞아야 비교가 된다.</li>
+    <li><b>헤더도 데이터와 같은 방향으로.</b> 숫자 열 헤더가 왼쪽이면 열이 "어긋나" 보인다.</li>
+    <li><b>정렬 축을 줄인다.</b> 페이지 제목, 필터, 테이블 첫 열의 왼쪽 끝이 한 선에 있는지 확인. 각자 다른 들여쓰기는 산만함의 원인.</li>
+    <li><b>세로 중앙 정렬.</b> 아이콘+텍스트, 제목+버튼 묶음은 <code>align-items: center</code>. 아이콘이 1–2px 내려가 있는 것만으로 "뭔가 이상하다"가 된다.</li>
+  </ul>
+  <div class="pair">
+    <figure class="bad"><figcaption>✕ 가운데 정렬</figcaption><div class="stage" style="font-family:Arial;font-size:14px">
+      <table style="width:100%;text-align:center"><tr><td>1,250,000</td></tr><tr><td>89,000</td></tr><tr><td>11,400</td></tr></table></div></figure>
+    <figure class="good"><figcaption>✓ 오른쪽 + 고정폭 숫자</figcaption><div class="stage" style="font-size:14px">
+      <table style="width:100%;text-align:right;font-variant-numeric:tabular-nums"><tr><td>1,250,000</td></tr><tr><td>89,000</td></tr><tr><td>11,400</td></tr></table></div></figure>
+  </div>
+</section>
+
+<section id="s6">
+  <h2><span class="n">6</span>상태와 피드백</h2>
+  <p class="lede">정적인 스크린샷에선 안 보이지만, 쓰는 순간 "싸구려" 느낌을 결정한다.</p>
+  <table class="ref">
+    <tr><th>상태</th><th>투박한 처리</th><th>세련된 처리</th></tr>
+    <tr><td>hover</td><td>아무 변화 없음 / 색이 확 바뀜</td><td>배경을 한 단계만 어둡게, 120–150ms 트랜지션</td></tr>
+    <tr><td>focus</td><td><code>outline: none</code>으로 지움</td><td><code>:focus-visible</code>에 강조색 2px 링 + offset</td></tr>
+    <tr><td>disabled</td><td>회색 배경 + 그대로 클릭 가능해 보임</td><td>opacity .5, <code>cursor: not-allowed</code></td></tr>
+    <tr><td>로딩</td><td>화면 전체가 멈추거나 빈 화면</td><td>버튼 내부 스피너, 테이블은 스켈레톤 행</td></tr>
+    <tr><td>빈 상태</td><td>"데이터가 없습니다." 한 줄</td><td>이유 + 다음 행동 버튼("첫 회원 추가하기")</td></tr>
+    <tr><td>행 액션</td><td>모든 행에 버튼이 상시 노출</td><td>hover 시 노출 또는 ⋯ 메뉴로 접기</td></tr>
+  </table>
+  <h3>직접 눌러 보기</h3>
+  <div class="pair">
+    <figure class="bad"><figcaption>✕</figcaption><div class="stage" style="display:flex;gap:8px;align-items:center">
+      <button style="font:14px Arial;padding:6px 10px;background:#ddd;border:1px solid #666;outline:none">저장</button>
+      <button style="font:14px Arial;padding:6px 10px;background:#ddd;border:1px solid #666;color:#999" onclick="alert('비활성처럼 보이는데 눌린다')">비활성?</button></div>
+      <div class="why">Tab으로 이동해 보자. 포커스가 어디 있는지 안 보인다.</div></figure>
+    <figure class="good"><figcaption>✓</figcaption><div class="stage" style="display:flex;gap:8px;align-items:center">
+      <button class="d-btn demo-good" style="background:#4f46e5;color:#fff;border-color:#4f46e5" id="saveBtn">저장</button>
+      <button class="d-btn" disabled style="opacity:.5;cursor:not-allowed">비활성</button></div>
+      <div class="why">저장을 눌러 보자. 버튼 안에서 진행 상태를 알려준다.</div></figure>
+  </div>
+  <style>
+    .demo-good,.d-btn{transition:filter .12s,box-shadow .12s}
+    .d-btn:not(:disabled):hover{filter:brightness(.95)}
+    .d-btn:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
+  </style>
+</section>
+
+<section id="s7">
+  <h2><span class="n">7</span>모든 것을 묶는 것: 일관성</h2>
+  <p class="lede">위 1–6은 "규칙"이고, 세련됨은 그 규칙이 <b>예외 없이</b> 지켜질 때 나온다.</p>
+  <p>한 화면만 예쁘게 고치는 것은 의미가 적다. 사용자가 투박하다고 느끼는 지점은 종종 <i>페이지마다 버튼 높이가 다르고, 어떤 모달은 둥글고 어떤 모달은 각진</i> 불일치다. 그래서 고치는 순서는 "화면"이 아니라 "토큰"이어야 한다.</p>
+  <div class="card" style="font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.6;white-space:pre;overflow-x:auto">:root {
+  /* 간격 */  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px;
+  /* 글자 */  --text-xs: 12px; --text-sm: 14px; --text-base: 16px; --text-lg: 20px; --text-xl: 24px;
+  /* 색 */    --gray-50: #fafafa; --gray-200: #e4e4e7; --gray-500: #71717a; --gray-900: #18181b; --accent: #4f46e5;
+  /* 형태 */  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px;
+  /* 깊이 */  --shadow-sm: 0 1px 2px rgb(0 0 0 / .05); --shadow-md: 0 4px 12px rgb(0 0 0 / .08);
+}</div>
+  <div class="callout"><b>컴포넌트 라이브러리를 쓰는데도 투박하다면?</b> 대부분 원인은 라이브러리 바깥에 있다. ① 라이브러리 컴포넌트 사이의 <i>레이아웃 여백</i>을 직접 쓴 값으로 채움 ② 테마 토큰을 커스터마이즈하지 않고 기본 원색(primary blue 등)을 그대로 씀 ③ <code>style={{ … }}</code> 인라인으로 개별 화면에서 덮어씀. 라이브러리의 theme 설정 파일과, 페이지 레이아웃 컴포넌트를 먼저 보자.</div>
+</section>
+
+<section id="check">
+  <h2><span class="n">✓</span>우리 화면 진단 체크리스트</h2>
+  <p class="lede">실제 관리자 페이지 하나를 열어 놓고 체크해 보자. 체크되지 <b>않은</b> 항목이 고칠 곳이다. 위에서부터 영향이 큰 순서다.</p>
+  <ol class="checklist" id="checklist">
+    <li><label><input type="checkbox">페이지 바깥 여백이 24px 이상이고, 카드/섹션 사이 간격이 일정하다</label></li>
+    <li><label><input type="checkbox">코드에 4의 배수가 아닌 margin/padding 값이 거의 없다</label></li>
+    <li><label><input type="checkbox">텍스트 색이 2–3단계(본문/보조/비활성)로 구분되고, 순수 #000이 아니다</label></li>
+    <li><label><input type="checkbox">채워진 강조색 버튼이 한 화면(또는 한 영역)에 하나뿐이다</label></li>
+    <li><label><input type="checkbox">상태 배지·삭제 버튼에 원색(#f00, #0f0)을 쓰지 않는다</label></li>
+    <li><label><input type="checkbox">테이블에 세로 구분선이 없고, 테두리 색이 연하다</label></li>
+    <li><label><input type="checkbox">숫자 열은 오른쪽 정렬 + tabular-nums 다</label></li>
+    <li><label><input type="checkbox">글자 크기가 5–6단계 이내이고, 굵기로도 위계를 준다</label></li>
+    <li><label><input type="checkbox">둥근 모서리 값이 요소 종류별로 통일돼 있다</label></li>
+    <li><label><input type="checkbox">그림자가 있다면 아주 약하고, 한두 종류뿐이다</label></li>
+    <li><label><input type="checkbox">Tab 키로 이동할 때 포커스가 보인다</label></li>
+    <li><label><input type="checkbox">hover·disabled·로딩·빈 상태가 모두 디자인돼 있다</label></li>
+    <li><label><input type="checkbox">같은 종류의 요소(버튼, 모달, 입력창)는 어느 페이지에서나 같은 모양이다</label></li>
+  </ol>
+  <p>점수: <span class="score" id="score">0 / 13</span> <span id="verdict" style="color:var(--muted)"></span></p>
+
+  <h3>고치는 순서 제안</h3>
+  <ol class="tight">
+    <li><b>토큰부터</b> — 위 CSS 변수(또는 라이브러리 theme)를 먼저 정한다. 하루짜리 작업이고 이후 모든 수정의 기준이 된다.</li>
+    <li><b>레이아웃 셸</b> — 페이지 공통 컨테이너의 여백, 페이지 헤더(제목+액션) 컴포넌트를 하나로 만든다. 모든 화면에 즉시 퍼진다.</li>
+    <li><b>테이블</b> — 관리자 화면 면적의 대부분. 구분선·정렬·셀 패딩·배지만 고쳐도 체감이 크다.</li>
+    <li><b>버튼 위계</b> — primary / secondary / ghost / danger 4종으로 정리하고 화면별로 primary가 하나인지 검토.</li>
+    <li><b>상태</b> — focus, 로딩, 빈 상태. 눈에 덜 띄지만 "완성도"의 마지막 20%.</li>
+  </ol>
+
+  <h3>감을 키우는 연습법</h3>
+  <ul class="tight">
+    <li>잘 만든 관리자 화면(Linear, Vercel, Stripe 대시보드 등)을 스크린샷 찍고, 개발자 도구로 <b>padding·font-size·color 값을 직접 재 본다</b>. 생각보다 여백은 크고 색은 흐리다.</li>
+    <li>내 화면과 레퍼런스를 나란히 놓고, 위 6개 축 중 어느 것이 가장 다른지 한 단어로 말해 본다. "투박하다"를 "간격이 좁다"로 바꿔 말할 수 있으면 고칠 수 있다.</li>
+    <li>화면을 흐리게(<code>filter: blur(3px)</code>) 보거나 눈을 가늘게 떠 본다. 그래도 위계가 보이면 잘 된 것이고, 회색 덩어리라면 대비·간격이 부족한 것이다.</li>
+  </ul>
+</section>
+
+<footer>이 문서의 모든 예시는 외부 의존성 없이 HTML/CSS로 작성되었다. 개발자 도구로 값을 직접 열어 보며 학습하자.</footer>
+</div>
+
+<script>
+  const lab = document.getElementById('lab');
+  const boxes = [...document.querySelectorAll('#controls input')];
+  const note = document.getElementById('note');
+  const notes = {
+    'f-space':'간격: 여백을 4px 스케일로 넓히고 그룹 간 거리를 벌렸다.',
+    'f-type':'타이포: 시스템 폰트, 행간 1.5, 굵기 단계, 표 헤더 축소, 고정폭 숫자.',
+    'f-color':'색: 무채색 텍스트 3단계, 강조색 하나, 상태색은 연한 배경+진한 글자.',
+    'f-edge':'경계·깊이: 격자선 제거, 연한 가로선, 둥근 모서리, 약한 그림자.',
+    'f-align':'정렬: 텍스트 왼쪽·숫자 오른쪽, 헤더 세로 중앙.',
+    'f-state':'상태: 행 hover, 행 액션은 hover 시에만, 포커스 링. 마우스를 올려 보자.'
+  };
+  boxes.forEach(b => b.addEventListener('change', () => {
+    lab.classList.toggle(b.dataset.f, b.checked);
+    note.textContent = b.checked ? '켬 → ' + notes[b.dataset.f] : '끔 → ' + notes[b.dataset.f];
+  }));
+  const setAll = v => boxes.forEach(b => { b.checked = v; lab.classList.toggle(b.dataset.f, v); });
+  document.getElementById('all').onclick = () => { setAll(true); note.textContent = '전부 켬. 마크업은 처음과 완전히 같다 — 바뀐 건 CSS뿐이다.'; };
+  document.getElementById('none').onclick = () => { setAll(false); note.textContent = '초기 상태. 추천 순서: 간격 → 색 → 타이포.'; };
+
+  const save = document.getElementById('saveBtn');
+  save.onclick = () => {
+    if (save.disabled) return;
+    save.disabled = true; save.style.opacity = .7; save.textContent = '저장 중…';
+    setTimeout(() => { save.textContent = '✓ 저장됨'; save.style.background = '#15803d'; save.style.borderColor = '#15803d'; save.style.opacity = 1; }, 900);
+    setTimeout(() => { save.disabled = false; save.textContent = '저장'; save.style.background = '#4f46e5'; save.style.borderColor = '#4f46e5'; }, 2200);
+  };
+
+  const checks = [...document.querySelectorAll('#checklist input')];
+  const score = document.getElementById('score'), verdict = document.getElementById('verdict');
+  const update = () => {
+    const n = checks.filter(c => c.checked).length;
+    score.textContent = n + ' / ' + checks.length;
+    verdict.textContent = n === 0 ? '' : n <= 5 ? '— 1·2번(토큰, 레이아웃 셸)부터 시작하자.' : n <= 10 ? '— 기본은 됐다. 테이블과 상태 처리를 다듬자.' : '— 남은 건 일관성 점검이다.';
+  };
+  checks.forEach(c => c.addEventListener('change', update));
+</script>
+</body>
+</html>

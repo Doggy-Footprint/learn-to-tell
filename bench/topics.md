@@ -3,6 +3,7 @@
 v1 시험 생성(2026-10-19–23)에서 쓴 주제 prompt의 상황·진단 부분이다. 원본은 로컬 `measurements/20261022-gallery-v2/prompts/`(17개)와 `measurements/20261020-final-check/prompts/cpu-cache.md`이고, v1 SKILL.md에 묶인 공통 지시(`common.md`)와 lesson id 줄은 뺐다.
 
 - 진단 결과는 고정값이다. bench는 진단 대화 없이 이 값을 `meta.learner`로 쓴다.
+- M1 생성 실험 주제(2026-10-24 추가): attacker-moves-second, global-supply-chain, polished-ui-components. 진단은 사용자 위임으로 main이 정했고, v1 산출물과 기준선이 없다.
 - v1 산출물: 17개는 `archive/v1:site/gallery/<분야>/<id>.html`, 그중 일반 요청 기준선이 있는 주제는 `archive/v1:site/compare1/<topic>/baseline.html`(cache-ttl, contrast, ontology, projectile, trolley; prompt 문구는 `archive/v1:site/compare1/index.html`에 있고 아래와 조금 다르다).
 
 ---
@@ -239,3 +240,41 @@ v1 시험 생성(2026-10-19–23)에서 쓴 주제 prompt의 상황·진단 부�
 - 학습 수준: 캐시 라인. 메모리 계층은 애매함이라 수업에 일부 넣는다.
 - 오개념: "구조체를 쓰면 데이터가 모여 있으니 항상 캐시에 유리하다"고 답했다.
 
+---
+
+## attacker-moves-second
+
+### 상황
+- 작업: 사내 문서 요약 agent에 prompt injection 방어를 붙이려 한다. 논문 "The Attacker Moves Second: Stronger Adaptive Attacks Bypass Defenses against LLM Jailbreaks and Prompt Injections"(Nasr, Carlini 외, 2025)가 방어 평가에 대해 무엇을 말하는지, 어떤 방어를 믿을지 판단하고 싶다. 학습 자료를 만들어 달라.
+- 배경: LLM API로 앱을 만들어 본 백엔드 개발자. jailbreak·prompt injection은 이름만 안다.
+
+### 진단 결과(고정)
+- 사다리(낮은 단부터): jailbreak와 prompt injection의 차이(애매함) → 정적 공격 vs 적응형 공격(아예 모름) → 공격 성공률과 공격 예산(아예 모름) → 적응형 공격 방법: gradient·RL·탐색·사람 red-teaming(아예 모름) → 방어 평가를 믿을 기준(아예 모름).
+- 학습 수준: 사다리에서 "아예 모름"인 첫 단부터 끝 단까지. "애매함"인 단은 수업에 일부 넣는다.
+- 오개념: "공개 벤치마크에서 공격 성공률이 1% 미만인 방어는 실제로도 안전하다"라고 답했다.
+
+---
+
+## global-supply-chain
+
+### 상황
+- 작업: 수입 원자재 조달 담당이다. 홍해·파나마 운하 사태가 납기와 운임에 왜 큰 영향을 주는지, 전 세계 주요 물류 공급망이 어떻게 연결되는지 이해하고 싶다. 학습 자료를 만들어 달라.
+- 배경: 조달 실무 2년차. 컨테이너·선적 서류는 알지만 해운 네트워크 구조는 모른다.
+
+### 진단 결과(고정)
+- 사다리(낮은 단부터): 운송 수단별 비중과 단가(애매함) → 주요 항로와 hub 항만(아예 모름) → 해협·운하 chokepoint(아예 모름) → 우회 거리, 선박 회전율과 운임 급등(아예 모름) → bullwhip 효과와 재고 완충(아예 모름).
+- 학습 수준: 사다리에서 "아예 모름"인 첫 단부터 끝 단까지. "애매함"인 단은 수업에 일부 넣는다.
+- 오개념: "수에즈가 막혀도 희망봉으로 돌면 며칠 늦을 뿐 운임은 크게 오르지 않는다"라고 답했다.
+
+---
+
+## polished-ui-components
+
+### 상황
+- 작업: 사내 관리자 페이지가 "투박해 보인다"는 피드백을 받았다. 세련된 UI가 어떤 구성 요소로 만들어지는지 알고 고칠 곳을 판단하고 싶다. 학습 자료를 만들어 달라.
+- 배경: 프론트엔드 2년차. 컴포넌트 라이브러리는 쓰지만 디자인 원리는 감으로 한다.
+
+### 진단 결과(고정)
+- 사다리(낮은 단부터): 정렬과 그리드(애매함) → 간격 체계(4/8pt)와 근접성(아예 모름) → 타이포 위계(크기 비율·굵기·행간)(아예 모름) → 색 역할과 대비(중립색 + 강조색 하나)(아예 모름) → 상태와 피드백(hover·focus·loading·empty)(아예 모름).
+- 학습 수준: 사다리에서 "아예 모름"인 첫 단부터 끝 단까지. "애매함"인 단은 수업에 일부 넣는다.
+- 오개념: "세련됨은 그림자·그라데이션 같은 장식을 더해서 나온다"라고 답했다.

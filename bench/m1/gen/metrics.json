@@ -1,0 +1,357 @@
+[
+ {
+  "dir": "skill-attacker-moves-second",
+  "duration_s": 171,
+  "cost_usd": 0.94,
+  "turns": 21,
+  "final_context": 73801,
+  "cumulative_tokens": 669349,
+  "output_tokens": 15466,
+  "subagent_tokens_cum": 22567,
+  "phases": {
+   "write": {
+    "tok": 174659,
+    "out": 66,
+    "turns": 5
+   },
+   "check": {
+    "tok": 184228,
+    "out": 26,
+    "turns": 3
+   },
+   "render": {
+    "tok": 56145,
+    "out": 34,
+    "turns": 1
+   },
+   "verify": {
+    "tok": 216461,
+    "out": 27,
+    "turns": 3
+   }
+  },
+  "events": [
+   "write",
+   "edit",
+   "check",
+   "check",
+   "sheet",
+   "agent",
+   "edit",
+   "check"
+  ],
+  "render_edits": 1,
+  "ltt_log": [
+   {
+    "cmd": "check",
+    "ms": 506,
+    "exit": 1,
+    "counts": {
+     "type": 0,
+     "check": 7,
+     "layout": 4
+    }
+   },
+   {
+    "cmd": "check",
+    "ms": 428,
+    "exit": 0,
+    "counts": {
+     "type": 0,
+     "check": 0,
+     "layout": 0
+    }
+   },
+   {
+    "cmd": "sheet",
+    "ms": 27199,
+    "exit": 0,
+    "counts": {
+     "runtimeErrors": 0,
+     "layoutViolations": 0,
+     "images": 8
+    }
+   },
+   {
+    "cmd": "digest",
+    "ms": 3,
+    "exit": 0,
+    "counts": {}
+   },
+   {
+    "cmd": "check",
+    "ms": 406,
+    "exit": 0,
+    "counts": {
+     "type": 0,
+     "check": 0,
+     "layout": 0
+    }
+   }
+  ],
+  "tools": {
+   "Read": 7,
+   "Bash": 6,
+   "Write": 1,
+   "Edit": 2,
+   "Agent": 1,
+   "sub:Read": 2
+  },
+  "bytes": 17229
+ },
+ {
+  "dir": "skill-global-supply-chain",
+  "duration_s": 250,
+  "cost_usd": 1.06,
+  "turns": 16,
+  "final_context": 70950,
+  "cumulative_tokens": 660636,
+  "output_tokens": 22479,
+  "subagent_tokens_cum": 9996,
+  "phases": {
+   "write": {
+    "tok": 225696,
+    "out": 67,
+    "turns": 6
+   },
+   "check": {
+    "tok": 316565,
+    "out": 40,
+    "turns": 5
+   },
+   "verify": {
+    "tok": 70950,
+    "out": 6,
+    "turns": 1
+   }
+  },
+  "events": [
+   "write",
+   "check",
+   "check",
+   "check",
+   "agent"
+  ],
+  "render_edits": 0,
+  "ltt_log": [
+   {
+    "cmd": "check",
+    "ms": 573,
+    "exit": 1,
+    "counts": {
+     "type": 0,
+     "check": 1,
+     "layout": 1
+    }
+   },
+   {
+    "cmd": "check",
+    "ms": 486,
+    "exit": 1,
+    "counts": {
+     "type": 0,
+     "check": 1,
+     "layout": 0
+    }
+   },
+   {
+    "cmd": "check",
+    "ms": 520,
+    "exit": 1,
+    "counts": {
+     "type": 0,
+     "check": 1,
+     "layout": 0
+    }
+   },
+   {
+    "cmd": "sheet",
+    "ms": 26961,
+    "exit": 0,
+    "counts": {
+     "runtimeErrors": 0,
+     "layoutViolations": 0,
+     "images": 8
+    }
+   },
+   {
+    "cmd": "digest",
+    "ms": 3,
+    "exit": 0,
+    "counts": {}
+   }
+  ],
+  "tools": {
+   "Read": 4,
+   "Bash": 7,
+   "Write": 1,
+   "Agent": 1,
+   "sub:Read": 2
+  },
+  "bytes": 23147
+ },
+ {
+  "dir": "skill-polished-ui-components",
+  "duration_s": 192,
+  "cost_usd": 0.99,
+  "turns": 2,
+  "final_context": 77733,
+  "cumulative_tokens": 689858,
+  "output_tokens": 18448,
+  "subagent_tokens_cum": 22033,
+  "phases": {
+   "write": {
+    "tok": 176449,
+    "out": 61,
+    "turns": 5
+   },
+   "check": {
+    "tok": 249370,
+    "out": 1021,
+    "turns": 4
+   },
+   "verify": {
+    "tok": 224695,
+    "out": 31,
+    "turns": 3
+   }
+  },
+  "events": [
+   "write",
+   "check",
+   "check",
+   "agent",
+   "check"
+  ],
+  "render_edits": 0,
+  "ltt_log": [
+   {
+    "cmd": "check",
+    "ms": 342,
+    "exit": 1,
+    "counts": {
+     "type": 0,
+     "check": 5,
+     "layout": 2
+    }
+   },
+   {
+    "cmd": "check",
+    "ms": 338,
+    "exit": 0,
+    "counts": {
+     "type": 0,
+     "check": 0,
+     "layout": 0
+    }
+   },
+   {
+    "cmd": "sheet",
+    "ms": 27202,
+    "exit": 0,
+    "counts": {
+     "runtimeErrors": 0,
+     "layoutViolations": 0,
+     "images": 8
+    }
+   },
+   {
+    "cmd": "digest",
+    "ms": 3,
+    "exit": 0,
+    "counts": {}
+   },
+   {
+    "cmd": "check",
+    "ms": 335,
+    "exit": 0,
+    "counts": {
+     "type": 0,
+     "check": 0,
+     "layout": 0
+    }
+   }
+  ],
+  "tools": {
+   "Read": 7,
+   "Bash": 6,
+   "Write": 1,
+   "Agent": 1,
+   "sub:Read": 2
+  },
+  "bytes": 19201
+ },
+ {
+  "dir": "base-attacker-moves-second",
+  "duration_s": 106,
+  "cost_usd": 0.32,
+  "turns": 2,
+  "final_context": 32609,
+  "cumulative_tokens": 64271,
+  "output_tokens": 10502,
+  "subagent_tokens_cum": 0,
+  "phases": {
+   "write": {
+    "tok": 54676,
+    "out": 907,
+    "turns": 2
+   }
+  },
+  "events": [],
+  "render_edits": 0,
+  "ltt_log": [],
+  "tools": {
+   "Write": 1
+  },
+  "bytes": 19122
+ },
+ {
+  "dir": "base-global-supply-chain",
+  "duration_s": 110,
+  "cost_usd": 0.33,
+  "turns": 2,
+  "final_context": 32694,
+  "cumulative_tokens": 64404,
+  "output_tokens": 10634,
+  "subagent_tokens_cum": 0,
+  "phases": {
+   "write": {
+    "tok": 54706,
+    "out": 936,
+    "turns": 2
+   }
+  },
+  "events": [],
+  "render_edits": 0,
+  "ltt_log": [],
+  "tools": {
+   "Write": 1
+  },
+  "bytes": 19437
+ },
+ {
+  "dir": "base-polished-ui-components",
+  "duration_s": 154,
+  "cost_usd": 0.53,
+  "turns": 3,
+  "final_context": 39960,
+  "cumulative_tokens": 117373,
+  "output_tokens": 17718,
+  "subagent_tokens_cum": 0,
+  "phases": {
+   "write": {
+    "tok": 100583,
+    "out": 928,
+    "turns": 3
+   }
+  },
+  "events": [],
+  "render_edits": 0,
+  "ltt_log": [],
+  "tools": {
+   "Write": 1,
+   "Edit": 1
+  },
+  "bytes": 34321
+ }
+]

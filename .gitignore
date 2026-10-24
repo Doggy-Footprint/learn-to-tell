@@ -9,3 +9,4 @@ dist/
 measurements/
 .DS_Store
 node_modules/
+.ltt/

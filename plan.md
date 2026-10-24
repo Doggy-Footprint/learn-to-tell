@@ -115,7 +115,7 @@ export default (api) => api.lesson({
 어휘의 근거는 표현 범위가 아니라 runtime이 지는 보장이다. 기본 도형(line, rect, path, area, dot, circle, arc)만으로도 거의 모든 그림을 그릴 수 있지만(범위 감사, `bench/coverage/report.md`), 그러면 agent가 글자와 보조선의 좌표를 직접 정한다. 그러면 v1의 레이아웃 결함(넘침, 겹침, 작은 글자)이 그림 안으로 옮겨 간다. 상위 mark는 그 일을 runtime으로 가져오고, 기본 도형 서너 개와 좌표 계산을 한 줄로 줄인다.
 
 - mark를 더하는 기준: runtime이 새로 보장하는 것(글자 배치, 자동 배치, 형식)이 있거나, 생성 실험에서 같은 조합이 반복되어 spec을 줄인다. 범위만 넓히는 항목은 더하지 않는다.
-- 구현 순서: 감사 조각의 사용 빈도 순이다. frame은 cartesian 238, graph 32, cells 12, polar 2, geo 2, lanes 1, space3d 0이다. M1은 cartesian·graph·cells와 시험 주제가 쓰는 mark부터 구현한다. 아직 구현하지 않은 mark는 check가 오류로 막아, 렌더할 수 없는 수업이 조용히 만들어지지 않게 한다.
+- 구현 순서: 감사 조각의 사용 빈도 순이다. frame은 cartesian 238, graph 32, cells 12, polar 2, geo 2, lanes 1, space3d 0이다. M1은 cartesian·graph·cells, 공급망 주제가 쓰는 geo, 시험 주제가 쓰는 mark부터 구현한다. 아직 구현하지 않은 mark는 check가 오류로 막아, 렌더할 수 없는 수업이 조용히 만들어지지 않게 한다.
 
 글자 배치(runtime 소유):
 
@@ -205,8 +205,8 @@ v1 SKILL.md §1·§4·§5·§6과 `skills/learn-to-tell/map/`(archive/v1)을 이
 | | 내용 | 끝 조건 |
 |---|---|---|
 | M0 (완료) | `lesson.d.ts` 계약(글자 배치 포함) + spec stub + 규칙 목록 + 손으로 쓴 예시 수업 1개 | 양성·음성 타입 fixture 통과, stub(checks, 결정성, figure 평가, param binding), 예시 수업 검산 통과, 감사 조각 전체가 binding 포함 count 통과, 사용자 검토 |
-| M1 | 생성 실험: 범위를 좁힌 runtime(시험 주제가 쓰는 frame·mark만 구현하되, 구현한 것은 글자 배치와 검사까지 완성. stage·card, 장면 타입, predict·quiz UI, cartesian·graph·cells), SKILL 초안, compare1 3주제를 처음부터 끝까지 생성 | 주제마다 120k 토큰·12분 이하, 렌더 뒤 레이아웃 수정 반복 1회 이하. 넘으면 구조를 다시 검토한다(대조군: 같은 3주제를 "agent가 페이지를 쓰는 작은 library"로) |
-| M2 | runtime 확장(나머지 frame·mark, summary 전환, 장면 간 변형), `ltt check`, `ltt sheet`. 감사 조각에서 v1 shot 12개를 골라 회귀 corpus로 둔다 | 예시 수업의 고의 결함 목록을 모두 잡음, corpus가 데스크톱·모바일에서 렌더 |
+| M1 | 두 단계. (1) runtime run: 시험 주제가 쓰는 frame(cartesian·graph layered/tree·cells·geo)과 mark만 구현하되 구현한 것은 글자 배치와 검사까지 완성, stage·card, 장면 타입 8종, predict·quiz UI, `ltt check`(tsc + 의미 규칙 7개 + 미구현·글자 배치 오류), `ltt sheet`, `ltt digest`, 실행 기록, SKILL 초안. (2) 생성 실험: 새 3주제(attacker-moves-second, global-supply-chain, polished-ui-components, `bench/topics.md`)를 처음부터 끝까지 생성하고 일반 요청 기준선과 비교 | (1) spec `018fd67ebfbf6b0f` 완료. (2) 주제마다 120k 토큰·12분 이하, 렌더 뒤 레이아웃 수정 반복 1회 이하, 반복을 원인별(tsc·check·렌더 뒤 수정·정답 검산)로 기록. 넘으면 구조를 다시 검토한다(대조군: 같은 3주제를 "agent가 페이지를 쓰는 작은 library"로) |
+| M2 | runtime 확장(나머지 frame·mark, summary 전환, 장면 간 변형, 어두운 테마), `ltt check`의 나머지 규칙. 감사 조각에서 v1 shot 12개를 골라 회귀 corpus로 둔다 | 예시 수업의 고의 결함 목록을 모두 잡음, corpus가 데스크톱·모바일에서 렌더 |
 | M3 | SKILL.md, 예시 2개, bench 10주제 이상 | 목표 수치, 블라인드 쌍 10개 이상 |
 | M4 | 진단·`ltt open`·`ltt result`·map 이식 | v1 흐름 전체가 한 주제로 끝까지 돎 |
 | M5 | npm 배포, claude.ai standalone, import | claude.ai에서 수업 1개 생성·열람 |
