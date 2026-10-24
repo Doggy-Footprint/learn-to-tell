@@ -13,7 +13,7 @@
 - 브랜치 `dev`. v2 전체를 `23a8a96`으로 커밋하고 태그 `archive/v2`를 달았다. v1은 태그 `archive/v1`(`0da38db`)이다.
 - 이 인계를 `b61b369`로 커밋한 뒤 "v3 start" 커밋에서 저장소를 비웠다(v1 → v2 때처럼).
   - 남긴 것: `vercel.json`, `site/gallery/index.html`("안녕하세요?"), `LICENSE`, `.gitignore`, `.github/workflows/master-source-gate.yml`, `AGENTS.md`, `CLAUDE.md`, `agent-docs/`.
-  - 지운 것: harness 전체(`.harness`, `.agents`, `.claude`의 agents·settings·skills, `.codex`, harness CI). harness는 다시 설치한다. `git config core.hooksPath`는 아직 `.harness/git`을 가리킨다.
+  - 지운 것: harness 전체(`.harness`, `.agents`, `.claude`의 agents·settings·skills, `.codex`, harness CI). harness는 사용자가 다시 설치한다. `git config core.hooksPath`는 아직 `.harness/git`을 가리킨다.
   - 이 인계를 뺀 문서는 모두 stale로 옮겼다. ADR 3c44a1f9도 포함한다. spec-logs는 stale 대상이 아니라서 지웠다.
   - git 밖에 있던 `measurements/`(v1 측정 원본, 580 MB)와 `tmp/`는 지우지 않았다.
 - 그래서 이 문서가 가리키는 저장소 경로는 대부분 태그 `archive/v2` 기준이다. 열 때는 `git show archive/v2:<path>`를 쓴다.
@@ -55,9 +55,8 @@
 1. **v3 이해 확인부터 한다.** 출발점은 다음과 같다.
    - 의도는 `plan.md`의 "What I want"(사용자 원문 5개)다. 다만 2번(코드로 모델링한 그림을 렌더)과 5번(전환 애니메이션)이 필수인지, 수단인지는 아직 답을 받지 못했다(Open Questions 1).
    - v2는 "일반 요청보다 낫다"를 증명하지 못했다. v3는 무엇을 만들기 전에 먼저 그것을 잰다.
-2. **먼저 잴 것(가장 싼 순서)**
-   1. 사용자가 기존 3쌍(skill 수업 대 기준선)을 결과 페이지에서 직접 비교한다. 비용 없음, 30분–1시간.
-   2. 공정 기준선 비교. 기준선에도 같은 진단 결과와 "15–20분, 예측 → 설명, 퀴즈" 지시를 준다. 6주제 × 1회, 약 $10–15. 판정 규칙(승률 문턱)은 실행 전에 고정한다.
+2. **먼저 잴 것**
+   1. PoC 수준의 스킬 셋팅 후 1개 논문 (Multi turn 작업을 가능하게 하는 학습 방법 논문 하나 선택)으로 사용자에게 시인성과 학습성을 검수 받고, 제작 비용을 허락 받음.
 3. **v3 후보 방향**: 상세는 `bench/m1/direction-review.md`에 있다.
    - **얇은 skill**
      - agent가 HTML 한 장을 쓴다.
