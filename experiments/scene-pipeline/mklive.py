@@ -5,7 +5,9 @@ import json, os, re, shutil, secrets
 from pathlib import Path
 E = Path(__file__).resolve().parent; OUT = E/"review"; K = Path("/home/user/learn-to-tell/skills/learn-to-tell/kit")
 plan = json.load(open(E/"plan.json")); R = os.environ.get("LTT_ROUND", "r0")
-if os.environ.get("LTT_SHOTS"): plan = {k: plan[k] for k in os.environ["LTT_SHOTS"].split(",")}
+if os.environ.get("LTT_SHOTS"):
+    ax = json.load(open("/home/user/learn-to-tell/site/gallery/shots/axes.json"))
+    plan = {k: plan.get(k) or {"orig": ax[k]["file"], "brief": {"topic_line": ax[k]["topic"], "role": ax[k]["role"]}} for k in os.environ["LTT_SHOTS"].split(",")}
 NAMES = {"r0": ["orig", "A1", "A2", "B1", "B2"], "kw": ["orig", "K", "0"]}.get(R, ["orig", "A1", "P1", "P2", "H1", "H2"])
 LABS = "가나다라마바"[:len(NAMES)]
 KEY = E/("review-key.json" if R == "r0" else f"review-key-{R}.json")

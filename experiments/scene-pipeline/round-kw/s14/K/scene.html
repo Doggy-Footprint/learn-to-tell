@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>심슨의 역설</title>
+<script type="application/json" id="ltt-meta">{"topic":"심슨의 역설","audience":"통계 입문자","theme":"paper","medium":"논문 figure","decision":"집단을 나눠 볼지 합쳐 볼지"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.sp{width:100%;max-width:520px;height:auto;display:block;margin:0 auto}
+.sp text{font-family:inherit}
+.sp-cap{min-height:3em;margin:.4rem auto 0;max-width:520px;font-size:15px;color:var(--ltt-ink-2);text-align:center}
+.sp-btns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:.4rem}
+.sp-btns button{font:inherit;font-size:14px;padding:4px 10px;border:1px solid var(--ltt-line);background:var(--ltt-card);color:var(--ltt-ink-2);border-radius:4px;cursor:pointer}
+.sp-btns button[aria-pressed="true"]{border-color:var(--ltt-accent);color:var(--ltt-ink);font-weight:700;background:var(--ltt-accent-soft)}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const tx = (p, x, y, t, st, anc) => { const n = mk("text", { x, y, style: st, "text-anchor": anc || "start" }, p); n.textContent = t; return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// 손으로 만든 6점: x = 용량(mg/일), y = 회복 점수(0–10)
+const A = [[1, 8], [2, 9], [3, 10]], B = [[4, 3], [5, 4], [6, 5]], ALL = A.concat(B);
+const fit = (pts) => { const n = pts.length, mx = d3.sum(pts, (p) => p[0]) / n, my = d3.sum(pts, (p) => p[1]) / n;
+  const sxx = d3.sum(pts, (p) => (p[0] - mx) ** 2), sxy = d3.sum(pts, (p) => (p[0] - mx) * (p[1] - my));
+  return { mx, my, b: sxy / sxx }; };
+const fA = fit(A), fB = fit(B), fAll = fit(ALL);
+const meanSlope = (fB.my - fA.my) / (fB.mx - fA.mx);
+LTT.expect("경증 A 기울기", fA.b, 1, { tol: 1e-9 });
+LTT.expect("중증 B 기울기", fB.b, 1, { tol: 1e-9 });
+LTT.expect("합친 기울기", fAll.b, -18.5 / 17.5, { tol: 1e-9 });
+LTT.expect("집단 평균 사이 기울기", meanSlope, -5 / 3, { tol: 1e-9 });
+
+const W = 460, H = 340, X0 = 56, YB = 290;
+const xs = (x) => X0 + x * 54, ys = (y) => YB - y * 23.5;
+const INK = "font-size:14px;fill:var(--ltt-ink-2)", MUT = "font-size:13px;fill:var(--ltt-muted)";
+const lineOf = (f, a, b) => ({ x1: xs(a), y1: ys(f.my + f.b * (a - f.mx)), x2: xs(b), y2: ys(f.my + f.b * (b - f.mx)) });
+
+function frame(host, label) {
+  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "sp", "data-annotate": "", role: "img", "aria-label": label }, host);
+  mk("defs", {}, s).innerHTML = `<marker id="sp-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ltt-accent)"/></marker>`;
+  mk("line", { x1: X0, y1: YB, x2: xs(7), y2: YB, style: "stroke:var(--ltt-ink-2);stroke-width:1.5" }, s);
+  mk("line", { x1: X0, y1: ys(11.5), x2: X0, y2: YB, style: "stroke:var(--ltt-ink-2);stroke-width:1.5" }, s);
+  [1, 2, 3, 4, 5, 6].forEach((v) => { mk("line", { x1: xs(v), y1: YB, x2: xs(v), y2: YB + 5, style: "stroke:var(--ltt-ink-2)" }, s); tx(s, xs(v), YB + 21, v, MUT, "middle"); });
+  [2, 4, 6, 8, 10].forEach((v) => { mk("line", { x1: X0 - 5, y1: ys(v), x2: X0, y2: ys(v), style: "stroke:var(--ltt-ink-2)" }, s);
+    mk("line", { x1: X0, y1: ys(v), x2: xs(7), y2: ys(v), style: "stroke:var(--ltt-line);stroke-dasharray:2 4" }, s); tx(s, X0 - 9, ys(v) + 4, v, MUT, "end"); });
+  tx(s, (X0 + xs(7)) / 2, H - 6, "용량 x (mg/일)", INK, "middle");
+  const yt = tx(s, 0, 0, "회복 점수 y (0–10)", INK, "middle"); yt.setAttribute("transform", `translate(16,${(ys(11.5) + YB) / 2}) rotate(-90)`);
+  return s;
+}
+const dotG = (s, pts, kind) => pts.map(([x, y]) => kind === "dia"
+  ? mk("path", { d: `M${xs(x)},${ys(y) - 8} L${xs(x) + 8},${ys(y)} L${xs(x)},${ys(y) + 8} L${xs(x) - 8},${ys(y)} Z`, style: "fill:var(--ltt-c2);stroke:var(--ltt-bg);stroke-width:1.5" }, s)
+  : mk("circle", { cx: xs(x), cy: ys(y), r: 7, style: kind === "grey" ? "fill:var(--ltt-muted);stroke:var(--ltt-bg);stroke-width:1.5" : "fill:var(--ltt-c1);stroke:var(--ltt-bg);stroke-width:1.5" }, s));
+const pooledLine = (s, o) => { const l = mk("line", Object.assign(lineOf(fAll, 0.6, 6.4), { style: `stroke:var(--ltt-bad);stroke-width:3;stroke-dasharray:7 5;opacity:${o}` }), s); return l; };
+const pooledLabel = (s) => tx(s, xs(7), ys(2.2), "합친 선 −1.06", "font-size:15px;font-weight:700;fill:var(--ltt-bad)", "end");
+
+// 왼쪽: 합친 점 여섯 개와 합친 선
+function beforeFig(host) {
+  const s = frame(host, "점 여섯 개를 합친 산점도: 용량이 늘수록 회복이 떨어지는 내리막 선");
+  pooledLine(s, 1); dotG(s, ALL, "grey"); pooledLabel(s);
+  tx(s, xs(3.3), ys(10.9), "용량을 올리면 회복이 떨어지는 것처럼 보인다", INK);
+  return s;
+}
+
+// 오른쪽: 같은 점에 집단을 드러내고, 집단별 선과 평균 이동을 차례로 보인다
+const STAGES = [0, 2.4, 4.8, 7.2], PERIOD = 12;
+const CAPS = [
+  "① 점 여섯 개를 합치면 선은 내리막(−1.06)이다.",
+  "② 같은 점에 집단을 드러낸다. 경증 A는 위·왼쪽, 중증 B는 아래·오른쪽에 모인다.",
+  "③ 집단 안에서 선을 그으면 둘 다 오르막(+1). 합친 선과 방향이 반대다.",
+  "④ 두 집단의 평균점이 (2, 9)에서 (5, 4)로 크게 내려간 격차가 집단 안의 상승을 덮는다."
+];
+let run = null;
+function afterFig(host) {
+  const s = frame(host, "같은 점을 경증 A와 중증 B로 나눈 산점도: 집단별 선은 둘 다 오르막");
+  const pl = pooledLine(s, 1);
+  const grey = dotG(s, ALL, "grey");
+  const col = dotG(s, A, "dot").concat(dotG(s, B, "dia"));
+  const lA = mk("line", { ...lineOf(fA, 0.7, 3.3), style: "stroke:var(--ltt-c1);stroke-width:4" }, s);
+  const lB = mk("line", { ...lineOf(fB, 3.7, 6.3), style: "stroke:var(--ltt-c2);stroke-width:4" }, s);
+  const lenA = Math.hypot(lA.x2.baseVal.value - lA.x1.baseVal.value, lA.y2.baseVal.value - lA.y1.baseVal.value);
+  [lA, lB].forEach((l) => { l.style.strokeDasharray = lenA + 2; });
+  const gl = mk("g", {}, s), ml = mk("g", {}, s), pt = pooledLabel(s);
+  tx(gl, xs(2), ys(10.9), "경증 A", "font-size:15px;font-weight:700;fill:var(--ltt-c1)", "middle");
+  tx(gl, xs(3.7), ys(2.0), "중증 B", "font-size:15px;font-weight:700;fill:var(--ltt-c2)", "end");
+  const sA = tx(s, xs(0.3), ys(6.6), "A 안: 기울기 +1", "font-size:15px;font-weight:700;fill:var(--ltt-c1)");
+  const sB = tx(s, xs(4.2), ys(7.3), "B 안: 기울기 +1", "font-size:15px;font-weight:700;fill:var(--ltt-c2)");
+  [[fA, 2, 9], [fB, 5, 4]].forEach(([, x, y]) => mk("circle", { cx: xs(x), cy: ys(y), r: 12, style: "fill:none;stroke:var(--ltt-ink);stroke-width:2" }, ml));
+  const a0 = [xs(2) + 6, ys(9) + 11], a1 = [xs(5) - 5, ys(4) - 12];
+  mk("line", { x1: a0[0], y1: a0[1], x2: a1[0], y2: a1[1], "marker-end": "url(#sp-ah)", style: "stroke:var(--ltt-accent);stroke-width:3" }, ml);
+  tx(ml, xs(1.9), ys(4.7), "집단 평균끼리 −1.67", "font-size:15px;font-weight:700;fill:var(--ltt-accent)");
+
+  const cap = document.createElement("div"); cap.className = "sp-cap"; cap.setAttribute("aria-live", "polite");
+  const btns = document.createElement("div"); btns.className = "sp-btns";
+  const bs = ["① 합침", "② 집단 색", "③ 집단별 선", "④ 평균 이동"].map((l, i) => { const b = document.createElement("button"); b.type = "button"; b.textContent = l; b.onclick = () => go(i); btns.appendChild(b); return b; });
+  const auto = document.createElement("button"); auto.type = "button"; auto.textContent = "자동 재생"; btns.appendChild(auto);
+  host.appendChild(btns); host.appendChild(cap);
+
+  let t = 0, t0 = Date.now(), playing = !reduced, id = 0, stage = -1;
+  const draw = (t) => {
+    const c1 = ease(clamp((t - 2.4) / 0.8)), c2 = clamp((t - 4.8) / 1.2), c3 = ease(clamp((t - 7.2) / 1.0));
+    const c0 = t < 2.4 ? ease(clamp(t / 1.0)) : 1;
+    pl.style.strokeDashoffset = 0; pl.style.opacity = (0.15 + 0.85 * c0) * (1 - 0.65 * ease(clamp((t - 4.8) / 0.8)));
+    pt.style.opacity = 1 - 0.55 * ease(clamp((t - 4.8) / 0.8));
+    grey.forEach((g) => g.style.opacity = 1 - c1); col.forEach((c) => c.style.opacity = c1);
+    gl.style.opacity = c1;
+    [lA, lB].forEach((l) => l.style.strokeDashoffset = (1 - ease(c2)) * (lenA + 2));
+    sA.style.opacity = sB.style.opacity = ease(clamp((c2 - .5) / .5));
+    ml.style.opacity = c3;
+    const st = t < STAGES[1] ? 0 : t < STAGES[2] ? 1 : t < STAGES[3] ? 2 : 3;
+    if (st !== stage) { stage = st; cap.textContent = CAPS[st]; bs.forEach((b, i) => b.setAttribute("aria-pressed", String(i === st && !playing))); }
+  };
+  const syncBtns = () => { bs.forEach((b, i) => b.setAttribute("aria-pressed", String(i === stage && !playing))); auto.setAttribute("aria-pressed", String(playing)); };
+  function go(i) { playing = false; t = STAGES[i] + 1.5; draw(t); syncBtns(); }
+  auto.onclick = () => { playing = !playing; if (playing) t0 = Date.now() - t * 1000; syncBtns(); };
+  const born = Date.now();
+  const tick = () => {
+    if (!s.isConnected && Date.now() - born > 3000) return;
+    if (playing) { t = ((Date.now() - t0) / 1000) % PERIOD; draw(t); }
+    id = setTimeout(tick, 16);
+  };
+  if (reduced) { t = 11; draw(t); syncBtns(); } else { draw(0); syncBtns(); tick(); }
+  run = { leave() { clearTimeout(id); playing = false; } };
+  return s;
+}
+
+LTT.deck({
+  title: "심슨의 역설", theme: "paper",
+  glossary: {
+    "심슨의 역설": "집단을 합친 자료의 경향이 각 집단 안의 경향과 반대로 나오는 현상",
+    "기울기": "x가 1 늘 때 y가 평균적으로 얼마나 변하는지를 나타내는 값"
+  },
+  scenes: [{
+    type: "contrast",
+    title: "같은 점 여섯 개인데, 합치면 내리막이고 나누면 오르막이다",
+    sub: "{{심슨의 역설}}: 집단(중증도)이 투약 전에 정해지고 용량과 회복을 모두 가르므로, 집단별 {{기울기}}로 읽는다. 집단이 용량의 결과라면 합친 선이 답이다.",
+    before: { label: "합쳐서 보면", tone: "bad", visual: (el) => { const w = el.appendChild(document.createElement("div")); beforeFig(w); return w; } },
+    after: { label: "집단을 나눠 보면", tone: "good", visual: (el) => { const w = el.appendChild(document.createElement("div")); afterFig(w); return w; } },
+    takeaway: "합친 선의 부호는 집단 간 격차가 정한다. 집단이 용량보다 먼저 정해졌다면 집단별 선을 읽는다.",
+    recall: "집단별 기울기가 모두 +1인데 합친 기울기는 왜 −1.06일까?",
+    basis: "일부러 만든 6점 예시이며 실제 연구 결과가 아니다. 경증 A (1,8) (2,9) (3,10), 중증 B (4,3) (5,4) (6,5). 합친 기울기 = −18.5 ÷ 17.5. 모델로 계산한 예시.",
+    leave: () => run && run.leave()
+  }]
+});
+</script>
+</body>
+</html>

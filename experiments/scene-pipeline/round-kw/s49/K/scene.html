@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구역별 기대 득점</title>
+<script type="application/json" id="ltt-meta">{"topic":"농구 구역별 기대 득점","audience":"농구 분석 입문자","theme":"sketch","medium":"전술 화이트보드","decision":"어느 구역의 슛을 늘릴까","domain":"스포츠 분석","pattern":["predict"],"mode":"장면 하나짜리: 코트 도면과 막대를 겹쳐 놓고, 구역을 먼저 고른 뒤 성공률 막대가 점수만큼 자라 기대 득점이 되고 줄이 다시 선다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.bk{width:1100px;max-width:100%;height:auto;display:block;margin:0 auto}
+.bk text{font-family:inherit}
+.bk .halo{paint-order:stroke;stroke:var(--ltt-bg);stroke-width:4px;stroke-linejoin:round}
+.bk .zp{stroke:var(--ltt-ink-2);stroke-width:1.5;fill-opacity:.42}
+.bk .zp.pk{stroke:var(--ltt-accent);stroke-width:4.5}
+.bk .zp.hl{stroke:var(--ltt-warn);stroke-width:4.5}
+.bk .rowhit{fill:transparent}
+.bk.asking .zone,.bk.asking .row{cursor:pointer}
+.bk.asking .zone:hover .zp,.bk.asking .zone:focus .zp{stroke:var(--ltt-accent);stroke-width:3.5;fill-opacity:.65}
+.bk.asking .row:hover .rowhit,.bk.asking .row:focus .rowhit{fill:var(--ltt-accent-soft)}
+.bk .zone:focus,.bk .row:focus{outline:none}
+.bk-st{max-width:1000px;min-height:3.6em;margin:8px auto 0;text-align:center;line-height:1.5}
+.bk-ctl{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.bk-ctl button{font:inherit;padding:6px 16px;border:2px solid var(--ltt-ink);border-radius:8px;background:var(--ltt-card);color:var(--ltt-ink);cursor:pointer}
+.bk-ctl button:hover{background:var(--ltt-accent-soft)}
+.bk-ctl button[hidden]{display:none}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent, text) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; parent && parent.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const fmt = (v) => (Math.round(v * 100) / 100).toFixed(2);
+
+// 리그 평균 근처의 예시값(시즌·리그마다 다름). 자유투·앤드원 제외, 슛 1회의 필드골만 센다
+const ZONES = [
+  { id: "rim", n: "림 근처", fg: 0.65, pts: 2, c: "var(--ltt-c1)" },
+  { id: "near", n: "가까운 중거리", fg: 0.42, pts: 2, c: "var(--ltt-c2)" },
+  { id: "far", n: "먼 중거리", fg: 0.40, pts: 2, c: "var(--ltt-c3)" },
+  { id: "corner", n: "코너 3점", fg: 0.38, pts: 3, c: "var(--ltt-c4)" },
+  { id: "top", n: "윗쪽 3점", fg: 0.35, pts: 3, c: "var(--ltt-c5)" }];
+const Z = Object.fromEntries(ZONES.map((z) => [z.id, z]));
+const EV = (z) => z.fg * z.pts;
+const SLOT = {}; [...ZONES].sort((a, b) => EV(b) - EV(a)).forEach((z, i) => SLOT[z.id] = i); // 기대 득점 순서의 자리
+
+// 반코트(피트): 폭 50, 길이 47, 골대는 베이스라인에서 5.25. 3점선은 반지름 23.75, 코너는 22
+const S = 7.2, X0 = 100, BASE = 438, R3 = 23.75, CX = 25, CYB = 5.25, CORNER_Y = CYB + Math.sqrt(R3 * R3 - 22 * 22);
+const px = (x) => X0 + x * S, py = (y) => BASE - y * S;
+const P = (x, y) => px(x).toFixed(1) + "," + py(y).toFixed(1);
+const circ = (r) => `M${P(CX - r, CYB)} A${r * S},${r * S} 0 1 0 ${P(CX + r, CYB)} A${r * S},${r * S} 0 1 0 ${P(CX - r, CYB)}Z`;
+const A3 = `${R3 * S},${R3 * S}`;
+const INSIDE = `M${P(3, 0)} L${P(3, CORNER_Y)} A${A3} 0 0 1 ${P(47, CORNER_Y)} L${P(47, 0)}Z`;
+const PATHS = {
+  rim: circ(7),
+  near: circ(16) + circ(7),
+  far: INSIDE + circ(16),
+  corner: `M${P(0, 0)} L${P(3, 0)} L${P(3, CORNER_Y)} L${P(0, CORNER_Y)}Z M${P(47, 0)} L${P(50, 0)} L${P(50, CORNER_Y)} L${P(47, CORNER_Y)}Z`,
+  top: `M${P(0, CORNER_Y)} L${P(0, 47)} L${P(50, 47)} L${P(50, CORNER_Y)} L${P(47, CORNER_Y)} A${A3} 0 0 0 ${P(3, CORNER_Y)}Z`
+};
+
+const BX = 660, K = 250, R0 = 100, RH = 70, BARY = 8, BARH = 34;
+const vx = (v) => BX + v * K;
+const ANG = Math.PI / 3, TOPX = CX + R3 * Math.cos(ANG), TOPY = CYB + R3 * Math.sin(ANG);
+
+function board(host, onPick) {
+  const W = 1100, H = 530;
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "bk asking", "data-annotate": "" }, host);
+  s.insertAdjacentHTML("beforeend", `<defs><filter id="bk-wob" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.5"/></filter><clipPath id="bk-clip"><rect x="${px(0)}" y="${py(47)}" width="${50 * S}" height="${47 * S}"/></clipPath></defs>`);
+
+  // 제목 줄
+  el("text", { x: X0, y: 64, style: "font-size:16px;font-weight:700;fill:var(--ltt-ink-2)" }, s, "반코트를 위에서 본 모습 (골대가 아래)");
+  el("text", { x: BX, y: 64, style: "font-size:16px;font-weight:700;fill:var(--ltt-ink-2)" }, s, "슛 1회당 점수");
+
+  // 코트: 구역을 그리고(눌러서 고른다) 선을 얹는다
+  const court = el("g", { filter: "url(#bk-wob)" }, s);
+  const zonePaths = {}, zoneGs = {};
+  ZONES.forEach((z) => {
+    const g = el("g", { class: "zone", tabindex: 0, role: "button", "aria-label": z.n + " 고르기" }, court);
+    const p = el("path", { d: PATHS[z.id], class: "zp", fill: z.c, "fill-rule": "evenodd" }, g);
+    if (["rim", "near", "far"].includes(z.id)) p.setAttribute("clip-path", "url(#bk-clip)");
+    zonePaths[z.id] = p; zoneGs[z.id] = g;
+  });
+  el("rect", { x: px(0), y: py(47), width: 50 * S, height: 47 * S, style: "fill:none;stroke:var(--ltt-ink);stroke-width:3;pointer-events:none" }, court);
+  el("path", { d: `M${P(3, 0)} L${P(3, CORNER_Y)} A${A3} 0 0 1 ${P(47, CORNER_Y)} L${P(47, 0)}`, style: "fill:none;stroke:var(--ltt-ink);stroke-width:3;pointer-events:none" }, court);
+  el("line", { x1: px(22), x2: px(28), y1: py(4), y2: py(4), style: "stroke:var(--ltt-ink);stroke-width:4;pointer-events:none" }, court);
+  el("circle", { cx: px(CX), cy: py(CYB), r: 6, style: "fill:none;stroke:var(--ltt-ink);stroke-width:2.5;pointer-events:none" }, court);
+
+  // 코트 라벨
+  const lab = (x, y, t, anchor) => el("text", { x: px(x), y: py(y), "text-anchor": anchor || "middle", class: "halo", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink);pointer-events:none" }, s, t);
+  lab(22.4, 9.4, "림 근처");
+  lab(16.5, 16.2, "가까운"); lab(16.5, 13.7, "중거리");
+  lab(25, 25.2, "먼 중거리");
+  lab(25, 38, "윗쪽 3점");
+  el("text", { x: px(0) - 10, y: py(8), "text-anchor": "end", class: "halo", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, s, "코너 3점");
+  el("text", { x: px(0) - 10, y: py(8) + 18, "text-anchor": "end", style: "font-size:13px;fill:var(--ltt-muted)" }, s, "(양쪽)");
+  el("line", { x1: px(0) - 6, x2: px(1.5), y1: py(8) - 5, y2: py(6), style: "stroke:var(--ltt-ink-2);stroke-width:1.5" }, s);
+
+  // 골대에서 3점선까지 거리
+  const dims = el("g", {}, s);
+  const dl = (x2, y2) => el("line", { x1: px(CX), y1: py(CYB), x2: px(x2), y2: py(y2), pathLength: 1, style: "stroke:var(--ltt-ink);stroke-width:2.5;stroke-dasharray:1 1;stroke-dashoffset:1;pointer-events:none" }, dims);
+  const d1 = dl(47, CYB), d2 = dl(TOPX, TOPY);
+  const dlab = el("g", { style: "opacity:0" }, dims);
+  el("text", { x: px(36), y: py(3.4), "text-anchor": "middle", class: "halo", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, dlab, "6.7m");
+  el("text", { x: px(TOPX) + 10, y: py(TOPY) - 6, class: "halo", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, dlab, "7.24m");
+
+  // 축과 기준선
+  [0, 0.5, 1, 1.5].forEach((v) => {
+    el("line", { x1: vx(v), x2: vx(v), y1: 96, y2: R0 + 5 * RH, style: "stroke:var(--ltt-line);stroke-dasharray:2 6" }, s);
+    if (v !== 1) el("text", { x: vx(v), y: 90, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, s, v === 0 ? "0" : String(v));
+  });
+  const base = el("g", { style: "opacity:0" }, s);
+  el("line", { x1: vx(1), x2: vx(1), y1: 96, y2: R0 + 5 * RH, style: "stroke:var(--ltt-ink-2);stroke-width:2.5;stroke-dasharray:8 6" }, base);
+  el("text", { x: vx(1), y: 88, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink-2)" }, base, "기준선 1.0");
+  const tick1 = el("text", { x: vx(1), y: 90, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, s, "1.0");
+
+  // 구역마다 한 줄: 성공률 한 칸이 점수 수만큼 이어 붙는다
+  const rows = ZONES.map((z, i) => {
+    const g = el("g", { class: "row", tabindex: 0, role: "button", "aria-label": z.n + " 고르기" }, s);
+    el("rect", { x: 510, y: 0, width: 570, height: RH - 6, rx: 6, class: "rowhit" }, g);
+    const hl = el("rect", { x: 512, y: 0, width: 148, height: RH - 6, rx: 6, style: "fill:none;stroke:var(--ltt-warn);stroke-width:3;opacity:0" }, g);
+    const pk = el("g", { style: "opacity:0" }, g);
+    el("rect", { x: 514, y: 3, width: 144, height: RH - 12, rx: 6, style: "fill:none;stroke:var(--ltt-accent);stroke-width:3" }, pk);
+    el("text", { x: 520, y: RH - 12, style: "font-size:12px;font-weight:700;fill:var(--ltt-accent)" }, pk, "내 예측");
+    el("rect", { x: 520, y: 10, width: 14, height: 14, rx: 3, style: `fill:${z.c};stroke:var(--ltt-ink);stroke-width:1.5` }, g);
+    el("text", { x: 542, y: 23, style: "font-size:16px;font-weight:700;fill:var(--ltt-ink)" }, g, z.n);
+    const sub = el("text", { x: 520, y: 44, style: "font-size:13px;fill:var(--ltt-muted)" }, g);
+    const w = z.fg * K, segs = [];
+    for (let k = z.pts - 1; k >= 0; k--) {
+      const sg = el("g", { transform: `translate(${w * Math.max(0, k - 1)},0)`, style: k ? "opacity:0" : "" }, g);
+      el("rect", { x: BX, y: BARY, width: w, height: BARH, rx: 3, style: `fill:${z.c};stroke:var(--ltt-ink);stroke-width:2` }, sg);
+      el("text", { x: BX + w / 2, y: BARY + 23, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, sg, Math.round(z.fg * 100) + "%");
+      segs[k] = sg;
+    }
+    const val = el("text", { x: BX + w + 10, y: BARY + 25, style: "font-size:18px;font-weight:700;fill:var(--ltt-ink);font-variant-numeric:tabular-nums" }, g);
+    const act = () => onPick(z.id);
+    g.addEventListener("click", act);
+    g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act(); } });
+    return { z, g, sub, segs, val, hl, pk };
+  });
+  const byId = Object.fromEntries(rows.map((r) => [r.z.id, r]));
+  zoneGs && ZONES.forEach((z) => {
+    const act = () => onPick(z.id);
+    zoneGs[z.id].addEventListener("click", act);
+    zoneGs[z.id].addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act(); } });
+  });
+
+  // 먼 중거리와 윗쪽 3점의 차이 구간
+  const gap = el("g", { style: "opacity:0" }, s);
+  const topY = R0 + SLOT.top * RH, farY = R0 + SLOT.far * RH;
+  const gx0 = vx(EV(Z.far)), gx1 = vx(EV(Z.top));
+  el("line", { x1: gx0, x2: gx0, y1: topY + BARY, y2: farY + BARY + BARH, style: "stroke:var(--ltt-warn);stroke-width:2.5;stroke-dasharray:3 5" }, gap);
+  el("path", { d: `M${gx0},${topY + 44} V${topY + 52} H${gx1} V${topY + 44}`, style: "fill:none;stroke:var(--ltt-warn);stroke-width:3" }, gap);
+  el("text", { x: (gx0 + gx1) / 2, y: topY + 67, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-warn)" }, gap, "+" + fmt(EV(Z.top) - EV(Z.far)));
+
+  let hlKey = "";
+  function setHl(ids) {
+    const key = ids.join();
+    if (key === hlKey) return; hlKey = key;
+    ZONES.forEach((z) => { zonePaths[z.id].classList.toggle("hl", ids.includes(z.id)); byId[z.id].hl.style.opacity = ids.includes(z.id) ? 1 : 0; });
+  }
+
+  function draw(u) {
+    const sortT = ease(clamp((u - 0.5) / 0.22));
+    rows.forEach((r, i) => {
+      const z = r.z, w = z.fg * K; let sum = 1;
+      for (let k = 1; k < z.pts; k++) {
+        const p = ease(clamp((u - (0.04 + i * 0.035) - (k - 1) * 0.09) / 0.08));
+        r.segs[k].setAttribute("transform", `translate(${w * ((k - 1) + p)},0)`);
+        r.segs[k].style.opacity = p > 0 ? 1 : 0;
+        sum += p;
+      }
+      const v = z.fg * sum;
+      r.val.setAttribute("x", vx(v) + 10);
+      r.val.textContent = u <= 0 ? Math.round(z.fg * 100) + "%" : fmt(v);
+      r.sub.textContent = sum >= z.pts - 0.001 && u > 0 ? `${z.fg.toFixed(2)} × ${z.pts}점` : `성공률 ${Math.round(z.fg * 100)}% · ${z.pts}점`;
+      r.g.setAttribute("transform", `translate(0,${R0 + (i + (SLOT[z.id] - i) * sortT) * RH})`);
+    });
+    const b = clamp((u - 0.5) / 0.1);
+    base.style.opacity = b; tick1.style.opacity = 1 - b;
+    gap.style.opacity = clamp((u - 0.76) / 0.04);
+    setHl(u < 0.74 ? [] : u < 0.88 ? ["far", "top"] : ["corner", "top"]);
+    const t = ease(clamp((u - 0.88) / 0.1));
+    d1.style.strokeDashoffset = 1 - t; d2.style.strokeDashoffset = 1 - t;
+    dlab.style.opacity = clamp((t - 0.7) / 0.3);
+  }
+  function setPick(id) {
+    ZONES.forEach((z) => { zonePaths[z.id].classList.toggle("pk", z.id === id); byId[z.id].pk.style.opacity = z.id === id ? 1 : 0; });
+  }
+  return { el: s, draw, setPick, asking: (on) => s.classList.toggle("asking", on) };
+}
+
+const PERIOD = 14000;
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function lesson(body) {
+  body.innerHTML = `<div class="bk-wrap"></div><div class="bk-st" aria-live="polite"></div><div class="bk-ctl"><button type="button" data-a="skip">예측 없이 곱해 보기</button><button type="button" data-a="replay" hidden>다시 재생</button><button type="button" data-a="again" hidden>다시 예측하기</button></div>`;
+  const wrap = body.querySelector(".bk-wrap"), st = body.querySelector(".bk-st");
+  const btn = (a) => body.querySelector(`[data-a="${a}"]`);
+  let pick = null, mode = "ask", phase = null, tm = 0, t0 = 0;
+  const B = board(wrap, choose);
+
+  const CAP = {
+    ask: "먼저 예측한다. 슛 한 번에 평균 득점이 가장 낮을 구역을 코트나 막대에서 눌러 고른다. 지금 막대 길이는 성공률이다.",
+    0: "성공률 막대를 걸린 점수만큼 이어 붙인다. 2점 구역은 2칸, 3점 구역은 3칸이다. 이어 붙인 길이가 슛 1회의 기대 득점(성공률 × 점수)이다.",
+    1: "길이가 긴 순서로 줄을 다시 세운다. 3점 구역은 성공률이 낮아도 중거리 위로 올라온다. 기준선 1.0을 넘는 곳은 림 근처·코너 3점·윗쪽 3점이다.",
+    2: "먼 중거리는 성공률 40%로 윗쪽 3점 35%보다 높은데도, 한 번에 0.25점 덜 번다.",
+    3: "같은 3점이라도 코너(6.7m)는 윗쪽(7.24m)보다 선이 가까워 성공률이 높고, 기대 득점도 1.14 대 1.05로 크다."
+  };
+  const done = () => {
+    const low = Z.far;
+    const head = pick ? `내 예측 ${Z[pick].n}(${fmt(EV(Z[pick]))}) — ${pick === "far" ? "맞다" : "가장 낮은 곳은 따로 있다"}. ` : "";
+    return `${head}가장 낮은 곳은 ${low.n} ${fmt(EV(low))}. 림 근처·코너 3점은 늘리고 먼 중거리는 줄인다: 10회를 바꾸면 10 × (1.14 − 0.80) = +3.4점. 다만 시도를 늘리면 수비가 붙어 값이 내려갈 수 있다.`;
+  };
+  function setPhase(p) { if (p === phase) return; phase = p; st.textContent = p === "done" ? done() : CAP[p]; }
+  const phaseOf = (u) => u >= 1 ? "done" : u < 0.45 ? 0 : u < 0.74 ? 1 : u < 0.88 ? 2 : 3;
+  function buttons() { btn("skip").hidden = mode !== "ask"; btn("replay").hidden = btn("again").hidden = mode !== "done"; }
+
+  function ask() {
+    clearTimeout(tm); mode = "ask"; pick = null; phase = null;
+    B.setPick(null); B.asking(true); B.draw(0); setPhase("ask"); buttons();
+  }
+  function play() {
+    clearTimeout(tm); mode = "play"; B.asking(false); buttons();
+    if (reduced) { B.draw(1); finish(); return; }
+    t0 = Date.now();
+    const f = () => { const u = Math.min(1, Math.max(0.001, (Date.now() - t0) / PERIOD)); B.draw(u); setPhase(phaseOf(u)); if (u < 1) tm = setTimeout(f, 16); else finish(); };
+    f();
+  }
+  function finish() { mode = "done"; phase = null; setPhase("done"); buttons(); }
+  function choose(id) { if (mode !== "ask") return; pick = id; B.setPick(id); play(); }
+
+  btn("skip").addEventListener("click", play);
+  btn("replay").addEventListener("click", play);
+  btn("again").addEventListener("click", ask);
+  ask();
+  return { enter() { if (mode === "play") play(); else if (mode === "ask") ask(); }, leave() { clearTimeout(tm); } };
+}
+
+LTT.deck({
+  title: "구역별 기대 득점", theme: "sketch",
+  glossary: {
+    "기대 득점": "슛 한 번을 쏠 때 평균으로 얻는 점수. 성공률 × 걸린 점수",
+    "필드골 성공률": "자유투를 뺀 슛이 들어간 비율. FG%라고도 쓴다"
+  },
+  scenes: [{
+    kicker: "예측", title: "슛 한 번에 가장 적게 버는 구역은 어디일까", en: "Expected points per shot",
+    sub: "구역을 눌러 {{기대 득점}}이 가장 낮을 곳을 먼저 고른다. 막대 길이는 구역별 {{필드골 성공률}}이다.",
+    mount: lesson,
+    takeaway: "슛 1회의 값은 성공률 × 점수다. 성공률이 낮은 3점 구역이 성공률 높은 먼 중거리보다 한 번에 더 번다.",
+    recall: "먼 중거리(40%)와 윗쪽 3점(35%) 중 한 번에 더 버는 쪽은, 몇 점 차이인가?",
+    basis: "리그 평균 근처의 예시값이며 시즌·리그마다 다르다. 자유투·앤드원은 뺀 슛 1회의 필드골만 센다. 3점선은 코너 약 6.7m, 윗쪽 약 7.24m. 구역당 약 100회 표본이면 성공률이 ±5%p 흔들려 순위가 뒤집힐 수 있다. <span class=\"ltt-tag\">모델로 계산한 예시</span>"
+  }]
+});
+LTT.expect("림 근처 기대 득점", EV(Z.rim), 1.30, { tol: 1e-9 });
+LTT.expect("코너 3점 기대 득점", EV(Z.corner), 1.14, { tol: 1e-9 });
+LTT.expect("윗쪽 3점 기대 득점", EV(Z.top), 1.05, { tol: 1e-9 });
+LTT.expect("가까운 중거리 기대 득점", EV(Z.near), 0.84, { tol: 1e-9 });
+LTT.expect("먼 중거리 기대 득점", EV(Z.far), 0.80, { tol: 1e-9 });
+LTT.expect("먼 중거리 10회를 코너 3점으로 바꾼 이득", 10 * (EV(Z.corner) - EV(Z.far)), 3.4, { tol: 1e-9 });
+</script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>심슨의 역설</title>
+<script type="application/json" id="ltt-meta">{"topic": "심슨의 역설", "audience": "통계 입문자", "theme": "paper", "medium": "논문 figure", "decision": "집단을 나눠 볼지 합쳐 볼지"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .sp-fig { display: block; width: 100%; height: auto; max-height: 56vh; }
+  .sp-fig text { font-size: 13px; fill: var(--ltt-ink-2); }
+  .sp-fig .ax { stroke: var(--ltt-line-2); stroke-width: 1; }
+  .sp-fig .grid { stroke: var(--ltt-line); stroke-width: 1; stroke-dasharray: 2 4; }
+  .sp-fig .tick { fill: var(--ltt-muted); font-size: 12px; }
+  .sp-fig .axl { fill: var(--ltt-muted); font-size: 12px; }
+  .sp-fig .lab { font-weight: 600; }
+  .sp-fig .lab-m { fill: var(--ltt-accent); }
+  .sp-fig .lab-a { fill: var(--ltt-c1); }
+  .sp-fig .lab-b { fill: var(--ltt-c2); }
+  .sp-fig .lab-g { fill: var(--ltt-ink-2); }
+  .sp-fig .ln { fill: none; stroke-width: 2.5; stroke-linecap: round; }
+  .sp-fig .ln-m { stroke: var(--ltt-accent); }
+  .sp-fig .ln-ghost { stroke: var(--ltt-accent); stroke-dasharray: 6 5; opacity: .75; stroke-width: 2; }
+  .sp-fig .ln-a { stroke: var(--ltt-c1); }
+  .sp-fig .ln-b { stroke: var(--ltt-c2); }
+  .sp-fig .gap { fill: none; stroke: var(--ltt-ink); stroke-width: 1.8; }
+  .sp-fig .gapd { fill: var(--ltt-card); stroke: var(--ltt-ink); stroke-width: 1.8; }
+  .sp-fig .gapa { fill: var(--ltt-ink); }
+  .sp-fig .pt { stroke: var(--ltt-card); stroke-width: 1.5; }
+  .sp-fig .pt-all { fill: var(--ltt-ink-2); }
+  .sp-fig .pt-a { fill: var(--ltt-c1); }
+  .sp-fig .pt-b { fill: var(--ltt-c2); }
+
+  .sp-fig .pt { animation: sp-pop .5s ease both; animation-delay: var(--d, 0s); transform-box: fill-box; transform-origin: center; }
+  .sp-fig .pt-a, .sp-fig .pt-b { animation: sp-pop .5s ease both, sp-tint .9s ease both; animation-delay: var(--d, 0s), .7s; }
+  .sp-fig .ln-m.draw, .sp-fig .ln-a, .sp-fig .ln-b, .sp-fig .gap { stroke-dasharray: 1; stroke-dashoffset: 1; animation: sp-draw 1s ease forwards; animation-delay: var(--d, 0s); }
+  .sp-fig .fade { opacity: 0; animation: sp-fade .7s ease forwards; animation-delay: var(--d, 0s); }
+  @keyframes sp-draw { to { stroke-dashoffset: 0; } }
+  @keyframes sp-fade { to { opacity: 1; } }
+  @keyframes sp-pop { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
+  @keyframes sp-tint { from { fill: var(--ltt-ink-2); } }
+  @media (prefers-reduced-motion: reduce) {
+    .sp-fig *, .sp-fig .pt-a, .sp-fig .pt-b { animation: none !important; }
+    .sp-fig .ln-m.draw, .sp-fig .ln-a, .sp-fig .ln-b, .sp-fig .gap { stroke-dashoffset: 0; }
+    .sp-fig .fade { opacity: 1; }
+    .sp-fig .ln-ghost { opacity: .75; }
+  }
+</style>
+</head>
+<body>
+<script>
+const A = [[1, 8], [2, 9], [3, 10]];
+const B = [[4, 3], [5, 4], [6, 5]];
+const slope = (pts) => {
+  const mx = d3.mean(pts, (p) => p[0]), my = d3.mean(pts, (p) => p[1]);
+  return d3.sum(pts, (p) => (p[0] - mx) * (p[1] - my)) / d3.sum(pts, (p) => (p[0] - mx) ** 2);
+};
+const ALL = A.concat(B);
+const sA = slope(A), sB = slope(B), sAll = slope(ALL);
+const mAll = [d3.mean(ALL, (p) => p[0]), d3.mean(ALL, (p) => p[1])];
+const lineAll = (x) => mAll[1] + sAll * (x - mAll[0]);
+const meanA = [2, 9], meanB = [5, 4];
+
+LTT.expect("A 기울기", sA, 1, { tol: 1e-9 });
+LTT.expect("B 기울기", sB, 1, { tol: 1e-9 });
+LTT.expect("합친 기울기", sAll, -18.5 / 17.5, { tol: 1e-9 });
+LTT.expect("평균점 기울기", (meanB[1] - meanA[1]) / (meanB[0] - meanA[0]), -5 / 3, { tol: 1e-9 });
+
+const W = 480, H = 380, M = { l: 48, r: 14, t: 14, b: 46 };
+const X = d3.scaleLinear([0, 7], [M.l, W - M.r]);
+const Y = d3.scaleLinear([0, 11], [H - M.b, M.t]);
+const NS = "http://www.w3.org/2000/svg";
+
+// split=false: 점 6개를 한 색으로 합쳐 본다. split=true: 같은 점을 집단으로 가르고 선을 긋는다.
+function scatter(split) {
+  const f = (v) => v.toFixed(2).replace("-", "−");
+  const xt = [1, 2, 3, 4, 5, 6], yt = [2, 4, 6, 8, 10];
+  const dot = (p, cls, i, shape) => {
+    const cx = X(p[0]), cy = Y(p[1]), d = `--d:${(i * 0.08).toFixed(2)}s`;
+    return shape === "sq"
+      ? `<rect class="pt ${cls}" x="${cx - 7}" y="${cy - 7}" width="14" height="14" rx="2" style="${d}"/>`
+      : `<circle class="pt ${cls}" cx="${cx}" cy="${cy}" r="8" style="${d}"/>`;
+  };
+  const seg = (x0, x1, fn) => `M${X(x0)},${Y(fn(x0))}L${X(x1)},${Y(fn(x1))}`;
+  let body = "";
+  if (!split) {
+    body += A.concat(B).map((p, i) => dot(p, "pt-all", i, "c")).join("");
+    body += `<path class="ln ln-m draw" pathLength="1" d="${seg(0.4, 6.6, lineAll)}" style="--d:.8s"/>`;
+    body += `<text class="lab lab-m fade" x="${X(0.55)}" y="${Y(10.55)}" style="--d:1.6s">합친 기울기 ${f(sAll)}</text>`;
+  } else {
+    body += A.map((p, i) => dot(p, "pt-a", i, "c")).join("") + B.map((p, i) => dot(p, "pt-b", i + 3, "sq")).join("");
+    body += `<path class="ln ln-a" pathLength="1" d="${seg(0.7, 3.3, (x) => meanA[1] + sA * (x - meanA[0]))}" style="--d:1.5s"/>`;
+    body += `<path class="ln ln-b" pathLength="1" d="${seg(3.7, 6.3, (x) => meanB[1] + sB * (x - meanB[0]))}" style="--d:1.7s"/>`;
+    body += `<path class="ln ln-ghost fade" d="${seg(0.4, 6.6, lineAll)}" style="--d:2.6s"/>`;
+    body += `<text class="lab lab-m fade" x="${X(0.55)}" y="${Y(10.55)}" style="--d:2.8s">합친 선 ${f(sAll)}</text>`;
+    body += `<text class="lab lab-a fade" x="${X(0.35)}" y="${Y(6.7)}" style="--d:2.2s">A 경증</text><text class="lab lab-a fade" x="${X(0.35)}" y="${Y(6.7) + 16}" style="--d:2.2s">기울기 +${sA}</text>`;
+    body += `<text class="lab lab-b fade" x="${X(6.9)}" y="${Y(2.4)}" text-anchor="end" style="--d:2.3s">B 중증</text><text class="lab lab-b fade" x="${X(6.9)}" y="${Y(2.4) + 16}" text-anchor="end" style="--d:2.3s">기울기 +${sB}</text>`;
+    // 집단 평균점 → 평균점: 집단 간 격차
+    const ax = X(meanA[0]), ay = Y(meanA[1]), bx = X(meanB[0]), by = Y(meanB[1]);
+    body += `<circle class="gapd fade" cx="${ax}" cy="${ay}" r="13" style="--d:3.2s;fill:none"/><circle class="gapd fade" cx="${bx}" cy="${by}" r="13" style="--d:3.2s;fill:none"/>`;
+    body += `<path class="gap" pathLength="1" d="M${ax + 9},${ay + 14}L${bx - 9},${by - 14}" style="--d:3.6s"/>`;
+    body += `<text class="lab lab-g fade" x="${X(3.95)}" y="${Y(8.1)}" style="--d:4.2s">집단 평균끼리 잇는</text><text class="lab lab-g fade" x="${X(3.95)}" y="${Y(8.1) + 16}" style="--d:4.2s">격차 선: ${f(-5 / 3)}</text>`;
+  }
+  const svg = `<svg class="sp-fig" viewBox="0 0 ${W} ${H}" role="img" aria-label="${split
+    ? "같은 6개 점을 경증 A와 중증 B로 가르면 두 집단 선은 모두 오르막이고, 합친 점선은 내리막"
+    : "용량 x와 회복 y의 점 6개. 합친 선은 오른쪽으로 갈수록 내려간다"}">
+    ${yt.map((v) => `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/>`).join("")}
+    <line class="ax" x1="${M.l}" x2="${W - M.r}" y1="${Y(0)}" y2="${Y(0)}"/><line class="ax" x1="${M.l}" x2="${M.l}" y1="${Y(0)}" y2="${M.t}"/>
+    ${xt.map((v) => `<text class="tick" x="${X(v)}" y="${Y(0) + 17}" text-anchor="middle">${v}</text>`).join("")}
+    ${yt.map((v) => `<text class="tick" x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`).join("")}
+    <text class="axl" x="${(M.l + W - M.r) / 2}" y="${H - 8}" text-anchor="middle">용량 x (mg/일)</text>
+    <text class="axl" transform="translate(13 ${(M.t + Y(0)) / 2}) rotate(-90)" text-anchor="middle">회복 점수 y (0–10)</text>
+    ${body}
+  </svg>`;
+  const wrap = document.createElement("div");
+  wrap.innerHTML = svg;
+  return wrap;
+}
+
+const note = (t) => `<div class="ltt-basis" style="margin-top:.5em">${t}</div>`;
+
+LTT.deck({
+  title: "심슨의 역설",
+  theme: "paper",
+  glossary: {},
+  scenes: [{
+    type: "contrast",
+    kicker: "통계 · 심슨의 역설",
+    title: "같은 점 6개인데, 합치면 기울기의 부호가 뒤집힌다",
+    sub: "용량이 오르면 회복은? 왼쪽은 전부 합쳐서, 오른쪽은 처음부터 정해진 중증도(경증 A·중증 B)로 갈라서 읽는다.",
+    before: {
+      label: "합쳐서 읽기",
+      visual: () => scatter(false),
+      foot: { caption: "선 하나만 보면 “용량을 올릴수록 회복이 떨어진다”." }
+    },
+    after: {
+      label: "집단별로 읽기",
+      visual: () => scatter(true),
+      foot: { caption: "모든 점이 속한 집단 안에서는 용량 1 늘 때 회복 +1. 합친 선은 어느 집단의 경향도 아니다." }
+    },
+    takeaway: "집단이 용량보다 먼저 정해졌다면(중증도) 나눠서 읽는다. 집단이 용량의 결과라면 합친 선이 답이다.",
+    recall: "중증도와 부작용 중, 용량 효과를 읽을 때 나눠 봐야 하는 쪽은?",
+    basis: "일부러 만든 6점 표본이며 실제 연구 결과가 아니다. A(경증) 기울기 +1, B(중증) +1, 합침 −18.5 ÷ 17.5 ≈ −1.06. <span class=\"ltt-tag\">모델로 계산한 예시</span>"
+  }]
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CPI 바스켓 가중치</title>
+<script type="application/json" id="ltt-meta">{"topic":"CPI 바스켓 가중치","audience":"경제 기사 독자","theme":"ledger","medium":"경제 신문 차트","decision":"물가 지표 해석","domain":"물가","pattern":["mount"],"mode":"장면 하나: 가로=비중, 세로=등락률인 상자의 넓이가 기여도, 넓이의 합이 CPI"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>.cw-wrap{display:flex;flex-direction:column;align-items:center;gap:14px}.cw{width:940px;max-width:100%;height:auto;display:block}.cw text{font-family:inherit}</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head><body><script>
+const SVG = "http://www.w3.org/2000/svg";
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const el = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const sg = (v, d = 1) => (v > 1e-9 ? "+" : v < -1e-9 ? "−" : "") + Math.abs(v).toFixed(d);
+
+// 설명용 가상 수치. 품목 가격 등락률(%)은 두 바스켓에 똑같이 적용한다.
+const ITEMS = [{ id: "food", l: "식료품", r: 8, c: "var(--ltt-c1)" }, { id: "house", l: "주거", r: 2, c: "var(--ltt-c2)" }, { id: "trans", l: "교통", r: -5, c: "var(--ltt-c3)" }];
+const W_BEFORE = [30, 40, 30], W_AFTER = [45, 35, 20];
+const cpi = (w) => w.reduce((a, wi, i) => a + wi / 100 * ITEMS[i].r, 0);
+LTT.expect("개편 전 가중치 합", W_BEFORE.reduce((a, b) => a + b, 0), 100, { tol: 1e-9 });
+LTT.expect("개편 후 가중치 합", W_AFTER.reduce((a, b) => a + b, 0), 100, { tol: 1e-9 });
+LTT.expect("개편 전 CPI", cpi(W_BEFORE), 1.7, { tol: 1e-9 });
+LTT.expect("개편 후 CPI", cpi(W_AFTER), 3.3, { tol: 1e-9 });
+LTT.expect("식료품 기여도 후", 0.45 * 8, 3.6, { tol: 1e-9 });
+LTT.expect("교통 기여도 후", 0.20 * -5, -1.0, { tol: 1e-9 });
+
+const W = 940, H = 470, PW = 360, XA = 90, XB = 520, Y0 = 262, K = 16.5, NAME_Y = 372;
+const wAt = (s) => W_BEFORE.map((v, i) => v + (W_AFTER[i] - v) * s);
+
+function panel(s, x0, title, accent) {
+  el("text", { x: x0, y: 40, style: "font-size:17px;font-weight:700;fill:var(--ltt-ink-2)" }, s).textContent = title;
+  const head = el("text", { x: x0, y: 84, style: `font-size:38px;font-weight:700;fill:${accent ? "var(--ltt-accent)" : "var(--ltt-ink)"}` }, s);
+  const wl = el("text", { x: x0 + PW, y: 40, "text-anchor": "end", style: "font-size:14px;fill:var(--ltt-muted)" }, s);
+  const parts = ITEMS.map((it) => ({
+    r: el("rect", { rx: 2, style: `fill:${it.c};stroke:var(--ltt-bg);stroke-width:2;opacity:.92` }, s),
+    t: el("text", { "text-anchor": "middle", style: "font-size:16px;font-weight:700;fill:var(--ltt-on-dark)" }, s),
+    n: el("text", { "text-anchor": "middle", style: "font-size:16px;font-weight:700;fill:var(--ltt-ink)" }, s),
+    w: el("text", { "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-ink-2)" }, s),
+    it }));
+  return { x0, head, wl, parts };
+}
+function drawPanel(p, w) {
+  let cum = 0;
+  const wd = w.map((v) => Math.round(v)); wd[2] = 100 - wd[0] - wd[1];
+  p.wl.textContent = "가중치 " + wd.join(" / ");
+  p.parts.forEach((g, i) => {
+    const x = p.x0 + cum * PW / 100, wpx = w[i] * PW / 100, r = g.it.r, h = Math.abs(r) * K;
+    g.r.setAttribute("x", x); g.r.setAttribute("width", Math.max(0, wpx)); g.r.setAttribute("y", r > 0 ? Y0 - h : Y0); g.r.setAttribute("height", h);
+    g.t.setAttribute("x", x + wpx / 2); g.t.setAttribute("y", (r > 0 ? Y0 - h / 2 : Y0 + h / 2) + 6);
+    g.t.textContent = sg(w[i] / 100 * r) + "%p";
+    g.n.setAttribute("x", x + wpx / 2); g.n.setAttribute("y", NAME_Y); g.n.textContent = g.it.l;
+    g.w.setAttribute("x", x + wpx / 2); g.w.setAttribute("y", NAME_Y + 22); g.w.textContent = wd[i] + "%";
+    cum += w[i];
+  });
+  p.head.textContent = "CPI " + sg(cpi(w)) + "%";
+}
+
+function figure(host) {
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "cw", "data-annotate": "" }, host);
+  // 공통 등락률 눈금: 두 패널을 가로지르는 점선이 "같은 가격"임을 보인다
+  const yAxisT = el("text", { x: 10, y: 118, style: "font-size:13px;fill:var(--ltt-muted)" }, s); yAxisT.textContent = "가격 등락률";
+  const yAxisT2 = el("text", { x: 10, y: 134, style: "font-size:13px;fill:var(--ltt-muted)" }, s); yAxisT2.textContent = "(두 쪽 공통)";
+  ITEMS.forEach((it) => {
+    const y = Y0 - it.r * K;
+    el("line", { x1: 76, x2: XB + PW, y1: y, y2: y, style: "stroke:var(--ltt-ink-2);stroke-width:1.2;stroke-dasharray:5 5;opacity:.7" }, s);
+    el("text", { x: 70, y: y + 5, "text-anchor": "end", style: "font-size:16px;font-weight:700;fill:var(--ltt-ink)" }, s).textContent = sg(it.r, 0) + "%";
+  });
+  el("line", { x1: 76, x2: XB + PW, y1: Y0, y2: Y0, style: "stroke:var(--ltt-ink);stroke-width:1.5" }, s);
+  el("text", { x: 70, y: Y0 + 5, "text-anchor": "end", style: "font-size:15px;fill:var(--ltt-muted)" }, s).textContent = "0";
+  const A = panel(s, XA, "개편 전", false), B = panel(s, XB, "개편 후", true);
+  // 개편 전 식료품 상자의 자취: 같은 높이에서 가로만 늘어난 만큼이 늘어난 기여도
+  const ghost = el("rect", { x: XB, y: Y0 - 8 * K, width: W_BEFORE[0] * PW / 100, height: 8 * K, style: "fill:none;stroke:var(--ltt-ink);stroke-width:2;stroke-dasharray:6 4" }, s);
+  const ghostL = el("text", { x: XB + 4, y: Y0 - 8 * K - 8, style: "font-size:13px;fill:var(--ltt-ink-2)" }, s); ghostL.textContent = "점선 = 개편 전 식료품 (2.4%p)";
+  const gap = el("text", { x: W / 2 + 40, y: 432, "text-anchor": "middle", style: "font-size:20px;font-weight:700;fill:var(--ltt-ink)" }, s);
+  const gapSub = el("text", { x: W / 2 + 40, y: 456, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, s);
+  function draw(sh) {
+    drawPanel(A, W_BEFORE); drawPanel(B, wAt(sh));
+    const d = cpi(wAt(sh)) - cpi(W_BEFORE);
+    gap.textContent = "가격은 그대로, 헤드라인 차이 " + sg(d) + "%p";
+    gapSub.textContent = "상자의 넓이 = 가중치 × 등락률 = 기여도, 넓이를 모두 더하면 CPI";
+    ghost.style.opacity = sh > .02 ? 1 : 0; ghostL.style.opacity = sh > .5 ? 1 : 0;
+  }
+  return { el: s, draw };
+}
+
+const scene = { title: "가격이 똑같이 움직여도 가중치가 옮겨 가면 CPI는 1.7%에서 3.3%로 갈린다",
+  sub: "가로는 바스켓에서 품목이 차지하는 비중, 세로는 가격 등락률이다. 넓이가 {{기여도}}이고, 넓이를 더한 값이 {{CPI}} 상승률이다. 저절로 되풀이하고, 단추를 누르면 그 상태에서 멈춘다.",
+  basis: "설명용 가상 수치(실제 통계 아님). 실제 개편의 가중치 이동은 이보다 훨씬 작고, 가중치는 기준 시점에 고정된다. 기여도 = 가중치 × 등락률.",
+  takeaway: "CPI는 품목 가격 변화의 가중평균이라, 가격이 같아도 비중이 옮겨 가면 헤드라인이 달라진다.",
+  recall: "식료품 비중이 30%에서 45%가 되면 같은 +8%는 몇 %p를 기여하나?",
+  mount(body) {
+    body.innerHTML = '<div class="cw-wrap"><div id="cw-fig"></div><div class="ltt-param">가중치 이동 <b id="shift-v"></b> <span class="ltt-basis">(누르면 자동 재생이 멈춘다)</span><div id="shift"></div></div></div>';
+    const f = figure(body.querySelector("#cw-fig"));
+    let raf = 0, sh = 0, to = 0, auto = true, first = true, t0 = 0;
+    const tick = () => {
+      if (auto) { const p = ((Date.now() - t0) / 11000) % 1; // 앞 20% 개편 전, 뒤 40% 개편 후에 머문다
+        sh = ease(clamp((p - .2) / .4)); } else sh += (to - sh) * .12;
+      f.draw(sh); raf = setTimeout(tick, 16); };
+    LTT.sweep({ params: { shift: { kind: "steps", stops: [0, 50, 100], value: 0, fmt: (v) => v === 0 ? "개편 전" : v === 100 ? "개편 후" : "절반" } },
+      render: ({ shift }) => { if (first) { first = false; return; } auto = false; to = shift / 100; } });
+    return { enter() { clearTimeout(raf); if (reduced) { f.draw(1); return; } t0 = Date.now(); tick(); }, leave() { clearTimeout(raf); } };
+  } };
+LTT.deck({ title: "CPI 바스켓 가중치", theme: "ledger",
+  glossary: { "CPI": "소비자물가지수. 가계가 사는 품목 묶음(바스켓)의 가격을 가중평균한 지표", "기여도": "품목 가중치 × 등락률. CPI 상승률 중 그 품목이 만든 몫(%p)" },
+  scenes: [scene] });
+</script></body></html>

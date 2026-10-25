@@ -22,3 +22,28 @@
 11:45:12 s13 끝
 11:45:28 s16/0 sonnet rc=0 298s $0.5899 success
 11:45:30 s16 끝
+12:32:00 s49/sb sonnet rc=0 26s $0.0546 success
+12:32:03 s25/sb sonnet rc=0 29s $0.056 success
+12:32:10 s31/sb sonnet rc=0 37s $0.0666 success
+12:32:11 s14/sb sonnet rc=0 37s $0.0695 success
+12:32:11 s30/sb sonnet rc=0 37s $0.0603 success
+12:32:13 s49/pick sonnet rc=0 13s $0.0429 success
+12:32:13 s25/pick sonnet rc=0 10s $0.0452 success
+12:32:20 s14/pick sonnet rc=0 10s $0.04 success
+12:32:22 s31/pick sonnet rc=0 11s $0.0487 success
+12:32:26 s30/pick sonnet rc=0 15s $0.0521 success
+12:33:29 s25/K sonnet rc=0 76s $0.2257 success
+12:33:45 s14/0 sonnet rc=0 84s $0.2564 success
+12:33:51 s25/0 sonnet rc=0 98s $0.2685 success
+12:33:53 s25 끝
+12:34:04 s14/K sonnet rc=0 104s $0.319 success
+12:34:06 s14 끝
+12:34:41 s31/0 sonnet rc=0 139s $0.3389 success
+12:35:11 s49/0 sonnet rc=0 178s $0.406 success
+12:35:57 s31/K sonnet rc=0 215s $0.5079 success
+12:36:00 s31 끝
+12:36:03 s30/0 sonnet rc=0 218s $0.3375 success
+12:37:02 s49/K sonnet rc=0 290s $0.63 success
+12:37:05 s49 끝
+12:38:37 s30/K sonnet rc=0 371s $0.6451 success
+12:38:40 s30 끝

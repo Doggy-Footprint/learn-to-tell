@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시각적 위계와 시선 경로</title>
+<script type="application/json" id="ltt-meta">{"topic":"시각적 위계와 시선 경로","audience":"랜딩 페이지를 만드는 개발자","theme":"studio","medium":"디자인 툴 시안 화면","decision":"헤드라인·CTA 크기와 대비"}</script>
+<style>
+  .hh-frame { border: 1px solid var(--ltt-line); border-radius: 10px; background: var(--ltt-card); overflow: hidden; max-width: 100%; }
+  .hh-bar { display: flex; align-items: center; gap: .6rem; padding: .35rem .75rem; border-bottom: 1px solid var(--ltt-line); background: var(--ltt-card-2); font-size: .8rem; color: var(--ltt-muted); }
+  .hh-bar i { width: .55rem; height: .55rem; border-radius: 50%; background: var(--ltt-line-2); display: inline-block; }
+  .hh-stage { padding: .75rem; background: var(--ltt-card-2); }
+  .hh-wrap { position: relative; overflow: hidden; border-radius: 4px; box-shadow: 0 1px 0 var(--ltt-line), 0 4px 14px rgba(0,0,0,.08); max-width: 100%; }
+  .hh { position: absolute; left: 0; top: 0; width: 720px; height: 380px; transform-origin: 0 0; background: #fff; color: #111; font-family: inherit; }
+  .hh > * { position: absolute; margin: 0; white-space: nowrap; }
+  .hh .nav-logo { left: 56px; top: 16px; font: 700 15px/1 inherit; color: #767676; }
+  .hh .nav-links { right: 56px; top: 17px; font-size: 13px; color: #9a9a9a; letter-spacing: .02em; }
+  .hh .banner { left: 56px; top: 70px; height: 26px; padding: 0 12px; border-radius: 13px; font-size: 13px; line-height: 26px; background: #F2F2F2; color: #767676; }
+  .hh .head { left: 56px; top: 106px; font-size: 64px; line-height: 72px; font-weight: 800; letter-spacing: -.02em; }
+  .hh .sub { left: 56px; top: 196px; font-size: 18px; line-height: 28px; color: #767676; }
+  .hh .cta { left: 56px; top: 250px; width: 180px; height: 48px; border-radius: 8px; background: #111; color: #fff; font-weight: 700; font-size: 16px; line-height: 48px; text-align: center; }
+  .hh .link { left: 258px; top: 263px; font-size: 14px; line-height: 22px; color: #767676; }
+  .hh .deco { left: 440px; top: 100px; width: 224px; height: 230px; border-radius: 12px; background: #F4F4F4; }
+  .hh .deco b { position: absolute; left: 20px; height: 10px; border-radius: 5px; background: #E2E2E2; }
+  .hh.loud .banner { background: #111; color: #fff; font-weight: 700; font-size: 15px; }
+  .hh.loud .sub { color: #111; font-weight: 700; font-size: 22px; }
+  .hh.loud .link { color: #111; font-weight: 700; font-size: 20px; text-decoration: underline; }
+  .hh.loud .deco { background: #111; }
+  .hh.loud .deco b { background: #555; }
+  .hh svg.ov { left: 0; top: 0; width: 720px; height: 380px; overflow: visible; pointer-events: none; }
+
+  .hh-ans { display: grid; grid-template-columns: auto minmax(15rem, 1fr); gap: 1rem; align-items: start; }
+  .hh-ans > * { min-width: 0; }
+  .hh-seg { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .5rem; }
+  .hh-seg button { font: inherit; font-size: .85rem; padding: .3rem .7rem; border-radius: 999px; border: 1px solid var(--ltt-line-2); background: var(--ltt-card); color: var(--ltt-ink-2); cursor: pointer; }
+  .hh-seg button[aria-pressed="true"] { background: var(--ltt-ink); color: var(--ltt-bg); border-color: var(--ltt-ink); }
+  .hh-rows { display: grid; gap: .3rem; }
+  .hh-row { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) 3.6rem; grid-template-areas: "n name r" ". bar bar"; column-gap: .5rem; align-items: baseline; font-size: .85rem; padding: .25rem 0; border-bottom: 1px solid var(--ltt-line); }
+  .hh-row .n { grid-area: n; font-weight: 700; color: var(--ltt-accent); text-align: center; }
+  .hh-row .nm { grid-area: name; color: var(--ltt-ink); }
+  .hh-row .nm small { color: var(--ltt-muted); margin-left: .3rem; font-size: .8rem; }
+  .hh-row .r { grid-area: r; text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .hh-row .bar { grid-area: bar; height: .4rem; border-radius: .2rem; background: var(--ltt-line); overflow: hidden; }
+  .hh-row .bar i { display: block; height: 100%; background: var(--ltt-muted); border-radius: .2rem; transform-origin: 0 50%; animation: hh-grow .6s ease-out both; }
+  .hh-row.first .bar i { background: var(--ltt-accent); }
+  .hh-row.flat .bar i { background: var(--ltt-warn); }
+  .hh-cap { margin: .5rem 0 0; font-size: .9rem; color: var(--ltt-ink-2); }
+
+  @keyframes hh-grow { from { transform: scaleX(0); } }
+  @keyframes hh-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  @keyframes hh-pop { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: scale(1); } }
+  @keyframes hh-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+  .ov .seg { stroke: var(--ltt-accent); stroke-width: 4; fill: none; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: hh-draw .5s ease-in-out forwards; }
+  .ov .dot { transform-box: fill-box; transform-origin: center; animation: hh-pop .3s ease-out both; }
+  .ov .dot circle { fill: var(--ltt-accent); }
+  .ov .dot text { fill: #fff; font: 700 17px/1 inherit; text-anchor: middle; }
+  .ov .guide { stroke: var(--ltt-accent); stroke-width: 2; stroke-dasharray: 6 6; fill: none; opacity: .7; }
+  .ov .stop { fill: none; stroke: var(--ltt-accent); stroke-width: 4; animation: hh-pulse 1.2s ease-in-out infinite; }
+  .ov .scatter circle { fill: none; stroke: var(--ltt-warn); stroke-width: 3; stroke-dasharray: 5 4; animation: hh-pulse 1.4s ease-in-out infinite; }
+  .ov .scatter text { fill: var(--ltt-warn); font: 700 18px/1 inherit; text-anchor: middle; }
+  @media (prefers-reduced-motion: reduce) {
+    .ov .seg, .ov .dot, .ov .stop, .ov .scatter circle, .hh-row .bar i { animation: none !important; stroke-dashoffset: 0; opacity: 1; }
+  }
+  @media (max-width: 760px) { .hh-ans { grid-template-columns: 1fr; } }
+</style>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-mock.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const INK = "#111111", FAINT = "#BDBDBD", MID = "#767676";
+const ratio = (fg, bg = "#FFFFFF") => LTT.contrast(fg, bg);
+const fmt = (r) => r.toFixed(1) + ":1";
+
+// 시안 위 고정점 후보의 중심 좌표(시안 720×380 기준)
+const AT = { banner: [110, 83], head: [286, 142], sub: [246, 210], cta: [146, 274], link: [330, 274], deco: [552, 215] };
+
+// 상태별 시선 순서와 수치 행
+const STATES = {
+  faint: {
+    label: "지금 시안", loud: false,
+    path: ["cta", "head", "sub"],
+    rows: [
+      { n: 1, name: "CTA 버튼", spec: "높이 48px · 굵은 16px", r: ratio("#FFFFFF", INK) },
+      { n: 2, name: "헤드라인", spec: "64px", r: ratio(FAINT) },
+      { n: 3, name: "서브카피", spec: "18px", r: ratio(MID) },
+      { n: "·", name: "보조 링크", spec: "14px", r: ratio(MID) }
+    ],
+    cap: "시선은 가장 큰 글자를 건너뛴다. 64px여도 1.9:1이면 흰 바탕과 구분되지 않고, 작은 버튼이 주변과 가장 다르다."
+  },
+  dark: {
+    label: "헤드라인 #111", loud: false, align: true,
+    path: ["head", "sub", "cta"],
+    rows: [
+      { n: 1, name: "헤드라인", spec: "64px", r: ratio(INK) },
+      { n: 2, name: "서브카피", spec: "18px", r: ratio(MID) },
+      { n: 3, name: "CTA 버튼", spec: "높이 48px · 굵은 16px", r: ratio("#FFFFFF", INK) },
+      { n: "·", name: "보조 링크", spec: "14px", r: ratio(MID) }
+    ],
+    cap: "대비 하나로 1등이 바뀐다. 점선은 왼쪽 정렬선이다. 시선은 그 선 위를 내려가 CTA에서 멈춘다."
+  },
+  loud: {
+    label: "전부 진하게", loud: true,
+    path: [],
+    scatter: ["banner", "head", "sub", "cta", "link"],
+    rows: [
+      { n: "?", name: "배너", spec: "굵게", r: ratio("#FFFFFF", INK) },
+      { n: "?", name: "헤드라인", spec: "64px", r: ratio(INK) },
+      { n: "?", name: "서브카피", spec: "굵은 22px", r: ratio(INK) },
+      { n: "?", name: "CTA 버튼", spec: "높이 48px", r: ratio("#FFFFFF", INK) },
+      { n: "?", name: "보조 링크", spec: "굵은 20px", r: ratio(INK) }
+    ],
+    cap: "전부 18.9:1이면 비교할 차이가 없다. 첫 고정점이 사라지고 시선이 흩어진다.",
+    flat: true
+  }
+};
+
+function overlay(st) {
+  const s = STATES[st];
+  const svg = document.createElementNS(SVGNS, "svg");
+  svg.setAttribute("class", "ov");
+  svg.setAttribute("viewBox", "0 0 720 380");
+  let h = "";
+  if (s.align) h += `<line class="guide" x1="40" y1="60" x2="40" y2="310"/>`;
+  const P = s.path.map((k) => AT[k]);
+  for (let i = 0; i < P.length - 1; i++) {
+    h += `<path class="seg" pathLength="1" d="M${P[i][0]} ${P[i][1]} L${P[i + 1][0]} ${P[i + 1][1]}" style="animation-delay:${0.45 + i * 0.75}s"/>`;
+  }
+  if (s.align) h += `<rect class="stop" x="52" y="246" width="188" height="56" rx="12" style="animation-delay:1.9s"/>`;
+  P.forEach((p, i) => {
+    h += `<g class="dot" style="animation-delay:${i * 0.75}s"><circle cx="${p[0]}" cy="${p[1]}" r="16"/><text x="${p[0]}" y="${p[1] + 6}">${i + 1}</text></g>`;
+  });
+  if (s.scatter) {
+    h += `<g class="scatter">` + s.scatter.map((k, i) => {
+      const p = AT[k];
+      return `<circle cx="${p[0]}" cy="${p[1]}" r="18" style="animation-delay:${i * 0.25}s"/><text x="${p[0]}" y="${p[1] + 6}">?</text>`;
+    }).join("") + `</g>`;
+  }
+  svg.innerHTML = h;
+  return svg;
+}
+
+// 시안 한 장. st가 있으면 시선 오버레이를 얹는다.
+function hero(scale, st) {
+  const loud = st && STATES[st].loud;
+  const wrap = LTT.h("div", "hh-wrap");
+  wrap.style.width = 720 * scale + "px";
+  wrap.style.height = 380 * scale + "px";
+  const el = LTT.h("div", "hh" + (loud ? " loud" : ""));
+  el.style.transform = `scale(${scale})`;
+  const headColor = st === "faint" || !st ? FAINT : INK;
+  el.innerHTML = `
+    <span class="nav-logo">Lumen</span><span class="nav-links">문서 &nbsp; 요금 &nbsp; 로그인</span>
+    <span class="banner">v2.4 새 릴리스</span>
+    <h2 class="head" style="color:${headColor}">배포, 10분이면 끝</h2>
+    <p class="sub">푸시하면 빌드·테스트·배포가 한 번에 돌아갑니다.</p>
+    <span class="cta">무료로 시작하기</span>
+    <span class="link">문서 둘러보기 →</span>
+    <div class="deco"><b style="top:24px;width:120px"></b><b style="top:48px;width:160px"></b><b style="top:72px;width:90px"></b><b style="top:96px;width:140px"></b></div>`;
+  if (st) el.appendChild(overlay(st));
+  wrap.appendChild(el);
+  return wrap;
+}
+
+function frame(label, inner) {
+  const f = LTT.h("div", "hh-frame");
+  f.innerHTML = `<div class="hh-bar"><i></i><i></i><i></i><span>${label}</span></div>`;
+  const st = LTT.h("div", "hh-stage");
+  st.appendChild(inner);
+  f.appendChild(st);
+  return f;
+}
+
+let cur = "faint";
+function answer(node) {
+  node.innerHTML = "";
+  const box = LTT.h("div", "hh-ans");
+  const left = LTT.h("div"), right = LTT.h("div");
+  const seg = LTT.h("div", "hh-seg");
+  const rows = LTT.h("div", "hh-rows");
+  const cap = LTT.h("p", "hh-cap");
+  const stage = LTT.h("div");
+  const draw = () => {
+    stage.innerHTML = "";
+    stage.appendChild(frame("Hero · 720×380", hero(0.6, cur)));
+    seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === cur)));
+    const s = STATES[cur];
+    rows.innerHTML = s.rows.map((r) => `<div class="hh-row${r.n === 1 ? " first" : ""}${s.flat ? " flat" : ""}">
+      <span class="n">${r.n}</span><span class="nm">${r.name}<small>${r.spec}</small></span><span class="r">${fmt(r.r)}</span>
+      <span class="bar"><i style="width:${(r.r / 21) * 100}%"></i></span></div>`).join("");
+    cap.textContent = s.cap;
+  };
+  Object.keys(STATES).forEach((k) => {
+    const b = LTT.h("button", "", STATES[k].label);
+    b.type = "button";
+    b.dataset.k = k;
+    b.onclick = () => { cur = k; draw(); };
+    seg.appendChild(b);
+  });
+  left.appendChild(seg);
+  left.appendChild(stage);
+  right.appendChild(LTT.h("div", "ltt-basis", "글자와 바탕의 대비비 · 막대는 최대 21:1 기준"));
+  right.appendChild(rows);
+  right.appendChild(cap);
+  box.appendChild(left);
+  box.appendChild(right);
+  node.appendChild(box);
+  draw();
+}
+
+const scene = {
+  type: "predict",
+  kicker: "디자인 · 시각적 위계",
+  title: "이 시안에서 눈은 어디에 먼저 멈출까?",
+  question: "랜딩 히어로 시안이다. 헤드라인은 64px, 버튼은 높이 48px이다. 눈이 처음 멈출 곳을 찍는다.",
+  visual: () => frame("Hero · 720×380", hero(0.72, null)),
+  choices: [
+    { id: "head", text: "헤드라인 — 가장 크다" },
+    { id: "sub", text: "서브카피" },
+    { id: "cta", text: "CTA 버튼" },
+    { id: "deco", text: "오른쪽 회색 카드" }
+  ],
+  answer: "cta",
+  hint: "큰 것이 아니라, 주변과 가장 다르게 보이는 것을 본다.",
+  why: "헤드라인은 64px이지만 {{대비비}}가 1.9:1이라 흰 바탕에 묻힌다. 버튼은 18.9:1이라 주변과 가장 다르다. 아래 버튼으로 헤드라인을 #111로 바꾸면 {{첫 고정점|고정점}}이 헤드라인으로 옮겨 간다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+  answerVisual: answer,
+  rest: "dim",
+  takeaway: "눈은 가장 큰 것이 아니라 주변과 가장 다르게 보이는 곳(크기×대비)에 먼저 멈춘다. 1등은 하나만 두고, 정렬선과 간격으로 CTA까지 길을 낸다.",
+  recall: "64px 옅은 헤드라인과 16px 진한 버튼 중 시선은 어디에 먼저 닿을까?",
+  basis: "대비비 = (L밝은 + 0.05) / (L어두운 + 0.05), WCAG 정의. 시선 순서는 이 시안을 설명하려는 단순한 모델이며 시선 추적 실험 값이 아니다(불확실).",
+  sources: ["WCAG 2.x Contrast (Minimum)"]
+};
+
+LTT.expect("옅은 헤드라인 대비비", ratio(FAINT), 1.9, { tol: 0.05 });
+LTT.expect("진한 버튼 대비비", ratio("#FFFFFF", INK), 18.9, { tol: 0.1 });
+LTT.expect("서브카피 대비비", ratio(MID), 4.5, { tol: 0.05 });
+
+LTT.deck({
+  title: "시각적 위계와 시선 경로",
+  theme: "studio",
+  glossary: {
+    "대비비": "글자색과 바탕색의 밝기 차이를 1:1(차이 없음)부터 21:1(검정 대 흰색)로 나타낸 값. 클수록 또렷하다.",
+    "고정점": "시선이 훑다가 잠시 멈추는 지점. 화면을 볼 때 가장 먼저 멈추는 곳이 첫 고정점이다."
+  },
+  scenes: [scene]
+});
+</script>
+</body>
+</html>

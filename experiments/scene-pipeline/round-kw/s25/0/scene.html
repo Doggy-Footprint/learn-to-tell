@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CPI 바스켓 가중치</title>
+<script type="application/json" id="ltt-meta">{"topic": "CPI 바스켓 가중치", "audience": "경제 기사 독자", "theme": "ledger", "medium": "경제 신문 차트", "decision": "물가 지표 해석"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .cw { display: grid; gap: .5rem; font-variant-numeric: tabular-nums; }
+  .cw-grid { display: grid; grid-template-columns: minmax(4.2rem, .65fr) minmax(0, 1fr) 1.1rem minmax(0, 1fr) 1.1rem minmax(0, 1fr); column-gap: .35rem; align-items: center; }
+  .cw-h { font-size: var(--ltt-fs-sm, .8rem); color: var(--ltt-muted); line-height: 1.3; padding-bottom: .35rem; border-bottom: 2px solid var(--ltt-ink); align-self: end; }
+  .cw-h b { display: block; color: var(--ltt-ink); font-size: 1em; }
+  .cw-op { text-align: center; color: var(--ltt-muted); font-size: 1.2rem; }
+  .cw-h.cw-op { border-bottom: 2px solid var(--ltt-ink); padding-bottom: .35rem; }
+  .cw-name { font-weight: 700; color: var(--ltt-ink); padding: .55rem 0; }
+  .cw-row > * { border-bottom: 1px solid var(--ltt-line); }
+  .cw-row.hot > * { background: var(--ltt-accent-soft); }
+  .cw-track { position: relative; height: 2.5rem; }
+  .cw-track.div::before { content: ""; position: absolute; left: 50%; top: .2rem; bottom: .2rem; width: 1px; background: var(--ltt-line-2); }
+  .cw-track.base::before { content: ""; position: absolute; left: 0; top: .2rem; bottom: .2rem; width: 1px; background: var(--ltt-line-2); }
+  .cw-bar, .cw-ghost { position: absolute; top: .55rem; bottom: .55rem; border-radius: 2px; }
+  .cw-bar { background: var(--ltt-muted); }
+  .cw-bar.fix { background: var(--ltt-ink-2); }
+  .cw-row.hot .cw-bar.var { background: var(--ltt-accent); }
+  .cw-ghost { border: 1.5px dashed var(--ltt-ink-2); opacity: 0; transition: opacity .4s; pointer-events: none; }
+  .cw.after .cw-ghost { opacity: .9; }
+  .cw-lab { position: absolute; top: 50%; transform: translateY(-50%); font-weight: 700; color: var(--ltt-ink); white-space: nowrap; font-family: var(--ltt-mono, ui-monospace, monospace); font-size: .95rem; }
+  .cw-lock { font-weight: 400; color: var(--ltt-muted); font-size: .75rem; margin-left: .25rem; }
+  .cw-tot > * { padding-top: .6rem; }
+  .cw-tot .cw-name { padding: .6rem 0 0; }
+  .cw-sum { font-weight: 700; color: var(--ltt-muted); text-align: right; font-family: var(--ltt-mono, ui-monospace, monospace); }
+  .cw-big { text-align: right; line-height: 1.05; }
+  .cw-big .n { font-size: 2.2rem; font-weight: 800; color: var(--ltt-ink); font-family: var(--ltt-mono, ui-monospace, monospace); }
+  .cw-big .n small { font-size: .5em; font-weight: 600; }
+  .cw-prev { font-size: .8rem; color: var(--ltt-muted); min-height: 1.1rem; }
+  .cw-prev s { text-decoration-thickness: 1.5px; }
+  .cw-delta { min-height: 1.6rem; text-align: right; }
+  .cw-cap { margin: .2rem 0 0; padding: .5rem .7rem; border-left: 3px solid var(--ltt-accent); background: var(--ltt-card-2, transparent); color: var(--ltt-ink); line-height: 1.5; min-height: 3.2em; }
+  .cw-key { display: flex; flex-wrap: wrap; gap: .3rem 1rem; font-size: .8rem; color: var(--ltt-muted); }
+  .cw-key i { display: inline-block; width: 1.1rem; height: .7rem; vertical-align: middle; margin-right: .3rem; }
+  .cw-key .k1 { background: var(--ltt-ink-2); }
+  .cw-key .k2 { border: 1.5px dashed var(--ltt-ink-2); }
+  .cw-key .k3 { background: var(--ltt-accent); }
+  @media (max-width: 640px) {
+    .cw-grid { grid-template-columns: 3.4rem repeat(3, minmax(0, 1fr)); }
+    .cw-op { display: none; }
+    .cw-big .n { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+<script>
+const ITEMS = [
+  { k: "식료품", p: 8, hot: true },
+  { k: "주거", p: 2 },
+  { k: "교통", p: -5 },
+];
+const BASKET = [[30, 40, 30], [45, 35, 20]];
+const contrib = (w, p) => w * p / 100;
+const total = (ws) => ws.reduce((s, w, i) => s + contrib(w, ITEMS[i].p), 0);
+const sg = (v, d = 1) => (v < 0 ? "−" : "+") + Math.abs(v).toFixed(d);
+
+LTT.expect("개편 전 CPI 상승률", total(BASKET[0]), 1.7, { tol: 1e-9 });
+LTT.expect("개편 후 CPI 상승률", total(BASKET[1]), 3.3, { tol: 1e-9 });
+LTT.expect("식료품 기여도 전", contrib(30, 8), 2.4, { tol: 1e-9 });
+LTT.expect("식료품 기여도 후", contrib(45, 8), 3.6, { tol: 1e-9 });
+LTT.expect("가중치 합", BASKET[1].reduce((a, b) => a + b), 100, { tol: 0 });
+
+const PRICE_SCALE = 12, WEIGHT_MAX = 50, CONTRIB_SCALE = 6;
+
+const scene = {
+  kicker: "물가 · CPI",
+  title: "가격은 그대로, 가중치만 옮기면 물가 상승률이 1.7%에서 3.3%로 뛴다",
+  en: "Same price moves, different basket weights",
+  sub: "소비자물가지수(CPI) 상승률은 품목별 {{기여도}}의 합이다. 기여도는 바스켓에서 품목이 차지하는 {{가중치}} × 가격 등락률이다.",
+  chips: ["가중평균", "기준연도 개편"],
+  mount(body) {
+    const rowsHtml = ITEMS.map((it, i) => `
+      <div class="cw-name cw-row-${i}">${it.k}</div>
+      <div class="cw-track div"><div class="cw-bar fix" data-p="${i}"></div><div class="cw-lab" data-pl="${i}"></div></div>
+      <div class="cw-op">×</div>
+      <div class="cw-track base"><div class="cw-bar var" data-w="${i}"></div><div class="cw-ghost" data-wg="${i}"></div><div class="cw-lab" data-wl="${i}"></div></div>
+      <div class="cw-op">=</div>
+      <div class="cw-track div"><div class="cw-bar var" data-c="${i}"></div><div class="cw-ghost" data-cg="${i}"></div><div class="cw-lab" data-cl="${i}"></div></div>`).join("");
+    body.innerHTML = `
+      <div class="cw" id="cw">
+        <div class="cw-grid cw-head">
+          <div class="cw-h">품목</div>
+          <div class="cw-h"><b>가격 등락률</b>두 바스켓 공통, 고정</div>
+          <div class="cw-h cw-op">×</div>
+          <div class="cw-h"><b>가중치 (%)</b>합 항상 100</div>
+          <div class="cw-h cw-op">=</div>
+          <div class="cw-h"><b>기여도 (%p)</b>가중치 × 등락률</div>
+        </div>
+        <div class="cw-grid cw-body" id="cw-body">${rowsHtml}</div>
+        <div class="cw-grid cw-tot">
+          <div class="cw-name">합계</div>
+          <div class="cw-sum" style="text-align:left;font-weight:400">기여도를 더하면</div>
+          <div class="cw-op"></div>
+          <div class="cw-sum">100%</div>
+          <div class="cw-op">→</div>
+          <div class="cw-big"><div class="cw-prev" id="cw-prev"></div><div class="n" id="cw-total">+1.7<small>%</small></div><div class="cw-delta" id="cw-delta"></div></div>
+        </div>
+        <div class="cw-key"><span><i class="k1"></i>가격 등락률(고정)</span><span><i class="k3"></i>식료품: 가중치가 바뀌는 품목</span><span><i class="k2"></i>개편 전 값</span></div>
+        <p class="cw-cap" id="cw-cap"></p>
+      </div>
+      <div class="ltt-param">바스켓 <b id="basket-v"></b><div id="basket"></div></div>
+      <div class="ltt-basis">설명용 가상 예시(모델로 계산한 예시)이며 실제 통계 값이 아니다. 실제 개편의 가중치 이동은 이보다 훨씬 작다. 가중치는 기준연도에 고정되고 매달 바뀌지 않는다.</div>`;
+
+    const $ = (s) => body.querySelector(s);
+    const root = $("#cw");
+    const place = (bar, lab, v, scale) => {
+      const pct = Math.abs(v) / scale * 50;
+      if (v >= 0) {
+        bar.style.left = "50%"; bar.style.width = pct + "%";
+        if (lab) { lab.style.left = `calc(${50 + pct}% + .35rem)`; lab.style.right = "auto"; }
+      } else {
+        bar.style.left = (50 - pct) + "%"; bar.style.width = pct + "%";
+        if (lab) { lab.style.right = `calc(${50 + pct}% + .35rem)`; lab.style.left = "auto"; }
+      }
+    };
+    const placeW = (bar, lab, w) => {
+      const pct = w / WEIGHT_MAX * 100;
+      bar.style.left = "0"; bar.style.width = pct + "%";
+      if (lab) lab.style.left = `calc(${pct}% + .35rem)`;
+    };
+
+    ITEMS.forEach((it, i) => {
+      place($(`[data-p="${i}"]`), $(`[data-pl="${i}"]`), it.p, PRICE_SCALE);
+      $(`[data-pl="${i}"]`).innerHTML = `${sg(it.p, 0)}%`;
+      placeW($(`[data-wg="${i}"]`), null, BASKET[0][i]);
+      place($(`[data-cg="${i}"]`), null, contrib(BASKET[0][i], it.p), CONTRIB_SCALE);
+    });
+    // 식료품 행 강조: 행 안의 셀에 hot 표시
+    const cells = [...$("#cw-body").children];
+    ITEMS.forEach((it, i) => { if (it.hot) cells.slice(i * 6, i * 6 + 6).forEach((c) => c.style.background = "var(--ltt-accent-soft)"); });
+    cells.forEach((c) => { c.style.borderBottom = "1px solid var(--ltt-line)"; });
+
+    const paint = (ws) => {
+      ITEMS.forEach((it, i) => {
+        const c = contrib(ws[i], it.p);
+        placeW($(`[data-w="${i}"]`), $(`[data-wl="${i}"]`), ws[i]);
+        $(`[data-wl="${i}"]`).textContent = Math.round(ws[i]) + "%";
+        place($(`[data-c="${i}"]`), $(`[data-cl="${i}"]`), c, CONTRIB_SCALE);
+        $(`[data-cl="${i}"]`).textContent = sg(c);
+      });
+      $("#cw-total").innerHTML = `${sg(total(ws))}<small>%</small>`;
+    };
+
+    let cur = BASKET[0].slice(), raf = 0, state = 0, touched = false, timer = 0;
+    const CAP = [
+      "개편 전: 식료품 30% × +8% = +2.4%p, 주거 +0.8%p, 교통 −1.5%p. 셋을 더한 +1.7%가 헤드라인 CPI 상승률이다.",
+      "가격 줄은 한 칸도 안 움직였다. 식료품 30→45로 같은 +8%가 2.4→3.6%p가 되고, 교통의 상쇄는 −1.5→−1.0%p로 줄었다. 헤드라인 1.7%→3.3%, 차이 1.6%p는 전부 가중치 몫이다.",
+    ];
+    const goTo = (s) => {
+      state = s;
+      const from = cur.slice(), to = BASKET[s], ms = LTT.MOTION_MS || 0, t0 = performance.now();
+      cancelAnimationFrame(raf);
+      root.classList.toggle("after", !!s);
+      $("#cw-cap").textContent = CAP[s];
+      $("#cw-prev").innerHTML = s ? `<s>개편 전 +1.7%</s>` : "";
+      $("#cw-delta").innerHTML = s ? `<span class="ltt-tag warn">+1.6%p, 가격 변화는 0</span>` : "";
+      const tick = (now) => {
+        const k = ms ? Math.min(1, (now - t0) / ms) : 1, e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+        cur = from.map((f, i) => f + (to[i] - f) * e);
+        paint(cur);
+        if (k < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    };
+    paint(cur);
+    $("#cw-cap").textContent = CAP[0];
+
+    const mark = () => { touched = true; clearTimeout(timer); };
+    $("#basket").addEventListener("pointerdown", mark);
+    $("#basket").addEventListener("keydown", mark);
+
+    LTT.sweep({
+      params: { basket: { kind: "steps", stops: [0, 1], value: 0,
+        fmt: (v) => v ? "개편 후 · 식료품 45 / 주거 35 / 교통 20" : "개편 전 · 식료품 30 / 주거 40 / 교통 30",
+        stopLabel: (v) => v ? "개편 후" : "개편 전" } },
+      render: ({ basket }) => { if (basket !== state) goTo(basket); },
+    });
+
+    return {
+      enter() {
+        clearTimeout(timer);
+        if (touched) return;
+        timer = setTimeout(() => {
+          if (touched || state) return;
+          const bs = $("#basket").querySelectorAll("button");
+          if (bs.length > 1) bs[bs.length - 1].click();
+        }, 2600);
+      },
+      leave() { clearTimeout(timer); cancelAnimationFrame(raf); },
+    };
+  },
+  takeaway: "품목 가격이 같아도 가중치가 바뀌면 CPI 상승률은 달라진다. 기사를 읽을 때는 얼마나 올랐나와 비중이 얼마인가를 함께 본다.",
+  recall: "등락률이 그대로인데 헤드라인이 1.7%에서 3.3%로 바뀌었다면, 무엇이 바뀐 것일까?",
+  basis: "기여도 = 가중치 × 등락률. 개편 전 0.30×8 + 0.40×2 + 0.30×(−5) = 1.7, 개편 후 0.45×8 + 0.35×2 + 0.20×(−5) = 3.3. 기사 속 CPI는 평균 가구의 바스켓 기준이라 내 지출 비중이 다르면 체감과 어긋날 수 있다.",
+};
+
+LTT.deck({
+  title: "CPI 바스켓 가중치",
+  theme: "ledger",
+  glossary: {
+    "기여도": "한 품목이 전체 CPI 상승률을 몇 %p 끌어올렸는지. 가중치 × 가격 등락률로 구하고, 가격이 내린 품목은 음수다.",
+    "가중치": "가계 지출에서 그 품목이 차지하는 비중(%). 모든 품목의 합이 100이고, 기준연도 개편 때 정해진다.",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

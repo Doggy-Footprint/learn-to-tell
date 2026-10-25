@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시각적 위계와 시선 경로</title>
+<script type="application/json" id="ltt-meta">{"topic":"시각적 위계와 시선 경로","audience":"랜딩 페이지를 만드는 개발자","theme":"studio","medium":"디자인 툴 시안 화면","decision":"헤드라인·CTA 크기와 대비","domain":"디자인","pattern":["predict"],"mode":"장면 하나: 시안을 보고 첫 고정점을 예측하고, 헤드라인 대비를 바꿔 시선이 도는 순서를 본다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.hv{width:100%;max-width:1000px;height:auto;display:block;margin:0 auto 8px}
+.hv text{font-family:inherit}
+.hv-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:center}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:inherit;padding:8px 12px;border:1px solid var(--ltt-line-2);border-radius:8px;background:var(--ltt-card);color:var(--ltt-ink);cursor:pointer}
+.seg button[aria-checked=true]{background:var(--ltt-dark);color:var(--ltt-on-dark);border-color:var(--ltt-dark)}
+.seg button:focus-visible{outline:2px solid var(--ltt-accent);outline-offset:2px}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// WCAG 상대 휘도와 대비비
+const lin = (c) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+const lum = (hex) => { const n = parseInt(hex.slice(1), 16); return 0.2126 * lin((n >> 16 & 255) / 255) + 0.7152 * lin((n >> 8 & 255) / 255) + 0.0722 * lin((n & 255) / 255); };
+const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+LTT.expect("#BDBDBD on 흰색 대비비", ratio("#BDBDBD", "#FFFFFF"), 1.9, { tol: 0.05 });
+LTT.expect("#111111 on 흰색 대비비", ratio("#111111", "#FFFFFF"), 18.9, { tol: 0.1 });
+LTT.expect("#767676 on 흰색 대비비", ratio("#767676", "#FFFFFF"), 4.5, { tol: 0.1 });
+
+// 시안 상태: 시안 속 색은 '실제 화면'의 내용이라 hex로 적는다
+const STATES = [
+  { id: "pale", hl: "#BDBDBD", sub: "#767676", link: "#767676", s: 18, b: [160, 48], bt: 16, l: 14, btn: "옅게" },
+  { id: "mid", hl: "#767676", sub: "#767676", link: "#767676", s: 18, b: [160, 48], bt: 16, l: 14, btn: "중간" },
+  { id: "dark", hl: "#111111", sub: "#767676", link: "#767676", s: 18, b: [160, 48], bt: 16, l: 14, btn: "진하게" },
+  { id: "all", hl: "#111111", sub: "#111111", link: "#111111", s: 32, b: [240, 72], bt: 24, l: 32, btn: "전부 크고 진하게" } ];
+const WHITE = "#FFFFFF", INK = "#111111";
+const W = 1000, H = 430, X = 60, CT = 40, CH = 340, CW = 680, PX = 712;
+
+// 두드러짐 = (대비비 − 1) × √면적. 시선 추적 실측이 아닌 설명용 어림 모델
+function layout(st) {
+  let y = CT + 50; const it = [];
+  const text = (name, size, color, w, s2) => { const r = ratio(color, WHITE);
+    const o = { name, size, color, x: X, y, w, h: size, r, s1: `${size}px · ${color}`, s2: s2 || "흰 배경 위", r1: `${size}px · ${r.toFixed(1)}:1` }; y += size; return o; };
+  it.push(text("헤드라인", 64, st.hl, 8.3 * 64)); y += 22;
+  it.push(text("서브카피", st.s, st.sub, 17.5 * st.s)); y += 34;
+  const r = ratio(INK, WHITE);
+  it.push({ name: "CTA 버튼", size: st.bt, color: INK, x: X, y, w: st.b[0], h: st.b[1], r, s1: `${st.bt}px 굵게 · ${st.b[0]}×${st.b[1]}px`, s2: "버튼 #111111 · 글자 #FFFFFF", r1: `${st.b[0]}×${st.b[1]}px · ${r.toFixed(1)}:1`, btn: true });
+  y += st.b[1] + 26;
+  it.push(text("보조 링크", st.l, st.link, 4.3 * st.l));
+  it.forEach((o) => { o.sal = (o.r - 1) * Math.sqrt(o.w * o.h); });
+  return it;
+}
+// 첫 고정점은 두드러짐 1등. 1등÷2등이 1.5배 미만이면 서 있을 곳이 없다. 이후는 남은 것을 정렬선 따라 위에서 아래로.
+function gazeOrder(items) {
+  const rank = items.map((o, i) => i).sort((a, b) => items[b].sal - items[a].sal);
+  const gap = items[rank[0]].sal / items[rank[1]].sal;
+  const order = [rank[0], ...items.map((o, i) => i).filter((i) => i !== rank[0])];
+  return { order, gap, scatter: gap < 1.5, top: rank[0] };
+}
+const SC = [1, 2, 0, 3, 2, 0, 3, 1];
+function makePlan(g) {
+  const seq = g.scatter ? SC : g.order, mv = g.scatter ? .3 : .7; let t = 0;
+  const stops = seq.map((i, k) => { const dwell = g.scatter ? .25 : (k ? .6 : 1.3); const o = { i, a: t, d: t + dwell }; t += dwell + mv; return o; });
+  return { stops, mv, total: stops[stops.length - 1].d + (g.scatter ? .5 : 1.4) };
+}
+
+function hero(host, mode) {
+  const ans = mode === "ans";
+  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "hv", "data-annotate": "" }, host);
+  const T = (x, y, t, st, a = "start") => { const n = mk("text", { x, y, "text-anchor": a, style: st }, s); n.textContent = t; return n; };
+  mk("rect", { x: 0, y: CT, width: CW, height: CH, rx: 12, fill: "#FFFFFF", style: "stroke:var(--ltt-line-2);stroke-width:1.5" }, s);
+  mk("rect", { x: X, y: CT + 16, width: 56, height: 10, rx: 3, fill: "#D4D4D4" }, s);
+  [0, 1, 2].forEach((i) => mk("rect", { x: CW - 60 - 150 + i * 56, y: CT + 16, width: 40, height: 10, rx: 3, fill: "#E6E6E6" }, s));
+  if (ans) {
+    mk("line", { x1: X, y1: CT - 2, x2: X, y2: CT + CH - 14, style: "stroke:var(--ltt-accent);stroke-width:1.5;stroke-dasharray:5 5;opacity:.5" }, s);
+    T(X, CT - 10, "같은 왼쪽 정렬선", "font-size:14px;fill:var(--ltt-ink-2)");
+  }
+  const hT = T(X, 0, "배포가 두렵지 않게", "font-weight:800");
+  const sT = T(X, 0, "릴리스 자동화를 팀 전체가 한 화면에서", "");
+  const cR = mk("rect", { rx: 8, fill: INK }, s);
+  const cT = T(0, 0, "무료로 시작", "font-weight:700", "middle"); cT.setAttribute("fill", "#FFFFFF");
+  const lT = T(X, 0, "요금 보기", ""); const lU = mk("line", { "stroke-width": 1.5 }, s);
+  const frameR = ans ? mk("rect", { rx: 8, style: "fill:none;stroke:var(--ltt-accent);stroke-width:2.5;stroke-dasharray:7 5" }, s) : null;
+  const badges = [0, 1, 2, 3].map(() => { const g = mk("g", {}, s);
+    mk("circle", { r: 14, style: "fill:var(--ltt-dark)" }, g);
+    const t = mk("text", { y: 5, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-on-dark)" }, g); return { g, t }; });
+  // 오른쪽 판: 질문에서는 시안의 조건, 답에서는 두드러짐 막대
+  const rowY = (i) => 60 + i * 80;
+  T(PX, 28, ans ? "두드러짐 = (대비비−1) × √면적" : "시안의 조건", "font-size:14px;fill:var(--ltt-ink-2)");
+  const rows = [0, 1, 2, 3].map((i) => {
+    const y = rowY(i);
+    const name = T(PX, y + 14, "", "font-size:16px;font-weight:700;fill:var(--ltt-ink)");
+    const l1 = T(PX, y + 36, "", "font-size:14px;fill:var(--ltt-muted)");
+    const o = { name, l1 };
+    if (ans) { mk("rect", { x: PX, y: y + 46, width: 190, height: 14, rx: 4, style: "fill:var(--ltt-line)" }, s);
+      o.bar = mk("rect", { x: PX, y: y + 46, height: 14, rx: 4 }, s); o.val = T(PX + 200, y + 58, "", "font-size:14px;font-weight:600;fill:var(--ltt-ink)"); }
+    else { o.l2 = T(PX, y + 56, "", "font-size:14px;fill:var(--ltt-muted)"); o.sw = mk("rect", { x: PX + 240, y: y + 2, width: 24, height: 24, rx: 5, style: "stroke:var(--ltt-line-2);stroke-width:1.5" }, s); }
+    return o; });
+  const rowFrame = ans ? mk("rect", { x: PX - 8, width: 284, height: 74, rx: 8, style: "fill:none;stroke:var(--ltt-accent);stroke-width:2.5;stroke-dasharray:7 5" }, s) : null;
+  const readout = ans ? T(W / 2, 414, "", "font-size:17px;font-weight:600;fill:var(--ltt-ink)", "middle") : null;
+  const trail = ans ? mk("path", { style: "fill:none;stroke:var(--ltt-accent);stroke-width:3;stroke-linecap:round;stroke-linejoin:round" }, s) : null;
+  const ring = ans ? mk("circle", { r: 24, style: "fill:none;stroke:var(--ltt-accent);stroke-width:2.5" }, s) : null;
+  const dot = ans ? mk("circle", { r: 10, style: "fill:var(--ltt-accent)" }, s) : null;
+
+  let items = [], g = null, plan = null, t0 = 0, timer = 0, miss = 0;
+  function apply(st) {
+    items = layout(st); const [h, sb, c, l] = items;
+    hT.setAttribute("x", h.x); hT.setAttribute("y", h.y + 64 * .82); hT.setAttribute("fill", h.color); hT.setAttribute("font-size", 64); hT.setAttribute("textLength", h.w); hT.setAttribute("lengthAdjust", "spacingAndGlyphs");
+    sT.setAttribute("y", sb.y + sb.size * .82); sT.setAttribute("fill", sb.color); sT.setAttribute("font-size", sb.size); sT.setAttribute("textLength", sb.w); sT.setAttribute("lengthAdjust", "spacingAndGlyphs");
+    sT.setAttribute("font-weight", st.id === "all" ? 700 : 400);
+    cR.setAttribute("x", c.x); cR.setAttribute("y", c.y); cR.setAttribute("width", c.w); cR.setAttribute("height", c.h);
+    cT.setAttribute("x", c.x + c.w / 2); cT.setAttribute("y", c.y + c.h / 2 + c.size * .35); cT.setAttribute("font-size", c.size);
+    lT.setAttribute("y", l.y + l.size * .82); lT.setAttribute("fill", l.color); lT.setAttribute("font-size", l.size); lT.setAttribute("textLength", l.w); lT.setAttribute("lengthAdjust", "spacingAndGlyphs");
+    lT.setAttribute("font-weight", st.id === "all" ? 700 : 400);
+    lU.setAttribute("x1", l.x); lU.setAttribute("x2", l.x + l.w); lU.setAttribute("y1", l.y + l.size + 3); lU.setAttribute("y2", l.y + l.size + 3); lU.setAttribute("stroke", l.color);
+    items.forEach((o, i) => { const b = badges[i]; b.g.setAttribute("transform", `translate(${X - 32},${o.y + o.h / 2})`);
+      if (!ans) { b.t.textContent = i + 1; b.g.style.opacity = 1; } });
+    rows.forEach((r, i) => { const o = items[i];
+      r.name.textContent = ans ? o.name : `${i + 1}  ${o.name}`;
+      if (ans) { r.l1.textContent = o.r1; } else { r.l1.textContent = o.s1; r.l2.textContent = o.s2; r.sw.style.fill = o.color; } });
+  }
+  const center = (o) => [o.x + o.w / 2, o.y + o.h / 2];
+  const at = (tt) => { const st = plan.stops; let k = 0; st.forEach((o, j) => { if (o.a <= tt) k = j; });
+    if (tt <= st[k].d || k === st.length - 1) return { k, moving: false, f: 0, t: tt };
+    return { k, moving: true, f: (tt - st[k].d) / plan.mv, t: tt }; };
+  function frame(tt) {
+    const p = at(tt), A = items[plan.stops[p.k].i], B = p.moving ? items[plan.stops[p.k + 1].i] : A, f = p.moving ? ease(p.f) : 0;
+    const L = (a, b) => a + (b - a) * f;
+    const [ax, ay] = center(A), [bx, by] = center(B), cx = L(ax, bx), cy = L(ay, by);
+    dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); ring.setAttribute("cx", cx); ring.setAttribute("cy", cy);
+    ring.setAttribute("r", p.moving ? 20 : 24 + (reduced ? 0 : 4 * Math.sin(tt * 6)));
+    let pts = plan.stops.slice(0, p.k + 1).map((o) => center(items[o.i])); if (p.moving) pts.push([cx, cy]);
+    if (g.scatter) pts = pts.slice(-3);
+    trail.setAttribute("d", "M" + pts.map((q) => q.join(" ")).join("L")); trail.style.opacity = g.scatter ? .35 : .6;
+    frameR.setAttribute("x", L(A.x, B.x) - 8); frameR.setAttribute("y", L(A.y, B.y) - 6); frameR.setAttribute("width", L(A.w, B.w) + 16); frameR.setAttribute("height", L(A.h, B.h) + 12);
+    const ia = plan.stops[p.k].i, ib = p.moving ? plan.stops[p.k + 1].i : ia;
+    rowFrame.setAttribute("y", L(rowY(ia), rowY(ib)) - 8);
+    badges.forEach((b, i) => { const idx = plan.stops.findIndex((o) => o.i === i);
+      const on = !g.scatter && idx >= 0 && plan.stops[idx].a <= tt; b.g.style.opacity = on ? 1 : 0; if (on) b.t.textContent = idx + 1; });
+  }
+  function setState(st) {
+    apply(st);
+    if (!ans) return;
+    g = gazeOrder(items); plan = makePlan(g);
+    const mx = 3500;
+    rows.forEach((r, i) => { const o = items[i], w = Math.min(190, o.sal / mx * 190);
+      r.bar.setAttribute("width", Math.max(2, w)); r.bar.style.fill = !g.scatter && i === g.top ? "var(--ltt-accent)" : "var(--ltt-muted)"; r.val.setAttribute("x", PX + Math.max(2, w) + 8); r.val.textContent = Math.round(o.sal).toLocaleString("ko-KR"); });
+    const sorted = items.map((o) => o.sal).sort((a, b) => b - a);
+    readout.textContent = g.scatter
+      ? `1등 ÷ 2등 = ${g.gap.toFixed(1)}배 · 1.5배 미만이라 시선이 멈출 곳이 없다`
+      : `첫 고정점은 ${items[g.top].name} · 1등 ÷ 2등 = ${(sorted[0] / sorted[1]).toFixed(1)}배, 이후는 정렬선을 따라 내려간다`;
+    clearTimeout(timer); t0 = Date.now(); miss = 0;
+    if (reduced) { frame(plan.total - 1.4 + (g.scatter ? 0.5 : 0)); return; }
+    const tick = () => { if (!s.isConnected && ++miss > 600) return; frame(((Date.now() - t0) / 1000) % plan.total); timer = setTimeout(tick, 16); };
+    tick();
+  }
+  setState(STATES[0]);
+  if (ans) {
+    const bar = host.appendChild(document.createElement("div")); bar.className = "ltt-param hv-ctl";
+    bar.innerHTML = '<span>헤드라인 대비</span><div class="seg" role="radiogroup" aria-label="헤드라인 대비와 크기"></div>';
+    const seg = bar.querySelector(".seg"); let cur = 0;
+    const btns = STATES.map((st, i) => { const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "radio");
+      b.textContent = st.id === "all" ? st.btn : `${st.btn} ${ratio(st.hl, WHITE).toFixed(1)}:1`; seg.appendChild(b);
+      b.onclick = () => pick(i); return b; });
+    const pick = (i) => { cur = i; btns.forEach((b, j) => { b.setAttribute("aria-checked", j === i); b.tabIndex = j === i ? 0 : -1; }); setState(STATES[i]); };
+    seg.addEventListener("keydown", (e) => { if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      e.preventDefault(); e.stopPropagation(); const n = (cur + (e.key === "ArrowRight" ? 1 : STATES.length - 1)) % STATES.length; pick(n); btns[n].focus(); });
+    btns.forEach((b, j) => { b.setAttribute("aria-checked", j === 0); b.tabIndex = j === 0 ? 0 : -1; });
+  }
+  return s;
+}
+
+LTT.deck({
+  title: "시각적 위계와 시선 경로", theme: "studio",
+  glossary: { "대비비": "글자와 배경의 밝기 비. 1:1은 차이 없음, 21:1은 검정 대 흰색. 클수록 또렷하다",
+    "두드러짐": "주변과 비교해 눈에 띄는 정도. 이 장면에서는 대비비와 면적으로 어림한다" },
+  scenes: [{
+    type: "predict", title: "64px 헤드라인과 16px 버튼 중 눈이 먼저 닿는 곳은?", en: "Visual hierarchy · first fixation",
+    sub: "랜딩 히어로 시안 한 장이다. 눈이 처음 멈추는 곳(첫 고정점)을 하나 고른다.",
+    question: "이 시안을 처음 연 방문자의 눈은 어디에 먼저 멈출까?",
+    visual: (el) => { hero(el, "ask"); },
+    choices: [{ id: "h", text: "1 헤드라인" }, { id: "s", text: "2 서브카피" }, { id: "c", text: "3 CTA 버튼" }, { id: "l", text: "4 보조 링크" }],
+    answer: "c",
+    answerVisual: (el) => { hero(el, "ans"); },
+    why: "눈은 읽는 순서가 아니라 {{두드러짐}}이 가장 큰 곳에 먼저 닿는다. 헤드라인은 64px로 크지만 흰 배경과 {{대비비}} 1.9:1이라 주변과 거의 구분되지 않고, 버튼은 18.9:1로 가장 다르다. 단추로 헤드라인을 진하게 바꾸면 1등이 헤드라인으로 옮겨 간다. 전부 크고 진하게 하면 1등이 사라진다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    basis: "대비비 = (L밝은+0.05)/(L어두운+0.05), WCAG 2.x. 두드러짐 식과 1.5배 기준, 시선 순서 규칙은 설명용 단순 모델이며 시선 추적 실측이 아니다(불확실).",
+    takeaway: "첫 고정점은 가장 큰 것이 아니라 주변과 가장 다른 것(크기×대비)에 생기고, 전부 강조하면 고정점이 사라진다.",
+    recall: "헤드라인을 64px로 키워도 #BDBDBD로 두면 첫 고정점은 어디에 생길까?"
+  }]
+});
+</script>
+</body>
+</html>
