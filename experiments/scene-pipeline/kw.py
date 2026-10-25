@@ -8,6 +8,13 @@ E = r1.E; G = E/"gallery"/"kw"; r1.G = G; r1.LOG = E/"kw.log"
 SH = Path("/home/user/learn-to-tell/site/gallery/shots"); KIT = Path("/home/user/learn-to-tell/skills/learn-to-tell/kit")
 ax = r1.ax
 
+def brief(k):
+    """plan.json에 없는 shot은 원본의 ltt-meta와 axes.json에서 round0과 같은 필드로 브리프를 만든다(구조·움직임·구도 제외)."""
+    if k in r1.plan: return r1.plan_brief(k)
+    m = json.loads(re.search(r'id="ltt-meta">(.*?)</script>', (SH/ax[k]["file"]).read_text()).group(1))
+    return {"topic_line": ax[k]["topic"], **{x: m[x] for x in ("topic", "audience", "theme", "medium", "decision", "domain") if x in m}, "role": ax[k]["role"]}
+r1.plan_brief = r1.brief; r1.brief = brief
+
 TAG = """너는 장면 본보기 gallery의 검색 키워드 사전을 만든다. `shots/` 아래 HTML 51개가 본보기다. 모두 한 응답에서 함께 Read한다.
 
 ## 키워드가 담을 것
