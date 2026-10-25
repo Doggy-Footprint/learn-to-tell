@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>편향-분산 트레이드오프</title>
+<script type="application/json" id="ltt-meta">{"topic": "편향-분산 트레이드오프", "audience": "ML 입문 개발자", "theme": "lab", "medium": "실험 플롯", "decision": "모델 복잡도(다항식 차수) 고르기"}</script>
+<style>
+  .bv-note { transition: opacity .45s ease; pointer-events: none; }
+  .bv-bar { transition: opacity .45s ease; }
+  .bv-fig text { font-family: inherit; }
+  .bv-fig .ltt-mono { font-family: var(--ltt-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace); }
+</style>
+</head>
+<body>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script>
+// ---- 모델: 같은 참 함수에서 데이터를 300번 다시 뽑아 차수 1~10 다항식을 맞춘다 ----
+const SIGMA = 0.3, NPTS = 16, REPS = 300, DMAX = 10;
+const truth = (x) => 0.9 * Math.sin(1.6 * Math.PI * x + 0.7) + 0.3 * x;
+const rng = (seed) => { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; };
+const gauss = (r) => { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); };
+const legendre = (x, n) => { const p = [1, x]; for (let k = 2; k <= n; k++) p.push(((2 * k - 1) * x * p[k - 1] - (k - 1) * p[k - 2]) / k); return p.slice(0, n + 1); };
+const solve = (A, b) => {
+  const n = b.length;
+  for (let i = 0; i < n; i++) {
+    let m = i; for (let r = i + 1; r < n; r++) if (Math.abs(A[r][i]) > Math.abs(A[m][i])) m = r;
+    [A[i], A[m]] = [A[m], A[i]]; [b[i], b[m]] = [b[m], b[i]];
+    for (let r = i + 1; r < n; r++) { const q = A[r][i] / A[i][i]; for (let c = i; c < n; c++) A[r][c] -= q * A[i][c]; b[r] -= q * b[i]; }
+  }
+  const x = Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) { let s = b[i]; for (let c = i + 1; c < n; c++) s -= A[i][c] * x[c]; x[i] = s / A[i][i]; }
+  return x;
+};
+const fitPoly = (xs, ys, d) => {
+  const n = d + 1, A = Array.from({ length: n }, () => Array(n).fill(0)), b = Array(n).fill(0);
+  xs.forEach((x, i) => { const p = legendre(x, d); for (let a = 0; a < n; a++) { b[a] += p[a] * ys[i]; for (let c = 0; c < n; c++) A[a][c] += p[a] * p[c]; } });
+  for (let a = 0; a < n; a++) A[a][a] += 1e-8;
+  return solve(A, b);
+};
+const simulate = () => {
+  const r = rng(7), grid = Array.from({ length: 101 }, (_, i) => -1 + i * 0.02);
+  const preds = Array.from({ length: DMAX }, () => []), train = Array(DMAX).fill(0);
+  for (let k = 0; k < REPS; k++) {
+    const xs = Array.from({ length: NPTS }, (_, i) => -1 + 2 * (i + 0.5) / NPTS);
+    const ys = xs.map((x) => truth(x) + SIGMA * gauss(r));
+    for (let d = 1; d <= DMAX; d++) {
+      const w = fitPoly(xs, ys, d), at = (x) => legendre(x, d).reduce((s, v, j) => s + v * w[j], 0);
+      train[d - 1] += xs.reduce((s, x, i) => s + (at(x) - ys[i]) ** 2, 0) / NPTS / REPS;
+      preds[d - 1].push(grid.map(at));
+    }
+  }
+  return preds.map((ps, di) => {
+    let bias2 = 0, variance = 0;
+    grid.forEach((x, g) => {
+      const m = ps.reduce((s, p) => s + p[g], 0) / REPS;
+      bias2 += (m - truth(x)) ** 2;
+      variance += ps.reduce((s, p) => s + (p[g] - m) ** 2, 0) / REPS;
+    });
+    bias2 /= grid.length; variance /= grid.length;
+    return { d: di + 1, bias2, variance, noise: SIGMA ** 2, total: bias2 + variance + SIGMA ** 2, train: train[di] };
+  });
+};
+const rows = simulate();
+const best = rows.reduce((a, b) => (b.total < a.total ? b : a));
+const simple = rows.find((r) => r.total <= best.total + 0.005);
+const f3 = (v) => v.toFixed(3);
+LTT.expect("테스트 오차가 최소인 차수", best.d, 5.5, { tol: 0.5 });
+
+// ---- 그림: 차수별로 쌓이는 테스트 오차 막대 + 훈련 오차 선 ----
+const NS = "http://www.w3.org/2000/svg";
+let figId = 0;
+const sv = (parent, tag, attrs = {}, text) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const ease = (t) => 1 - Math.pow(1 - t, 3);
+
+function biasVarianceFigure(el) {
+  const uid = "bv" + (++figId);
+  const W = 960, H = 540, L = 76, PT = 100, PB = 470, YMAX = 0.65, SLOT = 74, BW = 44;
+  const k = (PB - PT) / YMAX, Y = (v) => PB - v * k, cx = (i) => L + SLOT * i + SLOT / 2;
+  const svg = sv(null, "svg", { viewBox: `0 0 ${W} ${H}`, class: "bv-fig", role: "img",
+    "aria-label": "다항식 차수 1부터 10까지 테스트 오차를 노이즈, 편향², 분산으로 쌓은 막대와 훈련 오차 선" });
+  svg.style.cssText = "width:100%;height:auto;max-width:1120px;display:block;margin:0 auto";
+  el.appendChild(svg);
+
+  const defs = sv(svg, "defs");
+  const pat = sv(defs, "pattern", { id: uid + "h", width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+  sv(pat, "rect", { width: 6, height: 6, style: "fill:var(--ltt-card-2)" });
+  sv(pat, "line", { x1: 0, y1: 0, x2: 0, y2: 6, style: "stroke:var(--ltt-muted);stroke-width:1.6" });
+
+  // 축: 처음부터 최종 범위로 고정
+  const grid = sv(svg, "g");
+  [0, 0.2, 0.4, 0.6].forEach((v) => {
+    sv(grid, "line", { x1: L, x2: L + SLOT * DMAX, y1: Y(v), y2: Y(v), style: `stroke:var(--ltt-line);stroke-width:${v ? 1 : 2}` });
+    sv(grid, "text", { x: L - 10, y: Y(v) + 5, "text-anchor": "end", "font-size": 14, class: "ltt-mono", style: "fill:var(--ltt-muted)" }, v.toFixed(1));
+  });
+  sv(grid, "text", { x: L - 10, y: PT - 22, "text-anchor": "start", "font-size": 15, style: "fill:var(--ltt-ink-2)" }, "테스트 오차 (평균 제곱 오차)");
+  sv(grid, "text", { x: L + SLOT * DMAX / 2, y: 528, "text-anchor": "middle", "font-size": 16, style: "fill:var(--ltt-ink);font-weight:600" }, "다항식 차수 (모델 복잡도)");
+  sv(grid, "text", { x: L + 4, y: 506, "text-anchor": "start", "font-size": 14, style: "fill:var(--ltt-muted)" }, "단순");
+  sv(grid, "text", { x: L + SLOT * DMAX - 4, y: 506, "text-anchor": "end", "font-size": 14, style: "fill:var(--ltt-muted)" }, "복잡");
+
+  // 범례
+  const lg = sv(svg, "g");
+  const legend = [["noise", "노이즈 σ²"], ["bias", "편향²"], ["var", "분산"], ["train", "훈련 오차"]];
+  const lx = [L, L + 150, L + 270, L + 370];
+  legend.forEach(([key, label], i) => {
+    const x = lx[i], y = 30;
+    if (key === "train") {
+      sv(lg, "line", { x1: x - 2, x2: x + 26, y1: y, y2: y, style: "stroke:var(--ltt-ink);stroke-width:2.5" });
+      sv(lg, "circle", { cx: x + 12, cy: y, r: 5, style: "fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:2.5" });
+      sv(lg, "text", { x: x + 36, y: y + 5, "font-size": 15, style: "fill:var(--ltt-ink)" }, label);
+    } else {
+      const fill = key === "noise" ? `url(#${uid}h)` : key === "bias" ? "var(--ltt-c1)" : "var(--ltt-c2)";
+      sv(lg, "rect", { x, y: y - 8, width: 16, height: 16, style: `fill:${fill};stroke:var(--ltt-line-2)` });
+      sv(lg, "text", { x: x + 24, y: y + 5, "font-size": 15, style: "fill:var(--ltt-ink)" }, label);
+    }
+  });
+  sv(lg, "text", { x: L + SLOT * DMAX, y: 35, "text-anchor": "end", "font-size": 14, style: "fill:var(--ltt-muted)" }, "막대 높이 = 편향² + 분산 + σ²");
+
+  // 막대
+  const bars = rows.map((r, i) => {
+    const g = sv(svg, "g", { class: "bv-bar" });
+    const x = cx(i) - BW / 2;
+    const ph = sv(g, "rect", { x, y: PB - 40, width: BW, height: 40, rx: 3, style: "fill:none;stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:4 4" });
+    const phq = sv(g, "text", { x: cx(i), y: PB - 14, "text-anchor": "middle", "font-size": 18, style: "fill:var(--ltt-muted)" }, "?");
+    const noise = sv(g, "rect", { x, width: BW, style: `fill:url(#${uid}h);stroke:var(--ltt-line-2)` });
+    const bias = sv(g, "rect", { x, width: BW, style: "fill:var(--ltt-c1)" });
+    const vari = sv(g, "rect", { x, width: BW, style: "fill:var(--ltt-c2)" });
+    const lab = sv(g, "text", { x: cx(i), "text-anchor": "middle", "font-size": 14, class: "ltt-mono",
+      style: "fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-bg);stroke-width:4px" }, f3(r.total));
+    sv(g, "text", { x: cx(i), y: 490, "text-anchor": "middle", "font-size": 16, class: "ltt-mono", style: "fill:var(--ltt-ink);font-weight:600" }, String(r.d));
+    return { g, ph, phq, noise, bias, vari, lab, v: 0, from: 0, to: 0, t0: 0, delay: 0 };
+  });
+
+  // 훈련 오차 선
+  const halo = sv(svg, "path", { fill: "none", style: "stroke:var(--ltt-bg);stroke-width:6;stroke-linecap:round" });
+  const line = sv(svg, "path", { fill: "none", style: "stroke:var(--ltt-ink);stroke-width:2.5;stroke-linecap:round" });
+  const dots = rows.map((r) => sv(svg, "circle", { cx: cx(r.d - 1), cy: Y(r.train), r: 0, style: "fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:2.5" }));
+  const pts = rows.map((r) => [cx(r.d - 1), Y(r.train)]);
+
+  // 오른쪽 직접 라벨 (차수 10이 그려진 뒤)
+  const last = rows[DMAX - 1], rx = L + SLOT * DMAX + 14;
+  const direct = sv(svg, "g", { class: "bv-note", style: "opacity:0" });
+  sv(direct, "text", { x: rx, y: Y(last.noise + last.bias2 + last.variance / 2) + 5, "font-size": 15, style: "fill:var(--ltt-ink);font-weight:600" }, "분산");
+  sv(direct, "text", { x: rx, y: Y(last.noise + last.bias2 + last.variance / 2) + 24, "font-size": 14, class: "ltt-mono", style: "fill:var(--ltt-muted)" }, f3(last.variance));
+  sv(direct, "text", { x: rx, y: Y(last.noise / 2) - 22, "font-size": 15, style: "fill:var(--ltt-ink-2)" }, "노이즈");
+  sv(direct, "text", { x: rx, y: Y(last.noise / 2) - 4, "font-size": 14, class: "ltt-mono", style: "fill:var(--ltt-muted)" }, f3(last.noise));
+  sv(direct, "line", { x1: cx(DMAX - 1) + BW / 2 + 2, x2: rx - 4, y1: Y(last.train), y2: Y(last.train) + 22, style: "stroke:var(--ltt-ink);stroke-width:1.5" });
+  sv(direct, "text", { x: rx, y: Y(last.train) + 38, "font-size": 15, style: "fill:var(--ltt-ink);font-weight:600" }, "훈련 오차");
+  sv(direct, "text", { x: rx, y: Y(last.train) + 56, "font-size": 14, class: "ltt-mono", style: "fill:var(--ltt-muted)" }, f3(last.train));
+
+  // 단계별 주석
+  const noteGroup = (lines, x, y, anchor = "start") => {
+    const g = sv(svg, "g", { class: "bv-note", style: "opacity:0" });
+    lines.forEach((t, i) => sv(g, "text", { x, y: y + i * 21, "text-anchor": anchor, "font-size": 15,
+      style: `fill:var(--ltt-ink);${i === 0 ? "font-weight:600" : ""}` }, t));
+    return g;
+  };
+  const bracket = (g, x1, x2, y, color) => sv(g, "path", { d: `M${x1},${y + 8} V${y} H${x2} V${y + 8}`, fill: "none", style: `stroke:${color};stroke-width:2` });
+  const notes = [];
+  notes[0] = noteGroup(["편향²가 막대를 채운다", "직선에 가까워 곡선을 못 따라간다"], cx(0) - BW / 2, 124);
+  bracket(notes[0], cx(0) - BW / 2, cx(2) + BW / 2, 170, "var(--ltt-ink-2)");
+  notes[1] = noteGroup(["편향²는 거의 0으로 줄고", "분산은 조금만 쌓인다"], cx(3) - BW / 2, 262);
+  bracket(notes[1], cx(3) - BW / 2, cx(5) + BW / 2, 306, "var(--ltt-ink-2)");
+  notes[2] = noteGroup(["편향²는 이미 0이고 분산만 쌓인다", "훈련 오차는 계속 내려가는데", "테스트 오차는 다시 솟는다"], cx(8) + BW / 2, 150, "end");
+  const lo = Math.min(simple.d, best.d) - 1, hi = Math.max(simple.d, best.d) - 1;
+  notes[3] = sv(svg, "g", { class: "bv-note", style: "opacity:0" });
+  bracket(notes[3], cx(lo) - BW / 2 - 6, cx(hi) + BW / 2 + 6, 340, "var(--ltt-accent)");
+  sv(notes[3], "text", { x: (cx(lo) + cx(hi)) / 2, y: 314, "text-anchor": "middle", "font-size": 17, style: "fill:var(--ltt-accent);font-weight:700" }, `고를 구간 차수 ${simple.d}~${best.d}`);
+  sv(notes[3], "text", { x: (cx(lo) + cx(hi)) / 2, y: 293, "text-anchor": "middle", "font-size": 15, style: "fill:var(--ltt-ink)" }, "여기서 합이 가장 낮다");
+
+  // ---- 그리기와 모션 ----
+  const focus = { set: null };
+  const draw = () => {
+    bars.forEach((b, i) => {
+      const r = rows[i], v = b.v;
+      const hN = r.noise * k * v, hB = r.bias2 * k * v, hV = r.variance * k * v;
+      b.noise.setAttribute("y", PB - hN); b.noise.setAttribute("height", hN);
+      b.bias.setAttribute("y", PB - hN - hB); b.bias.setAttribute("height", hB);
+      b.vari.setAttribute("y", PB - hN - hB - hV); b.vari.setAttribute("height", hV);
+      b.lab.setAttribute("y", PB - (hN + hB + hV) - 8);
+      b.lab.style.opacity = clamp01((v - 0.7) / 0.3);
+      b.ph.style.opacity = b.phq.style.opacity = 1 - clamp01(v * 3);
+      b.g.style.opacity = focus.set && !focus.set.includes(i) ? 0.3 : 1;
+    });
+    let d = "";
+    bars.forEach((b, i) => {
+      const q = clamp01((b.v - 0.55) / 0.45);
+      dots[i].setAttribute("r", 6 * q);
+      if (i > 0 && q > 0) {
+        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+        d += `M${x0},${y0}L${x0 + (x1 - x0) * q},${y0 + (y1 - y0) * q}`;
+      }
+      dots[i].style.opacity = focus.set && !focus.set.includes(i) ? 0.45 : 1;
+    });
+    halo.setAttribute("d", d); line.setAttribute("d", d);
+    direct.style.opacity = bars[DMAX - 1].v > 0.98 ? 1 : 0;
+  };
+  let raf = 0;
+  const frame = (now) => {
+    let busy = false;
+    bars.forEach((b) => {
+      if (b.v === b.to) return;
+      const t = clamp01((now - b.t0) / Math.max(1, dur()));
+      if (now < b.t0) { busy = true; return; }
+      b.v = b.from + (b.to - b.from) * ease(t);
+      if (t < 1) busy = true; else b.v = b.to;
+    });
+    draw();
+    raf = busy ? requestAnimationFrame(frame) : 0;
+  };
+  const dur = () => (LTT.MOTION_MS == null ? 500 : LTT.MOTION_MS) * 1.1;
+  const show = (n) => {
+    const now = performance.now(), instant = dur() <= 1;
+    let order = 0;
+    bars.forEach((b, i) => {
+      const to = i < n ? 1 : 0;
+      if (to === b.to) return;
+      b.from = b.v; b.to = to;
+      b.t0 = now + (to === 1 ? order++ * dur() * 0.32 : 0);
+      if (instant) b.v = to;
+    });
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
+  };
+  const reset = () => { bars.forEach((b) => { b.v = b.from = b.to = 0; }); draw(); };
+  const setNote = (i) => notes.forEach((g, j) => { g.style.opacity = j === i ? 1 : 0; });
+  const setFocus = (arr) => { focus.set = arr; draw(); };
+
+  // 쉬는 화면은 완성된 그림
+  bars.forEach((b) => { b.v = b.from = b.to = 1; });
+  setNote(3); setFocus([lo, hi]); draw();
+  return { el: svg, show, reset, setNote, setFocus, stop: () => cancelAnimationFrame(raf) };
+}
+
+const step = (n, note, focusArr, fresh) => (k, f) => {
+  if (fresh) f.reset();
+  f.setFocus(focusArr); f.setNote(note); f.show(n);
+};
+const r5 = rows[4], r1 = rows[0], r10 = rows[DMAX - 1];
+
+const scene = {
+  type: "figure",
+  kicker: "모델 복잡도 · 다항식 차수",
+  title: "차수를 올리면 편향²는 줄고 분산이 쌓여, 테스트 오차는 가운데서 최소가 된다",
+  en: "Bias-variance trade-off",
+  sub: "같은 참 함수에서 데이터를 300번 다시 뽑아 차수 1~10을 맞췄다. 막대는 테스트 오차를 {{편향}}², {{분산}}, 노이즈로 쌓은 것이다.",
+  figure: biasVarianceFigure,
+  steps: [
+    { caption: `① 차수 1~3. 편향²가 막대를 채운다. 차수 1은 편향² ${f3(r1.bias2)}, 분산은 ${f3(r1.variance)}로 얇다`, hold: 3600, enter: step(3, 0, null, true) },
+    { caption: `② 차수 4~6. 편향²는 ${f3(rows[5].bias2)}까지 줄고 분산은 ${f3(rows[5].variance)}만 쌓여 막대가 낮아진다`, hold: 3600, enter: step(6, 1, null, false) },
+    { caption: `③ 차수 7~10. 편향²는 0인데 분산만 쌓여 차수 10은 ${f3(r10.total)}까지 솟는다. 훈련 오차는 ${f3(r10.train)}로 계속 내려간다`, hold: 4200, enter: step(DMAX, 2, null, false) },
+    { caption: `④ 합이 가장 낮은 곳은 차수 ${best.d}(${f3(best.total)}). 차수 ${simple.d}와 ${f3(simple.total - best.total)} 차이라 비슷하면 더 단순한 쪽(차수 ${simple.d})을 고른다`, hold: 4200,
+      enter: step(DMAX, 3, [Math.min(simple.d, best.d) - 1, Math.max(simple.d, best.d) - 1], false) },
+  ],
+  takeaway: "테스트 오차는 편향² + 분산 + 노이즈다. 훈련 오차가 아니라 이 합이 최소인 차수를 고르고, 비슷하면 더 단순한 쪽을 고른다.",
+  recall: "훈련 오차가 가장 낮은 차수 10을 고르면 왜 안 되나?",
+  ask: "다항식 차수 대신 정규화 세기를 바꾸면 같은 그림이 어떻게 그려지나?",
+  basis: `참 함수 0.9·sin(1.6πx+0.7)+0.3x, 노이즈 σ=${SIGMA}, 학습 점 ${NPTS}개, 데이터 ${REPS}회 평균. 편향²·분산은 x∈[-1, 1] 101개 격자 평균. <span class="ltt-tag">모델로 계산한 예시</span>`
+};
+
+LTT.deck({
+  title: "편향-분산 트레이드오프",
+  theme: "lab",
+  glossary: {
+    "편향": "모델이 평균적으로 참 함수에서 벗어나는 정도다. 너무 단순하면 커지고, 여기서는 제곱해서 쓴다.",
+    "분산": "학습 데이터를 바꿀 때마다 예측이 흔들리는 정도다. 모델이 너무 복잡하면 커진다."
+  },
+  scenes: [scene]
+});
+</script>
+</body>
+</html>

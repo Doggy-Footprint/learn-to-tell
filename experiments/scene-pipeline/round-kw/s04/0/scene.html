@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>키르히호프 전류 법칙</title>
+<script type="application/json" id="ltt-meta">{"topic": "키르히호프 전류 법칙", "audience": "회로 입문자", "theme": "blueprint", "medium": "회로 도면", "decision": "분기점에서 전류가 어떻게 나뉘나"}</script>
+<style>
+  .kc-fig { display: block; width: 100%; height: auto; max-height: 100%; }
+  .kc-wire { fill: none; stroke: var(--ltt-ink-2); stroke-linejoin: round; transition: stroke-width .7s ease; }
+  .kc-geo { fill: none; stroke: none; }
+  .kc-zig { fill: none; stroke: var(--ltt-ink); stroke-width: 3; stroke-linejoin: round; }
+  .kc-plate { stroke: var(--ltt-ink); stroke-width: 3; }
+  .kc-dot { fill: var(--ltt-accent); stroke: var(--ltt-bg); stroke-width: 1.5; }
+  .kc-node { fill: var(--ltt-ink); }
+  .kc-arrow { fill: var(--ltt-ink); }
+  .kc-t { font-size: 19px; fill: var(--ltt-ink); font-family: inherit; }
+  .kc-t-2 { font-size: 18px; fill: var(--ltt-muted); font-family: inherit; }
+  .kc-big { font-size: 24px; font-weight: 700; fill: var(--ltt-ink); font-family: inherit; }
+  .kc-node-l { font-size: 22px; font-weight: 700; fill: var(--ltt-ink); font-family: inherit; }
+  .kc-pill rect { fill: var(--ltt-card); stroke: var(--ltt-accent); stroke-width: 2; }
+  .kc-pill text { font-size: 21px; font-weight: 700; fill: var(--ltt-ink); font-family: inherit; text-anchor: middle; }
+  .kc-ghost rect { fill: var(--ltt-card); stroke: var(--ltt-muted); stroke-width: 2; stroke-dasharray: 5 4; }
+  .kc-ghost text { font-size: 19px; fill: var(--ltt-muted); font-family: inherit; text-anchor: middle; }
+  .kc-strike { stroke: var(--ltt-ink); stroke-width: 2.5; }
+  .kc-card rect { fill: var(--ltt-card); stroke: var(--ltt-line-2); stroke-width: 1.5; }
+  .kc-eq { font-size: 26px; font-weight: 700; fill: var(--ltt-accent); font-family: inherit; }
+  .kc-ring { fill: none; stroke: var(--ltt-ink); stroke-width: 2.5; stroke-dasharray: 6 5; animation: kc-pulse 1.4s ease-in-out infinite; }
+  .kc-fade { transition: opacity .5s ease; }
+  @keyframes kc-pulse { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .kc-ring { animation: none; } .kc-fade, .kc-wire { transition: none; } }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const V = 12, R1 = 6, R2 = 3;
+const I1 = V / R1, I2 = V / R2, I = I1 + I2;
+LTT.expect("가지 1 전류", I1, 2, { tol: 1e-9 });
+LTT.expect("가지 2 전류", I2, 4, { tol: 1e-9 });
+LTT.expect("본선 전류", I, 6, { tol: 1e-9 });
+LTT.expect("합성 저항으로 구한 본선 전류", V / ((R1 * R2) / (R1 + R2)), 6, { tol: 1e-9 });
+
+const zig = (y) => `H450 L460 ${y - 14} L480 ${y + 14} L500 ${y - 14} L520 ${y + 14} L540 ${y - 14} L550 ${y} H560`;
+const PATHS = {
+  main: "M90 325 V240 H260",
+  br1: `M260 240 V120 ${zig(120)} H660 V240`,
+  br2: `M260 240 V360 ${zig(360)} H660 V240`,
+  out: "M660 240 H830 V440 H90 V345",
+};
+const arrow = (x, y, rot) => `<path class="kc-arrow" d="M-9 -9 L8 0 L-9 9 Z" transform="translate(${x} ${y}) rotate(${rot})"/>`;
+const pill = (cx, cy, txt, ins, cls = "kc-pill") =>
+  `<g class="${cls} kc-fade" data-in="${ins}"><rect x="${cx - 31}" y="${cy - 16}" width="62" height="32" rx="16"/><text x="${cx}" y="${cy + 7}">${txt}</text></g>`;
+const card = (n, title, lines, eq) =>
+  `<g class="kc-card kc-fade" data-in="${n}"><rect x="300" y="160" width="320" height="152" rx="10"/>
+    <text class="kc-big" x="460" y="194" text-anchor="middle">${title}</text>
+    ${eq ? `<text class="kc-eq" x="460" y="232" text-anchor="middle">${eq}</text>` : ""}
+    ${lines.map((t, i) => `<text class="kc-t" x="460" y="${(eq ? 262 : 230) + i * 30}" text-anchor="middle">${t}</text>`).join("")}</g>`;
+
+const circuit = (el) => {
+  const s = el.appendChild(document.createElementNS(SVG, "svg"));
+  s.setAttribute("viewBox", "0 0 900 480");
+  s.setAttribute("class", "kc-fig");
+  s.setAttribute("role", "img");
+  s.setAttribute("aria-label", "12 V 전원에서 나온 6 A가 분기점 A에서 6 Ω 가지 2 A와 3 Ω 가지 4 A로 나뉘었다가 합류점 B에서 다시 6 A가 되는 회로 도면");
+  s.innerHTML = `
+    <path class="kc-wire" style="stroke-width:9" d="M90 325 V240 H260"/>
+    <path class="kc-wire" style="stroke-width:9" d="M660 240 H830 V440 H90 V345"/>
+    <path class="kc-wire kc-b1" d="M260 240 V120 H440 M560 120 H660 V240"/>
+    <path class="kc-wire kc-b2" d="M260 240 V360 H440 M560 360 H660 V240"/>
+    <path class="kc-zig" d="M440 120 H450 L460 106 L480 134 L500 106 L520 134 L540 106 L550 120 H560"/>
+    <path class="kc-zig" d="M440 360 H450 L460 346 L480 374 L500 346 L520 374 L540 346 L550 360 H560"/>
+    ${Object.entries(PATHS).map(([k, d]) => `<path class="kc-geo" data-geo="${k}" d="${d}"/>`).join("")}
+    <line class="kc-plate" x1="70" y1="325" x2="110" y2="325"/>
+    <line class="kc-plate" x1="80" y1="345" x2="100" y2="345"/>
+    <text class="kc-t" x="124" y="324">+</text><text class="kc-t" x="124" y="356">−</text>
+    <text class="kc-t" x="62" y="332" text-anchor="end">전원</text>
+    <text class="kc-t" x="62" y="356" text-anchor="end">12 V</text>
+    <text class="kc-t" x="500" y="90" text-anchor="middle">R1 = 6 Ω</text>
+    <text class="kc-t" x="500" y="406" text-anchor="middle">R2 = 3 Ω</text>
+    ${arrow(205, 240, 0)}${arrow(390, 120, 0)}${arrow(390, 360, 0)}${arrow(790, 240, 0)}${arrow(460, 440, 180)}
+    <circle class="kc-node" cx="260" cy="240" r="9"/><circle class="kc-node" cx="660" cy="240" r="9"/>
+    <text class="kc-node-l" x="246" y="268" text-anchor="end">분기점 A</text>
+    <text class="kc-node-l" x="676" y="268">합류점 B</text>
+    <circle class="kc-ring kc-fade" data-in="3" cx="260" cy="240" r="26"/>
+    <circle class="kc-ring kc-fade" data-in="4" cx="660" cy="240" r="26"/>
+    <text class="kc-t-2" x="460" y="470" text-anchor="middle">전류 방향: 전원 + 단자 → 회로 → − 단자 (관례 방향)</text>
+    <g class="kc-dots"></g>
+    ${pill(150, 212, "6 A", "0 1 2 3 4")}
+    ${pill(745, 212, "6 A", "4")}
+    ${pill(330, 98, "2 A", "2 3 4")}
+    ${pill(330, 334, "4 A", "2 3 4")}
+    ${pill(330, 62, "3 A ?", "1 2", "kc-ghost")}
+    ${pill(330, 400, "3 A ?", "1 2", "kc-ghost")}
+    <line class="kc-strike kc-fade" data-in="2" x1="306" y1="70" x2="354" y2="54"/>
+    <line class="kc-strike kc-fade" data-in="2" x1="306" y1="408" x2="354" y2="392"/>
+    ${card(0, "본선 전류 6 A", ["1초에 전하 6 C이", "분기점 A로 들어온다"])}
+    ${card(1, "예상: 반반?", ["3 A + 3 A = 6 A", "저항이 달라도 같을까?"])}
+    ${card(2, "두 가지 모두 12 V", ["I1 = 12 V ÷ 6 Ω = 2 A", "I2 = 12 V ÷ 3 Ω = 4 A", "저항 작은 쪽이 더 크다"])}
+    ${card(3, "분기점 A", ["들어온 합 = 나간 합", "1초: 6 C = 2 C + 4 C"], "6 A = 2 A + 4 A")}
+    ${card(4, "합류점 B", ["다시 합쳐져 본선 전류로", "되돌아온다"], "2 A + 4 A = 6 A")}
+  `;
+
+  // 점 하나 = 전하 한 덩이. 점 간격은 같고 속도가 전류에 비례하므로 갈라져도 점이 새로 생기거나 사라지지 않는다.
+  const GAP = 32, PX_PER_A = 9;
+  const dotsG = s.querySelector(".kc-dots");
+  const flows = {};
+  for (const k of Object.keys(PATHS)) {
+    const geo = s.querySelector(`[data-geo="${k}"]`);
+    const len = geo.getTotalLength();
+    const dots = Array.from({ length: Math.ceil(len / GAP) + 1 }, () =>
+      dotsG.appendChild(Object.assign(document.createElementNS(SVG, "circle"), {})));
+    dots.forEach((d) => { d.setAttribute("class", "kc-dot"); d.setAttribute("r", "4.5"); });
+    flows[k] = { geo, len, dots, phase: Math.random() * GAP, speed: 0 };
+  }
+  const draw = (f) => f.dots.forEach((d, i) => {
+    const p = f.phase + i * GAP;
+    if (p > f.len) { d.setAttribute("visibility", "hidden"); return; }
+    const pt = f.geo.getPointAtLength(p);
+    d.setAttribute("visibility", "visible");
+    d.setAttribute("cx", pt.x); d.setAttribute("cy", pt.y);
+  });
+
+  const target = { main: I, out: I, br1: I / 2, br2: I / 2 };
+  const widths = { br1: I / 2, br2: I / 2 };
+  const setWidths = () => {
+    s.querySelector(".kc-b1").style.strokeWidth = widths.br1 * 1.5;
+    s.querySelector(".kc-b2").style.strokeWidth = widths.br2 * 1.5;
+  };
+  const still = LTT.MOTION_MS === 0;
+  Object.keys(flows).forEach((k) => { flows[k].speed = target[k] * PX_PER_A; });
+  let last = 0;
+  const tick = (t) => {
+    if (!s.isConnected) return;
+    const dt = last ? Math.min(0.05, (t - last) / 1000) : 0;
+    last = t;
+    for (const k of Object.keys(flows)) {
+      const f = flows[k], goal = target[k] * PX_PER_A;
+      f.speed += (goal - f.speed) * Math.min(1, dt * 4);
+      f.phase = (f.phase + f.speed * dt) % GAP;
+      draw(f);
+    }
+    requestAnimationFrame(tick);
+  };
+
+  const show = (n) => {
+    s.querySelectorAll("[data-in]").forEach((g) => {
+      const on = g.getAttribute("data-in").split(" ").includes(String(n));
+      g.style.opacity = on ? (g.classList.contains("kc-ghost") && n === 2 ? 0.45 : 1) : 0;
+    });
+    const real = n >= 2;
+    target.br1 = real ? I1 : I / 2;
+    target.br2 = real ? I2 : I / 2;
+    widths.br1 = target.br1; widths.br2 = target.br2;
+    setWidths();
+    if (still) { Object.keys(flows).forEach((k) => { flows[k].speed = target[k] * PX_PER_A; draw(flows[k]); }); }
+  };
+  show(0);
+  if (still) Object.values(flows).forEach(draw); else requestAnimationFrame(tick);
+  return { el: s, show };
+};
+
+LTT.deck({
+  title: "키르히호프 전류 법칙",
+  theme: "blueprint",
+  glossary: {
+    "분기점": "도선이 두 갈래 이상으로 갈라지는 연결점. 전하가 쌓이지 않으므로 들어온 전류의 합과 나간 전류의 합이 같다.",
+    "합류점": "갈라졌던 도선이 다시 하나로 만나는 연결점.",
+  },
+  scenes: [{
+    type: "figure",
+    kicker: "전기 회로 · 키르히호프 전류 법칙",
+    title: "분기점에서 전류는 반반이 아니라 저항에 반비례해 나뉘고, 합은 그대로다",
+    en: "Kirchhoff's Current Law",
+    sub: "점 하나는 전하 한 덩이(1 C). 점이 빠르고 선이 굵을수록 전류가 크다. {{분기점}} A에서 갈라져 {{합류점}} B에서 만난다.",
+    chips: ["전하 보존", "옴의 법칙 I = V/R", "병렬 가지"],
+    figure: circuit,
+    steps: [
+      { caption: "① 본선에 6 A가 흐른다. 전원 + 단자에서 나온 전하가 1초에 6 C씩 분기점 A로 들어온다", enter: (k, f) => f.show(0) },
+      { caption: "② 두 가지가 똑같아 보이니 반반, 3 A씩 갈 것 같다. 점이 같은 속도로 갈라진다 (예상)", enter: (k, f) => f.show(1) },
+      { caption: "③ 실제로는 두 가지에 같은 12 V가 걸려, 저항이 작은 3 Ω 가지가 4 A, 6 Ω 가지가 2 A다. 반반은 저항이 같을 때만 맞는다", enter: (k, f) => f.show(2) },
+      { caption: "④ 그래도 분기점 A에서 합은 그대로다. 들어온 6 A = 나간 2 A + 4 A. 전하는 쌓이지도 사라지지도 않는다", enter: (k, f) => f.show(3) },
+      { caption: "⑤ 합류점 B에서 2 A + 4 A가 다시 6 A로 합쳐져 전원의 − 단자로 돌아간다", enter: (k, f) => f.show(4) },
+    ],
+    takeaway: "분기점에서 들어온 전류의 합은 나간 전류의 합과 같다(전하 보존). 가지마다 얼마나 가는지는 저항이 정한다(I = V/R).",
+    recall: "6 A가 6 Ω과 3 Ω 병렬 가지로 갈라질 때, 3 Ω 가지의 전류는 얼마인가?",
+    basis: "관례 전류 방향, 이상적 도선(저항 0)과 직류 정상 상태를 가정한다. <span class=\"ltt-tag\">모델로 계산한 예시</span> 12 V, 6 Ω, 3 Ω.",
+  }],
+});
+</script>
+</body>
+</html>

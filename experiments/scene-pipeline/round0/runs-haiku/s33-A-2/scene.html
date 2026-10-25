@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>편향-분산 트레이드오프</title>
+<script type="application/json" id="ltt-meta">{"topic": "편향-분산 트레이드오프", "audience": "ML 입문 개발자", "theme": "lab", "medium": "실험 플롯", "decision": "모델 복잡도(다항식 차수) 고르기"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 가상 데이터 실험: sin(1.5πx) + 잡음. 학습 점 10개에 차수 1–8 다항식을 최소제곱으로 맞추고, 맞추지 않은 200개 점에서 검증 오차를 잰다.
+const ERR = (() => {
+  let seed = 7;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+  const noise = () => (rnd() + rnd() + rnd() - 1.5) * 0.5 * 0.3;
+  const truth = (x) => Math.sin(Math.PI * 1.5 * x);
+  const trainX = Array.from({ length: 10 }, () => -1 + 2 * rnd());
+  const trainY = trainX.map((x) => truth(x) + noise());
+  const valX = Array.from({ length: 200 }, (_, i) => -1 + (2 * i) / 199);
+  const valY = valX.map((x) => truth(x) + noise());
+
+  const legendre = (x, n) => {
+    const p = [1, x];
+    for (let k = 1; k < n - 1; k++) p.push(((2 * k + 1) * x * p[k] - k * p[k - 1]) / (k + 1));
+    return p.slice(0, n);
+  };
+  const fit = (xs, ys, d) => {
+    const n = d + 1;
+    const M = Array.from({ length: n }, () => Array(n + 1).fill(0));
+    xs.forEach((x, i) => {
+      const p = legendre(x, n);
+      for (let a = 0; a < n; a++) {
+        for (let b = 0; b < n; b++) M[a][b] += p[a] * p[b];
+        M[a][n] += p[a] * ys[i];
+      }
+    });
+    for (let c = 0; c < n; c++) {
+      let piv = c;
+      for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
+      [M[c], M[piv]] = [M[piv], M[c]];
+      for (let r = 0; r < n; r++) if (r !== c) {
+        const g = M[r][c] / M[c][c];
+        for (let k = c; k <= n; k++) M[r][k] -= g * M[c][k];
+      }
+    }
+    return M.map((row, i) => row[n] / row[i]);
+  };
+  const mse = (xs, ys, coef) => xs.reduce((s, x, i) => {
+    const p = legendre(x, coef.length);
+    const pred = coef.reduce((t, c, j) => t + c * p[j], 0);
+    return s + (pred - ys[i]) ** 2;
+  }, 0) / xs.length;
+
+  return Array.from({ length: 8 }, (_, i) => {
+    const d = i + 1;
+    const c = fit(trainX, trainY, d);
+    return { d, tr: mse(trainX, trainY, c), va: mse(valX, valY, c) };
+  });
+})();
+
+const BEST = ERR.reduce((a, b) => (b.va < a.va ? b : a)).d;
+const YMAX = Math.ceil(Math.max(...ERR.flatMap((r) => [r.tr, r.va])) * 10) / 10;
+const upto = (key, n) => ERR.filter((r) => r.d <= n).map((r) => [r.d, r[key]]);
+const pick = (n) => [[n, 0], [n, YMAX]];
+
+const scene = {
+  type: "figure",
+  kicker: "ML · 편향-분산",
+  title: "복잡도를 올리면 학습 오차는 줄고 검증 오차는 되돌아온다",
+  sub: "차수 1–8 다항식을 학습 점 10개에 맞추고, 맞추지 않은 200개 점에서 검증 오차를 잰다",
+  figure: (el) => {
+    const wrap = el.appendChild(document.createElement("div"));
+    const svg = wrap.appendChild(document.createElementNS(SVG, "svg"));
+    const plot = LTT.axisPlot(svg, {
+      width: 720, height: 400, x: [0.5, 8.5], y: [0, YMAX],
+      labels: { x: "모델 복잡도 (다항식 차수)", y: "평균 제곱 오차" },
+      series: [
+        { id: "train", color: "var(--ltt-c1)" },
+        { id: "val", color: "var(--ltt-c2)", dot: true },
+        { id: "pick", color: "var(--ltt-accent)", dash: true },
+      ],
+    });
+    wrap.insertAdjacentHTML("beforeend", '<div class="ltt-key"><span>실선 · 학습 오차</span><span>점 · 검증 오차</span><span>점선 · 검증 오차가 가장 낮은 차수</span></div>');
+    return { el: svg, plot };
+  },
+  caption: "가로는 모델이 얼마나 복잡한지, 세로는 예측이 빗나간 정도다. 낮을수록 잘 맞는다.",
+  steps: [
+    { caption: "① 차수 1–3: 학습 오차도 검증 오차도 크다. 자료의 모양을 따라가지 못하는 {{과소적합}}이다",
+      enter: (k, f) => { f.plot.set("train", upto("tr", 3)); f.plot.set("val", upto("va", 3)); f.plot.set("pick", []); } },
+    { caption: `② 차수 ${BEST}까지 두 오차가 함께 내려간다. 점선 자리가 검증 오차의 최저점이다`,
+      enter: (k, f) => { f.plot.set("train", upto("tr", BEST)); f.plot.set("val", upto("va", BEST)); f.plot.set("pick", pick(BEST)); } },
+    { caption: "③ 그 너머에서는 학습 오차만 계속 줄고 검증 오차가 다시 튄다. 잡음까지 외운 {{과적합}}이다",
+      enter: (k, f) => { f.plot.set("train", upto("tr", 8)); f.plot.set("val", upto("va", 8)); f.plot.set("pick", pick(BEST)); } },
+  ],
+  takeaway: "차수는 학습 오차가 아니라 새 자료의 오차를 보고 고른다. 학습 오차만 보면 {{과적합}}을 고르게 된다.",
+  recall: "학습 오차가 가장 작은 차수를 고르면 어떤 일이 생길까?",
+  basis: '가상 데이터 실험: sin(1.5πx) + 잡음, 학습 10점·검증 200점, 최소제곱 적합. <span class="ltt-tag muted">모델로 계산한 예시</span>',
+};
+
+LTT.deck({
+  title: "편향-분산 트레이드오프",
+  theme: "lab",
+  glossary: {
+    과소적합: "모델이 자료의 기본 모양도 따라가지 못해, 학습 오차와 검증 오차가 모두 큰 상태",
+    과적합: "학습 자료의 잡음까지 맞춰 학습 오차는 작지만, 새 자료에서 오차가 커지는 상태",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

@@ -18,7 +18,8 @@ class Paths:
     def __init__(self, config: dict):
         self.docs_root = REPO_ROOT / config["docs_root"]
         self.exclude_dirs = set(config["exclude_dirs"])
-        self.try_n_fail = self.docs_root / "try-n-fail"
+        self.adr = self.docs_root / "adr"
+        self.rejections = self.docs_root / "rejections"
         self.handoff = self.docs_root / "handoff"
         self.synced_comments = self.docs_root / "synced-comments"
         self.specs = self.docs_root / "specs"

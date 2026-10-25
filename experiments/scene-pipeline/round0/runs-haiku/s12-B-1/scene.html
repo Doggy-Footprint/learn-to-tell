@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Node.js 이벤트 루프 단계</title>
+<script type="application/json" id="ltt-meta">{"topic":"Node.js 이벤트 루프 단계","audience":"Node.js 백엔드 입문자","theme":"terminal","medium":"터미널 로그","decision":"setTimeout·setImmediate·nextTick 중 무엇으로 미룰지","domain":"런타임","pattern":["overview"],"structure":"순환","motion":"점이 궤적을 그림","composition":"겹쳐 놓기"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.lp{width:1040px;max-width:100%;display:block;margin:0 auto}
+.lp text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const MONO = "font-family:ui-monospace,Menlo,Consolas,monospace";
+
+// 단계 순서는 Node.js 공식 문서 기준: timers → pending → poll → check → close. 단계 사이마다 nextTick·Promise 큐를 먼저 비운다.
+const PHASES = [
+  { name: "timers", sub: "setTimeout", hot: true },
+  { name: "pending", sub: "지연된 콜백" },
+  { name: "poll", sub: "I/O 콜백" },
+  { name: "check", sub: "setImmediate", hot: true },
+  { name: "close", sub: "close 콜백" }];
+const STEP = 360 / PHASES.length;
+
+// 예시 코드 출력. start·end는 동기 실행, 그다음 nextTick과 Promise 큐, 루프에 들어가 timeout, check 단계에서 immediate.
+const LOG = [
+  { text: "$ node loop.js", th: 0 },
+  { text: "start", th: 0.01 },
+  { text: "end", th: 0.02 },
+  { text: "nextTick", th: 0.03, note: "  # nextTick 큐" },
+  { text: "promise", th: 0.04, note: "  # Promise 큐" },
+  { text: "timeout", th: 0.05, note: "  # timers 단계" },
+  { text: "immediate", th: 0.6, note: "  # check 단계" }];
+const OUT = LOG.slice(1);
+
+const RULES = [
+  { head: "바로 · nextTick", body: "지금 실행이 끝나면, 루프 단계 전에" },
+  { head: "같은 바퀴 · setImmediate", body: "poll 다음 check 단계에서" },
+  { head: "나중 · setTimeout", body: "지정한 시간이 지난 뒤 timers 단계에서" }];
+
+LTT.expect("단계 수", PHASES.length, 5, { tol: 0 });
+LTT.expect("단계 간격 [도]", STEP, 72, { tol: 1e-9 });
+LTT.expect("출력 줄 수", OUT.length, 6, { tol: 0 });
+
+const W = 1040, H = 548, cx = 290, cy = 310, R = 150;
+const at = (f) => { const a = (-90 + 360 * f) * Math.PI / 180; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; };
+const LAB = [
+  { x: cx, y: 104, a: "middle" },
+  { x: 452, y: 256, a: "start" },
+  { x: 398, y: 436, a: "start" },
+  { x: 182, y: 436, a: "end" },
+  { x: 128, y: 256, a: "end" }];
+
+function loop(host) {
+  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "lp", "data-annotate": "" }, host);
+  mk("text", { x: 20, y: 34, style: "font-size:22px;font-weight:700;fill:var(--ltt-ink)" }, s).textContent = "이벤트 루프 한 바퀴 = 단계 다섯 개";
+  mk("text", { x: 20, y: 58, style: "font-size:14px;fill:var(--ltt-muted)" }, s).textContent = "점이 한 바퀴 도는 동안 단계마다 대기 중인 콜백이 실행된다";
+  mk("circle", { cx, cy, r: R, style: "fill:none;stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:3 4" }, s);
+  const trail = mk("path", { style: "fill:none;stroke:var(--ltt-accent);stroke-width:5;stroke-linecap:round" }, s);
+  mk("text", { x: cx, y: cy - 4, "text-anchor": "middle", style: "font-size:16px;font-weight:700;fill:var(--ltt-accent)" }, s).textContent = "nextTick · Promise";
+  mk("text", { x: cx, y: cy + 18, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, s).textContent = "단계 사이마다 먼저 비움";
+  const nodes = PHASES.map((p, k) => {
+    const [x, y] = at(k / PHASES.length), l = LAB[k];
+    mk("text", { x: l.x, y: l.y, "text-anchor": l.a, style: "font-size:18px;font-weight:700;fill:var(--ltt-ink)" }, s).textContent = p.name;
+    mk("text", { x: l.x, y: l.y + 20, "text-anchor": l.a, style: `font-size:14px;fill:${p.hot ? "var(--ltt-accent)" : "var(--ltt-muted)"}` }, s).textContent = p.sub;
+    return mk("circle", { cx: x, cy: y, r: 13, style: "fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:2" }, s);
+  });
+  const dot = mk("circle", { r: 8, style: "fill:var(--ltt-accent);stroke:var(--ltt-bg);stroke-width:2.5" }, s);
+
+  // 오른쪽 터미널 카드: 출력 줄은 점이 해당 단계를 지날 때 나타난다
+  mk("rect", { x: 590, y: 96, width: 430, height: 340, rx: 10, style: "fill:var(--ltt-card);stroke:var(--ltt-line)" }, s);
+  mk("path", { d: "M590,130 V106 Q590,96 600,96 H1010 Q1020,96 1020,106 V130 Z", style: "fill:var(--ltt-card-2)" }, s);
+  [["--ltt-bad", 608], ["--ltt-warn", 624], ["--ltt-good", 640]].forEach(([c, x]) => mk("circle", { cx: x, cy: 113, r: 5, style: `fill:var(${c})` }, s));
+  mk("text", { x: 656, y: 118, style: "font-size:14px;fill:var(--ltt-muted)" }, s).textContent = "bash · loop.js";
+  const logs = LOG.map((l, i) => {
+    const t = mk("text", { x: 612, y: 172 + i * 38, style: `${MONO};font-size:16px;white-space:pre;fill:var(--ltt-ink);opacity:0` }, s);
+    t.textContent = l.text;
+    if (l.note) mk("tspan", { style: "fill:var(--ltt-muted)" }, t).textContent = l.note;
+    return { el: t, th: l.th };
+  });
+
+  // 아래 띠: 세 가지 선택을 한 줄씩
+  mk("line", { x1: 20, x2: W - 20, y1: 478, y2: 478, style: "stroke:var(--ltt-line);stroke-width:1" }, s);
+  RULES.forEach((r, i) => {
+    const x = 20 + i * 340;
+    mk("text", { x, y: 506, style: "font-size:16px;font-weight:700;fill:var(--ltt-accent)" }, s).textContent = r.head;
+    mk("text", { x, y: 528, style: "font-size:14px;fill:var(--ltt-ink-2)" }, s).textContent = r.body;
+  });
+
+  const draw = (u) => {
+    const [x, y] = at(u); dot.setAttribute("cx", x); dot.setAttribute("cy", y);
+    const n = Math.max(1, Math.round(90 * u));
+    let d = ""; for (let j = 0; j <= n; j++) { const [qx, qy] = at(u * j / n); d += (j ? "L" : "M") + qx.toFixed(1) + "," + qy.toFixed(1); }
+    trail.setAttribute("d", u > 0 ? d : "");
+    PHASES.forEach((p, k) => { const g = Math.abs(u - k / PHASES.length), near = Math.min(g, 1 - g) < 0.08; nodes[k].style.fill = near ? "var(--ltt-accent-soft)" : "var(--ltt-card)"; nodes[k].style.stroke = near ? "var(--ltt-accent)" : "var(--ltt-line-2)"; });
+    logs.forEach((l) => { l.el.style.opacity = clamp((u - l.th) / 0.015); });
+  };
+  draw(0);
+  return { el: s, draw };
+}
+
+function play(fig, period) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { fig.draw(0.7); return; }
+  const t0 = Date.now();
+  const f = () => { if (!document.contains(fig.el)) return; fig.draw(((Date.now() - t0) / period) % 1); setTimeout(f, 16); };
+  setTimeout(f, 16);
+}
+
+LTT.deck({
+  title: "Node.js 이벤트 루프 단계", theme: "terminal",
+  glossary: {
+    "이벤트 루프": "Node.js가 실행을 마친 뒤 timers → pending → poll → check → close 단계를 차례로 도는 반복 구조",
+    "nextTick": "현재 실행이 끝나면 이벤트 루프의 다음 단계로 넘어가기 전에 먼저 도는 큐"
+  },
+  scenes: [{
+    type: "overview", label: "한 장 정리",
+    title: "{{이벤트 루프}}의 어느 단계에 미루느냐가 코드가 도는 순서를 정한다",
+    figure: (el) => { const f = loop(el); play(f, 9000); return { el: f.el }; },
+    caption: "예시 코드 한 번 실행한 출력. 메인 모듈에서는 timeout과 immediate 순서가 실행 환경에 따라 바뀔 수 있고, I/O 콜백 안에서는 immediate가 먼저 나온다.",
+    basis: "{{nextTick}}·Promise 큐는 단계 사이마다 먼저 비운다. 단계 순서(timers → pending callbacks → poll → check → close callbacks)와 큐 우선순위는 Node.js 공식 문서 「The Node.js Event Loop, Timers, and process.nextTick()」에 따른다. 내부용 idle/prepare 단계는 생략.",
+    takeaway: "지금 바로는 nextTick, 같은 바퀴의 check 단계는 setImmediate, 지정한 시간이 지난 뒤는 setTimeout으로 미룬다."
+  }]
+});
+</script>
+</body>
+</html>

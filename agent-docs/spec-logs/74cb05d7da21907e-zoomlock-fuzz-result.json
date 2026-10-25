@@ -1,0 +1,9 @@
+{
+ "seed": 20261019,
+ "n": 100000,
+ "violations": 0,
+ "malformed": 9950,
+ "validChecked": 40415,
+ "throws": 0,
+ "examples": []
+}

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>키르히호프 전류 법칙</title>
+<script type="application/json" id="ltt-meta">{"topic":"키르히호프 전류 법칙","audience":"회로 입문자","theme":"blueprint","medium":"회로 도면","decision":"분기점에서 전류가 어떻게 나뉘나","domain":"전기 회로","pattern":["figure"],"mode":"장면 한 장. 전류를 1초 동안 쌓인 전하량 장부로 보고, 시간 손잡이로 세 막대(본선 | 가지 1 | 가지 2)와 합류 막대를 자라게 한다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script type="application/json" id="ltt-checks">
+[
+ {"id": "k1", "expect": "본선 막대가 6 C까지 차고, 방향은 전원 + → 회로 → − 이다. 전자 표시는 없다.", "reach": [{"knob": "clock", "value": 100}]},
+ {"id": "k2", "expect": "가지 입구에 '반반이면 3 C' 점선 눈금이 연하게 먼저 보여 예상임을 알 수 있다.", "reach": [{"knob": "clock", "value": 0}, {"wait": 300}]},
+ {"id": "k3", "expect": "실제 값은 가지 1 = 2 C(R1 = 6 Ω), 가지 2 = 4 C(R2 = 3 Ω)이다. 저항이 작은 가지 막대가 더 높다.", "reach": [{"knob": "clock", "value": 100}]},
+ {"id": "k4", "expect": "A에서 들어온 6 = 나간 2 + 4. 부호 식 +6 − 2 − 4 = 0이 화면에서 가장 크게 보인다.", "reach": [{"knob": "clock", "value": 100}]},
+ {"id": "k5", "expect": "합은 KCL(전하 보존), 비율 2 : 4 = R2 : R1은 같은 전압 + 옴의 법칙으로 서로 다른 라벨에 적혀 있다.", "reach": [{"knob": "clock", "value": 100}]},
+ {"id": "k6", "expect": "합류 막대 B가 가지 1 + 가지 2 = 6 C로 돌아와 본선과 같은 높이가 된다.", "reach": [{"knob": "clock", "value": 100}]},
+ {"id": "k7", "expect": "데스크톱 폭과 모바일 폭 모두 그림 전체와 라벨이 잘리거나 찌그러지지 않고, 글자는 14px 이상이다. reduced-motion이면 마지막 상태가 정지 화면으로 나온다.", "reach": [{"knob": "clock", "value": 100}]},
+ {"id": "k8", "expect": "LTT.expect 4건(I1=2, I2=4, I=6, 합성저항 경로 I=6)이 모두 통과하고 불일치 패널이 뜨지 않는다.", "reach": [{"wait": 300}]}
+]
+</script>
+<style>
+.sec{width:760px;max-width:100%;height:auto;display:block;margin:0 auto}
+.sec text{font-family:inherit}
+.clock{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;max-width:760px;margin:14px auto 0;font-size:15px;color:var(--ltt-ink-2)}
+.clock input{flex:1 1 220px;min-width:0;accent-color:var(--ltt-accent)}
+.clock output{min-width:4.5em;text-align:right;font-variant-numeric:tabular-nums;color:var(--ltt-ink)}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const ramp = (u, a, b) => clamp((u - a) / (b - a));
+const el = (tag, attrs, parent, text) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; parent && parent.appendChild(n); return n; };
+
+// 모델: 12 V 전원, R1 = 6 Ω, R2 = 3 Ω 병렬. 그림의 값은 모두 여기서 계산한다.
+const V = 12, R1 = 6, R2 = 3;
+const I1 = V / R1, I2 = V / R2, I = I1 + I2;
+const Ieq = V / (R1 * R2 / (R1 + R2));
+LTT.expect("I1 = V/R1", I1, 2);
+LTT.expect("I2 = V/R2", I2, 4);
+LTT.expect("I = I1 + I2", I, 6);
+LTT.expect("합성저항 경로 I = V/Req", Ieq, 6);
+
+const W = 760, H = 590, Y0 = 430, UNIT = 56, BAR = 96;
+const BARS = [
+  { key: "tr", x: 32, v: I, fill: "var(--ltt-ink-2)", name: "본선", sub: "전원 → A" },
+  { key: "r1", x: 232, v: I1, fill: "var(--ltt-c1)", name: "가지 1", sub: "R1 = 6 Ω" },
+  { key: "r2", x: 432, v: I2, fill: "var(--ltt-c2)", name: "가지 2", sub: "R2 = 3 Ω" },
+  { key: "b", x: 632, v: I1 + I2, fill: "var(--ltt-ink-2)", name: "합류 B", sub: "가지 합" }
+];
+
+// 세로 막대 하나: 점선 틀(6 C 기준)과 채움 막대, 값 표시, 이름, 도면 아이콘
+function icon(parent, cx, cy, key, fill) {
+  const stroke = `stroke:${fill};stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round`;
+  if (key === "r1" || key === "r2") {
+    el("path", { d: `M${cx - 30},${cy} L${cx - 18},${cy} L${cx - 12},${cy - 7} L${cx - 4},${cy + 7} L${cx + 4},${cy - 7} L${cx + 12},${cy + 7} L${cx + 18},${cy} L${cx + 30},${cy}`, style: `fill:none;${stroke}` }, parent);
+  } else {
+    el("line", { x1: cx - 30, x2: cx + 30, y1: cy, y2: cy, style: stroke }, parent);
+    el("circle", { cx, cy, r: 5, style: `fill:${fill}` }, parent);
+  }
+}
+
+function build(host) {
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "sec", "data-annotate": "" }, host);
+  el("text", { x: 380, y: 30, "text-anchor": "middle", style: "font-size:15px;font-weight:700;letter-spacing:.06em;fill:var(--ltt-muted)" }, s, "막대 높이 = 1초 동안 지나간 전하(C)");
+
+  const bars = BARS.map((b) => {
+    const cx = b.x + BAR / 2;
+    el("rect", { x: b.x, y: Y0 - I * UNIT, width: BAR, height: I * UNIT, rx: 4, style: "fill:none;stroke:var(--ltt-line-2);stroke-width:1.2;stroke-dasharray:4 4" }, s);
+    const rect = el("rect", { x: b.x, width: BAR, rx: 4, style: `fill:${b.fill};opacity:.9` }, s);
+    const lab = el("text", { x: cx, y: Y0 - 10, "text-anchor": "middle", style: "font-size:20px;font-weight:800;fill:var(--ltt-ink)" }, s, `${b.v} C`);
+    el("text", { x: cx, y: 462, "text-anchor": "middle", style: "font-size:16px;font-weight:800;fill:var(--ltt-ink)" }, s, b.name);
+    el("text", { x: cx, y: 484, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-ink-2)" }, s, b.sub);
+    icon(s, cx, 510, b.key, b.fill);
+    return { b, rect, lab };
+  });
+
+  // 반반 예상: 3 C 점선 눈금. 막대 위에 얹혀 실제 값과 구별되게 연하게 그린다.
+  const ghostY = Y0 - (I / 2) * UNIT;
+  el("line", { x1: BARS[1].x - 6, x2: BARS[2].x + BAR + 6, y1: ghostY, y2: ghostY, style: "stroke:var(--ltt-muted);stroke-width:1.6;stroke-dasharray:6 5" }, s);
+  el("text", { x: 380, y: ghostY - 8, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-muted)" }, s, `반반이면 ${I / 2} C`);
+
+  // 합 괄호: 나간 가지 합 = 들어온 본선. 숫자 읽기는 손잡이가 끝에 닿을 때만 나온다.
+  const c1 = BARS[1].x + BAR / 2, c2 = BARS[2].x + BAR / 2;
+  el("path", { d: `M${c1},174 V162 H${c2} V174`, style: "fill:none;stroke:var(--ltt-ink);stroke-width:2;stroke-linejoin:round" }, s);
+  el("text", { x: 380, y: 146, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink-2)" }, s, "A에서 나간 가지 합 = 들어온 본선");
+  const sum = el("text", { x: 380, y: 96, "text-anchor": "middle", style: "font-size:26px;font-weight:800;fill:var(--ltt-ink)" }, s, `${I} = ${I1} + ${I2}`);
+  const sign = el("text", { x: 380, y: 120, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-ink-2)" }, s, `A에서 +${I} − ${I1} − ${I2} = 0 (ΣI = 0)`);
+
+  // 역할 표기: 합은 KCL, 비율은 같은 전압 + 옴의 법칙
+  el("text", { x: 32, y: 556, style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, s, "합 · KCL(전하 보존): 들어온 합 = 나간 합");
+  el("text", { x: 32, y: 578, style: "font-size:15px;fill:var(--ltt-ink-2)" }, s, `비율 · 같은 전압 + 옴의 법칙: ${I1} : ${I2} = R2 : R1`);
+
+  // 시간 손잡이: 0 → 1 s
+  const ctl = document.createElement("div");
+  ctl.className = "clock";
+  ctl.innerHTML = '<label for="clock">시간 손잡이</label><input type="range" id="clock" min="0" max="100" step="1" value="0"><output id="clock-out"></output>';
+  host.appendChild(ctl);
+  const range = ctl.querySelector("input"), out = ctl.querySelector("output");
+
+  function draw(u) {
+    out.textContent = `${u.toFixed(2)} s`;
+    bars.forEach(({ b, rect, lab }) => {
+      const h = b.v * u * UNIT;
+      rect.setAttribute("y", Y0 - h); rect.setAttribute("height", h);
+      lab.setAttribute("y", Y0 - h - 10);
+      lab.style.opacity = ramp(u, 0.85, 1);
+    });
+    sum.style.opacity = sign.style.opacity = ramp(u, 0.9, 1);
+  }
+  range.addEventListener("input", () => draw(range.value / 100));
+  // reduced-motion이면 마지막 상태(합 확인 + B 복귀)로 연다
+  range.value = matchMedia("(prefers-reduced-motion: reduce)").matches ? 100 : 0;
+  draw(range.value / 100);
+  return s;
+}
+
+LTT.deck({
+  title: "키르히호프 전류 법칙", theme: "blueprint",
+  glossary: {
+    "키르히호프 전류 법칙": "분기점에 들어온 전류의 합과 나간 전류의 합이 같다는 법칙. 전하는 분기점에 쌓이지 않는다.",
+    "분기점": "회로에서 도선이 둘 이상으로 갈라지거나 합쳐지는 마디"
+  },
+  scenes: [{
+    type: "figure", kicker: "전기 회로", title: "분기점에서 전하는 나뉘어도 합은 그대로다",
+    sub: "손잡이를 끌어 1초까지 센다. {{분기점}} A에서 본선이 두 가지로 나뉘고, B에서 다시 본선 높이로 돌아온다.",
+    figure: (h) => build(h),
+    caption: "{{키르히호프 전류 법칙}}: 들어온 합 = 나간 합. 나뉘는 비율은 저항이 정한다. 저항이 작은 가지로 더 많이 흐른다.",
+    basis: "12 V, R1 = 6 Ω, R2 = 3 Ω의 손 계산 예시(I1 = 2 A, I2 = 4 A, I = 6 A). 이상적인 도선과 직류 정상 상태를 가정한다.",
+    mount() { return { enter() {}, leave() {} }; }
+  }]
+});
+</script>
+</body>
+</html>

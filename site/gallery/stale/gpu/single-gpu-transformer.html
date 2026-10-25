@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>batch를 키우면 GPU는 언제 연산에 묶일까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"gpu","topic":"single-gpu-transformer","audience":"Transformer(attention, Q/K/V, layer)를 안다. GPU 메모리 계층은 모른다","pattern":["hook","explain","predict","compare","sweep","compare","explain","keywords"],"mode":"체험형: 예측 뒤 batch·문맥 길이를 바꿔 HBM이 ridge보다 먼저 차는 것을 확인한다","decision":"한 GPU에서 batch와 문맥 길이를 얼마로 잡을지, prefill과 decode가 각각 무엇에 묶이는지"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  :root { --w: #8a93b2; --kv: #e0a33a; }
+  .gauge { width: 100%; }
+  .gauge .z1 { fill: #eef1fd; } .gauge .z2 { fill: #fdf4e3; }
+  .big { font-size: 26px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; }
+  .big small { display: block; font-size: 12px; font-weight: 600; color: var(--ltt-muted); }
+  .hb { display: grid; gap: 10px; max-width: 640px; width: 100%; margin: 0 auto; }
+  .hb .ltt-bar span { font-size: 12px; white-space: nowrap; }
+  .hb .ltt-param { margin: 0; }
+  .ppl { font-size: 13px; color: var(--ltt-muted); text-align: center; }
+  .ppl .ltt-units { max-width: 220px; margin: 6px auto 0; }
+</style>
+</head>
+<body>
+<script>
+  // 손으로 계산한 기대값 (모델 코드보다 먼저)
+  // KV/토큰 = 2*32*8*128*2 = 131,072 B. 문맥 4096 한 사용자 = 131,072*4096 = 536,870,912 B
+  // 최대 batch(4096) = floor(64e9 / 536,870,912) = floor(119.2) = 119, (8192) = floor(59.6) = 59, (32768) = floor(14.9) = 14
+  // ridge = 989/3.35 = 295.224
+  // decode AI(b=1, 4096) = 16e9 / (16e9 + 536,870,912) = 0.96753
+  // decode AI(b=119, 4096) = 16e9*119 / (16e9 + 119*536,870,912) = 1.904e12 / 7.98876e10 = 23.8335
+  // prefill AI(4096) = 2*8e9*4096 / (16e9 + 536,870,912) = 6.5536e13 / 1.65369e10 = 3963.0
+  // 활용률(b=1, 4096) = 3.35e12 * 0.96753 / 989e12 = 0.3277 %
+  const EXPECTED_BY_HAND = { kvTok: 131072, kvSeq: 536870912, max4k: 119, max8k: 59, max32k: 14, ridge: 295.224, aiD1: 0.96753, aiD119: 23.8335, aiP4k: 3963.0, util1: 0.3277 };
+
+  const BW = 3.35, PEAK = 989, W = 16e9, HBM = 80e9, P = 8e9, KVTOK = 2 * 32 * 8 * 128 * 2;
+  const kvSeq = (S) => KVTOK * S;
+  const maxBatch = (S) => Math.floor((HBM - W) / kvSeq(S));
+  const aiDecode = (b, S) => (2 * P * b) / (W + b * kvSeq(S));
+  const aiPrefill = (S) => (2 * P * S) / (W + kvSeq(S));
+  const attain = (ai) => Math.min(PEAK, BW * ai);
+  LTT.expect("KV B/토큰", KVTOK, EXPECTED_BY_HAND.kvTok, { tol: 0 });
+  LTT.expect("KV B/사용자(4096)", kvSeq(4096), EXPECTED_BY_HAND.kvSeq, { tol: 0 });
+  LTT.expect("최대 batch 4096", maxBatch(4096), EXPECTED_BY_HAND.max4k, { tol: 0 });
+  LTT.expect("최대 batch 8192", maxBatch(8192), EXPECTED_BY_HAND.max8k, { tol: 0 });
+  LTT.expect("최대 batch 32768", maxBatch(32768), EXPECTED_BY_HAND.max32k, { tol: 0 });
+  LTT.expect("ridge", PEAK / BW, EXPECTED_BY_HAND.ridge, { tol: 1e-3 });
+  LTT.expect("decode AI b=1", aiDecode(1, 4096), EXPECTED_BY_HAND.aiD1, { tol: 1e-4 });
+  LTT.expect("decode AI b=119", aiDecode(119, 4096), EXPECTED_BY_HAND.aiD119, { tol: 1e-3 });
+  LTT.expect("prefill AI 4096", aiPrefill(4096), EXPECTED_BY_HAND.aiP4k, { tol: 0.1 });
+  LTT.expect("활용률 % b=1", (attain(aiDecode(1, 4096)) / PEAK) * 100, EXPECTED_BY_HAND.util1, { tol: 1e-3 });
+
+  const fmtAI = (v) => (v >= 100 ? d3.format(",.0f")(v) : d3.format(".1f")(v));
+  const gb = (x) => d3.format(".1f")(x / 1e9) + " GB";
+  const SRC = "H100 SXM 데이터시트 기준 HBM3 약 3.35 TB/s, BF16 dense 약 989 TFLOPS, HBM 80 GB (작성 시 원문 재확인 안 함). Llama-3-8B: 32층, KV head 8(GQA), head_dim 128, BF16. 가중치 16 GB로 단순화. attention FLOP·활성값·프레임워크 여유 공간은 무시한 이상적 상한이다(불확실).";
+
+  // ridge를 중앙에 둔 로그 눈금 막대: 점이 왼쪽(메모리)·오른쪽(연산) 어느 구역에 떨어지는지만 보인다.
+  const gauge = (ai) => (node) => {
+    const x = d3.scaleLog([0.5, 10000], [6, 234]).clamp(true);
+    const s = d3.select(node).append("svg").attr("class", "gauge ltt-svg").attr("viewBox", "0 0 240 70");
+    s.append("rect").attr("class", "z1").attr("x", 6).attr("y", 20).attr("width", x(295) - 6).attr("height", 22).attr("rx", 4);
+    s.append("rect").attr("class", "z2").attr("x", x(295)).attr("y", 20).attr("width", 234 - x(295)).attr("height", 22).attr("rx", 4);
+    s.append("line").attr("x1", x(295)).attr("x2", x(295)).attr("y1", 14).attr("y2", 48).attr("stroke", "var(--ltt-muted)").attr("stroke-dasharray", "3 3");
+    s.append("text").attr("x", x(295)).attr("y", 62).attr("text-anchor", "middle").text("ridge 295");
+    s.append("text").attr("x", 8).attr("y", 12).text("FLOP/byte " + fmtAI(ai));
+    s.append("circle").attr("class", "dot").attr("cy", 31).attr("r", 8).attr("fill", "var(--ltt-accent)").attr("stroke", "#fff").attr("stroke-width", 2)
+      .attr("cx", 6).attr("data-x", x(ai));
+  };
+  const slideDots = (body) => d3.select(body).selectAll(".dot").attr("cx", 6).transition().duration(LTT.MOTION_MS * 1.6).ease(d3.easeCubicOut)
+    .attr("cx", function () { return this.dataset.x; });
+
+  const people = (n) => (node) => {
+    const w = document.createElement("div"); w.className = "ppl";
+    w.innerHTML = `<div class="big">${n}명<small>HBM에 들어가는 최대 batch</small></div><div></div>`;
+    node.appendChild(w);
+    LTT.units(w.lastChild, 120, 12).paint(n);
+  };
+
+  LTT.deck({
+    title: "batch를 키우면 GPU는 언제 연산에 묶일까?",
+    scenes: [
+      { type: "hook", art: "🧮",
+        text: "batch를 계속 키우면<br>GPU 연산기를 <u>꽉 채울</u> 수 있을까?",
+        sub: "Llama-3-8B를 H100 한 장에서 서빙할 때 batch와 문맥 길이를 정하는 이야기." },
+
+      { type: "explain", kicker: "잣대", title: "읽은 바이트 하나로 몇 번 계산하나",
+        steps: [
+          { icon: "📥", title: "읽기", text: "HBM에서 가중치와 KV cache를 바이트 단위로 읽어 온다." },
+          { icon: "✖️", title: "계산", text: "읽은 값으로 곱셈·덧셈(FLOP)을 한다." },
+          { icon: "⚖️", title: "비율 = arithmetic intensity", text: "FLOP/byte가 295(ridge)보다 작으면 메모리에, 크면 연산에 묶인다." },
+        ],
+        tex: "\\text{AI}=\\frac{\\text{FLOP}}{\\text{byte}},\\qquad \\text{ridge}=\\frac{989\\ \\text{TFLOPS}}{3.35\\ \\text{TB/s}}\\approx 295" },
+
+      { type: "predict", kicker: "짐작해 보기", title: "batch 1 decode는 ridge의 어느 쪽에 있나",
+        sub: "토큰 1개를 만들려고 가중치 16 GB를 읽는다.",
+        question: "batch 1 decode의 arithmetic intensity는 ridge point보다 큰가 작은가",
+        choices: [{ id: "bigger", text: "ridge보다 크다 (연산에 묶임)" }, { id: "smaller", text: "ridge보다 훨씬 작다 (메모리에 묶임)" }],
+        answer: "smaller",
+        answerVisual(node) { gauge(aiDecode(1, 4096))(node); node.firstChild.style.maxWidth = "420px"; setTimeout(() => slideDots(node), 100); },
+        why: `훨씬 작다. 표 16 GB를 읽고 2 × 8B FLOP만 하므로 AI는 약 <b>${fmtAI(aiDecode(1, 4096))}</b>, ridge의 300분의 1이다. 연산기는 ${d3.format(".2f")(attain(aiDecode(1, 4096)) / PEAK * 100)}%만 쓴다. <span class="ltt-tag">모델로 계산한 예시</span>` },
+
+      { type: "compare", kicker: "세 구간", title: "같은 GPU, 어느 구역에 떨어질까",
+        sub: "문맥 4096 토큰 기준. 점이 ridge 오른쪽이면 연산에 묶인다.",
+        items: [
+          { label: "decode · batch 1", visual: gauge(aiDecode(1, 4096)), tone: "bad", verdict: "메모리에 묶임", noteAfter: true, note: "연산기 0.3%." },
+          { label: "decode · batch 119 (HBM 꽉 참)", visual: gauge(aiDecode(119, 4096)), tone: "warn", verdict: "그래도 메모리에 묶임", noteAfter: true, note: "batch를 HBM 한계까지 올려도 AI 약 24." },
+          { label: "prefill · 프롬프트 4096", visual: gauge(aiPrefill(4096)), tone: "good", verdict: "연산에 묶임", noteAfter: true, note: "프롬프트 토큰을 한꺼번에 계산해 가중치 한 번 읽기를 4096번 재사용한다." },
+        ],
+        enter: slideDots,
+        basis: "모델로 계산한 예시. " + SRC },
+
+      { kicker: "HBM 채우기", title: "batch를 키우면 KV cache가 HBM을 먼저 채운다",
+        sub: "사용자마다 문맥 길이만큼 KV cache가 붙는다. 막대가 넘치면 그 batch는 못 올린다.",
+        mount: (body) => {
+          const w = document.createElement("div"); w.className = "hb";
+          w.innerHTML = `<div class="big"><span id="aiN">0</span><small>decode FLOP/byte (ridge 295) <span class="ltt-tag">모델로 계산한 예시</span></small></div>
+            <div><span id="fitTag" class="ltt-tag"></span> <span id="kvtxt"></span></div><div id="hbm"></div>
+            <label class="ltt-param">decode batch <b id="bi-v"></b><input type="range" id="bi" min="0" max="8" value="0"></label>
+            <label class="ltt-param">문맥 길이 <b id="si-v"></b><input type="range" id="si" min="0" max="6" value="3"></label>`;
+          body.appendChild(w);
+          const hbm = LTT.bar("hbm", [{ color: "var(--w)" }, { color: "var(--kv)" }, { color: "var(--ltt-line)" }]);
+          LTT.sweep({
+            params: { bi: { map: (v) => 2 ** v, fmt: (v) => v + "명" }, si: { map: (v) => 512 * 2 ** v, fmt: (v) => d3.format(",")(v) + " 토큰" } },
+            render: ({ bi, si }) => {
+              const kv = bi * kvSeq(si), room = HBM - W, over = bi > maxBatch(si);
+              LTT.tween("aiN", aiDecode(bi, si), d3.format(".1f"));
+              const tag = LTT.$("fitTag");
+              tag.textContent = over ? "HBM 초과: 못 올림" : "HBM에 들어감";
+              tag.className = "ltt-tag " + (over ? "bad" : "good");
+              LTT.$("kvtxt").textContent = `KV cache ${gb(kv)} / 여유 ${gb(room)} · 최대 ${maxBatch(si)}명`;
+              hbm.set([W, Math.min(kv, room), Math.max(0, room - kv)], ["가중치 16 GB", kv > 6e9 ? "KV" : "", ""]);
+            },
+          });
+          return {};
+        },
+        tex: "\\text{KV/토큰}=2\\times 32\\ \\text{층}\\times 8\\ \\text{head}\\times 128\\times 2\\ \\text{B}=131{,}072\\ \\text{B},\\qquad \\text{최대 batch}=\\left\\lfloor\\frac{80-16\\ \\text{GB}}{\\text{KV/토큰}\\times\\text{문맥}}\\right\\rfloor",
+        basis: SRC },
+
+      { type: "compare", kicker: "문맥 길이별", title: "문맥이 길어지면 몇 명까지 묶을 수 있나", cols: 3,
+        sub: "HBM 80 GB에서 가중치 16 GB를 뺀 64 GB를 KV cache로 채운다.",
+        items: [
+          { label: "문맥 4,096", visual: people(maxBatch(4096)), tone: "good", verdict: "최대 119명" },
+          { label: "문맥 8,192", visual: people(maxBatch(8192)), tone: "warn", verdict: "최대 59명" },
+          { label: "문맥 32,768", visual: people(maxBatch(32768)), tone: "bad", verdict: "최대 14명", noteAfter: true, note: "긴 문서 요약 서버는 묶을 인원이 줄어 decode가 더 메모리에 묶인다." },
+        ],
+        reveal: false,
+        basis: "모델로 계산한 예시. 칸 하나 = 1명(120칸). " + SRC },
+
+      { type: "explain", kicker: "실전", title: "prefill과 decode를 따로 다룬다", arrows: false,
+        steps: [
+          { icon: "📄", title: "prefill은 길이로 연산을 채운다", text: "프롬프트가 길면 AI가 수천이라 연산 성능이 결정한다." },
+          { icon: "🔁", title: "decode는 읽기를 나눠 쓴다", text: "batch로 같은 읽기를 공유하지만 KV cache가 HBM을 채우면 거기서 멈춘다." },
+          { icon: "🗜️", title: "GQA로 KV를 줄인다", text: "KV head를 32에서 8로 줄이면 KV cache가 4분의 1, 같은 HBM에 batch 4배." },
+        ] },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [
+          { ko: "연산 강도", en: "arithmetic intensity" },
+          { ko: "루프라인 / ridge point", en: "roofline model" },
+          { ko: "KV 캐시", en: "KV cache" },
+        ],
+        signals: [
+          "batch를 올려도 GPU 사용률이 낮게 머물 때",
+          "긴 문맥을 허용하자 동시 사용자 수가 줄어들 때",
+          "첫 토큰까지 시간(TTFT)과 토큰 간 시간(TPOT)이 다르게 움직일 때",
+        ],
+        queries: ["arithmetic intensity LLM decode", "roofline ridge point H100", "KV cache size per token GQA", "prefill vs decode compute bound", "PagedAttention KV cache memory", "disaggregated prefill decode"],
+        neighbors: [
+          { term: "MQA / GQA", diff: "KV head 수를 줄여 KV cache 자체를 줄이는 구조. batch 한계를 옮긴다." },
+          { term: "FlashAttention", diff: "attention 계산의 HBM 왕복을 줄이는 커널. 가중치 읽기 병목과는 별개." },
+        ] },
+    ],
+  });
+</script>
+</body>
+</html>

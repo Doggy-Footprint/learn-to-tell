@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>포식자와 피식자</title>
+<script type="application/json" id="ltt-meta">{"topic":"포식자-피식자 순환","audience":"생태 입문자","theme":"sketch","medium":"화이트보드","decision":"개체수 순환 읽기","domain":"생태","pattern":["overview"],"mode":"카탈로그용: 장면 하나짜리 본보기. 되먹임 구조를 \"입자가 흐름\" 움직임과 겹쳐 놓기 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.pp-host{width:820px;max-width:100%;aspect-ratio:820/480;margin:0 auto}
+.pp{width:820px;max-width:100%;height:auto;display:block;margin:0 auto}
+.pp text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+// 로트카-볼테라 모델. 눈신토끼·캐나다스라소니(허드슨베이 모피 기록, 주기 약 10년)에 맞춘 매개변수
+const P = { a: 0.55, b: 0.028, c: 0.84, d: 0.026 };
+const dx = (x, y) => [P.a * x - P.b * x * y, P.d * x * y - P.c * y];
+function orbit() { let x = 50, y = 8; const h = 0.01, pts = [[x, y, 0]];
+  for (let i = 1; i < 20000; i++) { const k1 = dx(x, y), k2 = dx(x + h / 2 * k1[0], y + h / 2 * k1[1]), k3 = dx(x + h / 2 * k2[0], y + h / 2 * k2[1]), k4 = dx(x + h * k3[0], y + h * k3[1]);
+    const nx = x + h / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]), ny = y + h / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
+    if (pts.length > 200 && y < 8 && ny >= 8 && nx < x + 1 && nx > 32) break; x = nx; y = ny; pts.push([x, y, i * h]); }
+  return pts; }
+const ORB = orbit(), PERIOD = ORB[ORB.length - 1][2];
+LTT.expect("평형점 토끼(천 마리)", P.c / P.d, 32.3, { tol: 0.1 });
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const el = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+
+function cycle(host) {
+  const W = 820, H = 480, L = 90, R = 780, B = 410, T = 40;
+  const xs = Math.max(...ORB.map((p) => p[0])) * 1.12, ys = Math.max(...ORB.map((p) => p[1])) * 1.3;
+  const X = (v) => L + v / xs * (R - L), Y = (v) => B - v / ys * (B - T);
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "pp", "data-annotate": "" }, host);
+  const rc = window.rough ? rough.svg(s) : null;
+  const line = (x1, y1, x2, y2) => rc ? s.appendChild(rc.line(x1, y1, x2, y2, { stroke: "currentColor", roughness: 1.2, strokeWidth: 2 })) : el("line", { x1, y1, x2, y2, style: "stroke:var(--ltt-ink);stroke-width:2" }, s);
+  s.style.color = "var(--ltt-ink)";
+  line(L, B, R, B); line(L, B, L, T);
+  el("text", { x: R, y: B + 34, "text-anchor": "end", style: "font-size:16px;fill:var(--ltt-ink-2)" }, s).textContent = "토끼 수 (천 마리) →";
+  el("text", { x: L - 14, y: T - 8, style: "font-size:16px;fill:var(--ltt-ink-2)" }, s).textContent = "↑ 스라소니 (천 마리)";
+  const ex = X(P.c / P.d), ey = Y(P.a / P.b);
+  el("line", { x1: ex, x2: ex, y1: T + 10, y2: B, style: "stroke:var(--ltt-line-2);stroke-width:1.2;stroke-dasharray:5 6" }, s);
+  el("line", { x1: L, x2: R - 10, y1: ey, y2: ey, style: "stroke:var(--ltt-line-2);stroke-width:1.2;stroke-dasharray:5 6" }, s);
+  el("text", { x: ex + 6, y: B - 8, style: "font-size:13px;fill:var(--ltt-muted)" }, s).textContent = "평형 32천";
+  el("text", { x: R - 10, y: ey - 6, "text-anchor": "end", style: "font-size:13px;fill:var(--ltt-muted)" }, s).textContent = "평형 20천";
+  let d = ""; ORB.forEach((p, i) => { if (i % 10 === 0) d += (d ? "L" : "M") + X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1); }); d += "Z";
+  if (rc) s.appendChild(rc.path(d, { stroke: "var(--ltt-line-2)", roughness: 0.8, strokeWidth: 2.2 }));
+  else el("path", { d, style: "fill:none;stroke:var(--ltt-line-2);stroke-width:2.2" }, s);
+  // 네 구역: 평형선이 나누는 사분면마다 한 가지 일이 일어난다
+  const Q = [
+    { x: R - 10, y: B - 44, a: "end", t: "① 토끼가 많다", u: "→ 스라소니가 는다" },
+    { x: R - 10, y: T + 10, a: "end", t: "② 스라소니가 많다", u: "→ 토끼가 준다" },
+    { x: L + 16, y: T + 10, a: "start", t: "③ 먹이가 없다", u: "→ 스라소니가 준다" },
+    { x: L + 16, y: B - 44, a: "start", t: "④ 천적이 적다", u: "→ 토끼가 회복한다" },
+  ];
+  const qs = Q.map((q) => { const g = el("g", { style: "transition:opacity .4s" }, s);
+    el("text", { x: q.x, y: q.y, "text-anchor": q.a, style: "font-size:18px;fill:var(--ltt-ink);font-weight:700" }, g).textContent = q.t;
+    el("text", { x: q.x, y: q.y + 24, "text-anchor": q.a, style: "font-size:15px;fill:var(--ltt-ink-2)" }, g).textContent = q.u; return g; });
+  const NP = 16, dots = Array.from({ length: NP }, (_, i) => el("circle", { r: i === 0 ? 9 : 5, style: `fill:${i === 0 ? "var(--ltt-accent)" : "var(--ltt-ink)"};opacity:${i === 0 ? 1 : .55}` }, s));
+  const yr = el("text", { x: ex + 8, y: T + 4, style: "font-size:14px;fill:var(--ltt-accent);font-weight:700" }, s);
+  const at = (tt) => { const t = ((tt % PERIOD) + PERIOD) % PERIOD; let lo = 0, hi = ORB.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; ORB[m][2] < t ? lo = m : hi = m; } return ORB[lo]; };
+  function draw(u) {
+    const t = u * PERIOD;
+    dots.forEach((dt, i) => { const p = at(t + i * PERIOD / NP); dt.setAttribute("cx", X(p[0])); dt.setAttribute("cy", Y(p[1])); });
+    const p = at(t), qi = p[0] >= P.c / P.d ? (p[1] < P.a / P.b ? 0 : 1) : (p[1] >= P.a / P.b ? 2 : 3);
+    qs.forEach((g, i) => g.style.opacity = i === qi ? 1 : .35);
+    yr.textContent = `큰 점: ${(u * PERIOD).toFixed(1)}년째`;
+  }
+  return { el: s, draw };
+}
+
+// 장면 공통 leave는 mount에서만 불리므로 figure 함수의 반복은 문서에서 떨어지면 멈추고 숨은 동안은 그리지 않는다
+function loop(period, draw, node) {
+  let raf = 0, t0 = 0;
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return { enter() { clearTimeout(raf); if (reduced) { draw(0); return; }
+      t0 = Date.now(); const f = () => { if (node && !node.isConnected) return; if (!node || node.checkVisibility()) draw(((Date.now() - t0) / period) % 1); raf = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(raf); } };
+}
+
+LTT.deck({
+  title: "포식자와 피식자", theme: "sketch",
+  glossary: { "평형점": "두 개체수가 더 변하지 않는 지점. 순환은 이 점을 감싸고 돈다" },
+  scenes: [{
+    type: "overview", title: "토끼와 스라소니는 서로를 쫓아 한 바퀴 돈다",
+    caption: "점 하나가 한 해의 두 개체수다. {{평형점}}을 지나는 점선이 판을 네 구역으로 나누고, 점은 ①→②→③→④ 순서로 돈다.",
+    basis: "로트카-볼테라 모델, 눈신토끼·캐나다스라소니 약 10년 주기(허드슨베이 기록)에 맞춘 매개변수. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    figure: '<div class="pp-host"></div>',
+    // kit이 figure를 재려고 그린 사본을 화면에 쓰므로, 움직이는 그림은 장면 enter에서 화면의 자리에 직접 그린다
+    enter(body) { const host = body.querySelector(".pp-host"); if (!host || host.firstChild) return; const f = cycle(host); f.draw(0); loop(9000, f.draw, f.el).enter(); }
+  }]
+});
+</script>
+</body>
+</html>

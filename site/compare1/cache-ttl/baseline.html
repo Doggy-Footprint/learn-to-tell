@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>캐시 TTL 결정하기</title>
+<style>
+:root{
+  --bg:#fbfaf7; --fg:#1f2328; --muted:#5b636e; --card:#ffffff; --line:#e3e0d8;
+  --accent:#2f6fde; --good:#1f8a52; --warn:#c2410c; --bad:#b42318; --soft:#eef3fd;
+  --hit:#2f9e63; --miss:#d97706; --stale:#c0392b;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16181c; --fg:#e6e6e6; --muted:#a0a7b2; --card:#1f2228; --line:#30343c;
+    --accent:#7aa7ff; --good:#5fd08f; --warn:#f39a5b; --bad:#ff7b72; --soft:#222a3a;
+    --hit:#5fd08f; --miss:#f0a742; --stale:#ff7b72;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.7 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+main{max-width:860px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:1.8rem;line-height:1.3;margin:.2em 0 .3em}
+h2{font-size:1.3rem;margin:2.4em 0 .6em;padding-top:.6em;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:1.4em 0 .4em}
+p,li{color:var(--fg)}
+.lead{color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+.note{background:var(--soft);border-left:4px solid var(--accent);padding:10px 14px;border-radius:6px;margin:14px 0}
+.warn{border-left-color:var(--warn)}
+code{background:var(--soft);padding:1px 5px;border-radius:4px;font-size:.92em}
+table{border-collapse:collapse;width:100%;font-size:.93rem}
+th,td{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.toc a{color:var(--accent);text-decoration:none}
+.toc ol{margin:.3em 0;padding-left:1.3em}
+.ctrl{display:grid;grid-template-columns:150px 1fr 90px;gap:8px 12px;align-items:center;margin:8px 0}
+.ctrl label{font-size:.92rem;color:var(--muted)}
+.ctrl output{font-variant-numeric:tabular-nums;text-align:right;font-weight:600}
+input[type=range]{width:100%}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg)}
+.kpi .v{font-size:1.35rem;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi .k{font-size:.8rem;color:var(--muted)}
+svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:6px 12px;border-radius:8px;cursor:pointer}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.quiz textarea{width:100%;min-height:90px;font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+details{margin:8px 0}
+summary{cursor:pointer;color:var(--accent)}
+.timeline{font-family:ui-monospace,Menlo,monospace;font-size:.82rem}
+@media (max-width:640px){
+  .ctrl{grid-template-columns:1fr 70px}
+  .ctrl label{grid-column:1 / -1}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  h1{font-size:1.5rem}
+}
+</style>
+</head>
+<body>
+<main>
+<h1>상품 정보 API 캐시, TTL을 몇 초로 할까?</h1>
+<p class="lead">대상: HTTP API를 만들어 봤고 캐시 용어는 들어봤지만 숫자를 정할 근거가 없는 백엔드 개발자. 읽는 데 약 30분, 시뮬레이터를 만져 보는 데 10분.</p>
+
+<div class="card toc">
+<strong>목차</strong>
+<ol>
+<li><a href="#s1">캐시가 하는 일: hit, miss, TTL, stale</a></li>
+<li><a href="#s2">TTL 하나가 두 숫자를 동시에 움직인다</a></li>
+<li><a href="#s3">계산해 보기: 간단한 수식</a></li>
+<li><a href="#s4">시뮬레이터: 내 서비스 숫자를 넣어 보기</a></li>
+<li><a href="#s5">타임라인으로 보는 한 상품 키</a></li>
+<li><a href="#s6">TTL만으로 부족할 때 쓰는 도구</a></li>
+<li><a href="#s7">TTL 결정 절차 (체크리스트)</a></li>
+<li><a href="#s8">확인 퀴즈</a></li>
+</ol>
+</div>
+
+<h2 id="s1">1. 캐시가 하는 일: hit, miss, TTL, stale</h2>
+<p>캐시는 <b>원본(DB, 상품 서비스)에서 가져온 응답을 잠시 복사해 두고</b>, 같은 요청이 오면 원본에 가지 않고 복사본을 돌려주는 장치다. Redis, 애플리케이션 메모리, CDN, 브라우저가 모두 캐시가 될 수 있다.</p>
+
+<svg viewBox="0 0 760 210" role="img" aria-label="클라이언트, 캐시, 원본 사이의 hit와 miss 흐름">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+  <g font-size="14" fill="currentColor" style="color:var(--fg)">
+    <rect x="20" y="70" width="140" height="60" rx="10" fill="none" stroke="currentColor"/>
+    <text x="90" y="105" text-anchor="middle">클라이언트</text>
+    <rect x="310" y="70" width="140" height="60" rx="10" fill="none" stroke="currentColor"/>
+    <text x="380" y="98" text-anchor="middle">캐시</text>
+    <text x="380" y="117" text-anchor="middle" font-size="11" style="fill:var(--muted)">key: product:123</text>
+    <rect x="600" y="70" width="140" height="60" rx="10" fill="none" stroke="currentColor"/>
+    <text x="670" y="98" text-anchor="middle">원본</text>
+    <text x="670" y="117" text-anchor="middle" font-size="11" style="fill:var(--muted)">DB / 상품 서비스</text>
+  </g>
+  <g style="color:var(--hit)" stroke="currentColor" fill="none" stroke-width="2">
+    <path d="M160,85 L308,85" marker-end="url(#ar)"/>
+    <path d="M310,100 C260,40 210,40 162,95" marker-end="url(#ar)" stroke-dasharray="5 4"/>
+  </g>
+  <text x="235" y="38" text-anchor="middle" font-size="13" style="fill:var(--hit)">HIT: 복사본이 있고 아직 유효 → 바로 응답 (~1ms)</text>
+  <g style="color:var(--miss)" stroke="currentColor" fill="none" stroke-width="2">
+    <path d="M450,115 L598,115" marker-end="url(#ar)"/>
+    <path d="M600,125 C550,175 500,175 452,128" marker-end="url(#ar)" stroke-dasharray="5 4"/>
+  </g>
+  <text x="525" y="195" text-anchor="middle" font-size="13" style="fill:var(--miss)">MISS: 없거나 만료 → 원본 조회 후 저장 (~수십 ms, 원본 부하)</text>
+</svg>
+
+<table>
+<tr><th>용어</th><th>뜻</th><th>상품 API 예시</th></tr>
+<tr><td><b>hit</b></td><td>캐시에 유효한 복사본이 있어 그걸로 응답</td><td><code>GET /products/123</code>을 Redis 값으로 응답</td></tr>
+<tr><td><b>miss</b></td><td>복사본이 없거나 만료돼 원본까지 다녀옴</td><td>DB에서 상품 조회 → Redis에 저장 → 응답</td></tr>
+<tr><td><b>hit ratio</b></td><td>전체 요청 중 hit 비율</td><td>95%면 원본은 요청의 5%만 받는다</td></tr>
+<tr><td><b>TTL</b> (time to live)</td><td>복사본을 저장한 뒤 유효하다고 볼 시간</td><td><code>SET product:123 ... EX 60</code> → 60초 뒤 만료</td></tr>
+<tr><td><b>stale</b></td><td>복사본이 원본의 현재 값과 다른 상태</td><td>가격이 9,900원 → 8,900원으로 바뀌었는데 캐시는 아직 9,900원</td></tr>
+</table>
+
+<div class="note"><b>핵심 관찰.</b> TTL 기반 캐시는 "원본이 바뀌었는지"를 모른다. 단지 "저장한 지 T초가 지났는지"만 본다. 그래서 TTL 동안 원본이 바뀌면, 남은 시간 동안 <b>stale 응답</b>이 나간다. 최악의 경우 사용자는 최대 <b>TTL만큼 오래된</b> 정보를 본다.</div>
+
+<h2 id="s2">2. TTL 하나가 두 숫자를 동시에 움직인다</h2>
+<table>
+<tr><th></th><th>TTL을 짧게 (예: 5초)</th><th>TTL을 길게 (예: 1시간)</th></tr>
+<tr><td>hit ratio</td><td>낮음 → 원본 부하 큼</td><td>높음 → 원본 부하 작음</td></tr>
+<tr><td>stale</td><td>최대 5초 늦음, stale 비율 낮음</td><td>최대 1시간 늦음, stale 비율 높음</td></tr>
+<tr><td>장애 시</td><td>원본이 죽으면 캐시도 금방 비어 같이 죽음</td><td>원본이 잠깐 죽어도 캐시가 버팀</td></tr>
+</table>
+<p>즉 TTL은 <b>"원본 부하"와 "신선도" 사이의 손잡이</b>다. 정답은 서비스마다 다르고, 판단 근거는 아래 네 가지 숫자다.</p>
+<ol>
+<li><b>요청 빈도</b> (키 하나당 초당 몇 번 읽히나): 자주 읽히는 키일수록 짧은 TTL로도 hit ratio가 높다.</li>
+<li><b>변경 빈도</b> (상품 정보가 얼마나 자주 바뀌나): 거의 안 바뀌면 TTL을 길게 해도 stale이 드물다.</li>
+<li><b>stale 허용치</b> (늦은 정보가 얼마나 비싼가): 상품 설명이 1시간 늦는 것과 가격·재고가 1시간 늦는 것은 비용이 다르다.</li>
+<li><b>원본 여유</b> (원본이 초당 몇 건을 견디나): 캐시가 없어도 버틸 수 있다면 TTL은 짧게 둬도 된다.</li>
+</ol>
+
+<h2 id="s3">3. 계산해 보기: 간단한 수식</h2>
+<p>한 상품 키를 생각하자. 요청이 초당 평균 <b>λ</b>번 무작위로 오고, TTL이 <b>T</b>초라고 하자.</p>
+<ul>
+<li>miss가 한 번 나면 그 순간부터 T초 동안은 모두 hit이다. 그동안 평균 <b>λT</b>번의 요청이 온다.</li>
+<li>따라서 "miss 1번 + hit λT번"이 반복된다.</li>
+</ul>
+<div class="card">
+<p style="margin:0">hit ratio ≈ <b>λT / (1 + λT)</b></p>
+<p style="margin:0">원본 요청률(키 하나) ≈ <b>λ / (1 + λT)</b> &nbsp;→ λ가 크면 대략 <b>1/T</b> (TTL마다 1번)</p>
+</div>
+<p>예: 상품 하나가 초당 2번 읽히고 TTL 60초 → λT=120 → hit ratio ≈ 99.2%. 원본은 그 상품 때문에 60초에 1번만 조회된다.<br>
+반면 하루 3번 읽히는 비인기 상품(λ≈0.000035)은 TTL 60초여도 λT≈0.002 → hit ratio ≈ 0.2%. <b>거의 항상 miss</b>다.</p>
+
+<div class="note"><b>교훈 1.</b> 상품 API 트래픽은 보통 소수 인기 상품에 몰린다(롱테일). 인기 상품은 짧은 TTL로도 충분히 hit이 나고, 비인기 상품은 TTL을 늘려도 hit ratio 개선이 작다. 그래서 "전체 hit ratio"는 TTL보다 <b>트래픽 분포</b>에 더 크게 좌우될 때가 많다.</div>
+
+<p>상품 정보가 평균 <b>μ</b>번/초로 바뀐다고 하자(예: 하루 1번 → μ = 1/86400). hit 응답이 나갈 때 복사본의 나이는 0~T 사이에 고르게 퍼져 있으므로:</p>
+<div class="card">
+<p style="margin:0">hit 응답이 stale일 확률 ≈ <b>1 − (1 − e<sup>−μT</sup>) / (μT)</b> &nbsp;≈ <b>μT / 2</b> (μT가 작을 때)</p>
+<p style="margin:0">stale 응답의 평균 지연은 대략 <b>T/2 이하</b>, 최대 <b>T</b></p>
+</div>
+<p>예: 하루 1번 바뀌는 상품, TTL 60초 → μT ≈ 0.0007 → 응답의 약 0.035%가 stale. TTL 1시간 → 약 2%.</p>
+
+<div class="note"><b>교훈 2.</b> stale <b>비율</b>은 "TTL ÷ 변경 주기"에 비례하고, stale <b>최대 지연</b>은 TTL 그 자체다. 사업적으로 중요한 건 대개 최대 지연("가격 변경이 최대 몇 초 후 반영되나")이다.</div>
+
+<h2 id="s4">4. 시뮬레이터: 내 서비스 숫자를 넣어 보기</h2>
+<p>상품 N개, 전체 초당 요청 수, 인기 쏠림(Zipf 지수), 상품 변경 주기를 넣으면 TTL별로 hit ratio, 원본 QPS, stale 비율을 계산한다. 위 수식을 상품마다 적용해 합산한 결과다.</p>
+<div class="card" id="sim">
+  <div class="ctrl"><label for="ttl">TTL</label><input id="ttl" type="range" min="0" max="100" value="45"><output id="ttlO"></output></div>
+  <div class="ctrl"><label for="qps">전체 요청 (req/s)</label><input id="qps" type="range" min="0" max="100" value="50"><output id="qpsO"></output></div>
+  <div class="ctrl"><label for="n">상품 수</label><input id="n" type="range" min="0" max="100" value="50"><output id="nO"></output></div>
+  <div class="ctrl"><label for="z">인기 쏠림 (Zipf s)</label><input id="z" type="range" min="0" max="150" value="100"><output id="zO"></output></div>
+  <div class="ctrl"><label for="chg">상품당 변경 주기</label><input id="chg" type="range" min="0" max="100" value="60"><output id="chgO"></output></div>
+  <div class="ctrl"><label for="cap">원본 한계 (req/s)</label><input id="cap" type="range" min="0" max="100" value="40"><output id="capO"></output></div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v" id="kHit"></div><div class="k">hit ratio</div></div>
+    <div class="kpi"><div class="v" id="kOrig"></div><div class="k">원본 요청 (req/s)</div></div>
+    <div class="kpi"><div class="v" id="kStale"></div><div class="k">stale 응답 비율</div></div>
+    <div class="kpi"><div class="v" id="kMax"></div><div class="k">최대 지연 (=TTL)</div></div>
+  </div>
+  <p id="verdict" style="margin:4px 0 10px"></p>
+  <svg id="chart" viewBox="0 0 720 300" aria-label="TTL에 따른 원본 부하와 stale 비율 그래프"></svg>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--miss)"></span>원본 요청 (req/s, 왼쪽 축, 로그)</span>
+    <span><span class="sw" style="background:var(--stale)"></span>stale 응답 비율 (오른쪽 축, 로그)</span>
+    <span><span class="sw" style="background:var(--muted)"></span>원본 한계</span>
+  </div>
+  <details><summary>이 모델이 무시하는 것</summary>
+  <ul>
+    <li>요청이 무작위(Poisson)로 온다고 가정한다. 실제는 시간대별 파동이 있다.</li>
+    <li>캐시 메모리가 충분해 만료 전 쫓겨나는(eviction) 일이 없다고 가정한다.</li>
+    <li>동시 miss(stampede)는 반영하지 않는다. 인기 키가 만료되는 순간 원본 요청이 순간적으로 몰릴 수 있다(6절).</li>
+    <li>모든 상품의 변경 주기가 같다고 가정한다.</li>
+  </ul></details>
+</div>
+
+<h3>만져 보며 확인할 것</h3>
+<ol>
+<li>TTL을 1초 → 10초로 올릴 때와 10분 → 1시간으로 올릴 때, 원본 요청이 줄어드는 폭을 비교해 보라. (앞쪽이 훨씬 크다: 수확 체감)</li>
+<li>Zipf s를 0(균등)으로 내리면 hit ratio가 어떻게 되나? 1.2로 올리면?</li>
+<li>변경 주기를 "1분"으로 바꾸면(실시간 재고 같은 데이터), 어떤 TTL에서도 stale 비율이 커진다. 이때는 TTL이 아니라 다른 도구가 필요하다.</li>
+</ol>
+
+<h2 id="s5">5. 타임라인으로 보는 한 상품 키</h2>
+<p>한 키에 요청이 오고, 중간에 원본 값이 바뀌는 모습을 무작위로 생성한다. 초록=hit(신선), 빨강=hit(stale), 주황=miss.</p>
+<div class="card">
+  <div class="ctrl"><label for="tlT">TTL (초)</label><input id="tlT" type="range" min="2" max="60" value="20"><output id="tlTO"></output></div>
+  <div class="ctrl"><label for="tlL">요청 (회/초)</label><input id="tlL" type="range" min="1" max="30" value="8"><output id="tlLO"></output></div>
+  <div class="ctrl"><label for="tlM">값 변경 (회/120초)</label><input id="tlM" type="range" min="0" max="10" value="3"><output id="tlMO"></output></div>
+  <button class="primary" id="tlGo">다시 생성</button>
+  <svg id="tl" viewBox="0 0 720 150" aria-label="한 키의 요청 타임라인"></svg>
+  <p class="timeline" id="tlStat"></p>
+</div>
+<p>관찰 포인트: 원본 값이 바뀐 직후(세로 점선)부터 다음 miss까지의 hit이 모두 빨강이다. TTL을 줄이면 빨간 구간이 짧아지는 대신 주황(원본 요청)이 늘어난다.</p>
+
+<h2 id="s6">6. TTL만으로 부족할 때 쓰는 도구</h2>
+<table>
+<tr><th>도구</th><th>무엇을 해결하나</th><th>상품 API에서의 쓰임</th></tr>
+<tr><td><b>쓰기 시 무효화</b> (invalidate on write)</td><td>원본 변경 시 캐시 키를 지우거나 갱신 → stale을 TTL과 무관하게 줄임</td><td>관리자가 가격 수정 → <code>DEL product:123</code>. 이렇게 하면 TTL을 길게 둬도 된다. TTL은 "무효화가 누락됐을 때의 안전망"이 된다.</td></tr>
+<tr><td><b>stale-while-revalidate</b></td><td>만료 직후엔 옛 값을 바로 주고 백그라운드에서 갱신 → 지연 없이 신선도 유지</td><td>HTTP <code>Cache-Control: max-age=60, stale-while-revalidate=30</code>, 또는 앱 캐시에서 soft/hard TTL 구분</td></tr>
+<tr><td><b>stale-if-error</b></td><td>원본 장애 시 만료된 값이라도 응답</td><td>상품 서비스 장애 때 페이지가 비지 않게</td></tr>
+<tr><td><b>요청 병합 / 락</b> (single-flight)</td><td>인기 키 만료 순간 수백 요청이 동시에 원본으로 가는 <b>cache stampede</b> 방지</td><td>같은 키 miss는 1개만 원본 조회, 나머지는 결과 대기</td></tr>
+<tr><td><b>TTL jitter</b></td><td>배포·워밍 때 한꺼번에 저장된 키들이 동시에 만료되는 현상 분산</td><td>TTL = 300초 ± 10% 무작위</td></tr>
+<tr><td><b>필드별 분리</b></td><td>신선도 요구가 다른 데이터를 다른 TTL로</td><td>설명·이미지(긴 TTL) vs 가격·재고(짧은 TTL 또는 캐시 안 함)</td></tr>
+<tr><td><b>negative caching</b></td><td>없는 상품 ID 반복 조회로 원본 부하</td><td>404도 짧게(예: 30초) 캐시</td></tr>
+</table>
+<div class="note warn"><b>주의: 재고·결제 금액.</b> 주문 시점의 최종 가격과 재고 확인은 캐시된 상품 API 값에 기대지 말고 원본에서 다시 확인하는 것이 일반적이다. 그러면 상품 조회 API의 TTL은 "화면에 잠깐 옛 값이 보이는 것"만 감수하면 되어 훨씬 길게 잡을 수 있다.</div>
+
+<h2 id="s7">7. TTL 결정 절차 (체크리스트)</h2>
+<ol>
+<li><b>데이터를 신선도 요구별로 나눈다.</b> 상품 응답의 필드 중 "늦게 보이면 돈/신뢰 문제가 되는 것"(가격, 재고, 판매 상태)과 아닌 것(이름, 설명, 이미지, 카테고리)을 구분한다.</li>
+<li><b>각 그룹의 최대 허용 지연을 기획/운영과 숫자로 합의한다.</b> 예: "가격 변경은 1분 안에 반영", "설명은 10분 안에". 이 숫자가 <b>TTL의 상한</b>이다(무효화를 안 쓴다면).</li>
+<li><b>원본 한계를 잰다.</b> 상품 서비스/DB가 초당 몇 건을 안전하게 처리하나. 4절 시뮬레이터에서 원본 요청이 이 값의 절반 이하가 되는 TTL이 <b>TTL의 하한</b>이다.</li>
+<li><b>하한 ≤ 상한이면</b> 그 사이에서 고른다. 보통 상한 쪽(신선도 허용 범위 안에서 가장 긴 값)에 jitter를 섞는다.</li>
+<li><b>하한 &gt; 상한이면</b> TTL만으로는 안 된다. 쓰기 시 무효화를 붙이거나, 필드를 분리하거나, 원본을 증설한다.</li>
+<li><b>인기 키 stampede 대책</b>(single-flight 또는 stale-while-revalidate)을 넣는다.</li>
+<li><b>배포 후 측정하고 조정한다.</b> hit ratio, 원본 QPS, 캐시 키 나이 분포, (가능하면) 원본과 캐시 값 불일치 샘플링을 대시보드에 둔다.</li>
+</ol>
+<div class="card">
+<b>예시 결론 (가정이 다르면 숫자도 다르다)</b>
+<p style="margin:.4em 0 0">상품 10만 개, 전체 500 req/s, 인기 쏠림 s≈1, 상품 정보는 하루 1번 정도 바뀜, 원본은 200 req/s까지 안전.<br>
+→ 설명·이미지: TTL 10분 + 쓰기 시 무효화.<br>
+→ 가격·판매 상태: TTL 30~60초 (허용 지연 1분), 주문 시 원본 재확인.<br>
+→ 인기 상품 stampede 대비 single-flight, TTL에 ±10% jitter.</p>
+</div>
+
+<h2 id="s8">8. 확인 퀴즈</h2>
+<p>먼저 직접 서술해 보고, 그다음 모범 답안과 비교하라.</p>
+<div class="quiz" id="quiz"></div>
+
+</main>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+const TTLS=[1,2,3,5,10,15,20,30,45,60,90,120,180,300,600,900,1200,1800,2700,3600,7200,10800,21600,43200,86400];
+const QPS=[1,2,5,10,20,50,100,200,500,1000,2000,5000,10000,20000,50000];
+const NS=[10,30,100,300,1000,3000,10000,30000,100000,300000,1000000];
+const CHG=[60,300,600,1800,3600,3*3600,6*3600,12*3600,86400,3*86400,7*86400,30*86400];
+const CAP=[1,2,5,10,20,50,100,200,500,1000,2000,5000,10000];
+const pick=(arr,v)=>arr[Math.round(v/100*(arr.length-1))];
+const fmtT=s=>s<60?s+'초':s<3600?(s/60).toFixed(s%60?1:0)+'분':s<86400?(s/3600).toFixed(s%3600?1:0)+'시간':(s/86400).toFixed(s%86400?1:0)+'일';
+const fmtN=x=>x>=1000?(x/1000).toFixed(x%1000?1:0)+'k':(x<10?x.toFixed(x<1?2:1).replace(/\.0+$/,''):Math.round(x)+'');
+const pct=x=>x>=0.1?(x*100).toFixed(1)+'%':x>=0.001?(x*100).toFixed(2)+'%':x>0?(x*100).toExponential(1)+'%':'0%';
+
+function model(T,Q,N,s,chgPeriod){
+  const mu=1/chgPeriod;
+  // Zipf weights; compress large N into buckets to keep this cheap
+  let H=0; const w=[];
+  const step=N>20000?Math.ceil(N/20000):1;
+  for(let i=1;i<=N;i+=step){const c=Math.min(step,N-i+1); const wi=Math.pow(i+ (c-1)/2, -s); w.push([wi,c]); H+=wi*c;}
+  let orig=0, hits=0, stale=0;
+  const muT=mu*T;
+  const pStaleHit = muT<1e-6? muT/2 : 1-(1-Math.exp(-muT))/muT;
+  for(const [wi,c] of w){
+    const lam=Q*wi/H; const lt=lam*T;
+    orig+=c*lam/(1+lt);
+    hits+=c*lam*lt/(1+lt);
+  }
+  stale=hits*pStaleHit;
+  return {hit:hits/Q, orig, stale:stale/Q};
+}
+
+function update(){
+  const T=pick(TTLS,+$('ttl').value), Q=pick(QPS,+$('qps').value), N=pick(NS,+$('n').value);
+  const s=(+$('z').value)/100, P=pick(CHG,+$('chg').value), C=pick(CAP,+$('cap').value);
+  $('ttlO').textContent=fmtT(T); $('qpsO').textContent=fmtN(Q); $('nO').textContent=fmtN(N);
+  $('zO').textContent=s.toFixed(2); $('chgO').textContent=fmtT(P); $('capO').textContent=fmtN(C);
+  const m=model(T,Q,N,s,P);
+  $('kHit').textContent=pct(m.hit); $('kOrig').textContent=fmtN(m.orig); $('kStale').textContent=pct(m.stale); $('kMax').textContent=fmtT(T);
+  const okLoad=m.orig<=C*0.5, over=m.orig>C;
+  $('kOrig').style.color=over?css('--bad'):okLoad?css('--good'):css('--warn');
+  let v = over?'원본 한계를 넘는다. TTL을 늘리거나 원본을 증설해야 한다.':
+          okLoad?'원본 부하는 여유 있다(한계의 50% 이하). 이제 최대 지연 '+fmtT(T)+'가 허용되는지 확인하라.':
+          '원본 한계의 50~100%. 트래픽 피크나 cache stampede에 취약하다.';
+  if(T>P) v+=' TTL이 변경 주기보다 길어서 많은 응답이 stale이다. 쓰기 시 무효화를 검토하라.';
+  $('verdict').textContent=v;
+  draw(Q,N,s,P,C,T);
+}
+
+function draw(Q,N,s,P,C,Tcur){
+  const svg=$('chart'), W=720,H=300,l=56,r=60,t=14,b=40, pw=W-l-r, ph=H-t-b;
+  const xs=TTLS, lx=Math.log10(xs[0]), hx=Math.log10(xs[xs.length-1]);
+  const X=T=>l+(Math.log10(T)-lx)/(hx-lx)*pw;
+  const data=xs.map(T=>({T,...model(T,Q,N,s,P)}));
+  const oMax=Math.max(Q,C)*1.2, oMin=Math.max(1e-3,Math.min(...data.map(d=>d.orig),C)/2);
+  const Yo=v=>t+ph-(Math.log10(Math.max(v,oMin))-Math.log10(oMin))/(Math.log10(oMax)-Math.log10(oMin))*ph;
+  const sMin=1e-6, sMax=1;
+  const Ys=v=>t+ph-(Math.log10(Math.max(v,sMin))-Math.log10(sMin))/(Math.log10(sMax)-Math.log10(sMin))*ph;
+  const fg=css('--fg'), mu=css('--muted'), ln=css('--line');
+  let g='';
+  for(const T of [1,10,60,600,3600,86400]){g+=`<line x1="${X(T)}" x2="${X(T)}" y1="${t}" y2="${t+ph}" stroke="${ln}"/><text x="${X(T)}" y="${H-18}" font-size="11" text-anchor="middle" fill="${mu}">${fmtT(T)}</text>`;}
+  g+=`<text x="${l+pw/2}" y="${H-2}" font-size="11" text-anchor="middle" fill="${mu}">TTL (로그)</text>`;
+  for(let e=Math.ceil(Math.log10(oMin));e<=Math.log10(oMax);e++){const v=Math.pow(10,e);g+=`<text x="${l-6}" y="${Yo(v)+4}" font-size="11" text-anchor="end" fill="${css('--miss')}">${fmtN(v)}</text>`;}
+  for(let e=-6;e<=0;e+=2){const v=Math.pow(10,e);g+=`<text x="${W-r+6}" y="${Ys(v)+4}" font-size="11" fill="${css('--stale')}">${pct(v)}</text>`;}
+  g+=`<line x1="${l}" x2="${l+pw}" y1="${Yo(C)}" y2="${Yo(C)}" stroke="${mu}" stroke-dasharray="6 4"/><text x="${l+4}" y="${Yo(C)-4}" font-size="11" fill="${mu}">원본 한계 ${fmtN(C)}</text>`;
+  const path=(f,Y)=>data.map((d,i)=>(i?'L':'M')+X(d.T).toFixed(1)+','+Y(f(d)).toFixed(1)).join(' ');
+  g+=`<path d="${path(d=>d.orig,Yo)}" fill="none" stroke="${css('--miss')}" stroke-width="2.5"/>`;
+  g+=`<path d="${path(d=>d.stale,Ys)}" fill="none" stroke="${css('--stale')}" stroke-width="2.5"/>`;
+  const cur=model(Tcur,Q,N,s,P);
+  g+=`<line x1="${X(Tcur)}" x2="${X(Tcur)}" y1="${t}" y2="${t+ph}" stroke="${css('--accent')}" stroke-width="2"/>`;
+  g+=`<circle cx="${X(Tcur)}" cy="${Yo(cur.orig)}" r="5" fill="${css('--miss')}"/><circle cx="${X(Tcur)}" cy="${Ys(cur.stale)}" r="5" fill="${css('--stale')}"/>`;
+  g+=`<rect x="${l}" y="${t}" width="${pw}" height="${ph}" fill="none" stroke="${ln}"/>`;
+  svg.innerHTML=g;
+}
+
+['ttl','qps','n','z','chg','cap'].forEach(id=>$(id).addEventListener('input',update));
+
+// timeline
+function rnd(seed){let x=seed||Date.now()%2147483647;return()=>((x=x*48271%2147483647)/2147483647);}
+function exp(r,rate){return -Math.log(1-r())/rate;}
+function timeline(){
+  const T=+$('tlT').value, L=+$('tlL').value/10, M=+$('tlM').value;
+  $('tlTO').textContent=T+'초'; $('tlLO').textContent=L.toFixed(1); $('tlMO').textContent=M;
+  const D=120, r=rnd(Math.floor(Math.random()*1e9)+1);
+  const changes=[]; if(M>0){let t=exp(r,M/D); while(t<D){changes.push(t); t+=exp(r,M/D);}}
+  const reqs=[]; {let t=exp(r,L); while(t<D){reqs.push(t); t+=exp(r,L);}}
+  let fetchedAt=-Infinity, ev=[], nh=0,ns=0,nm=0;
+  for(const q of reqs){
+    if(q-fetchedAt>=T){fetchedAt=q; ev.push([q,'m']); nm++;}
+    else { const st=changes.some(c=>c>fetchedAt&&c<=q); ev.push([q,st?'s':'h']); st?ns++:nh++; }
+  }
+  const W=720,l=10,pw=700, X=t=>l+t/D*pw;
+  let g='';
+  // cache validity windows
+  let lastF=null;
+  for(const [q,k] of ev){ if(k==='m'){ g+=`<rect x="${X(q)}" y="20" width="${Math.min(X(q+T),l+pw)-X(q)}" height="14" fill="${css('--soft')}" stroke="${css('--line')}"/>`; } }
+  g+=`<text x="${l}" y="14" font-size="11" fill="${css('--muted')}">캐시 유효 구간 (TTL)</text>`;
+  for(const c of changes) g+=`<line x1="${X(c)}" x2="${X(c)}" y1="40" y2="120" stroke="${css('--fg')}" stroke-dasharray="3 3"/>`;
+  const col={h:css('--hit'),s:css('--stale'),m:css('--miss')}, yy={h:60,s:80,m:100};
+  for(const [q,k] of ev) g+=`<circle cx="${X(q)}" cy="${yy[k]}" r="3.2" fill="${col[k]}"/>`;
+  g+=`<text x="${l}" y="${yy.h-8}" font-size="10" fill="${col.h}">hit 신선</text><text x="${l}" y="${yy.s-8}" font-size="10" fill="${col.s}">hit stale</text><text x="${l}" y="${yy.m-8}" font-size="10" fill="${col.m}">miss (원본)</text>`;
+  for(let s=0;s<=D;s+=20) g+=`<text x="${X(s)}" y="140" font-size="10" text-anchor="middle" fill="${css('--muted')}">${s}s</text>`;
+  $('tl').innerHTML=g;
+  const n=ev.length||1;
+  $('tlStat').textContent=`요청 ${ev.length}건 · hit(신선) ${nh} · hit(stale) ${ns} (${(ns/n*100).toFixed(1)}%) · miss ${nm} (${(nm/n*100).toFixed(1)}%) · 값 변경 ${changes.length}회`;
+}
+['tlT','tlL','tlM'].forEach(id=>$(id).addEventListener('input',timeline));
+$('tlGo').addEventListener('click',timeline);
+
+// quiz
+const Q=[
+ {q:'상품 A는 초당 10번, 상품 B는 하루 5번 조회된다. TTL을 30초에서 5분으로 늘렸을 때 원본 부하가 크게 줄어드는 건 어느 상품 쪽이며, 왜 그런가?',
+  a:'A는 이미 30초 TTL에서도 λT=300이라 hit ratio ≈ 99.7%다. 원본 요청은 30초당 1번 → 5분당 1번으로 줄지만 절대량(0.033→0.0033 req/s)은 원래 작다. B는 λT가 0.002→0.017로 늘어도 거의 항상 miss라 hit ratio 개선이 미미하다. 결론: 개별 키 관점에선 둘 다 절대 부하 감소가 작다. 전체 원본 부하를 줄이는 건 "중간 인기" 상품이 많은 구간이며, 롱테일이 길면 TTL을 늘려도 원본 부하가 잘 안 준다. 핵심 근거는 hit ratio = λT/(1+λT).'},
+ {q:'기획자가 "가격이 바뀌면 최대 1분 안에 화면에 반영돼야 한다"고 했다. 현재 원본은 TTL 5분일 때만 부하를 버틴다. TTL을 어떻게 정하고, 무엇을 추가로 해야 하나?',
+  a:'TTL만으로는 상한(1분) < 하한(5분)이라 동시에 만족할 수 없다. 선택지: (1) 가격 변경 시 해당 키를 무효화(삭제/갱신)하고 TTL은 5분 이상으로 둔다 - TTL은 무효화 누락 시 안전망. (2) 가격 필드만 분리해 짧은 TTL로 두고 나머지 필드는 길게. (3) 원본 증설. 주문 시점에는 원본 재확인.'},
+ {q:'TTL 10분으로 배포한 직후, 정확히 10분마다 원본 CPU가 튀는 그래프가 나왔다. 원인과 대책 두 가지를 쓰라.',
+  a:'배포/워밍 때 많은 키가 동시에 저장돼 동시에 만료되고, 인기 키 만료 순간 동시 miss가 원본으로 몰리는 것(동시 만료 + cache stampede). 대책: TTL에 무작위 jitter(예: ±10%), 같은 키 miss를 하나로 합치는 single-flight/락, 또는 stale-while-revalidate로 만료 직후 옛 값을 주며 백그라운드 갱신.'},
+ {q:'"TTL을 짧게 하면 항상 더 안전하다"는 주장에 대해 반론을 쓰라.',
+  a:'짧은 TTL은 stale은 줄이지만 원본 부하를 늘리고, 원본 장애 시 캐시가 금방 비어 장애가 그대로 사용자에게 전파된다. 또 인기 키는 짧은 TTL에서 더 자주 stampede 위험 시점을 맞는다. 안전은 신선도와 가용성 둘 다의 문제이며, stale-if-error 같은 도구가 긴 TTL의 장점을 살리는 예다.'}
+];
+const qz=$('quiz');
+Q.forEach((it,i)=>{
+  const d=document.createElement('div'); d.className='card';
+  d.innerHTML=`<p><b>Q${i+1}.</b> ${it.q}</p><textarea placeholder="내 답을 먼저 써 보세요"></textarea><details><summary>모범 답안 보기</summary><p>${it.a}</p></details>`;
+  qz.appendChild(d);
+});
+
+update(); timeline();
+if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{update();timeline();});
+})();
+</script>
+</body>
+</html>

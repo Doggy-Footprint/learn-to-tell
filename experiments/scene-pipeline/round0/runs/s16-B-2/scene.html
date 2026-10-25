@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>남향과 북향의 하루 채광</title>
+<script type="application/json" id="ltt-meta">{"topic":"남향 vs 북향 방의 하루 채광","audience":"집을 고르는 비전문가","theme":"sketch","medium":"화이트보드 단면 스케치","decision":"방의 향 선택","domain":"건축","pattern":["contrast"],"mode":"카탈로그용: 장면 하나짜리. 공간 구조를 \"강조가 훑음\" 움직임과 작은 여러 칸 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.sk-wrap{display:flex;flex-direction:column;gap:6px;width:100%;max-width:560px}
+.sk-hint{font-size:14px;color:var(--ltt-muted)}
+.sk-leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px;color:var(--ltt-ink-2);align-items:center}
+.sk-leg i{display:inline-block;width:18px;height:6px;margin-right:6px;vertical-align:middle}
+.sk-season{font-size:15px;font-weight:700;color:var(--ltt-ink);margin-top:6px}
+.sk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.sk-cell{border:2px solid var(--ltt-line);border-radius:8px;background:var(--ltt-card);overflow:hidden;min-width:0}
+.sk-svg{display:block;width:100%;height:auto}
+.sk-svg text{font-family:inherit}
+.sk-stat{font-size:14px;color:var(--ltt-ink-2);font-variant-numeric:tabular-nums}
+.sk-stat b{color:var(--ltt-ink)}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// 서울 위도 37.5°N. 해의 위치: sin(고도)=sinφ·sinδ+cosφ·cosδ·cosH, 남쪽 성분=sinφ·cosδ·cosH−cosφ·sinδ
+const PHI = 37.5, RAD = Math.PI / 180;
+const DEC = { winter: -23.44, summer: 23.44 };
+const sun = (dec, H) => { const f = PHI * RAD, d = dec * RAD, h = H * RAD;
+  const up = Math.sin(f) * Math.sin(d) + Math.cos(f) * Math.cos(d) * Math.cos(h);
+  const south = Math.sin(f) * Math.cos(d) * Math.cos(h) - Math.cos(f) * Math.sin(d);
+  return { up, south, alt: Math.asin(up) / RAD, beta: Math.atan2(up, Math.abs(south)) }; };
+// 방 단면(m): 깊이 4, 천장 2.4, 창 0.9~2.1 (가정)
+const DEP = 4, CEIL = 2.4, SILL = 0.9, HEAD = 2.1;
+// 창으로 든 해가 바닥에 닿는 구간(창에서 안쪽으로 m)
+const patch = (dec, H) => { const s = sun(dec, H), t = s.up / Math.abs(s.south); return { u1: SILL / t, u2: HEAD / t, t }; };
+// 하루 직사광 시간: 고도 10° 이상이고 해가 창 쪽 반구에 있을 때(가정)
+const dayHours = (dec, face) => { let n = 0;
+  for (let m = 0; m < 1440; m++) { const s = sun(dec, m * 0.25 - 180); const c = face === "S" ? s.south : -s.south;
+    if (s.up > Math.sin(10 * RAD) && c > 0.05) n++; }
+  return n / 60; };
+
+LTT.expect("동지 정오 태양 고도(°)", sun(DEC.winter, 0).alt, 29.06, { tol: 0.01 });
+LTT.expect("남향 동지 정오 바닥 직사광 시작(m)", patch(DEC.winter, 0).u1, 1.62, { tol: 0.01 });
+LTT.expect("남향 동지 직사광 시간(h)", dayHours(DEC.winter, "S"), 7.36, { tol: 0.05 });
+LTT.expect("북향 동지 직사광 시간(h)", dayHours(DEC.winter, "N"), 0, { tol: 0.001 });
+
+// 단면 칸 도면: 20px = 1m
+const K = 20, XL = 40, XR = XL + DEP * K, FY = 100, CY = FY - CEIL * K, R = 32;
+const Y = (v) => FY - v * K;
+let uid = 0, seed = 1;
+const wob = (x1, y1, x2, y2) => { seed++; const j = (n) => Math.sin(seed * 12.9898 + n * 78.233) * 1.3;
+  return `M${x1 + j(3) * .4},${y1 + j(4) * .4}Q${(x1 + x2) / 2 + j(1)},${(y1 + y2) / 2 + j(2)} ${x2},${y2}`; };
+
+function cell(host, face, dec, hour, col) {
+  const H = (hour - 12) * 15, s = sun(dec, H), id = "sk" + (uid++);
+  const winLeft = face === "S", xW = winLeft ? XL : XR, xB = winLeft ? XR : XL, inw = winLeft ? 1 : -1;
+  const sunLeft = s.south > 0, dx = (sunLeft ? 1 : -1) * Math.cos(s.beta), dy = Math.sin(s.beta);
+  const lit = sunLeft === winLeft, xS = lit ? xW : xB;
+  const box = document.createElement("div"); box.className = "sk-cell"; host.appendChild(box);
+  const svg = mk("svg", { viewBox: "0 0 160 120", class: "sk-svg" }, box);
+  mk("clipPath", { id }, mk("defs", {}, svg)).appendChild(mk("rect", { x: XL, y: CY, width: XR - XL, height: FY - CY }));
+  mk("rect", { x: XL, y: CY, width: XR - XL, height: FY - CY, style: "fill:var(--ltt-card-2)" }, svg);
+  const f = lit ? Math.abs(s.south) : 0, base = .2 + .4 * f;
+  const shaft = mk("g", { "clip-path": `url(#${id})` }, svg);
+  if (lit) mk("polygon", { points: `${xS},${Y(SILL)} ${xS},${Y(HEAD)} ${xS + dx * 300},${Y(HEAD) + dy * 300} ${xS + dx * 300},${Y(SILL) + dy * 300}`, style: "fill:var(--ltt-warn)" }, shaft);
+  shaft.style.opacity = base;
+  [-14, 2, 24].forEach((d) => mk("line", { x1: xW, y1: Y(1.5), x2: xW + inw * 52, y2: Y(1.5) + d, style: "stroke:var(--ltt-accent);stroke-width:1.5;stroke-dasharray:3 4;opacity:.6" }, svg));
+  const pat = mk("g", {}, svg);
+  if (lit) { const t = s.up / Math.abs(s.south), u1 = SILL / t, u2 = HEAD / t;
+    if (u1 < DEP) mk("line", { x1: xW + inw * u1 * K, y1: FY - 3, x2: xW + inw * Math.min(u2, DEP) * K, y2: FY - 3, style: "stroke:var(--ltt-warn);stroke-width:6" }, pat);
+    const vhi = HEAD - DEP * t;
+    if (vhi > 0) mk("line", { x1: xB - inw * 3, y1: Y(Math.max(0, SILL - DEP * t)), x2: xB - inw * 3, y2: Y(vhi), style: "stroke:var(--ltt-warn);stroke-width:6" }, pat); }
+  const wall = (x1, y1, x2, y2) => mk("path", { d: wob(x1, y1, x2, y2), style: "fill:none;stroke:var(--ltt-ink);stroke-width:3.5;stroke-linecap:round" }, svg);
+  wall(XL - 8, CY, XR + 8, CY); wall(XL - 8, FY, XR + 8, FY);
+  wall(xB, CY, xB, FY); wall(xW, CY, xW, Y(HEAD)); wall(xW, Y(SILL), xW, FY);
+  mk("line", { x1: xW, y1: Y(SILL), x2: xW, y2: Y(HEAD), style: "stroke:var(--ltt-accent);stroke-width:5;opacity:.85" }, svg);
+  const sc = [xS - dx * R, Y(1.5) - dy * R], ray = mk("g", {}, svg);
+  [SILL, HEAD].forEach((v) => mk("line", { x1: xS - dx * (R - 9), y1: Y(v) - dy * (R - 9), x2: xS, y2: Y(v), style: `stroke:var(--ltt-warn);stroke-width:1.5;stroke-dasharray:4 3;opacity:${lit ? 1 : .45}` }, ray));
+  for (let a = 0; a < 8; a++) mk("line", { x1: sc[0] + Math.cos(a * Math.PI / 4) * 8, y1: sc[1] + Math.sin(a * Math.PI / 4) * 8, x2: sc[0] + Math.cos(a * Math.PI / 4) * 12, y2: sc[1] + Math.sin(a * Math.PI / 4) * 12, style: "stroke:var(--ltt-warn);stroke-width:2" }, ray);
+  mk("circle", { cx: sc[0], cy: sc[1], r: 6, style: "fill:var(--ltt-warn)" }, ray);
+  mk("text", { x: 6, y: 17, style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, svg).textContent = hour === 12 ? "정오" : (hour < 12 ? "오전 " : "오후 ") + (hour % 12) + "시";
+  return { col, apply(e) { box.style.opacity = e < 0 ? 1 : .4 + .6 * e; box.style.borderColor = e > .5 ? "var(--ltt-accent)" : "var(--ltt-line)";
+    shaft.style.opacity = e < 0 ? base : base * (.55 + .45 * e); } };
+}
+
+const HOURS = [9, 12, 15];
+function room(face) {
+  return (node) => {
+    const wrap = document.createElement("div"); wrap.className = "sk-wrap"; node.appendChild(wrap);
+    wrap.innerHTML = `<div class="sk-hint">옆에서 자른 단면 · 왼쪽이 남쪽, 오른쪽이 북쪽</div>
+      <div class="sk-leg"><span><i style="background:var(--ltt-accent)"></i>창</span><span><i style="background:var(--ltt-warn)"></i>직사광이 닿는 자리</span><span>점선 하늘빛(산란광)</span></div>`;
+    const cells = [];
+    [["겨울 (동지)", DEC.winter], ["여름 (하지)", DEC.summer]].forEach(([name, dec]) => {
+      const lab = document.createElement("div"); lab.className = "sk-season"; lab.textContent = name; wrap.appendChild(lab);
+      const g = document.createElement("div"); g.className = "sk-grid"; wrap.appendChild(g);
+      HOURS.forEach((h, i) => cells.push(cell(g, face, dec, h, i)));
+      const p = patch(dec, 0), noon = sun(dec, 0), hrs = dayHours(dec, face);
+      const hit = (face === "S" ? noon.south : -noon.south) > 0.05;
+      const st = document.createElement("div"); st.className = "sk-stat"; wrap.appendChild(st);
+      st.innerHTML = `정오 직사광 <b>${hit ? Math.min(p.u1, DEP).toFixed(1) + "~" + Math.min(p.u2, DEP).toFixed(1) + " m" : "없음"}</b> · 하루 <b>${hrs.toFixed(1)}시간</b>${!hit && hrs > 0 ? " (아침·저녁 낮은 해)" : ""}`;
+    });
+    if (reduced) { cells.forEach((c) => c.apply(-1)); return wrap; }
+    // 7초 반복: 강조가 9시 → 정오 → 3시 칸을 훑고(6초), 잠시 전체를 보인다(1초)
+    const P = 7000;
+    const tick = () => { if (!wrap.isConnected) return; const u = (Date.now() % P) / P, s = u < .86 ? u / .86 * 3 : -1;
+      cells.forEach((c) => c.apply(s < 0 ? -1 : Math.max(0, 1 - Math.abs(s - (c.col + .5)) / 1.1))); setTimeout(tick, 40); };
+    requestAnimationFrame(tick);
+    return wrap;
+  };
+}
+
+LTT.deck({
+  title: "남향과 북향의 하루 채광", theme: "sketch",
+  glossary: { "직사광": "해에서 곧바로 들어오는 빛. 따뜻하고 밝지만 눈부시고 여름엔 더위가 된다",
+    "산란광": "하늘 전체에서 퍼져 들어오는 빛. 해가 가려져도 들고 방향 없이 고르다" },
+  scenes: [{
+    type: "contrast",
+    title: "겨울 낮엔 남향 방 안쪽까지 해가 들고, 북향은 하늘빛만 고르게 든다",
+    sub: "방을 옆에서 자른 단면이다. 강조가 오전 9시 → 정오 → 오후 3시 칸을 훑는다. 굵은 띠가 {{직사광}}이 닿는 자리이고 점선은 {{산란광}}이다.",
+    before: { label: "남향 방 · 창이 남쪽 벽", visual: room("S") },
+    after: { label: "북향 방 · 창이 북쪽 벽", visual: room("N") },
+    basis: "서울 위도 37.5°N, 동지·하지 태양 적위 ±23.44°, 태양시 기준. 해 위치는 sin(고도)=sinφ·sinδ+cosφ·cosδ·cosH. 방 깊이 4m·천장 2.4m·창 높이 0.9~2.1m와, 고도 10° 미만 해는 앞 건물에 가려진다는 조건은 가정. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    takeaway: "겨울 해를 방 깊이 들이려면 남향, 여름 열과 눈부심 없이 고른 빛이 좋으면 북향이다. 여름 남향은 해가 높아 창가에서 끝난다.",
+    recall: "겨울 정오에 남향 방 바닥의 직사광은 창에서 몇 m 지점부터 닿을까?"
+  }]
+});
+</script>
+</body>
+</html>

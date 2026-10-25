@@ -1,0 +1,16 @@
+{
+  "name": "learn-to-tell",
+  "private": true,
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "audit": "node skills/learn-to-tell/server/audit.mjs --gallery",
+    "audit:baseline": "node scripts/gallery-audit.mjs --write-baseline",
+    "build:zip": "node scripts/build.mjs zip",
+    "build:kit": "node scripts/build.mjs kit",
+    "build:css": "node scripts/build.mjs css",
+    "check:version": "node scripts/build.mjs version",
+    "check:css": "node scripts/build.mjs css --check",
+    "setup:hooks": "cp scripts/git/pre-commit \"$(git rev-parse --git-common-dir)/hooks/pre-commit\""
+  },
+  "license": "MIT"
+}

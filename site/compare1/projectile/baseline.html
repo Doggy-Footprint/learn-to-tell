@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>공기저항과 최적 각도</title>
+<style>
+:root{
+  --bg:#f7f6f2; --panel:#ffffff; --ink:#1d1f24; --muted:#5d6370; --line:#d9d6cc;
+  --accent:#2f5fd0; --vac:#8a8f99; --drag:#d0552f; --good:#2a8a4a; --warn:#b07a00; --code:#efece4;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171b; --panel:#1e2127; --ink:#e7e8ea; --muted:#a2a8b3; --line:#343944;
+    --accent:#7aa2ff; --vac:#9aa0aa; --drag:#ff8a5c; --good:#5cc982; --warn:#e6b84a; --code:#262a31;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15171b; --panel:#1e2127; --ink:#e7e8ea; --muted:#a2a8b3; --line:#343944;
+  --accent:#7aa2ff; --vac:#9aa0aa; --drag:#ff8a5c; --good:#5cc982; --warn:#e6b84a; --code:#262a31;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+main{max-width:860px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:1.7rem;line-height:1.3;margin:.2em 0 .3em}
+h2{font-size:1.25rem;margin:2.2em 0 .5em;padding-top:.6em;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:1.4em 0 .3em}
+p,li{color:var(--ink)}
+.lead{color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0}
+.tldr{border-left:4px solid var(--accent)}
+code,.math{background:var(--code);padding:1px 5px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}
+.eq{display:block;background:var(--code);padding:10px 12px;border-radius:6px;font-family:ui-monospace,Menlo,monospace;overflow-x:auto;margin:8px 0;white-space:pre}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:right}
+th:first-child,td:first-child{text-align:left}
+.tablewrap{overflow-x:auto}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 18px;margin-bottom:10px}
+.controls label{display:block;font-size:.88rem;color:var(--muted)}
+.controls input[type=range]{width:100%}
+select{width:100%;padding:6px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px}
+canvas{width:100%;display:block;background:var(--panel);border-radius:8px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px}
+.stat{background:var(--code);border-radius:8px;padding:8px 10px}
+.stat b{display:block;font-size:1.15rem}
+.stat span{font-size:.8rem;color:var(--muted)}
+.legend{font-size:.85rem;color:var(--muted)}
+.sw{display:inline-block;width:14px;height:3px;vertical-align:middle;margin:0 4px 0 10px}
+.verdict{font-weight:600}
+.ok{color:var(--good)} .bad{color:var(--drag)} .mid{color:var(--warn)}
+details{background:var(--code);border-radius:6px;padding:8px 12px;margin-top:8px}
+summary{cursor:pointer;font-weight:600}
+textarea{width:100%;min-height:80px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px;font:inherit}
+.q{margin:18px 0}
+.q h3{margin-top:0}
+ol.check li{margin:.3em 0}
+</style>
+</head>
+<body>
+<main>
+<h1>공기저항을 무시해도 될까? 45°가 정말 최대 사거리일까?</h1>
+<p class="lead">공 던지기 게임 물리를 짜는 개발자를 위한 판단 근거 자료. 등가속도 운동과 <code>R = v₀² sin2θ / g</code>는 안다고 가정한다. 약 20–30분 분량.</p>
+
+<div class="card tldr">
+<b>먼저 결론</b>
+<ul>
+<li><b>공기저항</b>: "무시해도 되는가"는 공 종류가 아니라 <b>발사 속도 v₀와 종단속도 v<sub>t</sub>의 비</b>로 판단한다. <code>(v₀/v<sub>t</sub>)²</code>가 작으면(대략 0.05 이하) 사거리 오차가 3–4% 이내라 무시해도 되고, 0.5를 넘으면 궤적 모양 자체가 달라진다. 45° 기준 사거리 오차는 대략 β의 0.6–0.8배다.</li>
+<li><b>45°</b>: 45°는 "평지에서 출발해 같은 높이에 착지 + 공기저항 없음" 두 조건이 모두 맞을 때만 최적이다. 손 높이에서 던지거나(→ 45°보다 낮아짐) 공기저항이 있으면(→ 낮아짐) 최적각은 내려간다.</li>
+<li><b>게임 관점</b>: 사거리-각도 곡선은 꼭짓점 근처가 매우 평평하다. 최적각이 40°든 45°든 사거리 차이는 대개 1–3%라, "정답 각도"보다 <b>플레이어가 체감하는 궤적 모양</b>(정점 이후 급강하 여부)이 더 중요한 경우가 많다.</li>
+</ul>
+</div>
+
+<h2>1. 공기저항은 얼마나 큰 힘인가</h2>
+<p>공 크기의 물체가 보통 속도로 날아갈 때 공기저항은 속도의 제곱에 비례하는 <b>이차 항력</b>이 지배한다.</p>
+<span class="eq">F_d = ½ · ρ · C_d · A · v²
+  ρ   : 공기 밀도 ≈ 1.2 kg/m³
+  C_d : 항력계수 (매끈한 구 ≈ 0.4–0.5, 야구공 ≈ 0.3–0.35)
+  A   : 단면적 = π r²</span>
+<p>판단에 필요한 것은 항력의 절대 크기가 아니라 <b>중력과 비교한 크기</b>다. 항력과 중력이 같아지는 속도가 <b>종단속도</b>다(공을 아주 높은 곳에서 떨어뜨렸을 때 더 이상 빨라지지 않는 속도).</p>
+<span class="eq">½ρC_dA·v_t² = m g   →   v_t = √( 2 m g / (ρ C_d A) )
+
+속도 v에서의 항력 / 중력 = (v / v_t)²</span>
+<p>즉 <b>공이 v<sub>t</sub>의 절반 속도로 날면 항력은 중력의 25%</b>, v<sub>t</sub>와 같은 속도면 중력과 똑같은 크기다. 중력의 25%짜리 힘을 "무시"하면 당연히 결과가 틀린다. 이것이 판단 기준의 핵심이다.</p>
+
+<h3>공 종류별 종단속도와 사거리 오차</h3>
+<p>아래 표는 이 페이지의 시뮬레이터로 직접 계산한 값이다(45° 발사, 같은 높이 착지). 질량·크기·C<sub>d</sub>는 대표값이다.</p>
+<div class="tablewrap"><table id="ballTable"><thead><tr><th>공</th><th>질량</th><th>지름</th><th>v<sub>t</sub> (m/s)</th><th>v₀=10 오차</th><th>v₀=20 오차</th><th>v₀=35 오차</th></tr></thead><tbody></tbody></table></div>
+<p class="legend">오차 = (진공 사거리 − 저항 사거리) / 진공 사거리. 가볍고 큰 공(탁구공, 비치볼)은 느려도 저항이 지배하고, 무겁고 작은 공(포환)은 빨라도 거의 진공처럼 난다.</p>
+
+<h3>왜 비율 하나로 판단할 수 있는가</h3>
+<p>운동방정식을 v<sub>t</sub>로 정리하면 <code>a = −g ĵ − g·(|v|/v<sub>t</sub>²)·v</code>가 된다. 질량·크기·C<sub>d</sub>는 모두 v<sub>t</sub> 하나로 묶이고, 시간과 길이를 v₀/g, v₀²/g로 재면 남는 변수는 <b>β = (v₀/v<sub>t</sub>)²</b>와 각도뿐이다. 그래서 "탁구공을 3 m/s로 던지기"와 "야구공을 13 m/s로 던지기"는 같은 모양의 궤적(크기만 다름)을 그린다. 게임에서 공 종류가 여러 개라면 각 공의 v<sub>t</sub>와 게임 내 최대 발사 속도만 알면 판단이 끝난다.</p>
+
+<h2>2. 직접 비교해 보기</h2>
+<div class="card">
+<div class="controls">
+  <div><label for="ball">공 종류</label><select id="ball"></select></div>
+  <div><label for="v0">발사 속도 v₀: <b id="v0v"></b> m/s</label><input id="v0" type="range" min="2" max="60" step="0.5" value="20"></div>
+  <div><label for="ang">발사 각도 θ: <b id="angv"></b>°</label><input id="ang" type="range" min="5" max="85" step="0.5" value="45"></div>
+  <div><label for="h">발사 높이 h (착지면 기준): <b id="hv"></b> m</label><input id="h" type="range" min="0" max="5" step="0.1" value="0"></div>
+</div>
+<canvas id="traj" height="320" aria-label="궤적 비교 그래프"></canvas>
+<div class="legend"><span class="sw" style="background:var(--vac)"></span>진공(공기저항 없음) <span class="sw" style="background:var(--drag)"></span>이차 항력 포함 · 점선 = 각 조건의 최적각 궤적</div>
+<div class="stats">
+  <div class="stat"><span>β = (v₀/v<sub>t</sub>)²</span><b id="sBeta"></b></div>
+  <div class="stat"><span>진공 사거리</span><b id="sRv"></b></div>
+  <div class="stat"><span>저항 포함 사거리</span><b id="sRd"></b></div>
+  <div class="stat"><span>사거리 오차</span><b id="sErr"></b></div>
+  <div class="stat"><span>진공 최적각 (높이 반영)</span><b id="sOv"></b></div>
+  <div class="stat"><span>저항 포함 최적각</span><b id="sOd"></b></div>
+</div>
+<p id="verdict" class="verdict"></p>
+<h3>각도별 사거리 (현재 공·속도·높이)</h3>
+<canvas id="rangeCurve" height="220" aria-label="각도별 사거리 그래프"></canvas>
+<p class="legend">세로선 = 현재 각도. 꼭짓점 근처가 얼마나 평평한지 보라. 최적각에서 ±5° 벗어나도 사거리는 거의 그대로다.</p>
+</div>
+
+<p><b>해 볼 것</b></p>
+<ol>
+<li>야구공, v₀ = 15 m/s(캐치볼 정도)와 40 m/s(강속구)를 비교한다. 같은 공인데 "무시해도 됨" 판정이 바뀐다.</li>
+<li>탁구공을 10 m/s로 던진다. 궤적이 정점 이후 거의 수직으로 떨어지는 비대칭 모양이 된다. 진공 포물선은 언제나 좌우 대칭이다.</li>
+<li>공기저항이 작은 공(포환)을 고르고 높이 h를 2 m로 올린다. 저항이 없어도 최적각이 45° 아래로 내려간다.</li>
+</ol>
+
+<h2>3. 45°는 어디서 나오고, 언제 깨지는가</h2>
+<p>진공, 같은 높이 착지에서 <code>R = v₀² sin2θ / g</code>는 <code>2θ = 90°</code>일 때 최대다. 이 유도에 숨은 가정은 두 개다.</p>
+<ol>
+<li><b>착지 높이 = 발사 높이.</b> 사람이 손에서 공을 놓는 높이는 땅보다 1.5–2 m 높다. 공이 내려가는 동안 더 날아갈 시간이 생기므로, 수평 속도를 늘리는 쪽(낮은 각도)이 이득이 된다.
+<span class="eq">발사 높이 h, 진공일 때:
+  최적각  θ* = arctan( v₀ / √(v₀² + 2 g h) )   (h=0이면 45°)
+  최대 사거리 R* = (v₀ / g) · √(v₀² + 2 g h)</span>
+<code>2gh</code>가 <code>v₀²</code>에 비해 클수록(=느리게, 높은 곳에서 던질수록) 최적각이 크게 내려간다. 빠른 공은 h의 영향이 작다.</li>
+<li><b>공기저항 없음.</b> 항력은 속도가 클 때 크게 작용하고, 높이 던질수록 비행시간이 길어져 수평 속도를 오래 깎아 먹는다. 그래서 저항이 있으면 비행시간을 줄이는 낮은 각도가 유리해진다. β가 클수록 최적각은 30° 안팎까지 내려간다(비치볼을 세게 던지면 27°대).</li>
+</ol>
+<p>여기에 하나 더 있다. <b>지형 경사</b>: 오르막을 향해 던지면 최적각은 45°보다 커지고, 내리막(절벽 아래)이면 작아진다. 경사각 α일 때 진공 최적각은 <code>45° + α/2</code>다(h=0 기준). 게임 맵에 고저차가 있다면 "45°"는 상수가 아니다.</p>
+
+<h2>4. 게임 개발에서의 판단</h2>
+<h3>4-1. 판단 순서</h3>
+<ol class="check">
+<li><b>게임 내 최대 발사 속도 v₀,max를 정한다.</b> 게임 단위가 미터가 아니면 "1 유닛 = 몇 m인가"와 게임의 g 값을 먼저 확인한다. 많은 게임은 손맛 때문에 g를 실제보다 크게(예: 2–3배) 잡는데, 그러면 같은 사거리를 위해 v₀도 커져 β가 달라진다.</li>
+<li><b>공의 v<sub>t</sub>를 구한다.</b> 실제 공을 모델링한다면 위 공식, 가상의 공이면 "이 공을 아주 높이서 떨어뜨리면 몇 m/s에서 멈춰야 자연스러운가"로 디자이너가 정한다.</li>
+<li><b>β = (v₀,max / v<sub>t</sub>)²</b>를 계산한다.
+  <ul>
+  <li>β &lt; 약 0.05: 사거리 오차 3–4% 이내. 진공 포물선(해석해)으로 충분. 궤적 예측선(조준 가이드)을 공식으로 바로 그릴 수 있다는 이점이 크다.</li>
+  <li>β ≈ 0.05–0.5: 사거리 오차 4–30%. 숫자는 틀리지만 모양은 포물선 비슷. "진짜 같아 보여야 하는가"가 기준. 예측선을 쓸 거라면 예측도 같은 적분기로 돌려야 한다.</li>
+  <li>β &gt; 0.5: 궤적이 비대칭이 되고 느낌이 확연히 다르다. 셔틀콕·탁구·비치볼 같은 게임이면 항력이 게임플레이 자체다.</li>
+  </ul></li>
+<li><b>발사 높이와 지형을 확인한다.</b> 캐릭터 손 높이와 착지면 높이가 다르면 최적각은 45°가 아니다. 다만 다음 항목 때문에 이게 문제인지는 별개다.</li>
+</ol>
+
+<h3>4-2. "최적각"이 게임에서 정말 중요한가</h3>
+<p>위 시뮬레이터의 각도-사거리 곡선을 보면 꼭짓점 주변이 평평하다. 진공에서 <code>sin2θ</code>는 θ=40°일 때 0.985, 35°일 때 0.940이다. 45°에서 5° 벗어나도 사거리 손실은 1.5%다. 따라서:</p>
+<ul>
+<li><b>AI가 "가장 멀리 던지는 각도"를 고를 때</b>: 45° 고정으로 생기는 손해는 대개 작다. 다만 β가 크거나 h가 v₀²/2g에 비해 크면 손해가 커지므로, 그때는 각도를 수치 탐색(몇 개 각도로 시뮬레이션 후 최대 선택)하면 된다.</li>
+<li><b>AI가 "특정 지점에 맞히는 각도"를 고를 때</b>: 이건 최적각 문제가 아니라 역문제다. 진공이면 해석해(낮은 각/높은 각 두 해)가 있고, 저항이 있으면 이분 탐색이 필요하다. 이 경우 공기저항 유무가 구현 복잡도를 크게 바꾼다. 이게 저항을 무시하고 싶은 실질적 이유인 경우가 많다.</li>
+<li><b>UI 차지 게이지 등으로 "45°에서 최대 거리"를 플레이어에게 가르치는 디자인</b>이라면, 물리를 그 디자인에 맞추는 편(진공, h 보정)이 정직하다.</li>
+</ul>
+
+<h3>4-3. 수치 적분 오차도 "저항"처럼 보인다</h3>
+<p>공기저항을 넣지 않아도 프레임 단위 적분 방식에 따라 사거리가 해석해와 다르게 나온다. 같은 조건(v₀=20 m/s, 45°, 진공)에서 계산한 값:</p>
+<div class="tablewrap"><table id="intTable"><thead><tr><th>적분 방식</th><th>dt</th><th>사거리 (m)</th><th>해석해 대비</th></tr></thead><tbody></tbody></table></div>
+<p class="legend">명시적 오일러는 위치를 옛 속도로 갱신해 사거리를 늘리고, 반암시적(symplectic) 오일러는 줄인다. 상수 가속도만 있으면 <code>x += v·dt + ½a·dt²</code> 형태로 갱신하면 dt와 무관하게 정확하다. 공기저항 "유무"를 판단하기 전에, 적분 오차가 그와 비슷한 크기인지 먼저 확인할 것. 가변 프레임레이트라면 같은 입력이 기기마다 다른 사거리를 낸다(고정 스텝 물리 권장).</p>
+
+<h2>5. 확인 퀴즈 (서술형)</h2>
+<p>답을 먼저 써 보고, 모범답안을 열어 핵심 요소가 들어갔는지 스스로 채점한다.</p>
+
+<div class="card q"><h3>Q1.</h3>
+<p>동료가 "테니스공은 가벼우니까 공기저항을 무조건 넣어야 해"라고 한다. 이 주장의 무엇이 부족한지, 대신 무엇을 보고 판단해야 하는지 설명하라.</p>
+<textarea aria-label="Q1 답안"></textarea>
+<details><summary>모범답안과 채점 요소</summary>
+<p>질량만으로는 판단할 수 없다. 항력 대비 중력의 크기는 질량·단면적·C<sub>d</sub>를 묶은 종단속도 v<sub>t</sub>로 정해지고, 실제 영향은 그 공이 얼마나 빨리 나는지(v₀)에 달렸다. <b>(v₀/v<sub>t</sub>)²</b>가 작으면(테니스공 v<sub>t</sub>≈22 m/s를 5 m/s로 살짝 던지는 경우) 저항은 무시해도 된다.</p>
+<p>채점: ① v<sub>t</sub> 또는 질량/면적 비 언급 ② 속도 의존성 언급 ③ 비율로 판단</p></details></div>
+
+<div class="card q"><h3>Q2.</h3>
+<p>공기저항이 있으면 왜 최적 발사각이 45°보다 낮아지는지 "비행시간"이라는 말을 써서 설명하라.</p>
+<textarea aria-label="Q2 답안"></textarea>
+<details><summary>모범답안과 채점 요소</summary>
+<p>각도가 높을수록 비행시간이 길다. 항력은 비행하는 내내 수평 속도를 깎으므로, 오래 날수록 손해가 누적된다. 그래서 비행시간을 줄이고 초기 수평 속도를 키우는 낮은 각도 쪽으로 최적점이 이동한다.</p>
+<p>채점: ① 높은 각 = 긴 비행시간 ② 항력이 수평 속도를 계속 감소 ③ 낮은 각이 유리해지는 방향</p></details></div>
+
+<div class="card q"><h3>Q3.</h3>
+<p>공기저항이 전혀 없는 게임에서, 캐릭터가 2 m 높이 성벽 위에서 땅으로 돌을 던진다. 45°로 던지는 AI가 최대 사거리를 못 내는 이유와, 느린 투척(v₀=5 m/s)과 빠른 투척(v₀=30 m/s) 중 어느 쪽에서 문제가 더 큰지 설명하라.</p>
+<textarea aria-label="Q3 답안"></textarea>
+<details><summary>모범답안과 채점 요소</summary>
+<p>발사점이 착지면보다 높으면 내려가는 동안 추가 비행시간이 생겨 수평 속도가 큰 낮은 각도가 유리하다. 최적각은 <code>arctan(v₀/√(v₀²+2gh))</code>. 2gh≈39이므로 v₀=5(v₀²=25)에서는 2gh가 지배적이라 최적각이 약 32°까지 내려가 45°와의 차이가 크다. v₀=30(v₀²=900)에서는 최적각이 약 44°로 거의 45°다. 느린 투척에서 문제가 크다.</p>
+<p>채점: ① 높이 차이 → 추가 비행시간 ② v₀²와 2gh 비교 ③ 느린 쪽이 더 큼</p></details></div>
+
+<div class="card q"><h3>Q4.</h3>
+<p>각도-사거리 곡선의 꼭짓점이 평평하다는 사실이 "45° 고정으로 둬도 되는가"라는 질문에 어떤 의미를 갖는지, 그리고 그래도 정확한 계산이 필요한 경우 하나를 들어라.</p>
+<textarea aria-label="Q4 답안"></textarea>
+<details><summary>모범답안과 채점 요소</summary>
+<p>최적각에서 몇 도 벗어나도 사거리 손실이 작으므로(진공에서 5° 차이 ≈1.5%), 최대 거리용 각도를 45°로 고정해도 체감 차이는 작은 경우가 많다. 그러나 특정 목표 지점을 맞히는 조준(역문제)이나, 플레이어가 각도를 정밀하게 맞추는 게 핵심인 게임, β나 높이 차이가 커서 최적각이 30°대로 내려가는 경우는 정확한 계산이 필요하다.</p>
+<p>채점: ① 평평함 → 작은 손실 ② 예외 사례 하나 이상</p></details></div>
+
+<div class="card q"><h3>Q5.</h3>
+<p>공기저항을 끈 상태에서 해석해 사거리는 40.8 m인데 게임에서는 41.2 m가 나온다. 무엇을 의심해야 하며, 이 상태에서 "공기저항을 넣으면 얼마나 줄어드나"를 비교하는 게 왜 위험한가?</p>
+<textarea aria-label="Q5 답안"></textarea>
+<details><summary>모범답안과 채점 요소</summary>
+<p>수치 적분 오차(명시적 오일러는 사거리를 늘린다, dt가 크거나 가변 프레임). 적분 오차가 이미 1% 수준이면, 저항이 작은 공(β가 작은 경우)의 수 % 차이와 섞여 어느 쪽 효과인지 구분이 안 된다. 먼저 고정 스텝 + 상수 가속도 정확 갱신(또는 작은 dt)으로 진공 해석해와 맞춘 뒤 저항을 비교해야 한다.</p>
+<p>채점: ① 적분 방식/dt 의심 ② 오차 크기가 비교 대상과 비슷해 혼동</p></details></div>
+
+<h2>6. 한 장 요약</h2>
+<div class="card">
+<ul>
+<li>공기저항 판단 변수: <b>β = (v₀/v<sub>t</sub>)²</b>, <code>v<sub>t</sub> = √(2mg/(ρC<sub>d</sub>A))</code>. 작으면 무시, 크면 게임플레이의 일부.</li>
+<li>45°의 전제: 같은 높이 착지 + 진공 + 평지. 높은 곳에서(특히 느리게) 던지거나, 저항이 있거나, 내리막이면 더 낮게. 오르막이면 더 높게.</li>
+<li>최적각 근처는 평평하다. "최대 거리" 문제에선 각도 오차 몇 도가 거의 상관없고, "목표 맞히기" 문제에선 저항 유무가 구현 난이도를 좌우한다.</li>
+<li>비교 전에 적분기 오차부터 확인한다. 고정 스텝, 상수 가속도는 정확 갱신.</li>
+</ul>
+</div>
+</main>
+
+<script>
+const RHO = 1.2, G = 9.81;
+const BALLS = [
+  {id:'baseball', name:'야구공', m:0.145, d:0.074, cd:0.35},
+  {id:'tennis', name:'테니스공', m:0.057, d:0.067, cd:0.55},
+  {id:'pingpong', name:'탁구공', m:0.0027, d:0.040, cd:0.45},
+  {id:'soccer', name:'축구공', m:0.43, d:0.22, cd:0.25},
+  {id:'basket', name:'농구공', m:0.62, d:0.24, cd:0.47},
+  {id:'beach', name:'비치볼', m:0.10, d:0.40, cd:0.47},
+  {id:'shot', name:'포환 (7.26 kg)', m:7.26, d:0.12, cd:0.47},
+];
+function vt(b){ const A = Math.PI*(b.d/2)**2; return Math.sqrt(2*b.m*G/(RHO*b.cd*A)); }
+
+// RK4 with quadratic drag; returns path until y < -h (landing surface at y=-h, launch at y=0).
+function simulate(v0, deg, h, vT, drag, keepPath){
+  const th = deg*Math.PI/180;
+  let x=0, y=0, vx=v0*Math.cos(th), vy=v0*Math.sin(th);
+  const k = drag ? G/(vT*vT) : 0;
+  const dt = Math.max(0.0005, Math.min(0.01, (2*v0/G)/400));
+  const path = keepPath ? [[x,y]] : null;
+  const acc = (vx,vy)=>{ const s=Math.hypot(vx,vy); return [-k*s*vx, -G-k*s*vy]; };
+  for(let i=0;i<200000;i++){
+    const [a1x,a1y]=acc(vx,vy);
+    const [a2x,a2y]=acc(vx+a1x*dt/2, vy+a1y*dt/2);
+    const [a3x,a3y]=acc(vx+a2x*dt/2, vy+a2y*dt/2);
+    const [a4x,a4y]=acc(vx+a3x*dt, vy+a3y*dt);
+    const nx = x + dt*(vx + (vx+a1x*dt/2)*2 + (vx+a2x*dt/2)*2 + (vx+a3x*dt))/6;
+    const ny = y + dt*(vy + (vy+a1y*dt/2)*2 + (vy+a2y*dt/2)*2 + (vy+a3y*dt))/6;
+    const nvx = vx + dt*(a1x+2*a2x+2*a3x+a4x)/6;
+    const nvy = vy + dt*(a1y+2*a2y+2*a3y+a4y)/6;
+    if(ny < -h){
+      const f = (y + h)/(y - ny);
+      const lx = x + f*(nx-x);
+      if(path) path.push([lx,-h]);
+      return {range:lx, path};
+    }
+    x=nx; y=ny; vx=nvx; vy=nvy;
+    if(path) path.push([x,y]);
+  }
+  return {range:x, path};
+}
+function bestAngle(v0,h,vT,drag){
+  let best=0, bestR=-1;
+  for(let a=5;a<=85;a+=0.5){ const r=simulate(v0,a,h,vT,drag,false).range; if(r>bestR){bestR=r;best=a;} }
+  let lo=best-0.5, hi=best+0.5;
+  for(let i=0;i<25;i++){
+    const m1=lo+(hi-lo)/3, m2=hi-(hi-lo)/3;
+    if(simulate(v0,m1,h,vT,drag,false).range < simulate(v0,m2,h,vT,drag,false).range) lo=m1; else hi=m2;
+  }
+  const a=(lo+hi)/2; return {angle:a, range:simulate(v0,a,h,vT,drag,false).range};
+}
+function vacRange(v0,deg,h){ const t=deg*Math.PI/180, vx=v0*Math.cos(t), vy=v0*Math.sin(t);
+  return vx*(vy+Math.sqrt(vy*vy+2*G*h))/G; }
+
+// Ball table
+(function(){
+  const tb=document.querySelector('#ballTable tbody');
+  for(const b of BALLS){
+    const T=vt(b), cells=[10,20,35].map(v=>{
+      const rv=vacRange(v,45,0), rd=simulate(v,45,0,T,true,false).range;
+      return ((rv-rd)/rv*100).toFixed(0)+'%';
+    });
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${b.name}</td><td>${b.m>=1?b.m+' kg':Math.round(b.m*1000)+' g'}</td><td>${Math.round(b.d*100)} cm</td><td>${T.toFixed(0)}</td>`+cells.map(c=>`<td>${c}</td>`).join('');
+    tb.appendChild(tr);
+  }
+})();
+
+// Integrator table
+(function(){
+  const v0=20, th=Math.PI/4, exact=v0*v0/G;
+  function run(method, dt){
+    let x=0,y=0,vx=v0*Math.cos(th),vy=v0*Math.sin(th);
+    while(true){
+      let nx,ny,nvy;
+      if(method==='explicit'){ nx=x+vx*dt; ny=y+vy*dt; nvy=vy-G*dt; }
+      else if(method==='semi'){ nvy=vy-G*dt; nx=x+vx*dt; ny=y+nvy*dt; }
+      else { nx=x+vx*dt; ny=y+vy*dt-0.5*G*dt*dt; nvy=vy-G*dt; }
+      if(ny<0 && (vy<0 || nvy<0)){ const f=y/(y-ny); return x+f*(nx-x); }
+      x=nx;y=ny;vy=nvy;
+    }
+  }
+  const tb=document.querySelector('#intTable tbody');
+  const rows=[['명시적 오일러','explicit',1/30],['명시적 오일러','explicit',1/60],['반암시적 오일러','semi',1/30],['반암시적 오일러','semi',1/60],['정확 갱신 (½a·dt²)','exact',1/30]];
+  for(const [name,m,dt] of rows){
+    const r=run(m,dt), d=(r-exact)/exact*100;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${name}</td><td>1/${Math.round(1/dt)} s</td><td>${r.toFixed(2)}</td><td>${d>=0?'+':''}${d.toFixed(2)}%</td>`;
+    tb.appendChild(tr);
+  }
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td>해석해 v₀²/g</td><td>-</td><td>${exact.toFixed(2)}</td><td>0%</td>`; tb.appendChild(tr);
+})();
+
+// Interactive
+const $=id=>document.getElementById(id);
+const sel=$('ball');
+BALLS.forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=`${b.name} (v_t≈${vt(b).toFixed(0)} m/s)`;sel.appendChild(o);});
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function fitCanvas(c){
+  const dpr=window.devicePixelRatio||1, w=c.clientWidth, h=parseInt(c.getAttribute('height'));
+  c.width=w*dpr; c.height=h*dpr; c.style.height=h+'px';
+  const ctx=c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); return {ctx,w,h};
+}
+function drawTraj(paths, h){
+  const c=$('traj'), {ctx,w,h:H}=fitCanvas(c);
+  let maxX=1, maxY=0.5;
+  for(const p of paths) for(const [x,y] of p.pts){ maxX=Math.max(maxX,x); maxY=Math.max(maxY,y); }
+  const pad=34, minY=-h;
+  const sc=Math.min((w-pad*2)/maxX, (H-pad*2)/(maxY-minY));
+  const X=x=>pad+x*sc, Y=y=>H-pad-(y-minY)*sc;
+  ctx.clearRect(0,0,w,H);
+  ctx.strokeStyle=css('--line'); ctx.lineWidth=1; ctx.fillStyle=css('--muted'); ctx.font='12px sans-serif';
+  ctx.beginPath(); ctx.moveTo(X(0),Y(-h)); ctx.lineTo(X(maxX),Y(-h)); ctx.stroke();
+  if(h>0){ ctx.beginPath(); ctx.moveTo(X(0),Y(-h)); ctx.lineTo(X(0),Y(0)); ctx.stroke(); }
+  const step=niceStep(maxX);
+  for(let x=0;x<=maxX+1e-9;x+=step){ ctx.fillText(x.toFixed(step<1?1:0)+' m', X(x)-8, Y(-h)+16); }
+  for(const p of paths){
+    ctx.strokeStyle=css(p.color); ctx.lineWidth=p.dash?1.5:2.5; ctx.setLineDash(p.dash?[5,5]:[]);
+    ctx.beginPath(); p.pts.forEach(([x,y],i)=>i?ctx.lineTo(X(x),Y(y)):ctx.moveTo(X(x),Y(y))); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+}
+function niceStep(m){ const raw=m/6, p=10**Math.floor(Math.log10(raw)); const n=raw/p; return (n<1.5?1:n<3.5?2:n<7.5?5:10)*p; }
+function drawCurve(v0,h,T,cur){
+  const c=$('rangeCurve'), {ctx,w,h:H}=fitCanvas(c);
+  const pad=36, angs=[]; for(let a=5;a<=85;a+=1) angs.push(a);
+  const rv=angs.map(a=>vacRange(v0,a,h)), rd=angs.map(a=>simulate(v0,a,h,T,true,false).range);
+  const maxR=Math.max(...rv)*1.05;
+  const X=a=>pad+(a-5)/80*(w-pad*2), Y=r=>H-pad-r/maxR*(H-pad*2);
+  ctx.clearRect(0,0,w,H);
+  ctx.strokeStyle=css('--line'); ctx.fillStyle=css('--muted'); ctx.font='12px sans-serif'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad,H-pad); ctx.lineTo(w-pad,H-pad); ctx.stroke();
+  for(let a=15;a<=75;a+=15) ctx.fillText(a+'°',X(a)-8,H-pad+16);
+  ctx.fillText(maxR.toFixed(0)+' m',2,Y(maxR)+10);
+  [[rv,'--vac'],[rd,'--drag']].forEach(([arr,col])=>{
+    ctx.strokeStyle=css(col); ctx.lineWidth=2.5; ctx.beginPath();
+    arr.forEach((r,i)=>i?ctx.lineTo(X(angs[i]),Y(r)):ctx.moveTo(X(angs[i]),Y(r))); ctx.stroke();
+  });
+  ctx.strokeStyle=css('--accent'); ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(X(cur),pad/2); ctx.lineTo(X(cur),H-pad); ctx.stroke(); ctx.setLineDash([]);
+}
+function update(){
+  const b=BALLS.find(b=>b.id===sel.value), T=vt(b);
+  const v0=+$('v0').value, a=+$('ang').value, h=+$('h').value;
+  $('v0v').textContent=v0; $('angv').textContent=a; $('hv').textContent=h.toFixed(1);
+  const beta=(v0/T)**2;
+  const vac=simulate(v0,a,h,T,false,true), dr=simulate(v0,a,h,T,true,true);
+  const ov=Math.atan(v0/Math.sqrt(v0*v0+2*G*h))*180/Math.PI;
+  const od=bestAngle(v0,h,T,true);
+  const err=(vac.range-dr.range)/vac.range*100;
+  $('sBeta').textContent=beta.toFixed(3);
+  $('sRv').textContent=vac.range.toFixed(1)+' m';
+  $('sRd').textContent=dr.range.toFixed(1)+' m';
+  $('sErr').textContent=err.toFixed(1)+'%';
+  $('sOv').textContent=ov.toFixed(1)+'°';
+  $('sOd').textContent=od.angle.toFixed(1)+'°';
+  const v=$('verdict');
+  if(err<3){v.className='verdict ok';v.textContent=`오차 ${err.toFixed(1)}%: 이 조건에선 공기저항을 무시해도 체감 차이가 거의 없다.`;}
+  else if(err<15){v.className='verdict mid';v.textContent=`오차 ${err.toFixed(1)}%: 숫자는 눈에 띄게 다르지만 궤적 모양은 포물선과 비슷하다. "사실적으로 보여야 하는가"로 결정.`;}
+  else {v.className='verdict bad';v.textContent=`오차 ${err.toFixed(1)}%: 공기저항이 궤적 모양을 바꾼다. 무시하면 다른 공처럼 보인다.`;}
+  drawTraj([
+    {pts:simulate(v0,ov,h,T,false,true).path,color:'--vac',dash:true},
+    {pts:simulate(v0,od.angle,h,T,true,true).path,color:'--drag',dash:true},
+    {pts:vac.path,color:'--vac'},{pts:dr.path,color:'--drag'}
+  ], h);
+  drawCurve(v0,h,T,a);
+}
+['ball','v0','ang','h'].forEach(id=>$(id).addEventListener('input',update));
+window.addEventListener('resize',update);
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',update);
+update();
+</script>
+</body>
+</html>

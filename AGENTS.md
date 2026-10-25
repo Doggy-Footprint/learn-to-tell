@@ -1,21 +1,18 @@
 # Project Definition
 
-[#TODO][3-5 lines of description of the project]
+Learn to Tell은 coding agent가 skill로 제공하는 짧은 상호작용 학습 도구다.
+작업 초기에 사용자가 모르는 핵심 결정 변수를 quick survey로 진단하고, 결정 변수를 이해하는 데 필요한 교과서 기본기(대략 교과서 한 챕터 분량)를 시각 자료·시뮬레이션으로 익히게 한 뒤 서술 퀴즈로 확인하고 결과를 원래 작업으로 돌려준다.
+학습은 `/fork`한 세션에서 진행하고, 학습 결과와 지식 map은 `~/.learn-to-tell/`에 남긴다.
 
-## Aborted History
-- v1 (태그 `archive/v1`, `0da38db`): agent가 수업 HTML을 직접 쓰고 보조 kit이 돕는다. 일반 요청 대비 토큰 8.2배, 생성 19–35분으로 닫았다.
-- v2 (태그 `archive/v2`, `23a8a96`): agent는 수업 spec만 쓰고 미리 검증한 runtime이 그린다. 일반 요청보다 낫다는 것을 증명하지 못해 닫았다.
-- v3 (현재): 미정. 시작 인계는 `agent-docs/handoff/86bf8c8f61fad9f3-v3-start.md`.
-
-<!-- harness:begin 0.30.0 -->
+<!-- harness:begin 0.25.0 -->
 # Documentation Guide
 
 "Documentation" refers to standalone docs, inline comments, and docstrings.
 
 ## Principles
 1. **Code is the Ground Truth**: Document only non-obvious rationale, behaviors, and constraints that cannot be inferred from the code.
-2. **Preserve Failed Attempts**: Approaches whose failure took real work to discover (an implementation, a run, or an investigation, not a reading of the code), and concrete proposals the user rejected, keep their evidence and cause: in the handoff while the task is open, in a try-n-fail record afterwards.
-3. **Record Observations, Not Mandates**: Records carried across sessions state what was observed, its evidence, and how to re-check it. They do not bind a later session to an earlier session's choices; a later session re-checks and decides for itself.
+2. **Preserve Rejection Reasons**: Rejected design alternatives keep their rejection reason.
+3. **Preserve Failed Attempts**: Handoffs keep attempted-but-failed approaches.
 
 ### Comment Enforcement
 
@@ -27,19 +24,8 @@ A comment/docstring is allowed only when it records a non-obvious:
 
 Do not use comments to narrate code, restate names/types/control flow, provide tutorials, or justify ordinary implementation choices.
 
-### Record Writing
-
-Every record under `agent-docs/` excludes:
-- tutorials and concepts;
-- rhetorical expressions;
-- non-deterministic, non-falsifiable, or session-dependent sentences.
-
-## Commit Stamp
-
-A hook writes `commit: <HEAD at last write>` into the frontmatter of every Markdown document under `agent-docs/` except `index.md` and `stale.md`. Do not edit it by hand. Before relying on a record, compare its `commit` with HEAD and re-check claims about code changed since then.
-
 ## Index & Staleness Management
-1. Every agent-managed directory (e.g., `agent-docs/try-n-fail`, `agent-docs/handoff`) must contain `index.md`, `stale.md`, and a `stale/` directory. `agent-docs/specs/` and `agent-docs/spec-logs/` are workflow state and run records, so they are exempt. `agent-docs/adr/` and `agent-docs/rejections/` from harness versions before 0.29.0 are no longer managed or checked.
+1. Every agent-managed directory (e.g., `agent-docs/adr`, `agent-docs/rejections`, `agent-docs/handoff`) must contain `index.md`, `stale.md`, and a `stale/` directory. `agent-docs/specs/` and `agent-docs/spec-logs/` are workflow state and immutable run records, so they are exempt.
 2. File Naming: `<16-char-hex-id>-<kebab-case-name>.md` (e.g., `3f8a9c12b0e45d67-auth-flow.md`).
 3. `index.md` Format: entries separated by `---`:
    ````
@@ -76,20 +62,53 @@ Apply when an identical comment or docstring must be maintained across multiple 
    - remove it from every referenced code location;
    - increment the version, record the removal reason in the version log, and add `obsolete: true` to the frontmatter.
 
-## Try-n-Fail Rule
+## Architecture Decision Record Rule
 
-Directory: `agent-docs/try-n-fail/`.
+Propose an ADR to the user with the checklist and contents below; never write one on your own decision.
+ADRs record past architectural decisions, not immutable principles.
 
-Records approaches a later task could plausibly try again: an attempt whose failure took real work to discover (an implementation, a run, or an investigation, not a reading of the code), or a concrete proposal the user rejected. Candidates come from a completing handoff's Failed Attempts, a spec's execution ledger, or a rejection in conversation. Show the draft to the user and write only after confirmation.
+### Checklist for updating ADR
+
+Create an ADR only if all hold:
+
+- [ ] The decision is expensive or risky to reverse.
+- [ ] A concrete alternative was seriously considered and rejected.
+- [ ] The reason for the decision cannot be reliably recovered from the code alone.
+
+### Contents
+
+- Title / Status
+- Context
+- Decision
+- Alternatives: actually considered but rejected (capped to 1-2)
+- Consequences: positive / negative (capped to 1-2 each)
+
+#### DO NOT Include
+
+- Tutorials, concepts.
+- Rhetorical expressions.
+- Non-deterministic sentences.
+- Non-falsifiable sentences.
+- Session-dependent sentences.
+
+## Rejection Record Rule
+
+Directory: `agent-docs/rejections/`.
+
+Applies when the user rejects a concretely proposed design alternative and the reason cannot be recovered from code. Show the draft to the user and write only after confirmation. If all ADR checklist items hold, propose an ADR (its Alternatives section) instead of a rejection record.
 
 Required file structure:
 
 - `#` Title
-- `## Goal` (what the attempts tried to achieve)
-- `## Attempts` (table `| attempt | failure evidence | cause |`; cause marked `verified`, `hypothesis`, or `user rejected: <reason>`)
-- `## Revisit Condition` (the observable change that would make another attempt worthwhile)
+- `## Context`
+- `## Rejected Alternative`
+- `## Reason`
+- `## Revisit Condition`
+- `## Chosen Instead` (repo path or ADR file)
 
-Append rows for new attempts at the same goal; never delete or edit existing rows. When the goal is dropped or an attempt later succeeds, mark the record stale.
+The ADR "DO NOT Include" list applies.
+
+When the revisit condition is met and the alternative is adopted, remove its entry from `index.md` and move the file to `stale/`.
 
 ## Handoff Rule
 
@@ -100,8 +119,8 @@ Write when a workflow-approach task exhausts its verifier budget, cannot make pr
 Required file structure:
 
 - `#` Title
-- `## User Query` (user's original words)
-- `## State` (branch, changed files)
+- `## Goal` (user's original words)
+- `## State` (branch, commit, changed files)
 - `## Failed Attempts` (table `| attempt | failure evidence | cause |`, cause marked `verified` or `hypothesis`)
 - `## Next Step`
 - `## Open Questions`
@@ -115,24 +134,18 @@ failed attempts without requiring telemetry to reconstruct them.
 Handoffs created before harness 0.7.0 may retain `## Contract Snapshot` instead
 of `## Spec` and `## Execution Ledger`; do not rewrite historical records solely
 to change their format.
-Handoffs created before harness 0.27.0 may retain `## Goal` instead of `## User Query`.
 
 When resuming, never delete or edit existing Failed Attempts rows; only append.
 
-When the task completes, propose try-n-fail records for Failed Attempts a later task could repeat, then remove the handoff's entry from `index.md` and move the file to `stale/`.
+When the task completes, remove its entry from `index.md` and move the file to `stale/`.
 
 # Task Guide
+
+## Generated Lesson Defects
+
+A defect found in a lesson the skill generated (test runs, gallery, user lessons) is evidence about the generator, not a task on that lesson. Trace it to what produced it (`SKILL.md`, `kit/API.md` and `kit/api/`, kit code, audit and lint rules) and fix it there so future generations do not repeat it. Patch the lesson itself only when the user asks for that lesson to be fixed.
 
 ## User Decision
 
 Never decide unspecified task details silently. Resolve what the project, code, and conversation can answer. For the rest, either ask, or state a default (what you chose, why, and how to change it later) so the user can veto it before it takes effect. Ask instead when the choice is expensive or risky to reverse, or contradicts what the user or project has stated.
-
-## Reporting to the User
-
-Summaries, briefs, and reports must be readable without opening another file. Do not use a label the user cannot resolve from the message itself (e.g., `H3`, `F2`, `O-4`, a finding or obligation id) on its own: state what it refers to in plain words, and add the id in parentheses only when the user needs it to find the item.
-
-## Commit & PR Messages
-
-- A commit message carries a `Request:` line (the user request the work answers) and an `Intent:` line (what the change is meant to achieve). The commit-msg hook warns when either is missing; merge, revert, `fixup!`, `squash!`, and `amend!` commits are exempt.
-- A PR description is written as a five-minute standup introduction for someone who does not know the project: the problem, what changed, why this approach, and how it was checked. A Claude Code hook repeats this after `gh pr create`, and after `gh pr edit` with a body flag.
 <!-- harness:end -->

@@ -1,0 +1,149 @@
+{
+ "mode": "timing",
+ "rows": [
+  {
+   "rel": "cache-ttl.html",
+   "scene": 4,
+   "median": 24.6,
+   "ms": [
+    22.4,
+    23.6,
+    24.6,
+    24.6,
+    27.2
+   ]
+  },
+  {
+   "rel": "finance/diversification.html",
+   "scene": 4,
+   "median": 15.7,
+   "ms": [
+    7,
+    12.7,
+    15.7,
+    16.2,
+    18.1
+   ]
+  },
+  {
+   "rel": "gpu/single-gpu-dataflow.html",
+   "scene": 5,
+   "median": 14.4,
+   "ms": [
+    6.7,
+    8,
+    14.4,
+    14.5,
+    15.6
+   ]
+  },
+  {
+   "rel": "knowledge-graph/ontology-triples.html",
+   "scene": 11,
+   "median": 20.4,
+   "ms": [
+    8.5,
+    14,
+    20.4,
+    20.9,
+    22.5
+   ]
+  },
+  {
+   "rel": "knowledge-graph/ontology-triples.html",
+   "scene": 21,
+   "median": 8.2,
+   "ms": [
+    7.7,
+    8.1,
+    8.2,
+    9.1,
+    13
+   ]
+  },
+  {
+   "rel": "linear-algebra/matrix-as-transform.html",
+   "scene": 6,
+   "median": 21.1,
+   "ms": [
+    14.8,
+    20.1,
+    21.1,
+    23.6,
+    24
+   ]
+  },
+  {
+   "rel": "network/tls13-quic.html",
+   "scene": 3,
+   "median": 13.1,
+   "ms": [
+    8.5,
+    12.6,
+    13.1,
+    14.4,
+    14.4
+   ]
+  },
+  {
+   "rel": "network/tls13-quic.html",
+   "scene": 10,
+   "median": 13.5,
+   "ms": [
+    7.8,
+    13.3,
+    13.5,
+    13.7,
+    13.8
+   ]
+  },
+  {
+   "rel": "pedagogy/retrieval-practice.html",
+   "scene": 5,
+   "median": 14.1,
+   "ms": [
+    4.8,
+    13.9,
+    14.1,
+    14.6,
+    14.9
+   ]
+  },
+  {
+   "rel": "physics/projectile-drag.html",
+   "scene": 4,
+   "median": 16,
+   "ms": [
+    13.8,
+    15.7,
+    16,
+    16.5,
+    16.6
+   ]
+  },
+  {
+   "rel": "scenes.html",
+   "scene": 9,
+   "median": 12.9,
+   "ms": [
+    8.5,
+    12.7,
+    12.9,
+    13.4,
+    14.9
+   ]
+  },
+  {
+   "rel": "uiux/color-contrast.html",
+   "scene": 6,
+   "median": 6.7,
+   "ms": [
+    5.9,
+    6.6,
+    6.7,
+    7.1,
+    8.6
+   ]
+  }
+ ]
+}

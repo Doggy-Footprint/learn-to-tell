@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>팬아웃과 p99 꼬리 지연</title>
+<script type="application/json" id="ltt-meta">{"topic":"fan-out과 p99 꼬리 지연","audience":"백엔드 개발자","theme":"terminal","medium":"터미널·대시보드","decision":"한 요청이 부르는 백엔드 수","domain":"백엔드","role":"sweep","pattern":["mount"],"mode":"sweep: 백엔드 수 손잡이와 자동 재생 다섯 비트. 한 요청의 부채꼴이 주인공이고 글은 그림 옆에 얹힌다"}</script>
+<script type="application/json" id="ltt-checks">[
+{"id":"k1","expect":"N=1: 레인 한 줄, 완료선이 그 막대 끝과 같다. 느린 요청 1.0%, 요청 p99 = 백엔드 p99 = 100 ms","reach":[{"knob":"n","stop":0}]},
+{"id":"k2","expect":"N=10: 느린 요청 9.6%, 요청 p50 약 44 ms, p99 약 213 ms. 호출 막대 길이 분포와 100 ms 선 위치는 N=1과 같다","reach":[{"knob":"n","stop":1}]},
+{"id":"k3","expect":"N=50, N=100: 39.5%에서 63.4%로 단조 증가하고 100%를 넘지 않는다. 곡선 점이 수치 표시와 같은 위치에 있다","reach":[{"knob":"n","stop":2},{"knob":"n","stop":3}]},
+{"id":"k4","expect":"임의의 재생 시점: 완료 도장은 가장 늦은 응답이 켜질 때 찍히고, 호출 평균 지연 표시는 N과 무관하게 그대로다","reach":[{"wait":9000}]},
+{"id":"k5","expect":"N=100: 요청 p50 약 114 ms로 100 ms 선 오른쪽, 요청 p99 약 397 ms, 주석에 백엔드 p99.99 필요","reach":[{"knob":"n","stop":3}]},
+{"id":"k6","expect":"N을 바꾸는 전 구간에서 백엔드 p99 = 100 ms 표식이 움직이지 않는다. 요청 쪽 수치만 현재 N을 따라간다","reach":[{"knob":"n","stop":3}]},
+{"id":"k7","expect":"넓은 화면과 400px 폭 모두에서 그림과 수치가 칸 안에 들어오고 viewBox 비율이 찌그러지지 않는다","reach":[{"knob":"n","stop":3}]},
+{"id":"k8","expect":"재생을 멈춘 정지 상태에서도 완료 도장, 꼬리 호출 막대(--ltt-bad), 비율 수치가 한 장으로 읽힌다","reach":[{"knob":"n","stop":1}]}
+]</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.ct{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:32px;align-items:center;width:100%}
+.ct-fig{min-width:0}
+.ct-fig svg{width:100%;height:auto;display:block}
+.ct-fig text{font-family:var(--ltt-mono)}
+.ct-side{display:flex;flex-direction:column;gap:14px;min-width:0;max-width:420px}
+.ct-line{font-size:14px;color:var(--ltt-ink-2)}
+.ct-cap{margin:0;font-size:15px;line-height:1.6;color:var(--ltt-ink)}
+@media (max-width:640px){.ct{grid-template-columns:minmax(0,1fr)}}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const e = document.createElementNS(SVG, tag); for (const k in a) e.setAttribute(k, a[k]); p && p.appendChild(e); return e; };
+
+// 백엔드 호출 지연: 로그정규 가정, p50 = 10 ms, p99 = 100 ms. σ = ln10 / 2.326
+const MU = Math.log(10), SIG = Math.log(10) / 2.326;
+const Phi = (z) => { const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; };
+const Pinv = (p) => { let lo = -9, hi = 9; for (let i = 0; i < 80; i++) { const m = (lo + hi) / 2; if (Phi(m) < p) lo = m; else hi = m; } return (lo + hi) / 2; };
+const slow = (n) => 1 - Math.pow(0.99, n);                                   // 요청 지연 > 100 ms 인 비율 = 1 − F(100)ⁿ, F(100) = 0.99
+const reqQ = (n, q) => Math.exp(MU + SIG * Pinv(Math.pow(q, 1 / n)));       // 요청 지연 분위수: F(t)ⁿ = q
+
+// 호출 n개의 지연(ms). 시드 고정이라 같은 n이면 같은 표본이 나온다
+const cache = {};
+function calls(n) {
+  if (cache[n]) return cache[n];
+  let s = 40 + n;
+  const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  return (cache[n] = Array.from({ length: n }, () => {
+    const u1 = 1 - r(), u2 = r();
+    return Math.exp(MU + SIG * Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2));
+  }));
+}
+
+const TMAX = 500, X0 = 40, X1 = 520, SY = 400, SCALE = (X1 - X0) / TMAX;     // 응답 도착 시각 축 0–500 ms
+const CX = 280, CY = 52, RA = 300, Y0 = 80;                                  // 요청 자리, 백엔드 호의 반지름, 부채살 출발점
+const MAXN = 100, STOPS = [1, 10, 50, 100];
+const BIT_MS = 3600, BITS = [1, 10, 50, 100, 100];
+const at = (deg) => [CX + RA * Math.cos(deg * Math.PI / 180), CY + RA * Math.sin(deg * Math.PI / 180)];
+
+const CAPS = [
+  "백엔드 하나에서는 호출 100번 중 1번꼴로 100 ms를 넘긴다. 요청이 호출을 하나만 하면 요청도 똑같다.",
+  "N=10이면 요청은 호출 열 개를 함께 부르고, 가장 늦은 응답이 올 때까지 기다린다. 요청 지연은 평균이 아니라 최댓값이다.",
+  "N=50이면 요청 열 번 중 네 번 가까이 느리다. 백엔드는 그대로인데 느린 쪽이 다수가 됐다.",
+  `N=100이면 요청 셋 중 둘 가까이가 느리다. 요청의 중앙값(약 ${Math.round(reqQ(100, 0.5))} ms)이 백엔드 p99(100 ms)를 넘는다.`,
+  "N을 정하는 것이 곧 백엔드에 요구하는 꼬리 수준을 정한다. N=100에서 요청 p99를 지키려면 백엔드 p99.99가 필요하다."
+];
+
+function mount(body) {
+  body.innerHTML = `<div class="ct"><div class="ct-fig"></div><div class="ct-side">
+    <div class="ltt-stat"><span class="ltt-hero" id="pslow"></span> <small>요청이 100 ms를 넘는 비율</small></div>
+    <div class="ct-line" id="q"></div>
+    <div class="ct-line" id="round"></div>
+    <div class="ct-line">백엔드 하나는 p50 10 ms · p99 100 ms로 고정이다</div>
+    <div class="ltt-param">백엔드 수 <b id="n-v"></b><div id="n"></div></div>
+    <p class="ct-cap" id="cap"></p>
+    <span class="ltt-tag muted">모델로 계산한 예시</span></div></div>`;
+  const $ = (id) => body.querySelector("#" + id);
+  const s = mk("svg", { viewBox: "0 0 560 436", "data-annotate": "" }, body.querySelector(".ct-fig"));
+
+  mk("path", { d: `M${at(30)} A${RA} ${RA} 0 0 1 ${at(150)}`, style: "fill:none;stroke:var(--ltt-line-2);stroke-dasharray:2 6;stroke-width:1.5" }, s);
+  const spokes = Array.from({ length: MAXN }, () => mk("line", { x1: CX, y1: Y0, style: "stroke:var(--ltt-line);stroke-width:1.5;opacity:.7" }, s));
+  const nodes = Array.from({ length: MAXN }, () => mk("circle", { r: 6 }, s));
+
+  mk("rect", { x: CX - 80, y: 24, width: 160, height: 56, rx: 8, style: "fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:2" }, s);
+  const req = mk("text", { x: CX, y: 58, "text-anchor": "middle", style: "font-size:16px;font-weight:700;fill:var(--ltt-ink)" }, s);
+  req.textContent = "요청 1개";
+  const stamp = mk("text", { x: CX + 92, y: 58, style: "font-size:16px;font-weight:700;fill:var(--ltt-accent);opacity:0" }, s);
+
+  mk("line", { x1: X0, y1: SY, x2: X1, y2: SY, style: "stroke:var(--ltt-line-2);stroke-width:1.5" }, s);
+  const ticks = Array.from({ length: MAXN }, () => mk("line", { y1: SY - 8, y2: SY + 8, style: "stroke-width:2.5" }, s));
+  const x100 = X0 + 100 * SCALE;
+  mk("line", { x1: x100, x2: x100, y1: SY - 16, y2: SY + 16, style: "stroke:var(--ltt-bad);stroke-width:2;stroke-dasharray:4 3" }, s);
+  const cursor = mk("line", { y1: SY - 18, y2: SY + 18, style: "stroke:var(--ltt-ink);stroke-width:2" }, s);
+  const lab = (x, y, a, t, st) => { const e = mk("text", { x, y, "text-anchor": a, style: st }, s); e.textContent = t; };
+  lab(X0, SY - 22, "start", "응답 도착 시각", "font-size:14px;fill:var(--ltt-muted)");
+  lab(X0, SY + 26, "start", "0", "font-size:14px;fill:var(--ltt-muted)");
+  lab(x100, SY + 26, "middle", "백엔드 p99 = 100 ms", "font-size:14px;fill:var(--ltt-bad)");
+  lab(X1, SY + 26, "end", "500 ms", "font-size:14px;fill:var(--ltt-muted)");
+
+  const q = $("q"), round = $("round"), pslow = $("pslow"), cap = $("cap");
+  // prog: 한 라운드 안의 진행(0–1). 0–0.2 부채살이 펴지고, 0.2–0.85 도착 시각 커서가 지나가며 응답이 켜진다, 이후 완료 도장
+  function show(n, prog) {
+    const xs = calls(n), max = Math.max(...xs);
+    const fan = Math.min(1, prog / 0.2), cur = prog >= 0.85 ? TMAX : TMAX * Math.max(0, (prog - 0.2) / 0.65);
+    const done = prog >= 0.85 || max <= cur;
+    for (let i = 0; i < MAXN; i++) {
+      spokes[i].style.display = nodes[i].style.display = ticks[i].style.display = i < n ? "" : "none";
+      if (i >= n) continue;
+      const deg = n === 1 ? 90 : 30 + 120 * i / (n - 1), [nx, ny] = at(deg);
+      const lit = prog >= 0.85 || xs[i] <= cur;
+      const color = !lit ? "var(--ltt-line)" : xs[i] >= 100 ? "var(--ltt-bad)" : "var(--ltt-accent)";
+      spokes[i].setAttribute("x2", CX + (nx - CX) * fan);
+      spokes[i].setAttribute("y2", Y0 + (ny - Y0) * fan);
+      nodes[i].setAttribute("cx", nx);
+      nodes[i].setAttribute("cy", ny);
+      nodes[i].setAttribute("r", n > 20 ? 3 : 6);
+      nodes[i].style.fill = color;
+      nodes[i].style.opacity = fan;
+      const tx = X0 + Math.min(xs[i], TMAX) * SCALE;
+      ticks[i].setAttribute("x1", tx);
+      ticks[i].setAttribute("x2", tx);
+      ticks[i].style.stroke = color;
+      ticks[i].style.opacity = lit ? 1 : 0;
+    }
+    cursor.setAttribute("x1", X0 + cur * SCALE);
+    cursor.setAttribute("x2", X0 + cur * SCALE);
+    stamp.textContent = "완료 " + Math.round(max) + " ms";
+    stamp.style.opacity = done ? 1 : 0;
+    pslow.textContent = (slow(n) * 100).toFixed(1) + "%";
+    q.textContent = `요청 p50 ≈ ${Math.round(reqQ(n, 0.5))} ms · p99 ≈ ${Math.round(reqQ(n, 0.99))} ms`;
+    round.textContent = `이번 요청의 호출 ${n}개 중 100 ms 넘은 것: ${xs.filter((x) => x >= 100).length}개`;
+  }
+
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let raf = 0, t0 = 0, last = 1;
+  const stop = () => clearTimeout(raf);
+  LTT.sweep({ params: { n: { kind: "steps", stops: STOPS, value: 1, fmt: (v) => v + "개" } },
+    render: ({ n }) => { stop(); last = n; show(n, 1); cap.textContent = CAPS[STOPS.indexOf(n)]; } });
+
+  const play = () => {
+    const u = Date.now() - t0, b = Math.floor(u / BIT_MS);
+    if (b >= BITS.length) { last = BITS[BITS.length - 1]; show(last, 1); cap.textContent = CAPS[BITS.length - 1]; return; }
+    last = BITS[b];
+    show(last, (u - b * BIT_MS) / BIT_MS);
+    cap.textContent = CAPS[b];
+    raf = setTimeout(play, 33);
+  };
+  return {
+    enter() { stop(); if (reduced) { show(last, 1); cap.textContent = CAPS[STOPS.indexOf(last)]; return; }
+      t0 = Date.now(); play(); },
+    leave() { stop(); }
+  };
+}
+
+LTT.deck({
+  title: "팬아웃과 p99 꼬리 지연", theme: "terminal",
+  glossary: { "p99": "느린 쪽 1%의 경계. 요청 100개 중 99개는 이 값 안에 끝난다" },
+  scenes: [{
+    title: "백엔드 하나는 드물게 느린데, 한 요청이 많이 부르면 느린 요청이 흔해진다",
+    sub: "요청은 백엔드 N개를 병렬로 부르고 가장 늦은 응답을 기다린다. 그래서 요청이 {{p99}}를 넘길 확률은 1 − 0.99ᴺ이다.",
+    basis: "호출 지연은 독립·동일한 로그정규 가정(p50 = 10 ms, p99 = 100 ms, σ = ln10 / 2.326). 요청 지연 = 호출 지연의 최댓값. 병렬 호출만 다룬다. 모델로 계산한 예시.",
+    mount
+  }]
+});
+LTT.expect("N=10 느린 요청 비율", slow(10), 0.0956, { tol: 0.001 });
+LTT.expect("N=50 느린 요청 비율", slow(50), 0.395, { tol: 0.001 });
+LTT.expect("N=100 느린 요청 비율", slow(100), 0.634, { tol: 0.001 });
+LTT.expect("N=1 요청 p99 = 백엔드 p99 (ms)", reqQ(1, 0.99), 100, { tol: 0.5 });
+LTT.expect("N=10 요청 p50 (ms)", reqQ(10, 0.5), 44, { tol: 1 });
+LTT.expect("N=10 요청 p99 (ms)", reqQ(10, 0.99), 213, { tol: 2 });
+LTT.expect("N=100 요청 p50 (ms)", reqQ(100, 0.5), 114, { tol: 1 });
+LTT.expect("N=100 요청 p99 (ms)", reqQ(100, 0.99), 397, { tol: 2 });
+</script>
+</body>
+</html>

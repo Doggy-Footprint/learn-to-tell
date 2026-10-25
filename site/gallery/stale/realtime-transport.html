@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>실시간 업데이트, 무엇으로 보낼까?</title>
+<script type="application/json" id="ltt-meta">{"domain":"웹·네트워크","topic":"polling·SSE·WebSocket 선택과 운영 조건","audience":"WebSocket은 알고 SSE는 애매하다","pattern":["hook","motion","predict","compare","sweep","explain","keywords"],"mode":"체험형: 기능만 보면 WebSocket을 고르기 쉬워, 조건을 켜고 끄며 추천이 바뀌는 것을 직접 보게 한다","decision":"전달 방식 (polling / SSE / WebSocket)"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  :root { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --deemph: #c3c9da; --lifeline: #c9cedb; }
+  .lane { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 8px; }
+  .lane b { font-size: 15px; } .lane small { display: block; color: var(--ltt-muted); font-size: 12px; }
+  .lane svg { max-height: 12vh; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+  .ct { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .ct td, .ct th { padding: 5px 8px; border-bottom: 1px solid var(--ltt-line); text-align: center; }
+  .ct td:first-child { text-align: left; } .ct tr.off td:not(:first-child) { opacity: .25; }
+  .ct th.rec { background: #e6f6ef; } .ct th.drop { text-decoration: line-through; color: var(--ltt-bad); }
+  .sym-w { color: var(--ltt-warn); font-weight: 700; } .sym-x { color: var(--ltt-bad); font-weight: 700; } .sym-o { color: var(--ltt-good); }
+</style>
+</head>
+<body>
+<script>
+  // Hand-derived by an independent subagent from the verdict table and rule only; the model must match these, not the reverse.
+  const EXPECTED_BY_HAND = [
+    { label: "S0 {}", set: [], rec: 0, warn: [0, 0, 0] },
+    { label: "S1 {c7}", set: ["c7"], rec: 1, warn: [1, 0, 0] },
+    { label: "S2 {c7,c4}", set: ["c7", "c4"], rec: 2, warn: [1, 1, 0] },
+    { label: "S3 {c1,c7}", set: ["c1", "c7"], rec: 2, warn: [2, 1, 0] },
+    { label: "S4 {c1,c7,c5}", set: ["c1", "c7", "c5"], rec: 0, warn: [2, 2, 0], wsDropped: 1 },
+    { label: "S5 {c3,c6}", set: ["c3", "c6"], rec: 0, warn: [0, 0, 2] },
+    { label: "S6 {c2,c5}", set: ["c2", "c5"], rec: 0, warn: [1, 2, 0], wsDropped: 1 },
+  ];
+
+  const OPTIONS = [
+    { name: "polling", color: "var(--s1)", sub: "주기마다 묻는다" },
+    { name: "SSE", color: "var(--s2)", sub: "응답 하나로 계속 받는다" },
+    { name: "WebSocket", color: "var(--s3)", sub: "업그레이드 후 양방향" },
+  ];
+  const CONDITIONS = [
+    { id: "c1", label: "클라이언트도 자주 보낸다", sub: "양방향 실시간", short: "양방향", cells: [
+      ["△", "보낼 때마다 요청, 받기는 주기만큼 지연"],
+      ["△", "SSE는 서버→클라이언트 단방향. 보내기는 별도 HTTP 요청"],
+      ["✓", "한 연결에서 양방향"]] },
+    { id: "c2", label: "실시간 바이너리 데이터", sub: "오디오·이미지 조각 등", short: "바이너리", cells: [
+      ["△", "주기 지연과 요청마다 드는 오버헤드. HTTP 응답 자체는 바이너리를 담을 수 있다"],
+      ["△", "이벤트는 UTF-8 텍스트만. base64로 바꾸면 크기 약 33% 증가"],
+      ["✓", "바이너리 메시지 지원"]] },
+    { id: "c3", label: "업데이트가 드물고 수십 초 지연 허용", sub: "분 단위 변경", short: "드문 업데이트", cells: [
+      ["✓", "가장 단순"],
+      ["✓"],
+      ["△", "이 조건에는 과한 복잡도"]] },
+    { id: "c4", label: "HTTP/1.1만 쓰고 사용자가 탭을 여러 개 연다", sub: "연결 수 제한", short: "HTTP/1.1 + 탭 여러 개", cells: [
+      ["✓"],
+      ["△", "HTTP/1.1에서 SSE 연결은 브라우저의 도메인당 동시 연결 제한(보통 6개)에 포함되어 탭이 많으면 고갈. HTTP/2에서는 한 연결에 다중화되어 동시 스트림 수를 협상, 흔히 100. 우회: SharedWorker, 서브도메인 분리"],
+      ["✓", "[불확실] 브라우저 구현상 HTTP 연결 풀과 별도로 관리된다. Chromium·Firefox 소스/설정 기준이며 공식 문서는 아니다", true]] },
+    { id: "c5", label: "회사 프록시가 WebSocket 업그레이드를 막는다", sub: "일부 기업망", short: "WebSocket 차단 프록시", cells: [
+      ["✓"],
+      ["△", "일반 HTTP라 통과하기 쉽지만 프록시 버퍼링으로 지연될 수 있다. nginx는 X-Accel-Buffering: no"],
+      ["✗", "대체 경로 없이는 연결 불가. Socket.IO는 이때 HTTP long-polling으로 대체"]] },
+    { id: "c6", label: "재연결 후 놓친 이벤트를 이어받아야 한다", sub: "모바일·불안정한 망", short: "놓친 이벤트 이어받기", cells: [
+      ["✓", "마지막 커서로 조회. 서버가 이벤트 기록을 보관해야 함"],
+      ["✓", "브라우저가 자동 재연결하며 Last-Event-ID 헤더를 보냄. 이어 보내기는 서버 구현"],
+      ["△", "브라우저 API에 자동 재연결이 없어 재연결·복구를 직접 구현하거나 라이브러리 사용"]] },
+    { id: "c7", label: "1초 안에 전달해야 한다", sub: "지연 요구", short: "1초 안", cells: [
+      ["△", "주기를 1초 이하로 줄여야 해 요청 부하 증가. long-polling이라면 다르다"],
+      ["✓"],
+      ["✓"]] },
+  ];
+
+  function recommend(activeIds) {
+    const on = CONDITIONS.filter((c) => activeIds.includes(c.id));
+    const warn = OPTIONS.map((_, i) => on.filter((c) => c.cells[i][0] === "△").length);
+    const dropped = OPTIONS.map((_, i) => on.some((c) => c.cells[i][0] === "✗"));
+    let index = -1;
+    OPTIONS.forEach((_, i) => {
+      if (!dropped[i] && (index < 0 || warn[i] < warn[index])) index = i;
+    });
+    return { index, warn, dropped };
+  }
+
+  const warnCode = (w) => w[0] * 100 + w[1] * 10 + w[2];
+  for (const c of EXPECTED_BY_HAND) {
+    const r = recommend(c.set);
+    LTT.expect(`${c.label} 추천 = ${OPTIONS[c.rec].name}`, r.index, c.rec, { tol: 0 });
+    LTT.expect(`${c.label} △ polling/SSE/WebSocket = ${c.warn.join("/")}`, warnCode(r.warn), warnCode(c.warn), { tol: 0 });
+    if (c.wsDropped !== undefined) LTT.expect(`${c.label} WebSocket 제외`, r.dropped[2] ? 1 : 0, c.wsDropped, { tol: 0 });
+  }
+  // Shared timeline: server state changes at t=35 and t=72 (0–100 units); a message departs at t and lands at t+3.
+  const CHANGES = [35, 72];
+  const FLOWS = [
+    { band: null, delays: [[35, 52], [72, 92]], msgs: [
+      { t: 5, dir: "down", tip: "GET /orders/42/status — 정해진 주기마다 묻는다" },
+      { t: 9, dir: "up", label: "변경 없음", muted: true, tip: "바뀐 것이 없어도 요청·응답 비용은 든다" },
+      { t: 25, dir: "down", tip: "다음 주기의 요청" },
+      { t: 29, dir: "up", label: "변경 없음", muted: true, tip: "바뀐 것이 없어도 요청·응답 비용은 든다" },
+      { t: 45, dir: "down", tip: "다음 주기의 요청" },
+      { t: 49, dir: "up", label: "새 상태", tip: "변경(◆) 뒤 다음 요청에서야 받는다. 최대 한 주기 지연" },
+      { t: 65, dir: "down", tip: "다음 주기의 요청" },
+      { t: 69, dir: "up", label: "변경 없음", muted: true, tip: "이 응답 직후에 바뀌면 다음 주기까지 모른다" },
+      { t: 85, dir: "down", tip: "다음 주기의 요청" },
+      { t: 89, dir: "up", label: "새 상태", tip: "변경 뒤 약 한 주기가 지나서 도착" },
+    ] },
+    { band: { from: 8, label: "응답 하나가 열린 채" }, delays: [], msgs: [
+      { t: 5, dir: "down", label: "GET /events", tip: "Accept: text/event-stream. 서버는 이 응답을 닫지 않고 열어 둔다" },
+      { t: 36, dir: "up", label: "event", tip: "같은 응답으로 바로 흘려보낸다. id를 붙이면 재연결 때 Last-Event-ID 헤더로 돌아온다" },
+      { t: 55, dir: "up", label: ": keep-alive", muted: true, tip: "주석 줄. 프록시가 유휴 연결을 끊지 않도록 약 15초마다 보내길 권장" },
+      { t: 73, dir: "up", label: "event", tip: "변경 직후 같은 응답으로 도착" },
+    ] },
+    { band: { from: 19, label: "연결 하나로 양방향" }, delays: [], msgs: [
+      { t: 4, dir: "down", label: "Upgrade", tip: "GET + Upgrade: websocket 헤더로 프로토콜 전환을 요청" },
+      { t: 16, dir: "up", label: "101", tip: "101 Switching Protocols. 이후는 HTTP가 아닌 WebSocket 프레임" },
+      { t: 36, dir: "up", label: "message", tip: "서버가 바로 보낸다" },
+      { t: 56, dir: "down", label: "message", tip: "같은 연결로 보낸다. 별도 HTTP 요청이 없다" },
+      { t: 73, dir: "up", label: "message", tip: "변경 직후 도착" },
+    ] },
+  ];
+
+  const G = { W: 880, H: 110, B: 22, S: 92, x: (t) => 10 + t * 8.5 };
+  // Time runs left to right at the same scale in all three lanes, so latency after ◆ is directly comparable.
+  function drawFlow(svgEl, i) {
+    const flow = FLOWS[i], color = OPTIONS[i].color, k = LTT.MOTION_MS * 3 / 100;
+    const svg = d3.select(svgEl).attr("viewBox", `0 0 ${G.W} ${G.H}`).attr("class", "ltt-svg");
+    svg.selectAll("*").interrupt().remove();
+    const fade = (sel, delay) => k ? sel.attr("opacity", 0).transition().delay(delay).duration(160).attr("opacity", 1) : sel;
+    if (flow.band) {
+      const x0 = G.x(flow.band.from), r = svg.append("rect").attr("x", x0).attr("y", G.B).attr("height", G.S - G.B)
+        .attr("fill", color).attr("fill-opacity", 0.08).attr("width", k ? 0 : G.x(100) - x0);
+      if (k) r.transition().delay(flow.band.from * k).duration((100 - flow.band.from) * k).ease(d3.easeLinear).attr("width", G.x(100) - x0);
+      fade(svg.append("text").attr("x", G.x(100) - 4).attr("y", G.S - 6).attr("text-anchor", "end").text(flow.band.label), 100 * k);
+    }
+    for (const y of [G.B, G.S]) svg.append("line").attr("x1", G.x(0)).attr("x2", G.x(100)).attr("y1", y).attr("y2", y).attr("stroke", "var(--lifeline)");
+    for (const t of CHANGES) fade(svg.append("path").attr("d", `M${G.x(t)},${G.S - 6}l6,6l-6,6l-6,-6Z`).attr("fill", "var(--ltt-ink)"), t * k);
+    for (const m of flow.msgs) {
+      const x1 = G.x(m.t), x2 = G.x(m.t + 3), [y1, y2] = m.dir === "down" ? [G.B, G.S] : [G.S, G.B];
+      const stroke = m.muted ? "var(--deemph)" : color, len = Math.hypot(x2 - x1, y2 - y1);
+      const line = svg.append("line").attr("x1", x1).attr("y1", y1).attr("x2", x2).attr("y2", y2).attr("stroke", stroke).attr("stroke-width", 2.5);
+      line.append("title").text(m.tip);
+      if (k) line.attr("stroke-dasharray", len).attr("stroke-dashoffset", len).transition().delay(m.t * k).duration(160).attr("stroke-dashoffset", 0);
+      if (m.label) fade(svg.append("text").attr("x", x2 + 4).attr("y", m.dir === "up" ? G.B + 14 : G.S - 6).text(m.label), m.t * k + 160);
+    }
+  }
+  const SYM = { "✓": "sym-o", "△": "sym-w", "✗": "sym-x" };
+  const chips = (ids) => `<div class="chips">${ids.map((id) => `<span class="ltt-tag">${CONDITIONS.find((c) => c.id === id).short}</span>`).join("")}</div>`;
+  const recOf = (ids) => OPTIONS[recommend(ids).index].name;
+
+  LTT.deck({
+    title: "실시간 업데이트, 무엇으로 보낼까?",
+    scenes: [
+      { type: "hook", art: "📡",
+        text: "polling, SSE, WebSocket.<br>기능보다 <u>운영 조건</u>이 답을 바꾼다.",
+        sub: "주문 상태 알림을 붙일 때, '양방향이 필요한가'와 '연결이 어떤 길을 지나가나'가 먼저다." },
+
+      { kicker: "흐름", title: "같은 변경 두 번(◆), 세 방식의 메시지",
+        sub: "위 선이 브라우저, 아래 선이 서버. 회색 화살표는 '변경 없음' 응답. 선에 마우스를 올리면 설명.",
+        mount(body) {
+          body.innerHTML = OPTIONS.map((o) => `<div class="lane"><div><b style="color:${o.color}">${o.name}</b><small>${o.sub}</small></div><svg></svg></div>`).join("");
+          const svgs = body.querySelectorAll("svg");
+          return { enter() { svgs.forEach((s, i) => drawFlow(s, i)); } };
+        },
+        basis: "polling은 변경 뒤 최대 한 주기 늦게 받는다. SSE는 응답 하나를 열어 두고 흘려보내며, 프록시 유휴 끊김을 막으려 약 15초마다 주석(keep-alive)을 보내길 권장한다." },
+
+      { type: "predict", kicker: "짐작해 보기", title: "주문 상태 알림, 무엇을 고를까?",
+        sub: "서버 → 브라우저 한 방향 · 1초 안에 · 브라우저와 서버 사이 HTTP/2",
+        question: "주문 상태 알림(서버→브라우저, 1초, HTTP/2)의 전달 방식",
+        choices: OPTIONS.map((o, i) => ({ id: String(i), text: `${o.name} — ${o.sub}` })),
+        answer: String(recommend(["c7"]).index),
+        answerVisual(node) {
+          const r = recommend(["c7"]), c7 = CONDITIONS.find((c) => c.id === "c7");
+          node.innerHTML = `<table class="ct"><thead><tr><th></th>${OPTIONS.map((o, i) => `<th class="${i === r.index ? "rec" : ""}">${o.name}</th>`).join("")}</tr></thead>
+            <tbody><tr><td>${c7.short}</td>${c7.cells.map((x) => `<td class="${SYM[x[0]]}">${x[0]}</td>`).join("")}</tr>
+            <tr><td>규칙</td>${OPTIONS.map((o, i) => `<td class="ltt-rise" style="--i:${i}">${r.warn[i] ? `△${r.warn[i]} → 밀림` : i === r.index ? "더 단순 → 추천" : "양방향은 안 씀"}</td>`).join("")}</tr></tbody></table>`;
+        },
+        why: "SSE. 한 방향이면 WebSocket의 양방향은 쓰지 않는 복잡도다. SSE는 일반 HTTP 응답이라 재연결(Last-Event-ID)이 브라우저에 내장돼 있고, polling은 1초를 맞추려면 요청이 너무 많다." },
+
+      { type: "compare", kicker: "사례", title: "조건 하나가 바뀌면 답도 바뀐다",
+        sub: "가중치 없는 단순 규칙: ✗가 있으면 제외 → △가 적은 쪽 → 같으면 더 단순한 쪽.",
+        revealLabel: "규칙의 답 보기",
+        items: [
+          { label: "주문 상태 알림", visual: chips(["c7"]), tone: "good", verdict: recOf(["c7"]) },
+          { label: "같은 알림, HTTP/1.1 + 탭 여러 개", visual: chips(["c7", "c4"]), tone: "warn", verdict: recOf(["c7", "c4"]),
+            noteAfter: true, note: "SSE가 탭마다 도메인당 연결(보통 6개)을 하나씩 차지. HTTP/2로 바꿔 SSE를 유지하는 길도 있다." },
+          { label: "채팅", visual: chips(["c1", "c7"]), tone: "good", verdict: recOf(["c1", "c7"]),
+            noteAfter: true, note: "보내기도 실시간이면 한 연결 양방향이 맞다." },
+          { label: "채팅 + WebSocket 차단 프록시", visual: chips(["c1", "c7", "c5"]), tone: "bad", verdict: `규칙: ${recOf(["c1", "c7", "c5"])} (한계)`,
+            noteAfter: true, note: "실제로는 SSE + POST나 long-polling(Socket.IO 대체 경로)을 많이 쓴다. 규칙은 생각을 돕는 도구일 뿐." },
+        ] },
+
+      { kicker: "직접 바꿔 보기", title: "조건을 켜고 끄면 추천 열이 움직인다",
+        sub: "기호에 마우스를 올리면 이유가 나온다. ✓ 적합 · △ 주의 · ✗ 피함",
+        mount(body) {
+          body.innerHTML = `<table class="ct"><thead><tr><th></th>${OPTIONS.map((o) => `<th>${o.name}</th>`).join("")}</tr></thead><tbody>${CONDITIONS.map((c) =>
+            `<tr class="off"><td><label><input type="checkbox" data-id="${c.id}"> ${c.label}</label></td>${c.cells.map((x) =>
+              `<td class="${SYM[x[0]]}" title="${(x[1] || "").replace(/"/g, "&quot;")}">${x[0]}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+          const ths = body.querySelectorAll("thead th");
+          const render = () => {
+            const on = [...body.querySelectorAll("input:checked")].map((i) => i.dataset.id);
+            body.querySelectorAll("tbody tr").forEach((tr) => tr.classList.toggle("off", !tr.querySelector("input").checked));
+            const r = recommend(on);
+            OPTIONS.forEach((o, i) => { ths[i + 1].className = r.dropped[i] ? "drop" : i === r.index ? "rec" : ""; ths[i + 1].textContent = `${o.name} △${r.warn[i]}`; });
+          };
+          body.querySelector("[data-id=c7]").checked = true;
+          body.addEventListener("change", render);
+          render();
+          return {};
+        },
+        basis: "초록 열이 규칙의 추천. 실제 결정에서는 △의 무게가 다르다. WebSocket 연결 수 관리가 HTTP 풀과 별개라는 점은 브라우저 소스 기준이며 공식 문서는 아니다(불확실)." },
+
+      { type: "explain", kicker: "운영 함정", title: "배포하고 나서야 보이는 것", arrows: false,
+        steps: [
+          { icon: "6️⃣", title: "HTTP/1.1 연결 제한", text: "도메인당 동시 연결 보통 6개. SSE 탭이 많으면 고갈. HTTP/2는 한 연결에 다중화(흔히 100 스트림)." },
+          { icon: "🧱", title: "프록시", text: "WebSocket 업그레이드를 막는 기업망이 있다. SSE는 버퍼링에 막힐 수 있다(nginx X-Accel-Buffering: no)." },
+          { icon: "🔁", title: "재연결", text: "SSE는 브라우저가 자동 재연결 + Last-Event-ID. WebSocket은 직접 구현하거나 라이브러리." },
+          { icon: "🔤", title: "바이너리", text: "SSE 이벤트는 UTF-8 텍스트만. base64면 크기 약 33% 증가." },
+        ],
+        basis: "출처: MDN EventSource · WHATWG HTML Server-sent events · RFC 6455 · Socket.IO docs · nginx proxy_buffering · RFC 9113" },
+
+      { type: "keywords", title: "다음에 비슷한 걸 만나면",
+        terms: [{ ko: "서버 전송 이벤트", en: "Server-Sent Events (EventSource)" }, { ko: "웹소켓", en: "WebSocket (RFC 6455)" }, { ko: "롱 폴링", en: "long polling" }],
+        signals: ["\"실시간\"이라는 말에 WebSocket부터 떠오를 때", "알림이 사내망·특정 고객사에서만 안 올 때", "탭을 여러 개 열면 페이지가 멈출 때"],
+        queries: ["SSE vs WebSocket vs long polling", "EventSource Last-Event-ID reconnect", "SSE HTTP/1.1 6 connection limit", "nginx X-Accel-Buffering SSE", "Socket.IO fallback long-polling corporate proxy"],
+        neighbors: [
+          { term: "long polling", diff: "응답을 변경 때까지 붙잡아 두는 polling. 짧은 주기 polling과 지연·부하가 다르다." },
+          { term: "WebTransport", diff: "HTTP/3 위의 양방향 전송. 브라우저·서버 지원을 따로 확인해야 한다." },
+          { term: "Web Push", diff: "탭이 닫혀 있어도 오는 OS 알림. 열린 페이지 실시간 갱신과 다른 문제." },
+        ] },
+    ],
+  });
+</script>
+</body>
+</html>

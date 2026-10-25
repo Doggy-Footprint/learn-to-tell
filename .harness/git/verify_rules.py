@@ -9,7 +9,7 @@ Covers only rules that can be verified without judgement calls:
     consistency between code and <docs_root>/synced-comments/<id>.md, plus
     checking the tracking file's code_hash against participating files'
     non-comment content), scanned over `git ls-files` only
-  - Required headings for try-n-fail/ and handoff/ managed files
+  - Required headings for rejections/ and handoff/ managed files
 
 Exit code is non-zero if any rule is violated.
 """
@@ -43,12 +43,15 @@ TEXT_FILE_EXTS = {
 }
 
 REQUIRED_HEADINGS = {
-    PATHS.try_n_fail: [
-        "## Goal",
-        "## Attempts",
+    PATHS.rejections: [
+        "## Context",
+        "## Rejected Alternative",
+        "## Reason",
         "## Revisit Condition",
+        "## Chosen Instead",
     ],
     PATHS.handoff: [
+        "## Goal",
         "## State",
         "## Failed Attempts",
         "## Next Step",
@@ -56,7 +59,6 @@ REQUIRED_HEADINGS = {
     ],
 }
 WORKFLOW_DOC_DIRS = {"specs", "spec-logs"}
-RETIRED_DOC_DIRS = {"adr", "rejections"}
 
 
 def rel(path: Path) -> str:
@@ -70,7 +72,7 @@ def iter_docs_root_files():
         if not path.is_file():
             continue
         docs_parts = path.relative_to(PATHS.docs_root).parts
-        if "stale" in docs_parts or (docs_parts and docs_parts[0] in WORKFLOW_DOC_DIRS | RETIRED_DOC_DIRS):
+        if "stale" in docs_parts or (docs_parts and docs_parts[0] in WORKFLOW_DOC_DIRS):
             continue
         if any(part in EXCLUDE_DIRS for part in path.relative_to(REPO_ROOT).parts):
             continue
@@ -286,8 +288,6 @@ def check_required_headings(errors: list):
                 h for h in headings
                 if not re.search(rf"(?m)^{re.escape(h)}\s*$", text)
             ]
-            if directory == PATHS.handoff and not re.search(r"(?m)^## (User Query|Goal)\s*$", text):
-                missing.insert(0, "## User Query")
             if directory == PATHS.handoff and not re.search(r"(?m)^## Contract Snapshot\s*$", text):
                 missing.extend(
                     heading for heading in ("## Spec", "## Execution Ledger")

@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>온도조절기 오버슈트</title>
+<script type="application/json" id="ltt-meta">{"topic":"온도조절기 되먹임 루프와 오버슈트","audience":"제어 입문자","theme":"lab","medium":"실험 노트 플롯","decision":"히스테리시스 폭과 난방 지연"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .th { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+  .th svg { width: 100%; height: auto; display: block; }
+  .th svg text { font-family: inherit; fill: var(--ltt-ink); }
+  .th .t-mute { fill: var(--ltt-muted); }
+  .th .t-ink2 { fill: var(--ltt-ink-2); }
+  .th-controls { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: center; }
+  .th-controls .ltt-param { margin: 0; }
+  .th-stats { display: flex; flex-wrap: wrap; gap: 6px 26px; align-items: baseline; margin-left: auto; }
+  .th-stats span { color: var(--ltt-ink-2); }
+  .th-stats .ltt-hero { margin-left: 6px; }
+</style>
+</head>
+<body>
+<script>
+(() => {
+  const SVG = "http://www.w3.org/2000/svg";
+  const TS = 21, GAIN = 0.8, LOSS = 0.04, TOUT = 14, T0 = 17, DT = 0.05, DUR = 60;
+  const X0 = 100, X1 = 1110, Y0 = 190, Y1 = 470, TMIN = 16, TMAX = 26.5;
+  const xs = (t) => X0 + (t / DUR) * (X1 - X0);
+  const ys = (T) => Y1 - ((T - TMIN) / (TMAX - TMIN)) * (Y1 - Y0);
+  const PIPE = [425, 940], REAL_S = 15, HOLD_S = 2.8;
+  const RING = [[1080, 30], [1130, 30], [1130, 112], [70, 112], [70, 30], [95, 30]];
+  const RLEN = []; let rsum = 0;
+  RING.forEach((p, i) => { if (i) rsum += Math.hypot(p[0] - RING[i - 1][0], p[1] - RING[i - 1][1]); RLEN.push(rsum); });
+  const ringPos = (f) => {
+    const s = f * rsum; let i = 1;
+    while (i < RING.length - 1 && RLEN[i] < s) i++;
+    const k = (s - RLEN[i - 1]) / (RLEN[i] - RLEN[i - 1]);
+    return [RING[i - 1][0] + k * (RING[i][0] - RING[i - 1][0]), RING[i - 1][1] + k * (RING[i][1] - RING[i - 1][1])];
+  };
+
+  // 모델: 온도조절기(히스테리시스) → 히터 명령 u → d분 뒤 열 도착 → 방
+  function sim(h, d) {
+    const n = Math.round(DUR / DT), lag = Math.round(d / DT);
+    const T = [T0], u = [], p = []; let on = 1;
+    for (let i = 0; i < n; i++) {
+      const t = T[i];
+      if (t < TS - h) on = 1; else if (t > TS + h) on = 0;
+      u.push(on);
+      const pd = i - lag >= 0 ? u[i - lag] : 0;
+      p.push(pd);
+      T.push(t + DT * (GAIN * pd - LOSS * (t - TOUT)));
+    }
+    return { T, u, p, n };
+  }
+  const runPath = (T) => { let s = ""; for (let i = 0; i < T.length; i += 4) s += (i ? "L" : "M") + xs(i * DT).toFixed(1) + "," + ys(T[i]).toFixed(1); return s; };
+  const barsPath = (a, y, hgt) => {
+    let s = "", st = -1;
+    for (let i = 0; i <= a.length; i++) {
+      const v = i < a.length ? a[i] : 0;
+      if (v && st < 0) st = i;
+      if (!v && st >= 0) { s += `M${xs(st * DT).toFixed(1)},${y}h${(xs(i * DT) - xs(st * DT)).toFixed(1)}v${hgt}h-${(xs(i * DT) - xs(st * DT)).toFixed(1)}z`; st = -1; }
+    }
+    return s;
+  };
+
+  function mount(body) {
+    const yTicks = [16, 18, 20, 22, 24, 26];
+    const xTicks = [0, 10, 20, 30, 40, 50, 60];
+    body.innerHTML = `
+    <div class="th">
+      <svg viewBox="0 0 1200 590" role="img" aria-label="온도조절기 되먹임 고리와 방 온도 그래프">
+        <defs><clipPath id="th-clip"><rect id="th-reveal" x="${X0}" y="150" width="0" height="440"></rect></clipPath></defs>
+        <!-- 고리 -->
+        <path d="M95,30H1130V112H70V30" fill="none" stroke="var(--ltt-line-2)" stroke-width="2"></path>
+        <rect x="${PIPE[0]}" y="21" width="${PIPE[1] - PIPE[0]}" height="18" rx="9" fill="var(--ltt-card-2)" stroke="var(--ltt-line-2)" stroke-width="1.5"></rect>
+        <g id="th-rings"></g>
+        <g id="th-heat"></g>
+        <g>
+          <rect id="th-cmp" x="95" y="8" width="150" height="44" rx="8" fill="var(--ltt-card)" stroke="var(--ltt-ink-2)" stroke-width="2"></rect>
+          <text x="170" y="27" text-anchor="middle" font-size="16" font-weight="700">비교기</text>
+          <text id="th-cmp-s" x="170" y="45" text-anchor="middle" font-size="15" class="t-ink2">켜짐</text>
+          <rect id="th-htr" x="315" y="8" width="110" height="44" rx="8" fill="var(--ltt-card)" stroke="var(--ltt-ink-2)" stroke-width="2"></rect>
+          <text x="370" y="36" text-anchor="middle" font-size="17" font-weight="700">히터</text>
+          <rect x="940" y="8" width="140" height="44" rx="8" fill="var(--ltt-card)" stroke="var(--ltt-ink-2)" stroke-width="2"></rect>
+          <text x="978" y="36" text-anchor="middle" font-size="17" font-weight="700">방</text>
+          <text id="th-room" x="1038" y="36" text-anchor="middle" font-size="17" font-weight="700">17.0°C</text>
+          <rect x="535" y="92" width="130" height="40" rx="8" fill="var(--ltt-card)" stroke="var(--ltt-ink-2)" stroke-width="2"></rect>
+          <text x="600" y="118" text-anchor="middle" font-size="16" font-weight="700">온도 센서</text>
+        </g>
+        <text id="th-thr" x="170" y="72" text-anchor="middle" font-size="14" class="t-mute"></text>
+        <text id="th-pipe-l" x="${(PIPE[0] + PIPE[1]) / 2}" y="68" text-anchor="middle" font-size="15" class="t-ink2"></text>
+        <text x="300" y="107" text-anchor="middle" font-size="14" class="t-mute">측정값(고리)이 되돌아온다</text>
+
+        <!-- 플롯 -->
+        <text x="${X0 - 8}" y="${Y0 - 16}" text-anchor="end" font-size="15" class="t-mute">방 온도 °C</text>
+        <g id="th-grid"></g>
+        <rect id="th-band" x="${X0}" width="${X1 - X0}" fill="var(--ltt-accent-soft)"></rect>
+        <line x1="${X0}" x2="${X1}" y1="${ys(TS)}" y2="${ys(TS)}" stroke="var(--ltt-accent)" stroke-width="1.5" stroke-dasharray="6 5"></line>
+        <text x="${X1 + 8}" y="${ys(TS) + 5}" font-size="15" class="t-ink2">설정 21°C</text>
+        <g clip-path="url(#th-clip)">
+          <path id="th-base" fill="none" stroke="var(--ltt-muted)" stroke-width="2.2" stroke-dasharray="5 4"></path>
+          <path id="th-run" fill="none" stroke="var(--ltt-accent)" stroke-width="3.4" stroke-linejoin="round"></path>
+          <path id="th-cmd" fill="var(--ltt-c1)"></path>
+          <path id="th-pw" fill="var(--ltt-c2)"></path>
+        </g>
+        <text x="${X0 - 8}" y="497" text-anchor="end" font-size="14" class="t-ink2">켜짐 명령</text>
+        <text x="${X0 - 8}" y="527" text-anchor="end" font-size="14" class="t-ink2">도착한 열</text>
+        <line x1="${X0}" x2="${X1}" y1="${Y1}" y2="${Y1}" stroke="var(--ltt-line-2)" stroke-width="1.5"></line>
+        <g id="th-xt"></g>
+        <text x="${(X0 + X1) / 2}" y="580" text-anchor="middle" font-size="15" class="t-mute">시간 (분)</text>
+        <g id="th-ann" opacity="0">
+          <line id="th-g1" y1="${Y0 + 6}" y2="520" stroke="var(--ltt-muted)" stroke-width="1.2" stroke-dasharray="3 4"></line>
+          <line id="th-g2" y1="${Y1}" y2="520" stroke="var(--ltt-muted)" stroke-width="1.2" stroke-dasharray="3 4"></line>
+          <text id="th-g1t" y="${Y0 + 22}" font-size="15" font-weight="700" text-anchor="middle">꺼짐 신호</text>
+          <line id="th-dl" y1="508" y2="508" stroke="var(--ltt-ink)" stroke-width="2"></line>
+          <text id="th-dlt" y="513" font-size="15" font-weight="700"></text>
+        </g>
+        <g id="th-os" opacity="0">
+          <line id="th-osl" stroke="var(--ltt-warn)" stroke-width="4" stroke-linecap="round"></line>
+          <text id="th-ost" font-size="17" font-weight="700"></text>
+        </g>
+        <circle id="th-head" r="8" fill="var(--ltt-accent)" stroke="var(--ltt-bg)" stroke-width="2.5"></circle>
+        <text id="th-headt" font-size="16" font-weight="700"></text>
+      </svg>
+      <div class="th-controls">
+        <div class="ltt-param">히스테리시스 폭 <b id="hys-v"></b><div id="hys"></div></div>
+        <div class="ltt-param">난방 지연 <b id="dly-v"></b><div id="dly"></div></div>
+        <div class="th-stats">
+          <span>최고 온도<b class="ltt-hero" id="th-pk"></b></span>
+          <span>켜진 횟수<b class="ltt-hero" id="th-cn"></b></span>
+        </div>
+      </div>
+    </div>`;
+    const $ = (id) => body.querySelector("#" + id);
+    const mk = (tag, attrs, parent) => { const e = document.createElementNS(SVG, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+
+    // 눈금
+    const grid = $("th-grid");
+    yTicks.forEach((T) => {
+      mk("line", { x1: X0, x2: X1, y1: ys(T), y2: ys(T), stroke: "var(--ltt-line)", "stroke-width": 1 }, grid);
+      const t = mk("text", { x: X0 - 8, y: ys(T) + 5, "text-anchor": "end", "font-size": 15, class: "t-mute" }, grid); t.textContent = T;
+    });
+    xTicks.forEach((t) => {
+      mk("line", { x1: xs(t), x2: xs(t), y1: Y1, y2: Y1 + 6, stroke: "var(--ltt-line-2)", "stroke-width": 1.5 }, $("th-xt"));
+      const e = mk("text", { x: xs(t), y: 553, "text-anchor": "middle", "font-size": 15, class: "t-mute" }, $("th-xt")); e.textContent = t;
+    });
+    // 입자 풀
+    const heat = [], rings = [];
+    for (let i = 0; i < 24; i++) heat.push(mk("circle", { r: 6.5, cy: 30, fill: "var(--ltt-c2)", opacity: 0 }, $("th-heat")));
+    for (let i = 0; i < 6; i++) rings.push(mk("circle", { r: 7, fill: "var(--ltt-bg)", stroke: "var(--ltt-ink-2)", "stroke-width": 2.4 }, $("th-rings")));
+
+    let h = 0.6, d = 5, run, base, off = -1, pk = -1, started = false, raf = 0, t0 = 0, still = false;
+
+    function build() {
+      run = sim(h, d); base = sim(h, 0);
+      $("th-run").setAttribute("d", runPath(run.T));
+      $("th-base").setAttribute("d", runPath(base.T));
+      $("th-cmd").setAttribute("d", barsPath(run.u, 486, 12));
+      $("th-pw").setAttribute("d", barsPath(run.p, 516, 12));
+      $("th-band").setAttribute("y", ys(TS + h)); $("th-band").setAttribute("height", ys(TS - h) - ys(TS + h));
+      $("th-thr").textContent = `켜짐 ${(TS - h).toFixed(1)}° 아래 · 꺼짐 ${(TS + h).toFixed(1)}° 위`;
+      $("th-pipe-l").textContent = `열이 방까지 가는 길 · 지연 ${d}분`;
+      off = run.u.findIndex((v, i) => i && run.u[i - 1] === 1 && v === 0);
+      pk = off;
+      while (pk + 1 < run.T.length && run.T[pk + 1] >= run.T[pk]) pk++;
+      const over = run.T[pk] - (TS + h);
+      const tOff = off * DT, tPk = pk * DT;
+      $("th-g1").setAttribute("x1", xs(tOff)); $("th-g1").setAttribute("x2", xs(tOff)); $("th-g1t").setAttribute("x", xs(tOff));
+      $("th-g2").setAttribute("x1", xs(tOff + d)); $("th-g2").setAttribute("x2", xs(tOff + d));
+      $("th-dl").setAttribute("x1", xs(tOff)); $("th-dl").setAttribute("x2", xs(tOff + d));
+      $("th-dlt").setAttribute("x", xs(tOff + d) + 10); $("th-dlt").textContent = `지연 ${d}분`;
+      $("th-osl").setAttribute("x1", xs(tPk)); $("th-osl").setAttribute("x2", xs(tPk));
+      $("th-osl").setAttribute("y1", ys(TS + h)); $("th-osl").setAttribute("y2", ys(run.T[pk]));
+      $("th-ost").setAttribute("x", xs(tPk) + 12); $("th-ost").setAttribute("y", (ys(TS + h) + ys(run.T[pk])) / 2 + 6);
+      $("th-ost").textContent = `오버슈트 +${over.toFixed(1)}°C`;
+      let cnt = 0; run.u.forEach((v, i) => { if (v && (i === 0 || !run.u[i - 1])) cnt++; });
+      $("th-pk").innerHTML = `${Math.max(...run.T).toFixed(1)}<small>°C</small>`;
+      $("th-cn").innerHTML = `${cnt}<small>회</small>`;
+    }
+
+    function update(t) {
+      const i = Math.min(run.n, Math.round(t / DT)), T = run.T[i];
+      $("th-reveal").setAttribute("width", Math.max(0, xs(t) - X0));
+      $("th-head").setAttribute("cx", xs(t)); $("th-head").setAttribute("cy", ys(T));
+      const ht = $("th-headt"); ht.textContent = T.toFixed(1) + "°C";
+      ht.setAttribute("x", Math.min(xs(t) + 4, X1 - 60)); ht.setAttribute("y", ys(T) - 16);
+      $("th-room").textContent = T.toFixed(1) + "°C";
+      const on = run.u[Math.min(i, run.n - 1)] === 1;
+      $("th-cmp-s").textContent = on ? "켜짐" : "꺼짐";
+      $("th-cmp").setAttribute("stroke", on ? "var(--ltt-c2)" : "var(--ltt-ink-2)");
+      $("th-htr").setAttribute("stroke", on ? "var(--ltt-c2)" : "var(--ltt-ink-2)");
+      $("th-cmp").setAttribute("stroke-width", on ? 3.5 : 2); $("th-htr").setAttribute("stroke-width", on ? 3.5 : 2);
+      // 열 입자: 0.5분마다 히터를 떠나 d분 뒤 방에 닿는다
+      const dd = Math.max(d, 0.5); let n = 0;
+      for (let k = Math.max(0, Math.ceil((t - dd) / 0.5)); k * 0.5 <= t && n < heat.length; k++) {
+        const te = k * 0.5, idx = Math.round(te / DT);
+        if (idx >= run.n || !run.u[idx]) continue;
+        const f = (t - te) / dd;
+        heat[n].setAttribute("cx", PIPE[0] + f * (PIPE[1] - 12 - PIPE[0]));
+        heat[n].setAttribute("opacity", 1); n++;
+      }
+      for (; n < heat.length; n++) heat[n].setAttribute("opacity", 0);
+      // 측정값 고리: 방 → 센서 → 비교기
+      rings.forEach((r, j) => { const p = ringPos(((t / 9) + j / rings.length) % 1); r.setAttribute("cx", p[0]); r.setAttribute("cy", p[1]); });
+      const tOff = off * DT, tPk = pk * DT;
+      $("th-ann").setAttribute("opacity", t >= tOff + d ? 1 : 0);
+      $("th-os").setAttribute("opacity", t >= tPk ? 1 : 0);
+    }
+
+    function frame(ts) {
+      if (!t0) t0 = ts;
+      const k = ((ts - t0) / 1000) % (REAL_S + HOLD_S);
+      update(Math.min(k / REAL_S, 1) * DUR);
+      raf = requestAnimationFrame(frame);
+    }
+    function restart() {
+      cancelAnimationFrame(raf); t0 = 0;
+      if (LTT.MOTION_MS === 0 || still) update(DUR); else raf = requestAnimationFrame(frame);
+    }
+    function start() { if (started) return; started = true; restart(); }
+    function stop() { started = false; cancelAnimationFrame(raf); }
+
+    LTT.sweep({
+      params: {
+        hys: { kind: "steps", stops: [0.3, 0.6, 1.0], value: 0.6, fmt: (v) => "±" + v.toFixed(1) + "°C" },
+        dly: { kind: "steps", stops: [2, 5, 8], value: 5, fmt: (v) => v + "분" }
+      },
+      render: ({ hys, dly }) => { h = hys; d = dly; build(); if (started) restart(); else update(DUR); }
+    });
+    start();
+    return { enter: start, leave: stop };
+  }
+
+  LTT.deck({
+    title: "온도조절기 오버슈트",
+    theme: "lab",
+    glossary: {
+      "히스테리시스": "켜는 온도와 끄는 온도를 일부러 다르게 두어, 설정값 근처에서 켜졌다 꺼졌다를 되풀이하지 않게 하는 간격",
+      "오버슈트": "목표값을 넘어서 더 멀리 가 버린 양"
+    },
+    scenes: [{
+      type: "hook",
+      title: "히터를 끈 뒤에도 방은 계속 데워진다",
+      sub: "방이 설정 21°C의 {{히스테리시스}} 폭을 넘으면 히터가 꺼진다. 그래도 길 위의 열이 더 도착해서 {{오버슈트}}가 생긴다.",
+      mount,
+      takeaway: "꺼짐 신호가 가도 이미 출발한 열은 방에 닿는다. 오버슈트는 폭보다 난방 지연이 키운다.",
+      recall: "폭을 두 배로 늘리는 것과 지연을 줄이는 것 중, 최고 온도를 더 낮추는 쪽은?"
+    }]
+  });
+})();
+</script>
+</body>
+</html>

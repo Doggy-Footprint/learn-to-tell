@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>편향-분산 트레이드오프</title>
+<script type="application/json" id="ltt-meta">{"topic":"편향-분산 트레이드오프","audience":"ML 입문 개발자","theme":"lab","medium":"실험 플롯","decision":"모델 복잡도(다항식 차수) 고르기","domain":"ML","pattern":["figure"],"mode":"카탈로그용: 장면 하나짜리 본보기. 트레이드오프 구조를 \"값이 쌓임\" 움직임과 중앙 주인공 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.bv-wrap{display:flex;justify-content:center;width:100%}
+.bv{width:100%;max-width:1000px;height:auto;max-height:68vh;display:block}
+.bv text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+
+// 실험 설정: 참 함수 f, 관측 잡음 σ, 고정 설계점 n개(x는 [-1,1] 등간격). 차수 d 다항식 = 파라미터 p=d+1개 최소제곱
+const N = 15, SIGMA = 0.4, NOISE = SIGMA * SIGMA, DEG = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const f = (x) => Math.sin(4 * x + 1);
+const XS = Array.from({ length: N }, (_, i) => -1 + 2 * i / (N - 1));
+const cheb = (x, p) => { const t = [1, x]; for (let k = 2; k < p; k++) t.push(2 * x * t[k - 1] - t[k - 2]); return t.slice(0, p); };
+function solve(A, b) { // 가우스 소거(부분 피벗)
+  const n = b.length, M = A.map((r, i) => [...r, b[i]]);
+  for (let c = 0; c < n; c++) {
+    let m = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[m][c])) m = r;
+    [M[c], M[m]] = [M[m], M[c]];
+    for (let r = c + 1; r < n; r++) { const q = M[r][c] / M[c][c]; for (let k = c; k <= n; k++) M[r][k] -= q * M[c][k]; }
+  }
+  const x = Array(n).fill(0);
+  for (let r = n - 1; r >= 0; r--) { let s = M[r][n]; for (let k = r + 1; k < n; k++) s -= M[r][k] * x[k]; x[r] = s / M[r][r]; }
+  return x;
+}
+// 오차 분해(기댓값, 데이터셋을 무한히 다시 뽑았을 때): 설계점 위에서 해석적으로 계산
+//   편향² = 평균 (f - H f)², 분산 = σ² tr(H)/n, 잡음 = σ²   (H: 최소제곱 모자 행렬)
+function model(d) {
+  const p = d + 1, B = XS.map((x) => cheb(x, p));
+  const G = Array.from({ length: p }, (_, a) => Array.from({ length: p }, (_, b) => B.reduce((s, r) => s + r[a] * r[b], 0)));
+  const fv = XS.map(f), c = solve(G, Array.from({ length: p }, (_, a) => B.reduce((s, r, i) => s + r[a] * fv[i], 0)));
+  const bias = B.reduce((s, r, i) => s + Math.pow(fv[i] - r.reduce((t, v, k) => t + v * c[k], 0), 2), 0) / N;
+  const tr = B.reduce((s, r) => { const z = solve(G, r); return s + r.reduce((t, v, k) => t + v * z[k], 0); }, 0);
+  const variance = NOISE * tr / N;
+  return { d, p, tr, bias, variance, test: bias + variance + NOISE, train: bias + NOISE * (1 - tr / N) };
+}
+const M = DEG.map(model);
+const BEST = M.reduce((a, b) => (b.test < a.test ? b : a));
+LTT.expect("차수 3 분산 = σ²·4/n", M[2].variance, 0.16 * 4 / 15, { tol: 1e-9 });
+LTT.expect("차수 5 시험-훈련 오차 간격 = 2σ²·6/n", M[4].test - M[4].train, 2 * 0.16 * 6 / 15, { tol: 1e-9 });
+LTT.expect("차수 12 모자 행렬 대각합 = 파라미터 수 13", M[11].tr, 13, { tol: 1e-6 });
+
+function plot(host) {
+  const W = 1000, H = 540, L = 96, R = 950, TOP = 84, BOT = 410, NB = DEG.length;
+  const YMAX = Math.ceil(Math.max(...M.map((m) => Math.max(m.test, m.train))) * 10) / 10 + 0.1;
+  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "bv", "data-annotate": "" }, host);
+  const gx = (i) => L + (R - L) * (i + 0.5) / NB, yv = (v) => BOT - (BOT - TOP) * v / YMAX, bw = 46;
+  for (let v = 0; v <= YMAX + 1e-9; v += 0.2) {
+    mk("line", { x1: L, x2: R, y1: yv(v), y2: yv(v), style: "stroke:var(--ltt-line);stroke-dasharray:3 6" }, s);
+    const t = mk("text", { x: L - 10, y: yv(v) + 5, "text-anchor": "end", style: "font-size:14px;fill:var(--ltt-muted)" }, s); t.textContent = v.toFixed(1);
+  }
+  mk("line", { x1: L, x2: R, y1: BOT, y2: BOT, style: "stroke:var(--ltt-ink);stroke-width:2" }, s);
+  const yl = mk("text", { x: L - 10, y: TOP - 28, "text-anchor": "end", style: "font-size:14px;fill:var(--ltt-ink-2)" }, s); yl.textContent = "기대 오차 (MSE)";
+  const xl = mk("text", { x: (L + R) / 2, y: BOT + 58, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, s); xl.textContent = "다항식 차수 (모델 복잡도)";
+  const z1 = mk("text", { x: L, y: BOT + 84, style: "font-size:14px;fill:var(--ltt-muted)" }, s); z1.textContent = "← 단순: 편향이 크다 (과소적합)";
+  const z2 = mk("text", { x: R, y: BOT + 84, "text-anchor": "end", style: "font-size:14px;fill:var(--ltt-muted)" }, s); z2.textContent = "복잡: 분산이 커진다 (과적합) →";
+
+  const cols = M.map((m, i) => {
+    const g = mk("g", { style: "opacity:0" }, s);
+    const nz = mk("rect", { x: gx(i) - bw / 2, width: bw, y: BOT, height: 0, style: "fill:var(--ltt-c3)" }, g);
+    const bi = mk("rect", { x: gx(i) - bw / 2, width: bw, y: BOT, height: 0, style: "fill:var(--ltt-c1)" }, g);
+    const va = mk("rect", { x: gx(i) - bw / 2, width: bw, y: BOT, height: 0, style: "fill:var(--ltt-c2)" }, g);
+    const num = mk("text", { x: gx(i), "text-anchor": "middle", y: BOT, style: "font-size:14px;font-weight:700;fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-bg);stroke-width:4px" }, g); num.textContent = m.test.toFixed(2);
+    const dg = mk("text", { x: gx(i), y: BOT + 24, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, s); dg.textContent = m.d;
+    return { g, nz, bi, va, num };
+  });
+  const train = mk("path", { style: "fill:none;stroke:var(--ltt-ink);stroke-width:3;stroke-dasharray:7 5;stroke-linejoin:round;paint-order:stroke" }, s);
+  const tdots = M.map((m, i) => mk("circle", { cx: gx(i), cy: yv(m.train), r: 5, style: "fill:var(--ltt-ink);stroke:var(--ltt-bg);stroke-width:2;opacity:0" }, s));
+  const tl = mk("text", { x: gx(NB - 1) + 6, y: yv(M[NB - 1].train) + 24, "text-anchor": "end", style: "font-size:14px;font-weight:700;fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-bg);stroke-width:4px;opacity:0" }, s); tl.textContent = "훈련 오차는 계속 내려간다";
+  const bi = BEST.d - 1, hl = mk("rect", { x: gx(bi) - bw / 2 - 7, y: yv(BEST.test) - 30, width: bw + 14, height: BOT - yv(BEST.test) + 36, rx: 6, style: "fill:none;stroke:var(--ltt-accent);stroke-width:3.5;opacity:0" }, s);
+  const ht = mk("text", { x: gx(bi), y: yv(BEST.test) - 42, "text-anchor": "middle", style: "font-size:17px;font-weight:800;fill:var(--ltt-accent);opacity:0" }, s); ht.textContent = `시험 오차 최소 · 차수 ${BEST.d}`;
+
+  const lg = mk("g", {}, s);
+  [["var(--ltt-c3)", "잡음 σ² (못 줄임)", 0], ["var(--ltt-c1)", "편향²", 215], ["var(--ltt-c2)", "분산", 330]].forEach(([c, t, dx]) => {
+    mk("rect", { x: L + dx, y: 10, width: 14, height: 14, rx: 2, style: `fill:${c}` }, lg);
+    const tx = mk("text", { x: L + dx + 22, y: 22, style: "font-size:14px;fill:var(--ltt-ink-2)" }, lg); tx.textContent = t; });
+  mk("line", { x1: L + 420, x2: L + 450, y1: 17, y2: 17, style: "stroke:var(--ltt-ink);stroke-width:3;stroke-dasharray:6 4" }, lg);
+  const l4 = mk("text", { x: L + 458, y: 22, style: "font-size:14px;fill:var(--ltt-ink-2)" }, lg); l4.textContent = "훈련 오차 (막대 합 = 시험 오차)";
+
+  // 11초 한 바퀴: 차수별로 잡음→편향²→분산 순서로 쌓임 → 훈련 오차선 → 최소점 강조 → 멈춤 → 지움
+  function draw(u) {
+    const T = u * 11, out = clamp((T - 10.2) / .8), prog = clamp((T - .4) / 6) * NB;
+    const pts = [];
+    cols.forEach((c, i) => {
+      const k = clamp(prog - i), e = ease(k), m = M[i];
+      const hn = (BOT - yv(NOISE)) * clamp(e / .3), hb = (BOT - yv(m.bias)) * clamp((e - .3) / .35), hv = (BOT - yv(m.variance)) * clamp((e - .65) / .35);
+      c.g.style.opacity = k > 0 ? 1 - out : 0;
+      c.nz.setAttribute("y", BOT - hn); c.nz.setAttribute("height", hn);
+      c.bi.setAttribute("y", BOT - hn - hb); c.bi.setAttribute("height", hb);
+      c.va.setAttribute("y", BOT - hn - hb - hv); c.va.setAttribute("height", hv);
+      c.num.setAttribute("y", BOT - hn - hb - hv - 8); c.num.style.opacity = clamp((k - .9) * 10);
+      if (k > .95) pts.push([gx(i), yv(m.train)]);
+      tdots[i].style.opacity = k > .95 ? 1 - out : 0;
+    });
+    train.setAttribute("d", pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join(""));
+    train.style.opacity = 1 - out; tl.style.opacity = clamp((T - 6.6) / .5) * (1 - out);
+    const h = ease(clamp((T - 7.4) / .8)) * (1 - out); hl.style.opacity = h; ht.style.opacity = h;
+  }
+  return { el: s, draw };
+}
+
+function loop(node, period, draw) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { draw(0.85); return { leave() {} }; }
+  let id = 0; const t0 = Date.now();
+  const fr = () => { if (!node.isConnected) return; draw(((Date.now() - t0) / period) % 1); id = setTimeout(fr, 16); };
+  fr(); return { leave() { clearTimeout(id); } };
+}
+
+let run = null;
+const r2 = (v) => v.toFixed(2);
+LTT.deck({
+  title: "복잡도 모델 선택", theme: "lab",
+  glossary: { "편향": "모델이 너무 단순해서, 데이터를 무한히 모아도 남는 체계적 오차", "분산": "학습 데이터가 바뀔 때마다 적합 결과가 흔들려서 생기는 오차", "시험 오차": "학습에 쓰지 않은 새 데이터에서 재는 기대 오차 = 편향² + 분산 + 잡음" },
+  scenes: [{
+    type: "figure", title: "차수를 올리면 편향은 줄고 분산이 쌓인다",
+    sub: "차수마다 막대 하나가 {{시험 오차}}다. 아래부터 잡음, {{편향}}², {{분산}}이 쌓이고 점선은 훈련 오차다.",
+    figure: '<div class="bv-wrap"></div>',
+    enter: () => { const w = document.querySelector(".bv-wrap"); if (!w) return; w.innerHTML = "";
+      const p = plot(w); run && run.leave(); run = loop(p.el, 11000, p.draw); },
+    caption: `차수 1은 편향² ${r2(M[0].bias)}가 대부분이고, 차수 12는 분산이 ${r2(M[11].variance)}까지 쌓인다. 합이 가장 작은 차수 ${BEST.d}(${r2(BEST.test)})를 고른다.`,
+    basis: "설정은 가정이다: 참 함수 sin(4x+1), 잡음 σ=0.4, 관측점 n=15개(x는 [-1,1] 등간격), 차수 d는 최소제곱. 편향²=평균(f−Hf)², 분산=σ²·tr(H)/n(H는 모자 행렬)으로 데이터셋 재추출의 기댓값을 해석적으로 계산했다. 훈련 오차=편향²+σ²(1−p/n).",
+    takeaway: "훈련 오차가 가장 작은 차수가 아니라, 시험 오차가 가장 작은 차수를 고른다.",
+    leave: () => run && run.leave()
+  }]
+});
+</script>
+</body>
+</html>

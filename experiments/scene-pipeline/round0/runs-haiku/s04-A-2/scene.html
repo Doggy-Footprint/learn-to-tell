@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>키르히호프 전류 법칙</title>
+<script type="application/json" id="ltt-meta">{"topic": "키르히호프 전류 법칙", "audience": "회로 입문자", "theme": "blueprint", "medium": "회로 도면", "decision": "분기점에서 전류가 어떻게 나뉘나"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+// 모델: 12V 전원에 저항 셋이 병렬로 걸린다. 가지 전류는 I = V / R.
+const V = 12;
+const RES = [4, 6, 12]; // Ω
+const BR = ["R1", "R2", "R3"];
+const currents = RES.map((r) => V / r); // [3, 2, 1] A
+const req = 1 / RES.reduce((a, r) => a + 1 / r, 0); // 합성저항 2Ω
+const inCurrent = V / req; // 들어오는 전류 6A
+LTT.expect("가지 전류의 합 = 들어온 전류", currents.reduce((a, b) => a + b, 0), inCurrent, { tol: 1e-9 });
+
+const hub = (el) => { const s = el.appendChild(document.createElementNS(SVG, "svg"));
+  return { el: s, dg: LTT.diagram(s, { cols: 4, rows: 4, cell: [200, 100], node: [116, 52],
+    nodes: [
+      { id: "S", c: 0, r: 1, l: "전원", s: V + "V", icon: "bolt" },
+      { id: "A", c: 1, r: 1, l: "분기점 A", k: "accent" },
+      { id: "R1", c: 2, r: 0, l: "R1", s: RES[0] + "Ω" },
+      { id: "R2", c: 2, r: 1, l: "R2", s: RES[1] + "Ω" },
+      { id: "R3", c: 2, r: 2, l: "R3", s: RES[2] + "Ω" },
+      { id: "B", c: 3, r: 1, l: "합류점 B" },
+    ],
+    edges: [
+      { f: "S", t: "A", l: inCurrent + "A" },
+      { f: "A", t: "R1", l: currents[0] + "A" },
+      { f: "A", t: "R2", l: currents[1] + "A" },
+      { f: "A", t: "R3", l: currents[2] + "A" },
+      { f: "R1", t: "B", l: currents[0] + "A" },
+      { f: "R2", t: "B", l: currents[1] + "A" },
+      { f: "R3", t: "B", l: currents[2] + "A" },
+    ] }) }; };
+
+const figureScene = { type: "figure", kicker: "전기 회로 · 키르히호프 전류 법칙", en: "Kirchhoff's current law",
+  title: "분기점에 들어온 전류는 나가는 전류의 합과 같다",
+  sub: "점 하나는 1A다. 들어온 점의 수와 나간 점의 수를 세어 본다.",
+  narration: "전류는 갈 길이 여럿이면 {{저항}}이 작은 쪽으로 더 많이 흐른다. 그래도 {{분기점}}에서 전하가 쌓이거나 사라지지 않으므로, 들어온 전류와 나간 전류의 합은 언제나 같다. 이것이 키르히호프 전류 법칙이다.",
+  figure: hub,
+  steps: [
+    { caption: "① 전원에서 6A가 분기점 A로 들어온다. 점 하나가 1A다.",
+      enter: (k, f) => { f.dg.clear(); f.dg.highlight(["S", "A", "S>A"]); f.dg.send("S", "A", { count: inCurrent }); } },
+    { caption: "② A에서 나가는 길은 셋이다. 저항이 작을수록 더 많은 점이 간다.",
+      enter: (k, f) => { f.dg.clear(); f.dg.highlight(["A", "R1", "R2", "R3", "A>R1", "A>R2", "A>R3"]); BR.forEach((id, i) => f.dg.send("A", id, { count: currents[i] })); } },
+    { caption: "③ 세 길의 전류가 합류점 B에서 다시 모인다. 3 + 2 + 1 = 6",
+      enter: (k, f) => { f.dg.clear(); f.dg.highlight(["R1", "R2", "R3", "B", "R1>B", "R2>B", "R3>B"]); BR.forEach((id, i) => f.dg.send(id, "B", { count: currents[i] })); } },
+    { caption: "④ 들어온 6A와 나간 6A가 같다. 어느 분기점에서도 양은 생기거나 사라지지 않는다.",
+      enter: (k, f) => { f.dg.clear(); f.dg.highlight(["A", "B"]); } },
+  ],
+  takeaway: "분기점으로 들어온 전류의 합은 나간 전류의 합과 같다.",
+  recall: "분기점에 8A가 들어와 두 갈래가 각각 3A, 2A를 가져가면 나머지 갈래는 몇 A인가?",
+  basis: '전하는 분기점에서 생기거나 사라지지 않는다(전하 보존). 가지 전류 3·2·1A는 12V ÷ 4·6·12Ω으로 계산한 값이다. <span class="ltt-tag">모델로 계산한 예시</span>',
+};
+
+LTT.deck({ title: "키르히호프 전류 법칙", theme: "blueprint",
+  glossary: {
+    분기점: "도선 세 개 이상이 만나는 점. 전류가 여기서 갈라지거나 합쳐진다.",
+    저항: "전류가 흐르기 어려운 정도. 단위는 옴(Ω)이다.",
+  },
+  scenes: [figureScene] });
+</script>
+</body>
+</html>

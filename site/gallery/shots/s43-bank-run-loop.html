@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>뱅크런 되먹임</title>
+<script type="application/json" id="ltt-meta">{"topic":"뱅크런 되먹임","audience":"금융 입문자","theme":"ledger","medium":"경제 신문 차트","decision":"유동성 위기의 되먹임 고리 이해","domain":"금융 안정","pattern":["overview"],"mode":"카탈로그용: 장면 하나짜리 본보기. 되먹임 구조를 \"확대·축소\" 움직임과 전면 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.br-wrap{display:flex;justify-content:center;width:100%}
+.br{width:100%;max-width:980px;height:min(66vh,580px);display:block}
+.br text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+// SVB 2023년 3월 수치: Federal Reserve, "Review of the Federal Reserve's Supervision and Regulation of Silicon Valley Bank"(2023-04)
+const NODES = [
+  { n: "1", l: "예금 인출", v: "3월 9일 하루 420억 달러", d: "다음 날 아침 1,000억 달러가 더 대기" },
+  { n: "2", l: "현금 부족", v: "채권을 팔아 현금 마련", d: "3월 8일 210억 달러 매각" },
+  { n: "3", l: "손실 확정", v: "매각 손실 18억 달러", d: "만기보유 채권 평가손 약 150억 달러" },
+  { n: "4", l: "신뢰 하락", v: "주가 하루 −60%", d: "증자 발표가 오히려 경보가 됐다" },
+  { n: "5", l: "불안 확산", v: "예금 약 94%가 보호 한도 밖", d: "25만 달러 넘는 예금은 먼저 빼는 쪽이 유리" }
+];
+
+function bankRun(host) {
+  const W = 960, H = 580, cx = 480, cy = 292, R = 205;
+  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "br", "data-annotate": "" }, host);
+  const defs = mk("defs", {}, s);
+  const m = mk("marker", { id: "br-ah", viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto" }, defs);
+  mk("path", { d: "M0,0 L10,5 L0,10 Z", style: "fill:var(--ltt-bad)" }, m);
+  const ang = (i) => i / NODES.length * 2 * Math.PI;
+  const P = (a, r) => [cx + r * Math.sin(a), cy - r * Math.cos(a)];
+  NODES.forEach((_, i) => {
+    const a0 = ang(i) + 0.30, a1 = ang(i + 1) - 0.30, [x0, y0] = P(a0, R), [x1, y1] = P(a1, R);
+    mk("path", { d: `M${x0},${y0} A${R},${R} 0 0 1 ${x1},${y1}`, "marker-end": "url(#br-ah)", style: "fill:none;stroke:var(--ltt-bad);stroke-width:3" }, s);
+  });
+  const ctr = mk("g", {}, s);
+  const c1 = mk("text", { x: cx, y: cy + 34, "text-anchor": "middle", style: "font-size:24px;font-weight:800;fill:var(--ltt-ink)" }, ctr);
+  c1.textContent = "인출이 인출을 부른다";
+  const c2 = mk("text", { x: cx, y: cy + 62, "text-anchor": "middle", style: "font-size:17px;fill:var(--ltt-muted)" }, ctr);
+  c2.textContent = "실리콘밸리은행(SVB), 2023년 3월 8–10일";
+  const lap = mk("text", { x: cx, y: cy + 92, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-bad)" }, ctr);
+  const dot = mk("circle", { r: 9, style: "fill:var(--ltt-bad);stroke:var(--ltt-bg);stroke-width:3" }, s);
+  const nodes = NODES.map((nd, i) => {
+    const [x, y] = P(ang(i), R);
+    const g = mk("g", { transform: `translate(${x},${y})` }, s);
+    mk("rect", { x: -98, y: -40, width: 196, height: 80, rx: 4, style: "fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:1.5" }, g);
+    const badge = mk("circle", { cx: -98, cy: -40, r: 13, style: "fill:var(--ltt-dark)" }, g);
+    const bt = mk("text", { x: -98, y: -35, "text-anchor": "middle", style: "font-size:14px;font-weight:700;fill:var(--ltt-on-dark)" }, g); bt.textContent = nd.n;
+    const t = mk("text", { x: 0, y: -10, "text-anchor": "middle", style: "font-size:21px;font-weight:800;fill:var(--ltt-ink)" }, g); t.textContent = nd.l;
+    const v = mk("text", { x: 0, y: 14, "text-anchor": "middle", style: "font-size:13.5px;fill:var(--ltt-ink-2)" }, g); v.textContent = nd.v;
+    const d = mk("text", { x: 0, y: 31, "text-anchor": "middle", style: "font-size:11px;fill:var(--ltt-muted)" }, g); d.textContent = nd.d;
+    return { x, y, d, box: g.firstChild, badge };
+  });
+  const foot = mk("text", { x: W - 12, y: H - 8, "text-anchor": "end", style: "font-size:13px;fill:var(--ltt-muted)" }, s);
+  foot.textContent = "출처: Federal Reserve, SVB 감독 검토 보고서(2023-04) · 확대하면 세부 수치가 보인다";
+
+  const full = [0, 0, W, H], ZW = 560, ZH = ZW * H / W;
+  const view = (i) => [nodes[i].x - ZW / 2, nodes[i].y - ZH / 2, ZW, ZH];
+  const lerp = (a, b, t) => a.map((v, k) => v + (b[k] - v) * t);
+  // 10초 한 바퀴: 전체 → 1번으로 확대 → 고리를 따라 2–5번 → 축소 → 전체에서 멈춤
+  function draw(u) {
+    const T = u * 10; let vb, focus = -1, dotA;
+    if (T < 1.2) { vb = full; dotA = 0; }
+    else if (T < 2.2) { const e = ease(T - 1.2); vb = lerp(full, view(0), e); focus = 0; dotA = 0; }
+    else if (T < 8.2) { const k = (T - 2.2) / 1.2, i = Math.floor(k), f = clamp((k - i - .45) / .55), e = ease(f);
+      const a = i, b = (i + 1) % 5; focus = f < .5 ? a : b;
+      vb = i < 4 ? lerp(view(a), view(b), e) : view(4);
+      dotA = ang(i) + (i < 4 ? e : clamp(k - 4)) * ang(1);
+      if (i === 4) { vb = lerp(view(4), view(4), 0); dotA = ang(4) + ease(clamp((k - 4) / 1)) * ang(1); } }
+    else if (T < 9.2) { const e = ease(T - 8.2); vb = lerp(view(4), full, e); dotA = 0; }
+    else { vb = full; dotA = 0; }
+    s.setAttribute("viewBox", vb.map((v) => v.toFixed(1)).join(" "));
+    const [dx, dy] = P(dotA, R); dot.setAttribute("cx", dx); dot.setAttribute("cy", dy);
+    const zoomed = vb[2] < W * .7;
+    nodes.forEach((nd, i) => { const on = i === focus;
+      nd.box.style.stroke = on ? "var(--ltt-bad)" : "var(--ltt-ink)"; nd.box.style.strokeWidth = on ? 3 : 1.5;
+      nd.d.style.opacity = zoomed && on ? 1 : .0; });
+    lap.textContent = T > 9.2 || T < 1.2 ? "한 바퀴 돌 때마다 다음 인출이 커진다: 420억 → 1,000억 달러" : "";
+  }
+  return { el: s, draw };
+}
+
+function loop(node, period, draw) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { draw(0.99); return { leave() {} }; }
+  let id = 0; const t0 = Date.now();
+  const f = () => { if (!node.isConnected) return; draw(((Date.now() - t0) / period) % 1); id = setTimeout(f, 16); };
+  f(); return { leave() { clearTimeout(id); } };
+}
+
+let run = null;
+LTT.deck({
+  title: "뱅크런 되먹임", theme: "ledger",
+  glossary: { "뱅크런": "예금자들이 은행이 위험하다고 보고 한꺼번에 예금을 빼는 일", "되먹임": "결과가 다시 원인을 키우는 고리" },
+  scenes: [{
+    type: "overview", title: "{{뱅크런}}은 다섯 칸짜리 {{되먹임}} 고리다",
+    sub: "번호를 따라 확대해 보면, 각 칸의 결과가 다음 칸의 원인이 된다.",
+    figure: '<div class="br-wrap"></div>',
+    enter: () => { const w = document.querySelector(".br-wrap"); if (!w) return; w.innerHTML = "";
+      const f = bankRun(w); run && run.leave(); run = loop(f.el, 10000, f.draw); },
+    caption: "고리를 끊는 곳: ① 예금 보호로 인출 동기를 없애거나 ② 중앙은행 대출로 급매를 막는다.",
+    basis: "Federal Reserve(2023-04) SVB 검토 보고서. 인출액·매각액·주가는 보도된 실제 값이다.",
+    takeaway: "인출 → 급매 → 손실 → 불신 → 인출은 스스로 커지는 고리다.",
+    leave: () => run && run.leave()
+  }]
+});
+</script>
+</body>
+</html>

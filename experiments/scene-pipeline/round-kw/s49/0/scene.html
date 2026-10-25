@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>농구 구역별 기대 득점</title>
+<script type="application/json" id="ltt-meta">{"topic":"농구 구역별 기대 득점","audience":"농구 분석 입문자","theme":"sketch","medium":"전술 화이트보드","decision":"어느 구역의 슛을 늘릴까"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .bb { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  .bb > * { min-width: 0; }
+  .board { background: var(--ltt-card); border: 2px solid var(--ltt-line-2); border-radius: 10px; padding: 8px; }
+  .board svg { display: block; width: 100%; height: auto; max-height: 56vh; }
+  .z { stroke: var(--ltt-line-2); stroke-width: 1.5; fill: var(--ltt-accent); transition: fill-opacity calc(var(--d) * 1.5), stroke-width var(--d); }
+  .z.cand { stroke: var(--ltt-accent); stroke-width: 4; stroke-dasharray: 10 7; cursor: pointer; animation: march 1.2s linear infinite; }
+  .z.cand:hover { stroke-width: 6; }
+  .z.focus { stroke: var(--ltt-accent); stroke-width: 4; }
+  .z.good { stroke: var(--ltt-good); stroke-width: 4; }
+  .z.bad { stroke: var(--ltt-bad); stroke-width: 4; }
+  .z:focus-visible { outline: none; stroke: var(--ltt-ink); stroke-width: 5; }
+  @keyframes march { to { stroke-dashoffset: -17; } }
+  .ln { fill: none; stroke: var(--ltt-ink); stroke-width: 2.5; stroke-linecap: round; pointer-events: none; }
+  .chip rect { fill: var(--ltt-card); stroke: var(--ltt-line-2); stroke-width: 1.5; }
+  .chip.focus rect { stroke: var(--ltt-accent); stroke-width: 3; }
+  .chip.good rect { stroke: var(--ltt-good); stroke-width: 3; }
+  .chip.bad rect { stroke: var(--ltt-bad); stroke-width: 3; }
+  .chip .nm { fill: var(--ltt-muted); font-size: 13px; }
+  .chip .vl { fill: var(--ltt-ink); font-size: 17px; font-weight: 700; }
+  .chip, .flag, .arrow { pointer-events: none; }
+  .flag { fill: var(--ltt-accent); font-size: 13px; font-weight: 700; paint-order: stroke; stroke: var(--ltt-card); stroke-width: 4px; }
+  .arrow path { fill: none; stroke: var(--ltt-ink); stroke-width: 3; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset calc(var(--d) * 3); }
+  .arrow.on path { stroke-dashoffset: 0; }
+  .arrow text { fill: var(--ltt-ink); font-size: 15px; font-weight: 700; paint-order: stroke; stroke: var(--ltt-card); stroke-width: 5px; opacity: 0; transition: opacity var(--d); }
+  .arrow.on text { opacity: 1; transition-delay: calc(var(--d) * 2.5); }
+
+  .side { display: flex; flex-direction: column; gap: 10px; }
+  .formula { font-weight: 700; font-size: 18px; border-bottom: 2px dashed var(--ltt-line-2); padding-bottom: 8px; }
+  .formula em { font-style: normal; color: var(--ltt-accent); }
+  .hd { color: var(--ltt-muted); font-size: 14px; min-height: 2.6em; }
+  .rows { position: relative; height: 270px; }
+  .row { position: absolute; left: 0; right: 0; height: 48px; display: grid; grid-template-columns: 7.2em minmax(0, 1fr) 4.6em; align-items: center; gap: 8px; transition: transform calc(var(--d) * 1.6) cubic-bezier(.5, 0, .2, 1); }
+  .row .nm { font-size: 14px; }
+  .row .tr { position: relative; height: 26px; border-left: 2px solid var(--ltt-ink-2); }
+  .row .bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ltt-muted); border-radius: 0 4px 4px 0; transition: width calc(var(--d) * 1.8) ease-out, background var(--d); }
+  .row.focus .bar { background: var(--ltt-accent); }
+  .row.good .bar { background: var(--ltt-good); }
+  .row.bad .bar { background: var(--ltt-bad); }
+  .row .mult { position: absolute; right: 6px; top: 0; line-height: 26px; font-size: 14px; font-weight: 700; color: var(--ltt-card); opacity: 0; transition: opacity var(--d); }
+  .row .mult.on { opacity: 1; transition-delay: calc(var(--d) * 1.4); }
+  .row .bar-w { position: absolute; left: 0; top: 0; bottom: 0; right: 0; }
+  .row .vl { font-size: 16px; font-weight: 700; text-align: right; }
+  .row .vl small { font-size: 12px; font-weight: 400; color: var(--ltt-muted); }
+  .msg { min-height: 7.4em; font-size: 15px; line-height: 1.55; }
+  .msg b { font-weight: 700; }
+  .ctl { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .ctl button { font: inherit; font-size: 14px; padding: 7px 16px; border-radius: 8px; border: 2px solid var(--ltt-ink-2); background: var(--ltt-card); color: var(--ltt-ink); cursor: pointer; }
+  .ctl button.go { background: var(--ltt-ink); color: var(--ltt-card); }
+  .ctl button:disabled { opacity: .35; cursor: default; }
+  .ctl .st { color: var(--ltt-muted); font-size: 13px; margin-left: auto; }
+  @media (max-width: 900px) { .bb { grid-template-columns: minmax(0, 1fr); } .board svg { max-height: none; } }
+</style>
+</head>
+<body>
+<script>
+(function () {
+  const D = typeof LTT.MOTION_MS === "number" ? LTT.MOTION_MS : 400;
+
+  // 구역: 성공률(리그 평균 근처 예시값)과 걸린 점수
+  const Z = [
+    { id: "rim",   name: "림 근처",       fg: 0.65, pts: 2, cx: 280, cy: 88 },
+    { id: "close", name: "가까운 중거리", fg: 0.42, pts: 2, cx: 280, cy: 160 },
+    { id: "far",   name: "먼 중거리",     fg: 0.40, pts: 2, cx: 280, cy: 262 },
+    { id: "corner",name: "코너 3점",      fg: 0.38, pts: 3, cx: 50,  cy: 105 },
+    { id: "top",   name: "윗쪽 3점",      fg: 0.35, pts: 3, cx: 280, cy: 336 },
+  ];
+  const ev = (z) => z.fg * z.pts;
+  const byId = Object.fromEntries(Z.map((z) => [z.id, z]));
+  LTT.expect("먼 중거리 기대 득점", ev(byId.far), 0.80, { tol: 1e-9 });
+  LTT.expect("윗쪽 3점 기대 득점", ev(byId.top), 1.05, { tol: 1e-9 });
+  LTT.expect("코너 3점 기대 득점", ev(byId.corner), 1.14, { tol: 1e-9 });
+  LTT.expect("림 근처 기대 득점", ev(byId.rim), 1.30, { tol: 1e-9 });
+  LTT.expect("가까운 중거리 기대 득점", ev(byId.close), 0.84, { tol: 1e-9 });
+
+  // 코트 기하(비례 아님, 화이트보드 스케치)
+  const BX = 280, BY = 52, R = 255, CL = 100, CR = 460, W = 560, H = 360;
+  const CY = BY + Math.sqrt(R * R - (BX - CL) ** 2); // 코너 직선이 호와 만나는 y
+  const pMid = `M${CL},0 L${CR},0 L${CR},${CY} A${R},${R} 0 0 1 ${CL},${CY} Z`;
+  const pTop = `M0,${CY} L${CL},${CY} A${R},${R} 0 0 0 ${CR},${CY} L${W},${CY} L${W},${H} L0,${H} Z`;
+  const pCornerL = `M0,0 L${CL},0 L${CL},${CY} L0,${CY} Z`;
+  const pCornerR = `M${CR},0 L${W},0 L${W},${CY} L${CR},${CY} Z`;
+  const arcLine = `M${CL},${CY} A${R},${R} 0 0 0 ${CR},${CY}`;
+
+  const chipW = 92, chipH = 46;
+  const chipG = (z, cx, cy, k) => `<g class="chip" data-chip="${z.id}" transform="translate(${cx - chipW / 2},${cy - chipH / 2})">
+      <rect width="${chipW}" height="${chipH}" rx="7"/>
+      <text class="nm" x="${chipW / 2}" y="17" text-anchor="middle">${z.name}</text>
+      <text class="vl" x="${chipW / 2}" y="38" text-anchor="middle" data-vl="${z.id}"></text></g>`;
+
+  const courtSVG = () => `
+  <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="하프코트: 림 근처, 가까운 중거리, 먼 중거리, 코너 3점, 윗쪽 3점 다섯 구역">
+    <defs>
+      <filter id="wob" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="3.5"/></filter>
+      <clipPath id="clipc"><rect x="0" y="0" width="${W}" height="${H}"/></clipPath>
+      <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ltt-ink)"/></marker>
+    </defs>
+    <g clip-path="url(#clipc)">
+      <path class="z" data-z="far" d="${pMid}"/>
+      <circle class="z" data-z="close" cx="${BX}" cy="${BY}" r="140"/>
+      <circle class="z" data-z="rim" cx="${BX}" cy="${BY}" r="60"/>
+      <path class="z" data-z="corner" d="${pCornerL}"/>
+      <path class="z" data-z="corner" d="${pCornerR}"/>
+      <path class="z" data-z="top" d="${pTop}"/>
+    </g>
+    <g filter="url(#wob)">
+      <path class="ln" d="M2,${H - 2} L2,2 L${W - 2},2 L${W - 2},${H - 2}"/>
+      <path class="ln" d="M${CL},2 L${CL},${CY}"/><path class="ln" d="M${CR},2 L${CR},${CY}"/>
+      <path class="ln" d="${arcLine}"/>
+      <path class="ln" d="M${BX - 62},2 L${BX - 62},190 L${BX + 62},190 L${BX + 62},2" style="stroke-width:1.8"/>
+      <path class="ln" d="M${BX - 32},26 L${BX + 32},26"/><circle class="ln" cx="${BX}" cy="${BY}" r="9"/>
+    </g>
+    ${Z.map((z) => z.id === "corner" ? chipG(z, 50, 105) + chipG(z, 510, 105) : chipG(z, z.cx, z.cy)).join("")}
+    <text class="flag" data-flag x="0" y="0" text-anchor="middle" visibility="hidden">내 짐작</text>
+    <g class="arrow" data-arrow>
+      <path d="M232,252 C150,245 70,200 52,138" pathLength="1" marker-end="url(#ah)"/>
+      <text x="142" y="228" text-anchor="middle">10번 옮기면 +3.4점</text>
+    </g>
+  </svg>`;
+
+  const ROW_H = 54;
+  const rowsHTML = Z.map((z) => `<div class="row" data-r="${z.id}"><span class="nm">${z.name}</span>
+      <span class="tr"><i class="bar"></i><b class="mult"></b></span><span class="vl"></span></div>`).join("");
+
+  const MSG = [
+    () => `<b>성공률만 보면</b> 림 근처가 으뜸이고 3점은 맨 아래다. 코트에서 짐작을 눌러라. 슛 <b>한 번</b>에 평균 점수를 더 버는 구역은 <b>먼 중거리(40%, 2점)</b>인가, <b>윗쪽 3점(35%, 3점)</b>인가?`,
+    () => `성공 하나마다 점수가 붙는다. 100번 던진 성공 개수가 <b>2점 구역은 ×2, 3점 구역은 ×3</b>으로 늘어난다. 짧던 3점 막대가 길어지는 것을 보라.`,
+    () => `순서가 바뀐다. <b>0.40×2 = 0.80</b> 대 <b>0.35×3 = 1.05</b>. ${pick === "top" ? "짐작이 맞았다. " : "성공률이 높은 쪽에 끌렸다면 함정에 걸린 것이다. "}성공률은 5%p 높은데 한 번에 <b>0.25점 진다</b>.`,
+    () => `같은 3점이라도 코너 <b>0.38×3 = 1.14</b>가 윗쪽 <b>1.05</b>보다 높다. 코너 선이 더 가까워(약 6.7m 대 7.24m) 성공률이 높다.`,
+    () => `먼 중거리 10번을 코너 3점 10번으로 바꾸면 10×(1.14−0.80) = <b>+3.4점</b>. 림 근처와 코너는 늘리고 먼 중거리는 줄인다. 단 시도를 늘리면 수비가 붙어 값이 내려갈 수 있다: <b>확인 필요</b>.`,
+  ];
+  const HD = [
+    "100번 던지면 들어가는 개수",
+    "성공마다 점수를 곱하면 100번 던져 얻는 점수",
+    "100번 던져 얻는 점수 ÷ 100 = 슛 1회 기대 득점",
+    "100번 던져 얻는 점수 ÷ 100 = 슛 1회 기대 득점",
+    "100번 던져 얻는 점수 ÷ 100 = 슛 1회 기대 득점",
+  ];
+
+  let stage = 0, pick = null;
+
+  const focusOf = (s) => s <= 2 ? { far: "focus", top: "focus" } : s === 3 ? { corner: "focus", top: "focus" }
+    : { rim: "good", corner: "good", far: "bad" };
+
+  function mount(body) {
+    body.innerHTML = `<div class="bb" style="--d:${D}ms">
+      <div class="board">${courtSVG()}</div>
+      <div class="side">
+        <div class="formula">슛 1회 기대 득점 = <em>성공률</em> × <em>점수</em></div>
+        <div class="hd"></div>
+        <div class="rows">${rowsHTML}</div>
+        <div class="msg" aria-live="polite"></div>
+        <div class="ctl"><button class="go" data-next>다음 ▸</button><button data-reset>처음부터</button><span class="st"></span></div>
+        <div class="ltt-basis">구역 수치는 리그 평균 근처의 예시값. 슛 1회의 필드골만 센다(자유투·앤드원 제외). <span class="ltt-tag muted">모델로 계산한 예시</span></div>
+      </div>
+    </div>`;
+    const $ = (s) => body.querySelector(s);
+    const $$ = (s) => [...body.querySelectorAll(s)];
+
+    function render() {
+      const foc = focusOf(stage);
+      const order = [...Z].sort((a, b) => stage < 2 ? b.fg - a.fg : ev(b) - ev(a));
+      const cand = stage === 0 ? { far: 1, top: 1 } : {};
+      $$("[data-z]").forEach((el) => {
+        const z = byId[el.dataset.z];
+        const o = stage < 2 ? 0.08 + z.fg * 0.45 : 0.08 + ev(z) / 1.3 * 0.45;
+        el.setAttribute("fill-opacity", o.toFixed(3));
+        el.setAttribute("class", "z" + (cand[z.id] ? " cand" : foc[z.id] ? " " + foc[z.id] : ""));
+        if (cand[z.id]) { el.setAttribute("tabindex", "0"); el.setAttribute("role", "button"); el.setAttribute("aria-label", z.name + " " + Math.round(z.fg * 100) + "퍼센트, " + z.pts + "점. 이 구역을 고른다"); }
+        else { el.removeAttribute("tabindex"); el.removeAttribute("role"); el.removeAttribute("aria-label"); }
+      });
+      $$("[data-chip]").forEach((el) => {
+        const z = byId[el.dataset.chip];
+        el.setAttribute("class", "chip" + (foc[z.id] ? " " + foc[z.id] : ""));
+        el.querySelector("[data-vl]").textContent = stage === 0 ? `${Math.round(z.fg * 100)}% · ${z.pts}점`
+          : stage === 1 ? `${Math.round(z.fg * 100)}% ×${z.pts}` : `= ${ev(z).toFixed(2)}`;
+      });
+      const flag = $("[data-flag]");
+      if (pick) {
+        const z = byId[pick];
+        flag.setAttribute("x", z.cx); flag.setAttribute("y", z.cy - chipH / 2 - 6); flag.setAttribute("visibility", "visible");
+      } else flag.setAttribute("visibility", "hidden");
+      $("[data-arrow]").classList.toggle("on", stage === 4);
+
+      $(".hd").textContent = HD[stage];
+      order.forEach((z, i) => {
+        const r = $(`[data-r="${z.id}"]`);
+        r.style.transform = `translateY(${i * ROW_H}px)`;
+        r.className = "row" + (foc[z.id] ? " " + foc[z.id] : "");
+        const made = z.fg * 100, pts = ev(z) * 100;
+        r.querySelector(".bar").style.width = (stage === 0 ? made : pts) / 140 * 100 + "%";
+        const m = r.querySelector(".mult");
+        m.textContent = "×" + z.pts; m.classList.toggle("on", stage >= 1);
+        r.querySelector(".vl").innerHTML = stage === 0 ? `${Math.round(made)}개`
+          : stage === 1 ? `${Math.round(pts)}점` : `${ev(z).toFixed(2)}<small>점</small>`;
+      });
+      $(".msg").innerHTML = MSG[stage]();
+      $("[data-next]").disabled = stage === 0 || stage === 4;
+      $("[data-next]").textContent = stage === 0 ? "먼저 짐작을 누른다" : "다음 ▸";
+      $(".st").textContent = stage === 0 ? "짐작" : `풀이 ${stage}/4`;
+    }
+
+    const choose = (id) => { if (stage === 0 && (id === "far" || id === "top")) { pick = id; stage = 1; render(); } };
+    body.addEventListener("click", (e) => { const t = e.target.closest("[data-z]"); if (t) choose(t.dataset.z); });
+    body.addEventListener("keydown", (e) => { const t = e.target.closest && e.target.closest("[data-z]"); if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); choose(t.dataset.z); } });
+    $("[data-next]").addEventListener("click", () => { if (stage > 0 && stage < 4) { stage++; render(); } });
+    $("[data-reset]").addEventListener("click", () => { stage = 0; pick = null; render(); });
+    render();
+    return { enter() { render(); }, leave() {} };
+  }
+
+  LTT.deck({
+    title: "농구 구역별 기대 득점",
+    theme: "sketch",
+    scenes: [{
+      kicker: "예측",
+      title: "먼 중거리와 윗쪽 3점, 한 번 던지면 어디가 더 벌까?",
+      sub: "코트의 점선 구역에서 하나를 눌러 짐작한다. 막대는 같은 슛을 100번 던진 결과다.",
+      layout: "full",
+      mount,
+      takeaway: "슛 한 번의 가치는 성공률 × 점수다. 성공률이 낮아도 3점 구역, 특히 코너가 먼 중거리보다 한 번에 더 번다.",
+      recall: "먼 중거리(40%)와 윗쪽 3점(35%) 중 한 번에 더 버는 쪽은 어디이고, 왜 그런가?",
+      basis: "수치는 리그 평균 근처의 예시값이다. 시즌·리그마다 다르고, 구역별 표본이 약 100회면 ±5%p 정도 흔들려 순위가 바뀔 수 있다.",
+    }],
+  });
+})();
+</script>
+</body>
+</html>

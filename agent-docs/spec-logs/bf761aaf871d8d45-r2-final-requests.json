@@ -1,0 +1,205 @@
+{
+ "mode": "requests",
+ "cases": 13,
+ "bad": 0,
+ "rows": [
+  {
+   "rel": "cache-ttl.html",
+   "urls": [
+    "/favicon.ico",
+    "/kit/ltt-deck.js",
+    "/kit/ltt-mock.js",
+    "/kit/ltt-parts.js",
+    "/kit/ltt-ui.js",
+    "/kit/ltt.js",
+    "/kit/vendor/d2coding/D2Coding-ksx.woff2",
+    "/kit/vendor/d2coding/D2CodingBold-ksx.woff2",
+    "/kit/vendor/d3.min.js",
+    "/kit/vendor/katex/katex.min.css",
+    "/kit/vendor/katex/katex.min.js",
+    "/kit/vendor/pretendard/PretendardVariable.woff2"
+   ],
+   "kitCss": []
+  },
+  {
+   "rel": "cognition/anchoring.html",
+   "urls": [
+    "/kit/ltt-deck.js",
+    "/kit/ltt-parts.js",
+    "/kit/ltt-ui.js",
+    "/kit/ltt.js",
+    "/kit/vendor/d2coding/D2Coding-ksx.woff2",
+    "/kit/vendor/d3.min.js",
+    "/kit/vendor/noto-serif-kr/NotoSerifKR-ksx.woff2",
+    "/kit/vendor/pretendard/PretendardVariable.woff2"
+   ],
+   "kitCss": []
+  },
+  {
+   "rel": "finance/diversification.html",
+   "urls": [
+    "/kit/ltt-deck.js",
+    "/kit/ltt-parts.js",
+    "/kit/ltt-ui.js",
+    "/kit/ltt.js",
+    "/kit/vendor/d2coding/D2Coding-ksx.woff2",
+    "/kit/vendor/d3.min.js",
+    "/kit/vendor/katex/katex.min.css",
+    "/kit/vendor/katex/katex.min.js",
+    "/kit/vendor/noto-serif-kr/NotoSerifKR-ksx.woff2",
+    "/kit/vendor/pretendard/PretendardVariable.woff2"
+   ],
+   "kitCss": []
+  },
+  {
+   "rel": "gpu/single-gpu-dataflow.html",
+   "urls": [
+    "/kit/ltt-deck.js",
+    "/kit/ltt-parts.js",
+    "/kit/ltt-ui.js",
+    "/kit/ltt.js",
+    "/kit/vendor/d2coding/D2Coding-ksx.woff2",
+    "/kit/vendor/d2coding/D2CodingBold-ksx.woff2",
+    "/kit/vendor/d3.min.js",
+    "/kit/vendor/katex/katex.min.css",
+    "/kit/vendor/katex/katex.min.js",
+    "/kit/vendor/pretendard/PretendardVariable.woff2"
+   ],
+   "kitCss": []
+  },
+  {
+   "rel": "knowledge-graph/ontology-triples.html",
+   "urls": [
+    "/kit/ltt-deck.js",
+    "/kit/ltt-mock.js",
+    "/kit/ltt-parts.js",
+    "/kit/ltt-ui.js",
+    "/kit/ltt.js",
+    "/kit/vendor/d2coding/D2Coding-ksx.woff2",
+    "/kit/vendor/d3.min.js",
+    "/kit/vendor/elk.bundled.js",
+    "/kit/vendor/noto-serif-kr/NotoSerifKR-ksx.woff2",
+    "/kit/vendor/pretendard/PretendardVariable.woff2"
+   ],
+   "kitCss": []
+  },
+  {
+   "rel": "linear-algebra/matrix-as-transform.html",
+   "urls": [
+    "/kit/ltt-deck.js",
+    "/kit/ltt-parts.js",
+    "/kit/ltt-ui.js",
+    "/kit/ltt.js",
+    "/kit/vendor/d2coding/D2Coding-ksx.woff2",
+    "/kit/vendor/d3.min.js",
+    "/kit/vendor/katex/katex.min.css",
+    "/kit/vendor/katex/katex.min.js",
+    "/kit/vendor/noto-serif-kr/NotoSerifKR-ksx.woff2",
+    "/kit/vendor/pretendard/PretendardVariable.woff2"
+   ],
+   "kitCss": []
+  },
+  {
+   "rel": "network/tls13-quic.html",
+   "urls": [
+    "/kit/ltt-deck.js",
+    "/kit/ltt-parts.js",
+    "/kit/ltt-ui.js",
+    "/kit/ltt.js",
+    "/kit/vendor/d2coding/D2Coding-ksx.woff2",
+    "/kit/vendor/d2coding/D2CodingBold-ksx.woff2",
+    "/kit/vendor/d3.min.js",
+    "/kit/vendor/pretendard/PretendardVariable.woff2"
+   ],
+   "kitCss": []
+  },
+  {
+   "rel": "pedagogy/retrieval-practice.html",
+   "urls": [
+    "/kit/ltt-deck.js",
+    "/kit/ltt-parts.js",
+    "/kit/ltt-ui.js",
+    "/kit/ltt.js",
+    "/kit/vendor/d2coding/D2Coding-ksx.woff2",
+    "/kit/vendor/d3.min.js",
+    "/kit/vendor/noto-serif-kr/NotoSerifKR-ksx.woff2",
+    "/kit/vendor/pretendard/PretendardVariable.woff2"
+   ],
+   "kitCss": []
+  },
+  {
+   "rel": "philosophy/trolley-ethics.html",
+   "urls": [
+    "/kit/ltt-deck.js",
+    "/kit/ltt-parts.js",
+    "/kit/ltt-ui.js",
+    "/kit/ltt.js",
+    "/kit/vendor/d2coding/D2Coding-ksx.woff2",
+    "/kit/vendor/d3.min.js",
+    "/kit/vendor/noto-serif-kr/NotoSerifKR-ksx.woff2",
+    "/kit/vendor/pretendard/PretendardVariable.woff2"
+   ],
+   "kitCss": []
+  },
+  {
+   "rel": "physics/projectile-drag.html",
+   "urls": [
+    "/kit/ltt-deck.js",
+    "/kit/ltt-parts.js",
+    "/kit/ltt-ui.js",
+    "/kit/ltt.js",
+    "/kit/vendor/d2coding/D2Coding-ksx.woff2",
+    "/kit/vendor/d2coding/D2CodingBold-ksx.woff2",
+    "/kit/vendor/d3.min.js",
+    "/kit/vendor/katex/katex.min.css",
+    "/kit/vendor/katex/katex.min.js",
+    "/kit/vendor/pretendard/PretendardVariable.woff2"
+   ],
+   "kitCss": []
+  },
+  {
+   "rel": "scenes.html",
+   "urls": [
+    "/kit/ltt-deck.js",
+    "/kit/ltt-mock.js",
+    "/kit/ltt-parts.js",
+    "/kit/ltt-ui.js",
+    "/kit/ltt.js",
+    "/kit/vendor/d2coding/D2Coding-ksx.woff2",
+    "/kit/vendor/d3.min.js",
+    "/kit/vendor/pretendard/PretendardVariable.woff2"
+   ],
+   "kitCss": []
+  },
+  {
+   "rel": "uiux/color-contrast.html",
+   "urls": [
+    "/kit/ltt-deck.js",
+    "/kit/ltt-mock.js",
+    "/kit/ltt-parts.js",
+    "/kit/ltt-ui.js",
+    "/kit/ltt.js",
+    "/kit/vendor/d2coding/D2Coding-ksx.woff2",
+    "/kit/vendor/d3.min.js",
+    "/kit/vendor/katex/katex.min.css",
+    "/kit/vendor/katex/katex.min.js",
+    "/kit/vendor/pretendard/PretendardVariable.woff2"
+   ],
+   "kitCss": []
+  },
+  {
+   "rel": "uiux/visual-hierarchy-spacing.html",
+   "urls": [
+    "/kit/ltt-deck.js",
+    "/kit/ltt-mock.js",
+    "/kit/ltt-parts.js",
+    "/kit/ltt-ui.js",
+    "/kit/ltt.js",
+    "/kit/vendor/d2coding/D2Coding-ksx.woff2",
+    "/kit/vendor/d3.min.js",
+    "/kit/vendor/pretendard/PretendardVariable.woff2"
+   ],
+   "kitCss": []
+  }
+ ]
+}

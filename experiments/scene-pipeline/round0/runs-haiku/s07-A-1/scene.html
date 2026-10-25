@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>팬아웃과 p99 꼬리 지연</title>
+<script type="application/json" id="ltt-meta">{"topic": "fan-out과 p99 꼬리 지연", "audience": "백엔드 개발자", "theme": "terminal", "medium": "터미널·대시보드", "decision": "한 요청이 부르는 백엔드 수"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .fo { display: grid; gap: 14px; min-width: 0; }
+  .fo-chart svg { display: block; width: 100%; height: auto; }
+  .fo-chart .ax text { fill: var(--ltt-muted); font-size: 12px; }
+  .fo-chart .ax .domain, .fo-chart .ax .tick line { stroke: var(--ltt-line); }
+  .fo-curve { fill: none; stroke: var(--ltt-c1); stroke-width: 2; }
+  .fo-ref { fill: var(--ltt-card); stroke: var(--ltt-muted); stroke-width: 1.5; }
+  .fo-guide { stroke: var(--ltt-accent); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  .fo-mark { fill: var(--ltt-accent); }
+  .fo-note { fill: var(--ltt-ink-2); font-size: 12px; }
+  .fo-low { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .fo-fan { display: grid; gap: 8px; min-width: 0; }
+  .fo-cells { display: grid; gap: 4px; }
+  .fo-cell { display: block; aspect-ratio: 1; border: 1px solid var(--ltt-line-2); border-radius: 3px; background: var(--ltt-card-2); animation: fo-pop .32s both; animation-delay: calc(var(--i) * 12ms); }
+  .fo-cell.hot { background: var(--ltt-bad-soft); border-color: var(--ltt-bad); }
+  .fo-read { display: grid; gap: 8px; min-width: 0; }
+  @keyframes fo-pop { from { opacity: 0; transform: scale(.3); } }
+  @media (max-width: 720px) { .fo-low { grid-template-columns: minmax(0, 1fr); } }
+  @media (prefers-reduced-motion: reduce) { .fo-cell { animation: none; } }
+</style>
+</head>
+<body>
+<script>
+const BASE = 10;   // 백엔드 응답의 최소 지연(ms). 가정한 예시 값
+const TAIL = 0.3;  // 꼬리 모양. s가 그보다 느린 응답의 비율이면 지연은 BASE × s^-TAIL. 가정
+const tailMs = (s) => BASE * Math.pow(s, -TAIL);
+// 백엔드 n개가 모두 빠를 확률이 0.99가 되는 기준: 백엔드 하나가 이보다 느릴 비율
+const cutFor = (n) => -Math.expm1(Math.log(0.99) / n);
+const U = Array.from({ length: 100 }, (_, i) => (i * 0.618034 + 0.137) % 1); // 백엔드 응답 샘플, 고정 순서
+
+const scene = {
+  kicker: "백엔드 · 호출 수와 p99 꼬리 지연",
+  title: "여러 백엔드를 동시에 부를수록 요청 p99는 한 백엔드의 더 깊은 꼬리가 정한다",
+  en: "Fan-out moves the request p99 into the backend tail",
+  sub: "요청 하나가 백엔드 N개를 동시에 부르면, 응답은 가장 늦은 한 개를 기다린다",
+  narration: "{{팬아웃}}은 요청 하나가 백엔드 여러 곳을 동시에 부르는 구조다. 요청은 부른 곳 모두가 답해야 끝나므로, 한 곳의 느린 응답이 요청 전체를 느리게 만든다. 손잡이를 올리면 기준선이 내려가고, 요청 p99가 백엔드 꼬리의 더 깊은 곳으로 옮겨 간다.",
+  basis: "가정(불확실): 백엔드 응답은 서로 독립이고 같은 분포이며, 꼬리는 10ms × s^-0.3으로 본 예시다. 실측 분포로 바꿔 확인할 것.",
+  takeaway: "팬아웃 N이면 요청 p99는 백엔드 한 개의 상위 약 1%/N 지점이 정한다. N=100이면 백엔드 p99.99가 요청 p99다.",
+  recall: "백엔드 한 개의 p99가 40ms일 때, 백엔드 100개를 부르는 요청의 p99는 대략 얼마일까?",
+  sources: "Dean·Barroso, 『The Tail at Scale』, Communications of the ACM, 2013",
+  mount(body) {
+    body.innerHTML = `
+      <div class="fo">
+        <div class="ltt-param">한 요청이 부르는 백엔드 <b id="n-v"></b><div id="n"></div></div>
+        <div class="fo-chart"></div>
+        <div class="fo-low">
+          <div class="fo-fan">
+            <span class="ltt-tag muted">요청 1건</span>
+            <div class="fo-cells" id="fo-cells"></div>
+            <span class="ltt-basis" id="fo-resp"></span>
+          </div>
+          <div class="fo-read">
+            <div class="ltt-hero"><span id="p99"></span> <small>ms</small></div>
+            <span class="ltt-basis">요청 p99. 요청 100건 중 99건이 이 시간 안에 끝난다</span>
+            <p class="ltt-basis">백엔드 한 개의 p99(<span id="base"></span>)보다 느린 요청 <b id="slow"></b> <span class="ltt-tag warn">모델로 계산한 예시</span></p>
+          </div>
+        </div>
+      </div>`;
+
+    const ms = LTT.MOTION_MS;
+    const W = 600, H = 300, M = { l: 58, r: 24, t: 22, b: 42 };
+    const x = d3.scaleLog().domain([10, 1000]).range([M.l, W - M.r]);
+    const y = d3.scaleLog().domain([1e-7, 1]).range([H - M.b, M.t]);
+    const line = d3.line().x((d) => x(d[0])).y((d) => y(d[1]));
+    const PCT = { 1: "100%", 0.01: "1%", 0.0001: "0.01%", 0.000001: "0.0001%" };
+    const CURVE = d3.range(0, 121).map((i) => {
+      const t = BASE * Math.pow(100, i / 120);
+      return [t, Math.pow(BASE / t, 1 / TAIL)];
+    });
+
+    const root = d3.select(body);
+    const svg = root.select(".fo-chart").append("svg").attr("viewBox", `0 0 ${W} ${H}`);
+
+    svg.append("g").attr("class", "ax").attr("transform", `translate(0,${H - M.b})`)
+      .call(d3.axisBottom(x).tickValues([10, 20, 50, 100, 200, 500, 1000]).tickFormat((d) => d + "ms").tickSize(4));
+    svg.append("g").attr("class", "ax").attr("transform", `translate(${M.l},0)`)
+      .call(d3.axisLeft(y).tickValues([1, 1e-2, 1e-4, 1e-6]).tickFormat((d) => PCT[d]).tickSize(4));
+    svg.append("text").attr("class", "fo-note").attr("x", M.l).attr("y", 14).text("백엔드 응답 한 개가 이보다 느릴 비율");
+    svg.append("text").attr("class", "fo-note").attr("x", W - M.r).attr("y", H - 6).attr("text-anchor", "end").text("백엔드 응답 지연");
+
+    const path = svg.append("path").datum(CURVE).attr("class", "fo-curve").attr("d", line);
+    const len = path.node().getTotalLength();
+    path.attr("stroke-dasharray", len).attr("stroke-dashoffset", len)
+      .transition().duration(ms * 3).attr("stroke-dashoffset", 0);
+
+    const base = tailMs(0.01);
+    svg.append("circle").attr("class", "fo-ref").attr("cx", x(base)).attr("cy", y(0.01)).attr("r", 5);
+    svg.append("text").attr("class", "fo-note").attr("x", x(base) + 9).attr("y", y(0.01) - 9)
+      .text(`백엔드 1개의 p99 ${Math.round(base)}ms`);
+
+    const guide = svg.append("line").attr("class", "fo-guide");
+    const drop = svg.append("line").attr("class", "fo-guide");
+    const mark = svg.append("circle").attr("class", "fo-mark").attr("r", 5);
+    const cutLabel = svg.append("text").attr("class", "fo-note").attr("text-anchor", "end").attr("x", W - M.r);
+    const p99Label = svg.append("text").attr("class", "fo-note").attr("y", H - M.b - 8);
+
+    const cells = root.select("#fo-cells");
+    const resp = root.select("#fo-resp");
+    const p99 = root.select("#p99");
+    const slow = root.select("#slow");
+    root.select("#base").text(`${Math.round(base)}ms`);
+
+    const show = (n) => {
+      const s = cutFor(n), t = tailMs(s);
+      let hot = 0;
+      for (let i = 1; i < n; i++) if (U[i] > U[hot]) hot = i;
+
+      guide.transition().duration(ms).attr("x1", M.l).attr("x2", x(t)).attr("y1", y(s)).attr("y2", y(s));
+      drop.transition().duration(ms).attr("x1", x(t)).attr("x2", x(t)).attr("y1", y(s)).attr("y2", H - M.b);
+      mark.transition().duration(ms).attr("cx", x(t)).attr("cy", y(s));
+      cutLabel.text(`요청 p99 기준: 백엔드 상위 ${(s * 100).toPrecision(2)}%`).transition().duration(ms).attr("y", y(s) - 8);
+      p99Label.text(`요청 p99 ${Math.round(t)}ms`).transition().duration(ms).attr("x", x(t) + 7);
+
+      cells.style("grid-template-columns", `repeat(${Math.min(n, 10)}, 1fr)`)
+        .html(Array.from({ length: n }, (_, i) => `<span class="fo-cell${i === hot ? " hot" : ""}" style="--i:${i}"></span>`).join(""));
+      resp.text(`응답 = 가장 늦은 칸 ${Math.round(tailMs(1 - U[hot]))}ms (한 번 뽑은 예)`);
+      p99.text(Math.round(t));
+      slow.text(`${Math.round((1 - Math.pow(0.99, n)) * 100)}%`);
+    };
+
+    LTT.sweep({
+      params: { n: { kind: "steps", stops: [1, 5, 10, 20, 50, 100], value: 10, fmt: (v) => v + "개" } },
+      render: ({ n }) => show(n),
+    });
+    return {};
+  },
+};
+
+LTT.deck({
+  title: "팬아웃과 p99 꼬리 지연",
+  theme: "terminal",
+  glossary: { "팬아웃": "요청 하나가 백엔드 여러 곳을 동시에 부르는 구조. 부른 곳의 수가 N이다." },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

@@ -69,20 +69,11 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "Bash|Write|Edit",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/doc_commit.py\""
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/pr_message_nudge.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/skills/learn-to-tell/hooks/background_guard.py\""
           }
         ]
       },

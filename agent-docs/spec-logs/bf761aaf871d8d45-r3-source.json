@@ -1,0 +1,91 @@
+{
+ "outside": {
+  "ltt": [
+   "[data-ltt-theme=paper] .dk-no{font-family:",
+   ";font-style:italic;font-weight:400}",
+   "[data-ltt-theme=paper] .dk-kicker,[data-ltt-theme=paper] .dk-top h1{box-shadow:none;backgr",
+   "[data-ltt-theme=paper] .dk-top{border-bottom:1.5px solid var(--ltt-ink);margin-bottom:8px}",
+   "[data-ltt-theme=paper] .ltt-dg rect.box,[data-ltt-theme=paper] .ltt-dg .z rect{rx:3px}[dat",
+   "}",
+   "[data-ltt-theme=blueprint] .dk-no,[data-ltt-theme=blueprint] .dk-kicker,[data-ltt-theme=bl",
+   "[data-ltt-theme=blueprint] .dk-kicker,[data-ltt-theme=blueprint] .dk-top h1{border-radius:",
+   "[data-ltt-theme=blueprint] .dk-no{font-weight:500;font-size:clamp(40px,min(6vw,10vh),84px)",
+   "[data-ltt-theme=blueprint] .ltt-dg rect.box,[data-ltt-theme=blueprint] .ltt-dg .z rect{rx:",
+   "[data-ltt-theme=blueprint] .ltt-dg .n .s,[data-ltt-theme=blueprint] .ltt-dg .el,[data-ltt-",
+   "[data-ltt-theme=terminal] .dk-no,[data-ltt-theme=terminal] .dk-kicker,[data-ltt-theme=term",
+   "[data-ltt-theme=terminal] .dk-no::before{content:'#';opacity:.45}[data-ltt-theme=terminal]",
+   "[data-ltt-theme=terminal] .dk-top h1::before{border-radius:0;width:8px;height:14px;animati",
+   "[data-ltt-theme=terminal] .dk-kicker::before{content:'$';width:auto;height:auto;background",
+   "[data-ltt-theme=terminal] .ltt-dg rect.box,[data-ltt-theme=terminal] .ltt-dg .z rect{rx:4p",
+   "[data-ltt-theme=ledger] .dk-top{border-bottom:3px solid var(--ltt-ink);margin-bottom:6px}",
+   "[data-ltt-theme=ledger] .dk-top h1,[data-ltt-theme=ledger] .dk-kicker{box-shadow:none;back",
+   "[data-ltt-theme=ledger] .dk-top h1::before,[data-ltt-theme=ledger] .dk-kicker::before{bord",
+   "[data-ltt-theme=ledger] .dk-no{font-family:",
+   ";font-weight:400;color:var(--ltt-ink-2)}",
+   "[data-ltt-theme=ledger] .ltt-dg rect.box,[data-ltt-theme=ledger] .ltt-dg .z rect{rx:0}",
+   "[data-ltt-theme=lab] .dk-no{font-family:var(--ltt-mono);font-weight:500;letter-spacing:-.0",
+   "[data-ltt-theme=lab] .dk-kicker{font-family:var(--ltt-mono);border-radius:4px;font-size:12",
+   "[data-ltt-theme=sketch] .ltt-card{border-width:2px;border-color:var(--ltt-line-2)}",
+   "[data-ltt-theme=sketch] .dk-kicker,[data-ltt-theme=sketch] .dk-top h1{box-shadow:none;back",
+   "[data-ltt-theme=sketch] .ltt-dg .e{stroke-width:2.2}[data-ltt-theme=sketch] .ltt-dg .n rec",
+   "[data-ltt-theme=atlas] .dk-kicker,[data-ltt-theme=atlas] .dk-top h1{text-transform:upperca",
+   "[data-ltt-theme=atlas] .dk-no{font-family:var(--ltt-mono);font-weight:500;letter-spacing:0",
+   "}",
+   "@media (prefers-color-scheme:dark){",
+   ":not([data-theme=light]){",
+   "}}",
+   "}",
+   "@font-face{font-family:'Pretendard Variable';font-weight:45 920;font-style:normal;font-dis",
+   "vendor/pretendard/PretendardVariable.woff2') format('woff2-variations')}",
+   "@font-face{font-family:'LTT Serif';font-weight:200 900;font-style:normal;font-display:swap",
+   "vendor/noto-serif-kr/NotoSerifKR-ksx.woff2') format('woff2-variations')}",
+   "@font-face{font-family:'LTT Mono';font-weight:400;font-style:normal;font-display:swap;src:",
+   "vendor/d2coding/D2Coding-ksx.woff2') format('woff2')}",
+   "@font-face{font-family:'LTT Mono';font-weight:700;font-style:normal;font-display:swap;src:",
+   "vendor/d2coding/D2CodingBold-ksx.woff2') format('woff2')}",
+   ":root{",
+   "--ltt-sea:color-mix(in srgb,var(--ltt-accent) 9%,var(--ltt-card-2));--ltt-land:var(--ltt-c",
+   "@media (prefers-color-scheme:dark){:root:not([data-theme=light]){",
+   "color-scheme:dark}}",
+   ":root[data-theme=dark]{",
+   "color-scheme:dark}",
+   "}}"
+  ],
+  "ltt-parts": [],
+  "ltt-ui": [],
+  "ltt-mock": [],
+  "ltt-deck": [
+   "{}"
+  ]
+ },
+ "link": {
+  "ltt": [],
+  "ltt-parts": [],
+  "ltt-ui": [],
+  "ltt-mock": [],
+  "ltt-deck": []
+ },
+ "comments": {
+  "ltt": [],
+  "ltt-parts": [],
+  "ltt-ui": [],
+  "ltt-mock": [
+   "The terminal stays dark in every theme (it imitates a real screen); line colours are variables so a page or theme can retune them."
+  ],
+  "ltt-deck": [
+   "Revealing keeps every choice's box in place: removing them reflowed the scene mid-step and shook the frame.",
+   "A probe reads sizes right after each state is drawn; page CSS transitions would hand it the previous state's size.",
+   "mobile: the same scene units stacked in one column and scrolled (see mobileFit)",
+   "Pages cap drawings with vh/vw sizes tuned for one desktop screen; a scrolling phone column needs them lifted.",
+   "an icon alone in a visual slot is the picture, so it takes a size for the slot instead of its 1em text size"
+  ]
+ },
+ "docsDiff": "",
+ "zipCss": [
+  "learn-to-tell/kit/ltt-deck.css",
+  "learn-to-tell/kit/ltt-mock.css",
+  "learn-to-tell/kit/ltt-parts.css",
+  "learn-to-tell/kit/ltt-ui.css",
+  "learn-to-tell/kit/ltt.css"
+ ]
+}
