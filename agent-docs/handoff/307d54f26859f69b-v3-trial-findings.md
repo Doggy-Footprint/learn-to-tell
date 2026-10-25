@@ -7,14 +7,9 @@
 
 ## State
 
-- branch `PoC/v3`, HEAD `75c650b`. 아래 변경은 모두 커밋하지 않았다.
-- rule 검사기 완료: `packages/check/` (src, bin, test), 루트 `package.json`·`package-lock.json`. spec은 `agent-docs/spec-logs/6ed8f04e251d4b22-m1-rule-checker.md` (v3, complete).
-- 시험 생성: `bench/v3/gen/`
-  - `gen-common.md`: 임시 생성 지시. SKILL이 없어서 대신 썼다.
-  - `run.sh`, `analyze.py`, `empty-mcp.json`, `metrics.json`
-  - `<topic>/{prompt.md, baseline-prompt.md, skill.html, baseline.html}`. topic은 cache-ttl, diversification, projectile-drag.
-- 실행 transcript(`out.jsonl`)는 저장소에 없고, 세션 scratchpad `gen/<topic>/<skill|baseline>/`에만 있다. 세션이 끝나면 사라진다.
-- 그 밖의 미커밋 변경: `plan.md`, `AGENTS.md`, ADR `ba753ada12166450`, `agent-docs/adr/index.md`
+- branch `PoC/v3`. 검사기와 시험 생성 결과는 `d0f5b3c`, `403ad36`로 커밋됐다.
+- Next Step 1 완료(커밋 전): `packages/check/src/chart.mjs`, `index.mjs`, `packages/check/test/` 추가·수정. spec `agent-docs/spec-logs/fd0231d3293c45b1-grouped-chart-points.md` v3, complete.
+- 실행 transcript(`out.jsonl`)는 저장소에 없다(시험 생성 세션 scratchpad에만 있었다).
 
 ## Failed Attempts
 
@@ -25,12 +20,10 @@
 
 ## Next Step
 
-1. **색으로 나눈 선 차트 지원 (검사기 수정, workflow-approach spec 1개)**
-   - 방향: `<name>_marks`의 `from.data`가 top-level dataset이 아니면 부모 group의 `from.facet.data`를 따라간다. 그 값이 top-level dataset이면 그 데이터에서 행을 찾는다.
-   - 결정할 것:
-     - 이 경로를 facet 차트(`encoding.column/row`, `_cell`)까지 넓힐지
-     - `where`에 그룹 필드(예: `g`)를 반드시 넣게 할지. 넣지 않으면 그룹마다 한 행씩 맞아 `point-row`가 난다.
-   - 근거: 시험 3개에서 rule 실패 6회 중 5회가 이 한계였다. agent는 범례를 쓰는 차트를 layer로 쪼개서 우회했다.
+1. ~~색으로 나눈 선 차트 지원~~ — 완료(run fd0231d3293c45b1).
+   - 방향을 바꿨다: 부모 group의 `from.facet.data`를 따라 top-level dataset에서 읽는 대신, mark가 그린 scenegraph item의 `datum`을 행으로 쓴다. facet + layer는 cell 안에 top-level과 같은 이름(`data_0`)의 로컬 dataset을 만들어, 이름으로 읽으면 다른 cell의 행이 나온다(`view.data("data_0")`가 마지막 cell의 로컬 데이터를 돌려줌, 확인됨).
+   - facet(operator, `encoding.column/row/facet`, layer 포함) 지원, `where`에 그룹 필드가 빠지면 `point-group`.
+   - 남은 것: `repeat` 차트, 중첩 필드. 생성 지시문(SKILL)에 `point-group` 사용법을 반영하는 일.
 2. **수치 적분이 필요한 모델의 처리 (사용자 결정)**
    - (a) 지금처럼 미리 계산한 `values`만 허용하고 rule 검사를 유지한다. 상호작용은 미리 정한 격자로 제한된다.
    - (b) 페이지 JS 계산을 허용하고 그 그래프는 rule 대상에서 뺀다. 서브에이전트 검증으로 넘긴다.

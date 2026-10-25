@@ -87,15 +87,35 @@ async function runView(runtime, signals) {
   }
 }
 
-// Compiled mark names follow Vega-Lite's internal `<name>_marks` convention; it is not a
-// documented contract, which is why vega-lite is pinned to an exact version.
-function findMark(marks, name) {
+// Compiled mark names (`<name>_marks`, `<name>_child_marks` for facet children) and the
+// scenegraph layout used for rows (mark nodes with `name`, `items`; group items holding child
+// mark nodes) are Vega-Lite/Vega internals, not documented contracts, which is why both
+// libraries are pinned to exact versions.
+function findMark(marks, name, groups = []) {
   for (const mark of marks ?? []) {
-    if (mark.name === name) return mark;
-    const found = findMark(mark.marks, name);
+    if (mark.name === name) return { mark, groups };
+    const found = findMark(mark.marks, name, [...groups, mark]);
     if (found) return found;
   }
   return null;
+}
+
+function groupFieldsOf(groups) {
+  const fields = [];
+  for (const group of groups) {
+    const groupby = group.from?.facet?.groupby;
+    for (const field of typeof groupby === 'string' ? [groupby] : (groupby ?? [])) {
+      if (!fields.includes(field)) fields.push(field);
+    }
+  }
+  return fields;
+}
+
+function collectData(node, markName, out) {
+  for (const item of node.items ?? []) {
+    if (node.name === markName) out.push(item.datum);
+    for (const child of item.items ?? []) collectData(child, markName, out);
+  }
 }
 
 function validatePoint(point, index, seenIds) {
@@ -144,14 +164,24 @@ async function evaluatePoint(ctx, point, index, seenIds) {
     };
   }
   const loc = { chart: chartId, point: point.id };
-  const mark = findMark(vgSpec.marks, `${point.mark}_marks`);
-  const datasets = new Set((vgSpec.data ?? []).map((d) => d.name));
-  const dataName = mark?.from?.data;
-  if (!mark || typeof dataName !== 'string' || !datasets.has(dataName)) {
+  const markName = `${point.mark}_marks`;
+  const found = findMark(vgSpec.marks, markName) ?? findMark(vgSpec.marks, `${point.mark}_child_marks`);
+  if (!found) {
     return {
-      error: issue('point-mark', `no unit view named "${point.mark}" with a top-level dataset`, {
+      error: issue('point-mark', `no unit view named "${point.mark}"`, {
         ...loc,
         actual: point.mark,
+      }),
+    };
+  }
+  const groupFields = groupFieldsOf(found.groups);
+  const missing = groupFields.filter((f) => !Object.hasOwn(point.where, f));
+  if (missing.length > 0) {
+    return {
+      error: issue('point-group', `"where" must name every group field: ${groupFields.join(', ')}`, {
+        ...loc,
+        expected: groupFields,
+        actual: missing,
       }),
     };
   }
@@ -189,7 +219,9 @@ async function evaluatePoint(ctx, point, index, seenIds) {
   try {
     const view = await runView(runtime, Object.entries(params));
     try {
-      rows = view.data(dataName).filter((row) => rowMatches(row, point.where));
+      const drawn = [];
+      collectData(view.scenegraph().root, found.mark.name, drawn);
+      rows = drawn.filter((row) => rowMatches(row, point.where));
     } finally {
       view.finalize();
     }
@@ -198,7 +230,7 @@ async function evaluatePoint(ctx, point, index, seenIds) {
   }
   if (rows.length !== 1) {
     return {
-      error: issue('point-row', `"where" must match exactly 1 row of "${dataName}", matched ${rows.length}`, {
+      error: issue('point-row', `"where" must match exactly 1 drawn row of "${point.mark}", matched ${rows.length}`, {
         ...loc,
         actual: rows.length,
       }),

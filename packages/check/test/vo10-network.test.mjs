@@ -1,5 +1,5 @@
 // VO-10 (QR-6, FR-3, C-23, C-1): recording fetch stub and http/https spies installed BEFORE importing
-// index.mjs, so module-load-time captures of these functions are also observed. N1..N4.
+// index.mjs, so module-load-time captures of these functions are also observed. N1..N5.
 // Oracle: QR-6 threshold 0 calls; C-23 expected chart-url per chart.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -24,6 +24,7 @@ syncBuiltinESMExports();
 
 const { LINE, pt, chart, C1 } = await import("./fixtures/html.mjs");
 const { check, assertIssues } = await import("./fixtures/report.mjs");
+const { gpt, hgFacet } = await import("./fixtures/grouped.mjs");
 
 const P = () => [pt("a", { x: 3 }, 6)];
 const cases = {
@@ -49,5 +50,13 @@ for (const [id, mk] of Object.entries(cases)) {
 test("N4 normal C-1 point evaluation: zero network calls", async () => {
   calls.length = 0;
   assertIssues(await check(C1()), []);
+  assert.deepEqual(calls, []);
+});
+
+test("N5 C-64 facet + color point evaluation: report ok, zero network calls", async () => {
+  calls.length = 0;
+  const r = await check(C1({ charts: [chart("n5", hgFacet([gpt("a", "c", { h: "q", g: "b", x: 1 }, 22)]))] }));
+  assertIssues(r, []);
+  assert.equal(r.ok, true);
   assert.deepEqual(calls, []);
 });

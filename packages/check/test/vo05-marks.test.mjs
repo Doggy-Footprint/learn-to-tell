@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import { LINE, pt, chart, C1 } from "./fixtures/html.mjs";
 import { check, assertIssues } from "./fixtures/report.mjs";
+import { HDATA_VALUES, HDATA_CALC } from "./fixtures/grouped.mjs";
 
 const Q = (f) => ({ field: f, type: "quantitative" });
 const one = (spec) => check(C1({ charts: [chart("v", spec)] }));
@@ -50,12 +51,25 @@ test("P7 unknown mark (C-25)", async () => {
   assertIssues(await one(LINE(2, [{ ...pt("a", { x: 3 }, 6), mark: "nope" }])), [{ rule: "point-mark", chart: "v", point: "a" }]);
 });
 
-test("P8 facet: mark f and f_child both point-mark (C-25)", async () => {
-  const spec = { name: "f", data: { values: [{ g: "a", x: 1, y: 2 }] }, mark: "point",
-    encoding: { column: { field: "g", type: "nominal" }, x: Q("x"), y: Q("y") },
+test("P8 encoding-facet unit: mark f and f_child both resolve and pass (C-25 v1)", async () => {
+  const spec = { name: "f", data: { values: HDATA_VALUES() }, transform: [HDATA_CALC], mark: "point",
+    encoding: { column: { field: "h", type: "nominal" }, x: Q("x"), y: Q("y") },
     usermeta: { ltt: { points: [
-      { id: "a", mark: "f", where: { x: 1 }, field: "y", value: 2, tol: 0 },
-      { id: "b", mark: "f_child", where: { x: 1 }, field: "y", value: 2, tol: 0 },
+      { id: "a", mark: "f", where: { h: "q", x: 1 }, field: "y", value: 21, tol: 0 },
+      { id: "b", mark: "f_child", where: { h: "q", x: 1 }, field: "y", value: 21, tol: 0 },
     ] } } };
-  assertIssues(await one(spec), [{ rule: "point-mark", chart: "v", point: "a" }, { rule: "point-mark", chart: "v", point: "b" }]);
+  assertIssues(await one(spec), []);
+});
+
+test("P8 negative control: f and f_child with value 22 -> point-mismatch actual 21", async () => {
+  const spec = { name: "f", data: { values: HDATA_VALUES() }, transform: [HDATA_CALC], mark: "point",
+    encoding: { column: { field: "h", type: "nominal" }, x: Q("x"), y: Q("y") },
+    usermeta: { ltt: { points: [
+      { id: "a", mark: "f", where: { h: "q", x: 1 }, field: "y", value: 22, tol: 0 },
+      { id: "b", mark: "f_child", where: { h: "q", x: 1 }, field: "y", value: 22, tol: 0 },
+    ] } } };
+  assertIssues(await one(spec), [
+    { rule: "point-mismatch", chart: "v", point: "a", expected: 22, actual: 21 },
+    { rule: "point-mismatch", chart: "v", point: "b", expected: 22, actual: 21 },
+  ]);
 });

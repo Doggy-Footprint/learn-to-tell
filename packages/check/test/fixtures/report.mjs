@@ -5,7 +5,7 @@ export const RULE_IDS = [
   "lib-version", "lib-source", "lib-missing", "chart-json", "chart-id", "chart-schema", "chart-url",
   "chart-build", "chart-no-points", "point-invalid", "point-mark", "point-param-unknown", "point-param-range",
   "point-row", "point-mismatch", "quiz-id", "quiz-kind", "quiz-options", "quiz-correct", "quiz-answer",
-  "quiz-from", "quiz-mismatch",
+  "quiz-from", "quiz-mismatch", "point-group",
 ];
 
 let mod;

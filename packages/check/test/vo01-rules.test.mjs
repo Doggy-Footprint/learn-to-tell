@@ -3,15 +3,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LIBS, LINE, pt, chart, rawChart, choice, number, rawQuiz, C1 } from "./fixtures/html.mjs";
+import { GROUPS, gpt } from "./fixtures/grouped.mjs";
 import { RULE_IDS, check, assertIssues, loadIndex, absent } from "./fixtures/report.mjs";
 
 const VEGA = '<script src="https://cdn.jsdelivr.net/npm/vega@6.4.0"></script>';
 const VL = (v) => `<script src="https://cdn.jsdelivr.net/npm/vega-lite${v}"></script>`;
 const nonEmptyArr = (a) => Array.isArray(a) && a.length > 0 && a.length <= 5;
 
-test("RULES is set-equal to the 22 spec rule ids", async () => {
+test("RULES is set-equal to the 23 spec rule ids (22 baseline + point-group)", async () => {
   const { RULES } = await loadIndex();
-  assert.equal(RULES.length, 22);
+  assert.equal(RULES.length, 23);
   assert.deepEqual([...RULES].sort(), [...RULE_IDS].sort());
 });
 
@@ -185,4 +186,9 @@ test("quiz-from: malformed and dangling references (C-37)", async () => {
 test("quiz-mismatch: answer 8.5 tol 0.49 vs row 8 (C-15)", async () => {
   const r = await check(C1({ quizzes: [number("m", { answer: "8.5", tol: "0.49", from: "traj.p2" })] }));
   assertIssues(r, [{ rule: "quiz-mismatch", quiz: "m", expected: 8, actual: 8.5 }]);
+});
+
+test("point-group: grouped mark with where missing group field g (C-67 first item)", async () => {
+  const r = await check(C1({ charts: [chart("g", GROUPS(2, "color", [gpt("a", "curves", { x: 2 }, 8)]))] }));
+  assertIssues(r, [{ rule: "point-group", chart: "g", point: "a", expected: ["g"], actual: ["g"] }]);
 });

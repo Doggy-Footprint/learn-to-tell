@@ -18,6 +18,7 @@ export const RULES = Object.freeze([
   'chart-no-points',
   'point-invalid',
   'point-mark',
+  'point-group',
   'point-param-unknown',
   'point-param-range',
   'point-row',
