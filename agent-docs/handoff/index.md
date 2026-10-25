@@ -22,3 +22,8 @@ File: 2b0025305e515b67-noshot-haiku-sample-correction.md
 Summary: 장면 생성 실험 다음 단계: 본보기 없음 + Haiku 샘플 + Haiku 교정을 기준 장면(Sonnet, 스토리보드 + kit 문서) 10개와 비교하는 설계. 이전 기록(round0, round1 파일럿, 키워드 실험 10쌍)의 요약 포함
 Related Files: experiments/scene-pipeline/, experiments/scene-pipeline/round-kw/, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/server/audit.mjs, agent-docs/handoff/stale/3972a821cdeee012-scene-pipeline-experiment.md
 Related Symbols: LTT.deck, LTT.expect, LTT.sweep
+---
+File: 454b7af675b07764-shot-delivery-and-motion-followups.md
+Summary: 장면 생성 후속 실험 후보: 모션 설계 단계, 맞는 shot에서 출발해 고치기, 본보기를 소스 대신 화면으로 주기. 키워드 실험에서 K가 이긴 쌍(s30)과 진 쌍의 근거 포함
+Related Files: experiments/scene-pipeline/round-kw/, experiments/scene-pipeline/kw.py, experiments/scene-pipeline/shots.mjs, skills/learn-to-tell/kit/API.md, agent-docs/handoff/2b0025305e515b67-noshot-haiku-sample-correction.md
+Related Symbols: LTT.deck
