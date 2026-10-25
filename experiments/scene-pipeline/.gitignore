@@ -12,3 +12,4 @@
 /r1.out
 /review-key-r1.json
 /r1-summary.jsonl
+__pycache__/
