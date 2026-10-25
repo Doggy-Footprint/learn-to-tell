@@ -23,6 +23,11 @@
   - `gallery/orig/`는 `site/gallery/shots/`를 통째로 복사한 것이다. `gallery/runs/`는 `run_one.sh`가 만든다.
   - round0 장면을 기준점으로 쓰려면 `round0/runs/<id>/scene.html`을 `gallery/runs/<id>/`로 복사한다.
 - 채점 artifact(round0, 순위제): https://claude.ai/artifact/Rv3tSP2uq8qEiLisqJs8X1 (db `ranks`). 디버그용 `log` 컬렉션 문서 32개가 남아 있다.
+- round1 파일럿(s04, s07) 실행 완료, 채점 대기. 사용자 지시: "shot 2개를 pilot으로 돌리고, 가능하면 그것도 결과에 포함."
+  - 스크립트: `r1.py`(단계 S·L·P·H), `shots.mjs`(기본 화면 + `#ltt-checks` 지점 스크린샷), `r1_summary.py`(비용), `mklive.py`(`LTT_ROUND=r1 LTT_SHOTS=04,07`).
+  - 기록: `round1/`(스토리보드, 계획, 장면, 프롬프트, `runs.jsonl`, `r1-summary.jsonl`, `review-key-r1.json`).
+  - 채점 artifact(round1, 점수제): https://claude.ai/artifact/WzkjEjmTS6Z6BViBUax8qr (db `scores`).
+  - 나머지 6 shot은 같은 `r1.py`로 돌리면 파일럿과 같은 조건이다: `python3 r1.py 10 33 12 13 16 47`.
 - 관련 issue: https://github.com/Doggy-Footprint/learn-to-tell/issues/17 (Haiku 활용: 완성품 검사·수정, 쉬운 이미지 생성, Haiku 초안 → Sonnet 참고)
 
 ## Failed Attempts
@@ -37,7 +42,7 @@
 
 ## Next Step
 
-round1을 연다. 아래는 사용자와 합의한 설계이고, 사용자가 아직 실행을 승인하지 않았다. 시작 전에 이 설계를 보여 주고 승인을 받는다.
+round1 파일럿 채점 결과를 보고 나머지 6 shot 실행 여부를 사용자에게 묻는다. 아래는 round1 설계이고, 파일럿에서 정한 값은 Open Questions에 적었다.
 
 1. 단계 S, 스토리보드(Opus): shot마다 2벌(sb1, sb2). 설명하려는 것을 정한다.
 2. 단계 L, 계획(Sonnet): 스토리보드마다 하나. 내용은 다음과 같다.
@@ -75,6 +80,11 @@ round1을 연다. 아래는 사용자와 합의한 설계이고, 사용자가 �
   - kit의 figure `steps`·`LTT.sweep` 상태 이름을 그대로 쓰는 것
 - 새 라운드 채점 artifact: 기본값은 새 artifact를 만들어 round0의 `ranks` 데이터를 보존하는 것이다.
 
+- 파일럿에서 정한 값(사용자에게 기본값으로 알림):
+  - 스토리보드 입력은 위 기본값. effort는 모두 `high`. 참고는 B 방식이지만 `neighbors_B`가 원본의 구조·움직임·구도 축으로 골라져 있어 그 축을 간접으로 흘린다.
+  - 검사 지점 형식: 장면 `<head>` 안 `<script type="application/json" id="ltt-checks">`의 `[{id, expect, reach}]`. `reach`는 `wait`·`step`·`knob`·`click` 동작이다. kit 상태 이름은 B 참고에 문서가 없어 쓰지 않았다.
+  - 스토리보드는 shot마다 독립 프로세스 2개로 만든다.
+
 ## Spec
 
 없음. workflow-approach 작업이 아니라 실험이다.
@@ -98,3 +108,16 @@ round1을 연다. 아래는 사용자와 합의한 설계이고, 사용자가 �
 - 환경 함정:
   - `pkill -f http.server`는 자기 셸까지 죽인다(exit 144).
   - Playwright는 `/opt/node22/lib/node_modules/playwright/index.mjs` 절대 경로로 import한다.
+- round1 파일럿(s04, s07 × 회차 2). 장면 8개 모두 audit 고침 0건. `r1-summary.jsonl` 평균은 다음과 같다.
+
+  | 지표 | P | H |
+  | --- | --- | --- |
+  | S(Opus) + L(Sonnet) | $0.64 | $0.64 |
+  | 생성 | $0.65 | 샘플 합 $0.31 + 다듬기 $0.39 |
+  | 합 | $1.29 | $1.34 |
+
+  - `claude -p` 호출마다 고정 비용이 붙는다. 시스템 프롬프트·도구·CLAUDE.md 약 4만 토큰을 1시간 캐시로 새로 쓰고, 실행 디렉터리마다 앞부분이 달라 프로세스끼리 캐시를 공유하지 못한다. Opus 스토리보드는 출력 2.7k 토큰에 $0.39가 들었다.
+  - P 비용 편차가 크다. s04 P2는 thinking 59k 토큰으로 $1.16이 들었다.
+  - H 다듬기 4건 중 3건이 계획의 추천안과 같은 구성안을 골랐다.
+  - B 참고에는 `steps`·`LTT.sweep` 문서가 없어 계획 4개가 직접 만든 단계 단추를 허용했다. 그래서 `shots.mjs`의 `step` 동작이 kit stepper가 없을 때 장면 안 "다음" 단추를 누르게 고쳤다. 최종 장면 스크린샷만 다시 찍었고, 다듬기 단계가 본 샘플 스크린샷에는 도달 실패가 없었다.
+

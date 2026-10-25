@@ -21,10 +21,11 @@ const snap = async (name, note = "") => {
   await page.screenshot({ path: join(outDir, file), ...(small ? { type: "jpeg", quality: 70, scale: "css" } : {}) });
   index.push({ name, file, note });
 };
-const next = () => page.locator(".ltt-stepper button", { hasText: "다음" }).first();
+// kit stepper가 없으면 장면이 직접 만든 "다음" 단추를 쓴다(덱 이동 단추 .dk-nav는 뺀다).
+const next = async () => (await page.locator(".ltt-stepper").count() ? page.locator(".ltt-stepper button", { hasText: "다음" }) : page.locator(".dk-stage button:visible", { hasText: "다음" })).first();
 async function act(a) {
   if (a.wait != null) return page.waitForTimeout(a.wait);
-  if (a.step != null) { for (let i = 1; i < a.step; i++) { await next().click({ timeout: 2000 }); await page.waitForTimeout(400); } return; }
+  if (a.step != null) { for (let i = 1; i < a.step; i++) { await (await next()).click({ timeout: 2000 }); await page.waitForTimeout(400); } return; }
   if (a.knob != null) {
     const el = page.locator(`#${a.knob}`);
     if (a.stop != null) return el.locator("button").nth(a.stop).click({ timeout: 2000 });
@@ -40,7 +41,7 @@ try {
     await page.waitForTimeout(3000); await snap("t4s");
     await page.waitForTimeout(4000); await snap("t8s");
     const nSteps = await page.locator(".ltt-stepper .ltt-dots i").count();
-    if (nSteps) { await open(); for (let i = 0; i < Math.min(nSteps, 8); i++) { if (i) await next().click(); await page.waitForTimeout(2500); await snap(`step${i + 1}`); } }
+    if (nSteps) { await open(); for (let i = 0; i < Math.min(nSteps, 8); i++) { if (i) await (await next()).click(); await page.waitForTimeout(2500); await snap(`step${i + 1}`); } }
     const knobs = await page.$$eval(".ltt-steps[id], input[type=range][id]", (ns) => ns.map((n) => ({ id: n.id, range: n.tagName === "INPUT", min: n.min, max: n.max, n: n.querySelectorAll("button").length })));
     for (const k of knobs.slice(0, 3)) for (const end of ["min", "max"]) {
       await open();
