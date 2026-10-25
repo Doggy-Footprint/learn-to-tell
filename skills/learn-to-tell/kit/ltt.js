@@ -277,11 +277,18 @@
     gauge: "<path d='m12 14 4-4'/><path d='M3.34 19a10 10 0 1 1 17.32 0'/>",
     workflow: "<rect width='8' height='8' x='3' y='3' rx='2'/><path d='M7 11v4a2 2 0 0 0 2 2h4'/><rect width='8' height='8' x='13' y='13' rx='2'/>"
   };
+  // Lessons reach for the Lucide name before the kit's short one.
+  ICONS.database = ICONS.db;
 
   function icon(name, opts) {
     var body = ICONS[name];
     var o = opts || {};
     // Unknown names render as text so an emoji shows instead of an empty slot; escaped because callers pass the result to innerHTML.
+    // A bare lowercase word is a mistyped icon name, and as text it wraps inside the icon slot, so it renders nothing.
+    if (!body && /^[a-z][a-z0-9-]*$/.test(String(name))) {
+      if (typeof console !== "undefined") console.warn("LTT.icon: unknown icon '" + name + "'");
+      return "";
+    }
     if (!body) return name ? "<span class='ltt-ic" + (o.cls ? " " + o.cls : "") + "' aria-hidden='true'>" +
       String(name).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</span>" : "";
     return "<svg class='ltt-ic" + (o.cls ? " " + o.cls : "") + "' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='" +
