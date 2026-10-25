@@ -75,3 +75,8 @@ File: 0f72dd38f6236771-refactoring-10-move-v0-rejected-designs-to-rejections.md
 Summary: refactoring-10: learn-to-tell-PROJECT.md에서 옮긴 v0 폐기 설계 표를 rejection 기록으로 정리하는 남은 작업
 Related Files: learn-to-tell-PROJECT.md, agent-docs/rejections/index.md
 Related Symbols: 없음
+---
+File: 3972a821cdeee012-scene-pipeline-experiment.md
+Summary: 장면 생성 실험 round0(현재 흐름 vs 본보기 복제, 사전 기준 실패) 결과와 round1(스토리보드 Opus → 계획 Sonnet → Haiku 샘플/바로 생성 분기 → corrector) 설계
+Related Files: experiments/scene-pipeline/, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/server/audit.mjs, site/gallery/shots/axes.json
+Related Symbols: LTT.deck, LTT.expect, LTT.sweep

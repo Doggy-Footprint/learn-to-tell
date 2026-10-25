@@ -18,7 +18,7 @@ Summary: 수업 생성 경로 다이어트(흐름·검증·문서·audit·kit �
 Related Files: agent-docs/plans/b71ddee49f77ac06-skill-generation-diet.md, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/server/audit.mjs, skills/learn-to-tell/kit/ltt-deck.js, agent-docs/handoff/b41cd6aec66a2589-refactoring-1-lesson-cost-ledger.md
 Related Symbols: LTT.deck, LTT.auditScene, LTT.lintDeck, fill, fit, zoomLock
 ---
-File: 3972a821cdeee012-scene-pipeline-experiment.md
-Summary: 장면 생성 실험 round0(현재 흐름 vs 본보기 복제, 사전 기준 실패) 결과와 round1(스토리보드 Opus → 계획 Sonnet → Haiku 샘플/바로 생성 분기 → corrector) 설계
-Related Files: experiments/scene-pipeline/, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/server/audit.mjs, site/gallery/shots/axes.json
+File: 2b0025305e515b67-noshot-haiku-sample-correction.md
+Summary: 장면 생성 실험 다음 단계: 본보기 없음 + Haiku 샘플 + Haiku 교정을 기준 장면(Sonnet, 스토리보드 + kit 문서) 10개와 비교하는 설계. 이전 기록(round0, round1 파일럿, 키워드 실험 10쌍)의 요약 포함
+Related Files: experiments/scene-pipeline/, experiments/scene-pipeline/round-kw/, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/server/audit.mjs, agent-docs/handoff/stale/3972a821cdeee012-scene-pipeline-experiment.md
 Related Symbols: LTT.deck, LTT.expect, LTT.sweep
