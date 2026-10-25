@@ -1,15 +1,25 @@
-# 라이브 비교: 기존 가–마 배정(review-key.json)을 유지하고 장면 HTML과 kit을 review/ 아래에 둔다.
+# 라이브 비교: 기존 가–바 배정(review-key)을 유지하고 장면 HTML과 kit을 review/ 아래에 둔다.
+# LTT_ROUND=r1: 장면 orig, A1(round0 A-1 기준점), P1, P2, H1, H2. 키는 review-key-r1.json, shot은 LTT_SHOTS(쉼표)로 고른다.
 import json, os, re, shutil, secrets
 from pathlib import Path
 E = Path(__file__).resolve().parent; OUT = E/"review"; K = Path("/home/user/learn-to-tell/skills/learn-to-tell/kit")
-plan = json.load(open(E/"plan.json"))
-if not (E/"review-key.json").exists():
-    import random; rng = random.Random(); key = {}
+plan = json.load(open(E/"plan.json")); R = os.environ.get("LTT_ROUND", "r0")
+if os.environ.get("LTT_SHOTS"): plan = {k: plan[k] for k in os.environ["LTT_SHOTS"].split(",")}
+NAMES = ["orig", "A1", "A2", "B1", "B2"] if R == "r0" else ["orig", "A1", "P1", "P2", "H1", "H2"]
+LABS = "가나다라마바"[:len(NAMES)]
+KEY = E/("review-key.json" if R == "r0" else f"review-key-{R}.json")
+def src_of(k, n):
+    if n == "orig": return E/"gallery/orig"/plan[k]["orig"]
+    if R == "r0" or n == "A1": return E/f"gallery/runs/s{k}-{n[0]}-{n[1]}/scene.html"
+    return E/f"gallery/{R}/s{k}/{n}/scene.html" if n[0] == "P" else E/f"gallery/{R}/s{k}/{n}/refine/scene.html"
+key = json.load(open(KEY)) if KEY.exists() else {}
+if any(f"s{k}:{LABS[0]}" not in key for k in plan):
+    import random; rng = random.Random()
     for k in plan:
-        names = ["orig", "A1", "A2", "B1", "B2"]; rng.shuffle(names)
-        key.update({f"s{k}:{lab}": n for lab, n in zip("가나다라마", names)})
-    json.dump(key, open(E/"review-key.json", "w"), ensure_ascii=False, indent=1)
-key = json.load(open(E/"review-key.json"))
+        if f"s{k}:{LABS[0]}" in key: continue
+        names = NAMES[:]; rng.shuffle(names)
+        key.update({f"s{k}:{lab}": n for lab, n in zip(LABS, names)})
+    json.dump(key, open(KEY, "w"), ensure_ascii=False, indent=1)
 shutil.rmtree(OUT/"s", ignore_errors=True); shutil.rmtree(OUT/"kit", ignore_errors=True)
 (OUT/"s").mkdir(parents=True); (OUT/"kit/vendor").mkdir(parents=True)
 for f in K.glob("ltt*.*"): shutil.copy(f, OUT/"kit"/f.name)
@@ -18,9 +28,9 @@ for d in ["pretendard", "d2coding", "noto-serif-kr"]: shutil.copytree(K/"vendor"
 items = []; skey = {}
 for k in plan:
     clips = []
-    for lab in "가나다라마":
+    for lab in LABS:
         n = key[f"s{k}:{lab}"]
-        src = E/"gallery/orig"/plan[k]["orig"] if n == "orig" else E/f"gallery/runs/s{k}-{n[0]}-{n[1]}/scene.html"
+        src = src_of(k, n)
         html = src.read_text().replace('"/kit/', '"../kit/')
         html = html.replace("</head>", "<style>#ltt-expect{display:none!important}</style>\n</head>", 1)
         tok = secrets.token_hex(6); (OUT/"s"/f"{tok}.html").write_text(html)
