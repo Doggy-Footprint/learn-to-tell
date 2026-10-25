@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>국가별 전력 믹스</title>
+<script type="application/json" id="ltt-meta">{"topic": "국가별 전력 믹스", "audience": "에너지 정책 입문자", "theme": "atlas", "medium": "에너지 통계 차트", "decision": "전원 구성 비교"}</script>
+<style>
+  .mix-wrap { display: grid; gap: 10px; min-width: 0; }
+  .mix-ctl { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; }
+  .mix-ctl .ltt-param { margin: 0; }
+  .mix-play { font: inherit; padding: 4px 12px; border: 1px solid var(--ltt-line-2); border-radius: 999px; background: var(--ltt-card); color: var(--ltt-ink); cursor: pointer; }
+  .mix-play[aria-pressed="true"] { background: var(--ltt-accent-soft); border-color: var(--ltt-accent); }
+  .mix-svg { width: 100%; height: auto; display: block; }
+  .mix-svg text { fill: var(--ltt-ink); font-family: inherit; }
+  .mix-svg .mu { fill: var(--ltt-muted); }
+  .mix-svg .halo { paint-order: stroke; stroke: var(--ltt-card); stroke-width: 4px; stroke-linejoin: round; }
+  .mix-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .mix-stats .ltt-stat { min-width: 0; }
+  .mix-stats .lb { color: var(--ltt-muted); }
+  .mix-stats b { display: block; font-variant-numeric: tabular-nums; }
+  .mix-stats .keep b { color: var(--ltt-accent); }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const YEARS = ["2000", "2005", "2010", "2015", "2020"];
+// 가상 국가의 발전량(TWh). 순서: 석탄, 가스, 원자력, 수력, 풍력+태양광
+const SRC = [
+  { n: "석탄", ef: 820 }, { n: "가스", ef: 490 }, { n: "원자력", ef: 12 }, { n: "수력", ef: 24 }, { n: "풍력+태양광", ef: 30 },
+];
+const COUNTRIES = [
+  { n: "A국", tag: "석탄 중심", rows: [[200, 90, 60, 40, 10], [200, 95, 70, 42, 43], [200, 100, 80, 45, 75], [200, 100, 90, 48, 112], [200, 100, 100, 50, 150]] },
+  { n: "B국", tag: "원전·수력 중심", rows: [[20, 40, 170, 150, 20], [15, 40, 170, 155, 45], [10, 40, 170, 158, 72], [5, 40, 170, 160, 100], [0, 40, 170, 160, 130]] },
+  { n: "C국", tag: "가스 중심", rows: [[60, 230, 40, 20, 50], [50, 235, 40, 20, 80], [40, 240, 40, 20, 110], [30, 245, 40, 20, 140], [20, 250, 40, 20, 170]] },
+];
+const sum = (r) => r.reduce((a, b) => a + b, 0);
+const intensity = (r) => r.reduce((a, x, i) => a + x * SRC[i].ef, 0) / sum(r); // g CO2eq/kWh
+// 소수 첫째 자리 비중. 가장 큰 나머지 순으로 올려 합이 정확히 100.0이 되게 한다.
+const shares = (r) => {
+  const t = sum(r), raw = r.map((x) => (x / t) * 1000), fl = raw.map(Math.floor);
+  let rest = 1000 - sum(fl);
+  raw.map((x, i) => [x - fl[i], i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (rest-- > 0) fl[i]++; });
+  return fl.map((x) => x / 10);
+};
+const coalFixed = (c, y) => COUNTRIES[c].rows[y][0] >= 200 && COUNTRIES[c].rows[y][0] / sum(COUNTRIES[c].rows[y]) < 0.4;
+
+function mixFigure(body) {
+  body.innerHTML = `<div class="mix-wrap">
+    <div class="mix-ctl">
+      <div class="ltt-param">나라 <b id="country-v"></b><div id="country"></div></div>
+      <div class="ltt-param">연도 <b id="year-v"></b><div id="year"></div></div>
+      <button type="button" class="mix-play" id="play" aria-pressed="false">연도 훑기 재생</button>
+      <span class="ltt-tag muted">가상 국가 · 모델로 계산한 예시</span>
+    </div>
+    <div id="g"></div>
+    <svg class="mix-svg" viewBox="0 0 960 420" role="img" aria-label="연도별 전원별 발전량 기둥과 선택한 해의 비중 막대"></svg>
+    <div class="mix-stats" id="stats"></div>
+  </div>`;
+  const svg = body.querySelector("svg");
+  const mk = (tag, attrs, parent = svg) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+  const TOP = 40, BASE = 360, H = BASE - TOP, YMAX = 650, X0 = 70, PITCH = 100, CW = 68, BX = 650, BW = 60;
+  const sy = (t) => BASE - (t / YMAX) * H;
+
+  // 격자·축
+  [0, 200, 400, 600].forEach((t) => {
+    mk("line", { x1: 56, x2: 560, y1: sy(t), y2: sy(t), stroke: "var(--ltt-line)", "stroke-width": t ? 1 : 1.5 });
+    mk("text", { x: 50, y: sy(t) + 4, "text-anchor": "end", class: "mu", "font-size": 12 }).textContent = t;
+  });
+  mk("text", { x: 56, y: 20, "font-size": 13, "font-weight": 600 }).textContent = "발전량 (TWh) · 기둥 높이 = 그 해 총 발전량";
+  const hdrBar = mk("text", { x: BX, y: 20, "font-size": 13, "font-weight": 600 });
+  mk("text", { x: BX, y: BASE + 22, class: "mu", "font-size": 12 }).textContent = "합 100%";
+
+  const ribbons = SRC.map((_, j) => mk("path", { fill: `var(--ltt-c${j + 1})`, "fill-opacity": 0.28 }));
+  const cols = YEARS.map((y, i) => {
+    const segs = SRC.map((_, j) => mk("rect", { x: X0 + i * PITCH, width: CW, fill: `var(--ltt-c${j + 1})`, stroke: "var(--ltt-card)", "stroke-width": 1 }));
+    const veil = mk("rect", { x: X0 + i * PITCH, width: CW, y: TOP, height: H, fill: "var(--ltt-card)", "pointer-events": "none" });
+    const tot = mk("text", { "text-anchor": "middle", x: X0 + i * PITCH + CW / 2, "font-size": 13 });
+    const lab = mk("text", { "text-anchor": "middle", x: X0 + i * PITCH + CW / 2, y: BASE + 20, "font-size": 13 });
+    lab.textContent = y;
+    return { segs, veil, tot, lab };
+  });
+  // 선택 연도의 석탄 높이 기준선
+  const coalLine = mk("line", { stroke: "var(--ltt-ink)", "stroke-width": 1.5, "stroke-dasharray": "5 4" });
+  const coalTxt = mk("text", { "font-size": 12, class: "halo", "font-weight": 600 });
+  const bar = SRC.map((_, j) => mk("rect", { x: BX, width: BW, fill: `var(--ltt-c${j + 1})`, stroke: "var(--ltt-card)", "stroke-width": 1 }));
+  const tags = SRC.map((_, j) => ({
+    sw: mk("rect", { width: 10, height: 10, fill: `var(--ltt-c${j + 1})` }),
+    t: mk("text", { "font-size": 13 }),
+  }));
+
+  function paint(s) {
+    const i0 = Math.min(4, Math.floor(s.sel)), i1 = Math.min(4, i0 + 1), f = s.sel - i0;
+    const rowOf = (i) => s.v.slice(i * 5, i * 5 + 5);
+    const sel = rowOf(i0).map((x, j) => x + (rowOf(i1)[j] - x) * f);
+    cols.forEach((c, i) => {
+      const r = rowOf(i); let acc = 0;
+      r.forEach((x, j) => { const y1 = sy(acc + x), y0 = sy(acc); c.segs[j].setAttribute("y", y1); c.segs[j].setAttribute("height", Math.max(0, y0 - y1)); acc += x; });
+      c.veil.setAttribute("y", sy(acc)); c.veil.setAttribute("height", BASE - sy(acc));
+      const near = Math.min(1, Math.abs(i - s.sel));
+      c.veil.setAttribute("fill-opacity", 0.62 * near);
+      c.tot.setAttribute("y", sy(acc) - 6);
+      c.tot.textContent = Math.round(acc);
+      c.tot.setAttribute("font-weight", near < 0.5 ? 700 : 400);
+      c.lab.setAttribute("font-weight", near < 0.5 ? 700 : 400);
+    });
+    // 리본과 비중 막대
+    const xs = X0 + s.sel * PITCH + CW, tot = sum(sel), xm = (xs + BX) / 2;
+    let a = 0, b = 0; const mids = [];
+    sel.forEach((x, j) => {
+      const l0 = sy(a), l1 = sy(a + x), r0 = BASE - (b / tot) * H, r1 = BASE - ((b + x) / tot) * H;
+      ribbons[j].setAttribute("d", `M${xs},${l1} C${xm},${l1} ${xm},${r1} ${BX},${r1} L${BX},${r0} C${xm},${r0} ${xm},${l0} ${xs},${l0} Z`);
+      bar[j].setAttribute("y", r1); bar[j].setAttribute("height", Math.max(0, r0 - r1));
+      mids.push((r0 + r1) / 2);
+      a += x; b += x;
+    });
+    const cy = sy(sel[0]);
+    coalLine.setAttribute("x1", 56); coalLine.setAttribute("x2", xs - CW); coalLine.setAttribute("y1", cy); coalLine.setAttribute("y2", cy);
+    coalLine.setAttribute("x2", 560);
+    coalTxt.setAttribute("x", 566); coalTxt.setAttribute("y", cy - 5);
+    coalTxt.textContent = `석탄 ${Math.round(sel[0])} TWh`;
+    // 라벨: 겹치지 않게 아래에서 위로 16px 이상 띄운다
+    const sh = shares(sel.map((x) => Math.round(x * 100) / 100));
+    const ys = mids.slice(); for (let j = 1; j < ys.length; j++) if (ys[j - 1] - ys[j] < 17) ys[j] = ys[j - 1] - 17;
+    sel.forEach((x, j) => {
+      tags[j].sw.setAttribute("x", BX + BW + 10); tags[j].sw.setAttribute("y", ys[j] - 5);
+      tags[j].t.setAttribute("x", BX + BW + 26); tags[j].t.setAttribute("y", ys[j] + 4);
+      tags[j].t.textContent = `${SRC[j].n} ${Math.round(x)} TWh · ${sh[j].toFixed(1)}%`;
+    });
+    hdrBar.textContent = `${YEARS[Math.round(s.sel)]}년 비중 (%)`;
+  }
+
+  let cur = null, raf = 0;
+  function go(target) {
+    cancelAnimationFrame(raf);
+    const ms = LTT.MOTION_MS * 1.6;
+    if (!cur || !ms) { cur = target; paint(cur); return; }
+    const from = { v: cur.v.slice(), sel: cur.sel }, t0 = performance.now();
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / ms), e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      cur = { v: from.v.map((a, i) => a + (target.v[i] - a) * e), sel: from.sel + (target.sel - from.sel) * e };
+      paint(cur);
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+  }
+
+  const stats = body.querySelector("#stats");
+  const fmt1 = (x) => x.toFixed(1);
+  function readout(c, y) {
+    const r0 = COUNTRIES[c].rows[0], r = COUNTRIES[c].rows[y];
+    const t0 = sum(r0), t = sum(r), s0 = shares(r0)[0], s = shares(r)[0], e0 = intensity(r0), e = intensity(r);
+    const pair = (a, b, f) => (y === 0 ? f(b) : `${f(a)} → ${f(b)}`);
+    const dTwh = r[0] - r0[0], dSh = Math.round((s - s0) * 10) / 10;
+    stats.innerHTML = `
+      <div class="ltt-stat"><div class="lb">총 발전량 (TWh)</div><b>${pair(t0, t, (x) => x)}</b><small>분모 · ${YEARS[0]}→${YEARS[y]}</small></div>
+      <div class="ltt-stat ${dTwh === 0 && y ? "keep" : ""}"><div class="lb">석탄 발전량 (TWh)</div><b>${pair(r0[0], r[0], (x) => x)}</b><small>${y ? (dTwh === 0 ? "변화 없음" : (dTwh > 0 ? "+" : "−") + Math.abs(dTwh) + " TWh") : "기준 연도"}</small></div>
+      <div class="ltt-stat"><div class="lb">석탄 비중 (%)</div><b>${pair(s0, s, fmt1)}</b><small>${y ? (dSh > 0 ? "+" : "−") + Math.abs(dSh).toFixed(1) + "%p" : "합 100%"}</small></div>
+      <div class="ltt-stat"><div class="lb">배출강도 (g CO₂eq/kWh)</div><b>${pair(Math.round(e0), Math.round(e), (x) => x)}</b><small>전원별 계수 × 비중의 합</small></div>`;
+  }
+
+  let timer = 0, yearNow = 0;
+  const play = body.querySelector("#play");
+  const stop = () => { clearInterval(timer); timer = 0; play.setAttribute("aria-pressed", "false"); play.textContent = "연도 훑기 재생"; };
+  play.addEventListener("click", () => {
+    if (timer) { stop(); return; }
+    play.setAttribute("aria-pressed", "true"); play.textContent = "멈춤";
+    const btns = () => body.querySelectorAll("#year button");
+    let k = yearNow >= 4 ? 0 : yearNow;
+    if (yearNow >= 4) btns()[0] && btns()[0].click();
+    timer = setInterval(() => {
+      k++;
+      if (k > 4) { stop(); return; }
+      const b = btns()[k]; if (b) b.click(); else stop();
+    }, 1500);
+  });
+
+  LTT.sweep({
+    params: {
+      country: { kind: "steps", stops: [0, 1, 2], value: 0, fmt: (v) => COUNTRIES[v].n + " · " + COUNTRIES[v].tag, stopLabel: (v) => COUNTRIES[v].n },
+      year: { kind: "steps", stops: [0, 1, 2, 3, 4], value: 0, fmt: (v) => YEARS[v] + "년", stopLabel: (v) => YEARS[v] },
+    },
+    render: ({ country, year }) => {
+      yearNow = year;
+      go({ v: COUNTRIES[country].rows.flat(), sel: year });
+      readout(country, year);
+    },
+    goal: { el: "g", text: "석탄 발전량은 200 TWh 이상 그대로인데 석탄 비중은 40% 밑으로 내려간 연도를 찾는다", check: ({ country, year }) => coalFixed(country, year) },
+  });
+  return { leave: () => { stop(); cancelAnimationFrame(raf); } };
+}
+
+// 손 계산 대조: 가상 국가 A, 총 500 TWh(200/100/100/50/50) → 약 434 g/kWh
+LTT.expect("A국 예시 배출강도", intensity([200, 100, 100, 50, 50]), 434, { tol: 1 });
+LTT.expect("A국 2000년 석탄 비중", shares(COUNTRIES[0].rows[0])[0], 50, { tol: 0.01 });
+LTT.expect("A국 2020년 석탄 비중", shares(COUNTRIES[0].rows[4])[0], 33.3, { tol: 0.01 });
+LTT.expect("비중 합", sum(shares(COUNTRIES[0].rows[2])), 100, { tol: 1e-6 });
+
+LTT.deck({
+  title: "국가별 전력 믹스",
+  theme: "atlas",
+  glossary: {
+    "전력 믹스": "전기를 만드는 전원(석탄·가스·원자력·수력·풍력+태양광)이 총 발전량에서 각각 차지하는 구성.",
+    "배출강도": "전기 1kWh를 만들 때 나오는 온실가스(g CO₂eq). 전원별 배출계수에 그 전원의 비중을 곱해 더한다.",
+  },
+  scenes: [{
+    kicker: "에너지 · 연도별 지역 전력 믹스",
+    title: "석탄 비중이 줄어도 석탄 발전량은 그대로일 수 있다",
+    en: "Share is not amount",
+    sub: "가상의 세 나라, 5개 연도. 왼쪽 기둥 높이는 발전량(TWh, 1 TWh = 10억 kWh), 오른쪽 막대는 고른 해의 비중(%)이다.",
+    layout: "split",
+    narration: "나라와 연도를 골라 {{전력 믹스}}를 비교한다. 오른쪽 막대는 어느 해든 합이 100%라서, 한 전원이 커지면 나머지 비중이 밀려난다. A국에서 연도를 2000에서 2020으로 넘기면 맨 아래 석탄 기둥은 200 TWh 그대로인데 석탄 비중만 50%에서 33%로 내려간다. 줄어든 것은 석탄이 아니라 분모인 총 발전량이 커진 몫이고, 구성이 달라지니 {{배출강도}}도 함께 달라진다.",
+    mount: mixFigure,
+    takeaway: "비중(%)은 합이 100이라서 총 발전량(TWh)을 함께 봐야 전원 구성을 제대로 비교할 수 있다.",
+    recall: "석탄 비중이 50%에서 33%로 줄었는데 석탄 발전량이 그대로라면, 무엇이 달라진 걸까?",
+    basis: "가상 국가 A·B·C의 모델로 계산한 예시이며 실제 통계가 아니다. 배출계수(IPCC 수명주기 중앙값, g CO₂eq/kWh): 석탄 820, 가스 490, 원자력 12, 수력 24, 풍력+태양광 30(평균 근사). 발전(생산) 기준이고 수출입·소비 기준이 아니다. 비중은 소수 첫째 자리로 반올림하되 합이 100.0%가 되게 맞췄다.",
+  }],
+});
+</script>
+</body>
+</html>

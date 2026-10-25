@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결제 단계 이탈 지점</title>
+<script type="application/json" id="ltt-meta">{"topic":"결제 퍼널 이탈 지점","audience":"UX 입문자","theme":"studio","medium":"제품 분석 대시보드","decision":"어느 결제 단계를 먼저 고칠까","domain":"UX","pattern":["figure"],"mode":"장면 하나짜리: 단계 막대가 자라고, 떠난 칸에 기준선을 겹쳐 더 떠난 몫만 가려낸 뒤 고쳤을 때의 완료 수를 본다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.fn{width:1080px;max-width:100%;height:auto;display:block;margin:0 auto}
+.fn text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent, text) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; parent && parent.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const fmt = (n) => Math.round(n).toLocaleString("en-US");
+
+// 가상 데이터: 세션 10,000건. 전환율은 직전 단계 도달자 기준, 기준선은 가정한 참고치
+const NAMES = ["장바구니", "배송 정보", "결제 수단", "카드 입력·인증", "주문 완료"];
+const RATE = [0.7, 0.9, 0.6, 0.9], BASE = [0.7, 0.9, 0.85, 0.9];
+const REACH = [10000]; RATE.forEach((r, i) => REACH.push(REACH[i] * r));
+const FIX = REACH.slice(); FIX[3] = REACH[2] * BASE[2]; FIX[4] = FIX[3] * BASE[3]; // 인증만 기준 85%로 고친 경우
+const EXTRA3 = REACH[2] * (BASE[2] - RATE[2]);
+
+function funnel(host) {
+  const W = 1080, H = 590, BOT = 410, SC = 310 / 10000, BW = 120;
+  const CX = (i) => 140 + i * 200, Y = (v) => BOT - v * SC;
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "fn", "data-annotate": "" }, host);
+  el("line", { x1: 60, x2: 1020, y1: BOT, y2: BOT, style: "stroke:var(--ltt-line-2);stroke-width:2" }, s);
+  const T = (attrs, parent, text) => el("text", attrs, parent, text);
+  const cols = NAMES.map((nm, i) => {
+    const g = el("g", {}, s);
+    const lost = el("rect", { x: CX(i) - BW / 2, width: BW, style: "fill:var(--ltt-line);fill-opacity:.4;stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:5 4" }, g);
+    const extra = el("rect", { x: CX(i) - BW / 2, width: BW, style: "fill:var(--ltt-bad-soft);stroke:var(--ltt-bad);stroke-width:2" }, g);
+    const bar = el("rect", { x: CX(i) - BW / 2, width: BW, rx: 3, style: "fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:2" }, g);
+    const good = el("rect", { x: CX(i) - BW / 2, width: BW, style: "fill:var(--ltt-good-soft);stroke:var(--ltt-good);stroke-width:2" }, g);
+    const exp = el("line", { x1: CX(i) - BW / 2 - 12, x2: CX(i) + BW / 2 + 12, style: "stroke:var(--ltt-good);stroke-width:3;stroke-dasharray:7 4" }, g);
+    const cnt = T({ x: CX(i), "text-anchor": "middle", style: "font-size:20px;font-weight:700;fill:var(--ltt-ink);font-variant-numeric:tabular-nums" }, g);
+    const lostT = T({ x: CX(i), "text-anchor": "middle", style: "font-weight:700;fill:var(--ltt-ink-2);font-variant-numeric:tabular-nums" }, g);
+    const normT = T({ x: CX(i), "text-anchor": "middle", style: "font-size:14px;font-weight:600;fill:var(--ltt-ink-2)" }, g);
+    const extraT = T({ x: CX(i), "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-bad)" }, g);
+    T({ x: CX(i), y: 436, "text-anchor": "middle", style: "font-size:17px;font-weight:700;fill:var(--ltt-ink)" }, g, nm);
+    const verdict = T({ x: CX(i), y: 462, "text-anchor": "middle", style: "font-size:16px;font-weight:700" }, g);
+    return { lost, extra, bar, good, exp, cnt, lostT, normT, extraT, verdict };
+  });
+  const chips = RATE.map((_, i) => { const x = (CX(i) + CX(i + 1)) / 2; const g = el("g", {}, s);
+    el("rect", { x: x - 44, y: 14, width: 88, height: 38, rx: 19, style: "fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:1.5" }, g);
+    const r = T({ x, y: 41, "text-anchor": "middle", style: "font-size:21px;font-weight:700;font-variant-numeric:tabular-nums" }, g);
+    const b = T({ x, y: 72, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-good);font-weight:600" }, g, "기준 " + Math.round(BASE[i] * 100) + "%");
+    return { g, r, b }; });
+  T({ x: 60, y: 41, style: "font-size:14px;fill:var(--ltt-muted)" }, s, "전환율");
+
+  const LEG = [[60, "도달한 세션", "bar"], [195, "직전 단계에서 떠난 세션", "lost"], [410, "기준보다 더 떠난 세션", "bad"], [605, "기준 전환율을 적용한 높이", "exp"], [830, "고치면 되찾는 세션", "good"]];
+  const legs = LEG.map(([x, t, k]) => { const g = el("g", {}, s);
+    if (k === "exp") el("line", { x1: x, x2: x + 22, y1: 506, y2: 506, style: "stroke:var(--ltt-good);stroke-width:3;stroke-dasharray:6 3" }, g);
+    else el("rect", { x, y: 498, width: 22, height: 16, rx: 2, style: k === "bar" ? "fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:2" : k === "lost" ? "fill:var(--ltt-line);fill-opacity:.4;stroke:var(--ltt-line-2);stroke-dasharray:4 3" : k === "bad" ? "fill:var(--ltt-bad-soft);stroke:var(--ltt-bad);stroke-width:2" : "fill:var(--ltt-good-soft);stroke:var(--ltt-good);stroke-width:2" }, g);
+    T({ x: x + 30, y: 511, style: "font-size:14px;fill:var(--ltt-ink-2)" }, g, t); return g; });
+  const cap = T({ x: 60, y: 560, style: "font-size:19px;font-weight:700;fill:var(--ltt-ink)" }, s);
+  const CAPS = ["① 단계마다 사람이 줄어든다. 가장 크게 줄어든 곳은 장바구니→배송 정보(−3,000)", "② 전환율로 보면 카드 입력·인증이 60%로 가장 낮다",
+    "③ 기준선을 겹치면 장바구니 이탈은 정상, 인증만 25%p 더 떠났다", "④ 인증을 기준(85%)만큼 고치면 완료 3,402 → 약 4,820 (+1,418)"];
+
+  function draw(u) {
+    const fx = ease(clamp((u - 0.74) / 0.16));
+    const cur = REACH.map((v, i) => v + fx * (FIX[i] - v));
+    cols.forEach((c, i) => {
+      const gr = ease(clamp((u - i * 0.04) / 0.07)), bsl = i ? ease(clamp((u - 0.52 - i * 0.02) / 0.05)) : 0;
+      const top = Y(cur[i] * gr);
+      c.bar.setAttribute("y", Y(REACH[i] * gr)); c.bar.setAttribute("height", Math.max(0.01, REACH[i] * gr * SC));
+      const gh = (cur[i] - REACH[i]) * gr * SC;
+      c.good.setAttribute("y", top); c.good.setAttribute("height", Math.max(0, gh)); c.good.style.opacity = gh > 0.5 ? 1 : 0;
+      c.cnt.setAttribute("y", top + 27); c.cnt.textContent = fmt(cur[i] * gr); c.cnt.style.opacity = gr > 0.9 ? 1 : 0;
+      if (!i) { ["lost", "extra", "exp"].forEach((k) => c[k].style.opacity = 0); return; }
+      const hi = cur[i - 1], lo = cur[i], ex = cur[i - 1] * BASE[i - 1];
+      const lv = clamp((u - i * 0.04 - 0.06) / 0.04);
+      c.lost.setAttribute("y", Y(hi)); c.lost.setAttribute("height", Math.max(0.01, (hi - lo) * SC)); c.lost.style.opacity = lv;
+      const eh = Math.max(0, ex - lo);
+      c.extra.setAttribute("y", Y(lo + eh)); c.extra.setAttribute("height", Math.max(0.01, eh * SC)); c.extra.style.opacity = eh * SC > 1 ? bsl : 0;
+      c.exp.setAttribute("y1", Y(ex)); c.exp.setAttribute("y2", Y(ex)); c.exp.style.opacity = bsl;
+      const emph = clamp((u - 0.24) / 0.04) * (1 - clamp((u - 0.5) / 0.04));
+      c.lostT.setAttribute("y", Y(hi) - 9); c.lostT.textContent = "−" + fmt(hi - lo);
+      c.lostT.style.fontSize = (i === 1 ? 16 + 5 * emph : 16) + "px"; c.lostT.style.opacity = lv * (i === 1 ? 1 : 1 - 0.55 * emph);
+      const nTop = Math.max(lo, ex), nh = (hi - nTop) * SC;
+      c.normT.setAttribute("y", Y(nTop) - nh / 2 + 5); c.normT.textContent = "정상 " + fmt(hi - nTop);
+      c.normT.style.opacity = nh >= 20 && i !== 4 ? bsl : 0;
+      c.extraT.setAttribute("y", Y(lo) - eh * SC / 2 + 5); c.extraT.textContent = "더 떠남 " + fmt(eh);
+      c.extraT.style.opacity = eh * SC >= 24 ? bsl : 0;
+      const gap = BASE[i - 1] * 100 - lo / hi * 100, ok = gap < 0.5;
+      c.verdict.textContent = ok ? "기준과 같음" : "−" + Math.round(gap) + "%p 부족";
+      c.verdict.style.fill = ok ? "var(--ltt-good)" : "var(--ltt-bad)"; c.verdict.style.opacity = bsl;
+    });
+    chips.forEach((c, i) => {
+      const rt = ease(clamp((u - 0.34 - i * 0.03) / 0.05)), rate = cur[i + 1] / cur[i], bsl = ease(clamp((u - 0.52 - (i + 1) * 0.02) / 0.05));
+      c.g.style.opacity = rt; c.r.textContent = Math.round(rate * 100) + "%";
+      const low = rate < BASE[i] - 0.005 && u > 0.52;
+      c.r.style.fill = low ? "var(--ltt-bad)" : "var(--ltt-ink)";
+      c.b.style.opacity = bsl;
+    });
+    const lg = [1, 1, clamp((u - 0.52) / 0.05), clamp((u - 0.52) / 0.05), clamp((u - 0.74) / 0.05)];
+    legs.forEach((g, i) => g.style.opacity = lg[i]);
+    cap.textContent = CAPS[u < 0.30 ? 0 : u < 0.52 ? 1 : u < 0.74 ? 2 : 3];
+  }
+  return { el: s, draw };
+}
+
+function loop(period, draw) {
+  let t = 0, t0 = 0; const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return { enter() { clearTimeout(t); if (reduced) { draw(0.97); return; } t0 = Date.now();
+      const f = () => { draw(((Date.now() - t0) / period) % 1); t = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(t); } };
+}
+
+LTT.deck({
+  title: "결제 단계 이탈 지점", theme: "studio",
+  glossary: { "전환율": "직전 단계에 도달한 세션 중 이 단계로 넘어온 비율", "기준선": "단계마다 이만큼은 넘어와야 한다고 잡은 비교용 전환율. 여기서는 가상의 참고치" },
+  scenes: [{
+    type: "figure", title: "가장 많이 떠난 단계가 아니라 기준보다 더 떠난 단계부터 고친다",
+    sub: "막대는 단계에 도달한 세션, 점선 칸은 직전 단계에서 떠난 세션이다. 단계마다 {{전환율}}을 {{기준선}}과 견준다.",
+    caption: "막대가 자라고 전환율이 붙은 뒤 기준선이 겹치고, 마지막에 인증을 기준만큼 고친 모습이 나온다. 세션 10,000건 기준. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    figure: (n) => { funnel(n).draw(0.97); },
+    basis: "가상 데이터. 기준선은 장바구니 70%·배송 90%·결제 수단 85%·인증 90%로 가정한 참고치이고, 단위는 사람이 아니라 세션이다. 기준 대비 더 떠난 몫 = 6,300 × (85% − 60%) = 1,575.",
+    takeaway: "고칠 몫은 이탈 인원이 아니라 기준 대비 부족분이다.",
+    recall: "장바구니 이탈이 3,000으로 가장 큰데도 먼저 고치지 않는 이유는?",
+    mount(body) { const s = body.querySelector("svg.fn"); if (!s) return {};
+      const f = funnel(document.createElement("div")); s.replaceWith(f.el); return loop(18000, f.draw); }
+  }]
+});
+LTT.expect("주문 완료 세션", Math.round(REACH[4]), 3402, { tol: 0.5 });
+LTT.expect("기준 대비 더 떠난 세션", Math.round(EXTRA3), 1575, { tol: 0.5 });
+LTT.expect("고친 뒤 완료 세션", Math.round(FIX[4]), 4820, { tol: 0.6 });
+LTT.expect("완료 증가분", Math.round(FIX[4] - REACH[4]), 1418, { tol: 0.6 });
+</script>
+</body>
+</html>

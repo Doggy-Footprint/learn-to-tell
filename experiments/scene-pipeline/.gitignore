@@ -14,3 +14,5 @@
 /r1-summary.jsonl
 __pycache__/
 /kw.log
+/review-kw/
+/review-key-kw.json

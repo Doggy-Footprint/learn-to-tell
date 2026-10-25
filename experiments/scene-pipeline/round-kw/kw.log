@@ -1,0 +1,24 @@
+11:39:34 tag sonnet rc=0 290s $1.5875 success
+11:39:44 s07/pick sonnet rc=0 10s $0.0402 success
+11:39:49 s04/pick sonnet rc=0 15s $0.0427 success
+11:40:05 s47/sb sonnet rc=0 31s $0.0595 success
+11:40:15 s47/pick sonnet rc=0 9s $0.0391 success
+11:40:15 s13/sb sonnet rc=0 41s $0.0705 success
+11:40:17 s16/sb sonnet rc=0 42s $0.0734 success
+11:40:30 s16/pick sonnet rc=0 14s $0.0501 success
+11:40:30 s13/pick sonnet rc=0 15s $0.0494 success
+11:41:39 s07/K sonnet rc=0 115s $0.3455 success
+11:42:31 s07/0 sonnet rc=0 167s $0.4242 success
+11:42:32 s04/0 sonnet rc=0 163s $0.3538 success
+11:42:34 s07 끝
+11:42:44 s47/0 sonnet rc=0 149s $0.353 success
+11:43:13 s16/K sonnet rc=0 163s $0.3885 success
+11:43:13 s47/K sonnet rc=0 178s $0.4599 success
+11:43:16 s47 끝
+11:43:58 s13/K sonnet rc=0 208s $0.3534 success
+11:43:59 s04/K sonnet rc=0 250s $0.5602 success
+11:44:01 s04 끝
+11:45:10 s13/0 sonnet rc=0 280s $0.3729 success
+11:45:12 s13 끝
+11:45:28 s16/0 sonnet rc=0 298s $0.5899 success
+11:45:30 s16 끝

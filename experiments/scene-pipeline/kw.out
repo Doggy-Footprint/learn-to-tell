@@ -1,0 +1,25 @@
+tag sonnet rc=0 290s $1.5875 success
+44 keywords, 51 shots
+s07/pick sonnet rc=0 10s $0.0402 success
+s04/pick sonnet rc=0 15s $0.0427 success
+s47/sb sonnet rc=0 31s $0.0595 success
+s47/pick sonnet rc=0 9s $0.0391 success
+s13/sb sonnet rc=0 41s $0.0705 success
+s16/sb sonnet rc=0 42s $0.0734 success
+s16/pick sonnet rc=0 14s $0.0501 success
+s13/pick sonnet rc=0 15s $0.0494 success
+s07/K sonnet rc=0 115s $0.3455 success
+s07/0 sonnet rc=0 167s $0.4242 success
+s04/0 sonnet rc=0 163s $0.3538 success
+s07 끝
+s47/0 sonnet rc=0 149s $0.353 success
+s16/K sonnet rc=0 163s $0.3885 success
+s47/K sonnet rc=0 178s $0.4599 success
+s47 끝
+s13/K sonnet rc=0 208s $0.3534 success
+s04/K sonnet rc=0 250s $0.5602 success
+s04 끝
+s13/0 sonnet rc=0 280s $0.3729 success
+s13 끝
+s16/0 sonnet rc=0 298s $0.5899 success
+s16 끝

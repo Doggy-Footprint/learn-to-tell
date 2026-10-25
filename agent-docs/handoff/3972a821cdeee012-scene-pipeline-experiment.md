@@ -30,6 +30,12 @@
   - 나머지 6 shot은 같은 `r1.py`로 돌리면 파일럿과 같은 조건이다: `python3 r1.py 10 33 12 13 16 47`.
 - 관련 issue: https://github.com/Doggy-Footprint/learn-to-tell/issues/17 (Haiku 활용: 완성품 검사·수정, 쉬운 이미지 생성, Haiku 초안 → Sonnet 참고)
 
+- 방향 전환(사용자, 2026-10-25): 축 대신 기법 키워드로 검색한다. 사용자 지시: "gallery에서 몇 개 골라서 키워드 제공하고 만들기 vs 그냥 만들기 해서 비교해보자. 한 5쌍 정도 - sonnet 써". round1 나머지 6 shot과 축 분류(`cls.py`)는 보류했다.
+  - 스크립트 `kw.py`: `tag`(Sonnet이 gallery 51개를 읽고 키워드 사전 44개와 shot별 키워드를 만든다) → shot마다 스토리보드(Sonnet, s04·s07은 round1 sb1 재사용) → 키워드 고르기 → K(kit 문서 + idf 가중 겹침 상위 본보기 2개) / 0(kit 문서만).
+  - 대상: s04, s07, s13, s16, s47. 장면 10개 모두 audit 고침 0건. 기록은 `round-kw/`.
+  - 채점 artifact: https://claude.ai/artifact/8E8k5CLZHfMjSsFKPUwmdB (db `scores`, 장면 orig·K·0).
+  - 사용자 요청으로 외부 사전 후보를 찾았다: FT Visual Vocabulary(메시지 9범주), Heer & Robertson 2007(전환 7유형), Thompson et al. 2020(전환 10유형·타이밍), Yi et al. 2007(상호작용 의도). 다음에 키워드 사전에 외부 표준 이름을 붙이자고 제안해 두었다.
+
 ## Failed Attempts
 
 | attempt | failure evidence | cause |
@@ -120,4 +126,6 @@ round1 파일럿 채점 결과를 보고 나머지 6 shot 실행 여부를 사�
   - P 비용 편차가 크다. s04 P2는 thinking 59k 토큰으로 $1.16이 들었다.
   - H 다듬기 4건 중 3건이 계획의 추천안과 같은 구성안을 골랐다.
   - B 참고에는 `steps`·`LTT.sweep` 문서가 없어 계획 4개가 직접 만든 단계 단추를 허용했다. 그래서 `shots.mjs`의 `step` 동작이 kit stepper가 없을 때 장면 안 "다음" 단추를 누르게 고쳤다. 최종 장면 스크린샷만 다시 찍었고, 다듬기 단계가 본 샘플 스크린샷에는 도달 실패가 없었다.
+- 키워드 실험 비용 합 $6.21: 사전 $1.59, K 5개 $2.11, 0 5개 $2.09, 스토리보드 3개 + 고르기 5개 $0.43. Sonnet 스토리보드는 $0.06–0.07이다(Opus $0.39).
+- 키워드 고르기와 원본 키워드의 겹침은 2–4개다. 검색에 idf 가중을 써서 드문 장식 키워드가 검색을 끈다. 예: s04는 핵심 `갈라지고 합쳐지는 흐름` 대신 `맥박 원`·`공간 도면 그리기`로 s49·s34가 뽑혔다.
 
