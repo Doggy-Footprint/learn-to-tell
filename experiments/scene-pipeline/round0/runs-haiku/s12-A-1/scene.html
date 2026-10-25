@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Node.js 이벤트 루프 한 바퀴</title>
+<script type="application/json" id="ltt-meta">{"topic": "Node.js 이벤트 루프 단계", "audience": "Node.js 백엔드 입문자", "theme": "terminal", "medium": "터미널 로그", "decision": "setTimeout·setImmediate·nextTick 중 무엇으로 미룰지"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .lp-wrap { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; }
+  .lp-fig { flex: 1 1 360px; min-width: 0; }
+  .lp-fig svg { max-width: 100%; height: auto; }
+  .lp-log {
+    flex: 1 1 240px; min-width: 0; margin: 0;
+    background: var(--ltt-card); border: 1px solid var(--ltt-line); border-radius: 6px;
+    padding: 12px 14px; color: var(--ltt-ink-2); font-size: 13px; line-height: 1.7;
+    white-space: pre-wrap; overflow: hidden; min-height: 260px;
+  }
+  .lp-log .lp-prompt { color: var(--ltt-muted); }
+  .lp-log .lp-tick { color: var(--ltt-accent); }
+  .lp-log .lp-line { display: block; }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const RING = ["timers", "pending", "idle", "poll", "check", "close"];
+const LOG = [
+  { id: "timers", text: "timers      기한이 지난 setTimeout 콜백 실행" },
+  { id: "pending", text: "pending     이전 루프에서 미뤄진 시스템 콜백" },
+  { id: "idle", text: "idle·prepare 내부 준비, 루프가 여기서 쉬지 않는다" },
+  { id: "poll", text: "poll        I/O 콜백 실행, 할 일이 없으면 여기서 기다림" },
+  { id: "check", text: "check       setImmediate 콜백 실행" },
+  { id: "close", text: "close       socket.on('close') 같은 종료 콜백" }
+];
+const TICK = "  ↳ nextTick·Promise 큐 비움";
+
+const spec = {
+  cols: 3, rows: 3, cell: [200, 112], node: [178, 64],
+  nodes: [
+    { id: "timers", c: 0, r: 0, l: "timers", s: "setTimeout", icon: "timer" },
+    { id: "pending", c: 1, r: 0, l: "pending", s: "시스템 콜백", icon: "bolt" },
+    { id: "idle", c: 2, r: 0, l: "idle·prepare", s: "내부 준비", icon: "hourglass" },
+    { id: "poll", c: 2, r: 1, l: "poll", s: "I/O 콜백", icon: "inbox" },
+    { id: "check", c: 1, r: 1, l: "check", s: "setImmediate", icon: "arrow" },
+    { id: "close", c: 0, r: 1, l: "close", s: "종료 콜백", icon: "x" },
+    { id: "tick", c: 1, r: 2, l: "nextTick·Promise", s: "단계 사이마다 먼저 비움", k: "accent", icon: "layers" }
+  ],
+  edges: [
+    { f: "timers", t: "pending" },
+    { f: "pending", t: "idle" },
+    { f: "idle", t: "poll" },
+    { f: "poll", t: "check" },
+    { f: "check", t: "close" },
+    { f: "close", t: "timers" },
+    { f: "tick", t: "check", both: true, dash: true, l: "매 단계 사이" }
+  ]
+};
+
+const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const loopScene = {
+  type: "overview",
+  title: "미룬 작업은 루프가 그 단계에 닿아야 실행된다",
+  en: "One lap of the Node.js event loop",
+  kicker: "런타임 · Node.js 이벤트 루프",
+  sub: "점이 timers에서 close까지 한 바퀴 돌고, 로그가 단계마다 한 줄씩 쌓인다.",
+  label: "Node.js 이벤트 루프 한 바퀴",
+  caption: "단계가 끝날 때마다 nextTick과 Promise 큐를 먼저 비운다. 그래서 nextTick은 어떤 단계보다 먼저 돈다.",
+  basis: "Node.js 문서의 이벤트 루프 단계 순서(timers, pending, idle·prepare, poll, check, close)",
+  takeaway: "미룰 때는 언제 돌아야 하는지로 고른다. 지금 끝낼 일은 nextTick, I/O 콜백 안에서 바로 다음 턴이면 setImmediate, 시간이 흘러야 하면 setTimeout이다.",
+  recall: "I/O 콜백 안에서 setTimeout(0)과 setImmediate 중 먼저 도는 것은?",
+  figure(el) {
+    const root = el.appendChild(document.createElement("div"));
+    root.innerHTML = `<div class="lp-wrap"><div class="lp-fig"></div><pre class="lp-log ltt-mono" aria-label="루프 실행 로그"></pre></div>`;
+    const fig = root.querySelector(".lp-fig");
+    const log = root.querySelector(".lp-log");
+    const svg = document.createElementNS(SVG, "svg");
+    fig.appendChild(svg);
+    const dg = LTT.diagram(svg, spec);
+
+    const addLine = (text, cls) => {
+      const row = document.createElement("span");
+      row.className = "lp-line " + (cls || "");
+      row.textContent = text;
+      log.appendChild(row);
+      log.scrollTop = log.scrollHeight;
+    };
+    const reset = () => { log.textContent = ""; addLine("$ node loop.js", "lp-prompt"); };
+    const wait = (ms) => new Promise((done) => { timer = setTimeout(done, ms); });
+
+    if (reduceMotion) {
+      reset();
+      LOG.forEach((step) => { addLine(step.text); addLine(TICK, "lp-tick"); });
+      dg.highlight(null);
+      return { el: root, dg };
+    }
+
+    let alive = false;
+    let running = false;
+    let timer = null;
+    const run = async () => {
+      if (running) return;
+      running = true;
+      while (alive) {
+        reset();
+        let prev = RING[RING.length - 1];
+        for (const step of LOG) {
+          if (!alive) break;
+          await dg.send(prev, step.id, { count: 1, ms: 520, gap: 0, r: 6 });
+          if (!alive) break;
+          addLine(step.text);
+          dg.highlight([step.id]);
+          await wait(260);
+          dg.highlight(["tick"]);
+          addLine(TICK, "lp-tick");
+          await wait(260);
+          dg.highlight(null);
+          prev = step.id;
+        }
+        await wait(1100);
+      }
+      running = false;
+    };
+
+    new IntersectionObserver(([entry]) => {
+      alive = entry.isIntersecting;
+      if (alive) run();
+    }).observe(root);
+    return { el: root, dg };
+  }
+};
+
+LTT.deck({
+  title: "Node.js 이벤트 루프 한 바퀴",
+  theme: "terminal",
+  scenes: [loopScene]
+});
+</script>
+</body>
+</html>

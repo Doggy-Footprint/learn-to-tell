@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>국가별 전력 믹스</title>
+<script type="application/json" id="ltt-meta">{"topic":"국가별 전력 믹스","audience":"에너지 정책 입문자","theme":"atlas","medium":"에너지 통계 차트","decision":"전원 구성 비교","domain":"에너지","pattern":["sweep"],"mode":"카탈로그용: 장면 하나짜리 본보기. 부분-전체 구조를 \"모양이 바뀜\" 움직임과 좌우 분할 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.pm{width:100%;max-width:1160px;height:auto;display:block;margin:0 auto}
+.pm text{font-family:inherit}
+.pm .row{cursor:pointer}
+.pm .row:focus{outline:none}
+.pm .row:focus-visible .hit{stroke:var(--ltt-accent);stroke-width:2}
+.pm-ctl{display:flex;justify-content:center}
+.pm-ctl .ltt-param{min-width:520px}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+
+// 전원 여섯 갈래(쌓는 순서 = 위에서 아래로). 화석 3 · 무탄소 3
+const SRC = [
+  { k: "석탄", c: "var(--ltt-c1)" }, { k: "가스", c: "var(--ltt-c2)" }, { k: "기타(석유·바이오 등)", c: "var(--ltt-c3)" },
+  { k: "원자력", c: "var(--ltt-c4)" }, { k: "수력", c: "var(--ltt-c5)" }, { k: "풍력·태양광", c: "var(--ltt-c6)" }];
+// 발전량 비중(%) 근사값. Ember·IEA 공개 통계를 반올림해 옮긴 대략값이며, 2000·2010·2022년 세 시점만 두고 사이 해는 직선으로 이었다(가정).
+// 값 순서: [석탄, 가스, 기타, 원자력, 수력, 풍력·태양광]
+const DATA = {
+  "한국": { 2000: [37, 9, 13, 40, 1, 0], 2010: [42, 21, 3.5, 32, 1, 0.5], 2022: [34, 27, 4, 29, 1, 5] },
+  "프랑스": { 2000: [5, 2, 4, 77, 12, 0], 2010: [4, 4, 3, 75, 12, 2], 2022: [2, 9, 4, 63, 9, 13] },
+  "독일": { 2000: [51, 10, 3, 30, 4, 2], 2010: [43, 14, 10, 22, 3, 8], 2022: [33, 12, 13, 6, 3, 33] },
+  "중국": { 2000: [78, 1, 3, 1, 17, 0], 2010: [77, 2, 1, 2, 17, 1], 2022: [61, 3, 2, 5, 15, 14] },
+  "미국": { 2000: [52, 16, 5, 20, 7, 0], 2010: [45, 24, 2, 20, 6, 3], 2022: [20, 39, 3, 18, 6, 14] }
+};
+const NAMES = Object.keys(DATA), Y0 = 2000, Y1 = 2022;
+function mix(c, yr) {
+  yr = Math.max(Y0, Math.min(Y1, yr));
+  const [a, b, t] = yr <= 2010 ? [DATA[c][2000], DATA[c][2010], (yr - 2000) / 10] : [DATA[c][2010], DATA[c][2022], (yr - 2010) / 12];
+  return a.map((v, i) => v + (b[i] - v) * t);
+}
+const clean = (m) => m[3] + m[4] + m[5];
+// 손계산: 독일 2016은 2010→2022의 딱 중간이라 풍력·태양광 (8+33)/2 = 20.5. 2017은 t=7/12 → 무탄소 12.667+3+22.583=38.25, 석탄 43−10×7/12=37.167, 차 1.083
+LTT.expect("독일 2016 풍력·태양광 비중", mix("독일", 2016)[5], 20.5, { tol: 0.01 });
+LTT.expect("독일 2017 무탄소−석탄", clean(mix("독일", 2017)) - mix("독일", 2017)[0], 1.083, { tol: 0.01 });
+LTT.expect("한국 2005 비중 합", mix("한국", 2005).reduce((a, b) => a + b, 0), 100, { tol: 0.001 });
+
+function mixes(host, pick) {
+  const W = 1160, H = 450;
+  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "pm", "data-annotate": "" }, host);
+  const T = (x, y, t, st, a = "start", p = s) => { const n = mk("text", { x, y, "text-anchor": a, style: st }, p); n.textContent = t; return n; };
+  let sel = "독일", yr = Y0;
+  // 왼쪽: 고른 나라의 전력 100%를 한 기둥으로 크게
+  const CX = 170, CW = 100, CT = 66, CH = 330;
+  mk("rect", { x: CX - 3, y: CT - 3, width: CW + 6, height: CH + 6, rx: 4, style: "fill:none;stroke:var(--ltt-line-2);stroke-width:1.5" }, s);
+  const yrT = T(30, 140, "", "font-size:46px;font-weight:700;fill:var(--ltt-ink);font-variant-numeric:tabular-nums");
+  const nmT = T(30, 184, "", "font-size:26px;font-weight:700;fill:var(--ltt-accent)");
+  const clT = T(30, 218, "", "font-size:17px;fill:var(--ltt-ink-2);font-variant-numeric:tabular-nums");
+  T(30, 252, "기둥 전체 = 그 해 전력 100%", "font-size:14px;fill:var(--ltt-muted)");
+  const cols = SRC.map((sr) => ({
+    r: mk("rect", { x: CX, width: CW, style: `fill:${sr.c};stroke:var(--ltt-bg);stroke-width:1.5` }, s),
+    ln: mk("polyline", { fill: "none", style: "stroke:var(--ltt-line-2);stroke-width:1.2" }, s),
+    t: T(CX + CW + 30, 0, "", "font-size:16px;font-weight:700;fill:var(--ltt-ink)")
+  }));
+  // 오른쪽: 다섯 나라를 같은 해, 같은 순서로 나란히
+  const BX = 700, BW = 350, RT = 76, RS = 66, RH = 42;
+  T(BX - 70, 40, "같은 해 다섯 나라 · 막대를 누르면 왼쪽에 크게 본다", "font-size:16px;font-weight:700;fill:var(--ltt-ink-2)");
+  const rows = NAMES.map((n, i) => {
+    const y = RT + i * RS, g = mk("g", { class: "row", tabindex: 0, role: "button", "aria-label": n + " 전력 믹스 보기" }, s);
+    const hit = mk("rect", { class: "hit", x: BX - 76, y: y - 8, width: 520 + 130, height: RH + 16, rx: 6, style: "fill:transparent;stroke:none" }, g);
+    const nt = T(BX - 12, y + 28, n, "font-size:20px;font-weight:700;fill:var(--ltt-ink-2)", "end", g);
+    const segs = SRC.map((sr) => mk("rect", { y, height: RH, style: `fill:${sr.c};stroke:var(--ltt-bg);stroke-width:1` }, g));
+    const frame = mk("rect", { x: BX - 2, y: y - 2, width: BW + 4, height: RH + 4, rx: 3, style: "fill:none;stroke:var(--ltt-accent);stroke-width:3" }, g);
+    const ct = T(BX + BW + 12, y + 28, "", "font-size:16px;font-weight:700;fill:var(--ltt-ink);font-variant-numeric:tabular-nums", "start", g);
+    const choose = () => { sel = n; pick && pick(); draw(yr); };
+    g.addEventListener("click", choose);
+    g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(); } });
+    return { n, nt, segs, frame, ct };
+  });
+  T(BX - 70, H - 10, "오른쪽 끝 숫자 = 원자력 + 수력 + 풍력·태양광(무탄소) 비중", "font-size:14px;fill:var(--ltt-muted)");
+
+  function draw(y) {
+    yr = y;
+    const m = mix(sel, y);
+    yrT.textContent = Math.round(y); nmT.textContent = sel; clT.textContent = "무탄소 " + Math.round(clean(m)) + "%";
+    let cum = 0; const lab = [];
+    m.forEach((v, i) => { const y0 = CT + cum * CH / 100, h = v * CH / 100; cum += v;
+      cols[i].r.setAttribute("y", y0); cols[i].r.setAttribute("height", Math.max(0, h));
+      lab.push({ i, mid: y0 + h / 2, show: v >= 0.5 }); });
+    // 라벨이 겹치지 않게 위에서 아래로 20px 간격을 지킨다
+    const L = lab.filter((o) => o.show); let last = CT - 10;
+    L.forEach((o) => { o.y = Math.max(o.mid, last + 21); last = o.y; });
+    for (let k = L.length - 1, lim = CT + CH + 6; k >= 0; k--) { L[k].y = Math.min(L[k].y, lim); lim = L[k].y - 21; }
+    lab.forEach((o) => { const c = cols[o.i];
+      c.t.style.opacity = c.ln.style.opacity = o.show ? 1 : 0;
+      if (!o.show) return;
+      c.t.setAttribute("x", CX + CW + 32); c.t.setAttribute("y", o.y + 5);
+      c.t.textContent = SRC[o.i].k + " " + Math.round(m[o.i]) + "%";
+      c.ln.setAttribute("points", `${CX + CW},${o.mid} ${CX + CW + 14},${o.mid} ${CX + CW + 22},${o.y} ${CX + CW + 28},${o.y}`); });
+    rows.forEach((r) => { const mm = mix(r.n, y); let x = BX;
+      mm.forEach((v, i) => { const w = v * BW / 100; r.segs[i].setAttribute("x", x); r.segs[i].setAttribute("width", Math.max(0, w)); x += w; });
+      r.ct.textContent = "무탄소 " + Math.round(clean(mm)) + "%";
+      const on = r.n === sel; r.frame.style.opacity = on ? 1 : 0; r.nt.style.fill = on ? "var(--ltt-accent)" : "var(--ltt-ink-2)"; });
+  }
+  return { el: s, draw };
+}
+
+LTT.deck({
+  title: "국가별 전력 믹스", theme: "atlas",
+  glossary: { "전력 믹스": "한 나라가 쓰는 전기를 어떤 발전원이 몇 %씩 만들어 내는지의 구성",
+    "무탄소 전원": "발전할 때 이산화탄소를 직접 내지 않는 원자력·수력·풍력·태양광을 묶어 부르는 말" },
+  scenes: [{
+    title: "나라마다 전력 100%를 채우는 전원이 달라, 해가 갈수록 그 모양이 바뀐다", en: "National electricity mix, 2000–2022", layout: "full",
+    sub: "왼쪽 기둥은 고른 나라의 {{전력 믹스}}, 오른쪽 막대는 다섯 나라의 같은 해 구성이다. 해가 흐르면 칸의 길이가 바뀌고 전체는 늘 100%로 남는다. 손잡이를 잡으면 자동 재생이 멈춘다.",
+    basis: "Ember Yearly Electricity Data·IEA 공개 통계를 반올림한 대략값(2000·2010·2022년). 그 사이 해는 직선으로 이은 가정이며 실제 해별 값과 다를 수 있다. 기타에는 석유·바이오매스·폐기물이 든다. {{무탄소 전원}} 비중은 원자력+수력+풍력·태양광.",
+    mount(body) {
+      body.innerHTML = `<div id="g"></div><div id="fig"></div><div class="pm-ctl"><div class="ltt-param">연도 <b id="yr-v"></b><input id="yr" type="range"></div></div>`;
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let timer = 0, t0 = 0, auto = !reduced, cur = Y0;
+      const stopAuto = () => { auto = false; clearTimeout(timer); };
+      const f = mixes(body.querySelector("#fig"), stopAuto);
+      ["pointerdown", "keydown"].forEach((ev) => body.querySelector(".pm-ctl").addEventListener(ev, stopAuto));
+      // 2000 → 2022로 6초 흐르고 1.2초 머문 뒤 3초에 걸쳐 되감는다(10.4초)
+      const HOLD = 1.2, FWD = 6, BACK = 3, P = HOLD * 2 + FWD + BACK;
+      const at = (t) => { t %= P; if (t < HOLD) return Y0; t -= HOLD; if (t < FWD) return Y0 + (Y1 - Y0) * ease(t / FWD);
+        t -= FWD; if (t < HOLD) return Y1; t -= HOLD; return Y1 - (Y1 - Y0) * ease(t / BACK); };
+      const tick = () => { if (!auto) return; cur = at((Date.now() - t0) / 1000); f.draw(cur); body.querySelector("#yr-v").textContent = Math.round(cur) + "년 · 자동 재생"; timer = setTimeout(tick, 16); };
+      LTT.sweep({ params: { yr: { kind: "log", min: Y0, max: Y1, value: Y0, fmt: (v) => Math.round(v) + "년" } },
+        render: ({ yr }) => { cur = yr; if (!auto) f.draw(yr); },
+        goal: { el: "g", text: "독일에서 무탄소 비중이 석탄 비중을 처음 넘어서는 해를 찾는다", check: ({ yr }) => { const m = mix("독일", Math.round(yr)); return clean(m) > m[0]; } } });
+      f.draw(reduced ? Y1 : Y0);
+      return { enter() { if (!auto) return; t0 = Date.now(); tick(); }, leave() { clearTimeout(timer); } };
+    },
+    takeaway: "전체는 늘 100%이고, 독일은 원자력·석탄 칸이 줄고 풍력·태양광 칸이 자라며 2017년 무렵 무탄소가 석탄을 넘어섰다.",
+    recall: "2022년에 석탄 칸이 가장 긴 나라와 원자력 칸이 가장 긴 나라는 어디인가?"
+  }]
+});
+</script>
+</body>
+</html>

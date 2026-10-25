@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fan-out과 p99 꼬리 지연</title>
+<script type="application/json" id="ltt-meta">{"topic":"fan-out 수에 따른 p99 꼬리 지연","audience":"백엔드 개발자","theme":"terminal","medium":"터미널·대시보드","decision":"한 요청이 부르는 백엔드 수","domain":"백엔드","pattern":["mount"],"mode":"sweep 장면. 분포 구조를 \"쪼개지고 합쳐짐\" 움직임과 작은 여러 칸 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.fo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:center;width:100%}
+.fo svg{width:100%;height:auto;display:block}
+.fo text{font-family:var(--ltt-mono)}
+.fo-legend{font-size:14px;color:var(--ltt-muted);margin:10px 0 0}
+.fo-row{display:flex;flex-wrap:wrap;gap:20px;align-items:center;margin-top:12px}
+.fo-row .ltt-param{flex:1;min-width:220px}
+@media (max-width:760px){.fo{grid-template-columns:minmax(0,1fr)}}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const el = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const cl = (x) => Math.max(0, Math.min(1, x));
+// 가정: 백엔드 한 호출의 지연은 평균 20ms인 지수분포. 요청 지연은 fan-out한 호출 N개 중 가장 늦은 값이다.
+const MU = 20, TMAX = 260;
+const P1 = MU * Math.log(100);                                  // 단일 호출 p99 ≈ 92ms
+const cdf = (x) => 1 - Math.exp(-x / MU);
+const p99 = (n) => -MU * Math.log(1 - Math.pow(0.99, 1 / n));  // 요청 CDF F(x)^n 이 0.99가 되는 x
+const over = (n) => 1 - Math.pow(0.99, n);                      // 요청 지연이 단일 p99(P1)를 넘는 비율
+const hash = (a) => { const s = Math.sin(a * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+const lat = (c, j) => -MU * Math.log(1 - cl(hash(c * 1000 + j + 1) * 0.998 + 0.001)); // 주기 c의 j번째 호출 지연
+const W1 = 520, H1 = 400;
+const CX = 20, CY = 56, CW = 320, CH = 260, BARY = 340, BARW = 480;
+let N = 10;
+
+function grid(n) {
+  const cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols);
+  const pitch = Math.min(CW / cols, CH / rows), ox = CX + (CW - cols * pitch) / 2, oy = CY + (CH - rows * pitch) / 2;
+  return { size: pitch - 4, pos: (j) => [ox + (j % cols) * pitch + 2, oy + Math.floor(j / cols) * pitch + 2] };
+}
+
+function mount(body) {
+  body.innerHTML = `<div class="fo"><div class="fo-cells"></div><div class="fo-dist"></div></div>
+    <p class="fo-legend">칸 하나 = 백엔드 호출 1회 · 붉은 칸 = 단일 호출 p99(${P1.toFixed(0)}ms)를 넘긴 호출 · 굵은 테두리 = 가장 늦은 호출</p>
+    <div class="fo-row"><div class="ltt-param">백엔드 fan-out <b id="fan-v"></b><div id="fan"></div></div>
+      <div class="ltt-stat"><span class="ltt-hero" id="p99"></span> <small>요청 p99 · 단일 호출 p99의 <b id="ratio"></b></small></div>
+      <div id="goal"></div></div>
+    <span class="ltt-tag muted">모델로 계산한 예시</span>`;
+
+  const cs = el("svg", { viewBox: `0 0 ${W1} ${H1}`, "data-annotate": "" }, body.querySelector(".fo-cells"));
+  const head = el("text", { x: CX, y: 30, style: "font-size:14px;fill:var(--ltt-ink-2)" }, cs);
+  const cells = Array.from({ length: 100 }, () => {
+    const g = el("g", {}, cs);
+    const bg = el("rect", { rx: 3, style: "fill:var(--ltt-card-2);stroke:var(--ltt-line);stroke-width:1.5" }, g);
+    const fg = el("rect", { rx: 3, width: 0 }, g);
+    return { g, bg, fg };
+  });
+  el("text", { x: CX, y: BARY - 10, style: "font-size:14px;fill:var(--ltt-ink-2)" }, cs).textContent = "합쳐진 요청 지연 = 가장 늦은 칸";
+  const bar = el("rect", { x: CX, y: BARY, height: 24, rx: 4, width: 0 }, cs);
+  const barVal = el("text", { x: CX, y: BARY + 52, style: "font-size:16px;font-weight:700;fill:var(--ltt-ink)" }, cs);
+
+  const ds = el("svg", { viewBox: `0 0 ${W1} ${H1}`, "data-annotate": "" }, body.querySelector(".fo-dist"));
+  const X = (ms) => 40 + ms * 460 / TMAX, Y = (d) => 330 - d * 270 / 0.055;
+  const xs = d3.range(0, TMAX + 1, 2);
+  const dens = (n, x) => n * Math.pow(cdf(x), n - 1) * Math.exp(-x / MU) / MU;   // 요청 지연 밀도 N·F^(N-1)·f
+  const seg = (n, a, b) => [a, ...xs.filter((x) => x > a && x < b), b].map((x) => X(x).toFixed(1) + "," + Y(dens(n, x)).toFixed(1));
+  const curve = (n) => "M" + seg(n, 0, TMAX).join("L");
+  const tail = (n) => "M" + seg(n, P1, TMAX).join("L") + `L${X(TMAX)},330L${X(P1)},330Z`;
+  el("line", { x1: 40, y1: 330, x2: 500, y2: 330, style: "stroke:var(--ltt-ink-2);stroke-width:1.5" }, ds);
+  [0, 50, 100, 150, 200, 250].forEach((v) => { el("text", { x: X(v), y: 352, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, ds).textContent = v + "ms"; });
+  el("text", { x: 500, y: 380, "text-anchor": "end", style: "font-size:14px;fill:var(--ltt-ink-2)" }, ds).textContent = "요청 지연 (ms)";
+  const single = el("path", { style: "fill:none;stroke:var(--ltt-muted);stroke-width:2;stroke-dasharray:5 5" }, ds);
+  const tailArea = el("path", { style: "fill:var(--ltt-bad-soft)" }, ds);
+  const dist = el("path", { style: "fill:none;stroke:var(--ltt-accent);stroke-width:3" }, ds);
+  el("line", { x1: X(P1), x2: X(P1), y1: 56, y2: 330, style: "stroke:var(--ltt-muted);stroke-width:1.5;stroke-dasharray:3 4" }, ds);
+  el("text", { x: X(P1) + 6, y: 72, style: "font-size:14px;fill:var(--ltt-muted)" }, ds).textContent = "단일 호출 p99 " + Math.round(P1) + "ms";
+  const pnLine = el("line", { y1: 84, y2: 330, style: "stroke:var(--ltt-bad);stroke-width:2" }, ds);
+  const pnLbl = el("text", { y: 104, style: "font-size:15px;font-weight:700;fill:var(--ltt-bad)" }, ds);
+  const tailLbl = el("text", { x: 500, y: 150, "text-anchor": "end", style: "font-size:16px;font-weight:700;fill:var(--ltt-bad)" }, ds);
+
+  function draw(n) {
+    dist.setAttribute("d", curve(n)); single.setAttribute("d", curve(1)); tailArea.setAttribute("d", tail(n));
+    pnLine.setAttribute("x1", X(p99(n))); pnLine.setAttribute("x2", X(p99(n)));
+    pnLbl.setAttribute("x", X(p99(n)) + 6); pnLbl.textContent = "요청 p99 " + Math.round(p99(n)) + "ms";
+    tailLbl.textContent = "단일 p99 넘는 요청 " + Math.round(over(n) * 100) + "%";
+  }
+
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let id = 0, last = 5400;
+  // 6초 주기: 요청이 한 점에서 칸으로 쪼개지고(0–12%), 칸들이 각자 끝날 때까지 기다린 뒤(–80%), 가장 늦은 칸에 맞춰 합쳐진다(–92%)
+  function frame(t) {
+    last = t;
+    const c = Math.floor(t / 6000), u = (t / 6000) % 1;
+    const s = ease(cl(u / 0.12)), w = cl((u - 0.12) / 0.68), m = ease(cl((u - 0.8) / 0.12));
+    const { size, pos } = grid(N);
+    const Ls = Array.from({ length: N }, (_, j) => lat(c, j));
+    const Lmax = Math.max(...Ls), jmax = Ls.indexOf(Lmax);
+    cells.forEach(({ g, bg, fg }, j) => {
+      g.style.display = j < N ? "" : "none";
+      if (j >= N) return;
+      const [x, y] = pos(j), L = Ls[j];
+      const px = CX + 30 + (x - CX - 30) * s, py = 36 + (y - 36) * s + (BARY - y) * 0.9 * m;
+      g.setAttribute("transform", `translate(${px.toFixed(1)},${py.toFixed(1)})`);
+      g.style.opacity = Math.min(1, s * 3) * (1 - m);
+      bg.setAttribute("width", size); bg.setAttribute("height", size);
+      bg.style.stroke = j === jmax ? "var(--ltt-ink)" : "var(--ltt-line)";
+      bg.style.strokeWidth = j === jmax ? 3 : 1.5;
+      fg.setAttribute("width", (size * cl(w * TMAX / L)).toFixed(1)); fg.setAttribute("height", size);
+      fg.style.fill = L > P1 ? "var(--ltt-bad)" : "var(--ltt-accent)";
+    });
+    bar.setAttribute("width", (BARW * Lmax / TMAX * m).toFixed(1));
+    bar.style.fill = Lmax > P1 ? "var(--ltt-bad)" : "var(--ltt-accent)";
+    barVal.textContent = "요청 지연 " + Math.round(Lmax) + "ms";
+    barVal.style.opacity = m;
+  }
+
+  LTT.sweep({ params: { fan: { kind: "steps", stops: [1, 5, 10, 20, 50, 100], value: 10, fmt: (v) => v + "개" } },
+    render: ({ fan }) => { N = fan; head.textContent = "요청 1개 → 백엔드 " + fan + "개를 동시에 호출";
+      body.querySelector("#p99").textContent = Math.round(p99(fan)) + "ms";
+      body.querySelector("#ratio").textContent = (p99(fan) / P1).toFixed(1) + "배";
+      draw(fan); frame(last); },
+    goal: { el: "goal", text: "요청의 절반 이상이 단일 호출 p99를 넘기는 fan-out을 찾는다", check: ({ fan }) => over(fan) >= 0.5 } });
+
+  return {
+    enter() { clearTimeout(id); if (reduced) { frame(5400); return; }
+      const t0 = Date.now() - last; const f = () => { frame(Date.now() - t0); id = setTimeout(f, 33); }; f(); },
+    leave() { clearTimeout(id); }
+  };
+}
+
+LTT.expect("N=1 요청 p99 = 단일 호출 p99 ≈ 92ms", p99(1), 92.1, { tol: 0.2 });
+LTT.expect("N=100 요청 p99 ≈ 단일 호출 p99.99 ≈ 184ms", p99(100), 184.2, { tol: 0.3 });
+LTT.expect("N=100 단일 p99를 넘는 요청 비율 ≈ 63%", over(100), 0.634, { tol: 0.002 });
+
+LTT.deck({
+  title: "fan-out과 p99 꼬리 지연", theme: "terminal",
+  glossary: { "p99": "요청 100개 중 가장 느린 1개를 뺀 99개가 이 시간 안에 끝나는 지연 값" },
+  scenes: [{
+    title: "백엔드를 100개 동시에 부르면 요청 10개 중 약 6개가 단일 호출의 p99를 넘는다",
+    sub: "요청은 가장 늦은 칸이 끝나야 합쳐져 응답한다. 손잡이로 fan-out을 늘리면 요청의 {{p99}}가 단일 호출의 두 배까지 올라간다.",
+    layout: "full",
+    basis: "모델 가정: 호출 지연은 평균 20ms 지수분포라 단일 호출 p99 ≈ 92ms. 요청 지연은 N개 호출의 최댓값이라 CDF가 F(x)^N. N=100이면 요청 p99는 단일 호출 p99.99 ≈ 184ms. 모델로 계산한 예시",
+    mount
+  }]
+});
+</script>
+</body>
+</html>

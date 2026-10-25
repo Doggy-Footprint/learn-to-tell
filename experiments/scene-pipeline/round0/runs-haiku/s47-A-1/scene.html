@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>국가별 전력 믹스</title>
+<script type="application/json" id="ltt-meta">{"topic": "국가별 전력 믹스", "audience": "에너지 정책 입문자", "theme": "atlas", "medium": "에너지 통계 차트", "decision": "전원 구성 비교"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.mix { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+.mix-main, .mix-side { min-width: 0; }
+.mix-bar { margin-top: 20px; }
+.mix-key { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 8px; }
+.mix-key li { display: flex; align-items: center; gap: 8px; color: var(--ltt-ink); }
+.mix-key i { width: 12px; height: 12px; border-radius: 2px; flex: none; }
+.mix-key b { margin-left: auto; font-variant-numeric: tabular-nums; }
+.mix-goal { margin-top: 20px; }
+.mix-cap { color: var(--ltt-muted); margin: 0 0 12px; }
+@media (max-width: 720px) { .mix { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<script>
+const NAMES = ["프랑스", "노르웨이", "독일", "한국"];
+const SRC = ["원자력", "수력", "재생(풍력·태양광 등)", "화석(석탄·가스)"];
+const COLORS = ["var(--ltt-c1)", "var(--ltt-c2)", "var(--ltt-c3)", "var(--ltt-c4)"];
+// 전체 발전량의 비중(%), SRC 순서. 합은 100
+const MIX = [
+  [63, 10, 14, 13],
+  [0, 88, 11, 1],
+  [2, 3, 50, 45],
+  [31, 1, 8, 60],
+];
+const low = (i) => MIX[i][0] + MIX[i][1] + MIX[i][2]; // 저탄소 = 원자력 + 수력 + 재생
+const BASIS = "근사치. 2020년대 초 국가 통계를 반올림한 대략값이며 연도·집계 기준에 따라 다르다. 수업 전 출처에서 확인할 것(불확실).";
+
+const scene = {
+  title: "나라마다 전기를 만드는 재료가 다르다",
+  kicker: "에너지 · 국가별 전력 믹스",
+  sub: "나라를 골라 전원 구성을 보고, 저탄소(원자력·수력·재생) 비중을 나라끼리 견준다",
+  takeaway: "같은 전기라도 원자력·수력·재생이 얼마인지에 따라 나라마다 저탄소 정도가 크게 다르다.",
+  recall: "화석 비중이 60%인 나라와 1%인 나라는 전기 1kWh당 배출이 어떻게 다를까?",
+  basis: BASIS,
+  mount(body) {
+    body.innerHTML = `
+      <div class="mix">
+        <div class="mix-main">
+          <div class="ltt-param">나라 <b id="country-v"></b><div id="country"></div></div>
+          <div class="ltt-bar mix-bar" id="bar"></div>
+          <ul class="mix-key" id="key"></ul>
+          <div class="mix-goal" id="g"></div>
+        </div>
+        <div class="mix-side">
+          <p class="mix-cap">저탄소 비중(원자력·수력·재생 합), 나라별</p>
+          <div id="cmp"></div>
+        </div>
+      </div>`;
+
+    const bar = LTT.bar("bar", SRC.map((_, k) => ({ color: COLORS[k] })));
+    const hb = LTT.hbars("cmp", {
+      domain: [0, 100],
+      ticks: [0, 50, 100],
+      tickFormat: (v) => v + "%",
+      rows: NAMES.map((n, i) => ({ label: n, value: low(i), text: low(i) + "%" })),
+    });
+
+    LTT.sweep({
+      params: { country: { kind: "steps", stops: [0, 1, 2, 3], value: 3, fmt: (v) => NAMES[v] } },
+      render: ({ country }) => {
+        const m = MIX[country];
+        bar.set(m, m.map((v) => (v >= 5 ? v + "%" : "")));
+        document.getElementById("key").innerHTML = SRC.map((s, k) =>
+          `<li><i style="background:${COLORS[k]}"></i>${s}<b>${m[k]}%</b></li>`).join("");
+      },
+      goal: { el: "g", text: "저탄소 비중이 60%를 넘는 나라를 찾는다", check: ({ country }) => low(country) >= 60 },
+    });
+
+    return { enter: () => hb.play && hb.play() };
+  },
+};
+
+LTT.deck({ title: "국가별 전력 믹스", theme: "atlas", glossary: {}, scenes: [scene] });
+</script>
+</body>
+</html>

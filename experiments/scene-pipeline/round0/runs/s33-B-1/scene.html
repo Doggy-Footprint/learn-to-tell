@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>모델 복잡도별 오차</title>
+<script type="application/json" id="ltt-meta">{"topic":"편향-분산 트레이드오프","audience":"ML 입문 개발자","theme":"lab","medium":"실험 플롯","decision":"모델 복잡도(다항식 차수) 고르기","domain":"ML","pattern":["figure"],"mode":"카탈로그용: 장면 하나짜리 본보기. 트레이드오프 구조를 \"값이 쌓임\" 움직임과 중앙 주인공 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.bv-wrap{display:flex;justify-content:center;width:100%}
+.bv{width:100%;max-width:1000px;height:min(66vh,580px);display:block}
+.bv text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+
+// 실험 설정: 참 함수 f(x)=sin(2.5πx), 학습 점 15개(등간격), 잡음 σ=0.35(가정). 차수 d 다항식을 최소제곱으로 맞춘다.
+const N = 15, SIGMA = 0.35, DEG = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+const XS = Array.from({ length: N }, (_, i) => (i + 0.5) / N);
+const TEST = Array.from({ length: 101 }, (_, i) => i / 100);
+const f = (x) => Math.sin(2.5 * Math.PI * x);
+const basis = (x, p) => { const t = 2 * x - 1; return Array.from({ length: p }, (_, k) => Math.pow(t, k)); };
+function inverse(A) {
+  const n = A.length, M = A.map((r, i) => [...r, ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))]);
+  for (let c = 0; c < n; c++) {
+    let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]];
+    const d = M[c][c]; for (let j = 0; j < 2 * n; j++) M[c][j] /= d;
+    for (let r = 0; r < n; r++) if (r !== c) { const q = M[r][c]; for (let j = 0; j < 2 * n; j++) M[r][j] -= q * M[c][j]; }
+  }
+  return M.map((r) => r.slice(n));
+}
+// 학습 점이 고정일 때 편향²와 분산은 닫힌 식으로 나온다: 평균 예측 = f를 다항식 공간에 투영한 값, 분산 = σ²·‖h(x)‖²
+function errors(d, pts) {
+  const p = d + 1, X = XS.map((x) => basis(x, p));
+  const G = inverse(Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => X.reduce((s, r) => s + r[i] * r[j], 0))));
+  const A = Array.from({ length: p }, (_, i) => X.map((r) => G[i].reduce((s, g, j) => s + g * r[j], 0))); // (XᵀX)⁻¹Xᵀ
+  const beta = A.map((a) => a.reduce((s, v, n) => s + v * f(XS[n]), 0));
+  let b = 0, v = 0;
+  for (const x of pts) {
+    const r = basis(x, p);
+    b += (r.reduce((s, t, i) => s + t * beta[i], 0) - f(x)) ** 2;
+    let hh = 0; for (let n = 0; n < N; n++) { const h = r.reduce((s, t, i) => s + t * A[i][n], 0); hh += h * h; }
+    v += SIGMA * SIGMA * hh;
+  }
+  return { bias2: b / pts.length, variance: v / pts.length };
+}
+const E = DEG.map((d) => errors(d, TEST));
+const tot = E.map((e) => e.bias2 + e.variance);
+const BEST = tot.indexOf(Math.min(...tot));
+
+function plot(host) {
+  const W = 1000, H = 540, L = 90, R = 960, TOP = 70, BOT = 400, YMAX = 0.5, n = DEG.length;
+  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "bv", "data-annotate": "" }, host);
+  const gx = (i) => L + (R - L) * (i + 0.5) / n, yv = (v) => BOT - (BOT - TOP) * v / YMAX, bw = 60;
+  [0, 0.1, 0.2, 0.3, 0.4, 0.5].forEach((v) => {
+    if (v) mk("line", { x1: L, x2: R, y1: yv(v), y2: yv(v), style: "stroke:var(--ltt-line);stroke-dasharray:3 6" }, s);
+    const t = mk("text", { x: L - 10, y: yv(v) + 5, "text-anchor": "end", style: "font-size:14px;fill:var(--ltt-muted)" }, s); t.textContent = v.toFixed(1); });
+  mk("line", { x1: L, x2: R, y1: BOT, y2: BOT, style: "stroke:var(--ltt-ink-2);stroke-width:2" }, s);
+  const yl = mk("text", { x: L - 10, y: TOP - 30, "text-anchor": "start", style: "font-size:15px;fill:var(--ltt-ink-2)" }, s); yl.textContent = "예측 오차 (편향² + 분산)";
+  const lg = mk("g", {}, s);
+  [["var(--ltt-c1)", "편향² — 모델이 너무 단순해서 생김", 0], ["var(--ltt-c2)", "분산 — 학습 데이터가 바뀌면 요동", 330]].forEach(([c, t, dx]) => {
+    mk("rect", { x: R - 560 + dx, y: 8, width: 14, height: 14, rx: 2, style: `fill:${c}` }, lg);
+    const tx = mk("text", { x: R - 560 + dx + 22, y: 20, style: "font-size:14px;fill:var(--ltt-ink-2)" }, lg); tx.textContent = t; });
+
+  // 구간 라벨: 어느 쪽 오차가 지배하는가
+  const zl = mk("text", { x: gx(1), y: BOT + 74, "text-anchor": "middle", style: "font-size:16px;font-weight:700;fill:var(--ltt-c1)" }, s); zl.textContent = "← 과소적합: 편향이 지배";
+  const zr = mk("text", { x: gx(7), y: BOT + 74, "text-anchor": "middle", style: "font-size:16px;font-weight:700;fill:var(--ltt-c2)" }, s); zr.textContent = "과적합: 분산이 지배 →";
+  const xl = mk("text", { x: (L + R) / 2, y: BOT + 104, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-ink-2)" }, s); xl.textContent = "다항식 차수 d (모델 복잡도)";
+
+  const cols = DEG.map((d, i) => {
+    const g = mk("g", { style: "opacity:0" }, s);
+    const b = mk("rect", { x: gx(i) - bw / 2, width: bw, y: BOT, height: 0, style: "fill:var(--ltt-c1)" }, g);
+    const v = mk("rect", { x: gx(i) - bw / 2, width: bw, y: BOT, height: 0, style: "fill:var(--ltt-c2)" }, g);
+    const num = mk("text", { x: gx(i), y: BOT, "text-anchor": "middle", style: "font-size:14px;font-weight:700;fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-bg);stroke-width:4px" }, s);
+    const k = mk("text", { x: gx(i), y: BOT + 26, "text-anchor": "middle", style: "font-size:17px;font-weight:700;fill:var(--ltt-ink)" }, s); k.textContent = d;
+    return { g, b, v, num };
+  });
+  const line = mk("path", { style: "fill:none;stroke:var(--ltt-accent);stroke-width:3.5;stroke-linejoin:round;stroke-linecap:round" }, s);
+  const dots = DEG.map(() => mk("circle", { r: 6, style: "fill:var(--ltt-accent);stroke:var(--ltt-bg);stroke-width:2.5;opacity:0" }, s));
+  const ring = mk("circle", { cx: gx(BEST), cy: yv(tot[BEST]), r: 20, style: "fill:none;stroke:var(--ltt-good);stroke-width:4;opacity:0" }, s);
+  const pick = mk("g", { style: "opacity:0" }, s);
+  mk("line", { x1: gx(BEST), x2: gx(BEST), y1: yv(tot[BEST]) - 24, y2: TOP + 36, style: "stroke:var(--ltt-good);stroke-width:2.5;stroke-dasharray:5 5" }, pick);
+  const pt = mk("text", { x: gx(BEST), y: TOP + 22, "text-anchor": "middle", style: "font-size:19px;font-weight:800;fill:var(--ltt-good);paint-order:stroke;stroke:var(--ltt-bg);stroke-width:5px" }, pick);
+  pt.textContent = `d = ${DEG[BEST]}: 합이 최소 ${tot[BEST].toFixed(3)}`;
+  const tag = mk("text", { x: W - 14, y: H - 8, "text-anchor": "end", style: "font-size:13px;fill:var(--ltt-muted)" }, s); tag.textContent = "모델로 계산한 예시 · 잡음 σ²=" + (SIGMA * SIGMA).toFixed(3) + "은 모든 차수에 같은 바닥으로 남아 제외";
+
+  // 10초 한 바퀴: 차수가 하나씩 늘며 편향² 위에 분산이 쌓임 → 합의 선이 U자로 → 최소 차수 강조 → 지움
+  function draw(u) {
+    const T = u * 10, out = clamp((T - 9.3) / .7), prog = clamp((T - .3) / 6.2) * n, pts = [];
+    DEG.forEach((d, i) => {
+      const k = clamp(prog - i), e = ease(k), c = cols[i], e2 = E[i];
+      c.g.style.opacity = clamp(k * 4) * (1 - out);
+      const hb = (BOT - yv(e2.bias2)) * clamp(e * 1.7), hv = (BOT - yv(e2.variance)) * clamp((e - 0.4) / 0.6);
+      c.b.setAttribute("y", BOT - hb); c.b.setAttribute("height", hb);
+      c.v.setAttribute("y", BOT - hb - hv); c.v.setAttribute("height", hv);
+      c.num.setAttribute("y", BOT - hb - hv - 10); c.num.textContent = k > .95 ? tot[i].toFixed(2) : ""; c.num.style.opacity = 1 - out;
+      if (k > 0) pts.push([gx(i), BOT - hb - hv]);
+      dots[i].setAttribute("cx", gx(i)); dots[i].setAttribute("cy", yv(tot[i])); dots[i].style.opacity = (k > .95 ? 1 : 0) * (1 - out);
+    });
+    line.setAttribute("d", pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join("")); line.style.opacity = 1 - out;
+    const h = ease(clamp((T - 6.8) / .8)) * (1 - out);
+    ring.style.opacity = h; pick.style.opacity = h; ring.setAttribute("r", 30 - 10 * h);
+    zl.style.opacity = zr.style.opacity = clamp((T - 6.0) / .8) * (1 - out);
+  }
+  return { el: s, draw };
+}
+
+function loop(node, period, draw) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { draw(0.85); return { leave() {} }; }
+  let id = 0; const t0 = Date.now();
+  const f2 = () => { if (!node.isConnected) return; draw(((Date.now() - t0) / period) % 1); id = setTimeout(f2, 16); };
+  f2(); return { leave() { clearTimeout(id); } };
+}
+
+let run = null;
+LTT.deck({
+  title: "모델 복잡도별 오차", theme: "lab",
+  glossary: { "편향": "모델이 너무 단순해서, 학습 데이터를 무한히 모아도 남는 체계적 오차 (평균 예측과 참값의 차이)", "분산": "학습 데이터를 바꿔 다시 맞출 때 예측이 얼마나 요동하는지", "과적합": "학습 데이터의 잡음까지 따라가서 새 데이터에서 오히려 틀리는 상태" },
+  scenes: [{
+    type: "figure", title: "차수를 올리면 편향은 내려가고 분산은 오른다",
+    sub: "차수 1~9 다항식을 같은 곡선에 맞췄다. {{편향}}² 위에 {{분산}}이 쌓인 합이 가장 낮은 차수가 고를 값이다.",
+    figure: '<div class="bv-wrap"></div>',
+    enter: () => { const w = document.querySelector(".bv-wrap"); if (!w) return; w.innerHTML = "";
+      const p = plot(w); run && run.leave(); run = loop(p.el, 10000, p.draw); },
+    caption: `차수 1은 편향²가 ${E[0].bias2.toFixed(2)}로 크고, 차수 9는 분산이 ${E[8].variance.toFixed(2)}로 크다. 합은 차수 ${DEG[BEST]}에서 최소다.`,
+    basis: "참 함수 sin(2.5πx), 학습 점 15개(등간격), 잡음 σ=0.35는 가정한 값. 예측 오차는 [0,1]의 101개 점 평균이며, 편향²·분산은 학습 점을 고정한 최소제곱의 닫힌 식(평균 예측 = 투영, 분산 = σ²‖h(x)‖²)으로 계산했다. 4와 5의 합 차이는 0.002로 작아 잡음에 따라 4가 더 나을 수 있다 <span class=\"ltt-tag warn\">가정</span>",
+    takeaway: "복잡도는 학습 오차가 아니라 편향²+분산의 합이 가장 낮은 곳에서 고른다.",
+    leave: () => run && run.leave()
+  }]
+});
+// 손으로 계산한 기대값: 학습 점 위 평균 분산 = σ²(d+1)/N, 잡음 바닥 = σ² = 0.1225
+LTT.expect("차수 5 학습 점 평균 분산", errors(5, XS).variance, 0.35 * 0.35 * 6 / 15, { tol: 1e-6 });
+LTT.expect("차수 1 학습 점 평균 분산", errors(1, XS).variance, 0.35 * 0.35 * 2 / 15, { tol: 1e-6 });
+LTT.expect("최소 오차 차수", DEG[BEST], 5);
+</script>
+</body>
+</html>

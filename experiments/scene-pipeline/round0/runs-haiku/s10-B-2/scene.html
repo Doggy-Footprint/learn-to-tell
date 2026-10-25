@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>온도조절기 되먹임</title>
+<script type="application/json" id="ltt-meta">{"topic":"온도조절기 되먹임 루프와 오버슈트","audience":"제어 입문자","theme":"lab","medium":"실험 노트 플롯","decision":"히스테리시스 폭과 난방 지연","domain":"제어","pattern":["hook"],"mode":"되먹임 구조를 \"입자가 흐름\" 움직임과 겹쳐 놓기 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>.tc-fig{width:820px;max-width:100%;margin:0 auto}.tc-fig svg{width:100%;height:auto;display:block}.tc-fig text{font-family:inherit}</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+// 열 모델: 주변 10 °C, 시간상수 30분, 히터는 1 °C/분으로 데운다. 히터 명령은 온도를 보고 띠로 정하고, 명령 뒤 3분이 지나야 열로 바뀐다
+const SP = 22, TA = 10, TAU = 30, KH = 1, LAG = 3, DT = 0.02, TMAX = 90, START = 16;
+const W = 820, H = 428, L = 96, R = 640, TOP = 36, BOT = 330, YMIN = 15, YMAX = 26, STEP = 0.6, TRAIL = 8;
+const X = (t) => L + t / TMAX * (R - L);
+const Y = (v) => BOT - (v - YMIN) / (YMAX - YMIN) * (BOT - TOP);
+const el = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// 히스테리시스 제어기 한 번 돌리기. C[i]는 i스텝의 히터 명령, 열은 명령이 LAG분 늦게 들어간다
+function sim(band) {
+  const n = Math.round(TMAX / DT), lag = Math.round(LAG / DT);
+  const T = [START], C = [];
+  let on = true;
+  for (let i = 0; i < n; i++) {
+    const t = T[i];
+    if (t < SP - band / 2) on = true; else if (t > SP + band / 2) on = false;
+    C.push(on ? 1 : 0);
+    const u = i >= lag ? C[i - lag] : 1; // 명령을 내린 뒤 LAG분 동안은 예전 상태가 열로 남는다
+    T.push(t + DT * (KH * u - (t - TA) / TAU));
+  }
+  let sw = 0;
+  for (let i = 1; i < n; i++) if (C[i] !== C[i - 1]) sw++;
+  return { n, T, C, sw };
+}
+// 띠 위쪽을 처음 넘긴 뒤 열이 남아 올라가는 꼭대기
+function overshoot(run, top) {
+  const f = run.T.findIndex((v) => v >= top);
+  let p = f;
+  while (run.T[p + 1] > run.T[p]) p++;
+  return { at: p * DT, peak: run.T[p], over: run.T[p] - top };
+}
+function segments(C) {
+  const out = [];
+  let s = -1;
+  C.forEach((c, i) => { if (c && s < 0) s = i; else if (!c && s >= 0) { out.push([s, i]); s = -1; } });
+  if (s >= 0) out.push([s, C.length]);
+  return out;
+}
+function pathTo(T, head) {
+  let d = "";
+  for (let i = 0; i <= head; i += 10) d += (i ? "L" : "M") + X(i * DT).toFixed(1) + "," + Y(T[i]).toFixed(1);
+  return d;
+}
+
+const CASES = [
+  { band: 2, label: "넓은 띠", name: "넓은 띠 ±1 °C", color: "var(--ltt-accent)" },
+  { band: 0.4, label: "좁은 띠", name: "좁은 띠 ±0.2 °C", color: "var(--ltt-c2)" },
+].map((c) => ({ ...c, run: sim(c.band) }));
+const OV = overshoot(CASES[0].run, SP + CASES[0].band / 2);
+LTT.expect("넓은 띠 넘침(띠 위쪽 기준)", OV.over, 1.62, { tol: 0.05 });
+
+function figure(host) {
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, "data-annotate": "" }, host);
+  const ln = (x1, y1, x2, y2, style) => el("line", { x1, y1, x2, y2, style }, s);
+  const txt = (x, y, str, style, anchor) => { const t = el("text", { x, y, "text-anchor": anchor || "start", style }, s); t.textContent = str; return t; };
+  el("rect", { x: L, y: Y(SP + 1), width: R - L, height: Y(SP - 1) - Y(SP + 1), style: "fill:var(--ltt-accent-soft);opacity:.45" }, s);
+  [16, 18, 20, 22, 24, 26].forEach((v) => { ln(L, Y(v), R, Y(v), "stroke:var(--ltt-line);stroke-width:1"); txt(L - 10, Y(v) + 5, `${v}`, "font-size:14px;fill:var(--ltt-muted)", "end"); });
+  ln(L, BOT, R, BOT, "stroke:var(--ltt-ink-2);stroke-width:1.6");
+  ln(L, TOP, L, BOT, "stroke:var(--ltt-ink-2);stroke-width:1.6");
+  txt(L - 10, TOP - 10, "온도 (°C)", "font-size:14px;fill:var(--ltt-ink-2)", "end");
+  [0, 30, 60, 90].forEach((t) => txt(X(t), BOT + 22, t === TMAX ? "90분" : `${t}`, "font-size:14px;fill:var(--ltt-muted)", "middle"));
+  ln(L, Y(SP), R, Y(SP), "stroke:var(--ltt-ink-2);stroke-width:1.4;stroke-dasharray:6 5");
+  txt(R + 10, Y(SP) + 5, `목표 ${SP} °C`, "font-size:15px;fill:var(--ltt-ink-2)");
+  const narrow = CASES[1];
+  [SP + narrow.band / 2, SP - narrow.band / 2].forEach((v) => ln(L, Y(v), R, Y(v), `stroke:${narrow.color};stroke-width:1.2;stroke-dasharray:2 3`));
+
+  const paths = CASES.map((c) => el("path", { style: `fill:none;stroke:${c.color};stroke-width:2.6;stroke-linejoin:round` }, s));
+  const heads = CASES.map((c) => ({
+    trail: Array.from({ length: TRAIL }, (_, j) => el("circle", { r: 3, style: `fill:${c.color};opacity:${0.7 * (1 - (j + 1) / (TRAIL + 1))}` }, s)),
+    lead: el("circle", { r: 6, style: `fill:${c.color}` }, s),
+  }));
+
+  const call = el("g", { style: "opacity:0" }, s);
+  const ct = (x, y, str, style) => { const t = el("text", { x, y, style }, call); t.textContent = str; return t; };
+  el("line", { x1: X(OV.at) + 4, y1: Y(OV.peak) - 3, x2: X(28) - 6, y2: TOP + 12, style: "stroke:var(--ltt-accent);stroke-width:1.4" }, call);
+  ct(X(28), TOP + 18, `띠 위로 +${OV.over.toFixed(1)} °C`, "font-size:15px;fill:var(--ltt-accent);font-weight:700");
+  ct(X(28), TOP + 38, `끈 뒤 ${LAG}분 동안 열이 더 들어온다`, "font-size:14px;fill:var(--ltt-ink-2)");
+
+  const playhead = ln(L, TOP, L, 404, "stroke:var(--ltt-muted);stroke-width:1.2;stroke-dasharray:3 4");
+  const clock = txt(L + 10, TOP - 10, "", "font-size:14px;fill:var(--ltt-ink);font-weight:700");
+
+  CASES.forEach((c, k) => {
+    const y = 364 + k * 26;
+    txt(L - 10, y + 12, c.label, "font-size:14px;fill:var(--ltt-ink-2)", "end");
+    el("rect", { x: L, y, width: R - L, height: 14, rx: 3, style: "fill:var(--ltt-card-2);stroke:var(--ltt-line-2);stroke-width:1" }, s);
+    segments(c.run.C).forEach(([a, b]) => el("rect", { x: X(a * DT), y, width: Math.max(0.6, X(b * DT) - X(a * DT)), height: 14, style: `fill:${c.color};opacity:.9` }, s));
+    txt(R + 10, y + 12, `전환 ${c.run.sw}회`, "font-size:14px;fill:var(--ltt-ink-2)");
+  });
+  txt(L, 422, "막대: 히터 명령이 켜진 구간", "font-size:14px;fill:var(--ltt-muted)");
+  CASES.forEach((c, k) => { const y = TOP + 12 + k * 26; ln(R + 10, y, R + 30, y, `stroke:${c.color};stroke-width:2.6`); txt(R + 38, y + 5, c.name, "font-size:15px;fill:var(--ltt-ink)"); });
+
+  const N = CASES[0].run.n;
+  return function draw(u) {
+    const tau = u * TMAX, head = Math.min(N, Math.round(tau / DT));
+    clock.textContent = `경과 ${Math.floor(tau)}분`;
+    playhead.setAttribute("x1", X(tau));
+    playhead.setAttribute("x2", X(tau));
+    CASES.forEach((c, k) => {
+      const { T } = c.run, h = heads[k];
+      paths[k].setAttribute("d", pathTo(T, head));
+      h.lead.setAttribute("cx", X(head * DT));
+      h.lead.setAttribute("cy", Y(T[head]));
+      h.trail.forEach((d, j) => { const i = Math.max(0, head - (j + 1) * Math.round(STEP / DT)); d.setAttribute("cx", X(i * DT)); d.setAttribute("cy", Y(T[i])); });
+    });
+    call.style.opacity = tau >= OV.at ? 1 : 0;
+  };
+}
+
+function loop(period, draw) { let raf = 0, t0 = 0;
+  return { enter() { clearTimeout(raf); if (reduced) { draw(0.999); return; }
+      t0 = Date.now(); const f = () => { draw(((Date.now() - t0) / period) % 1); raf = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(raf); } }; }
+
+LTT.deck({
+  title: "온도조절기 되먹임", theme: "lab",
+  glossary: {
+    "히스테리시스": "끄고 켜는 기준을 한 점이 아니라 폭(띠)으로 두는 방식. 기준 근처에서 잦게 켜졌다 꺼지는 것을 막는다",
+    "오버슈트": "목표를 넘어 더 올라가는 현상. 여기서는 끄는 기준(띠 위쪽)을 넘긴 양",
+  },
+  scenes: [{
+    type: "hook", pre: "온도조절기", text: "히터를 끈 뒤에도 방은 목표를 넘어 더 데워진다",
+    sub: "온도계가 {{히스테리시스}} 띠 위쪽을 넘기면 히터를 끈다. 그런데 열은 3분 뒤에야 멈춰서 {{오버슈트}}가 생긴다. 띠를 좁혀도 넘침은 남고, 켜고 끄는 횟수만 늘어난다.",
+    basis: "열 모델: 주변 10 °C, 시간상수 30분, 히터 1 °C/분, 전달 지연 3분, 목표 22 °C. <span class=\"ltt-tag\">가정한 계수</span> 교육용 값이며 실제 장치의 수치가 아니다. 넘침 1.6 °C는 끄는 순간의 상승 속도와 지연으로 손으로 계산해 대조했다.",
+    mount(body) {
+      const host = body.appendChild(document.createElement("div"));
+      host.className = "tc-fig";
+      return loop(16000, figure(host));
+    } }] });
+</script>
+</body>
+</html>

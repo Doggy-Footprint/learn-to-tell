@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fan-out과 p99 꼬리 지연</title>
+<script type="application/json" id="ltt-meta">{"topic":"fan-out과 p99 꼬리 지연","audience":"백엔드 개발자","theme":"terminal","medium":"터미널·대시보드","decision":"한 요청이 부르는 백엔드 수","domain":"백엔드","pattern":["mount"],"mode":"카탈로그용: 장면 하나짜리. 분포 구조를 \"쪼개지고 합쳐짐\" 움직임과 작은 여러 칸 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.fo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:100%}
+@media (max-width:760px){.fo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.fo-grid svg{width:100%;height:auto;display:block}
+.fo-grid text{font-family:var(--ltt-mono)}
+.fo-row{display:flex;gap:28px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.fo-row .ltt-param{flex:1;min-width:240px}
+.fo-key{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;font-family:var(--ltt-mono);font-size:14px;color:var(--ltt-ink-2)}
+.fo-key i{display:inline-block;width:14px;height:10px;margin-right:6px;vertical-align:baseline}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const e = document.createElementNS(SVG, tag); for (const k in a) e.setAttribute(k, a[k]); p && p.appendChild(e); return e; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const cl = (x) => Math.max(0, Math.min(1, x));
+
+// 백엔드 한 대의 응답 지연(ms): 정상 99.5% 로그정규(중앙값 20, σ .35) + 느린 0.5% 로그정규(중앙값 200, σ .5). 가정한 혼합분포.
+const P_SLOW = 0.005, MED = 20, SIG = 0.35, MED_S = 200, SIG_S = 0.5;
+const Phi = (z) => { const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; };
+const F1 = (x) => (1 - P_SLOW) * Phi(Math.log(x / MED) / SIG) + P_SLOW * Phi(Math.log(x / MED_S) / SIG_S);
+const Fn = (x, n) => Math.pow(F1(x), n);                 // 요청 지연 = N개 응답의 최댓값 → CDF = F^N
+const p99 = (n) => { let a = 1, b = 1e5; for (let i = 0; i < 70; i++) { const m = Math.sqrt(a * b); Fn(m, n) < 0.99 ? a = m : b = m; } return a; };
+const hitSlow = (n) => 1 - Math.pow(1 - P_SLOW, n);        // 느린 호출을 하나라도 만날 확률
+const FAN = [1, 2, 5, 10, 30, 100];
+const SLO = 100;                                           // ms
+const fmtMs = (v) => Math.round(v) + "ms";
+const fmtPct = (p) => (p < 0.1 ? (p * 100).toFixed(1) : Math.round(p * 100)) + "%";
+
+const rngOf = (seed) => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const sampleLat = (r) => { const g = Math.sqrt(-2 * Math.log(1 - r() * 0.999999)) * Math.cos(2 * Math.PI * r());
+  return r() < P_SLOW ? MED_S * Math.exp(SIG_S * g) : MED * Math.exp(SIG * g); };
+
+const VW = 360, VH = 244, XL = 14, XR = 346;
+const xs = d3.scaleLog([10, 1000], [XL, XR]).clamp(true);
+const HB = 140, HT = 64, LANE0 = 166, LANE1 = 206, LM = (LANE0 + LANE1) / 2, CYC = 6500, NB = 44;
+const edges = d3.range(NB + 1).map((i) => 10 * Math.pow(100, i / NB));
+
+function cell(host, n, idx) {
+  const s = mk("svg", { viewBox: `0 0 ${VW} ${VH}`, "data-annotate": "" }, host);
+  const frameR = mk("rect", { x: 1, y: 1, width: VW - 2, height: VH - 2, rx: 4, style: "fill:var(--ltt-card);stroke:var(--ltt-line);stroke-width:1.5" }, s);
+  const t1 = mk("text", { x: 14, y: 24, style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, s); t1.textContent = "백엔드 " + n + "개 호출";
+  const pv = p99(n);
+  const t2 = mk("text", { x: VW - 14, y: 24, "text-anchor": "end", style: "font-size:15px;font-weight:700;fill:var(--ltt-bad)" }, s); t2.textContent = "p99 " + fmtMs(pv);
+  const t3 = mk("text", { x: 14, y: 46, style: "font-size:14px;fill:var(--ltt-muted)" }, s); t3.textContent = "요청의 " + fmtPct(hitSlow(n)) + "가 느린 호출을 만남";
+  // 분포: 요청 지연(= 최댓값)의 확률질량, 칸마다 가장 큰 칸을 기준으로 정규화
+  const pm = d3.range(NB).map((i) => Fn(edges[i + 1], n) - Fn(edges[i], n)), mx = Math.max(...pm);
+  pm.forEach((p, i) => { const x0 = xs(edges[i]), x1 = xs(edges[i + 1]), h = (HB - HT) * p / mx, tail = edges[i] >= pv;
+    mk("rect", { x: x0 + 0.5, y: HB - h, width: Math.max(1, x1 - x0 - 1), height: h, style: `fill:var(${tail ? "--ltt-bad" : "--ltt-accent"});opacity:${tail ? .8 : .55}` }, s); });
+  mk("line", { x1: XL, y1: HB, x2: XR, y2: HB, style: "stroke:var(--ltt-ink-2);stroke-width:1" }, s);
+  if (n > 1) mk("line", { x1: xs(p99(1)), y1: HT - 4, x2: xs(p99(1)), y2: LANE1 + 6, style: "stroke:var(--ltt-muted);stroke-width:1.5;stroke-dasharray:3 4" }, s);
+  mk("line", { x1: xs(pv), y1: HT - 4, x2: xs(pv), y2: LANE1 + 6, style: "stroke:var(--ltt-bad);stroke-width:2;stroke-dasharray:6 4" }, s);
+  // 응답 도착 레인: 가로축 = 지연(ms)
+  mk("line", { x1: XL, y1: LANE1 + 8, x2: XR, y2: LANE1 + 8, style: "stroke:var(--ltt-ink-2);stroke-width:1" }, s);
+  [[10, "10ms"], [100, "100ms"], [1000, "1s"]].forEach(([v, lab]) => {
+    mk("line", { x1: xs(v), y1: LANE1 + 8, x2: xs(v), y2: LANE1 + 14, style: "stroke:var(--ltt-ink-2)" }, s);
+    const tt = mk("text", { x: Math.min(XR - 12, Math.max(XL + 12, xs(v))), y: VH - 12, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, s); tt.textContent = lab; });
+  const dots = d3.range(n).map(() => mk("circle", { r: n > 30 ? 3 : 4.5, cx: XL + 6, cy: LM, style: "fill:var(--ltt-ink-2);opacity:0" }, s));
+  const req = mk("circle", { cx: XL + 6, cy: LM, r: 7, style: "fill:var(--ltt-ink);stroke:var(--ltt-bg);stroke-width:2" }, s);
+  const top = mk("circle", { r: 7, style: "fill:var(--ltt-bad);stroke:var(--ltt-bg);stroke-width:2;opacity:0" }, s);
+  const lab = mk("text", { y: 156, style: "font-size:14px;font-weight:700;fill:var(--ltt-bad);opacity:0" }, s);
+  let k = -1, lat = [], im = 0;
+  const ly = (i) => LANE0 + 4 + ((i * 0.61803) % 1) * (LANE1 - LANE0 - 8);
+  function resample(c) { const r = rngOf(c * 7919 + idx * 104729 + 11); lat = d3.range(n).map(() => sampleLat(r)); im = lat.indexOf(Math.max(...lat)); k = c; }
+  function draw(c, u) {
+    if (k !== c) resample(c);
+    const ox = XL + 6, oy = LM, mxx = xs(lat[im]);
+    const fs = ease(cl(u / .3)), fm = ease(cl((u - .65) / .25));
+    lat.forEach((v, i) => { const tx = xs(v), ty = ly(i); let x, y, o = .85;
+      if (i === im) { x = ox + (tx - ox) * fs; y = oy + (ty - oy) * fs; }
+      else { x = ox + (tx - ox) * fs; y = oy + (ty - oy) * fs; x += (mxx - x) * fm; y += (ly(im) - y) * fm; o = .85 * (1 - fm); }
+      dots[i].setAttribute("cx", x); dots[i].setAttribute("cy", y); dots[i].style.opacity = i === im ? 0 : o; });
+    const mxY = oy + (ly(im) - oy) * fs;
+    top.setAttribute("cx", ox + (mxx - ox) * fs); top.setAttribute("cy", mxY); top.style.opacity = fs > 0 ? 1 : 0;
+    req.style.opacity = 1 - cl(u / .12);
+    const show = cl((u - .3) / .1) * (1 - cl((u - .95) / .05));
+    lab.textContent = "요청 = 최댓값 " + fmtMs(lat[im]); lab.style.opacity = show;
+    lab.setAttribute("x", mxx > 200 ? Math.min(mxx + 8, XR) : Math.max(mxx - 8, XL)); lab.setAttribute("text-anchor", mxx > 200 ? "end" : "start");
+    if (mxx > 200) lab.setAttribute("x", Math.min(mxx + 8, XR));
+  }
+  return { n, setActive(on) { frameR.style.stroke = on ? "var(--ltt-accent)" : "var(--ltt-line)"; frameR.style.strokeWidth = on ? 3 : 1.5; s.style.opacity = on ? 1 : .72; },
+    frame(t) { draw(Math.floor(t / CYC), (t % CYC) / CYC); }, still() { draw(0, .5); } };
+}
+
+function mount(body) {
+  body.innerHTML = `<div class="fo-grid"></div>
+    <div class="fo-key"><span><i style="background:var(--ltt-accent);opacity:.6"></i>p99 안쪽 요청</span><span><i style="background:var(--ltt-bad)"></i>p99보다 느린 1%</span><span>회색 점선 = 호출 1개일 때 p99 ${fmtMs(p99(1))}</span><span>● 점 하나 = 백엔드 응답 하나</span></div>
+    <div class="fo-row"><div class="ltt-param">한 요청이 부르는 백엔드 <b id="n-v"></b><div id="n"></div></div>
+    <div class="ltt-stat"><span class="ltt-hero" id="p"></span> <small>요청 p99</small></div><div id="goal"></div></div>`;
+  const cells = FAN.map((n, i) => cell(body.querySelector(".fo-grid"), n, i));
+  LTT.sweep({ params: { n: { kind: "steps", stops: FAN, value: 10, fmt: (v) => v + "개" } },
+    render: ({ n }) => { cells.forEach((c) => c.setActive(c.n === n)); body.querySelector("#p").textContent = fmtMs(p99(n)); },
+    goal: { el: "goal", text: "p99를 SLO 100ms 안에 두면서 fan-out을 가장 크게 잡는다", check: ({ n }) => p99(n) <= SLO && n >= 2 } });
+  let raf = 0, t0 = 0; const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // 6.5초 주기: 요청이 N개로 쪼개져(0–30%), 응답을 기다리고(–65%), 가장 느린 하나로 합쳐진다(–90%)
+  return { enter() { clearTimeout(raf); if (reduced) { cells.forEach((c) => c.still()); return; }
+      t0 = Date.now(); const f = () => { const t = Date.now() - t0; cells.forEach((c) => c.frame(t)); raf = setTimeout(f, 33); }; f(); },
+    leave() { clearTimeout(raf); } };
+}
+
+LTT.deck({
+  title: "fan-out과 p99 꼬리 지연", theme: "terminal",
+  glossary: { "p99": "요청 100개 중 99개가 이 시간 안에 끝난다는 지연 값. 가장 느린 1%의 경계", "fan-out": "요청 하나가 처리 중에 동시에 부르는 하위 백엔드 호출의 수" },
+  scenes: [{
+    title: "백엔드를 더 많이 부를수록, 가장 느린 하나가 요청 전체의 지연이 된다",
+    sub: "요청이 {{fan-out}}으로 쪼개졌다가 모든 응답이 와야 합쳐진다. 백엔드 한 대의 느린 0.5%는 드물어도, 100개를 부르면 요청 10개 중 4개가 그 꼬리를 만나 {{p99}}가 밀린다.",
+    layout: "full",
+    basis: "가정한 지연 모델: 백엔드 한 대는 99.5% 로그정규(중앙값 20ms, σ=0.35), 0.5%는 느린 로그정규(중앙값 200ms, σ=0.5). 요청 지연 = N개 응답의 최댓값이라 CDF = F(x)^N, p99는 F^N=0.99를 이분법으로 푼 값. 꼬리 접촉 확률 1−0.995^N. 'The Tail at Scale'(Dean·Barroso, 2013)의 논리를 따른 모델 예시이며 실측치가 아니다.",
+    mount
+  }]
+});
+LTT.expect("fan-out 100에서 느린 호출 접촉 확률", hitSlow(100), 0.3942, { tol: 0.001 });
+LTT.expect("fan-out이 클수록 p99 단조 증가", FAN.every((n, i) => i === 0 || p99(n) > p99(FAN[i - 1])) ? 1 : 0, 1);
+LTT.expect("호출 1개 p99(ms)", p99(1), 49.2, { tol: 0.5 });
+</script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결제 퍼널 이탈 지점</title>
+<script type="application/json" id="ltt-meta">{"topic":"결제 퍼널 이탈 지점","audience":"UX 입문자","theme":"studio","medium":"제품 분석 대시보드","decision":"어느 결제 단계를 먼저 고칠까"}</script>
+<style>
+  .cf { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(280px, 1fr); gap: 20px; align-items: start; width: 100%; }
+  .cf-left, .cf-right { min-width: 0; }
+  .cf-svg { display: block; width: 100%; height: auto; }
+  .cf-cam { transform-box: view-box; transform-origin: 0 0; transition: transform calc(var(--cf-ms, 900) * 1ms) cubic-bezier(.45, 0, .2, 1); }
+  .cf-lab { transition: transform calc(var(--cf-ms, 900) * 1ms) cubic-bezier(.45, 0, .2, 1), opacity .4s; }
+  .cf-bar { fill: color-mix(in srgb, var(--ltt-ink) 30%, var(--ltt-card)); stroke: var(--ltt-ink-2); stroke-width: 1; }
+  .cf-kept { fill: color-mix(in srgb, var(--ltt-ink) 9%, var(--ltt-card)); }
+  .cf-lost { fill: url(#cf-hatch); stroke: var(--ltt-muted); stroke-width: 1; stroke-dasharray: 4 3; transition: fill .4s, stroke .4s; }
+  .cf-lost.on { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); }
+  .cf-lost.fix { fill: var(--ltt-bad-soft); stroke: var(--ltt-bad); }
+  .cf-seg { transition: opacity .5s; stroke: var(--ltt-card); stroke-width: 1; }
+  .cf-t { font-family: inherit; fill: var(--ltt-ink); }
+  .cf-name { font-size: 16px; font-weight: 600; text-anchor: middle; }
+  .cf-count { font-size: 20px; font-weight: 700; text-anchor: middle; }
+  .cf-drop { font-size: 16px; font-weight: 700; text-anchor: middle; }
+  .cf-rate { font-size: 14px; text-anchor: middle; fill: var(--ltt-ink-2); }
+  .cf-segt { font-size: 13px; font-weight: 600; text-anchor: middle; }
+  .cf-led { border: 1px solid var(--ltt-line); background: var(--ltt-card); border-radius: 10px; padding: 12px 14px; }
+  .cf-head { font-size: 13px; color: var(--ltt-muted); margin: 0 0 8px; }
+  .cf-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 54px 40px; gap: 8px; align-items: center; padding: 7px 8px; border-radius: 8px; border: 1px solid transparent; font-size: 14px; transition: background .4s, border-color .4s; }
+  .cf-row .cf-n { color: var(--ltt-ink); white-space: nowrap; }
+  .cf-track { height: 10px; border-radius: 5px; background: var(--ltt-line); overflow: hidden; }
+  .cf-fill { display: block; height: 100%; border-radius: 5px; background: var(--ltt-muted); transition: background .4s; }
+  .cf-row .cf-v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ltt-ink-2); }
+  .cf-row .cf-p { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .cf-row.on { background: var(--ltt-accent-soft); border-color: var(--ltt-accent); }
+  .cf-row.on .cf-fill { background: var(--ltt-accent); }
+  .cf-row.fix { background: var(--ltt-bad-soft); border-color: var(--ltt-bad); }
+  .cf-row.fix .cf-fill { background: var(--ltt-bad); }
+  .cf-flag { margin: 8px 0 0; min-height: 22px; }
+  .cf-why { margin-top: 12px; transition: opacity .5s; }
+  .cf-why.off { opacity: .22; }
+  .cf-rrow { display: grid; grid-template-columns: 16px 104px minmax(0, 1fr) 40px; gap: 8px; align-items: center; padding: 5px 8px; font-size: 14px; }
+  .cf-sw { width: 14px; height: 14px; border-radius: 3px; }
+  .cf-rrow .cf-v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+  @media (max-width: 900px) { .cf { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const STAGES = [
+  { n: "장바구니", v: 10000 }, { n: "배송 정보", v: 7200 }, { n: "결제 수단", v: 6300 },
+  { n: "카드 인증", v: 4100 }, { n: "주문 완료", v: 3700 }];
+const WHY = [
+  { n: "수단 없음", long: "원하는 수단 없음", v: 900, tint: "var(--ltt-c1)" },
+  { n: "수수료 표시", long: "추가 수수료 표시", v: 800, tint: "var(--ltt-c2)" },
+  { n: "카드 재입력", long: "카드 정보 재입력", v: 500, tint: "var(--ltt-c3)" }];
+const LEFT = [0, 1, 2, 3].map((i) => ({ from: STAGES[i].n, lost: STAGES[i].v - STAGES[i + 1].v, base: STAGES[i].v, rate: (STAGES[i].v - STAGES[i + 1].v) / STAGES[i].v }));
+const fmt = (n) => n.toLocaleString("en-US");
+const pct = (r) => Math.round(r * 100) + "%";
+
+const PX = 160, W0 = 50, X0 = 60, TOP = 84, UNIT = 0.025, HEAD = 64, VW = 760, VH = 400;
+const colX = (i) => X0 + i * PX;
+const hOf = (v) => v * UNIT;
+const CAMS = [{ s: 1, x0: 0, y0: HEAD }, { s: 2, x0: -10, y0: 190 }, { s: 2.4, x0: 330, y0: 150 }, { s: 1, x0: 0, y0: HEAD }];
+const ACTIVE = [-1, 0, 2, 2];
+
+const funnel = (el) => {
+  const root = el.appendChild(document.createElement("div"));
+  root.className = "cf";
+  const rows = LEFT.map((d, i) => `<div class="cf-row" data-i="${i}"><span class="cf-n">${d.from}</span><span class="cf-track"><i class="cf-fill" style="width:${d.rate / 0.4 * 100}%"></i></span><span class="cf-v">−${fmt(d.lost)}</span><span class="cf-p">${pct(d.rate)}</span></div>`).join("");
+  const why = WHY.map((w) => `<div class="cf-rrow"><span class="cf-sw" style="background:color-mix(in srgb, ${w.tint} 38%, var(--ltt-card)); border:1px solid ${w.tint}"></span><span>${w.long}</span><span class="cf-track"><i class="cf-fill" style="width:${w.v / 900 * 100}%"></i></span><span class="cf-v">${fmt(w.v)}</span></div>`).join("");
+  root.innerHTML = `
+    <div class="cf-left"><svg class="cf-svg" viewBox="0 0 ${VW} ${VH}" role="img" aria-label="결제 퍼널: 장바구니 10,000, 배송 정보 7,200, 결제 수단 6,300, 카드 인증 4,100, 주문 완료 3,700"></svg></div>
+    <div class="cf-right">
+      <div class="cf-led"><p class="cf-head">화면별 이탈 · 떠난 방문 수와 이탈률</p>${rows}<p class="cf-flag"></p></div>
+      <div class="cf-led cf-why off"><p class="cf-head">결제 수단 화면에서 떠난 2,200건의 이유</p>${why}</div>
+    </div>`;
+  const svg = root.querySelector("svg");
+  const ns = (tag, attrs, parent) => { const e = document.createElementNS(SVG, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); (parent || svg).appendChild(e); return e; };
+  const defs = ns("defs", {});
+  const pat = ns("pattern", { id: "cf-hatch", width: 8, height: 8, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, defs);
+  ns("line", { x1: 0, y1: 0, x2: 0, y2: 8, stroke: "var(--ltt-muted)", "stroke-width": 1.5, opacity: 0.55 }, pat);
+  const clip = ns("clipPath", { id: "cf-clip" }, defs);
+  ns("rect", { x: 0, y: HEAD, width: VW, height: VH - HEAD }, clip);
+  ns("line", { x1: 0, y1: HEAD, x2: VW, y2: HEAD, stroke: "var(--ltt-line)" });
+
+  const plot = ns("g", { "clip-path": "url(#cf-clip)" });
+  const cam = ns("g", { class: "cf-cam" }, plot);
+  const lost = [];
+  LEFT.forEach((d, i) => {
+    const xr = colX(i) + W0, xl = colX(i + 1), h1 = hOf(STAGES[i].v), h2 = hOf(STAGES[i + 1].v);
+    ns("polygon", { class: "cf-kept", points: `${xr},${TOP} ${xl},${TOP} ${xl},${TOP + h2} ${xr},${TOP + h2}` }, cam);
+    lost.push(ns("polygon", { class: "cf-lost", points: `${xr},${TOP + h2} ${xl},${TOP + h2} ${xr},${TOP + h1}` }, cam));
+  });
+  STAGES.forEach((s, i) => ns("rect", { class: "cf-bar", x: colX(i), y: TOP, width: W0, height: hOf(s.v), rx: 2 }, cam));
+  // 결제 수단 막대의 아래쪽 = 떠난 2,200건, 이유별로 쌓은 조각
+  const segs = [];
+  let y = TOP + hOf(STAGES[3].v);
+  WHY.forEach((w) => {
+    const h = hOf(w.v);
+    segs.push({ w, y, h, el: ns("rect", { class: "cf-seg", x: colX(2), y, width: W0, height: h, fill: `color-mix(in srgb, ${w.tint} 38%, var(--ltt-card))`, opacity: 0 }, cam) });
+    y += h;
+  });
+
+  // 글자 크기를 고정하려고 라벨은 확대 대상 밖에 두고 위치만 카메라에 맞춘다
+  const labs = ns("g", {}, plot);
+  const mkLab = (cls, lines, ax, ay, dy, headTop) => {
+    const g = ns("g", { class: "cf-lab" }, headTop ? svg : labs);
+    lines.forEach((t, k) => { const e = ns("text", { class: "cf-t " + t.c, y: t.dy }, g); e.textContent = t.text; });
+    return { g, ax, ay, head: !!headTop };
+  };
+  const labels = [];
+  STAGES.forEach((s, i) => labels.push(mkLab("", [{ c: "cf-name", text: s.n, dy: 26 }, { c: "cf-count", text: fmt(s.v), dy: 52 }], colX(i) + W0 / 2, 0, 0, true)));
+  LEFT.forEach((d, i) => labels.push(mkLab("", [{ c: "cf-drop", text: "−" + fmt(d.lost), dy: 24 }, { c: "cf-rate", text: "이탈 " + pct(d.rate), dy: 42 }], colX(i) + W0 + (PX - W0) / 2, TOP + hOf(STAGES[i].v), 0, false)));
+  const segLabs = segs.map((s) => ({ s, lab: mkLab("", [{ c: "cf-segt", text: s.w.n + " " + fmt(s.w.v), dy: 4 }], colX(2) + W0 / 2, s.y + s.h / 2, 0, false) }));
+
+  const place = (g, ax, ay, c, head) => {
+    const x = c.s * (ax - c.x0);
+    const yy = head ? 0 : HEAD + c.s * (ay - c.y0);
+    g.style.transform = `translate(${x}px, ${yy}px)`;
+  };
+  const led = [...root.querySelectorAll(".cf-row")];
+  const flag = root.querySelector(".cf-flag");
+  const whyBox = root.querySelector(".cf-why");
+
+  const go = (k) => {
+    const c = CAMS[k];
+    cam.style.transform = `translate(${-c.s * c.x0}px, ${HEAD - c.s * c.y0}px) scale(${c.s})`;
+    labels.forEach((l) => place(l.g, l.ax, l.ay, c, l.head));
+    segLabs.forEach(({ lab }) => { place(lab.g, lab.ax, lab.ay, c, false); lab.g.style.opacity = k === 2 ? 1 : 0; });
+    segs.forEach((s) => { s.el.style.opacity = k >= 2 ? 1 : 0; });
+    const a = ACTIVE[k];
+    lost.forEach((p, i) => { p.classList.toggle("on", i === a && k < 3); p.classList.toggle("fix", i === a && k === 3); });
+    led.forEach((r, i) => { r.classList.toggle("on", i === a && k < 3); r.classList.toggle("fix", i === a && k === 3); });
+    whyBox.classList.toggle("off", k < 2);
+    flag.innerHTML = k === 3 ? '<span class="ltt-tag bad">먼저 고칠 곳</span> 결제 수단 화면' : "";
+  };
+  go(0);
+  return { el: root, go };
+};
+
+const scene = {
+  type: "figure",
+  kicker: "UX · 결제 퍼널 단계, 이탈 지점으로 확대",
+  title: "결제 수단 화면의 이탈이 가장 아깝다",
+  en: "Fix the payment-method step first",
+  sub: "{{퍼널}}의 막대 높이는 그 화면에 닿은 방문 수다. 화면마다 {{이탈률}}을 확대해 읽는다.",
+  chips: ["결제 퍼널", "이탈 지점", "우선순위"],
+  figure: funnel,
+  steps: [
+    { caption: "방문 10,000건이 다섯 화면을 지나며 3,700건으로 줄어든다. 줄무늬 조각이 화면마다 떠난 방문이다.", enter: (k, f) => f.go(0) },
+    { caption: "장바구니에서 2,800건(28%)이 떠나 인원은 가장 많다. 구경만 하는 방문이 섞여 있어 결제 의사와는 거리가 멀다.", enter: (k, f) => f.go(1) },
+    { caption: "결제 수단 화면은 6,300건 중 2,200건(35%)이 떠난다. 결제하려고 온 사람들이고, 이유는 세 갈래로 나뉜다.", enter: (k, f) => f.go(2) },
+    { caption: "이탈률이 가장 높고 결제 의사가 분명한 구간이다. 이유 1위 '원하는 수단 없음'부터 풀어 이 화면을 먼저 고친다.", enter: (k, f) => f.go(3) }],
+  takeaway: "고칠 순서는 이탈 인원이 아니라, 결제 의사가 분명한 사람이 높은 비율로 떠나는 화면부터 정한다.",
+  recall: "장바구니의 이탈 인원이 더 많은데도 결제 수단 화면을 먼저 고치는 이유는?",
+  basis: "방문 10,000건을 가정한 모델로 계산한 예시다. 실제 서비스 값이 아니며, 장바구니 이탈에 구경만 하는 방문이 많다는 것도 가정이다."
+};
+
+LTT.expect("결제 수단 화면 이탈률", LEFT[2].rate, 0.349, { tol: 0.001 });
+LTT.expect("이탈 이유 합계", WHY.reduce((a, w) => a + w.v, 0), LEFT[2].lost, { tol: 0 });
+
+LTT.deck({
+  title: "결제 퍼널 이탈 지점",
+  theme: "studio",
+  glossary: {
+    "퍼널": "방문이 단계마다 줄어드는 길. 깔때기처럼 뒤로 갈수록 좁아진다.",
+    "이탈률": "그 화면에 온 사람 중 다음 화면으로 가지 않고 떠난 비율."
+  },
+  scenes: [scene]
+});
+</script>
+</body>
+</html>

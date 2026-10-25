@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>온도조절기 되먹임 루프와 오버슈트</title>
+<script type="application/json" id="ltt-meta">{"topic": "온도조절기 되먹임 루프와 오버슈트", "audience": "제어 입문자", "theme": "lab", "medium": "실험 노트 플롯", "decision": "히스테리시스 폭과 난방 지연"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// 가상의 방: 히터 명령은 4분 뒤에야 방에 닿는다. 켜는 값 19°C, 끄는 값 21°C
+const TMAX = 60, DT = 0.05, DUR = 18;
+const LAG = 4, LOSS = 0.05, HEAT = 0.8, AMB = 14;
+const X0 = 170, X1 = 920;
+const xOf = (t) => X0 + (t / TMAX) * (X1 - X0);
+const yOf = (T) => 440 - (T - 14) * 27;
+
+const N = Math.round(TMAX / DT);
+const lag = Math.round(LAG / DT);
+const temp = [], cmd = [];
+let T = 15, on = true;
+for (let i = 0; i <= N; i++) {
+  if (on && T > 21) on = false;
+  else if (!on && T < 19) on = true;
+  cmd.push(on);
+  temp.push(T);
+  const heat = i >= lag && cmd[i - lag] ? HEAT : 0;
+  T += (heat - LOSS * (T - AMB)) * DT;
+}
+
+// 구간 안에서 가장 큰(또는 작은) 온도가 놓인 자리
+function extreme(from, len, better) {
+  let best = from;
+  for (let i = from; i < Math.min(from + len, N + 1); i++) if (better(temp[i], temp[best])) best = i;
+  return best;
+}
+const off = cmd.indexOf(false);
+const peak = extreme(off, Math.round(12 / DT), (a, b) => a > b);
+const trough = extreme(cmd.indexOf(true, peak), Math.round(12 / DT), (a, b) => a < b);
+
+// 점 간격 0.2분. 점선 길이의 비율을 시간 비율과 같은 키 시각에 맞춘다
+const idx = [];
+for (let i = 0; i <= N; i += 4) idx.push(i);
+const P = idx.map((i) => [xOf(i * DT), yOf(temp[i])]);
+const cum = [0];
+for (let k = 1; k < P.length; k++) cum.push(cum[k - 1] + Math.hypot(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1]));
+const len = cum[cum.length - 1];
+const keyTimes = idx.map((_, k) => (k / (idx.length - 1)).toFixed(4)).join(";");
+const d = "M" + P.map(([x, y]) => x.toFixed(1) + " " + y.toFixed(1)).join(" L");
+const xs = P.map(([x]) => x.toFixed(1)).join(";");
+const ys = P.map(([, y]) => y.toFixed(1)).join(";");
+const hidden = cum.map((c) => (len - c).toFixed(1)).join(";");
+const anim = (attr, values) => `<animate attributeName="${attr}" dur="${DUR}s" repeatCount="indefinite" calcMode="linear" keyTimes="${keyTimes}" values="${values}"/>`;
+
+let heat = "";
+for (let i = 0; i <= N; i++) {
+  if (!cmd[i]) continue;
+  let j = i;
+  while (j < N && cmd[j + 1]) j++;
+  heat += `<rect class="g-heat" x="${xOf(i * DT).toFixed(1)}" y="448" width="${(xOf(j * DT) - xOf(i * DT)).toFixed(1)}" height="14"/>`;
+  i = j;
+}
+
+const note = (i, text, dy) => `<circle class="g-mark" cx="${xOf(i * DT).toFixed(1)}" cy="${yOf(temp[i]).toFixed(1)}" r="4"/><text class="g-note" x="${xOf(i * DT).toFixed(1)}" y="${(yOf(temp[i]) + dy).toFixed(1)}" text-anchor="middle">${text}</text>`;
+const notes = note(peak, `끈 뒤 최고 ${temp[peak].toFixed(1)}°C`, -14) + note(trough, `켠 뒤 최저 ${temp[trough].toFixed(1)}°C`, 22);
+
+const nodes = [["방 온도", 240], ["온도 측정", 420], ["켬·끔 판단", 600], ["히터 출력", 780]];
+const boxes = nodes.map(([l, cx]) => `<rect class="g-node" x="${cx - 70}" y="56" width="140" height="36" rx="8"/><text class="g-nodetext" x="${cx}" y="79" text-anchor="middle">${l}</text>`).join("");
+const flow = nodes.slice(0, -1).map(([, cx]) => `<line class="g-flow" x1="${cx + 72}" x2="${cx + 108}" y1="74" y2="74" marker-end="url(#arr)"/>`).join("");
+
+const last = P[P.length - 1];
+const start = still ? last : P[0];
+const ticks = [0, 10, 20, 30, 40, 50, 60].map((m) => `<text class="g-lab" x="${xOf(m).toFixed(1)}" y="484" text-anchor="middle">${m}분</text>`).join("");
+const grids = [16, 18, 22, 24].map((T) => `<line class="g-grid" x1="170" x2="920" y1="${yOf(T)}" y2="${yOf(T)}"/><text class="g-lab" x="160" y="${yOf(T) + 4}" text-anchor="end">${T}</text>`).join("");
+const named = [[21, "끄는 값 21"], [20, "목표 20"], [19, "켜는 값 19"]].map(([T, s]) => `<line class="g-edge" x1="170" x2="920" y1="${yOf(T)}" y2="${yOf(T)}"/><text class="g-lab" x="160" y="${yOf(T) + 4}" text-anchor="end">${s}</text>`).join("");
+
+const fig = `<svg class="g-svg" viewBox="0 0 960 500" role="img" aria-label="방 온도가 켜는 값과 끄는 값 사이에서 흔들리고, 히터를 끈 뒤에도 목표를 넘어 오른다">
+<style>
+.g-svg{display:block;width:100%;height:auto}
+.g-grid{stroke:var(--ltt-line);stroke-width:1}
+.g-edge{stroke:var(--ltt-muted);stroke-width:1.2;stroke-dasharray:5 4}
+.g-axis{stroke:var(--ltt-muted);stroke-width:1.2}
+.g-band{fill:var(--ltt-card-2)}
+.g-off{fill:var(--ltt-card-2)}
+.g-heat{fill:var(--ltt-c2)}
+.g-faint{fill:none;stroke:var(--ltt-muted);stroke-width:1.5;opacity:.3}
+.g-trail{fill:none;stroke:var(--ltt-accent);stroke-width:3;stroke-linejoin:round}
+.g-dot{fill:var(--ltt-accent)}
+.g-mark{fill:var(--ltt-ink)}
+.g-lab{fill:var(--ltt-muted);font-size:13px}
+.g-note{fill:var(--ltt-ink);font-size:14px}
+.g-node{fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:1.2}
+.g-nodetext{fill:var(--ltt-ink);font-size:14px}
+.g-flow,.g-arc{fill:none;stroke:var(--ltt-muted);stroke-width:1.5}
+.g-arrow{fill:var(--ltt-muted)}
+</style>
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="g-arrow" d="M0 0L10 5L0 10z"/></marker></defs>
+${boxes}${flow}
+<path class="g-arc" d="M780 56 Q510 -10 240 56" marker-end="url(#arr)"/>
+<text class="g-note" x="510" y="14" text-anchor="middle">열이 방에 닿기까지 4분</text>
+<rect class="g-band" x="170" y="${yOf(21)}" width="750" height="${(yOf(19) - yOf(21)).toFixed(1)}"/>
+<rect class="g-off" x="170" y="448" width="750" height="14"/>
+<line class="g-axis" x1="170" x2="170" y1="150" y2="440"/>
+<line class="g-axis" x1="170" x2="920" y1="440" y2="440"/>
+${grids}${named}
+<path class="g-faint" d="${d}"/>
+<path class="g-trail" d="${d}" stroke-dasharray="${len.toFixed(1)}" stroke-dashoffset="${still ? 0 : len.toFixed(1)}">${still ? "" : anim("stroke-dashoffset", hidden)}</path>
+${heat}
+<circle class="g-dot" r="6" cx="${start[0].toFixed(1)}" cy="${start[1].toFixed(1)}">${still ? "" : anim("cx", xs) + anim("cy", ys)}</circle>
+${notes}
+${ticks}
+<text class="g-lab" x="160" y="459" text-anchor="end">히터 켬</text>
+<text class="g-lab" x="160" y="150" text-anchor="end">온도 °C</text>
+</svg>`;
+
+const scene = {
+  type: "hook",
+  pre: "제어 · 되먹임 루프",
+  title: "히터를 끈 뒤에도 방은 목표를 넘어 더 데워진다",
+  text: "온도를 재서 히터를 켜고 끄는 고리가 {{되먹임}}이다. 히터의 열은 방에 바로 닿지 않는다. 그래서 끈 뒤에도 이미 나간 열이 온도를 더 올린다.",
+  sub: "선은 방 온도이고, 두 점선 사이는 {{히스테리시스}} 구간이다. 아래 띠는 히터 명령이 켜진 시간이다.",
+  art: fig,
+  basis: "가상의 방 모델(열 손실 0.05/분, 열 전달 지연 4분)로 계산한 예시다. 실제 방의 값은 다르다.",
+};
+
+LTT.expect("끈 뒤 최고 온도가 끄는 값 21°C보다 높다", temp[peak] > 21 ? 1 : 0, 1);
+
+LTT.deck({
+  title: "온도조절기 되먹임 루프와 오버슈트",
+  theme: "lab",
+  glossary: {
+    "되먹임": "출력이 다시 입력으로 돌아와 다음 동작을 바꾸는 고리",
+    "히스테리시스": "켜는 값과 끄는 값에 간격을 둬서, 경계 근처에서 켜졌다 꺼지기를 반복하지 않게 하는 방식",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

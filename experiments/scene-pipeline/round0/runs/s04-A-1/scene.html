@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>키르히호프 전류 법칙</title>
+<script type="application/json" id="ltt-meta">{"topic":"키르히호프 전류 법칙","audience":"회로 입문자","theme":"blueprint","medium":"회로 도면","decision":"분기점에서 전류가 어떻게 나뉘나"}</script>
+<link rel="stylesheet" href="/kit/ltt.css">
+<style>
+  .kcl { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: stretch; width: 100%; }
+  .kcl-svg { width: 100%; height: auto; display: block; }
+  .kcl-svg text { fill: var(--ltt-ink); font-size: 15px; }
+  .kcl-svg .mut { fill: var(--ltt-muted); }
+  .kcl-svg .bold { font-weight: 700; }
+  .kcl-panel { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding-left: 20px; border-left: 1px dashed var(--ltt-line-2); justify-content: center; }
+  .kcl-h { color: var(--ltt-muted); }
+  .kcl-row { display: grid; grid-template-columns: 4.2em minmax(0, 1fr) 2.6em 2.6em; gap: 10px; align-items: center; }
+  .kcl-row .nm { color: var(--ltt-ink-2); white-space: nowrap; }
+  .kcl-bar { height: 22px; display: flex; background: var(--ltt-card-2); border: 1px solid var(--ltt-line); }
+  .kcl-bar i { display: block; height: 100%; transition: opacity .12s; }
+  .kcl-row b { text-align: right; font-variant-numeric: tabular-nums; }
+  .kcl-row .amp { color: var(--ltt-muted); text-align: right; white-space: nowrap; }
+  .kcl-sum { margin-top: 6px; padding-top: 12px; border-top: 1px dashed var(--ltt-line-2); }
+  .kcl-eq { font-size: 1.5rem; font-weight: 700; line-height: 1.3; font-variant-numeric: tabular-nums; }
+  .kcl-eq span { white-space: nowrap; }
+  @media (max-width: 760px) { .kcl { grid-template-columns: minmax(0, 1fr); } .kcl-panel { padding-left: 0; border-left: 0; } }
+</style>
+</head>
+<body>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const AMP = [3, 2, 1];                 // I = V / R, V = 6 V, R = 2, 3, 6 ohm
+const OHM = [2, 3, 6];
+const TOTAL = AMP.reduce((a, b) => a + b, 0);
+const SEQ = [0, 1, 0, 2, 0, 1];        // 6개 점이 3 : 2 : 1로 갈라지는 순서
+const V = 100, GAP = 0.5, WIN = 6;     // 속도(px/s), 점 간격(s), 세는 시간 창(s)
+const BY = [80, 220, 360];             // 세 갈래의 높이
+const AX = 210, BX = 590, MID = 220;
+const COLOR = ["var(--ltt-c1)", "var(--ltt-c2)", "var(--ltt-c3)"];
+const NUM = ["①", "②", "③"];
+
+const route = (k) => {
+  const p = [[105, MID], [AX, MID], [AX, BY[k]], [BX, BY[k]], [BX, MID], [650, MID], [650, 410], [40, 410], [40, MID], [85, MID]];
+  return p.filter((q, i) => i === 0 || q[0] !== p[i - 1][0] || q[1] !== p[i - 1][1]);
+};
+const measure = (pts) => { const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); return cum; };
+const ROUTES = [0, 1, 2].map((k) => { const pts = route(k), cum = measure(pts); return { pts, cum, len: cum[cum.length - 1] }; });
+const at = (r, s) => {
+  s = Math.max(0, Math.min(r.len, s));
+  let i = 1; while (i < r.cum.length - 1 && r.cum[i] < s) i++;
+  const f = (s - r.cum[i - 1]) / ((r.cum[i] - r.cum[i - 1]) || 1);
+  return [r.pts[i - 1][0] + (r.pts[i][0] - r.pts[i - 1][0]) * f, r.pts[i - 1][1] + (r.pts[i][1] - r.pts[i - 1][1]) * f];
+};
+const distTo = (r, x, y) => { let d = 0; for (let i = 1; i < r.pts.length; i++) { const [a, b] = [r.pts[i - 1], r.pts[i]]; if (Math.abs((b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0])) < 1e-6 && x >= Math.min(a[0], b[0]) - 1e-6 && x <= Math.max(a[0], b[0]) + 1e-6 && y >= Math.min(a[1], b[1]) - 1e-6 && y <= Math.max(a[1], b[1]) + 1e-6) return r.cum[i - 1] + Math.hypot(x - a[0], y - a[1]); } return 0; };
+const S_IN = distTo(ROUTES[1], 160, MID);
+const S_BR = [0, 1, 2].map((k) => distTo(ROUTES[k], 270, BY[k]));
+const S_A = [0, 1, 2].map((k) => distTo(ROUTES[k], AX, MID));
+const S_B = [0, 1, 2].map((k) => distTo(ROUTES[k], BX, MID));
+
+const el = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (parent) parent.appendChild(n); return n; };
+const txt = (s, x, y, cls, parent, anchor) => { const n = el("text", { x, y, class: cls || "", "text-anchor": anchor || "middle" }, parent); n.textContent = s; return n; };
+
+const countAt = (t, sensor) => {         // 최근 WIN초에 센서를 지난 점의 수
+  const c = [0, 0, 0, 0];
+  const i1 = Math.floor(t / GAP);
+  for (let i = i1; i > i1 - 60; i--) {
+    if (i < 0) break;
+    const k = SEQ[i % SEQ.length];
+    const cross = (i * GAP) + (sensor === "in" ? S_IN : S_BR[k]) / V;
+    if (cross <= t && cross > t - WIN) { if (sensor === "in") c[0]++; else c[k + 1]++; }
+  }
+  return c;
+};
+
+function circuit(host) {
+  host.classList.add("kcl");
+  const svg = el("svg", { viewBox: "0 0 700 440", class: "kcl-svg", role: "img", "aria-label": "전지에서 나온 전류가 분기점 A에서 세 갈래로 나뉘었다가 다시 합쳐지는 회로 도면" });
+  host.appendChild(svg);
+
+  // 도선
+  const wire = (pts, stroke, w, op) => el("polyline", { points: pts.map((p) => p.join(",")).join(" "), fill: "none", stroke, "stroke-width": w, "stroke-linejoin": "round", "stroke-linecap": "round", "stroke-opacity": op || 1 }, svg);
+  const base = route(1);
+  wire(base.slice(0, 2), "var(--ltt-line-2)", 3);
+  wire(base.slice(4), "var(--ltt-line-2)", 3);
+  wire([[BX, MID], [650, MID], [650, 410], [40, 410], [40, MID], [85, MID]], "var(--ltt-line-2)", 3);
+  [0, 1, 2].forEach((k) => wire(ROUTES[k].pts.slice(1, k === 1 ? 3 : 5), COLOR[k], 3, 0.5));
+  wire([[AX, BY[0]], [AX, BY[2]]], COLOR[1], 3, 0);
+  [0, 1, 2].forEach((k) => wire([[BX, BY[k]], [BX, MID]], COLOR[k], 3, 0.5));
+
+  // 전지
+  el("line", { x1: 85, y1: MID - 14, x2: 85, y2: MID + 14, stroke: "var(--ltt-ink)", "stroke-width": 3 }, svg);
+  el("line", { x1: 105, y1: MID - 26, x2: 105, y2: MID + 26, stroke: "var(--ltt-ink)", "stroke-width": 3 }, svg);
+  txt("전지 6 V", 95, MID - 38, "bold", svg);
+  txt("+", 118, MID - 12, "mut", svg); txt("−", 72, MID - 12, "mut", svg);
+
+  // 저항과 라벨
+  [0, 1, 2].forEach((k) => {
+    const y = BY[k];
+    const z = [[330, y], [340, y], [348, y - 10], [364, y + 10], [380, y - 10], [396, y + 10], [412, y - 10], [428, y + 10], [444, y - 10], [452, y], [462, y]];
+    el("rect", { x: 326, y: y - 13, width: 140, height: 26, fill: "var(--ltt-bg)" }, svg);
+    wire(z, "var(--ltt-ink)", 2.5);
+    txt("R" + "₁₂₃"[k] + " = " + OHM[k] + " Ω", 396, y - 24, "mut", svg);
+    // 센서
+    el("line", { x1: 270, y1: y - 14, x2: 270, y2: y + 14, stroke: "var(--ltt-ink-2)", "stroke-width": 1.5, "stroke-dasharray": "3 3" }, svg);
+    txt(NUM[k] + " I" + "₁₂₃"[k] + " = " + AMP[k] + " A", 270, y - 22, "bold", svg);
+  });
+  el("line", { x1: 160, y1: MID - 14, x2: 160, y2: MID + 14, stroke: "var(--ltt-ink-2)", "stroke-width": 1.5, "stroke-dasharray": "3 3" }, svg);
+  txt("I = " + TOTAL + " A", 160, MID - 22, "bold", svg);
+
+  // 분기점과 합류점
+  el("circle", { cx: AX, cy: MID, r: 11, fill: "var(--ltt-bg)", stroke: "var(--ltt-accent)", "stroke-width": 3 }, svg);
+  el("circle", { cx: AX, cy: MID, r: 4.5, fill: "var(--ltt-accent)" }, svg);
+  txt("분기점 A", AX - 18, MID + 36, "bold", svg, "middle");
+  el("circle", { cx: BX, cy: MID, r: 6, fill: "var(--ltt-ink-2)" }, svg);
+  txt("합류점", BX + 14, MID + 28, "mut", svg, "start");
+  [AX, BX].forEach((x) => [BY[0], BY[2]].forEach((y) => el("circle", { cx: x, cy: y, r: 3.5, fill: "var(--ltt-ink-2)" }, svg)));
+
+  // 도선 라벨
+  txt("전류의 방향", 345, 422, "mut", svg);
+  el("path", { d: "M 395 418 L 455 418 M 447 412 L 455 418 L 447 424", fill: "none", stroke: "var(--ltt-muted)", "stroke-width": 1.5 }, svg);
+
+  // 점과 꼬리
+  const dotLayer = el("g", {}, svg);
+  const POOL = 44;
+  const pool = [];
+  for (let i = 0; i < POOL; i++) {
+    const tail = el("polyline", { fill: "none", "stroke-width": 4, "stroke-linecap": "round", "stroke-linejoin": "round", "stroke-opacity": 0.45, visibility: "hidden" }, dotLayer);
+    const dot = el("circle", { r: 6.5, visibility: "hidden" }, dotLayer);
+    pool.push({ tail, dot });
+  }
+
+  // 오른쪽 표
+  const panel = document.createElement("div");
+  panel.className = "kcl-panel";
+  const rows = [["들어옴", "I", TOTAL, "var(--ltt-ink)"], ["①", "I₁", AMP[0], COLOR[0]], ["②", "I₂", AMP[1], COLOR[1]], ["③", "I₃", AMP[2], COLOR[2]]];
+  panel.innerHTML = `<div class="kcl-h">분기점 A를 지난 점, 최근 ${WIN}초</div>` +
+    rows.map((r, i) => `<div class="kcl-row"><span class="nm">${r[0]} ${i ? r[1] : ""}</span><div class="kcl-bar"><i style="width:${r[2] / TOTAL * 100}%;background:${r[3]}"></i></div><b data-n="${i}">0</b><span class="amp">${r[2]} A</span></div>`).join("") +
+    `<div class="kcl-row"><span class="nm">나간 합</span><div class="kcl-bar">${AMP.map((a, i) => `<i data-s="${i}" style="width:${a / TOTAL * 100}%;background:${COLOR[i]}"></i>`).join("")}</div><b data-n="4">0</b><span class="amp">${TOTAL} A</span></div>` +
+    `<div class="kcl-sum"><div class="kcl-eq"><span>${TOTAL} A</span> = <span style="color:${COLOR[0]}">${AMP[0]} A</span> + <span style="color:${COLOR[1]}">${AMP[1]} A</span> + <span style="color:${COLOR[2]}">${AMP[2]} A</span></div>` +
+    `<div class="ltt-basis">점 1개는 전하 덩어리 1개. 들어온 점 수와 나간 점 수의 합은 늘 같다.</div></div>`;
+  host.appendChild(panel);
+  const nEls = [0, 1, 2, 3, 4].map((i) => panel.querySelector(`[data-n="${i}"]`));
+  const sEls = [0, 1, 2].map((i) => panel.querySelector(`[data-s="${i}"]`));
+
+  const draw = (t) => {
+    const i1 = Math.floor(t / GAP);
+    let used = 0;
+    for (let i = i1; i > i1 - POOL && i >= 0; i--) {
+      const k = SEQ[i % SEQ.length], r = ROUTES[k];
+      const s = (t - i * GAP) * V;
+      if (s > r.len || s < 0) continue;
+      const slot = pool[used++];
+      const [x, y] = at(r, s);
+      const col = s >= S_A[k] && s <= S_B[k] ? COLOR[k] : "var(--ltt-ink)";
+      slot.dot.setAttribute("cx", x.toFixed(1)); slot.dot.setAttribute("cy", y.toFixed(1));
+      slot.dot.style.fill = col; slot.dot.setAttribute("visibility", "visible");
+      const pts = []; for (let b = 0; b <= 6; b++) pts.push(at(r, s - b * 7).map((n) => n.toFixed(1)).join(","));
+      slot.tail.setAttribute("points", pts.join(" ")); slot.tail.style.stroke = col; slot.tail.setAttribute("visibility", "visible");
+    }
+    for (let j = used; j < POOL; j++) { pool[j].dot.setAttribute("visibility", "hidden"); pool[j].tail.setAttribute("visibility", "hidden"); }
+    const cin = countAt(t, "in")[0];
+    const cb = countAt(t, "br");
+    const vals = [cin, cb[1], cb[2], cb[3], cb[1] + cb[2] + cb[3]];
+    vals.forEach((v, i) => { const s = String(v); if (nEls[i].textContent !== s) nEls[i].textContent = s; });
+    sEls.forEach((e, i) => { e.style.opacity = t - (Math.floor((t - S_BR[i] / V) / GAP) * GAP + S_BR[i] / V) < 0.35 && t > 3 ? 1 : 0.55; });
+  };
+
+  const reduce = LTT.MOTION_MS === 0;
+  const t0 = performance.now();
+  let live = true;
+  const loop = (now) => {
+    if (!live || !host.isConnected) return;
+    if (host.offsetParent !== null) draw(8 + (now - t0) / 1000);
+    requestAnimationFrame(loop);
+  };
+  draw(12);
+  if (!reduce) requestAnimationFrame(loop);
+  return { el: host, stop() { live = false; } };
+}
+
+LTT.deck({
+  title: "키르히호프 전류 법칙",
+  theme: "blueprint",
+  scenes: [{
+    type: "figure",
+    kicker: "전기 회로",
+    title: "분기점에 들어온 전류는 갈라진 전류의 합과 같다",
+    en: "Kirchhoff's current law",
+    sub: "분기점은 도선 여러 가닥이 만나는 점이다. 점 하나는 전하 덩어리 하나이고, 점이 지나는 빈도가 전류다. 점을 따라가며 오른쪽 표와 맞춰 본다.",
+    figure: circuit,
+    caption: "분기점 A에서 점이 3 : 2 : 1로 나뉘고, 합류점에서 다시 한 줄로 모인다. 어디서도 점이 생기거나 사라지지 않는다.",
+    label: "회로 도면",
+    basis: "모델로 계산한 예시. 전지 6 V에 저항 2, 3, 6 Ω를 나란히 이으면 I = V ÷ R로 3, 2, 1 A. 점의 크기와 속도는 보이기 위한 값이다.",
+    takeaway: "분기점에 들어오는 전류의 합은 나가는 전류의 합과 같다. I = I₁ + I₂ + I₃.",
+    recall: "③ 갈래를 끊으면 들어오는 전류 I는 몇 A가 될까?"
+  }]
+});
+</script>
+</body>
+</html>

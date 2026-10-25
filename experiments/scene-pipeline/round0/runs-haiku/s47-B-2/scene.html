@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>연도별 국가 전력 믹스</title>
+<script type="application/json" id="ltt-meta">{"topic":"국가별 전력 믹스","audience":"에너지 정책 입문자","theme":"atlas","medium":"에너지 통계 차트","decision":"전원 구성 비교","domain":"에너지","pattern":["sweep"],"mode":"스윕: 연도 슬라이더로 전원 구성이 바뀌는 모양을 본다. 부분-전체 구조를 좌우 분할 구도로, 모양이 바뀜 움직임과 겹쳐 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.mx{width:100%;max-width:1160px;height:auto;display:block;margin:0 auto}
+.mx text{font-family:inherit}
+.mx-ctl{display:flex;justify-content:center}
+.mx-ctl .ltt-param{min-width:520px}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+
+// 가상의 예시 수치다. 실제 국가 통계가 아니다. 연도별 기준값(2000·2015·2030)을 두고 사이는 직선으로 잇는다.
+// 칸 순서: 석탄, 가스, 원자력, 재생(%). 각 기준 연도의 합계는 100이다.
+const YEARS = [2000, 2015, 2030];
+const CTRY = ["A", "B", "C", "D"];
+const MIX = {
+  A: [[60, 20, 10, 10], [45, 25, 12, 18], [25, 20, 10, 45]],
+  B: [[20, 30, 40, 10], [18, 32, 38, 12], [5, 30, 30, 35]],
+  C: [[35, 40, 5, 20], [30, 35, 5, 30], [15, 25, 5, 55]],
+  D: [[75, 10, 0, 15], [60, 12, 0, 28], [42, 10, 0, 48]]
+};
+const SRC = [{ k: "석탄", c: "var(--ltt-c1)" }, { k: "가스", c: "var(--ltt-c2)" }, { k: "원자력", c: "var(--ltt-c3)" }, { k: "재생", c: "var(--ltt-c4)" }];
+function mixAt(c, y) {
+  const K = MIX[c], i = y <= 2015 ? 0 : 1, t = (y - YEARS[i]) / (YEARS[i + 1] - YEARS[i]);
+  return K[i].map((v, j) => v + (K[i + 1][j] - v) * t);
+}
+// 저탄소 비중 = 원자력 + 재생
+const lowC = (c, y) => { const m = mixAt(c, y); return m[2] + m[3]; };
+LTT.expect("2030년 A국 저탄소 비중", lowC("A", 2030), 55, { tol: 0.01 });
+LTT.expect("2015년 B국 저탄소 비중", lowC("B", 2015), 50, { tol: 0.01 });
+LTT.expect("2022년 C국 재생 비중", mixAt("C", 2022)[3], 41.67, { tol: 0.01 });
+
+function mix(host) {
+  const W = 1160, H = 470, TOP = 90, BOT = 390, PH = BOT - TOP;
+  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "mx", "data-annotate": "" }, host);
+  const T = (x, y, t, st, a = "start", p = s) => { const n = mk("text", { x, y, "text-anchor": a, style: st }, p); n.textContent = t; return n; };
+
+  // 왼쪽: 나라마다 100% 누적 막대. 칸 합은 늘 100%로 고정된다
+  const CX = [120, 275, 430, 585], CW = 100;
+  mk("line", { x1: 70, x2: 650, y1: TOP, y2: TOP, style: "stroke:var(--ltt-line-2);stroke-dasharray:4 5" }, s);
+  T(654, TOP + 5, "100%", "font-size:14px;fill:var(--ltt-muted)");
+  const yrT = T(70, 50, "", "font-size:28px;font-weight:700;fill:var(--ltt-ink)");
+  T(70, 74, "구성 합계는 늘 100%", "font-size:15px;fill:var(--ltt-muted)");
+  const cols = CTRY.map((c, i) => {
+    T(CX[i], BOT + 34, c + "국", "font-size:18px;font-weight:700;fill:var(--ltt-ink-2)", "middle");
+    return SRC.map((sr) => {
+      const r = mk("rect", { x: CX[i] - CW / 2, width: CW, rx: 3, style: `fill:${sr.c};stroke:var(--ltt-bg);stroke-width:1.5` }, s);
+      const l = T(CX[i], 0, "", "font-size:15px;font-weight:700;fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-bg);stroke-width:3px", "middle");
+      return { r, l };
+    });
+  });
+
+  // 오른쪽: 저탄소 비중 막대와 범례
+  const RX = 720, BARX = 790, BARW = 300;
+  T(RX, 80, "저탄소 비중 (원자력 + 재생)", "font-size:16px;font-weight:700;fill:var(--ltt-ink-2)");
+  const bars = CTRY.map((c, i) => {
+    const y0 = 120 + i * 62;
+    T(RX, y0 + 20, c + "국", "font-size:18px;font-weight:700;fill:var(--ltt-ink-2)");
+    mk("rect", { x: BARX, y: y0, width: BARW, height: 26, rx: 3, style: "fill:var(--ltt-card);stroke:var(--ltt-line-2)" }, s);
+    const b = mk("rect", { x: BARX, y: y0, height: 26, rx: 3, style: "fill:var(--ltt-good)" }, s);
+    const v = T(BARX, y0 + 20, "", "font-size:17px;font-weight:700;fill:var(--ltt-ink)");
+    return { b, v };
+  });
+  mk("line", { x1: BARX + BARW / 2, x2: BARX + BARW / 2, y1: 110, y2: 340, style: "stroke:var(--ltt-ink-2);stroke-dasharray:4 4" }, s);
+  T(BARX + BARW / 2, 104, "50%", "font-size:14px;fill:var(--ltt-muted)", "middle");
+  SRC.forEach((sr, j) => {
+    const lx = RX + (j % 2) * 150, ly = 380 + Math.floor(j / 2) * 34;
+    mk("rect", { x: lx, y: ly - 13, width: 16, height: 16, rx: 3, style: `fill:${sr.c}` }, s);
+    T(lx + 24, ly, sr.k, "font-size:16px;fill:var(--ltt-ink-2)");
+  });
+
+  function draw(y) {
+    CTRY.forEach((c, i) => {
+      let cum = 0;
+      mixAt(c, y).forEach((v, j) => {
+        const { r, l } = cols[i][j], yTop = BOT - (cum + v) * PH / 100, h = v * PH / 100;
+        r.setAttribute("y", yTop); r.setAttribute("height", Math.max(0.01, h));
+        l.setAttribute("y", yTop + h / 2 + 5); l.textContent = h >= 24 ? Math.round(v) + "%" : "";
+        cum += v;
+      });
+      const L = lowC(c, y), B = bars[i];
+      B.b.setAttribute("width", Math.max(0.01, L * BARW / 100));
+      B.v.setAttribute("x", BARX + L * BARW / 100 + 10);
+      B.v.textContent = Math.round(L) + "%";
+    });
+    yrT.textContent = Math.round(y) + "년";
+  }
+  return { el: s, draw };
+}
+
+LTT.deck({
+  title: "연도별 국가 전력 믹스", theme: "atlas",
+  glossary: {
+    "전력 믹스": "발전량을 에너지원별로 나눈 구성 비율. 칸을 모두 더하면 늘 100%다",
+    "저탄소 비중": "원자력과 재생에너지가 전체 발전 구성에서 차지하는 비율"
+  },
+  scenes: [{
+    type: "sweep",
+    title: "전원 구성의 합은 늘 100%, 재생 칸이 커지면 나머지가 줄어든다",
+    en: "Power mix by year, four countries", layout: "full",
+    sub: "{{전력 믹스}}의 칸들은 전체 100%를 나눠 가진다. 연도 슬라이더를 움직이면 칸들이 옮겨 가고, 오른쪽 막대는 {{저탄소 비중}}을 보여 준다. 손잡이를 잡으면 자동 재생이 멈춘다.",
+    basis: "가상의 예시 수치이며 실제 국가 통계가 아니다. 2000·2015·2030년 기준값을 설명용으로 임의 설정하고 사이를 직선으로 이었다.",
+    mount(body) {
+      body.innerHTML = `<div id="g"></div><div id="fig"></div><div class="mx-ctl"><div class="ltt-param">연도 <b id="y-v"></b><input id="y" type="range"></div></div>`;
+      const f = mix(body.querySelector("#fig"));
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let timer = 0, t0 = 0, auto = !reduced;
+      const stopAuto = () => { auto = false; clearTimeout(timer); };
+      ["pointerdown", "keydown"].forEach((ev) => body.querySelector(".mx-ctl").addEventListener(ev, stopAuto));
+      // 2000년 → 2015년 → 2030년 순으로 1.3초씩 옮겨 가고, 기준 연도마다 0.9초씩 머문다
+      const HOLD = 0.9, MOVE = 1.3, P = YEARS.length * (HOLD + MOVE);
+      const at = (t) => { t %= P; const i = Math.floor(t / (HOLD + MOVE)), r = t - i * (HOLD + MOVE);
+        const a = YEARS[i], b = YEARS[(i + 1) % YEARS.length]; return r < HOLD ? a : a + (b - a) * ease((r - HOLD) / MOVE); };
+      const tick = () => { if (!auto) return; const y = at((Date.now() - t0) / 1000); f.draw(y); body.querySelector("#y-v").textContent = Math.round(y) + "년 · 자동 재생"; timer = setTimeout(tick, 16); };
+      LTT.sweep({ params: { y: { kind: "log", min: 2000, max: 2030, value: reduced ? 2015 : 2000, fmt: (v) => Math.round(v) + "년" } },
+        render: ({ y }) => { if (!auto) f.draw(y); },
+        goal: { el: "g", text: "A국의 저탄소 비중이 50%를 넘는 연도를 찾는다", check: ({ y }) => lowC("A", y) > 50 } });
+      f.draw(reduced ? 2015 : 2000);
+      return { enter() { if (!auto) return; t0 = Date.now(); tick(); }, leave() { clearTimeout(timer); } };
+    },
+    takeaway: "구성의 합이 100%로 고정돼 있어서, 재생 칸이 커지면 석탄이나 가스 칸은 반드시 줄어든다. 구성을 비교할 때는 칸의 크기를 함께 봐야 한다.",
+    recall: "A국의 저탄소 비중은 2015년 30%에서 2030년에 몇 %가 되는가?"
+  }]
+});
+</script>
+</body>
+</html>

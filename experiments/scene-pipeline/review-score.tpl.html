@@ -1,0 +1,195 @@
+<title>장면 블라인드 비교</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* 한 shot = 한 띠. 클립 5개를 2열 격자로, 각 클립 밑에 1–5위 세그먼트 */
+:root {
+  --bg: #f3f4f1; --surface: #ffffff; --ink: #1d211f; --muted: #5f6762; --line: #d7dbd5;
+  --accent: #3446b8; --accent-ink: #ffffff; --ok: #2f7a4a;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #151816; --surface: #1e2220; --ink: #e8ebe7; --muted: #9aa39d; --line: #343a36;
+  --accent: #8b9bff; --accent-ink: #10131f; --ok: #6cc18a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #151816; --surface: #1e2220; --ink: #e8ebe7; --muted: #9aa39d; --line: #343a36;
+  --accent: #8b9bff; --accent-ink: #10131f; --ok: #6cc18a; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 64px; }
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 40px; }
+header { display: grid; gap: 8px; max-width: 68ch; }
+h1 { font-size: 26px; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); }
+.status { font-family: var(--f-mono); font-size: 13px; color: var(--muted); }
+.status b { color: var(--ink); }
+section { display: grid; gap: 14px; border-top: 1px solid var(--line); padding-top: 20px; }
+.shead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.sid { font-family: var(--f-mono); font-weight: 600; font-size: 14px; color: var(--accent); }
+.shead h2 { font-size: 18px; margin: 0; min-width: 0; text-wrap: balance; }
+.role { font-family: var(--f-mono); font-size: 12px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+.done { font-family: var(--f-mono); font-size: 12px; color: var(--ok); margin-left: auto; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 18px; }
+.clip { display: grid; gap: 8px; min-width: 0; }
+.clip video { width: 100%; aspect-ratio: 16 / 10; display: block; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lab { font-weight: 700; font-size: 17px; width: 1.6em; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { font: 600 13px var(--f-mono); padding: 6px 12px; background: var(--surface); color: var(--ink); border: 0; border-left: 1px solid var(--line); cursor: pointer; }
+.seg button:first-child { border-left: 0; }
+.seg button.on { background: var(--accent); color: var(--accent-ink); }
+.seg button:disabled { opacity: .5; cursor: progress; }
+.rk { font: 600 13px var(--f-mono); color: var(--accent); min-width: 3em; }
+.order { font: 600 14px var(--f-mono); color: var(--ink); width: 100%; }
+.seg button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+textarea { width: 100%; box-sizing: border-box; min-height: 3.2em; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; resize: vertical; }
+.wrap { gap: 24px; }
+.nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.nav button, .pager button { font: 600 13px var(--f-mono); padding: 7px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.nav button[aria-current="true"] { border-color: var(--accent); color: var(--accent); }
+.nav button.ok::after { content: " ✓"; color: var(--ok); }
+.nav button:focus-visible, .pager button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; }
+.pager button:disabled { opacity: .4; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .clip video { animation: none; } }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tabs button { font: 600 15px var(--f-body); padding: 8px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; display: inline-flex; gap: 8px; align-items: baseline; }
+.tabs button .r { font: 600 12px var(--f-mono); color: var(--muted); }
+.tabs button.cur { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tabs button.ranked .r { color: var(--accent); }
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 10; max-height: 82vh; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.ctl a { font-size: 13px; color: var(--muted); margin-left: auto; }
+.seg button { padding: 6px 10px; }
+.clipnote { min-height: 4.5em; }
+.lbl { font-size: 13px; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>장면 블라인드 채점</h1>
+    <p>shot마다 장면 다섯 개(가–마)가 섞여 있습니다. 하나는 갤러리 원본이고 나머지는 생성 결과입니다. 탭으로 장면을 바꿔 가며 직접 눌러 보고 손잡이도 돌려 본 뒤, 독자가 메커니즘을 얼마나 잘 이해할 수 있는지 장면마다 10점 만점으로 매기고 노트를 남겨 주세요. 같은 점수를 여러 장면에 줘도 됩니다.</p>
+    <p class="status" id="status">불러오는 중</p>
+  </header>
+  <nav id="nav" class="nav" aria-label="shot 목록"></nav>
+  <section id="sec">
+    <div class="shead"><span class="sid" id="sid"></span><h2 id="topic"></h2><span class="role" id="role"></span><span class="done" id="done">채점 완료</span><div class="order" id="order"></div></div>
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="stage" id="stage"></div>
+    <div class="ctl"><span class="lab" id="lab"></span><div class="seg" id="seg" role="group"></div><span class="rk" id="rk"></span><a id="open" target="_blank" rel="noopener">새 탭에서 열기</a></div>
+    <label class="lbl" for="clipnote" id="cliplbl"></label>
+    <textarea id="clipnote" class="clipnote" placeholder="이 장면에 대한 노트: 좋았던 점, 결함, 점수를 깎은 이유"></textarea>
+    <label class="lbl" for="note">shot 전체 노트 (선택)</label>
+    <textarea id="note" placeholder="장면들을 비교하며 든 생각"></textarea>
+  </section>
+  <div class="pager"><button type="button" id="prev">← 이전 shot</button><button type="button" id="next">다음 shot →</button></div>
+</div>
+
+<script>
+const ITEMS = /*DATA*/[];
+const MAX = 10;
+const state = {}; // id -> {scores: {label: n}, notes: {label: text}, note}
+let db = null, loaded = false;
+let cur = Math.max(0, ITEMS.findIndex((it) => "#" + it.id === location.hash));
+const clipOf = {};
+const frames = {};
+const $ = (t, a = {}, ...kids) => { const n = document.createElement(t); for (const k in a) k === "text" ? (n.textContent = a[k]) : n.setAttribute(k, a[k]); kids.forEach((c) => n.append(c)); return n; };
+const st = (id) => state[id] ||= { scores: {}, notes: {}, note: "" };
+const isDone = (it) => it.clips.every((c) => st(it.id).scores[c.label] != null);
+addEventListener("error", (e) => document.getElementById("status").append($("br"), "오류: " + e.message));
+
+function go(i) { flushNotes(); cur = i; try { history.replaceState(null, "", "#" + ITEMS[i].id); } catch {} buildShot(); scrollTo(0, 0); }
+document.getElementById("prev").addEventListener("click", () => cur > 0 && go(cur - 1));
+document.getElementById("next").addEventListener("click", () => cur < ITEMS.length - 1 && go(cur + 1));
+// 저장소에서 읽은 객체는 frozen이라 고쳐 쓰지 않고 새로 만든다
+function patch(id, f) { const s = st(id); state[id] = { scores: { ...s.scores }, notes: { ...s.notes }, note: s.note }; f(state[id]); save(id); }
+document.getElementById("note").addEventListener("change", (e) => patch(ITEMS[cur].id, (s) => { s.note = e.target.value; }));
+document.getElementById("clipnote").addEventListener("change", (e) => { const id = ITEMS[cur].id, l = clipOf[id]; patch(id, (s) => { s.notes[l] = e.target.value; }); });
+function flushNotes() { const ta = document.getElementById("clipnote"); if (document.activeElement === ta) ta.blur(); }
+
+function buildShot() {
+  const it = ITEMS[cur];
+  document.getElementById("sid").textContent = it.id;
+  document.getElementById("topic").textContent = it.topic;
+  document.getElementById("role").textContent = it.role;
+  document.getElementById("note").value = st(it.id).note;
+  document.getElementById("stage").replaceChildren();
+  for (const k in frames) delete frames[k];
+  clipOf[it.id] ||= it.clips[0].label;
+  showClip(clipOf[it.id]);
+}
+
+function showClip(label) {
+  flushNotes();
+  const it = ITEMS[cur]; clipOf[it.id] = label;
+  const c = it.clips.find((x) => x.label === label);
+  for (const f of Object.values(frames)) f.hidden = true;
+  if (!frames[c.src]) { frames[c.src] = $("iframe", { src: c.src, title: `${it.id} 장면 ${label}`, loading: "eager" }); document.getElementById("stage").append(frames[c.src]); }
+  frames[c.src].hidden = false;
+  document.getElementById("open").href = c.src;
+  document.getElementById("clipnote").value = st(it.id).notes[label] || "";
+  document.getElementById("cliplbl").textContent = `장면 ${label} 노트`;
+  refresh();
+}
+
+function refresh() {
+  const it = ITEMS[cur], s = st(it.id), label = clipOf[it.id];
+  const nav = document.getElementById("nav"); nav.replaceChildren();
+  ITEMS.forEach((x, i) => { const b = $("button", { type: "button", "aria-current": String(i === cur), text: x.id }); if (isDone(x)) b.className = "ok"; b.addEventListener("click", () => go(i)); nav.append(b); });
+  document.getElementById("prev").disabled = cur === 0;
+  document.getElementById("next").disabled = cur === ITEMS.length - 1;
+  const tabs = document.getElementById("tabs"); tabs.replaceChildren();
+  for (const c of it.clips) {
+    const v = s.scores[c.label];
+    const b = $("button", { type: "button", role: "tab", "aria-selected": String(c.label === label) }, c.label, $("span", { class: "r", text: v != null ? `${v}점` : "–" }));
+    b.className = (c.label === label ? "cur " : "") + (v != null ? "ranked" : "");
+    b.addEventListener("click", () => showClip(c.label));
+    tabs.append(b);
+  }
+  document.getElementById("lab").textContent = label;
+  const seg = document.getElementById("seg"); seg.replaceChildren(); seg.setAttribute("aria-label", `장면 ${label} 점수`);
+  for (let n = 1; n <= MAX; n++) {
+    const on = s.scores[label] === n;
+    const b = $("button", { type: "button", "aria-pressed": String(on), text: String(n) });
+    if (on) { b.className = "on"; b.style.background = "var(--accent)"; b.style.color = "var(--accent-ink)"; }
+    b.disabled = !loaded;
+    b.addEventListener("click", () => patch(it.id, (x) => { if (x.scores[label] === n) delete x.scores[label]; else x.scores[label] = n; }) || refresh());
+    seg.append(b);
+  }
+  document.getElementById("rk").textContent = s.scores[label] != null ? `${s.scores[label]} / ${MAX}` : "–";
+  document.getElementById("done").hidden = !isDone(it);
+  const ord = it.clips.map((c) => `${c.label} ${s.scores[c.label] ?? "–"}`);
+  document.getElementById("order").textContent = "점수 · " + ord.join("  ");
+  const done = ITEMS.filter(isDone).length;
+  const where = !loaded ? "저장된 점수를 불러오는 중입니다." : db ? "점수와 노트는 바로 저장되고 Claude가 읽습니다." : "저장 기능을 쓸 수 없는 화면입니다. 끝나면 아래 요약을 채팅에 붙여 주세요.";
+  const stEl = document.getElementById("status");
+  stEl.replaceChildren($("b", { text: `${done} / ${ITEMS.length}` }), ` shot 완료 · ${where}`);
+  if (loaded && !db) stEl.append($("br"), summary());
+}
+
+function summary() {
+  return ITEMS.map((it) => `${it.id}: ` + it.clips.map((c) => `${c.label}${st(it.id).scores[c.label] ?? "-"}`).join(" ")).join(" | ");
+}
+
+async function save(id) {
+  if (!db) return;
+  const s = st(id);
+  try { await db.doc(`scores/${id}`).set({ scores: { ...s.scores }, notes: { ...s.notes }, note: s.note, at: Date.now() }); }
+  catch (e) { document.getElementById("status").append($("br"), `저장 실패(${e.code || "unknown"}). 요약: ${summary()}`); }
+}
+
+buildShot();
+(async () => {
+  db = await window.claude?.use?.("db") ?? null;
+  if (db) {
+    for (const it of ITEMS) {
+      try { const d = (await db.doc(`scores/${it.id}`).get()).data(); if (d) state[it.id] = { scores: { ...(d.scores || {}) }, notes: { ...(d.notes || {}) }, note: String(d.note || "") }; } catch {}
+    }
+  }
+  loaded = true;
+  if (!location.hash) { const i = ITEMS.findIndex((it) => !isDone(it)); if (i > 0) { go(i); return; } }
+  buildShot();
+})();
+</script>

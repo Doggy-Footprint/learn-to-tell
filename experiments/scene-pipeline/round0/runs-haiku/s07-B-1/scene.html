@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fan-out과 p99 꼬리 지연</title>
+<script type="application/json" id="ltt-meta">{"topic":"fan-out과 p99 꼬리 지연","audience":"백엔드 개발자","theme":"terminal","medium":"터미널·대시보드","decision":"한 요청이 부르는 백엔드 수","domain":"백엔드","pattern":["mount"],"mode":"장면 하나짜리. 분포 구조를 \"쪼개지고 합쳐짐\" 움직임과 작은 여러 칸 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.fo{display:flex;flex-direction:column;gap:14px;width:100%}
+.fo-top{display:flex;gap:28px;flex-wrap:wrap;align-items:baseline}
+.fo-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.fo-cell{width:100%;height:auto;display:block;max-width:100%}
+.fo text{font-family:var(--ltt-mono)}
+.fo-note{margin:0;color:var(--ltt-muted);font-size:14px}
+@media (max-width:640px){.fo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const e = document.createElementNS(SVG, tag); for (const k in a) e.setAttribute(k, a[k]); p && p.appendChild(e); return e; };
+const cl = (x) => Math.max(0, Math.min(1, x));
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+// 가정: 호출 하나의 지연은 로그정규(중앙값 10ms, σ 0.8), 호출끼리는 독립
+const MED = 10, SIG = 0.8;
+const KS = [1, 2, 4, 8, 16, 32, 64, 128];
+const XMAX = 300;
+const CW = 260, CH = 182, X0 = 12, X1 = 248, TOP = 40, BASE = 118, LANE = 152, CYC = 6000;
+const Phi = (z) => { const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; };
+const F1 = (t) => t <= 0 ? 0 : Phi((Math.log(t) - Math.log(MED)) / SIG);
+const pdf1 = (t) => t <= 0 ? 0 : Math.exp(-((Math.log(t) - Math.log(MED)) ** 2) / (2 * SIG * SIG)) / (t * SIG * 2.5066);
+// 요청 지연은 호출 k개 중 가장 늦은 응답이라 F_요청(t) = F(t)^k
+const fmax = (t, k) => k * F1(t) ** (k - 1) * pdf1(t);
+const quant = (k, p) => { let lo = 0.01, hi = 3000; for (let i = 0; i < 100; i++) { const m = (lo + hi) / 2; if (F1(m) ** k < p) lo = m; else hi = m; } return hi; };
+const SINGLE = quant(1, .99);
+const xs = (t) => X0 + (X1 - X0) * t / XMAX;
+const PEAK = Math.max(...KS.flatMap((k) => Array.from({ length: XMAX }, (_, i) => fmax(i + 1, k))));
+const ys = (d) => BASE - (BASE - TOP) * d / PEAK;
+const curve = (fn) => { let d = ""; for (let t = 0; t <= XMAX; t++) d += (t ? "L" : "M") + xs(t).toFixed(1) + "," + ys(fn(t)).toFixed(1); return d; };
+const area = (fn) => curve(fn) + `L${xs(XMAX)},${BASE}L${xs(0)},${BASE}Z`;
+let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const gauss = () => Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(2 * Math.PI * rnd());
+
+function cell(host, k) {
+  const s = mk("svg", { viewBox: `0 0 ${CW} ${CH}`, class: "fo-cell", "data-annotate": "" }, host);
+  const frame = mk("rect", { x: .5, y: .5, width: CW - 1, height: CH - 1, rx: 8, style: "fill:var(--ltt-card);stroke:var(--ltt-line);stroke-width:1.5" }, s);
+  const title = mk("text", { x: X0, y: 22, style: "font-size:14px;font-weight:700;fill:var(--ltt-ink)" }, s);
+  title.textContent = `k = ${k}`;
+  mk("path", { d: curve((t) => pdf1(t)), style: "fill:none;stroke:var(--ltt-muted);stroke-width:1.5;stroke-dasharray:3 3" }, s);
+  mk("path", { d: area((t) => fmax(t, k)), style: "fill:var(--ltt-accent-soft)" }, s);
+  mk("path", { d: curve((t) => fmax(t, k)), style: "fill:none;stroke:var(--ltt-accent);stroke-width:2.5" }, s);
+  const p = quant(k, .99);
+  mk("line", { x1: xs(p), x2: xs(p), y1: TOP, y2: BASE, style: "stroke:var(--ltt-bad);stroke-width:1.5;stroke-dasharray:4 3" }, s);
+  const pl = mk("text", { x: xs(p) + 5, y: TOP + 12, style: "font-size:14px;fill:var(--ltt-bad)" }, s);
+  pl.textContent = Math.round(p) + "ms";
+  mk("line", { x1: X0, x2: X1, y1: BASE, y2: BASE, style: "stroke:var(--ltt-ink-2);stroke-width:1.5" }, s);
+  mk("line", { x1: X0, x2: X1, y1: LANE, y2: LANE, style: "stroke:var(--ltt-line-2);stroke-width:1" }, s);
+  [[0, "0", "start"], [100, "100", "middle"], [200, "200", "middle"], [300, "300ms", "end"]].forEach(([t, txt, anc]) => {
+    const tk = mk("text", { x: xs(t), y: 176, "text-anchor": anc, style: "font-size:14px;fill:var(--ltt-muted)" }, s);
+    tk.textContent = txt;
+  });
+  mk("circle", { cx: X0, cy: LANE, r: 3.5, style: "fill:var(--ltt-ink)" }, s);
+  const dots = Array.from({ length: k }, () => mk("circle", { cx: X0, cy: LANE, r: 3, style: "fill:var(--ltt-muted)" }, s));
+  return { k, frame, title, dots, s: [], m: 0 };
+}
+
+// 호출 k개의 응답을 새로 뽑는다. 가장 늦은 응답이 요청 지연이다
+function resample(c) {
+  c.s = Array.from({ length: c.k }, () => MED * Math.exp(SIG * gauss()));
+  c.m = c.s.indexOf(Math.max(...c.s));
+  c.dots.forEach((d, i) => { d.style.fill = i === c.m ? "var(--ltt-accent)" : "var(--ltt-muted)"; d.setAttribute("r", i === c.m ? 5 : 3); });
+}
+
+// 0–30% 쪼개짐(요청 한 점에서 k개로), 30–55% 응답 도착, 55–85% 합쳐짐(가장 늦은 응답으로), 90–100% 사라짐
+function place(c, u) {
+  const xm = xs(c.s[c.m]), e1 = ease(cl(u / .3)), e2 = ease(cl((u - .55) / .3)), e3 = cl((u - .9) / .1);
+  c.dots.forEach((d, i) => {
+    const xi = xs(c.s[i]);
+    const x = u < .3 ? X0 + (xi - X0) * e1 : u < .55 ? xi : xi + (xm - xi) * e2;
+    let o = u < .55 ? 1 : 1 - e2;
+    if (i === c.m) o = u < .9 ? 1 : 1 - e3;
+    d.setAttribute("cx", x.toFixed(1));
+    d.style.opacity = o;
+  });
+}
+
+function mount(body) {
+  body.innerHTML = `<div class="fo">
+    <div class="fo-top"><div class="ltt-stat"><span class="ltt-hero" id="p99"></span> <small>요청 p99</small></div>
+      <div class="ltt-stat"><b id="ratio"></b> <small>단일 호출 p99(${Math.round(SINGLE)}ms) 대비</small></div></div>
+    <div class="ltt-param">요청 하나가 부르는 백엔드 수 (fan-out) <b id="k-v"></b><div id="k"></div></div>
+    <div class="fo-grid" id="grid"></div>
+    <p class="fo-note">점 하나 = 백엔드 호출 한 번의 응답. 요청 하나가 k개로 쪼개져 나갔다가, 가장 늦은 응답(강조된 점)에 맞춰 끝난다.</p>
+    <div id="goal"></div>
+    <span class="ltt-tag muted">모델로 계산한 예시</span></div>`;
+  const cells = KS.map((k) => cell(body.querySelector("#grid"), k));
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let id = 0, cycle = -1;
+  LTT.sweep({ params: { k: { kind: "steps", stops: KS, value: 16, fmt: (v) => v + "개" } },
+    render: ({ k }) => {
+      const p = quant(k, .99);
+      body.querySelector("#p99").textContent = Math.round(p) + "ms";
+      body.querySelector("#ratio").textContent = (p / SINGLE).toFixed(1) + "배";
+      cells.forEach((c) => {
+        const on = c.k === k;
+        c.frame.style.stroke = on ? "var(--ltt-accent)" : "var(--ltt-line)";
+        c.frame.style.strokeWidth = on ? 2.5 : 1.5;
+        c.title.style.fill = on ? "var(--ltt-accent)" : "var(--ltt-ink)";
+      });
+    },
+    goal: { el: "goal", text: "요청 p99을 단일 호출 p99의 2배 이내로 둔다", check: ({ k }) => quant(k, .99) <= 2 * SINGLE } });
+  function frame(t) {
+    const c = Math.floor(t / CYC), u = (t % CYC) / CYC;
+    if (c !== cycle) { cycle = c; cells.forEach(resample); }
+    cells.forEach((cc) => place(cc, u));
+  }
+  return { enter() { clearTimeout(id); if (reduced) { cells.forEach((c) => { resample(c); place(c, .4); }); return; }
+      const t0 = Date.now(); const f = () => { frame(Date.now() - t0); id = setTimeout(f, 33); }; f(); },
+    leave() { clearTimeout(id); } };
+}
+
+LTT.deck({
+  title: "fan-out과 p99 꼬리 지연", theme: "terminal",
+  glossary: {
+    "p99": "지연을 짧은 순서로 줄 세웠을 때 99%가 이 값 이하인 지점. 100번 중 가장 느린 1번을 뺀 경계",
+    "fan-out": "요청 하나가 백엔드 여럿을 동시에 부르는 구조"
+  },
+  scenes: [{
+    title: "호출 수가 늘수록 가장 느린 한 번이 요청 전체의 꼬리가 된다",
+    sub: "호출 하나가 느릴 확률이 1%여도, {{fan-out}} 16개면 요청의 약 15%가 그 느린 호출을 기다린다(1−0.99¹⁶). 손잡이로 k를 바꾸면 요청 {{p99}}이 함께 움직인다.",
+    layout: "full",
+    basis: "단일 호출 지연은 로그정규 가정(중앙값 10ms, σ 0.8), 호출은 서로 독립. 요청 지연은 호출 k개 중 최댓값이라 F_요청(t) = F(t)^k이고, p99은 이 분포에서 계산. 모델로 계산한 예시.",
+    mount
+  }]
+});
+LTT.expect("k=16 요청 p99 ≈ 132ms", quant(16, .99), 132.1, { tol: 0.5 });
+</script>
+</body>
+</html>

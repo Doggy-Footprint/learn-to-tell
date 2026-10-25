@@ -1,0 +1,90 @@
+<title>국가별 전력 믹스</title>
+<script type="application/json" id="ltt-meta">{"topic": "국가별 전력 믹스", "audience": "에너지 정책 입문자", "theme": "atlas", "medium": "에너지 통계 차트", "decision": "전원 구성 비교"}</script>
+<style>
+  .mix { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 28px; align-items: center; }
+  .mix-card, .mix-rows { min-width: 0; }
+  .mix-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; width: min(100%, 300px); margin: 16px auto 0; }
+  .mix-grid i { display: block; aspect-ratio: 1; border-radius: 2px; background: var(--ltt-line); transition: background-color 0.45s ease; }
+  .mix-key { display: flex; flex-wrap: wrap; gap: 6px 14px; list-style: none; padding: 0; margin: 16px 0 0; color: var(--ltt-muted); }
+  .mix-key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+  .mix-key b { color: var(--ltt-ink); }
+  .mix-row { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: 12px; align-items: center; margin-block: 18px; color: var(--ltt-muted); }
+  .mix-row.on { color: var(--ltt-ink); font-weight: 700; }
+  .mix-row.on .ltt-bar { outline: 2px solid var(--ltt-accent); outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { .mix-grid i { transition: none; } }
+  @media (max-width: 720px) { .mix { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script>
+  const SRC = ["석탄", "원자력", "가스", "풍력·태양광", "수력", "바이오·기타"];
+  // 나라별 발전 비중(%), 2023년 전후의 근사치
+  const COUNTRIES = [
+    { name: "한국", mix: [34, 30, 26, 8, 1, 1] },
+    { name: "프랑스", mix: [1, 63, 6, 12, 11, 7] },
+    { name: "독일", mix: [26, 2, 12, 43, 3, 14] },
+    { name: "노르웨이", mix: [0, 0, 1, 10, 88, 1] },
+  ];
+  // 칸 100개가 각각 어느 발전원 몫인지
+  const owner = (mix) => mix.flatMap((n, k) => Array(n).fill(k));
+
+  const mixScene = {
+    kicker: "전원 구성 비교",
+    title: "같은 전기도 나라마다 발전원이 차지하는 칸 수가 다르다",
+    en: "Power mix by country",
+    sub: "발전량 100%를 칸 100개로 나눴다. 나라를 고르면 칸의 색이 바뀐다.",
+    narration: "나라를 고르면 발전량 100%가 칸 100개로 다시 칠해진다. 칸 하나는 전체의 1%다. 한국은 석탄과 원자력이 {{기저부하}}를 맡아 칸 64개를 차지한다.",
+    takeaway: "발전 구성은 자원과 정책이 나라마다 만든 모양이라, 재생에너지 비중도 전체 구성 안에서 읽어야 한다.",
+    recall: "노르웨이의 칸이 거의 한 색인 까닭은 무엇일까?",
+    basis: "2023년 전후의 대략적 발전 비중을 반올림한 근사치다. 불확실하니 쓰기 전에 원자료로 확인한다.",
+    mount(body) {
+      body.innerHTML = `
+        <div class="mix">
+          <div class="mix-card">
+            <div class="ltt-param">나라 <b id="country-v"></b><div id="country"></div></div>
+            <div class="mix-grid" id="mix-grid"></div>
+            <ul class="mix-key" id="mix-key"></ul>
+          </div>
+          <div class="mix-rows">
+            ${COUNTRIES.map((c, i) => `<div class="mix-row" id="row-${i}"><span>${c.name}</span><div class="ltt-bar" id="bar-${i}"></div></div>`).join("")}
+          </div>
+        </div>`;
+
+      const grid = body.querySelector("#mix-grid");
+      const key = body.querySelector("#mix-key");
+      const cells = [];
+      for (let i = 0; i < 100; i++) {
+        const cell = document.createElement("i");
+        cell.style.transitionDelay = i * 5 + "ms"; // 칸마다 조금씩 늦게 바뀌어 경계가 물결처럼 옮겨 간다
+        grid.appendChild(cell);
+        cells.push(cell);
+      }
+
+      const colors = SRC.map((_, k) => ({ color: `var(--ltt-c${k + 1})` }));
+      COUNTRIES.forEach((c, i) => LTT.bar(`bar-${i}`, colors).set(c.mix, SRC.map(() => "")));
+
+      LTT.sweep({
+        params: { country: { kind: "steps", stops: COUNTRIES.map((_, i) => i), value: 0, fmt: (v) => COUNTRIES[v].name } },
+        render: ({ country }) => {
+          const c = COUNTRIES[country];
+          const own = owner(c.mix);
+          cells.forEach((cell, i) => (cell.style.background = `var(--ltt-c${own[i] + 1})`));
+          body.querySelectorAll(".mix-row").forEach((row, i) => row.classList.toggle("on", i === country));
+          key.innerHTML = SRC.map((s, k) => `<li><i style="background:var(--ltt-c${k + 1})"></i>${s} <b>${c.mix[k]}%</b></li>`).join("");
+        },
+      });
+      COUNTRIES.forEach((c) => LTT.expect(c.name + " 비중 합", c.mix.reduce((a, b) => a + b, 0), 100, { tol: 1e-9 }));
+      return {};
+    },
+  };
+
+  LTT.deck({
+    title: "국가별 전력 믹스",
+    theme: "atlas",
+    glossary: { 기저부하: "하루 종일 쉬지 않고 돌며 기본 수요를 채우는 발전이다. 석탄과 원자력이 주로 맡는다." },
+    scenes: [mixScene],
+  });
+</script>

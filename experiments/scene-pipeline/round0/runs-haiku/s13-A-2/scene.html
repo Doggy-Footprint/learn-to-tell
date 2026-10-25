@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결제 퍼널 이탈 지점</title>
+<script type="application/json" id="ltt-meta">{"topic": "결제 퍼널 이탈 지점", "audience": "UX 입문자", "theme": "studio", "medium": "제품 분석 대시보드", "decision": "어느 결제 단계를 먼저 고칠까"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.funnel { display: block; width: 100%; max-width: 100%; height: auto; }
+.funnel .fx-label { font-size: 15px; fill: var(--ltt-ink); }
+.funnel .fx-count { font-size: 15px; font-weight: 700; fill: var(--ltt-ink); }
+.funnel .fx-title { font-size: 15px; font-weight: 700; fill: var(--ltt-ink); }
+.funnel .fx-muted { font-size: 13px; fill: var(--ltt-muted); }
+.funnel .fx-drop { font-size: 14px; fill: var(--ltt-muted); }
+.funnel .fx-hit { fill: var(--ltt-bad); font-weight: 700; }
+.funnel .fx-bar { fill: var(--ltt-c1); }
+.funnel .fx-stay { fill: var(--ltt-c1); }
+.funnel .fx-bad { fill: var(--ltt-bad); }
+.funnel .fx-ghost { fill: var(--ltt-bad-soft); stroke: var(--ltt-bad); stroke-dasharray: 4 3; }
+.funnel .fx-frame { fill: none; stroke: var(--ltt-accent); stroke-width: 2; }
+.funnel .fx-panel { fill: var(--ltt-card); stroke: var(--ltt-line); }
+</style>
+</head>
+<body>
+<script>
+// 단계별로 남은 사람 수. 가상의 세션 1,000명을 가정한 예시다.
+const STAGES = [
+  { l: "장바구니 담기", n: 1000 },
+  { l: "배송지 입력", n: 700 },
+  { l: "결제 수단 선택", n: 630 },
+  { l: "카드 정보 입력", n: 360 },
+  { l: "결제 완료", n: 330 },
+];
+const FOCUS = 1; // 떠난 사람이 가장 많은 단계
+const SCALE = 0.25; // 1명 = 0.25px, 1,000명 = 250px
+const X0 = 150, ROW = 68, TOP = 70, BAR = 30;
+const cy = (i) => TOP + i * ROW;
+const lost = (i) => STAGES[i - 1].n - STAGES[i].n; // i 단계에서 떠난 사람 수
+const rate = (i) => lost(i) / STAGES[i - 1].n;     // i 단계의 이탈률
+const fmt = (n) => n.toLocaleString("ko-KR") + "명";
+const pct = (x) => Math.round(x * 100) + "%";
+const ZOOM_FROM = `translate(300, ${cy(FOCUS)}) scale(0.15)`; // 강조 틀이 있던 자리에서 커진다
+const ZOOM_AT = "translate(620, 30) scale(1)";
+
+function funnel() {
+  const m = LTT.MOTION_MS;
+  const svg = d3.create("svg").attr("class", "funnel").attr("viewBox", "0 0 820 410");
+  svg.append("text").attr("class", "fx-muted").attr("x", 0).attr("y", 22).text("단계마다 남은 사람 수");
+  svg.append("text").attr("class", "fx-muted").attr("x", 500).attr("y", 22).text("떠난 사람 · 이탈률");
+
+  const rows = STAGES.map((s, i) => {
+    const g = svg.append("g");
+    g.append("text").attr("class", "fx-label").attr("x", 0).attr("y", cy(i) + 5).text(s.l);
+    if (i) {
+      g.append("rect").attr("class", "fx-ghost").attr("x", X0 + s.n * SCALE).attr("y", cy(i) - BAR / 2)
+        .attr("width", lost(i) * SCALE).attr("height", BAR).attr("rx", 4);
+      g.append("text").attr("class", i === FOCUS ? "fx-drop fx-hit" : "fx-drop").attr("x", 500).attr("y", cy(i) + 5)
+        .text(`−${lost(i)} · ${pct(rate(i))}`);
+    }
+    g.append("rect").attr("class", "fx-bar").attr("x", X0).attr("y", cy(i) - BAR / 2)
+      .attr("width", s.n * SCALE).attr("height", BAR).attr("rx", 4);
+    g.append("text").attr("class", "fx-count").attr("x", 412).attr("y", cy(i) + 5).text(fmt(s.n));
+    return g;
+  });
+
+  const frame = svg.append("rect").attr("class", "fx-frame").attr("x", -8).attr("y", cy(FOCUS) - BAR / 2 - 8)
+    .attr("width", 616).attr("height", BAR + 16).attr("rx", 8).style("opacity", 0);
+
+  // 확대 패널: 들어온 사람을 쌓은 기둥을 떠난 몫과 남은 몫으로 나눈다
+  const enter = STAGES[FOCUS - 1].n, stay = STAGES[FOCUS].n, leave = lost(FOCUS);
+  const H = 220, top = 70, colW = 70;
+  const hL = H * leave / enter, hS = H * stay / enter;
+  const zoom = svg.append("g").attr("transform", ZOOM_FROM).style("opacity", 0);
+  zoom.append("rect").attr("class", "fx-panel").attr("width", 200).attr("height", 330).attr("rx", 8);
+  zoom.append("text").attr("class", "fx-title").attr("x", 14).attr("y", 26).text(`${STAGES[FOCUS].l} 확대`);
+  zoom.append("text").attr("class", "fx-muted").attr("x", 14).attr("y", 48).text(`들어온 사람 ${fmt(enter)}`);
+  zoom.append("rect").attr("class", "fx-bad").attr("x", 20).attr("y", top).attr("width", colW).attr("height", hL);
+  zoom.append("rect").attr("class", "fx-stay").attr("x", 20).attr("y", top + hL).attr("width", colW).attr("height", hS);
+  zoom.append("text").attr("class", "fx-title").attr("x", 104).attr("y", top + hL / 2 - 2).text(`떠남 ${fmt(leave)}`);
+  zoom.append("text").attr("class", "fx-muted").attr("x", 104).attr("y", top + hL / 2 + 16).text(`${pct(rate(FOCUS))} 이탈`);
+  zoom.append("text").attr("class", "fx-title").attr("x", 104).attr("y", top + hL + hS / 2 - 2).text(`남음 ${fmt(stay)}`);
+  zoom.append("text").attr("class", "fx-muted").attr("x", 104).attr("y", top + hL + hS / 2 + 16).text(`${pct(stay / enter)}`);
+  zoom.append("text").attr("class", "fx-muted").attr("x", 14).attr("y", 322).text("이 단계에서 가장 많이 떠난다");
+
+  svg.append("text").attr("class", "fx-muted").attr("x", 0).attr("y", 392)
+    .text("이탈률은 카드 정보 입력(43%)이 가장 높지만, 떠난 사람은 270명으로 둘째다.");
+
+  return {
+    el: svg.node(),
+    show(k) {
+      if (k === 0) rows.forEach((g, i) => {
+        g.select(".fx-bar").attr("width", 0).transition().delay(i * m / 2).duration(m)
+          .attr("width", STAGES[i].n * SCALE);
+        if (i) g.select(".fx-ghost").attr("width", 0).transition().delay(i * m / 2 + m).duration(m)
+          .attr("width", lost(i) * SCALE);
+      });
+      rows.forEach((g, i) => g.transition().duration(m)
+        .style("opacity", k >= 1 && i !== FOCUS ? 0.3 : 1));
+      frame.transition().duration(m).style("opacity", k >= 1 ? 1 : 0);
+      zoom.transition().duration(m).ease(d3.easeCubicOut)
+        .attr("transform", k >= 2 ? ZOOM_AT : ZOOM_FROM)
+        .style("opacity", k >= 2 ? 1 : 0);
+    },
+  };
+}
+
+const scene = {
+  type: "figure",
+  title: "떠난 사람이 가장 많은 단계부터 고친다",
+  en: "Fix the step where the most people leave first",
+  kicker: "UX · 결제 퍼널",
+  sub: "{{퍼널}}은 단계마다 남은 사람 수를 쌓은 그림이다. 단계 사이에서 떠난 수와 {{이탈률}}을 함께 본다.",
+  figure: funnel,
+  caption: "단계 수치는 가상의 세션 1,000명으로 계산한 예시다.",
+  steps: [
+    { caption: "① 1,000명이 장바구니에서 출발해, 단계를 지날 때마다 사람이 줄어든다", enter: (_, f) => f.show(0) },
+    { caption: "② 떠난 사람이 가장 많은 곳은 배송지 입력 앞(300명)이다", enter: (_, f) => f.show(1) },
+    { caption: "③ 그 자리를 확대하면, 들어온 1,000명 중 300명이 여기서 떠난다", enter: (_, f) => f.show(2) },
+  ],
+  basis: "가정: 세션 1,000명, 단계 수치는 설명용 예시다. 실제 로그로 바꿔 확인한다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+  takeaway: "먼저 고칠 단계는 떠난 사람이 가장 많은 곳이고, 이탈률은 그다음 확인 기준이다.",
+  recall: "들어온 사람이 두 배면, 같은 이탈률에서 떠나는 사람은 몇 배가 되나?",
+};
+
+LTT.deck({
+  title: "결제 퍼널 이탈 지점",
+  theme: "studio",
+  glossary: {
+    퍼널: "단계마다 남은 사람 수를 위에서 아래로 쌓은 그림. 모양이 깔때기를 닮았다.",
+    이탈률: "한 단계에 들어온 사람 중 그 단계에서 떠난 사람의 비율.",
+  },
+  scenes: [scene],
+});
+LTT.expect("배송지 입력에서 떠난 사람", lost(FOCUS), 300);
+LTT.expect("카드 정보 입력에서 떠난 사람", lost(3), 270);
+LTT.expect("카드 정보 입력 이탈률(%)", Math.round(rate(3) * 100), 43);
+</script>
+</body>
+</html>
