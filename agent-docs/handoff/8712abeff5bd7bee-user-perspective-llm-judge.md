@@ -1,5 +1,5 @@
 ---
-commit: b24b9dcdd703c9dc670a4d03a867a2b8fff806e7
+commit: 8a6a78cf7c9269c9cf077ea0e93d407a50508234
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -89,16 +89,44 @@ commit: b24b9dcdd703c9dc670a4d03a867a2b8fff806e7
   - `berney2016`: 메타분석. 부록을 훑어봤다고 agent가 보고
   - `bbc-subtitles`: 일부 구간은 키워드 검색만 했다고 agent가 보고
 - Gemini를 쓰는 경로는 두 가지다.
-  - **API 키(`.env`의 `GEMINI_API_KEY`):** `tools/ask.py gemini gemini-4-argon <prompt> <out> <max_tokens>`. prompt는 `tools/extract-local-brief.md` 규칙 + 해당 출처 `text.txt` 전문을 붙인 파일이다. 사용량은 API로 과금되며, 사용자 구독과 별개다.
-  - **사용자의 Gemini Pro 구독(Gemini CLI):** `/opt/homebrew/bin/gemini`가 설치되어 있다.
-    - 확인된 사실: 버전 0.1.9, 기본 모델 `gemini-2.5-pro`, `~/.gemini/oauth_creds.json` 존재(Google 계정 로그인).
-    - 구독 할당량으로 `gemini-4-argon`을 쓸 수 있는지는 확인하지 않았다. 확인 전에 CLI 업데이트가 필요해 보인다.
-    - 실행 형태: `cat sources/<id>/text.txt | gemini -m <모델> -p "<extract-local-brief 규칙, FOCUS>" > sources/<id>/quotes-gemini.md`. 원문을 stdin으로 넣고 결과를 stdout으로 받으면 CLI의 파일 도구와 `-y`(자동 승인)를 쓰지 않아도 된다.
-  - 어느 경로든 결과는 같은 형식(`- "<원문>" — <위치>`)으로 저장한다. `tools/verify.py`로 원문 대조를 먼저 한다. `verify.py`는 지금 `quotes.md`만 읽으므로 파일명 인자를 추가해야 한다.
-- 겹침 계산(스크립트 미작성):
+  - **API 키(`.env`의 `GEMINI_API_KEY`):** `tools/ask.py gemini gemini-4-argon <prompt> <out> <max_tokens>`. 사용량은 API로 과금되며, 사용자 구독과 별개다.
+  - **사용자의 Gemini Pro 구독, Antigravity CLI(`agy`):** 2026-10-26에 확인했다.
+    - Google은 2026-06-18에 Gemini CLI를 Antigravity CLI로 교체했다(https://geminicli.com/docs/resources/quota-and-pricing/ 상단 공지). 설치된 `gemini` 0.1.9는 쓰지 않았다. 구글 계정 로그인이 끝났다는 주장은 제3자 글(dev.to)뿐이라 공식으로 확인하지 못했다.
+    - `/Users/hwansu/.local/bin/agy` 1.4.7은 `~/.gemini/antigravity-cli/`의 로그인 토큰으로 API 키 없이 동작한다. `agy models`: `gemini-4-argon-{low,medium,high}`, `gemini-3.8-flash-{low,medium,high}`, `claude-opus-5-5-*`, `claude-sonnet-5-5-*`, `gpt-oss-120b-medium`.
+    - 호출: `agy -p "<프롬프트 전문>" --model <모델> --output-format json --print-timeout 900s`. stdin은 프롬프트에 합쳐지지 않는다(시험: "stdin 내용이 없다"는 응답). 68KB `text.txt`를 인자로 넣는 방식은 통했다. 응답은 JSON의 `response`, `usage`, `duration_seconds`.
+    - 할당량: 사용자 보고로 argon 호출 1회(약 35k 토큰)가 주간 사용량의 약 1%를 썼다. argon 주간 사용량과 gemini-3.8-flash 주간 사용량은 따로 계산된다. `agy`는 남은 할당량을 출력하지 않는다. 그래서 argon은 중요한 출처에, flash는 나머지 출처에 쓴다.
+    - `claude-*`·`gpt-oss` 모델이 같은 구독 한도에서 차감되는지는 확인하지 않았다.
+  - 어느 경로든 결과는 같은 형식(`- "<원문>" — <위치>`)으로 저장하고 `tools/verify.py`로 원문 대조를 먼저 한다.
+- 파일럿 도구(`experiments/rubric-sources/tools/`, 2026-10-26):
+  - `agy-extract.py <id> <tag> <agy-model>`: `extract-agy-brief.md`(기존 규칙 + 표 규칙) + 기존 `quotes.md` 머리의 FOCUS + `text.txt` 전문 → `sources/<id>/quotes-<tag>.md`. 토큰·시간은 `sources/<id>/agy-usage.jsonl`에 쌓인다.
+  - `verify.py <id>:quotes-<tag>.md`: 지정 파일을 대조해 `verify-<tag>.txt`를 쓴다. 인자 없이 `<id>`만 주면 기존 동작과 같다(`lori2007` 108/108 재확인).
+  - `overlap.py <id> <tag>... [--write]`: 기준 `quotes.md`("base")와 각 `quotes-<tag>.md`의 원문 위치 겹침(인용 글자의 50% 이상이 상대 인용 구간 안). `--write`는 base에 안 덮인 검증 통과 인용을 `quotes-extra.jsonl`에 `quotes.jsonl`과 같은 필드로 추가한다. `qid`는 null, `extractor` 필드가 더 있다. `quotes.jsonl`은 건드리지 않는다. 합치기 전에 인용을 읽고 고른다.
+- 파일럿 결과(`lori2007`, FOCUS는 기존과 같음, 모델 medium 기본):
+
+  | 추출기 | 줄 | 원문 일치 | base 중 못 덮음 | base에 없는 것 | 토큰 | 시간 |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | base(sonnet) | 108 | 108 | - | - | - | - |
+  | argon, 첫 브리프 | 85 | 84 | 30/108 | 9 | 35,169 | 44s |
+  | flash, 첫 브리프 | 34 | 25 | 63/108 | 2 | 36,371 | 33s |
+  | argon, 표 규칙 추가 | 66 | 65 | 21/108 | 13 | 35,958 | 53s |
+  | flash medium, 표 규칙 추가 | 75 | 75 | 44/108 | 6 | 38,774 | 46s |
+  | flash high, 표 규칙 추가 | 99 | 99 | 34/108 | 17 | 55,328 | 131s |
+
+  - flash 첫 브리프의 원문 불일치 9개는 표 행의 셀 사이에 ` | `와 제목을 끼워 넣은 것이다(유사도 0.76–0.91). 브리프에 "셀마다 따로 인용, 구분자·라벨 금지"를 넣자 flash의 불일치가 0이 됐다. argon의 불일치 1개는 그대로다.
+  - argon과 flash high의 합집합이 못 덮은 base 인용은 19/108이다. 즉 Gemini는 sonnet을 대체하지 못하고 보완한다.
+  - base에 없던 Gemini 인용 24개(`quotes-extra.jsonl`)를 읽었다. 대부분 서론·프레이밍(다른 연구 인용 포함)이다. 기준표에 쓸 만한 것은 presentation design 정의, "웹 페이지 로딩 최대 허용 지연 10초", interaction usability 설명 등 소수다.
+  - 다른 출처에서도 같은 경향이 나오는지는 확인하지 않았다.
+  - **다음 세션 실행 순서(사용자 동의, 2026-10-26):** 모델 배분은 "기본 flash high, 중요하거나 겹침이 낮은 출처만 argon"이다.
+    1. `heer2007`, `berney2016`, `bbc-subtitles` 각각 `python3 -I tools/agy-extract.py <id> flash-high gemini-3.8-flash-high` → `python3 -I tools/verify.py <id>:quotes-flash-high.md`. 명령은 `experiments/rubric-sources` 디렉터리에서 실행한다.
+    2. 출처마다 `python3 -I tools/overlap.py <id> flash-high`로 base에 안 덮인 비율을 본다. 비율이 높거나 그 출처가 기준표에서 중요하면 `agy-extract.py <id> argon gemini-4-argon-medium`을 추가한다. 중요도 기준과 "높음"의 문턱은 정해지지 않았으니 결과를 보고 사용자와 정한다.
+    3. 전 출처를 같은 방식으로 돌릴지는 1·2 결과를 본 뒤 정한다. 한 호출은 입력 약 30k 토큰이고 사용자 보고 기준 argon은 한 호출에 주간 사용량의 약 1%다. flash의 주간 사용량 비율은 아직 모른다. 첫 flash 호출 뒤 사용자에게 소모율을 물어 기록한다.
+    4. 확인한 인용을 읽고 고른 뒤 `--write`로 `quotes-extra.jsonl`에 쌓는다. 같은 출처를 두 번 `--write`하면 중복 줄이 쌓이니 출처당 한 번만 실행한다(`lori2007` 24줄은 이미 쌓였다). `quotes.jsonl`에 합치는 스크립트는 아직 없다.
+    5. 이 세션에서 `agy-extract.py`가 표 규칙으로 flash 불일치를 없앴으므로, 새 출처에서 불일치가 다시 나오면 `verify-<태그>.txt`의 MISS 줄 형식부터 본다.
+  - 같은 `lori2007`에서 sonnet 재추출과 Gemini의 차이(실행마다 달라지는 정도)는 재지 않았다. 위 "못 덮음" 수치에는 추출기 간 차이와 실행 간 변동이 섞여 있다.
+- 겹침 계산:
   - 두 추출기의 통과 인용을 정규화된 `text.txt` 안의 위치 구간으로 바꾼다.
   - 한쪽 인용 중 다른 쪽 구간과 겹치는 비율을 양방향으로 계산한다.
-  - Gemini 인용 중 sonnet 구간과 겹치지 않는 것이 sonnet이 놓친 것의 추정치다. 그 내용을 읽어 중요한 누락인지 본다.
+  - Gemini 인용 중 sonnet 구간과 겹치지 않는 것이 sonnet이 놓친 것의 추정치다. 그 내용을 읽어 중요한 누락인지 본다. (`overlap.py`로 구현됨. 아래 파일럿 결과 참고)
 
 **2. 관련성: haiku가 표본을 판정한다**
 - 표본: `verified` 인용에서 `kind`별로 층화한 무작위 100개. 표본 seed를 기록한다.
@@ -161,7 +189,8 @@ commit: b24b9dcdd703c9dc670a4d03a867a2b8fff806e7
 - 이전 실험(HSH) 비용: 생성·검수 $32.22, Opus 채점관 $56.02(`round-judge/*.json`의 `cost` 합).
 - 이 handoff 시점까지 새 채점관 관련 호출은 0건이다.
 - 2026-10-26 외부 모델 호출 비용:
-  - gemini-4-argon: 연결 확인 1회
+  - gemini-4-argon: 연결 확인 1회(API 키)
+  - `agy`(구독) 2026-10-26: argon 3회, flash 3회, `lori2007` 한 출처에 대한 파일럿. 토큰은 `sources/lori2007/agy-usage.jsonl`. 사용자 보고로 첫 argon 호출이 argon 주간 사용량의 약 1%
   - gpt-5.6-sol: 연결 확인 1회, $0.001 미만
   - gpt-6-astra: 호출 없음
   - 사용자가 정한 GPT 예산은 $10이다.
