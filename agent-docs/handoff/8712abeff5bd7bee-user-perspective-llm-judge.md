@@ -292,6 +292,18 @@ commit: 6826ee5519e976ffa47c9df469eefcdf3e50515e
   - 실패하면 Failed Attempts에 행을 추가한다.
   - 충실도 실패라면 대안 후보가 하나 더 있다. CheckEval처럼 차원을 먼저 정하고 LLM이 항목을 늘리는 방식이다. 조사 노트 5절에 있다.
 - 조사 노트 2개(`notes/`)는 `.gitignore` 범위라 저장소에 없다. 사용자가 gist에 push했다(gist `4a60aae`).
+- trial 진행(2026-10-27):
+  - 번역: `tools/translate.py run sonnet berney2016 lori2007 carbon-motion`. 비용 $0.734. 출력은 `items-trial/sonnet.jsonl`, 묶음 캐시는 `items-trial/sonnet/`.
+    | 출처 | 1등급 인용 | 항목 없음 | 항목 | fidelity(모델 자기 표시) |
+    | --- | --- | --- | --- | --- |
+    | berney2016 | 55 | 26 | 30 | stated 11, inferred 19 |
+    | lori2007 | 66 | 15 | 81 | stated 60, inferred 21 |
+    | carbon-motion | 18 | 0 | 18 | stated 15, inferred 3 |
+  - berney2016의 "항목 없음"은 대부분 연구 코딩 변수 설명이다(예: "e) Presence of signaling cues ...").
+  - 충실도 표본: 출처당 10개, 시드 20261027(`items-trial/fidelity-sample.json`). 후보 인용 3개 중 1개가 정답이고, 방해 인용 2개는 같은 출처의 항목을 낸 다른 1등급 인용이다. 판정은 출처 고르기와 같다/과장/다르다 비교다. "충실"은 정답 인용을 고르고 "같다"로 판정한 경우다(`tools/fidelity.py`).
+  - 사용자 판정 페이지: https://claude.ai/artifact/W3Dfi9edB4uBugUkZwwQFU (비공개, `db` 컬렉션 `judgments`, 문서 `j<표본 번호>`). 페이지 원본은 세션 scratchpad에 있었고 저장소에는 없다. 한국어 기계 번역(`items-trial/fidelity-gloss.json`, sonnet, $0.10)은 선택해서 볼 수 있다.
+  - gpt-6.1-sol 판정은 끝났다(`items-trial/fidelity-gpt-6.1-sol.json`, $0.062). 사용자 판정에 앵커가 되지 않도록, 사용자 판정이 끝날 때까지 결과를 보이지 않는다.
+  - 다음: 사용자 판정을 `items-trial/fidelity-user.json`으로 내보낸다. 그 뒤 `fidelity.py score user gpt-6.1-sol`로 실패 기준(충실도 60%, kappa 0.4)을 판정한다. 통과하면 병합·적용 가능성 판정(trial 과정 2)과 수율 판정으로 간다.
 
 ### 전체 구조와 순서
 
