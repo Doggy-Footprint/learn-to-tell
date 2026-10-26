@@ -1,5 +1,5 @@
 ---
-commit: 8a6a78cf7c9269c9cf077ea0e93d407a50508234
+commit: 3295731d2e518175454020323e8f5ad9472d3e59
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -116,11 +116,49 @@ commit: 8a6a78cf7c9269c9cf077ea0e93d407a50508234
   - argon과 flash high의 합집합이 못 덮은 base 인용은 19/108이다. 즉 Gemini는 sonnet을 대체하지 못하고 보완한다.
   - base에 없던 Gemini 인용 24개(`quotes-extra.jsonl`)를 읽었다. 대부분 서론·프레이밍(다른 연구 인용 포함)이다. 기준표에 쓸 만한 것은 presentation design 정의, "웹 페이지 로딩 최대 허용 지연 10초", interaction usability 설명 등 소수다.
   - 다른 출처에서도 같은 경향이 나오는지는 확인하지 않았다.
+- 실행 순서 1번 결과(파일 시각 2026-10-26 19:06–19:15, `--write` 안 함)와 `berney2016` argon 추가 실행(다음 세션). `overlap.py`로 다시 계산했다:
+
+  | 출처 | 추출기 | 원문 일치 | base 중 못 덮음 | base에 없는 것 | 토큰 | 시간 |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | `heer2007` | flash high | 165/165 | 13/96 | 39 | 61,742 | 190s |
+  | `berney2016` | flash high | 75/81 | 54/123 | 17 | 78,779 | 187s |
+  | `berney2016` | argon medium | 203/234 | 56/123 | 108 | 56,224 | 89s |
+  | `berney2016` | flash high ∪ argon | - | 39/123 | - | - | - |
+  | `bbc-subtitles` | flash high | 103/103 | 106/170 | 39 | 93,107 | 214s |
+  | `bbc-subtitles` | argon medium | 201/202 | 35/170 | 94 | 68,213 | 113s |
+
+  - `berney2016` argon 불일치 31개 중 27개는 표 신뢰구간 조각(`[0.148; 0.921]` 등)이다. `text.txt`에서 마이너스 기호가 제어문자 `0x02`로 들어 있고(`[\x020.148; 0.921]`), argon은 그 문자를 빼서 음수 하한의 부호를 잃었다. `0x02`는 전 출처 중 `berney2016/text.txt`에만 84개 있고 base `quotes.md`에는 없다. 확인: `LC_ALL=C grep -c $'\x02' sources/*/text.txt`
+  - 나머지 불일치는 저자명 오타("Schnotch"), pdftotext 깨진 글자("H€ ofﬂer")가 든 문장의 재구성이다.
+  - 사용자 결정(2026-10-26): `agy`는 남은 사용량을 볼 수 없으므로 문턱 대신 출처 중요도 순으로 돌린다.
+    - 1순위(애니메이션 학습 효과를 직접 다룬 연구), argon: `ploetzner2021`, `tversky2002`, `spanjers2010`, `dekoning2009`, `chang-ungar1993`, `dragicevic2011`
+    - 2순위(생성 교육 자료 benchmark): `theoremexplain2025`, `code2video2025`, `eduvisbench2025`, `learnlm2024`
+    - 3순위: 나머지 시각·텍스트 타이밍 연구, 짧은 웹 가이드(분량이 짧아 누락 위험이 낮다고 보고 뒤로 뺐다)
+    - 모델 선택 근거: `berney2016`·`bbc-subtitles`에서 argon medium이 flash high보다 빨랐고(89–113s 대 187–214s) 토큰이 적었다. 주간 사용량 비율은 비교하지 못했다.
+  - 사용자 결정(2026-10-26): 새 인용을 손으로 읽고 고르는 단계는 뺀다. 이유는 main context 소모(새 인용 약 300개 ≈ 1–2만 토큰, 43개 출처로 늘면 더 큼). 원문 대조를 통과한 새 인용은 전부 `quotes-extra.jsonl`에 넣고, 거르기는 아래 2(관련성)·3(맥락 꼬리표)에 맡긴다. 기존 `quotes.jsonl`도 손으로 고르지 않았다.
+  - `overlap.py --write` 변경: 이전에는 글자가 완전히 같은 인용만 중복으로 걸렀다. 이제 인자 순서대로 태그를 돌며, base와 이번 실행에서 이미 쓴 인용의 위치 구간에 50% 이상 덮이는 인용은 건너뛴다. 그래서 더 많이 뽑은 추출기를 앞에 둔다(`overlap.py <id> argon flash-high --write`).
+  - `quotes-extra.jsonl`에 쌓인 줄(2026-10-26): `lori2007` 24(변경 전 방식), `heer2007` flash-high 39, `berney2016` argon 93 + flash-high 11, `bbc-subtitles` argon 92 + flash-high 15. 쓰기 전 사본은 세션 scratchpad에만 있었다. 출처당 한 번만 `--write`한다는 규칙은 그대로다.
+  - 1순위 6개 argon medium 결과(2026-10-26 19:27–19:34, 전부 `--write` 완료):
+
+    | 출처 | 원문 일치 | base 중 못 덮음 | base에 없는 것 | `--write`로 쌓인 줄 | 토큰 | 시간 |
+    | --- | --- | --- | --- | --- | --- | --- |
+    | `ploetzner2021` | 87/88 | 33/92 | 33 | 32 | 33,418 | 48s |
+    | `tversky2002` | 53/53 | 26/103 | 5 | 5 | 31,712 | 41s |
+    | `spanjers2010` | 56/56 | 9/90 | 19 | 19 | 31,408 | 56s |
+    | `dekoning2009` | 200/205 | 43/125 | 124 | 71 | 51,023 | 101s |
+    | `chang-ungar1993` | 78/85 | 15/96 | 46 | 46 | 32,342 | 90s |
+    | `dragicevic2011` | 69/75 | 17/79 | 30 | 30 | 33,431 | 69s |
+
+    - `dekoning2009`는 base에 없는 124개 중 53개가 argon 자기 인용끼리 위치가 겹쳐 빠졌다.
+    - 불일치 19개는 문장 재구성(유사도 0.28–0.99)이다. `chang-ungar1993` 7개는 유사도 0.51–0.72로 여러 문장을 이어 붙이거나 바꿔 쓴 것으로 보인다.
+    - `quotes-extra.jsonl` 합계 477줄.
+  - zsh에서 `"$id:quotes-argon.md"`처럼 쓰면 `:q`가 변수 수식자로 해석되어 `<id>uotes-argon.md`가 된다. 반복문에서는 `"${id}:quotes-argon.md"`로 쓴다.
+  - 이 세션 `agy` 호출: argon medium 7회(`berney2016` + 1순위 6개). 사용자는 `agy`의 사용량을 추적할 방법을 모른다.
+  - 사용자 보고(2026-10-26, 위 7회 뒤): argon 주간 사용량 약 10%. 같은 날 `agy` argon 호출은 모두 11회(`lori2007` 3, `bbc-subtitles` 1, 이 세션 7)이므로 호출당 약 0.9%로 어림된다. 사용자 판단: 2순위도 argon으로 돌린다.
   - **다음 세션 실행 순서(사용자 동의, 2026-10-26):** 모델 배분은 "기본 flash high, 중요하거나 겹침이 낮은 출처만 argon"이다.
     1. `heer2007`, `berney2016`, `bbc-subtitles` 각각 `python3 -I tools/agy-extract.py <id> flash-high gemini-3.8-flash-high` → `python3 -I tools/verify.py <id>:quotes-flash-high.md`. 명령은 `experiments/rubric-sources` 디렉터리에서 실행한다.
     2. 출처마다 `python3 -I tools/overlap.py <id> flash-high`로 base에 안 덮인 비율을 본다. 비율이 높거나 그 출처가 기준표에서 중요하면 `agy-extract.py <id> argon gemini-4-argon-medium`을 추가한다. 중요도 기준과 "높음"의 문턱은 정해지지 않았으니 결과를 보고 사용자와 정한다.
     3. 전 출처를 같은 방식으로 돌릴지는 1·2 결과를 본 뒤 정한다. 한 호출은 입력 약 30k 토큰이고 사용자 보고 기준 argon은 한 호출에 주간 사용량의 약 1%다. flash의 주간 사용량 비율은 아직 모른다. 첫 flash 호출 뒤 사용자에게 소모율을 물어 기록한다.
-    4. 확인한 인용을 읽고 고른 뒤 `--write`로 `quotes-extra.jsonl`에 쌓는다. 같은 출처를 두 번 `--write`하면 중복 줄이 쌓이니 출처당 한 번만 실행한다(`lori2007` 24줄은 이미 쌓였다). `quotes.jsonl`에 합치는 스크립트는 아직 없다.
+    4. (위 사용자 결정으로 "읽고 고르기"는 빠졌다.) 확인한 인용을 읽고 고른 뒤 `--write`로 `quotes-extra.jsonl`에 쌓는다. 같은 출처를 두 번 `--write`하면 중복 줄이 쌓이니 출처당 한 번만 실행한다(`lori2007` 24줄은 이미 쌓였다). `quotes.jsonl`에 합치는 스크립트는 아직 없다.
     5. 이 세션에서 `agy-extract.py`가 표 규칙으로 flash 불일치를 없앴으므로, 새 출처에서 불일치가 다시 나오면 `verify-<태그>.txt`의 MISS 줄 형식부터 본다.
   - 같은 `lori2007`에서 sonnet 재추출과 Gemini의 차이(실행마다 달라지는 정도)는 재지 않았다. 위 "못 덮음" 수치에는 추출기 간 차이와 실행 간 변동이 섞여 있다.
 - 겹침 계산:
