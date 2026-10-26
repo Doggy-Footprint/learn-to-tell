@@ -1,5 +1,5 @@
 ---
-commit: da4b69c521971a882945361a6c7e7ec71d911803
+commit: 83f7583598fa036615c53fc92474ede308962646
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -230,6 +230,20 @@ commit: da4b69c521971a882945361a6c7e7ec71d911803
   - `table-fragment`: 출처를 특정할 수 없는 표 조각
 - 꼬리표 정확도는 30개를 sonnet이나 opus가 다시 판정해 확인한다.
 - 기준표의 근거로는 `own-finding`, `recommendation`, `requirement`, `definition`만 쓰는 안을 사용자와 정한다.
+- 실행(2026-10-26):
+  - 도구: `tools/context.py`. `run <model> [workers]`는 `quotes.jsonl` 통과 인용과 `quotes-extra.jsonl`(qid `extra#<줄번호>`)을 출처별 10개 묶음으로 `claude -p`에 병렬로 보낸다. 묶음 결과는 `context/<model>/<n>.json`에 캐시되어 다시 실행하면 빠진 묶음만 돈다. 결과는 `context/<model>.jsonl`(qid, origin, source, kind, tag, relevant, reason).
+  - 관련성(2)의 결과에 따라 같은 호출에서 `relevant`를 `usable`/`no` 두 값으로 함께 물었다. 프롬프트 원문은 스크립트의 `PROMPT`.
+  - 문맥은 정규화한 `text.txt`(대소문자 유지)에서 인용 앞뒤 500자. 4,374개 모두 위치를 찾았다.
+  - haiku 16 병렬, 456 묶음, 약 5.5분, `claude -p` 보고 비용 $1.03. `igenbench2026` 한 묶음이 `embedded null byte`로 실패해서 프롬프트의 제어문자를 지우게 고치고 그 묶음만 다시 돌렸다.
+  - haiku 결과(4,374개): own-finding 688, method 647, cited-work 623, table-fragment 569, hypothesis-or-intro 565, recommendation 446, requirement 432, definition 404. usable 2,596 / no 1,778.
+  - extra 656개 중 269개(41%)가 table-fragment다. base는 3,718개 중 299개(8%). usable 비율은 base 64%, extra 32%.
+  - 재판정: `context.py sample 20261026 80`(haiku 꼬리표마다 10개) → `judge-sample gpt-6.1-sol`(비용 $0.158) → `compare haiku gpt-6.1-sol`. 불일치 33개는 `context/disagree-haiku-gpt-6.1-sol.md`.
+    - tag 일치 55/80(0.69), kappa 0.64. haiku 꼬리표별 sol 일치: own-finding 10/10, method 10/10, cited-work 9/10, recommendation 8/10, hypothesis-or-intro 6/10, definition 4/10, requirement 4/10(나머지는 recommendation 3, definition 2, method 1), table-fragment 4/10(나머지 중 method 4).
+    - relevant 일치 66/80(0.82), kappa 0.59. haiku `no` 29개 중 12개를 sol은 `usable`로 봤다. 반대는 2개.
+    - "꼬리표가 위 네 가지에 드는가"로 묶으면 일치 75/80. "네 가지 꼬리표이면서 usable"로 묶으면 72/80.
+  - "네 가지 꼬리표이면서 usable"을 통과하는 인용: 1,564/4,374. base 1,457/3,718(39%), extra 107/656(16%). kind별: standard 97%, expert-rubric 66%, style-guide 58%, experiment 39%, principles 30%, benchmark 27%, meta-analysis 24%, review 17%.
+  - 네 가지 밖이지만 usable인 인용: cited-work 455(그중 review 291), hypothesis-or-intro 290(그중 principles 57), method 231, table-fragment 56.
+  - GPT 누적 비용 약 $0.27.
 
 1–3 결과로 이 데이터를 기준표 근거로 쓸지, 어떤 부분을 거를지 정한 뒤에 기초 기준표 작성과 모델 검토(argon → sol → astra → fable → opus)로 넘어간다.
 
