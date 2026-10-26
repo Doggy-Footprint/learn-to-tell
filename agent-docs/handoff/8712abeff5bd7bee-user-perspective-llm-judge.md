@@ -1,5 +1,5 @@
 ---
-commit: 83f7583598fa036615c53fc92474ede308962646
+commit: d675c2b24a0d9ae9707632130519bc65a2a75e0a
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -244,6 +244,7 @@ commit: 83f7583598fa036615c53fc92474ede308962646
   - "네 가지 꼬리표이면서 usable"을 통과하는 인용: 1,564/4,374. base 1,457/3,718(39%), extra 107/656(16%). kind별: standard 97%, expert-rubric 66%, style-guide 58%, experiment 39%, principles 30%, benchmark 27%, meta-analysis 24%, review 17%.
   - 네 가지 밖이지만 usable인 인용: cited-work 455(그중 review 291), hypothesis-or-intro 290(그중 principles 57), method 231, table-fragment 56.
   - GPT 누적 비용 약 $0.27.
+  - gist 갱신: `relevance/`, `context/`(묶음 캐시 `context/<model>/`는 제외), `tools/relevance.py`, `tools/context.py`, `ask.py` 가격 변경을 사용자가 push했다(gist `e31d2ee`).
 
 1–3 결과로 이 데이터를 기준표 근거로 쓸지, 어떤 부분을 거를지 정한 뒤에 기초 기준표 작성과 모델 검토(argon → sol → astra → fable → opus)로 넘어간다.
 
