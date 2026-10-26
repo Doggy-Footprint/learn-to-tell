@@ -1,5 +1,3 @@
-# HSH 기록 페이지: round-hsh/ 기록 → review-hsh/(index.html, d/<t>-<r>.json, s/*.html, img/*.jpg, kit/)
-# usage: python3 hsh.py --record && python3 mkhsh.py
 import base64, difflib, json, re, shutil, subprocess
 from pathlib import Path
 E = Path(__file__).resolve().parent; R = E/"round-hsh"; GAL = E/"gallery"/"hsh"; OUT = E/"review-hsh"; K = E.parents[1]/"skills/learn-to-tell/kit"

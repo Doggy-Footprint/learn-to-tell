@@ -1,6 +1,3 @@
-# HSH 실험: 스토리보드(Sonnet) → Haiku 샘플 4개 → Sonnet 방향 정리·제작 → Haiku 검수·수정, 기준선 0(Sonnet 단독). 모두 effort medium.
-# usage: python3 hsh.py <topic>[:<rep>]...   예: python3 hsh.py t1:1 / python3 hsh.py t1 t2 (반복 1–3)
-#        python3 hsh.py --record   (gallery/hsh → round-hsh 기록 복사, ledger 갱신)
 import json, shutil, sys, threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -162,7 +159,7 @@ def ablate(t, i):
         for f in fs: f.result()
     r1.log(f"{t} r{i} 절제 끝"); record()
 
-# 기록: stream.jsonl과 스크린샷은 크므로 gallery/에만 두고, round-hsh/에는 사람이 읽을 trace.md와 비용·사용량을 남긴다.
+# stream.jsonl과 스크린샷은 커서 커밋하지 않는 gallery/에만 둔다.
 STAGES = [("sb", "스토리보드", "sonnet"), *[(f"samples/{x}", f"샘플 {x}", "haiku") for x in SAMPLES], ("sonnet", "Sonnet 방향·제작", "sonnet"), ("review", "Haiku 검수·수정", "haiku"), ("zero", "기준선 0", "sonnet"),
           ("zero-review", "0 + Haiku 검수", "haiku"), ("hdir", "Haiku 방향·제작", "haiku"), ("hreview", "Haiku 검수 (Haiku 제작본)", "haiku"),
           ("sonnet2", "Sonnet 방향·제작 (샘플 2개)", "sonnet"), ("review2", "Haiku 검수 (샘플 2개본)", "haiku"),
@@ -234,7 +231,7 @@ def _record():
 if __name__ == "__main__":
     if sys.argv[1] == "--record": record(); sys.exit()
     if sys.argv[1] == "--docfix":
-        # 실험용 API.md 복사본에만 생성기 수정 후보 두 개를 넣는다(kit 원본은 그대로): hook 그림은 mount로, 시각 칸 함수는 붙기 전에 불린다.
+        # kit 원본은 고치지 않는다. 실험용 복사본에만 넣는다.
         FIX = [("| `hook` | `art`(아이콘 이름·HTML), `pre`, `text`, `sub`. 첫 장면 |",
                 "| `hook` | `art`(아이콘 이름·작은 HTML. 제목 옆 작은 자리), `pre`, `text`, `sub`. 첫 장면. 메커니즘 그림이 주인공이면 `art`가 아니라 `mount`로 무대 전체에 그린다 |"),
                ("시각 칸(`figure`, `visual`, `answerVisual`)은 HTML 문자열, 노드, 또는 `(el) => …` 함수를 받는다.",
@@ -266,7 +263,7 @@ if __name__ == "__main__":
                 except Exception as e: r1.log(f"오류 {e!r}")
         sys.exit()
     if sys.argv[1] == "--hookfix":
-        # 실험용 API.md 복사본에서만 hook 행을 고친다(kit 원본은 그대로). 기준: 같은 스토리보드의 zero가 art에 그림을 넣는 비율.
+        # kit 원본은 고치지 않는다. 실험용 복사본에만 넣는다.
         OLD = "| `hook` | `art`(아이콘 이름·HTML), `pre`, `text`, `sub`. 첫 장면 |"
         NEW = "| `hook` | `art`(아이콘 이름·작은 HTML. 제목 옆 작은 자리), `pre`, `text`, `sub`. 첫 장면. 메커니즘 그림이 주인공이면 `art`가 아니라 `mount`로 무대 전체에 그린다 |"
         def hf(t, i, n):

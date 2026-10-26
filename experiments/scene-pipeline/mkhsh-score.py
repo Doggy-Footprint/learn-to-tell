@@ -1,5 +1,3 @@
-# HSH 블라인드 채점: 반복마다 0, 0R(0 + Haiku 검수), 0RR2(검수 2회), S4(파이프라인), S4R2(S4 + 2회차 검수), HHH(Haiku 제작 + 검수)를 가–바로 섞는다.
-# usage: python3 mkhsh-score.py   → review-hsh-score/ (키는 review-key-hsh.json, 채점이 끝날 때까지 열어 보지 않는다)
 import json, random, secrets, shutil
 from pathlib import Path
 E = Path(__file__).resolve().parent; G = E/"gallery"/"hsh"; OUT = E/"review-hsh-score"; K = E.parents[1]/"skills/learn-to-tell/kit"

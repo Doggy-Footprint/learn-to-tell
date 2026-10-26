@@ -1,6 +1,3 @@
-# LLM 채점관: 같은 스토리보드의 장면 여러 개를 블라인드로 함께 보고 10점 만점을 매긴다. 사용자 점수(키워드 실험)와 맞춰 보정한다.
-# usage: python3 judge.py kw    (키워드 실험 10 shot × 원본·K·0, 사용자 점수와 상관)
-#        python3 judge.py hsh   (HSH 18회 × 0·S3·S4·0R·HHH·S4-2)
 import json, random, re, shutil, sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
