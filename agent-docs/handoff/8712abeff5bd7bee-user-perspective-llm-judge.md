@@ -291,6 +291,7 @@ commit: 6826ee5519e976ffa47c9df469eefcdf3e50515e
   - 버리는 산출물: trial 출력.
   - 실패하면 Failed Attempts에 행을 추가한다.
   - 충실도 실패라면 대안 후보가 하나 더 있다. CheckEval처럼 차원을 먼저 정하고 LLM이 항목을 늘리는 방식이다. 조사 노트 5절에 있다.
+- 조사 노트 2개(`notes/`)는 `.gitignore` 범위라 저장소에 없다. 사용자가 gist에 push했다(gist `4a60aae`).
 
 ### 전체 구조와 순서
 
