@@ -1,5 +1,5 @@
 ---
-commit: c69d6f125780a16b2e43e4699265876f259c15c3
+commit: 7f89f76d85fd8eceef396ec0eba1c64b0edcb298
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -186,6 +186,27 @@ commit: c69d6f125780a16b2e43e4699265876f259c15c3
   - 입력: 인용, 출처 제목, `kind`
 - haiku 판정 자체의 신뢰도는 20개를 사용자나 다른 모델이 다시 판정해 일치율로 확인한다. 누가 할지는 미정이다.
 - 결과: `kind`별 `yes` 비율. 기준표 근거로 쓸 인용을 거를지 정하는 데 쓴다.
+- 실행(2026-10-26, Gemini 재추출을 2순위까지 하고 3순위는 미룬 뒤. 사용자 선택):
+  - 도구: `tools/relevance.py`. `sample <seed> <n_base> <n_extra>` → `relevance/sample.jsonl`, `sample-meta.json`. `judge <model>`은 `claude -p`(도구 없음, 1 turn)를 10개 묶음으로 부르고 → `relevance/<model>.jsonl`. 프롬프트 원문은 스크립트의 `PROMPT`.
+  - 표본: seed 20261026. 기존 `quotes.jsonl` 통과 인용 50 + `quotes-extra.jsonl` 50. 각각 `kind`마다 같은 수, 나머지는 큰 `kind`에 하나씩 더(base 8종 6–7개, extra 7종 7–8개). handoff의 "kind별 층화 100개"에서 base/extra 비교를 더하려고 반씩 나눴다.
+  - haiku(`claude-haiku-5-5`) 결과, `claude -p` 보고 비용 $0.0157:
+
+    | 묶음 | n | yes | partial | no | yes 비율 |
+    | --- | --- | --- | --- | --- | --- |
+    | base | 50 | 20 | 16 | 14 | 40% |
+    | extra | 50 | 13 | 18 | 19 | 26% |
+    | standard | 6 | 4 | 1 | 1 | 67% |
+    | expert-rubric | 13 | 7 | 2 | 4 | 54% |
+    | principles | 13 | 6 | 6 | 1 | 46% |
+    | review | 14 | 6 | 2 | 6 | 43% |
+    | style-guide | 13 | 3 | 7 | 3 | 23% |
+    | benchmark | 15 | 3 | 4 | 8 | 20% |
+    | experiment | 13 | 2 | 8 | 3 | 15% |
+    | meta-analysis | 13 | 2 | 4 | 7 | 15% |
+
+  - `kind`별 n이 6–15라 비율 차이는 거칠다. haiku는 이유를 한국어로 썼다.
+  - 관찰: `heer2007`의 "Robertson et al's studies … found that …"(다른 연구 인용)이 `yes`를 받았다. 관련성 판정은 인용의 출처 성격을 거르지 않으므로 3(맥락 꼬리표)이 따로 필요하다.
+  - haiku 판정 신뢰도 확인은 아직 하지 않았다.
 
 **3. 맥락: haiku가 인용마다 꼬리표를 붙인다**
 - 대상: 통과 인용 3,718개 전부. 출처별로 묶어서 처리한다.
