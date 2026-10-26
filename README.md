@@ -101,10 +101,10 @@ site/compareN/    # skill 유무 비교 실험 결과 (로컬 서버 전용, Ver
 packages/ltt-kit/ # kit npm 패키지 (artifact 수업이 jsDelivr로 불러옴)
 .claude-plugin/   # Claude Code plugin manifest
 tests/            # node --test 기반 kit·서버·gallery 테스트
-agent-docs/adr/   # 주요 설계 결정과 기각한 대안
+agent-docs/try-n-fail/ # 시도했다가 실패한 접근과 그 근거
 ```
 
-설계 결정은 `agent-docs/adr/`에 기각한 대안과 함께 남겨 두었다. 예를 들어 v0를 폐기하고 최소 설계로 다시 쓴 이유, 정리 장면을 "그림 요약"이 아니라 "회상 질문 → 답 공개"로 둔 이유, 수업 하나의 피드백을 그 수업이 아니라 생성기(skill·kit)에서 고친다는 규칙 등이다.
+실제로 시도했다가 실패한 접근은 `agent-docs/try-n-fail/`에 실패 근거, 다시 시도할 조건과 함께 남겨 두었다. 예를 들어 v0의 버전 붙은 데이터 계약, 브라우저 진단 페이지, 수업마다 Observable Framework를 빌드한 방식 등이다.
 
 ## 설치
 
