@@ -1,5 +1,5 @@
 ---
-commit: fe9487a8fc3b92bdd1b3554122ee43874f0a5cf4
+commit: b2802428aea5e9ecb2424d2d44744f93d5d4a93d
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -245,6 +245,7 @@ commit: fe9487a8fc3b92bdd1b3554122ee43874f0a5cf4
   - 네 가지 밖이지만 usable인 인용: cited-work 455(그중 review 291), hypothesis-or-intro 290(그중 principles 57), method 231, table-fragment 56.
   - GPT 누적 비용 약 $0.27.
   - 인용을 어떻게 거를지(A: 네 꼬리표만 / B: 1차·2차 등급)는 "인용을 다음 단계에서 어디에 쓰는가"에 달려 있다(사용자). handoff에는 "LLM에게만 맡기지 않고 외부 조사를 하는 이유"가 목표(17행 "알려져 있는 평가 기준을 통해 보완")와 우선순위(19행) 외에는 적혀 있지 않다. 그래서 사용자 요청으로 중립 brief의 조사 subagent(Opus medium, `scored-web-search`)를 돌렸다. 보고 요약과 출처는 `experiments/rubric-sources/notes/2026-10-26-llm-judge-research.md`.
+    - 보고에서 VLM judge는 시간 축 손상(프레임 섞기·멈춤·역재생)에 둔감했다(NeurIPS 2026, PRIMARY). 이 계획의 3층과 진행 순서 2(측정 기반)는 원래부터 시간 축 품질을 픽셀이 아니라 구조화 데이터로 판정한다. HSH 장면 264개를 확인한 결과(2026-10-26, `grep -l` 기준): `<canvas>` 0개, 전부 d3(SVG/DOM). `requestAnimationFrame` 89개, `setTimeout`/`setInterval` 94개, CSS `transition` 85개, `@keyframes` 63개. rAF·타이머 기반 움직임은 `getAnimations()`에 잡히지 않아 위치 샘플링이 필요하다.
   - gist 갱신: `relevance/`, `context/`(묶음 캐시 `context/<model>/`는 제외), `tools/relevance.py`, `tools/context.py`, `ask.py` 가격 변경을 사용자가 push했다(gist `e31d2ee`).
 
 1–3 결과로 이 데이터를 기준표 근거로 쓸지, 어떤 부분을 거를지 정한 뒤에 기초 기준표 작성과 모델 검토(argon → sol → astra → fable → opus)로 넘어간다.
