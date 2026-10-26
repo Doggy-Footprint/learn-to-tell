@@ -8,3 +8,5 @@ tmp/
 dist/
 packages/ltt-kit/*
 !packages/ltt-kit/package.json
+node_modules
+measurements
