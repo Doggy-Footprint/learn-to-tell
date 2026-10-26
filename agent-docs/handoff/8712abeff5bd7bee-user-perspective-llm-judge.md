@@ -1,5 +1,5 @@
 ---
-commit: 23b0e352dfa8fa8fef3f6aaca0625401d1f60f00
+commit: c69d6f125780a16b2e43e4699265876f259c15c3
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -166,7 +166,7 @@ commit: 23b0e352dfa8fa8fef3f6aaca0625401d1f60f00
     - 불일치 19개는 문장 재구성이다(유사도 0.69–1.00).
     - `learnlm2024`는 base 197개 중 121개를 argon이 덮지 못했다. base가 이 출처에서 인용을 가장 많이 뽑은 출처라는 점과 함께 본다.
     - `quotes-extra.jsonl` 합계 656줄. 이 세션 argon 호출은 모두 11회.
-  - gist 갱신: 세션 scratchpad의 gist 클론에 두 번 커밋했다(새 파일, `verify.py`·`overlap.py` 변경, `quotes-extra.jsonl`). push는 Claude Code 권한 분류기가 "Public Data-Sharing Upload"로 거부해 사용자가 직접 해야 한다. push 전까지 gist는 이 세션 이전 상태다. 확인: gist의 `quotes-extra.jsonl` 줄 수가 656인지 본다.
+  - gist 갱신: 세션 scratchpad의 gist 클론에 두 번 커밋했다(새 파일, `verify.py`·`overlap.py` 변경, `quotes-extra.jsonl`). push는 Claude Code 권한 분류기가 "Public Data-Sharing Upload"로 거부해서, 사용자가 `git -C <클론> -c credential.helper='!gh auth git-credential' push`로 직접 올렸다(gist `877f501`). 확인: gist의 `quotes-extra.jsonl` 줄 수가 656인지 본다.
   - **다음 세션 실행 순서(사용자 동의, 2026-10-26):** 모델 배분은 "기본 flash high, 중요하거나 겹침이 낮은 출처만 argon"이다.
     1. `heer2007`, `berney2016`, `bbc-subtitles` 각각 `python3 -I tools/agy-extract.py <id> flash-high gemini-3.8-flash-high` → `python3 -I tools/verify.py <id>:quotes-flash-high.md`. 명령은 `experiments/rubric-sources` 디렉터리에서 실행한다.
     2. 출처마다 `python3 -I tools/overlap.py <id> flash-high`로 base에 안 덮인 비율을 본다. 비율이 높거나 그 출처가 기준표에서 중요하면 `agy-extract.py <id> argon gemini-4-argon-medium`을 추가한다. 중요도 기준과 "높음"의 문턱은 정해지지 않았으니 결과를 보고 사용자와 정한다.
