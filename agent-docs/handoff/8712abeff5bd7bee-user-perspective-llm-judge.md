@@ -1,5 +1,5 @@
 ---
-commit: 7f89f76d85fd8eceef396ec0eba1c64b0edcb298
+commit: da4b69c521971a882945361a6c7e7ec71d911803
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -206,7 +206,15 @@ commit: 7f89f76d85fd8eceef396ec0eba1c64b0edcb298
 
   - `kind`별 n이 6–15라 비율 차이는 거칠다. haiku는 이유를 한국어로 썼다.
   - 관찰: `heer2007`의 "Robertson et al's studies … found that …"(다른 연구 인용)이 `yes`를 받았다. 관련성 판정은 인용의 출처 성격을 거르지 않으므로 3(맥락 꼬리표)이 따로 필요하다.
-  - haiku 판정 신뢰도 확인은 아직 하지 않았다.
+  - haiku 판정 신뢰도 확인(사용자 선택: 다른 회사 모델 `gpt-6.1-sol`, 같은 표본 100개 전부, 같은 프롬프트):
+    - `relevance.py judge gpt-6.1-sol`은 `tools/ask.py`의 OpenAI 경로(reasoning high, background mode)를 쓴다. `ask.py` `PRICE`에 `gpt-6.1-sol` (2.0, 10.0) USD/1M을 더했다(출처: https://developers.openai.com/api/docs/models/gpt-6.1-sol, 2026-10-26 확인). 비용 $0.109.
+    - `relevance.py compare haiku gpt-6.1-sol` → 불일치 목록 `relevance/disagree-haiku-gpt-6.1-sol.md`.
+    - 세 값 일치 68/100, Cohen's kappa 0.52. 혼동표(행 haiku, 열 sol, 순서 yes/partial/no): yes 27·5·1, partial 14·13·7, no 0·5·28.
+    - 두 값으로 묶으면 일치가 올라간다: 쓸 수 있음(yes+partial) 대 no 87/100, yes 대 나머지 80/100. yes↔no로 갈린 것은 1개(`berney2016`의 iconic representation 정의; haiku yes, sol no).
+    - 불일치 32개 중 대부분은 yes와 partial의 경계다. sol은 장면에 바로 적용할 기준이 있으면 yes(예: "16 characters per line", "objects move solidly"), 특정 연구의 결과·방법이면 no로 갈랐다.
+    - sol의 묶음별 결과: base yes 22·partial 14·no 14, extra yes 19·partial 9·no 22. `kind`별 yes: expert-rubric 9/13, principles 8/13, review 7/14, experiment 6/13, style-guide 5/13, standard 3/6, benchmark 3/15, meta-analysis 0/13.
+    - 두 모델 모두 extra의 no 비율이 base보다 높다(haiku 38% 대 28%, sol 44% 대 28%). yes 비율 차이는 모델에 따라 다르다(haiku 26% 대 40%, sol 38% 대 44%).
+    - 사용자 GPT 예산 $10 중 누적 사용: 약 $0.11.
 
 **3. 맥락: haiku가 인용마다 꼬리표를 붙인다**
 - 대상: 통과 인용 3,718개 전부. 출처별로 묶어서 처리한다.
