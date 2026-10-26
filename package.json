@@ -12,5 +12,9 @@
     "check:css": "node scripts/build.mjs css --check",
     "setup:hooks": "cp scripts/git/pre-commit \"$(git rev-parse --git-common-dir)/hooks/pre-commit\""
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@stryker-mutator/core": "^10.1.1",
+    "fast-check": "^4.10.2"
+  }
 }

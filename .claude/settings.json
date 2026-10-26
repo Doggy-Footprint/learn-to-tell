@@ -65,6 +65,15 @@
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/spec_gate.py\""
           }
         ]
+      },
+      {
+        "matcher": "Bash|Read|Grep|Glob|LS|Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/telemetry_hook.py\""
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -74,6 +83,24 @@
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/skills/learn-to-tell/hooks/background_guard.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/doc_commit.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/pr_message_nudge.py\""
           }
         ]
       },
