@@ -1,0 +1,32 @@
+# stream.jsonl
+
+- 말: 작업을 시작하겠습니다. 먼저 검수 대상 파일과 기준 문서를 함께 읽습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/storyboard.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/direction.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/scene.html`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/shots/index.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/shots/scene-audit.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/refs/API.md`
+  - 도구 오류: File does not exist. Note: your current working directory is /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd.
+- Bash `ls -la /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/shots/`
+- 말: `refs/API.md`는 작업 폴더 기준 경로로 다시 읽고, 스크린샷 3장도 함께 읽겠습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/refs/API.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/shots/scene-t1s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/shots/scene-t4s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/shots/scene-t8s.jpg`
+- 말: 스토리보드, 코드, 스크린샷 3장(p=0~2)을 읽었습니다. 검수 결과를 `review.md`에 먼저 기록하겠습니다.
+- Write `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/review.md` (+1718자)
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- 말: 기준 audit은 "고침 0건"입니다. 사실 불일치(캡션)와 스토리보드 요구 열 이름(표 헤더) 두 건을 한 Edit 묶음으로 고칩니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/scene.html`
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- 말: 재감사도 고침 0건이고, 남은 것은 권고 1건(86% 축소)뿐입니다. 이제 `review.md` 끝에 고친 목록을 붙입니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r3/zero-fix-review-2nd/review.md`
+- 말: 실패 3건, 고친 항목 2건입니다. 나머지 1건(`#ltt-checks`)은 형식을 알 수 없어 고치지 않았습니다.
+
+- **고친 것 1 (사실):** 캡션 ⑥이 "힙이 16 MB에 닿아"라고 했지만 차트 꼭대기는 20 MB였습니다. "쌓인 할당이 임계(16 MB)에 닿아"로 고쳤습니다.
+- **고친 것 2 (화면):** 스냅샷 열 이름이 "크기 합"이었는데 스토리보드는 "retained size"를 요구합니다. 3곳을 고쳤습니다.
+- **미수정 (`#ltt-checks`):** `index.txt`의 checks 행은 `#ltt-checks` 요소가 없다고 표시합니다. `API.md`에는 이 요소 정의가 없어 어떤 형식이어야 하는지 알 수 없습니다. 확인이 필요합니다.
+- **확인하지 못한 부분:** 스크
+- 결과: success $0.0341 18턴 160s

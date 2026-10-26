@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점, 선도 가닥과 오카자키 절편</title>
+<script type="application/json" id="ltt-meta">{"topic": "DNA 복제 분기점", "audience": "생명과학 입문 학생", "theme": "paper", "medium": "교과서 도해", "decision": "복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .fork-art { max-width: 640px; margin: 0 auto; }
+  .fork-art svg { width: 100%; height: auto; display: block; }
+  .fork-art .dup { stroke: var(--ltt-ink); stroke-width: 3; fill: none; }
+  .fork-art .tpl { stroke: var(--ltt-ink-2); stroke-width: 3; fill: none; }
+  .fork-art .lead { stroke: var(--ltt-c1); stroke-width: 4; fill: none; stroke-linecap: round; }
+  .fork-art .lag { stroke: var(--ltt-c2); stroke-width: 4; fill: none; stroke-linecap: round; }
+  .fork-art .prim { fill: var(--ltt-c3); }
+  .fork-art .box { fill: var(--ltt-card); stroke: var(--ltt-ink); stroke-width: 1.5; }
+  .fork-art .arr { stroke: var(--ltt-ink); stroke-width: 2; fill: none; }
+  .fork-art .leader { stroke: var(--ltt-ink-2); stroke-width: 1.5; stroke-dasharray: 3 3; }
+  .fork-art .arr-hot { stroke: var(--ltt-accent); stroke-width: 2.5; fill: none; }
+  .fork-art .mk { fill: var(--ltt-ink); }
+  .fork-art .mk-hot { fill: var(--ltt-accent); }
+  .fork-art text { font-size: 13px; fill: var(--ltt-ink-2); }
+  .fork-art .lbl-lead { fill: var(--ltt-c1); font-weight: 600; }
+  .fork-art .lbl-hot { fill: var(--ltt-accent); font-weight: 600; }
+  .fork-art .lbl-mute { fill: var(--ltt-muted); }
+
+  /* 생성 순서대로 나타난다. 시간은 --d(시작), --t(그리는 시간)로 준다 */
+  .fork-art .a-fade { opacity: 0; animation: fade .5s ease var(--d, 0s) forwards; }
+  .fork-art .a-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw var(--t, .8s) ease var(--d, 0s) forwards; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .fork-art .a-fade { opacity: 1; animation: none; }
+    .fork-art .a-draw { stroke-dashoffset: 0; animation: none; }
+  }
+</style>
+</head>
+<body>
+<script>
+LTT.deck({
+  title: "DNA 복제 분기점, 선도 가닥과 오카자키 절편",
+  theme: "paper",
+  scenes: [{
+    type: "hook",
+    pre: "생물 · DNA 복제",
+    text: "분기점은 한 방향으로 열리는데, 두 새 가닥도 같은 방향으로 자랄까?",
+    sub: "DNA 중합효소는 3' 끝에만 붙일 수 있다. 그러면 반대쪽 가닥은 어떻게 만들어질까?",
+    art: `<div class="fork-art"><svg viewBox="0 0 640 340" role="img" aria-label="복제 분기점. 선도 가닥은 분기점을 따라 연속으로 자라고, 지연 가닥은 분기점 반대 방향으로 짧은 오카자키 절편이 줄지어 생긴다">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="ahh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-hot" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+
+  <line class="arr" x1="330" y1="40" x2="460" y2="40" marker-end="url(#ah)"/>
+  <text x="395" y="32" text-anchor="middle">분기점 전진 방향</text>
+
+  <path class="dup a-fade" style="--d:0s" d="M400 162 H600"/>
+  <path class="dup a-fade" style="--d:0s" d="M400 178 H600"/>
+  <text class="a-fade lbl-mute" style="--d:.6s" x="500" y="200" text-anchor="middle">닫힌 이중가닥</text>
+  <text class="a-fade" style="--d:.8s" x="610" y="157">5'</text>
+  <text class="a-fade" style="--d:.8s" x="610" y="186">3'</text>
+
+  <path class="tpl a-draw" pathLength="1" style="--d:.3s;--t:.9s" d="M400 162 L120 100"/>
+  <path class="tpl a-draw" pathLength="1" style="--d:.3s;--t:.9s" d="M400 178 L120 240"/>
+  <text class="a-fade" style="--d:.8s" x="96" y="106">3'</text>
+  <text class="a-fade" style="--d:.8s" x="96" y="244">5'</text>
+
+  <rect class="box a-fade" style="--d:1s" x="355" y="110" width="90" height="26" rx="6"/>
+  <text class="a-fade" style="--d:1s" x="400" y="127" text-anchor="middle">헬리카아제</text>
+  <line class="arr a-fade" style="--d:1s" x1="400" y1="136" x2="400" y2="158"/>
+
+  <path class="lead a-draw" pathLength="1" style="--d:1.6s;--t:1.2s" d="M388 147 L150 95"/>
+  <text class="a-fade" style="--d:1.6s" x="136" y="86">5'</text>
+  <text class="a-fade" style="--d:1.6s" x="372" y="136">3'</text>
+  <text class="a-fade lbl-lead" style="--d:1.4s" x="110" y="62">선도 가닥: 분기점 쪽으로 연속 합성</text>
+  <line class="arr a-fade" style="--d:1.4s" x1="110" y1="74" x2="190" y2="74" marker-end="url(#ah)"/>
+  <text class="a-fade" style="--d:2.4s" x="350" y="240" text-anchor="middle">DNA 중합효소</text>
+
+  <rect class="prim a-fade" style="--d:2.8s" x="185" y="232" width="10" height="10"/>
+  <path class="lag a-draw" pathLength="1" style="--d:3s;--t:.9s" d="M190 236.5 L120 252"/>
+  <text class="a-fade" style="--d:3s" x="108" y="268">3'</text>
+
+  <rect class="prim a-fade" style="--d:3.9s" x="275" y="212" width="10" height="10"/>
+  <path class="lag a-draw" pathLength="1" style="--d:4.1s;--t:.9s" d="M280 216.6 L200 234.3"/>
+
+  <rect class="prim a-fade" style="--d:5s" x="379" y="189" width="10" height="10"/>
+  <path class="lag a-draw" pathLength="1" style="--d:5.2s;--t:.9s" d="M384 193.5 L300 212.1"/>
+  <text class="a-fade" style="--d:5.2s" x="392" y="210">5'</text>
+  <text class="a-fade" style="--d:5.1s" x="415" y="218">RNA 프라이머</text>
+
+  <text class="a-fade" style="--d:6s" x="262" y="262" text-anchor="middle">오카자키 절편</text>
+
+  <line class="leader a-fade" style="--d:6.8s" x1="195" y1="200" x2="195" y2="226"/>
+  <text class="a-fade" style="--d:6.8s" x="195" y="192" text-anchor="middle">연결효소: 틈을 잇는다</text>
+
+  <line class="arr-hot a-fade" style="--d:6.3s" x1="300" y1="292" x2="150" y2="292" marker-end="url(#ahh)"/>
+  <text class="a-fade lbl-hot" style="--d:6.3s" x="225" y="314" text-anchor="middle">지연 가닥 자라는 방향 (분기점과 반대)</text>
+</svg></div>`
+  }]
+});
+</script>
+</body>
+</html>

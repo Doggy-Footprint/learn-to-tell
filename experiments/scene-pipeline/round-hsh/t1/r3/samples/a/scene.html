@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할은 가득 찬 경로를 따라 루트까지 올라간다</title>
+<script type="application/json" id="ltt-meta">{"topic": "B+tree 노드 분할", "audience": "백엔드 개발자", "theme": "blueprint", "medium": "DB 내부 구조 도해", "decision": "인덱스 설계와 페이지 크기 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .bt svg { width: 100%; height: auto; display: block; max-width: 900px; margin: 0 auto; }
+  .bt .node { opacity: 0; transition: transform .6s ease, opacity .4s ease; }
+  .bt .node.on { opacity: 1; }
+  .bt .frame { fill: var(--ltt-card); stroke: var(--ltt-line-2); stroke-width: 1.5; }
+  .bt .frame.bad { stroke: var(--ltt-bad); }
+  .bt .frame.good { stroke: var(--ltt-good); }
+  .bt .cell { fill: var(--ltt-card-2); stroke: var(--ltt-line); }
+  .bt .cell.hot { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); }
+  .bt text { fill: var(--ltt-ink); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .bt text.lab { fill: var(--ltt-accent); font-size: 12px; }
+  .bt text.hlab { fill: var(--ltt-muted); font-size: 12px; }
+  .bt text.note { fill: var(--ltt-good); font-size: 13px; }
+  .bt .edge { fill: none; stroke: var(--ltt-muted); stroke-width: 1.5; animation: bt-fade .5s ease; }
+  .bt .edge.sib { stroke: var(--ltt-accent); stroke-dasharray: 4 4; }
+  .bt marker path { fill: var(--ltt-accent); }
+  @keyframes bt-fade { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .bt .node { transition: none; }
+    .bt .edge { animation: none; }
+  }
+</style>
+</head>
+<body>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const H = 44;                       // 노드 높이
+const ROW = { 0: 40, 1: 170, 2: 300 }; // 층별 y (0: 루트, 1: 내부, 2: 잎)
+const ALL = ["L0", "L1", "L2", "L3", "L4", "N", "R", "A", "B", "NR"];
+const LEAF_ORDER = ["L0", "L1", "L2", "N", "L3", "L4"];
+
+// 단계 s에서 보이는 노드: 자리(cx), 키, 강조 키(hot), 자식(kids)
+function layout(s) {
+  const N = {};
+  const tone = s === 5 ? "good" : "";
+  const put = (id, row, cx, keys, o = {}) => {
+    const w = 16 + 30 * keys.length;
+    N[id] = { row, cx, keys, w, x: cx - w / 2, y: ROW[row], tone, ...o };
+  };
+
+  put("L0", 2, 90, [5, 12, 18]);
+  put("L1", 2, 270, [20, 25, 30, 35]);
+  put("L3", 2, 630, [60, 65, 70, 75]);
+  put("L4", 2, 810, [80, 85, 90]);
+
+  if (s === 1) {
+    put("L2", 2, 450, [40, 45, 50, 52, 55], { hot: 52 });
+  } else {
+    put("L2", 2, 390, [40, 45]);
+    put("N", 2, 500, [50, 52, 55], { hot: 50, label: "새 잎" });
+  }
+
+  if (s <= 3) {
+    const kids = s <= 2 ? ["L0", "L1", "L2", "L3", "L4"] : ["L0", "L1", "L2", "N", "L3", "L4"];
+    put("R", 0, 450, s === 3 ? [20, 40, 50, 60, 80] : [20, 40, 60, 80], { hot: s === 3 ? 50 : null, kids });
+  } else {
+    put("A", 1, 240, [20, 40], { kids: ["L0", "L1", "L2"] });
+    put("B", 1, 640, [60, 80], { kids: ["N", "L3", "L4"] });
+    put("NR", 0, 440, [50], { hot: 50, label: "새 루트", kids: ["A", "B"] });
+  }
+  return N;
+}
+
+function nodeSVG(n) {
+  const cls = n.keys.length > 4 ? "bad" : n.tone;
+  const cells = n.keys.map((k, i) =>
+    `<rect class="cell${k === n.hot ? " hot" : ""}" x="${8 + 30 * i}" y="8" width="26" height="28" rx="3"/>` +
+    `<text x="${21 + 30 * i}" y="27" text-anchor="middle">${k}</text>`).join("");
+  const lab = n.label ? `<text class="lab" x="${n.w / 2}" y="-8" text-anchor="middle">${n.label}</text>` : "";
+  return `<rect class="frame ${cls}" width="${n.w}" height="${H}" rx="6"/>${cells}${lab}`;
+}
+
+function render(svg, s) {
+  const N = layout(s);
+  for (const id of ALL) {
+    const g = svg.querySelector(`[data-id="${id}"]`);
+    const n = N[id];
+    g.classList.toggle("on", !!n);
+    if (!n) continue;
+    g.style.transform = `translate(${n.x}px, ${n.y}px)`;
+    g.innerHTML = nodeSVG(n);
+  }
+
+  // 부모-자식 선은 매번 새로 그린다(잎 연결 화살표는 아래에서)
+  const pBottom = (n) => [n.cx, n.y + H];
+  const pTop = (n) => [n.cx, n.y];
+  const edges = [];
+  for (const id of Object.keys(N)) {
+    for (const k of N[id].kids || []) {
+      const a = pBottom(N[id]), b = pTop(N[k]);
+      edges.push(`<path class="edge" d="M${a[0]} ${a[1]} L${b[0]} ${b[1]}"/>`);
+    }
+  }
+  // 잎 사이 연결: 오른쪽 형제 포인터를 아래로 휘어 잇는다
+  const leaves = LEAF_ORDER.filter((id) => N[id]);
+  for (let i = 0; i + 1 < leaves.length; i++) {
+    const a = N[leaves[i]], b = N[leaves[i + 1]];
+    const x1 = a.x + a.w - 14, x2 = b.x + 14, y = a.y + H;
+    const mx = (x1 + x2) / 2;
+    edges.push(`<path class="edge sib" marker-end="url(#bt-arr)" d="M${x1} ${y} Q${mx} ${y + 60} ${x2} ${y}"/>`);
+  }
+  svg.querySelector(".edges").innerHTML = edges.join("");
+
+  svg.querySelector(".hlab").textContent = s >= 4 ? "높이 3" : "높이 2";
+  svg.querySelector(".note").style.opacity = s === 5 ? 1 : 0;
+}
+
+let draw = () => {};
+
+const figureFn = (el) => {
+  el.className = "bt";
+  el.innerHTML = `<svg viewBox="0 0 900 400" role="img" aria-label="B+tree 노드 분할 단계 도해">
+    <defs><marker id="bt-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z"/></marker></defs>
+    <text class="hlab" x="12" y="24"></text>
+    <g class="edges"></g>
+    ${ALL.map((id) => `<g class="node" data-id="${id}"></g>`).join("")}
+    <text class="note" x="450" y="392" text-anchor="middle">모든 잎의 깊이는 3</text>
+  </svg>`;
+  const svg = el.querySelector("svg");
+  draw = (s) => render(svg, s);
+  draw(1);
+  return { el: svg };
+};
+
+const CAPS = [
+  "가득 찬 잎 [40 45 50 55]에 52를 넣으면 5키가 되어 한 잎의 용량 4를 넘는다",
+  "잎을 [40 45]와 [50 52 55]로 나누고, 새 오른쪽 잎을 만든다. 첫 키 50은 복사해서 부모로 올린다",
+  "부모인 루트도 4키로 가득 차 있어 50을 받으면 5키로 넘친다",
+  "루트를 둘로 나눈다. 가운데 50은 복사가 아니라 이동해서 맨 위에 새 루트가 된다",
+  "트리 높이가 2에서 3으로 늘었다. 층이 맨 위에 더해져 모든 잎의 깊이는 3으로 같다",
+];
+
+LTT.deck({
+  title: "분할은 가득 찬 경로를 따라 루트까지 올라가고, 루트가 갈라질 때 높이가 는다",
+  theme: "blueprint",
+  glossary: {
+    "구분 키": "부모 노드에서 자식 범위를 나누는 키. 잎에서 올라온 키다.",
+    "팬아웃": "한 노드가 가리키는 자식의 수. 페이지 크기와 키 크기로 정해진다.",
+  },
+  scenes: [{
+    type: "figure",
+    title: "가득 찬 잎에 키를 넣으면 분할이 위로 이어지고, 루트에서 높이가 늘어난다",
+    en: "B+tree node split",
+    sub: "잎이 쪼개지면 {{구분 키}} 하나가 부모로 올라간다. 부모도 가득 차 있으면 같은 일이 위로 이어진다.",
+    label: "B+tree, 페이지당 최대 4키로 줄인 예시",
+    figure: figureFn,
+    steps: CAPS.map((c, i) => ({ caption: c, enter: () => draw(i + 1) })),
+    narration: "잎은 키를 복사해서 올리고, 내부 노드는 키를 이동해서 올린다. 이 차이 때문에 잎에만 데이터가 남는다. 실제 페이지는 {{팬아웃}}이 수백이라 높이는 거의 늘지 않는다.",
+    basis: "8KB 페이지, 키와 포인터 16B 가정 → 팬아웃 약 500(근사), 3층이면 약 1.25억 키. 그림은 페이지당 4키로 줄인 예시.",
+    takeaway: "분할은 가득 찬 경로를 따라 루트까지 올라가고, 루트가 갈라질 때만 트리 높이가 1 늘어난다.",
+    recall: "잎을 나눌 때는 구분 키를 복사하고, 내부 노드를 나눌 때는 키를 이동하는 이유는?",
+  }],
+});
+</script>
+</body>
+</html>

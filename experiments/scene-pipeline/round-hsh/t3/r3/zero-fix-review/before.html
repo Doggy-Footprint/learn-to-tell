@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의</title>
+<script type="application/json" id="ltt-meta">{"topic":"Raft 합의","audience":"분산 시스템 입문 개발자","theme":"sketch","medium":"아키텍처 화이트보드","decision":"합의 기반 저장소 선택"}</script>
+<style>
+  .raft { display: grid; gap: 10px; }
+  .raft svg { width: 100%; height: auto; display: block; }
+  .raft text { fill: var(--ltt-ink); font-family: inherit; }
+  .raft .dim { fill: var(--ltt-muted); }
+  .raft .n-f { fill: var(--ltt-card); stroke: var(--ltt-ink); stroke-width: 2; }
+  .raft .n-c { fill: var(--ltt-warn-soft); stroke: var(--ltt-warn); stroke-width: 3; }
+  .raft .n-l { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); stroke-width: 5; }
+  .raft .n-d { fill: var(--ltt-card-2); stroke: var(--ltt-muted); stroke-width: 2; stroke-dasharray: 4 4; }
+  .raft .c0 { fill: none; stroke: var(--ltt-line-2); stroke-dasharray: 4 4; stroke-width: 2; }
+  .raft .c1 { fill: var(--ltt-card); stroke: var(--ltt-warn); stroke-dasharray: 6 3; stroke-width: 2.5; }
+  .raft .c2 { fill: var(--ltt-warn-soft); stroke: var(--ltt-warn); stroke-width: 2.5; }
+  .raft .c3 { fill: var(--ltt-good-soft); stroke: var(--ltt-good); stroke-width: 2.5; }
+  .raft .node, .raft .cell { transition: opacity .3s; }
+  .raft .gone { opacity: .45; }
+  .raft .bar { fill: var(--ltt-good); transition: transform .4s; }
+  .raft .timer { fill: var(--ltt-warn); transition: width 1.4s linear; }
+  .raft .pip { fill: var(--ltt-card); stroke: var(--ltt-ink); stroke-width: 2; transition: fill .3s; }
+  .raft .pip.on { fill: var(--ltt-accent); }
+  .raft .path { fill: none; stroke: var(--ltt-ink-2); stroke-width: 1.5; stroke-dasharray: 5 5; opacity: .55; }
+  .raft .pkt { fill: var(--ltt-accent); stroke: var(--ltt-card); stroke-width: 2; }
+  .raft .no { fill: var(--ltt-bad); font-weight: 700; }
+  .raft .cap { min-height: 3.2em; font-size: 1.05rem; color: var(--ltt-ink-2); }
+  .raft .cap b { color: var(--ltt-ink); }
+</style>
+</head>
+<body>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const mk = (p, t, a = {}, txt) => { const e = document.createElementNS(SVGNS, t); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; if (p) p.appendChild(e); return e; };
+const majority = (n) => Math.floor(n / 2) + 1;
+const Y = (i) => 110 + i * 85, CELLX = 300, CELLW = 90;
+const ROLE = { f: "팔로워", c: "후보", l: "리더", d: "다운" };
+const T = (ms) => (LTT.MOTION_MS === 0 ? 0 : ms);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const st = (t, r, c, m, tally, timer) => ({ t, r, c, m, tally, timer });
+const F5 = ["f", "f", "f", "f", "f"];
+const S = [
+  st([1, 1, 1, 1, 1], F5, [0, 0, 0, 0, 0], [1, 1, 1, 1, 1], null, [55, 100, 35, 70, 25]),
+  st([1, 2, 2, 2, 1], ["f", "c", "f", "f", "f"], [0, 0, 0, 0, 0], [1, 1, 1, 1, 1], { label: "받은 표", n: 1 }),
+  st([1, 2, 2, 2, 1], ["f", "l", "f", "f", "f"], [0, 0, 0, 0, 0], [1, 1, 1, 1, 1], { label: "받은 표", n: 3 }),
+  st([1, 2, 2, 2, 1], ["f", "l", "f", "f", "f"], [0, 1, 0, 0, 0], [1, 1, 1, 1, 1], null),
+  st([1, 2, 2, 2, 1], ["f", "l", "f", "f", "f"], [0, 1, 2, 0, 0], [1, 1, 1, 1, 1], { label: "저장한 노드", n: 2 }),
+  st([1, 2, 2, 2, 1], ["f", "l", "f", "f", "f"], [0, 3, 2, 2, 0], [1, 2, 1, 1, 1], { label: "저장한 노드", n: 3 }),
+  st([2, 2, 2, 2, 1], ["f", "l", "f", "f", "f"], [3, 3, 3, 3, 0], [2, 2, 2, 2, 1], null),
+  st([3, 2, 3, 3, 3], ["f", "d", "l", "f", "f"], [3, 3, 3, 3, 0], [2, 2, 2, 2, 1], { label: "받은 표", n: 3 }),
+];
+S[0].timer = [55, 100, 35, 70, 25];
+const CAP = [
+  "<b>① 리더의 heartbeat가 끊겼다.</b> 팔로워마다 election timeout이 다르다. N2의 타이머가 가장 먼저 찬다.",
+  "<b>② N2가 후보가 된다.</b> 투표를 요청하기 전에 term을 1 올려 2로 만든다. 요청을 받은 N3·N4도 term 2로 올라간다.",
+  "<b>③ 표 3개 = 5개 중 과반수.</b> 자기 표와 N3·N4의 표로 N2가 term 2의 리더가 된다. 노드는 term마다 한 표만 주므로 리더는 한 명이다.",
+  "<b>④ 쓰기 x=7이 리더에 닿는다.</b> 리더는 자기 로그에 먼저 적는다. 아직 N2 한 곳뿐이라 미커밋이다. 여기서 죽으면 항목은 사라지고, 클라이언트는 ack를 받지 못했으니 모순도 없다.",
+  "<b>⑤ AppendEntries로 복제한다.</b> N3가 저장하고 답한다. 리더 포함 2개라 아직 과반수가 아니다. N4·N1 쪽 메시지는 아직 가는 중이고 N5는 닿지 않는다.",
+  "<b>⑥ 세 번째 저장이 확인되는 순간 커밋이다.</b> 3개 = 과반수라서 리더가 commitIndex를 2로 올리고, 그다음에야 클라이언트에 ack를 보낸다. 팔로워의 칸은 아직 노란색이다.",
+  "<b>⑦ 다음 heartbeat로 팔로워도 따라간다.</b> commitIndex 2가 실려 가서 N3·N4가 한 박자 늦게 커밋 처리하고, 늦은 N1도 항목을 받는다. N5는 계속 뒤처져 있다.",
+  "<b>⑧ 리더 N2가 죽어도 커밋 항목은 남는다.</b> 로그가 짧은 N5는 표를 얻지 못한다. 최신 로그를 가진 N3가 term 3의 리더가 된다. 3대가 같은 항목을 가지므로 2대가 죽어도 데이터는 안전하다.",
+];
+
+function figure(el) {
+  const root = el.appendChild(document.createElement("div"));
+  root.className = "raft";
+  const svg = mk(null, "svg", { viewBox: "0 0 960 530", role: "img", "aria-label": "Raft 노드 5개의 리더 선출과 로그 복제" });
+  root.appendChild(svg);
+  const cap = root.appendChild(document.createElement("div")); cap.className = "cap";
+
+  // 정적 요소: 노드 5개, 노드마다 로그 칸 2개, 커밋 경계
+  const nd = [];
+  for (let i = 0; i < 5; i++) {
+    const y = Y(i);
+    const g = mk(svg, "g", { class: "node" });
+    const timerBg = mk(g, "rect", { x: 130, y: y - 4, width: 110, height: 8, rx: 4, fill: "none", stroke: "var(--ltt-line-2)" });
+    const timer = mk(g, "rect", { class: "timer", x: 130, y: y - 4, width: 0, height: 8, rx: 4 });
+    const timerTx = mk(g, "text", { x: 130, y: y - 12, "font-size": 12, class: "dim" }, "");
+    const circ = mk(g, "circle", { cx: 70, cy: y, r: 26, class: "n-f" });
+    mk(g, "text", { x: 70, y: y + 6, "text-anchor": "middle", "font-size": 17, "font-weight": 700 }, "N" + (i + 1));
+    const x1 = mk(g, "path", { d: `M54 ${y - 16} L86 ${y + 16} M86 ${y - 16} L54 ${y + 16}`, stroke: "var(--ltt-bad)", "stroke-width": 4, fill: "none", opacity: 0 });
+    const role = mk(g, "text", { x: 70, y: y + 46, "text-anchor": "middle", "font-size": 13 }, "");
+    const cells = [];
+    for (let k = 0; k < 2; k++) {
+      const cg = mk(svg, "g", { class: "cell" });
+      const r = mk(cg, "rect", { x: CELLX + k * 100, y: y - 28, width: CELLW, height: 52, rx: 8, class: "c0" });
+      const a = mk(cg, "text", { x: CELLX + k * 100 + CELLW / 2, y: y - 8, "text-anchor": "middle", "font-size": 12 }, "");
+      const b = mk(cg, "text", { x: CELLX + k * 100 + CELLW / 2, y: y + 12, "text-anchor": "middle", "font-size": 16, "font-weight": 700 }, "");
+      cells.push({ g: cg, r, a, b });
+    }
+    const bar = mk(svg, "rect", { class: "bar", x: CELLX - 8, y: y - 32, width: 5, height: 60, rx: 2 });
+    const ctx = mk(svg, "text", { x: 600, y: y + 6, "font-size": 13, class: "dim" }, "");
+    nd.push({ g, circ, x1, role, cells, bar, ctx, timer, timerTx, timerBg });
+  }
+  mk(svg, "text", { x: CELLX, y: 62, "font-size": 12, class: "dim", opacity: 0 }, "");
+  // 클라이언트
+  const cl = mk(svg, "g");
+  mk(cl, "rect", { x: 780, y: Y(1) - 24, width: 130, height: 48, rx: 10, fill: "var(--ltt-card)", stroke: "var(--ltt-ink)", "stroke-width": 2 });
+  mk(cl, "text", { x: 845, y: Y(1) + 6, "text-anchor": "middle", "font-size": 15, "font-weight": 700 }, "클라이언트");
+  // 합계 위젯
+  const tg = mk(svg, "g", { opacity: 0 });
+  const tlabel = mk(tg, "text", { x: 300, y: 40, "font-size": 16, "font-weight": 700 }, "");
+  const pips = [];
+  for (let i = 0; i < 5; i++) pips.push(mk(tg, "rect", { class: "pip", x: 450 + i * 34, y: 24, width: 26, height: 26, rx: 5 }));
+  const tsum = mk(tg, "text", { x: 640, y: 43, "font-size": 16 }, "");
+  // 범례
+  const lg = mk(svg, "g");
+  [["c1", "리더만 가짐 (미커밋)"], ["c2", "저장됨 (미커밋)"], ["c3", "커밋"]].forEach(([c, t], i) => {
+    mk(lg, "rect", { x: 300 + i * 190, y: 508, width: 22, height: 14, rx: 3, class: c });
+    mk(lg, "text", { x: 330 + i * 190, y: 520, "font-size": 12, class: "dim" }, t);
+  });
+  mk(lg, "text", { x: 880, y: 520, "font-size": 12, class: "dim", "text-anchor": "end" }, "칸 위: #index · term");
+  const layer = mk(svg, "g");
+
+  let cur = S[0], token = 0;
+  function render(s) {
+    cur = s;
+    for (let i = 0; i < 5; i++) {
+      const n = nd[i], dead = s.r[i] === "d";
+      n.circ.setAttribute("class", "n-" + s.r[i]);
+      n.x1.setAttribute("opacity", dead ? 1 : 0);
+      n.role.textContent = `term ${s.t[i]} · ${ROLE[s.r[i]]}`;
+      n.g.classList.toggle("gone", dead);
+      n.cells.forEach((c) => c.g.classList.toggle("gone", dead));
+      const c1 = n.cells[0], c2 = n.cells[1];
+      c1.r.setAttribute("class", "c3"); c1.a.textContent = "#1 · t1"; c1.b.textContent = "a=1";
+      const k = s.c[i];
+      c2.r.setAttribute("class", "c" + k);
+      c2.a.textContent = k ? "#2 · t2" : ""; c2.b.textContent = k ? "x=7" : "";
+      n.bar.style.transform = `translateX(${(s.m[i] - 1) * 100 + 0}px)`;
+      n.bar.setAttribute("x", CELLX + 98 - 6 + 0 - 98 + 98 - 98 + 0 + 0);
+      n.bar.setAttribute("x", CELLX + s.m[i] * 100 - 10);
+      n.bar.style.transform = "none";
+      n.ctx.textContent = `commitIndex ${s.m[i]}`;
+      if (s.timer) { n.timer.style.width = s.timer[i] * 1.1 + "px"; n.timerTx.textContent = s.timer[i] >= 100 ? "timeout 만료" : "timeout"; n.timerBg.setAttribute("opacity", 1); }
+      else { n.timer.style.width = "0px"; n.timerTx.textContent = ""; n.timerBg.setAttribute("opacity", 0); }
+    }
+    tg.setAttribute("opacity", s.tally ? 1 : 0);
+    if (s.tally) {
+      tlabel.textContent = s.tally.label;
+      pips.forEach((p, i) => p.classList.toggle("on", i < s.tally.n));
+      tsum.textContent = `${s.tally.n}/5` + (s.tally.n >= majority(5) ? `  ≥ 과반수 ${majority(5)}` : `  (과반수 ${majority(5)} 필요)`);
+    }
+  }
+  const patch = (p) => render({ ...cur, ...p });
+
+  // 메시지: 노드 i의 오른쪽 가장자리에서 j로 굽은 선을 따라 점이 움직인다
+  function pkt(i, j, o = {}) {
+    const my = token;
+    const { label = "", ms = 800, upto = 1, no = false, off = 0 } = o;
+    const d = 40 + Math.abs(i - j) * 26 + off;
+    const pd = `M98 ${Y(i)} C${98 + d} ${Y(i)} ${98 + d} ${Y(j)} 98 ${Y(j)}`;
+    const p = mk(layer, "path", { class: "path", d: pd });
+    const len = p.getTotalLength();
+    const mid = p.getPointAtLength(len / 2);
+    if (label) mk(layer, "text", { x: mid.x + 8, y: mid.y - 4, "font-size": 12, "font-weight": 700, "paint-order": "stroke", stroke: "var(--ltt-card)", "stroke-width": 4 }, label);
+    const dot = mk(layer, "circle", { class: "pkt", r: 7 });
+    const end = len * upto;
+    return new Promise((res) => {
+      const dur = T(ms) * upto, t0 = performance.now();
+      const done = () => {
+        const q = p.getPointAtLength(end);
+        if (no) mk(layer, "text", { class: "no", x: q.x + 6, y: q.y + 6, "font-size": 22 }, "✕");
+        dot.remove(); res();
+      };
+      if (dur === 0) return done();
+      const tick = (now) => {
+        if (my !== token) { dot.remove(); return res(); }
+        const u = Math.min(1, (now - t0) / dur), q = p.getPointAtLength(end * u);
+        dot.setAttribute("cx", q.x); dot.setAttribute("cy", q.y);
+        u < 1 ? requestAnimationFrame(tick) : done();
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+  function clientPkt(toClient, label) {
+    const my = token, y = Y(1);
+    const a = toClient ? 720 : 770, b = toClient ? 770 : 640;
+    mk(layer, "path", { class: "path", d: `M${a} ${y} L${b} ${y}` });
+    mk(layer, "text", { x: 640, y: y - 14, "font-size": 12, "font-weight": 700 }, label);
+    const dot = mk(layer, "circle", { class: "pkt", r: 7, cx: a, cy: y });
+    return new Promise((res) => {
+      const dur = T(700), t0 = performance.now();
+      if (dur === 0) { dot.remove(); return res(); }
+      const tick = (now) => {
+        if (my !== token) { dot.remove(); return res(); }
+        const u = Math.min(1, (now - t0) / dur);
+        dot.setAttribute("cx", a + (b - a) * u);
+        u < 1 ? requestAnimationFrame(tick) : (dot.remove(), res());
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+  const alive = (my) => my === token;
+
+  const scripts = [
+    async (my) => {
+      render({ ...S[0], timer: [10, 10, 10, 10, 10] });
+      await sleep(T(60)); if (!alive(my)) return;
+      render(S[0]);
+    },
+    async (my) => {
+      render({ ...S[0], timer: null });
+      await sleep(T(250)); if (!alive(my)) return;
+      render({ ...S[0], timer: null, t: [1, 2, 1, 1, 1], r: ["f", "c", "f", "f", "f"], tally: S[1].tally });
+      await sleep(T(450)); if (!alive(my)) return;
+      await Promise.all([pkt(1, 0, { label: "표 요청 t2", ms: 1500, upto: 0.45 }), pkt(1, 2, { label: "표 요청 t2" }).then(() => alive(my) && patch({ t: [1, 2, 2, 1, 1] })),
+        pkt(1, 3, { ms: 900 }).then(() => alive(my) && patch({ t: [1, 2, 2, 2, 1] })), pkt(1, 4, { ms: 1500, upto: 0.45 })]);
+      if (alive(my)) render(S[1]);
+    },
+    async (my) => {
+      render(S[1]);
+      await sleep(T(250)); if (!alive(my)) return;
+      await pkt(2, 1, { label: "찬성", off: 16 }); if (!alive(my)) return;
+      patch({ tally: { label: "받은 표", n: 2 } });
+      await pkt(3, 1, { label: "찬성", off: 16 }); if (!alive(my)) return;
+      patch({ tally: { label: "받은 표", n: 3 } });
+      await sleep(T(450)); if (!alive(my)) return;
+      render(S[2]);
+    },
+    async (my) => {
+      render(S[2]);
+      await sleep(T(200)); if (!alive(my)) return;
+      await clientPkt(false, "쓰기 x=7"); if (!alive(my)) return;
+      render(S[3]);
+    },
+    async (my) => {
+      render(S[3]);
+      await sleep(T(200)); if (!alive(my)) return;
+      await Promise.all([pkt(1, 2, { label: "AppendEntries", ms: 800 }), pkt(1, 3, { ms: 2400, upto: 0.5 }), pkt(1, 0, { ms: 2600, upto: 0.4 }), pkt(1, 4, { ms: 1500, upto: 0.5, no: true })]);
+      if (!alive(my)) return;
+      patch({ c: [0, 1, 2, 0, 0] });
+      await pkt(2, 1, { label: "저장함", off: 16, ms: 600 }); if (!alive(my)) return;
+      render(S[4]);
+    },
+    async (my) => {
+      render(S[4]);
+      await sleep(T(200)); if (!alive(my)) return;
+      await pkt(1, 3, { label: "AppendEntries", ms: 1000 }); if (!alive(my)) return;
+      patch({ c: [0, 1, 2, 2, 0] });
+      await pkt(3, 1, { label: "저장함", off: 16, ms: 600 }); if (!alive(my)) return;
+      patch({ tally: { label: "저장한 노드", n: 3 } });
+      await sleep(T(600)); if (!alive(my)) return;
+      render(S[5]);
+      await sleep(T(500)); if (!alive(my)) return;
+      await clientPkt(true, "ack");
+    },
+    async (my) => {
+      render(S[5]);
+      await sleep(T(250)); if (!alive(my)) return;
+      await Promise.all([pkt(1, 2, { label: "heartbeat", ms: 800 }), pkt(1, 3, { ms: 800 }), pkt(1, 0, { ms: 1000 }), pkt(1, 4, { ms: 1500, upto: 0.5, no: true })]);
+      if (!alive(my)) return;
+      render(S[6]);
+    },
+    async (my) => {
+      render(S[6]);
+      await sleep(T(250)); if (!alive(my)) return;
+      patch({ r: ["f", "d", "f", "f", "f"] });
+      await sleep(T(700)); if (!alive(my)) return;
+      patch({ t: [2, 2, 2, 2, 3], r: ["f", "d", "f", "f", "c"] });
+      await Promise.all([pkt(4, 2, { label: "표 요청 t3", ms: 900 }), pkt(4, 3, { ms: 900 })]);
+      if (!alive(my)) return;
+      await Promise.all([pkt(2, 4, { label: "거절: 로그가 뒤짐", off: 16, ms: 800, no: true, upto: 0.9 })]);
+      if (!alive(my)) return;
+      layer.replaceChildren();
+      patch({ t: [2, 2, 3, 2, 3], r: ["f", "d", "c", "f", "c"] });
+      await Promise.all([pkt(2, 0, { label: "표 요청 t3" }), pkt(2, 3, { ms: 800 })]);
+      if (!alive(my)) return;
+      await pkt(3, 2, { label: "찬성", off: 16, ms: 600 }); if (!alive(my)) return;
+      patch({ tally: { label: "받은 표", n: 3 } });
+      await sleep(T(400)); if (!alive(my)) return;
+      render(S[7]);
+    },
+  ];
+
+  render(S[0]);
+  const steps = CAP.map((c, k) => ({
+    caption: c,
+    hold: [3200, 4200, 4400, 4600, 4600, 5000, 4400, 5600][k],
+    enter() { token++; layer.replaceChildren(); cap.innerHTML = c; scripts[k](token); },
+  }));
+  const ctl = root.appendChild(document.createElement("div"));
+  LTT.stepper(ctl, steps);
+  return { el: root };
+}
+
+LTT.deck({
+  title: "Raft 합의",
+  theme: "sketch",
+  glossary: {
+    "term": "리더 임기의 번호. 후보가 되는 순간 1 올라가고, 노드는 term마다 한 표만 준다.",
+    "과반수": "N개 중 floor(N/2)+1개. 5개면 3개. 이만큼이 저장하거나 투표해야 커밋·당선이 된다.",
+  },
+  scenes: [{
+    type: "overview",
+    title: "Raft는 과반수 3대에 저장된 항목만 커밋한다",
+    en: "Raft: leader election and log replication",
+    kicker: "분산 시스템 · 합의",
+    sub: "노드 5개의 로그 칸과 {{term}}을 따라 읽는다. 노란 칸은 저장만 된 것, 초록 칸은 {{과반수}}가 저장해 커밋된 것이다.",
+    figure,
+    label: "단계를 넘기며 선출 → 복제 → 커밋 → 리더 장애 순서로 본다",
+    caption: "쓰기마다 과반수 왕복 지연을 치르는 대신, 5대 중 2대가 죽어도 커밋된 데이터는 사라지지 않는다. 합의 기반 저장소를 고르는 이유다.",
+    takeaway: "과반수가 투표한 리더 한 명만 쓰고, 과반수에 복제된 항목만 커밋하므로 노드가 죽어도 커밋된 데이터는 남는다.",
+    recall: "5노드에서 리더 포함 몇 개가 저장해야 커밋되고, 몇 대까지 죽어도 괜찮은가?",
+  }],
+});
+LTT.expect("5노드 과반수", majority(5), 3);
+LTT.expect("5노드 허용 장애", 5 - majority(5), 2);
+</script>
+</body>
+</html>

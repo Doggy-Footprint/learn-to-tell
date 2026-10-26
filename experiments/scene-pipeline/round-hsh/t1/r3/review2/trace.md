@@ -1,0 +1,31 @@
+# stream.jsonl
+
+- 말: 검수 대상과 근거 파일을 먼저 한 번에 읽겠습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/storyboard.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/direction.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/scene.html`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/shots/index.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/shots/scene-audit.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/refs/API.md`
+- 말: 스토리보드, 방향, 장면 코드, 참조를 읽었습니다. 이제 `shots/index.txt`에 적힌 스크린샷 8장을 한꺼번에 읽습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/shots/scene-t1s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/shots/scene-t4s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/shots/scene-t8s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/shots/scene-step1.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/shots/scene-step2.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/shots/scene-step3.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/shots/scene-step4.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/shots/scene-step5.jpg`
+- 말: 스크린샷 8장과 코드를 대조했습니다. 사실 점검표와 생성 순서는 맞지만, 화면 결함 4건을 확인했습니다. 고치기 전에 `review.md`를 먼저 씁니다.
+- Write `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/review.md` (+1968자)
+- 말: `review.md`를 썼습니다. 실패 4건은 모두 `scene.html`의 노드 생성 방식과 라벨 위치에서 나옵니다. 아래 Edit 묶음으로 한 번에 반영합니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/scene.html`
+- 말: Edit를 모두 반영했습니다. 이제 지정된 명령으로 audit을 실행합니다.
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- 말: audit은 고침 0건으로 통과했습니다. 마지막으로 `review.md` 끝에 `## 고친 것`을 붙입니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t1/r3/review2/review.md`
+- 말: 실패 항목 4개, 고친 항목 4개입니다. audit은 고침 0건으로 통과했습니다. 움직임 관련 수정(출발점 지정)은 코드로만 확인했고 스크린샷을 다시 찍지는 않았습니다.
+- 결과: success $0.0324 22턴 151s

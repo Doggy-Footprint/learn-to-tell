@@ -1,0 +1,11 @@
+## 1440x900
+  권고 장면1 shrunk: 화면에 맞추느라 78%로 줄었다. 글을 줄이거나 장면을 나눌 것
+  고침 lint predict-new-term: predict 질문에서 처음 나온 용어 'cwnd' (앞 장면에서 풀이할 것)
+  고침 lint predict-new-term: predict 질문에서 처음 나온 용어 'MSS' (앞 장면에서 풀이할 것)
+  권고 lint no-signature: 그림이 주인공인 장면(figure, contrast, layout:"full", mount)이 없다
+## 1280x800
+  권고 장면1 shrunk: 화면에 맞추느라 78%로 줄었다. 글을 줄이거나 장면을 나눌 것
+  고침 lint predict-new-term: predict 질문에서 처음 나온 용어 'cwnd' (앞 장면에서 풀이할 것)
+  고침 lint predict-new-term: predict 질문에서 처음 나온 용어 'MSS' (앞 장면에서 풀이할 것)
+  권고 lint no-signature: 그림이 주인공인 장면(figure, contrast, layout:"full", mount)이 없다
+고침 4건

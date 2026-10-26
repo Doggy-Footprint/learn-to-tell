@@ -1,0 +1,32 @@
+# stream.jsonl
+
+- Bash `ls -R shots/ 2>/dev/null | head -100; echo "---"; ls`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/storyboard.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/direction.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/scene.html`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/shots/index.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/shots/scene-audit.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/refs/API.md`
+  - 도구 오류: File does not exist. Note: your current working directory is /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/refs/API.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/shots/scene-t1s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/shots/scene-t4s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/shots/scene-t8s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/shots/scene-step1.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/shots/scene-step2.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/shots/scene-step3.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/shots/scene-step4.jpg`
+- Write `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/review.md` (+1831자)
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/scene.html`
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-fix-review/review.md`
+- 말: 실패 3개, 고친 항목 3개입니다 (`review.md` 참고). 고친 뒤 audit은 두 해상도 모두 고침 0건입니다. audit은 이 세 결함을 잡지 못했고, 화면 검수로 찾았습니다.
+
+- 겹침 `.next`: 라벨을 호 아래로 내렸습니다.
+- 겹침 `rc=N`: A의 카운트 라벨을 `.prev` 화살촉에서 떼어 놓았습니다.
+- 빈 프레임: 스냅샷 패널이 step 3부터 나타나도록 했습니다.
+- 결과: success $0.0275 24턴 122s

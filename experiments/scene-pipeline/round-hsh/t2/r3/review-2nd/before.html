@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어: 손실 뒤 cwnd</title>
+<script type="application/json" id="ltt-meta">{"topic": "TCP 혼잡 제어", "audience": "백엔드·네트워크 개발자", "theme": "lab", "medium": "cwnd 시계열 플롯", "decision": "전송 처리량 문제 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+// 가정: Reno, MSS 1,460 B, RTT 100 ms, 초기 ssthresh 32 MSS, 3 중복 ACK 손실.
+const MSS = 1460, RTT = 0.1, PEAK = 32, END = 40;
+// 0.1 RTT 간격 시뮬레이션. 점마다 [t, cwnd, 구간]. 손실 순간에는 같은 t에 32와 16을 둬 수직 하락이 된다.
+function simulate() {
+  const pts = [[0, 1, "ss"]], losses = [];
+  let c = 1, mode = "ss";
+  for (let i = 1; i <= END * 10; i++) {
+    const t = i / 10;
+    c = mode === "ss" ? c * 2 ** 0.1 : c + 0.1;
+    if (c >= PEAK - 0.01) {
+      pts.push([t, PEAK, mode]);
+      losses.push(t);
+      c = PEAK / 2; mode = "ca";
+      pts.push([t, c, "ca"]);
+    } else pts.push([t, c, mode]);
+  }
+  return { pts, losses };
+}
+const SIM = simulate();
+const T1 = SIM.losses[0]; // 첫 손실 시각(5 RTT)
+
+const plotOpts = {
+  width: 640, height: 260, x: [0, END], y: [0, 36],
+  labels: { x: "시간 (RTT)", y: "cwnd (MSS)" },
+  series: [
+    { id: "ss", color: "var(--ltt-c1)" },
+    { id: "ca", color: "var(--ltt-accent)" },
+    { id: "ssth", color: "var(--ltt-muted)", dash: true },
+    { id: "loss", k: "bad", dot: true },
+  ],
+};
+
+// 시각 T까지의 상태만 그린다. 손실 점과 ssthresh 선은 손실 시각이 지난 뒤에만 생긴다.
+function drawUntil(plot, T, withSsth) {
+  // 손실 시각의 하락 점(16)은 답을 공개할 때만 그린다. 예측 단계에서는 32 점까지만 보인다.
+  const upto = SIM.pts.filter((p) => p[0] < T || (p[0] === T && (withSsth || p[2] !== "ca")));
+  plot.set("ss", upto.filter((p) => p[2] === "ss").map((p) => [p[0], p[1]]));
+  const ca = [];
+  upto.forEach((p, i) => {
+    if (p[2] === "ca") {
+      // 하락 직전의 32 점에서 이어 그린다
+      if (!ca.length || upto[i - 1][2] !== "ca") ca.push([upto[i - 1][0], upto[i - 1][1]]);
+      ca.push([p[0], p[1]]);
+    }
+  });
+  plot.set("ca", ca);
+  const seen = SIM.losses.filter((t) => t <= T);
+  plot.set("loss", seen.map((t) => [t, PEAK]));
+  if (withSsth && T >= T1) plot.set("ssth", [[T1, PEAK / 2], [T, PEAK / 2]]);
+}
+
+// 한 번의 재생으로 시간순 그리기. 모션이 꺼져 있으면 최종 상태.
+function play(plot, last, ms, withSsth) {
+  if (!LTT.MOTION_MS) { drawUntil(plot, last, withSsth); return; }
+  const t0 = performance.now();
+  const step = (now) => {
+    const T = Math.min(last, ((now - t0) / ms) * last);
+    drawUntil(plot, T, withSsth);
+    if (T < last && plot.__alive !== false) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+const legend = (host, text) => {
+  const p = document.createElement("p");
+  p.className = "ltt-basis";
+  p.innerHTML = text;
+  host.appendChild(p);
+};
+
+LTT.expect("cwnd 32 처리량(bps)", PEAK * MSS * 8 / RTT, 3737600, { tol: 1 });
+LTT.expect("cwnd 16 처리량(bps)", 16 * MSS * 8 / RTT, 1868800, { tol: 1 });
+LTT.expect("톱니 평균 처리량(bps)", 24 * MSS * 8 / RTT, 2803200, { tol: 1 });
+LTT.expect("첫 손실 시각(RTT)", T1, 5, { tol: 0.15 });
+
+LTT.deck({
+  title: "TCP 혼잡 제어: 손실 뒤 cwnd",
+  theme: "lab",
+  glossary: {
+    ssthresh: "지수 증가(slow start)를 끝내고 선형 증가로 넘어가는 임계값. 손실이 나는 순간 cwnd÷2로 정해진다",
+  },
+  scenes: [{
+    type: "predict",
+    kicker: "네트워크 · TCP 혼잡 제어",
+    title: "손실이 나면 보낼 수 있는 양은 어디로 떨어질까",
+    sub: "가로는 시간(RTT), 세로는 보낼 수 있는 양(혼잡 창 cwnd, MSS 단위). 1 MSS에서 RTT마다 2배로 오른다.",
+    question: "32 MSS에서 큐가 차서 패킷이 버려졌고, 송신자는 중복 ACK 3개로 알아챘다. 손실 직후 한 번에 보낼 수 있는 양은?",
+    choices: [
+      { id: "1", text: "1 MSS (처음부터)" },
+      { id: "16", text: "16 MSS (절반)" },
+      { id: "32", text: "32 MSS (그대로)" },
+    ],
+    answer: "16",
+    visual: () => {
+      const host = document.createElement("div");
+      host.append(LTT.facts([
+        { icon: "ruler", value: "1,460 B", label: "MSS 한 패킷" },
+        { icon: "timer", value: "100 ms", label: "RTT" },
+        { icon: "alert", value: "중복 ACK 3개", label: "손실 신호" },
+      ]));
+      const box = document.createElement("div");
+      host.append(box);
+      const plot = LTT.axisPlot(box, plotOpts);
+      play(plot, T1, 1800, false);
+      legend(host, "손실 점까지만 보인다. 이 뒤의 곡선을 먼저 그려 본다.");
+      return host;
+    },
+    answerVisual: () => {
+      const host = document.createElement("div");
+      const box = document.createElement("div");
+      host.append(box);
+      const plot = LTT.axisPlot(box, plotOpts);
+      play(plot, END, 6500, true);
+      legend(host, "손실 순간 32 → 16, 그때 점선 ssthresh가 생긴다. 처리량 3.74 → 1.87 Mbps, 톱니 평균은 최고점의 3/4.<span class=\"ltt-tag muted\">모델로 계산한 예시</span>");
+      return host;
+    },
+    why: "중복 ACK 3개는 패킷 한두 개만 빠졌고 연결은 살아 있다는 신호다. 그래서 {{ssthresh}} = cwnd ÷ 2 = 16이 되고 cwnd도 16이 된다. 1로 돌아가 다시 slow start 하는 것은 타임아웃(RTO)일 때뿐이다. 손실이 잦으면 톱니가 낮아져 평균 처리량이 떨어진다.",
+    basis: "Reno 기준. MSS 1,460 B, RTT 100 ms, 초기 ssthresh 32의 손 계산이며 실제 값은 망과 구현에 따라 다르다.",
+    takeaway: "손실이 나면 cwnd는 절반으로 줄고 RTT마다 1 MSS씩 되찾아 톱니가 된다. 평균 처리량은 최고점의 약 3/4이다.",
+    recall: "3 중복 ACK 손실 뒤 cwnd는 어디로 가고, 타임아웃이면 어디로 가는가?",
+  }],
+});
+</script>
+</body>
+</html>

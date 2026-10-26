@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .dna { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+  .dna svg { width: 100%; height: auto; max-height: 58vh; display: block; }
+  .dna svg text { font-family: inherit; fill: var(--ltt-ink); }
+  .dna .steps { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dna .steps span { padding: 2px 10px; border: 1px solid var(--ltt-line); border-radius: 999px; color: var(--ltt-muted); }
+  .dna .steps span.on { background: var(--ltt-accent-soft); color: var(--ltt-ink); border-color: var(--ltt-accent); }
+  .dna .cap { color: var(--ltt-ink); min-height: 2.6em; }
+  .dna .ctl { display: flex; gap: 12px; align-items: center; }
+  .dna .ctl input { flex: 1; }
+  .dna .ctl button { border: 1px solid var(--ltt-line-2); background: var(--ltt-card); color: var(--ltt-ink); border-radius: 8px; padding: 4px 14px; cursor: pointer; }
+  .dna .key { display: flex; gap: 18px; flex-wrap: wrap; color: var(--ltt-ink-2); }
+  .dna .key i { display: inline-block; width: 22px; height: 0; border-top: 4px solid; vertical-align: middle; margin-right: 6px; }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const S = 0.25, X0 = 140, END = 17.4, TOTAL = 25;
+const TK = [3, 6, 9, 12, 15];                 // 지연 가닥 절편 프라이머가 놓이는 시각
+const fx = (t) => X0 + 40 * Math.min(Math.max(t, 0), END);
+const clamp = (v) => Math.min(1, Math.max(0, v));
+const AK = TK.map((t) => fx(t) - 10);         // 각 절편의 5' 끝(프라이머 오른쪽 끝)
+
+const STEPS = [
+  [0, "분기점이 열린다", "헬리케이스가 이중나선을 풀어 Y자 분기점이 오른쪽으로 나아간다. 두 주형은 서로 반대 방향(역평행)이다."],
+  [1.2, "선도 가닥", "프라이머 하나가 놓인 뒤, 중합효소가 분기점을 따라 끊김 없이 길게 잇는다. 합성 방향 = 분기점 전진 방향."],
+  [3, "지연 가닥 절편", "이 주형은 합성 방향이 분기점에서 멀어진다. 분기점이 더 열린 뒤에야 프라이머가 놓이고, 절편이 왼쪽(먼 쪽)으로 자란다. 먼저 만든 절편(1)이 가장 멀다."],
+  [17.6, "규칙은 하나", "선도 가닥도 절편도 모두 5'→3'로 자란다. 분기점 기준으로만 방향이 반대다."],
+  [20.2, "프라이머 제거 · 이음", "프라이머가 지워지고 틈이 메워진 뒤 연결효소가 절편 사이 4곳을 이어 하나의 가닥이 된다."]
+];
+
+function frame(T) {
+  const F = fx(T);
+  const yU = (x) => 274 - S * (F - x), yL = (x) => 286 + S * (F - x);
+  const aU = Math.atan2(S, 1) * 180 / Math.PI, aL = Math.atan2(S, -1) * 180 / Math.PI;
+  const o = [];
+  const line = (x1, y1, x2, y2, c, w, op = 1, extra = "") =>
+    o.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${c}" stroke-width="${w}" stroke-linecap="butt" opacity="${op}" ${extra}/>`);
+  const head = (x, y, ang, c, op = 1) =>
+    o.push(`<polygon points="0,0 -11,-7 -11,7" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${ang.toFixed(1)})" fill="${c}" opacity="${op}"/>`);
+  const text = (x, y, s, anchor = "middle", size = 14, weight = 400, op = 1) =>
+    o.push(`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}" font-size="${size}" font-weight="${weight}" opacity="${op}">${s}</text>`);
+  const enzyme = (x, y, r = 11) =>
+    o.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="var(--ltt-card-2)" stroke="var(--ltt-ink-2)" stroke-width="2"/>`);
+
+  // 분기점 전진 방향
+  o.push(`<line x1="560" y1="36" x2="900" y2="36" stroke="var(--ltt-muted)" stroke-width="2" stroke-dasharray="6 6"/>`);
+  head(900, 36, 0, "var(--ltt-muted)");
+  text(730, 26, "분기점이 열리는 방향", "middle", 14, 600);
+
+  // 풀리지 않은 이중나선(줄기)
+  for (let x = F + 10; x < 950; x += 14) line(x, 274, x, 286, "var(--ltt-line-2)", 2);
+  line(F, 274, 960, 274, "var(--ltt-ink-2)", 4);
+  line(F, 286, 960, 286, "var(--ltt-ink-2)", 4);
+  // 풀린 두 주형(팔)
+  line(X0, yU(X0), F, 274, "var(--ltt-ink-2)", 4);
+  line(X0, yL(X0), F, 286, "var(--ltt-ink-2)", 4);
+  text(X0 - 14, yU(X0) + 5, "3'", "end", 15, 700);
+  text(X0 - 14, yL(X0) + 5, "5'", "end", 15, 700);
+  text(970, 279, "5'", "start", 15, 700);
+  text(970, 291, "3'", "start", 15, 700);
+  text(54, 500, "주형", "start", 13, 400, 0);
+
+  // 선도 가닥
+  if (T >= 0.8) {
+    const pa = clamp((T - 0.8) / 0.4), hd = Math.max(156, F - 14);
+    const yy = (x) => yU(x) + 13;
+    line(140, yy(140), 154, yy(154), "var(--ltt-c2)", 6, pa * (T > 20 ? 1 : 1));
+    if (T >= 1.2) {
+      line(154, yy(154), hd, yy(hd), "var(--ltt-accent)", 5);
+      head(hd + 4, yy(hd + 4), aU, "var(--ltt-accent)");
+      enzyme(hd - 8, yy(hd - 8) - 22);
+      if (T < 17.6) text(hd - 8, yy(hd - 8) - 40, "중합효소", "middle", 13, 600);
+    }
+    text(142, yy(142) - 10, "프라이머", "start", 13, 400, clamp((T - 0.8) / 0.4) * (T < 2.4 ? 1 : 0));
+    if (T >= 2.2) text(Math.max(300, hd - 40), yy(Math.max(300, hd - 40)) + 30, "선도 가닥", "middle", 15, 700);
+  }
+
+  // 지연 가닥 절편
+  const f = clamp((T - 21.5) / 1.5), rm = clamp((T - 20) / 1.2);
+  TK.forEach((tk, k) => {
+    if (T < tk) return;
+    const a = AK[k], p = clamp((T - tk) / 2.4);
+    const left = a - 12 - 98 * p - (k >= 1 ? 22 * f : 0);
+    const yy = (x) => yL(x) - 13;
+    const pOp = k <= 3 ? 1 - rm : 1;
+    line(a - 12, yy(a - 12), a, yy(a), "var(--ltt-c2)", 6, pOp);
+    line(left, yy(left), a - 12, yy(a - 12), "var(--ltt-accent)", 5);
+    head(left - 3, yy(left - 3), aL, "var(--ltt-accent)");
+    if (p < 1) { enzyme(left - 12, yy(left - 12) + 22); }
+    if (k === 0 && T < tk + 2.4) text(a - 6, yy(a) - 12, "프라이머", "middle", 13, 400);
+    const mid = a - 60;
+    text(mid, yy(mid) - 14, k === 0 && T < END ? "절편 1 (가장 오래됨)" : "절편 " + (k + 1), "middle", 13, 600, T < 20 ? 1 : 0);
+  });
+  if (T >= 6) text(Math.min(AK[1] - 40, 300), 330, "지연 가닥", "middle", 15, 700, 1);
+
+  // 헬리케이스
+  if (T < 20) {
+    o.push(`<polygon points="${F - 6},267 ${F + 20},280 ${F - 6},293" fill="var(--ltt-dark)"/>`);
+    text(F + 28, 318, "헬리케이스", "middle", 13, 600);
+  }
+
+  // 같은 규칙 비교 패널
+  const pan = clamp((T - 17.6) / 0.8) * (1 - clamp((T - 20.2) / 0.8));
+  if (pan > 0) {
+    o.push(`<g opacity="${pan}"><rect x="150" y="470" width="700" height="64" rx="10" fill="var(--ltt-card)" stroke="var(--ltt-line-2)"/>`);
+    o.push(`<line x1="190" y1="500" x2="330" y2="500" stroke="var(--ltt-accent)" stroke-width="5"/><polygon points="342,500 328,492 328,508" fill="var(--ltt-accent)"/>`);
+    o.push(`<text x="260" y="522" text-anchor="middle" font-size="14">선도: 5'→3' (분기점 쪽)</text>`);
+    o.push(`<text x="500" y="506" text-anchor="middle" font-size="22" font-weight="700">=</text>`);
+    o.push(`<line x1="810" y1="500" x2="670" y2="500" stroke="var(--ltt-accent)" stroke-width="5"/><polygon points="658,500 672,492 672,508" fill="var(--ltt-accent)"/>`);
+    o.push(`<text x="740" y="522" text-anchor="middle" font-size="14">절편: 5'→3' (분기점 반대쪽)</text></g>`);
+  }
+
+  // 연결효소
+  if (T >= 23) {
+    const sc = clamp((T - 23) / 0.6), shrink = clamp((T - 24.2) / 0.6);
+    for (let j = 0; j < 4; j++) {
+      const x = AK[j] - 12, y = yL(x) - 13;
+      o.push(`<circle cx="${x.toFixed(1)}" cy="${(y + 24 * (1 - shrink)).toFixed(1)}" r="${(10 * sc * (1 - shrink) + 3 * shrink).toFixed(1)}" fill="${shrink > 0.5 ? 'var(--ltt-ink)' : 'var(--ltt-dark)'}"/>`);
+    }
+    if (shrink < 1) text(AK[0] - 12, yL(AK[0] - 12) + 28, "연결효소", "middle", 13, 600, sc * (1 - shrink));
+    else text(AK[2], yL(AK[2]) - 20, "틈 4곳을 이어 한 가닥", "middle", 14, 700);
+  }
+  return o.join("");
+}
+
+function stepIndex(T) {
+  let i = 0;
+  STEPS.forEach((s, k) => { if (T >= s[0]) i = k; });
+  return i;
+}
+
+const scene = {
+  type: "hook",
+  kicker: "생물 · DNA 복제",
+  title: "같은 5'→3' 규칙인데, 한 가닥은 이어지고 한 가닥은 조각난다",
+  sub: "{{중합효소}}는 5'→3' 방향으로만 잇는다(프라이머는 그 시작점이 되는 짧은 RNA, 절편은 짧게 끊어 만든 DNA 조각). 분기점이 열릴 때 두 새 가닥이 어떤 순서로 생기는지 본다.",
+  chips: ["선도 가닥", "오카자키 절편", "5'→3'"],
+  mount(body) {
+    body.innerHTML = `<div class="dna">
+      <div class="steps"></div>
+      <svg viewBox="0 0 1000 560" role="img" aria-label="DNA 복제 분기점 도해: 선도 가닥과 오카자키 절편"></svg>
+      <div class="cap"></div>
+      <div class="key"><span><i style="border-color:var(--ltt-ink-2)"></i>주형 가닥</span><span><i style="border-color:var(--ltt-accent)"></i>새 DNA 가닥(화살촉이 3' 끝)</span><span><i style="border-color:var(--ltt-c2)"></i>RNA 프라이머</span></div>
+      <div class="ctl"><button type="button">다시 재생</button><input type="range" min="0" max="${TOTAL}" step="0.05" value="0" aria-label="재생 위치"></div>
+    </div>`;
+    const svg = body.querySelector("svg"), cap = body.querySelector(".cap"), steps = body.querySelector(".steps");
+    const btn = body.querySelector("button"), rng = body.querySelector("input");
+    steps.innerHTML = STEPS.map((s, i) => `<span>${i + 1} ${s[1]}</span>`).join("");
+    let raf = 0, t0 = 0, T = 0, playing = false;
+    const render = (t) => {
+      T = t;
+      svg.innerHTML = frame(t);
+      const i = stepIndex(t);
+      [...steps.children].forEach((c, k) => c.classList.toggle("on", k === i));
+      cap.textContent = STEPS[i][2];
+      rng.value = t;
+    };
+    const tick = (now) => {
+      T = (now - t0) / 1000 * 1.25;
+      if (T >= TOTAL) { render(TOTAL); playing = false; btn.textContent = "다시 재생"; return; }
+      render(T);
+      raf = requestAnimationFrame(tick);
+    };
+    const play = (from = 0) => {
+      cancelAnimationFrame(raf);
+      playing = true; btn.textContent = "멈춤";
+      t0 = performance.now() - from / 1.25 * 1000;
+      raf = requestAnimationFrame(tick);
+    };
+    const stop = () => { cancelAnimationFrame(raf); playing = false; btn.textContent = "이어서 재생"; };
+    btn.onclick = () => { if (playing) stop(); else play(T >= TOTAL ? 0 : T); };
+    rng.oninput = () => { stop(); render(+rng.value); };
+    render(0);
+    return {
+      enter() { if (LTT.MOTION_MS === 0) render(TOTAL); else play(0); },
+      leave() { stop(); }
+    };
+  },
+  takeaway: "합성 방향은 두 가닥 모두 5'→3'다. 주형 방향이 반대라 한 가닥은 연속(선도), 한 가닥은 절편(지연)이 된다.",
+  recall: "지연 가닥 절편 안과 절편들이 생기는 순서는 각각 어느 쪽으로 향하나?",
+  basis: "모델로 계산한 예시: 지연 주형 5,000 nt를 절편 1,000 nt로 합성하면 절편 5개·프라이머 5개·이음 틈 4곳. 절편 길이는 원핵생물 약 1,000–2,000 nt, 진핵생물 약 100–200 nt. 맨 끝 절편의 프라이머는 다음 절편이 생긴 뒤 제거된다."
+};
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "중합효소": "새 DNA 가닥의 3'-OH 끝에 뉴클레오타이드를 붙여 5'→3' 방향으로 잇는 효소.",
+  },
+  scenes: [scene]
+});
+</script>
+</body>
+</html>

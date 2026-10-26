@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의: 과반수로 리더를 뽑고 커밋한다</title>
+<script type="application/json" id="ltt-meta">{"topic": "Raft 합의", "audience": "분산 시스템 입문 개발자", "theme": "sketch", "medium": "아키텍처 화이트보드", "decision": "합의 기반 저장소 선택"}</script>
+<style>
+.rf { display: grid; gap: 12px; }
+.rf-board { display: grid; gap: 6px; }
+.rf-row { display: grid; grid-template-columns: 44px 1fr 64px auto; align-items: center; gap: 8px; font-size: 14px; color: var(--ltt-ink-2); }
+.rf-row b { color: var(--ltt-ink); }
+.rf-row.dead { color: var(--ltt-muted); }
+.rf-c { display: inline-block; min-width: 34px; margin-right: 4px; padding: 2px 4px; border: 1px solid var(--ltt-line); border-radius: 4px; font-style: normal; text-align: center; }
+.rf-c small { display: block; font-size: 10px; color: var(--ltt-muted); }
+.rf-c.u { border-style: dashed; color: var(--ltt-muted); }
+.rf-c.c { background: var(--ltt-good-soft); border-color: var(--ltt-good); }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 로그 항목은 [index, term, 상태]. c = 커밋, u = 미커밋
+const B = [[1, 1, "c"], [2, 1, "c"], [3, 1, "c"], [4, 2, "c"], [5, 2, "c"], [6, 2, "c"]];
+const U7 = [7, 3, "u"];
+const C7 = [7, 3, "c"];
+
+const F = (term, log, role = "팔로워") => ({ role, term, log });
+const DEAD = { role: "장애", term: 2, log: B, dead: true };
+const VOTED = "팔로워 · 표 줌";
+const LAG = "팔로워 · 응답 지연";
+const LEAD = "리더 · 표 3/5";
+
+function hub(el) {
+  const wrap = el.appendChild(document.createElement("div"));
+  wrap.className = "rf";
+  const svg = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  const box = wrap.appendChild(document.createElement("div"));
+  box.className = "rf-board";
+  const ctl = wrap.appendChild(document.createElement("div"));
+
+  // 서버 다섯 대: 가운데 S2가 후보이자 리더, 나머지는 모서리
+  const dg = LTT.diagram(svg, {
+    cols: 3, rows: 3, cell: [250, 170], node: [176, 64],
+    nodes: [
+      { id: "S1", c: 0, r: 0, l: "S1", dash: true },
+      { id: "S3", c: 2, r: 0, l: "S3" },
+      { id: "S2", c: 1, r: 1, l: "S2", k: "accent", ring: true },
+      { id: "S4", c: 0, r: 2, l: "S4" },
+      { id: "S5", c: 2, r: 2, l: "S5" },
+    ],
+    edges: [
+      { f: "S2", t: "S1", dash: true },
+      { f: "S2", t: "S3" },
+      { f: "S2", t: "S4" },
+      { f: "S2", t: "S5" },
+    ],
+  });
+
+  const row = (id, r) => `<div class="rf-row${r.dead ? " dead" : ""}"><b>${id}</b><span>${r.role}</span><span>term ${r.term}</span><span>${r.log.map(([i, t, f]) => `<i class="rf-c ${f}">${i}<small>t${t}</small></i>`).join("")}</span></div>`;
+  const base = () => ({ S1: DEAD, S2: F(2, B), S3: F(2, B), S4: F(2, B), S5: F(2, B) });
+  const show = (over) => {
+    const all = Object.assign(base(), over);
+    box.innerHTML = Object.keys(all).map((id) => row(id, all[id])).join("");
+  };
+  const at = (hl, over) => () => { dg.highlight(hl); show(over); };
+
+  const steps = [
+    { caption: "S1이 리더다. 다섯 대 모두 로그 1–6을 커밋해 두었다.", hold: 3000,
+      enter: at(null, { S1: F(2, B, "리더") }) },
+    { caption: "S1이 멈춰 heartbeat가 끊겼다. 팔로워 가운데 S2의 election timeout이 가장 먼저 끝난다.", hold: 3000,
+      enter: at(["S2"], {}) },
+    { caption: "① S2가 term을 3으로 올리고 자기에게 한 표를 준다. ② 투표 요청(RequestVote)을 보낸다.", hold: 3600,
+      send: [["S2", "S3"], ["S2", "S4"], ["S2", "S5"]],
+      enter: at(["S2"], { S2: F(3, B, "후보 · 표 1"), S3: F(3, B), S4: F(3, B), S5: F(3, B) }) },
+    { caption: "S3과 S4가 한 표씩 줘서 과반수 3/5가 모였다. S2가 리더가 되고, 곧바로 빈 AppendEntries를 보내 다른 후보를 누른다.", hold: 3600,
+      send: [["S2", "S3"], ["S2", "S4"], ["S2", "S5"]],
+      enter: at(["S2"], { S2: F(3, B, LEAD), S3: F(3, B, VOTED), S4: F(3, B, VOTED), S5: F(3, B, LAG) }) },
+    { caption: "클라이언트 요청은 리더 S2만 받는다. S2가 자기 로그 끝에 index 7을 먼저 쓴다. 아직 미커밋이다.", hold: 3600,
+      enter: at(["S2"], { S2: F(3, [...B, U7], LEAD), S3: F(3, B, VOTED), S4: F(3, B, VOTED), S5: F(3, B, LAG) }) },
+    { caption: "AppendEntries로 index 7을 S3, S4에 복제한다. 이 시점에는 아직 커밋이 아니다.", hold: 3600,
+      send: [["S2", "S3"], ["S2", "S4"]],
+      enter: at(["S2", "S3", "S4"], { S2: F(3, [...B, U7], LEAD), S3: F(3, [...B, U7], VOTED), S4: F(3, [...B, U7], VOTED), S5: F(3, B, LAG) }) },
+    { caption: "S2, S3, S4 셋이 저장하면 과반수 3/5. index 7이 커밋된다. S5는 아직 없어도 된다.", hold: 3600,
+      enter: at(["S2", "S3", "S4"], { S2: F(3, [...B, C7], LEAD), S3: F(3, [...B, U7], VOTED), S4: F(3, [...B, U7], VOTED), S5: F(3, B, LAG) }) },
+    { caption: "다음 AppendEntries가 commitIndex 7을 실어 보내면 S3, S4도 커밋해 상태 기계에 적용한다. S5는 나중에 따라잡는다.", hold: 4200,
+      send: [["S2", "S3"], ["S2", "S4"], ["S2", "S5"]],
+      enter: at(["S3", "S4"], { S2: F(3, [...B, C7], LEAD), S3: F(3, [...B, C7], VOTED), S4: F(3, [...B, C7], VOTED), S5: F(3, B, "팔로워 · 따라잡는 중") }) },
+  ];
+  dg.player(ctl, steps);
+
+  return { el: wrap, dg };
+}
+
+const scene = {
+  type: "overview",
+  title: "과반수로 리더를 뽑고, 과반수가 저장한 항목만 커밋한다",
+  en: "Raft: a majority elects the leader and a majority commits",
+  kicker: "분산 시스템 · Raft 리더 선출과 로그 복제",
+  sub: "서버 다섯 대, 장애 S1에서 시작한다. 재생을 누르면 순서대로 따라간다. 숫자 옆 {{임기|term}}은 선거 번호다.",
+  figure: hub,
+  caption: "선출과 커밋 모두 과반수(5대 중 3대)가 정한다.",
+  label: "과반수가 선출과 커밋에서 같은 역할을 한다",
+  takeaway: "선출과 커밋 모두 {{과반수}}(5대 중 3대)가 동의해야 진행된다.",
+  recall: "서버 3대가 죽으면 리더도 뽑을 수 없고 커밋도 불가능한 이유는?",
+};
+
+LTT.deck({
+  title: "Raft 합의: 과반수로 리더를 뽑고 커밋한다",
+  theme: "sketch",
+  glossary: {
+    "과반수": "전체의 절반보다 많은 수. 다섯 대면 세 대.",
+    "term": "Raft의 임기 번호. 새 선거가 시작될 때마다 1씩 오른다.",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

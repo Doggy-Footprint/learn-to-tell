@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가비지 컬렉션 방식</title>
+<script type="application/json" id="ltt-meta">{"topic":"가비지 컬렉션 방식","audience":"애플리케이션 개발자","theme":"terminal","medium":"힙 스냅샷·메모리 프로파일러","decision":"메모리 누수 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.gc{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%}
+.gc .pn{border:1px solid var(--ltt-line);border-radius:10px;background:var(--ltt-card);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.gc h4{margin:0;font-size:1rem;color:var(--ltt-ink)}
+.gc svg{width:100%;height:auto;display:block}
+.gc .t{fill:var(--ltt-ink);font-family:inherit}
+.gc .m{fill:var(--ltt-muted);font-family:inherit}
+.gc .box{fill:var(--ltt-card-2);stroke:var(--ltt-line-2);stroke-width:1.5}
+.gc .obj{fill:var(--ltt-card-2);stroke:var(--ltt-ink-2);stroke-width:2;transition:opacity .5s,stroke .4s,fill .4s}
+.gc .obj.keep{stroke:var(--ltt-warn);fill:var(--ltt-warn-soft)}
+.gc .obj.live{stroke:var(--ltt-good);fill:var(--ltt-good-soft)}
+.gc .ar{fill:none;stroke:var(--ltt-ink-2);stroke-width:2;transition:opacity .5s}
+.gc .ar.peer{stroke:var(--ltt-accent)}
+.gc .hid{opacity:0}
+.gc .gone{opacity:.1}
+.gc .ghost{opacity:.25;stroke-dasharray:5 4}
+.gc .ret{font-family:var(--ltt-mono,monospace);font-size:.85rem;line-height:1.5;color:var(--ltt-ink-2);min-height:3.2em;background:var(--ltt-bg);border-radius:6px;padding:6px 8px;border:1px solid var(--ltt-line)}
+.gc .ret b{color:var(--ltt-ink)}
+.gc .ret .w{color:var(--ltt-warn)}
+.gc .ret .g{color:var(--ltt-good)}
+@media(max-width:900px){.gc{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const A = {x:120,y:150}, B = {x:360,y:150};
+function panel(id, title, mode) {
+  const rc = mode === "rc";
+  return `<div class="pn"><h4>${title}</h4>
+  <svg viewBox="0 0 480 360" role="img" aria-label="${title}">
+   <defs><marker id="h-${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--ltt-ink-2)"/></marker>
+   <marker id="p-${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--ltt-accent)"/></marker></defs>
+   <text class="m" x="10" y="20" font-size="13">루트(전역·스택)</text>
+   <g id="${id}-rx"><rect class="box" x="55" y="30" width="70" height="34" rx="6"/><text class="t" x="90" y="53" font-size="15" text-anchor="middle">x</text></g>
+   <g id="${id}-ry"><rect class="box" x="355" y="30" width="70" height="34" rx="6"/><text class="t" x="390" y="53" font-size="15" text-anchor="middle">y</text></g>
+   <path id="${id}-ax" class="ar hid" d="M95,64 L115,114" marker-end="url(#h-${id})"/>
+   <path id="${id}-ay" class="ar hid" d="M385,64 L365,114" marker-end="url(#h-${id})"/>
+   <text id="${id}-rel" class="m hid" x="240" y="52" font-size="14" text-anchor="middle">x, y 해제됨</text>
+   <path id="${id}-p1" class="ar peer hid" d="M150,126 Q240,70 330,126" marker-end="url(#p-${id})"/>
+   <path id="${id}-p2" class="ar peer hid" d="M330,174 Q240,230 150,174" marker-end="url(#p-${id})"/>
+   <text id="${id}-l1" class="m hid" x="240" y="96" font-size="13" text-anchor="middle">A.peer = B</text>
+   <text id="${id}-l2" class="m hid" x="240" y="226" font-size="13" text-anchor="middle">B.peer = A</text>
+   <g id="${id}-A" class="hid"><circle id="${id}-cA" class="obj" cx="${A.x}" cy="${A.y}" r="34"/><text class="t" x="${A.x}" y="${A.y+6}" font-size="20" text-anchor="middle">A</text></g>
+   <g id="${id}-B" class="hid"><circle id="${id}-cB" class="obj" cx="${B.x}" cy="${B.y}" r="34"/><text class="t" x="${B.x}" y="${B.y+6}" font-size="20" text-anchor="middle">B</text></g>
+   <text id="${id}-bA" class="t hid" x="${A.x}" y="${A.y+58}" font-size="16" text-anchor="middle"></text>
+   <text id="${id}-bB" class="t hid" x="${B.x}" y="${B.y+58}" font-size="16" text-anchor="middle"></text>
+   ${rc ? "" : `
+   <g id="${id}-rc" class="hid"><rect class="box" x="175" y="318" width="130" height="34" rx="6"/><text class="t" x="240" y="340" font-size="14" text-anchor="middle">전역 cache</text></g>
+   <path id="${id}-ac" class="ar hid" d="M240,318 L240,296" marker-end="url(#h-${id})"/>
+   <g id="${id}-C" class="hid"><circle id="${id}-cC" class="obj" cx="240" cy="268" r="26"/><text class="t" x="240" y="274" font-size="18" text-anchor="middle">C</text></g>
+   <text id="${id}-bC" class="t hid" x="320" y="273" font-size="15"></text>`}
+  </svg>
+  <div class="ret" id="${id}-ret"></div></div>`;
+}
+function gcFigure(el) {
+  const root = el.appendChild(document.createElement("div"));
+  root.className = "gc";
+  root.innerHTML = panel("r", "참조 카운팅: 들어오는 참조 수가 0이어야 회수", "rc") + panel("m", "mark-and-sweep: 루트에서 닿아야 생존", "ms");
+  const $ = (id) => root.querySelector("#" + id);
+  const show = (id, on) => { const e = $(id); if (e) e.classList.toggle("hid", !on); };
+  const txt = (id, s) => { const e = $(id); if (e) e.textContent = s; };
+  const cls = (id, c, on) => { const e = $(id); if (e) e.classList.toggle(c, on); };
+  function set(n) {
+    for (const p of ["r", "m"]) {
+      show(p + "-A", n >= 1); show(p + "-B", n >= 1);
+      show(p + "-p1", n >= 1); show(p + "-p2", n >= 1);
+      show(p + "-l1", n >= 1); show(p + "-l2", n >= 1);
+      show(p + "-ax", n >= 1); show(p + "-ay", n >= 1);
+      cls(p + "-ax", "ghost", n >= 2); cls(p + "-ay", "ghost", n >= 2);
+      cls(p + "-rx", "gone", n >= 2); cls(p + "-ry", "gone", n >= 2);
+      show(p + "-rel", n >= 2);
+    }
+    // 참조 카운팅
+    show("r-bA", n >= 1); show("r-bB", n >= 1);
+    const c = n >= 2 ? 1 : 2;
+    txt("r-bA", "카운트 " + c); txt("r-bB", "카운트 " + c);
+    cls("r-cA", "keep", n >= 3); cls("r-cB", "keep", n >= 3);
+    $("r-ret").innerHTML = [
+      "",
+      "<b>A</b> ← x, B.peer (2)<br><b>B</b> ← y, A.peer (2)",
+      "<b>A</b> ← B.peer (1)<br><b>B</b> ← A.peer (1) · 둘 다 0이 아님",
+      "<b>A</b> ← B.peer · <span class=\"w\">루트 경로 없음</span><br><b>B</b> ← A.peer · <span class=\"w\">루트 경로 없음</span> → 힙에 남는다",
+    ][Math.min(n, 3)] || (n >= 4 ? "<b>A</b> ← B.peer · <span class=\"w\">루트 경로 없음</span><br><b>B</b> ← A.peer · <span class=\"w\">루트 경로 없음</span> → 계속 남는다" : "");
+    // mark-and-sweep
+    show("m-bA", n >= 4 && n < 5); show("m-bB", n >= 4 && n < 5);
+    txt("m-bA", "표시 안 됨"); txt("m-bB", "표시 안 됨");
+    cls("m-cA", "keep", n === 4); cls("m-cB", "keep", n === 4);
+    cls("m-A", "gone", n >= 5); cls("m-B", "gone", n >= 5);
+    for (const k of ["p1", "p2", "l1", "l2"]) cls("m-" + k, "gone", n >= 5);
+    show("m-rc", n >= 6); show("m-ac", n >= 6); show("m-C", n >= 6); show("m-bC", n >= 6);
+    cls("m-cC", "live", n >= 6);
+    txt("m-bC", "표시됨");
+    $("m-ret").innerHTML = [
+      "", "<b>A</b> ← x, B.peer<br><b>B</b> ← y, A.peer", "<b>A</b> ← B.peer<br><b>B</b> ← A.peer",
+      "<b>A</b> ← B.peer · 루트 경로 없음<br><b>B</b> ← A.peer · 루트 경로 없음",
+      "① mark: 루트에서 출발해 닿은 객체 <b>0개</b> → 표시 0",
+      "② sweep: 표시 없는 <b>A, B 해제</b> (다음 GC 사이클에)",
+      "<b>C</b> ← cache['k'] ← <span class=\"g\">루트 경로 있음</span><br>순환 없음 · 그래도 회수 안 됨 = <span class=\"w\">누수</span>",
+    ][Math.min(n, 6)];
+    if (n >= 7) $("m-ret").innerHTML = "<b>C</b>: 루트에서 경로 있음 → 그 경로의 첫 retainer(cache)를 끊는다<br>A, B 같은 고립 순환: retainer 순환을 끊거나 약한 참조로";
+  }
+  set(0);
+  return { el: root, set };
+}
+const S = (cap, n) => ({ caption: cap, enter: (k, f) => f.set(n), leave: (k, f) => f.set(n - 1) });
+LTT.deck({
+  title: "가비지 컬렉션 방식",
+  theme: "terminal",
+  glossary: {
+    "retainer": "객체를 붙잡고 있어 회수되지 못하게 하는 참조의 출처. 힙 스냅샷에서 객체마다 목록으로 나온다.",
+    "루트": "GC가 탐색을 시작하는 지점. 전역 변수와 호출 스택의 변수."
+  },
+  scenes: [{
+    type: "figure",
+    title: "참조 카운팅은 순환을 남기고, mark-and-sweep은 루트에서 닿는지만 본다",
+    sub: "같은 A↔B 순환을 두 런타임에 놓고 단계별로 재생한다. 아래 상자는 힙 스냅샷의 {{retainer}} 목록이다.",
+    figure: gcFigure,
+    steps: [
+      S("① 객체 A, B를 만들고 x, y로 가리키고 서로 가리키게 한다. 카운트는 A=x+B.peer=2, B=y+A.peer=2", 1),
+      S("② x, y를 해제한다. 카운트가 내려가지만 1에서 멈춘다. 0이 아니다", 2),
+      S("③ 참조 카운팅 스냅샷: A, B의 retainer는 서로뿐이고 루트 경로가 없다. 회수 트리거는 영영 오지 않는다", 3),
+      S("④ mark-and-sweep: 먼저 mark. {{루트}}에서 출발해도 A, B에 닿지 않아 표시 0", 4),
+      S("⑤ 이어서 sweep. 표시 안 된 A, B가 해제된다. 같은 순환인데 한쪽은 남고 한쪽은 사라졌다", 5),
+      S("⑥ 반대 모양의 누수: 순환이 없어도 전역 cache가 C를 붙잡으면 루트 경로가 있어 남는다", 6),
+      S("⑦ 진단 질문: 루트에서 경로가 있나? 있으면 첫 retainer를 끊고, 없으면 순환을 끊는다", 7),
+    ],
+    takeaway: "카운팅은 '나를 가리키는 수'가 0이어야, tracing은 '루트에서 닿지 않아야' 회수한다. 누수 진단은 루트에서 닿는지부터 묻는다.",
+    recall: "순환 참조가 있는데 tracing GC에서 회수되는 이유는?"
+  }]
+});
+</script>
+</body>
+</html>

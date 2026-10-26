@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점 · 선도 가닥과 오카자키 절편</title>
+<script type="application/json" id="ltt-meta">{"topic": "DNA 복제 분기점", "audience": "생명과학 입문 학생", "theme": "paper", "medium": "교과서 도해", "decision": "복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 분기점은 한 방향으로 열리고, 새 가닥은 5'→3'으로만 자란다.
+// 선도 가닥은 분기점을 따라 연속으로, 지연 가닥은 분기점에서 멀어지며 절편으로 자란다.
+const replicationFigure = (body) => {
+  const box = document.createElement("div");
+  body.appendChild(box);
+  const svg = document.createElementNS(SVG, "svg");
+  box.appendChild(svg);
+  const dg = LTT.diagram(svg, {
+    cols: 4, rows: 3, cell: [220, 120], node: [164, 60],
+    nodes: [
+      { id: "fork", c: 0, r: 1, l: "분기점", s: "헬리케이스가 풂", icon: "route", k: "accent" },
+      { id: "lead", c: 2, r: 0, l: "선도 가닥", s: "연속 5'→3'", icon: "arrow" },
+      { id: "frag1", c: 1, r: 1, l: "절편 ③", s: "가장 최근", icon: "layers" },
+      { id: "frag2", c: 2, r: 1, l: "절편 ②", icon: "layers" },
+      { id: "frag3", c: 3, r: 1, l: "절편 ①", s: "가장 오래됨", icon: "layers" },
+      { id: "ligase", c: 3, r: 2, l: "연결효소", s: "틈을 잇는다", icon: "link" }
+    ],
+    edges: [
+      { f: "fork", t: "lead", shape: "ortho", from: "top", to: "left", l: "선도: 끊김 없음" },
+      { f: "fork", t: "frag1", dash: true, l: "주형 노출" },
+      { f: "frag1", t: "frag2", l: "5'→3'" },
+      { f: "frag2", t: "frag3", l: "5'→3'" },
+      { f: "frag3", t: "ligase", dash: true, l: "잇기" }
+    ]
+  });
+  const ui = document.createElement("div");
+  box.appendChild(ui);
+  dg.player(ui, [
+    { caption: "① 이중나선이 열려 Y자 분기점이 생긴다", enter: (d) => d.highlight(["fork"]) },
+    { caption: "② 선도 가닥: 프라이머 하나에서 분기점을 따라 끊김 없이 자란다",
+      enter: (d) => d.highlight(["fork", "lead", "fork>lead"]),
+      send: [["fork", "lead", { count: 2 }]] },
+    { caption: "③ 지연 가닥의 첫 절편은 분기점에서 가장 먼 쪽에 생긴다",
+      enter: (d) => d.highlight(["frag3"]) },
+    { caption: "④ 분기점이 더 열리면 새 프라이머가 가까이 생기고, 절편 ②가 뒤쪽으로 자란다",
+      enter: (d) => d.highlight(["frag2", "frag2>frag3"]),
+      send: [["frag2", "frag3", { count: 1 }]] },
+    { caption: "⑤ 가장 새로운 절편 ③도 분기점 옆에서 같은 방향으로 자란다",
+      enter: (d) => d.highlight(["frag1", "frag1>frag2"]),
+      send: [["frag1", "frag2", { count: 1 }]] },
+    { caption: "⑥ 확대해도 5'→3'이다. 분기점에서 멀어지는 쪽이라 짧게 끊어서 만든다",
+      enter: (d) => d.highlight(["frag1>frag2", "frag2>frag3"]),
+      flow: ["frag1>frag2", "frag2>frag3"] },
+    { caption: "⑦ 프라이머를 떼어내고 절편들을 연결효소로 이어 가닥을 완성한다",
+      enter: (d) => d.highlight(["ligase", "frag3>ligase"]),
+      send: [["frag3", "ligase", { count: 1 }]] }
+  ]);
+  return {};
+};
+
+const replicationScene = {
+  type: "hook",
+  art: "route",
+  pre: "생물 · DNA 복제",
+  title: "지연 가닥은 분기점과 반대로 자라서 조각으로 만든다",
+  text: "새 가닥은 {{오카자키 절편}}을 이어 붙이며 5'→3' 한 방향으로만 자란다.",
+  sub: "분기점이 열리는 방향과 같은 가닥은 끊김 없이 자라고, 반대쪽 가닥은 분기점에서 멀어지며 짧게 자란다.",
+  mount: replicationFigure,
+  takeaway: "지연 가닥은 분기점과 반대 방향으로 자라므로 오카자키 절편으로 끊어 만든다.",
+  recall: "지연 가닥의 절편 하나를 확대하면 합성 방향은 어디를 향할까?",
+  basis: "교과서 일반 모델. 절편 길이는 세균 약 1000–2000 nt, 진핵생물 약 100–200 nt."
+};
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "오카자키 절편": "지연 가닥에서 프라이머마다 합성되는 짧은 DNA 조각",
+    "헬리케이스": "이중나선을 풀어 복제 분기점을 전진시키는 효소",
+    "프라이머": "중합효소가 새 가닥을 시작할 수 있게 하는 짧은 RNA 조각"
+  },
+  scenes: [replicationScene]
+});
+</script>
+</body>
+</html>

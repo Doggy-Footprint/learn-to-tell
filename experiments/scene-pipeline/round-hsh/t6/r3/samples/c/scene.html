@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>같은 순환 쌍이라도, 카운트는 남기고 mark는 회수한다</title>
+<script type="application/json" id="ltt-meta">{"topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단"}</script>
+<style>
+  .pane { display: grid; gap: 10px; }
+  .pane svg { width: 100%; height: auto; overflow: visible; }
+  .pane .snap { opacity: 0; transition: opacity 300ms; }
+  .pane .snap.on { opacity: 1; }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-mock.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const PAIRS = 100;                 // 반복 쌍 수
+const PAIR_MB = 1;                 // 객체 512 KB × 2
+const GC_MB = 16, BASE_MB = 4;     // mark 쪽 GC 임계와 기준선 (설명용 가정)
+const heapCount = (n) => n * PAIR_MB;                       // 카운팅: 해제되지 않아 선형으로 쌓인다
+const heapMark = (n) => BASE_MB + ((n * PAIR_MB) % GC_MB);  // mark: 임계마다 기준선으로 복귀
+
+// 한 쪽(카운팅 또는 mark)의 그림·숫자·타임라인·스냅샷
+function pane(el, kind) {
+  const isRc = kind === "rc";
+  const wrap = el.appendChild(document.createElement("div"));
+  wrap.className = "pane";
+  wrap.innerHTML = `<span class="ltt-tag muted">${isRc ? "카운트 = 들어오는 참조 수" : "mark = 루트에서 닿는가"}</span> <span class="ltt-tag muted">모델로 계산한 예시</span>`;
+
+  const svg = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  const dg = LTT.diagram(svg, {
+    cols: 3, rows: 2, cell: [170, 118], node: [118, 52],
+    nodes: [
+      { id: "root", c: 1, r: 0, l: "루트", icon: "key-round" },
+      { id: "A", c: 0, r: 1, l: "객체 A", icon: "package" },
+      { id: "B", c: 2, r: 1, l: "객체 B", icon: "package" },
+    ],
+    edges: [
+      { f: "root", t: "A", l: "쥠" },
+      { f: "root", t: "B", l: "쥠" },
+      { f: "A", t: "B", l: "peer" },
+      { f: "B", t: "A", l: "peer" },
+    ],
+  });
+
+  const readout = wrap.appendChild(document.createElement("div"));
+  readout.className = "ltt-mono";
+
+  const tlSvg = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  const plot = LTT.axisPlot(tlSvg, {
+    width: 360, height: 120, x: [0, PAIRS], y: [0, 110],
+    labels: { x: "반복 쌍", y: "힙 MB" },
+    series: [{ id: "heap", color: "var(--ltt-accent)" }],
+  });
+
+  const ctl = wrap.appendChild(document.createElement("div"));
+
+  const snap = LTT.mock.terminal({
+    title: isRc ? "스냅샷 비교 (100쌍 뒤)" : "스냅샷 (GC 직후)",
+    lines: isRc
+      ? ["$ diff snap1 snap2",
+         { t: "warn", text: "Object A  +100개 · 약 50 MB" },
+         { t: "warn", text: "Object B  +100개 · 약 50 MB" },
+         { t: "dim", text: "retainers: A ← B.peer, B ← A.peer (루트까지 경로 없음)" }]
+      : ["$ snapshot (GC 직후)",
+         { t: "ok", text: "Object A  0개" },
+         { t: "ok", text: "Object B  0개" },
+         { t: "dim", text: "루트에서 닿지 않아 mark에 걸리지 않고 sweep으로 회수" }],
+  });
+  snap.el.classList.add("snap");
+  wrap.appendChild(snap.el);
+
+  const setReadout = (text) => { readout.textContent = text; };
+
+  // 타임라인: 쌍이 하나씩 쌓이며 선이 자란다
+  let timer = 0;
+  const seriesOf = (n) => (isRc ? heapCount(n) : heapMark(n));
+  const runPlot = () => {
+    clearInterval(timer);
+    let n = 0;
+    const pts = [];
+    const tick = () => {
+      pts.push([n, seriesOf(n)]);
+      plot.set("heap", pts.slice());
+      if (n++ >= PAIRS) clearInterval(timer);
+    };
+    if (!LTT.MOTION_MS) { while (n <= PAIRS) tick(); return; }
+    timer = setInterval(tick, 40);
+  };
+
+  const hi = (ids) => () => dg.highlight(ids);
+  const sendLink = (from, to) => [[from, to, { count: 1, ms: 700 }]];
+  const createSteps = [
+    { caption: "A, B를 만든다. 루트가 둘 다 쥐고 있어 카운트는 각각 1.", hold: 2600,
+      enter: () => { dg.highlight(["root>A", "root>B"]); setReadout(isRc ? "rc  A=1 · B=1" : "루트에서 닿음: A, B"); } },
+    { caption: "A.peer = B. B를 가리키는 화살표가 하나 더 생겨 B의 카운트는 2.", hold: 2600, send: sendLink("A", "B"),
+      enter: () => { dg.highlight(["A>B"]); setReadout(isRc ? "rc  A=1 · B=2" : "루트에서 닿음: A, B"); } },
+    { caption: "B.peer = A. A의 카운트도 2. 순환이 완성된다.", hold: 2600, send: sendLink("B", "A"),
+      enter: () => { dg.highlight(["A>B", "B>A"]); setReadout(isRc ? "rc  A=2 · B=2" : "루트에서 닿음: A, B"); } },
+    { caption: isRc
+        ? "루트가 A, B에서 손을 뗀다. 카운트는 2 → 1에서 멈춘다. 0이 아니다."
+        : "루트가 A, B에서 손을 뗀다. 카운트 쪽은 즉시 바뀌지만 mark는 아직 아무것도 하지 않는다.",
+      hold: 3000, enter: () => { dg.highlight(["A>B", "B>A"]); setReadout(isRc ? "rc  A=1 · B=1 (해제 안 됨)" : "루트 해제 · GC 전이라 힙 그대로"); } },
+    { caption: isRc
+        ? "아무도 닿지 못하는데 A, B는 남는다. 쌍이 반복되면 힙이 계속 오른다."
+        : "힙이 임계에 닿으면 GC가 돈다. 쌍이 쌓이며 오르다 임계에서 기준선으로 떨어진다(톱니).",
+      hold: 4600, enter: () => { dg.highlight(["A>B", "B>A"]); setReadout(isRc ? "rc  A=1 · B=1 · 쌍 누적 중" : "GC 주기마다 기준선으로 복귀"); runPlot(); } },
+    isRc
+      ? { caption: "결과: 스냅샷에서 A·B가 100쌍씩 늘고, retainer는 서로뿐이다.", hold: 3200,
+          enter: () => { dg.highlight(["A>B", "B>A"]); setReadout("rc  A=1 · B=1 · 100쌍 뒤"); snap.el.classList.add("on"); } }
+      : { caption: "GC: 루트에서 닿는 것만 표시(mark)한다. A, B는 표시가 없어 sweep으로 회수된다.", hold: 3200,
+          enter: () => { dg.highlight(["root"]); setReadout("도달 불가 → A, B 회수"); snap.el.classList.add("on"); } },
+  ];
+  dg.player(ctl, createSteps);
+  return { el: wrap };
+}
+
+LTT.deck({
+  title: "가비지 컬렉션 방식 · 같은 순환 쌍",
+  theme: "terminal",
+  glossary: {
+    "순환 참조": "객체 A와 B가 서로를 가리켜, 바깥에서 아무도 가리키지 않아도 둘이 서로를 붙들고 있는 구조",
+    "루트": "지역 변수·전역 변수처럼 실행 중에 바로 쥐고 있는 참조. GC는 여기서 출발해 닿는 것만 살린다",
+  },
+  scenes: [{
+    type: "contrast",
+    kicker: "가비지 컬렉션 · 대비",
+    title: "같은 순환 쌍이라도, 카운트는 남기고 mark는 회수한다",
+    en: "Same cycle, different verdict",
+    sub: "같은 코드, 같은 입력. 루트를 놓은 뒤 {{순환 참조}}인 A와 B에 무슨 일이 생기는지 본다.",
+    before: { title: "참조 카운팅", visual: (el) => pane(el, "rc") },
+    after: { title: "mark-and-sweep", visual: (el) => pane(el, "mark") },
+    takeaway: "카운트는 '나를 가리키는 화살표 수'라 순환 쌍은 0이 되지 않는다. mark는 {{루트}}에서 닿는지만 보므로 같은 쌍도 루트가 끊기면 회수된다.",
+    recall: "같은 순환 쌍을 mark-and-sweep이 회수하는 이유는?",
+    basis: "객체 512 KB, 쌍 1 MB, GC 임계 16 MB는 설명용 가정이다. 실제 수치는 런타임마다 다르다.",
+  }],
+});
+</script>
+</body>
+</html>

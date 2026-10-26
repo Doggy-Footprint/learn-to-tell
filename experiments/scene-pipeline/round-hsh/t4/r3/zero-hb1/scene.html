@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.rep { width: 100%; max-width: 1040px; height: auto; display: block; margin: 0 auto; }
+.rep text { fill: var(--ltt-ink); font-family: inherit; }
+.rep .end { font-size: 15px; font-weight: 700; fill: var(--ltt-ink-2); }
+.rep .lab { font-size: 16px; }
+.rep .mut { fill: var(--ltt-muted); }
+.rep .tmpl { stroke: var(--ltt-ink-2); stroke-width: 5; stroke-linecap: round; fill: none; }
+.rep .rung { stroke: var(--ltt-line-2); stroke-width: 2; }
+.rep .lead { stroke: var(--ltt-c1); stroke-width: 6; stroke-linecap: round; fill: none; }
+.rep .frag { stroke: var(--ltt-c2); stroke-width: 6; stroke-linecap: round; fill: none; }
+.rep .prim { stroke: var(--ltt-warn); stroke-width: 9; stroke-linecap: butt; fill: none; }
+.rep .dir { stroke-width: 3; fill: none; }
+.rep .focus { fill: none; stroke: var(--ltt-accent); stroke-width: 2.5; stroke-dasharray: 6 5; }
+.rep .accent { fill: var(--ltt-accent); font-weight: 700; }
+.rep .d { opacity: 0; animation-fill-mode: forwards; animation-timing-function: ease-out; }
+.rep .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation-name: draw; animation-fill-mode: forwards; animation-timing-function: linear; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes show { to { opacity: 1; } }
+.rep .s { animation-name: show; animation-duration: .5s; }
+.rep .a0 { animation-delay: 0s; animation-duration: 2s; }
+.rep .t1 { animation-delay: 2.1s; }  .rep .g1 { animation-delay: 2.6s; animation-duration: 7s; }
+.rep .t2 { animation-delay: 3s; }    .rep .g2 { animation-delay: 3.4s; animation-duration: 1.6s; }
+.rep .t3 { animation-delay: 5.4s; }  .rep .g3 { animation-delay: 5.8s; animation-duration: 1.6s; }
+.rep .t4 { animation-delay: 7.8s; }  .rep .g4 { animation-delay: 8.2s; animation-duration: 1.6s; }
+.rep .t5 { animation-delay: 10s; }
+.rep .t6 { animation-delay: 11s; }
+@media (prefers-reduced-motion: reduce) {
+  .rep .d, .rep .draw, .rep .s { animation: none; opacity: 1; stroke-dashoffset: 0; }
+}
+</style>
+</head>
+<body>
+<script>
+const art = `
+<svg class="rep" viewBox="0 0 940 450" role="img" aria-label="복제 분기점에서 선도 가닥은 연속으로, 지연 가닥은 오카자키 절편으로 합성된다">
+  <!-- 부모 이중나선 -->
+  <g>
+    <line class="rung" x1="650" y1="212" x2="650" y2="228"/><line class="rung" x1="690" y1="212" x2="690" y2="228"/>
+    <line class="rung" x1="730" y1="212" x2="730" y2="228"/><line class="rung" x1="770" y1="212" x2="770" y2="228"/>
+    <line class="rung" x1="810" y1="212" x2="810" y2="228"/><line class="rung" x1="850" y1="212" x2="850" y2="228"/>
+    <line class="tmpl" x1="620" y1="210" x2="890" y2="210"/>
+    <line class="tmpl" x1="620" y1="230" x2="890" y2="230"/>
+  </g>
+  <!-- 열리는 두 주형 -->
+  <line class="tmpl draw a0" pathLength="1" x1="620" y1="210" x2="60" y2="70"/>
+  <line class="tmpl draw a0" pathLength="1" x1="620" y1="230" x2="60" y2="370"/>
+  <g class="d s a0"><circle cx="620" cy="220" r="13" fill="var(--ltt-card)" stroke="var(--ltt-ink-2)" stroke-width="3"/>
+    <text class="lab" x="620" y="190" text-anchor="middle">헬리케이스</text></g>
+  <text class="end" x="42" y="68" text-anchor="end">3'</text>
+  <text class="end" x="42" y="376" text-anchor="end">5'</text>
+  <text class="end" x="908" y="216">5'</text>
+  <text class="end" x="908" y="236">3'</text>
+  <text class="lab mut" x="755" y="262" text-anchor="middle">풀리기 전 이중나선</text>
+
+  <!-- 분기점 진행 방향 -->
+  <g class="d s t1">
+    <line class="dir" x1="520" y1="44" x2="760" y2="44" stroke="var(--ltt-ink)"/><path d="M760 44l-12-7v14z" fill="var(--ltt-ink)"/>
+    <text class="lab" x="640" y="30" text-anchor="middle">분기점이 열리는 방향</text>
+  </g>
+
+  <!-- 선도 가닥 -->
+  <g class="d s t1"><line class="prim" x1="70" y1="86.5" x2="84" y2="89.5"/><text class="end" x="52" y="96" text-anchor="end">5'</text></g>
+  <line class="lead draw g1" pathLength="1" x1="84" y1="89.5" x2="590" y2="216"/>
+  <g class="d s t1"><text class="lab" x="300" y="112" style="fill:var(--ltt-c1);font-weight:700">선도 가닥: 분기점을 따라 연속으로</text></g>
+  <g class="d s t5">
+    <line class="dir" x1="330" y1="150" x2="440" y2="177.5" stroke="var(--ltt-c1)"/><path d="M440 177.5l-13-1 4 12z" fill="var(--ltt-c1)" transform="rotate(0)"/>
+    <text class="end" x="598" y="206" style="fill:var(--ltt-c1)">3'</text>
+  </g>
+
+  <!-- 지연 가닥: 오래된 절편이 왼쪽(먼 쪽), 새 절편이 분기점 쪽 -->
+  <g class="d s t2"><line class="prim" x1="286" y1="293" x2="300" y2="296.5"/><text class="end" x="304" y="318">5'</text></g>
+  <line class="frag draw g2" pathLength="1" x1="286" y1="293.5" x2="200" y2="321"/>
+  <g class="d s t3"><line class="prim" x1="406" y1="263" x2="420" y2="266.5"/><text class="end" x="424" y="288">5'</text></g>
+  <line class="frag draw g3" pathLength="1" x1="406" y1="263.5" x2="320" y2="291"/>
+  <g class="d s t4"><line class="prim" x1="526" y1="233" x2="540" y2="236.5"/><text class="end" x="544" y="258">5'</text></g>
+  <line class="frag draw g4" pathLength="1" x1="526" y1="233.5" x2="440" y2="261"/>
+  <g class="d s t3"><text class="end" x="186" y="324" text-anchor="end">3'</text></g>
+
+  <g class="d s t4"><text class="lab" x="430" y="405" text-anchor="middle" style="fill:var(--ltt-c2);font-weight:700">지연 가닥: 짧은 절편이 하나씩 쌓인다</text>
+    <text class="lab mut" x="250" y="345" text-anchor="middle">오래된 절편</text>
+    <text class="lab mut" x="545" y="300" text-anchor="middle">가장 새 절편</text></g>
+
+  <!-- 강조: 절편의 성장 방향 -->
+  <g class="d s t5">
+    <ellipse class="focus" cx="370" cy="275" rx="190" ry="48" transform="rotate(-14 370 275)"/>
+    <line class="dir" x1="520" y1="215" x2="330" y2="270" stroke="var(--ltt-accent)" transform="translate(0 -30)"/>
+    <path d="M330 240l12-3-3-12z" fill="var(--ltt-accent)" transform="translate(0 0)"/>
+  </g>
+  <g class="d s t6">
+    <text class="accent lab" x="700" y="330">절편도 5'→3'으로 자란다.</text>
+    <text class="accent lab" x="700" y="354">다만 그 방향이 분기점에서 멀어지는 쪽이라 끊긴다.</text>
+  </g>
+  <!-- 범례 -->
+  <g class="d s t4">
+    <line class="prim" x1="700" y1="410" x2="716" y2="410"/><text class="lab" x="724" y="415">RNA 프라이머</text>
+  </g>
+</svg>`;
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  scenes: [{
+    type: "hook",
+    pre: "생물 · DNA 복제",
+    text: "새 가닥은 5'→3'으로만 자란다. 그래서 한쪽은 이어지고, 한쪽은 끊긴다.",
+    sub: "한 분기점에서 두 새 가닥이 만들어지는 순서를 따라가 보자. 진핵생물의 절편은 약 100~200 nt, 세균은 약 1000~2000 nt이다.",
+    art
+  }]
+});
+</script>
+</body>
+</html>

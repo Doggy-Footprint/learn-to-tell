@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .fork-fig { width: 100%; max-width: 1040px; margin: 0 auto; display: block; }
+  .fork-fig text { fill: var(--ltt-ink); font-family: inherit; }
+  .fork-fig .mut { fill: var(--ltt-muted); }
+  .fork-fig .g { transform-box: fill-box; }
+  .fork-fig .org-l { transform-origin: left center; }
+  .fork-fig .org-r { transform-origin: right center; }
+</style>
+</head>
+<body>
+<script>
+const D = 22;
+const pc = (t) => (t / D * 100).toFixed(2) + "%";
+let css = "";
+// 정지 구간을 포함한 키프레임: stops = [[시각, 스타일], ...] (처음 0초, 마지막 D초)
+const kf = (name, stops) => {
+  css += `@keyframes ${name}{` + stops.map(([t, s]) => `${pc(t)}{${s}}`).join("") + "}";
+  css += `.${name}{animation:${name} ${D}s linear infinite both}`;
+};
+const hid = "opacity:0", vis = "opacity:1";
+kf("kAll", [[0, hid], [0.4, vis], [21, vis], [21.9, hid], [D, hid]]);
+const show = (n, t0, t1) => kf(n, [[0, hid], [t0, hid], [t1, vis], [D, vis]]);
+const grow = (n, t0, t1, from, to) => kf(n, [[0, `opacity:0;transform:${from}`], [t0, `opacity:1;transform:${from}`], [t1, `opacity:1;transform:${to}`], [D, `opacity:1;transform:${to}`]]);
+const primer = (n, t0, t1) => kf(n, [[0, hid], [t0, hid], [t0 + 0.4, vis], [t1, vis], [t1 + 1.2, hid], [D, hid]]);
+const cap = (n, t0, t1) => kf(n, [[0, hid], [t0, hid], [t0 + 0.3, vis], [t1 - 0.3, vis], [t1, hid], [D, hid]]);
+
+show("kHel", 0.8, 1.6);
+primer("kLP", 2.0, 16.0);
+grow("kLeadRect", 2.4, 15, "scaleX(0)", "scaleX(1)");
+grow("kLeadTip", 2.4, 15, "translateX(0px)", "translateX(470px)");
+const frags = [[110, 4.0, 6.6], [230, 7.0, 9.6], [350, 10.0, 12.6], [470, 13.0, 15.6]];
+frags.forEach(([a, t0, t1], i) => {
+  primer("kP" + i, t0, 16.0);
+  grow("kFR" + i, t0 + 0.4, t1, "scaleX(0)", "scaleX(1)");
+  grow("kFT" + i, t0 + 0.4, t1, "translateX(110px)", "translateX(0px)");
+  show("kN" + i, t0 + 0.2, t0 + 0.8);
+});
+kf("kGap", [[0, hid], [17.4, hid], [18.6, vis], [D, vis]]);
+kf("kLig", [[0, hid], [17.2, hid], [17.8, vis], [20.6, vis], [21, hid], [D, hid]]);
+cap("kC1", 0.3, 3.4); cap("kC2", 3.4, 6.2); cap("kC3", 6.2, 13.8); cap("kC4", 13.8, 16.4); cap("kC5", 16.4, 21.2);
+cap("kMid", 13.8, 16.4);
+document.head.appendChild(Object.assign(document.createElement("style"), { textContent: css }));
+
+const poly = (pts) => pts.map((p) => p.join(",")).join(" ");
+const fragSvg = frags.map(([a], i) => {
+  const b = a + 110, y = 315;
+  return `
+  <rect class="kFR${i} g org-r" x="${a}" y="${y - 4}" width="110" height="8" rx="4" fill="var(--ltt-c2)"/>
+  <polygon class="kFT${i} g" points="${poly([[a, y - 9], [a - 16, y], [a, y + 9]])}" fill="var(--ltt-c2)"/>
+  <rect class="kP${i} g" x="${b - 24}" y="${y - 7}" width="24" height="14" rx="3" fill="var(--ltt-warn)" stroke="var(--ltt-ink)" stroke-width="1.5"/>
+  <text class="kN${i} mut" x="${a + 55}" y="${y + 30}" text-anchor="middle" font-size="16">절편 ${i + 1}</text>`;
+}).join("");
+const gaps = [220, 340, 460].map((x) => `<rect x="${x}" y="311" width="10" height="8" fill="var(--ltt-c2)"/>`).join("");
+
+const svg = `
+<svg class="fork-fig" viewBox="0 0 960 470" role="img" aria-label="DNA 복제 분기점: 선도 가닥은 분기점 쪽으로 연속 합성되고 지연 가닥은 오카자키 절편으로 합성된다">
+<g class="kAll">
+  <!-- 주형 가닥 -->
+  <path d="M60 90 H520 C620 90 640 205 720 205 H900" fill="none" stroke="var(--ltt-ink)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M60 350 H520 C620 350 640 235 720 235 H900" fill="none" stroke="var(--ltt-ink)" stroke-width="5" stroke-linecap="round"/>
+  <text x="40" y="95" font-size="18" text-anchor="end" font-weight="700">3′</text>
+  <text x="40" y="355" font-size="18" text-anchor="end" font-weight="700">5′</text>
+  <text x="920" y="210" font-size="18" font-weight="700">5′</text>
+  <text x="920" y="240" font-size="18" font-weight="700">3′</text>
+  <text x="70" y="66" font-size="16" class="mut">위쪽 주형</text>
+  <text x="70" y="388" font-size="16" class="mut">아래쪽 주형</text>
+
+  <!-- 헬리케이스와 분기점 전진 -->
+  <g class="kHel">
+    <circle cx="668" cy="220" r="26" fill="var(--ltt-card-2)" stroke="var(--ltt-ink)" stroke-width="2"/>
+    <text x="668" y="226" text-anchor="middle" font-size="16">헬리</text>
+    <text x="668" y="262" text-anchor="middle" font-size="16" class="mut" transform="translate(0,28)">헬리케이스</text>
+    <path d="M700 160 H780" stroke="var(--ltt-accent)" stroke-width="3" fill="none"/>
+    <polygon points="780,152 796,160 780,168" fill="var(--ltt-accent)"/>
+    <text x="800" y="166" font-size="16">분기점 전진</text>
+  </g>
+
+  <!-- 선도 가닥 -->
+  <rect class="kLeadRect g org-l" x="110" y="121" width="470" height="8" rx="4" fill="var(--ltt-c1)"/>
+  <polygon class="kLeadTip g" points="${poly([[110, 116], [126, 125], [110, 134]])}" fill="var(--ltt-c1)"/>
+  <rect class="kLP g" x="110" y="118" width="24" height="14" rx="3" fill="var(--ltt-warn)" stroke="var(--ltt-ink)" stroke-width="1.5"/>
+  <text x="110" y="168" font-size="18" font-weight="700">선도 가닥 · 5′→3′ 오른쪽, 분기점 쪽</text>
+
+  <!-- 지연 가닥 -->
+  ${fragSvg}
+  <g class="kLig">${gaps}</g>
+  <g class="kGap">${gaps}</g>
+  <text class="kLig" x="340" y="288" text-anchor="middle" font-size="16">DNA 연결효소가 틈을 잇는다</text>
+
+  <!-- 범례 -->
+  <rect x="110" y="438" width="24" height="14" rx="3" fill="var(--ltt-warn)" stroke="var(--ltt-ink)" stroke-width="1.5"/>
+  <text x="142" y="451" font-size="16" class="mut">RNA 프라이머</text>
+  <text x="330" y="451" font-size="16" class="mut">절편 하나가 자라는 방향은 선도 가닥과 같은 5′→3′, 분기점 기준으로만 반대</text>
+  <g class="kMid">
+    <text x="345" y="362" font-size="16" text-anchor="middle" fill="var(--ltt-accent)" style="fill:var(--ltt-accent)">← 분기점에서 멀어지며 합성, 오래된 절편일수록 멀리</text>
+  </g>
+
+  <!-- 단계 자막 -->
+  <g font-size="18" font-weight="700">
+    <text class="kC1" x="480" y="425" text-anchor="middle">헬리케이스가 풀어 Y자 분기점이 열린다 — 두 주형은 서로 반대 방향</text>
+    <text class="kC2" x="480" y="425" text-anchor="middle">위쪽: 중합효소는 5′→3′로만 붙여 분기점 쪽으로 끊김 없이 자란다</text>
+    <text class="kC3" x="480" y="425" text-anchor="middle">아래쪽: 풀린 만큼 프라이머를 놓고 짧게 합성 — 오카자키 절편이 반복</text>
+    <text class="kC4" x="480" y="425" text-anchor="middle">두 가닥 모두 5′→3′ — 규칙은 하나, 분기점 기준 방향만 반대</text>
+    <text class="kC5" x="480" y="425" text-anchor="middle">프라이머를 DNA로 바꾸고 연결효소로 이어 한 가닥이 된다</text>
+  </g>
+</g>
+</svg>`;
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  scenes: [{
+    type: "hook",
+    art: svg,
+    pre: "DNA 복제 분기점",
+    text: "새 가닥은 한 방향으로만 자란다 — 그래서 한 가닥은 끊어서 만든다",
+    sub: "선도 가닥은 이어서, 지연 가닥은 오카자키 절편으로 합성된다"
+  }]
+});
+</script>
+</body>
+</html>

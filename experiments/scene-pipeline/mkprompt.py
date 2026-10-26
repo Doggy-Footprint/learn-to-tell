@@ -28,6 +28,6 @@ B = """
 ## 읽을 것
 `refs/primitives.md`와 본보기 {ex}를 한 응답에서 함께 Read한다. 그 밖의 문서는 없다.
 """
-ax = json.load(open("/home/user/learn-to-tell/site/gallery/shots/axes.json"))
+ax = json.load(open(Path(__file__).resolve().parents[2]/"site/gallery/shots/axes.json"))
 ex = ", ".join(f"`refs/examples/{ax[j]['file']}`" for j in json.load(open(E/"plan.json"))[k]["neighbors_B"])
 print(common + (A if arm == "A" else B.replace("{ex}", ex)))

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가비지 컬렉션 방식: 참조 카운팅과 mark-and-sweep</title>
+<script type="application/json" id="ltt-meta">{"topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단"}</script>
+<style>
+.gc-snap { margin-top: 8px; min-height: 2.6em; }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 시나리오: 루트→A, A.next=B, B.prev=A, 루트→C. 단계마다 상태를 손 계산으로 적는다.
+// n: 그 단계에 존재하는 객체, e: 존재하는 간선, rc: 참조 카운트, cut: 끊긴 루트→A
+const STEPS = [
+  { caption: "① 루트가 객체 A를 만들어 잡는다. A의 참조 수 1",
+    n: ["A"], e: ["root>A"], rc: { A: 1 }, send: ["root", "A"], hl: ["root", "A", "root>A"] },
+  { caption: "② A.next = B. B가 만들어지고 A가 B를 가리킨다. B의 참조 수 1",
+    n: ["A", "B"], e: ["root>A", "A>B"], rc: { A: 1, B: 1 }, send: ["A", "B"], hl: ["A", "B", "A>B"] },
+  { caption: "③ B.prev = A. B가 A를 되가리켜 A의 참조 수가 2가 된다",
+    n: ["A", "B"], e: ["root>A", "A>B", "B>A"], rc: { A: 2, B: 1 }, send: ["B", "A"], hl: ["A", "B", "B>A"] },
+  { caption: "④ 루트가 객체 C도 잡는다. C의 참조 수 1. 지금은 전부 살아 있다",
+    n: ["A", "B", "C"], e: ["root>A", "A>B", "B>A", "root>C"], rc: { A: 2, B: 1, C: 1 }, send: ["root", "C"], hl: ["root", "C", "root>C"] },
+  { caption: "⑤ 프로그램이 루트→A를 끊는다. 이제 A, B에 닿을 길이 없다. A의 참조 수는 2에서 1이 된다",
+    n: ["A", "B", "C"], e: ["A>B", "B>A", "root>C"], cut: true, rc: { A: 1, B: 1, C: 1 }, hl: ["A", "B", "A>B", "B>A"], hold: 3200 },
+  { caption: "⑥ 참조 카운팅: 1은 0이 아니라 해제하지 않는다. mark-and-sweep: 루트에서 출발해 닿는 C만 mark한다",
+    n: ["A", "B", "C"], e: ["A>B", "B>A", "root>C"], cut: true, rc: { A: 1, B: 1, C: 1 }, mark: ["root", "C"], hl: ["root", "C", "root>C"], hold: 3200 },
+  { caption: "⑦ sweep: mark 없는 A, B를 해제한다. 참조 카운팅 쪽 A, B는 루트 경로 없이 남는다",
+    n: ["C"], e: ["root>C"], cut: true, rc: { C: 1 }, mark: ["root", "C"], sweep: true, hl: null, hold: 3400 }
+];
+
+const POS = { root: [0, 0, "루트", "anchor"], A: [1, 0, "객체 A", "package"], B: [2, 0, "객체 B", "package"], C: [0, 1, "객체 C", "package"] };
+const EDGE = {
+  "root>A": { f: "root", t: "A", l: "루트 참조" },
+  "A>B": { f: "A", t: "B", l: "next" },
+  "B>A": { f: "B", t: "A", l: "prev" },
+  "root>C": { f: "root", t: "C", l: "루트 참조" }
+};
+
+// 한 단계의 그림 spec. kind: rc | ms
+function specOf(st, kind) {
+  const live = new Set(st.n);
+  const gone = kind === "ms" && st.sweep;
+  const ids = ["root"].concat(["A", "B", "C"].filter((x) => (gone ? x === "C" : live.has(x))));
+  const nodes = ids.map((id) => {
+    const [c, r, l, icon] = POS[id];
+    const o = { id, c, r, l, icon };
+    if (id === "root") return o;
+    if (kind === "rc") {
+      o.s = "참조 수 " + st.rc[id];
+      if (st.cut && id !== "C") o.k = "bad";
+    } else if (st.mark) {
+      const m = st.mark.includes(id);
+      o.s = m ? "mark" : "mark 없음";
+      o.k = m ? "good" : "muted";
+    } else o.s = "살아 있음";
+    return o;
+  });
+  const have = new Set(ids);
+  const keep = st.e.filter((k) => !(gone && k !== "root>C"));
+  const edges = keep.filter((k) => have.has(EDGE[k].f) && have.has(EDGE[k].t)).map((k) => Object.assign({}, EDGE[k]));
+  if (st.cut) edges.push({ f: "root", t: "A", l: "끊음", dash: true, k: "muted" });
+  return { cols: 3, rows: 2, cell: [210, 150], node: [130, 64], nodes, edges: edges.filter((e) => have.has(e.f) && have.has(e.t)) };
+}
+
+const SNAP = {
+  rc(st) {
+    if (!st.cut) return "스냅샷: 모든 객체가 루트에서 닿는다";
+    if (st.sweep) return "스냅샷 · 남은 객체 2개, 루트 경로 없음. 객체 A의 보유자는 B, 객체 B의 보유자는 A <span class=\"ltt-tag bad\">누수</span>";
+    return "스냅샷: A, B의 참조 수가 1로 멈춘다. 보유자는 서로뿐";
+  },
+  ms(st) {
+    if (st.sweep) return "스냅샷 · 남은 객체는 루트에서 닿는 C뿐 <span class=\"ltt-tag good\">A, B 해제</span>";
+    if (st.mark) return "mark 단계: 루트에서 닿는 것만 표시. sweep은 아직 안 했다";
+    if (st.cut) return "수거 주기 전이라 A, B는 아직 메모리에 있다";
+    return "수거 전: 참조 수는 세지 않는다";
+  }
+};
+
+const views = [];
+let cur = 0;
+
+function render(i, animate) {
+  cur = i;
+  const st = STEPS[i];
+  views.forEach((v) => {
+    v.holder.innerHTML = "";
+    const svg = v.holder.appendChild(document.createElementNS(SVG, "svg"));
+    const dg = LTT.diagram(svg, specOf(st, v.kind));
+    if (st.hl) dg.highlight(st.hl);
+    if (animate && st.send) dg.send(st.send[0], st.send[1], { count: 1 });
+    v.snap.innerHTML = SNAP[v.kind](st);
+  });
+}
+
+function side(kind, withControl) {
+  return (el) => {
+    const wrap = el.appendChild(document.createElement("div"));
+    const holder = wrap.appendChild(document.createElement("div"));
+    const snap = wrap.appendChild(document.createElement("div"));
+    snap.className = "ltt-basis gc-snap";
+    views.push({ kind, holder, snap });
+    render(cur, false);
+    if (withControl) {
+      const ctl = wrap.appendChild(document.createElement("div"));
+      LTT.stepper(ctl, STEPS.map((st, i) => ({
+        caption: st.caption,
+        hold: st.hold || 2200,
+        enter: () => render(i, true)
+      })));
+    }
+    return { el: wrap };
+  };
+}
+
+LTT.deck({
+  title: "가비지 컬렉션 방식: 참조 카운팅과 mark-and-sweep",
+  theme: "terminal",
+  glossary: {
+    "참조 카운팅": "객체마다 자기를 가리키는 참조 수를 세고, 0이 되면 바로 해제하는 방식.",
+    "mark-and-sweep": "루트에서 닿는 객체를 표시(mark)한 뒤, 표시되지 않은 것을 해제(sweep)하는 방식.",
+    "보유자": "그 객체를 가리켜 메모리에 붙들고 있는 객체. 힙 스냅샷의 retainer."
+  },
+  scenes: [
+    {
+      type: "contrast",
+      title: "루트가 끊겨도 서로 가리키는 객체는 참조 카운팅에 남고, mark-and-sweep에서는 사라진다",
+      en: "A cycle survives reference counting but not mark-and-sweep",
+      kicker: "런타임 · 가비지 컬렉션",
+      sub: "같은 코드, 같은 순서. 객체 아래 숫자는 {{참조 카운팅}}의 참조 수, 표시는 {{mark-and-sweep}}의 mark다. 아래 단계를 넘겨 본다.",
+      before: { label: "참조 카운팅", visual: side("rc", true) },
+      after: { label: "mark-and-sweep", visual: side("ms", false) },
+      takeaway: "힙 스냅샷에 루트 경로 없이 {{보유자}}끼리만 붙든 객체가 남아 있으면, 참조 카운팅 계열의 순환 참조 누수를 의심한다. 순환을 끊거나 약한 참조로 푼다.",
+      recall: "루트를 끊은 뒤에도 A의 참조 수가 1로 남는 이유는?",
+      basis: "시나리오 손 계산: 루트→A, A.next=B, B.prev=A, 루트→C. 수치는 <span class=\"ltt-tag muted\">모델로 계산한 예시</span>"
+    }
+  ]
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+# stream.jsonl
+
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/storyboard.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/direction.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/scene.html`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/shots/index.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/shots/scene-audit.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/refs/API.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/shots/scene-t1s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/shots/scene-t4s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/shots/scene-t8s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/shots/scene-step1.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/shots/scene-step2.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/shots/scene-step3.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/shots/scene-step4.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/shots/scene-step5.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/shots/scene-step6.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/shots/scene-step7.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/refs/api/diagram.md`
+- Write `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/review.md` (+2255자)
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/scene.html`
+- 말: Edits are in. Now the audit run, as the rules require.
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r2/zero-review-2nd/review.md`
+- 말: 실패 4건 중 1건을 고쳤다(글자 크기). 나머지 3건(강조 링 어긋남, 칸과 서버 박스 겹침, 단계마다 그림 크기가 바뀌는 문제)은 원인을 확인하지 못해 그대로 두었고, audit은 고침 0건으로 끝났다.
+
+- **검수 결과:** `review.md`에 스토리보드 사실 점검표, 생성 순서, 비트 6개, 화면 결함을 항목별로 적었다. 사실·순서·비트는 전부 통과했다.
+- **고친 것:** 라벨, 범례, 과반수 계산 글자 크기를 키웠다. 칸 번호(`5·t2`)는 칸 폭 때문에 그대로 뒀다.
+- **audit:** `scene-audit.txt`에 있던 `overview-order` 고침 항목은 이번 실행에서 나오지 않았다. 장면 순서는 바꾸지 않았다. 그 파일이 오래된 결과인 것으로 보인다.
+- **남은 권고
+- 결과: success $0.0323 28턴 142s

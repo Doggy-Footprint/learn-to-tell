@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>런타임 · mark-and-sweep GC vs 참조 카운팅</title>
+<script type="application/json" id="ltt-meta">{"topic":"가비지 컬렉션 방식","audience":"애플리케이션 개발자","theme":"terminal","medium":"힙 스냅샷·메모리 프로파일러","decision":"메모리 누수 진단"}</script>
+<style>
+.gc-side { display: grid; gap: 8px; min-width: 0; }
+.gc-diag svg, .gc-chart svg { display: block; width: 100%; height: auto; }
+.gc-cap { margin: 0; font-weight: 600; min-height: 2.6em; }
+.gc-snap { margin: 0; color: var(--ltt-muted); font-size: 13px; }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const PAIRS = 100, BASE_MB = 4, GC_EVERY = 16;
+const STEP_MS = 1300, LOOP_MS = 5000, REV_MS = 4500, TICK_MS = 100;
+const T_LOOP = 7 * STEP_MS, T_REV = T_LOOP + LOOP_MS, CYCLE = T_REV + REV_MS;
+// 비트: 0 A 생성, 1 B 생성, 2 A.peer=B, 3 B.peer=A, 4 루트 해제, 5 GC 시점, 6 회수 뒤, 7 100쌍 반복, 8 반전
+const frameAt = (t) => (t < T_LOOP ? Math.floor(t / STEP_MS) : t < T_REV ? 7 : 8);
+const pairsAt = (t) => (t < T_LOOP ? 0 : Math.min(PAIRS, Math.round((PAIRS * (t - T_LOOP)) / LOOP_MS)));
+const heapOf = (side, n) => BASE_MB + (side === "count" ? n : n % GC_EVERY);
+LTT.expect("mark 톱니 최저(GC 직후)", heapOf("mark", 16), 4);
+LTT.expect("카운팅 100쌍 누수 MB", heapOf("count", 100) - BASE_MB, 100);
+
+const CAP = {
+  count: [
+    "A를 만든다. 루트 a가 쥐어 rc 1",
+    "B를 만든다. 루트 b가 쥐어 rc 1",
+    "A.peer = B. B를 가리키는 화살표가 늘어 B의 rc 2",
+    "B.peer = A. A의 rc도 2. 순환이 완성된다",
+    "루트가 a, b를 놓는다. rc는 즉시 2 → 1로 줄고 멈춘다",
+    "0이 아니므로 해제하지 않는다. 닿을 수 없는 쌍이 남는다",
+    "1, 1 그대로. 이 쌍이 반복되면 힙이 오른다",
+    "", "스냅샷: retainer가 서로뿐, 루트로 가는 경로가 없다 → 누수"
+  ],
+  mark: [
+    "A를 만든다. 루트에서 닿는다",
+    "B를 만든다. 루트에서 닿는다",
+    "A.peer = B. 카운트는 없고 도달만 본다",
+    "B.peer = A. 순환이 생겨도 루트에서 닿으니 산다",
+    "루트가 a, b를 놓는다. 아직 GC 전이라 힙에 그대로 남는다",
+    "GC 시점. 루트에서 닿는 것만 mark. A, B는 표시 없음",
+    "표시 없는 A, B를 sweep으로 회수한다. 순환은 상관없다",
+    "", "반전: 전역 캐시가 A를 쥐면 루트에서 닿는다 → 회수되지 않는다"
+  ]
+};
+
+function graph(side, f) {
+  const count = side === "count";
+  const rootA = f <= 3, rootB = f >= 1 && f <= 3;
+  const hasB = f >= 1, ab = f >= 2, ba = f >= 3;
+  const gone = !count && (f === 6 || f === 7);
+  const rev = !count && f === 8;
+  const base = rev ? 4 : f; // 반전 장면은 루트 해제 뒤 상태 위에 캐시를 얹는다
+  const rA = base <= 3, rB = base >= 1 && base <= 3;
+  const nodes = [{ id: "root", c: 0, r: 0.5, l: "루트", s: "지역 변수", icon: "anchor" }];
+  const edges = [];
+  if (rootA || (rev && false)) edges.push({ f: "root", t: "A", l: "a" });
+  if (rootB) edges.push({ f: "root", t: "B", l: "b" });
+  if (!gone) {
+    const sub = (own, inRefs) => count
+      ? `rc ${own + inRefs}`
+      : rev ? "캐시로 도달" : own ? "루트에서 닿음" : f === 5 ? "mark 안 됨" : "GC 전";
+    const k = (own, inRefs) => count ? (!own && inRefs ? "warn" : undefined) : (!own && !rev ? (f === 5 ? "bad" : "muted") : undefined);
+    const ownA = rev ? 0 : +rootA, ownB = rev ? 0 : +rootB;
+    nodes.push({ id: "A", c: 1, r: 0, l: "객체 A", s: sub(ownA, +ba), k: k(ownA, +ba), icon: "package" });
+    if (hasB) nodes.push({ id: "B", c: 1, r: 1, l: "객체 B", s: sub(ownB, +ab), k: k(ownB, +ab), icon: "package" });
+    if (ab) edges.push({ f: "A", t: "B", l: "peer" });
+    if (ba) edges.push({ f: "B", t: "A", l: "peer" });
+  }
+  if (rev) {
+    nodes.push({ id: "cache", c: 2, r: 0, l: "전역 캐시", s: "루트 쪽 참조", icon: "database" });
+    edges.push({ f: "cache", t: "A", l: "쥠" });
+    edges.push({ f: "root", t: "cache", l: "닿음", dash: true });
+  }
+  return { cols: 3, rows: 2, cell: [190, 120], node: [140, 58], nodes, edges };
+}
+
+function snapText(side, f, n) {
+  if (f <= 3) return "힙 스냅샷 · Pair 1개 · retainer: 루트";
+  if (f <= 6) return side === "count" ? "힙 스냅샷 · Pair 1개 · retainer: A↔B 서로뿐, 루트 없음" : f === 6 ? "힙 스냅샷 · Pair 0개 (회수됨)" : "힙 스냅샷 · Pair 1개 · retainer: 없음 (도달 불가)";
+  const live = side === "count" ? n : n % GC_EVERY;
+  if (f === 7) return `힙 스냅샷 · Pair ${live}개 (객체 ${2 * live}개) · 약 ${live} MB`;
+  return side === "count"
+    ? "스냅샷 비교 · Pair +100 (객체 +200, +100 MB) · retainer: A↔B 서로뿐"
+    : "스냅샷 · Pair 1개 · retainer: 전역 캐시 → A → B (루트까지 이어짐)";
+}
+
+let T0 = null;
+function build(el, side) {
+  const count = side === "count";
+  el.innerHTML = `<div class="gc-side"><div class="gc-diag"></div><p class="gc-cap"></p>
+    <div class="gc-chart"></div><p class="gc-snap ltt-mono"></p>
+    <span class="ltt-tag muted">모델로 계산한 예시</span></div>`;
+  const diag = el.querySelector(".gc-diag"), cap = el.querySelector(".gc-cap");
+  const snap = el.querySelector(".gc-snap");
+  const plot = LTT.axisPlot(el.querySelector(".gc-chart"), {
+    width: 420, height: 150, x: [0, PAIRS], y: [0, 110],
+    series: [{ id: side, k: count ? "bad" : "good" }],
+    labels: { x: "반복한 쌍", y: "힙 MB" }
+  });
+  let lastF = -1, lastN = -1;
+  const draw = (t) => {
+    const f = frameAt(t), n = pairsAt(t);
+    if (f !== lastF) {
+      lastF = f;
+      diag.innerHTML = "";
+      const svg = diag.appendChild(document.createElementNS(SVG, "svg"));
+      LTT.diagram(svg, graph(side, f));
+    }
+    cap.textContent = f === 7 ? `쌍 ${n} / ${PAIRS}: ${count ? "해제되지 않고 쌓인다" : n % GC_EVERY === 0 && n ? "GC가 돌아 기준선으로 복귀" : "GC 임계까지 쌓이는 중"}` : CAP[side][f];
+    snap.textContent = snapText(side, f, n);
+    if (n !== lastN) {
+      lastN = n;
+      const pts = [];
+      for (let i = 0; i <= n; i++) pts.push([i, heapOf(side, i)]);
+      plot.set(side, n ? pts : []);
+    }
+  };
+  if (!LTT.MOTION_MS) return draw(CYCLE - 1);
+  draw(0);
+  T0 ??= performance.now();
+  const timer = setInterval(() => {
+    if (!diag.isConnected) return clearInterval(timer);
+    draw((performance.now() - T0) % CYCLE);
+  }, TICK_MS);
+  return { leave() { clearInterval(timer); } };
+}
+
+LTT.deck({
+  title: "런타임 · mark-and-sweep GC vs 참조 카운팅, 순환 참조",
+  theme: "terminal",
+  glossary: {
+    "참조 카운팅": "객체를 가리키는 화살표(참조)의 수를 세어, 0이 되는 순간 회수하는 방식",
+    "도달 불가": "루트에서 화살표를 따라가도 닿을 수 없는 객체"
+  },
+  scenes: [{
+    type: "contrast",
+    kicker: "런타임 · 가비지 컬렉션",
+    title: "순환 쌍은 카운트가 0이 안 되고, mark는 루트가 끊기면 회수한다",
+    en: "A cycle keeps its counts above zero, but mark-and-sweep only asks whether a root reaches it",
+    sub: "같은 코드, 같은 입력. 루트가 A와 B를 놓은 뒤 무슨 일이 생기는지, 마지막에 누가 붙잡고 있는지 본다",
+    before: { label: "{{참조 카운팅}}", visual: (el) => build(el, "count") },
+    after: { label: "mark-and-sweep", visual: (el) => build(el, "mark") },
+    takeaway: "누수는 순환인지가 아니라 루트에서 닿는지(보유 경로가 루트까지 이어지는지)로 정해진다. 진단 질문은 \"누가 붙잡고 있나\"다.",
+    recall: "스냅샷에서 보유 경로가 서로뿐이면 어느 방식의 누수인가?",
+    basis: "순수 참조 카운팅 모델이다. CPython은 순환 감지기(gc 모듈)를 더해 순환도 회수한다. 객체 512 KB, 쌍 1 MB, GC 임계 16 MB, 기준선 4 MB는 모델로 계산한 예시다."
+  }]
+});
+</script>
+</body>
+</html>

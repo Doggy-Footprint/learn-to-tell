@@ -1,0 +1,31 @@
+# stream.jsonl
+
+- 말: 검수 대상 파일을 한 번에 읽겠습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/storyboard.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/direction.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/scene.html`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/shots/index.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/shots/scene-audit.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/refs/API.md`
+- Bash `ls -la shots/`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/shots/scene-t1s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/shots/scene-t4s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/shots/scene-t8s.jpg`
+- 말: 스크린샷과 코드를 대조했습니다. 고치기 전에 `review.md`를 먼저 씁니다.
+- Write `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/review.md` (+2224자)
+- 말: 실패 2건(생성 순서 4, 비트 5)을 한 묶음 Edit로 고칩니다. 프라이머 제거를 앞 절반에, 틈 메움·이음을 뒤 절반에 두고, 이음 뒤에는 화살촉 하나짜리 선으로 바꿉니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/scene.html`
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- 말: audit은 고침 0건이고 남은 것은 권고 1건(축소 86%)뿐입니다. `review.md`에 `## 고친 것`을 붙이려면 먼저 읽어야 합니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/review.md`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/hreview/review.md`
+- 말: 실패 2개, 고친 항목 2개입니다. 검수 결과는 `review.md`에 정리했습니다.
+
+- 실패: 생성 순서 4(프라이머 제거·틈 메움·이음이 한 순간에 겹침), 비트 5(이음 뒤에도 화살촉 셋이 남아 조각으로 보임).
+- 고침: `scene.html`의 render에서 프라이머 제거를 앞 절반, 틈 메움과 연결효소 표기를 뒤 절반으로 나눴고, 이음 뒤에는 화살촉 하나짜리 `joined` 선 하나로 한 가닥을 보이게 했습니다. audit은 고침 0건으로 끝났고, 남은 권고는 1280x800에서 장면이 86%로 줄어든 것 하나입니다.
+- 확인 범위: 고친 부분은 코드와 스크린샷 대조로만 검증했습니다. 수정 후 화면은 새로 찍지 않았으므로 브라우저에서 t8s 근처를 한 번 보시는 게 좋습니다.
+- 그대로 둔 것
+- 결과: success $0.0302 19턴 142s

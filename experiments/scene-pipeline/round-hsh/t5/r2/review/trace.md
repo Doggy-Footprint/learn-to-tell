@@ -1,0 +1,30 @@
+# stream.jsonl
+
+- 말: 먼저 지정된 텍스트 파일들을 한 번에 읽고, 그다음 `shots/index.txt`에 적힌 스크린샷을 읽겠습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/storyboard.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/direction.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/scene.html`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/shots/index.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/shots/scene-audit.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/refs/API.md`
+- 말: 스토리보드, 방향, 코드, 인덱스, 감사 결과, API 문서를 읽었습니다. 이제 `shots/` 아래 파일 목록을 확인하고 스크린샷을 읽겠습니다.
+- Bash `ls -la /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/shots/`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/shots/scene-t1s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/shots/scene-t4s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/shots/scene-t8s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/shots/scene-knob-r-min.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/shots/scene-knob-r-max.jpg`
+- 말: 스크린샷 5장을 확인했습니다. 텍스트 점검은 대부분 통과하고, 화면 쪽에서 글자 크기와 그림 크기, 히어로 숫자 줄바꿈이 실패입니다. 고치기 전에 `review.md`를 먼저 씁니다.
+- Write `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/review.md` (+2354자)
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- 말: 감사 결과는 "고침 0건"이고 남은 것은 "권고" 두 줄(장면 축소)뿐입니다. 하지만 review.md에 적은 실패 3건은 감사가 잡지 못한 화면 결함이라 그대로 두면 안 됩니다. 원인은 측면 열 250px과 split 레일 때문에 차트가 약 282px로 줄어든 것입니다. 그래서 측면 패널을 차트 아래로 내려 차트 폭을 전체로 쓰고, 차트 viewBox 높이를 줄이고, 히어로 라벨을 블록으로 분리하는 묶음 Edit를 적용합니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/scene.html`
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- 말: 감사에서 고침 지적은 여전히 0건이고, 남은 것은 권고인 장면 축소(1280에서 78%, 변화 없음)뿐입니다. 이 축소는 감사가 말하는 대로 권고로 남깁니다. 마지막으로 review.md 끝에 고친 목록을 붙입니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r2/review/review.md`
+- 말: 실패 3개, 고친 3개입니다(차트 글자·그림 크기·히어로 줄바꿈). 장면 축소 권고(1280에서 78%)는 그대로 남겼습니다.
+- 결과: success $0.0334 22턴 160s

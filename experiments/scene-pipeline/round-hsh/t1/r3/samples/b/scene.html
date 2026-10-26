@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할은 루트까지 올라간다</title>
+<script type="application/json" id="ltt-meta">{"topic":"B+tree 노드 분할","audience":"백엔드 개발자","theme":"blueprint","medium":"DB 내부 구조 도해","decision":"인덱스 설계와 페이지 크기 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>@keyframes ltt-in{from{opacity:0}to{opacity:1}}</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 페이지당 키 최대 4개, 내부 노드 자식 최대 5개로 가정한 손 계산 상태
+const NODES = [
+  { id: "r4", c: 2.5, r: 1, l: "20 40 60 80", s: "루트 · 4/4 가득", k: "warn" },
+  { id: "r5", c: 2.5, r: 1, l: "20 40 50 60 80", s: "5키 · 초과", k: "bad" },
+  { id: "il", c: 1.5, r: 1, l: "20 40", s: "내부 · 자식 3" },
+  { id: "ir", c: 3.5, r: 1, l: "60 80", s: "내부 · 자식 3" },
+  { id: "nr", c: 2.5, r: 0, l: "50", s: "새 루트", k: "good" },
+  { id: "a", c: 0, r: 2, l: "3 12 18", s: "잎" },
+  { id: "b", c: 1, r: 2, l: "20 30 35", s: "잎" },
+  { id: "c4", c: 2, r: 2, l: "40 45 50 55", s: "잎 · 4/4 가득", k: "warn" },
+  { id: "c5", c: 2, r: 2, l: "40 45 50 52 55", s: "5키 · 초과", k: "bad" },
+  { id: "cl", c: 2, r: 2, l: "40 45", s: "왼쪽 잎 · 2키" },
+  { id: "n", c: 3, r: 2, l: "50 52 55", s: "새 잎 · 3키", k: "good" },
+  { id: "d", c: 4, r: 2, l: "60 65", s: "잎" },
+  { id: "e", c: 5, r: 2, l: "80 85", s: "잎" },
+];
+
+// 잎 사이 연결 리스트는 잎 아래로 돌려 그린다(잎 칸을 지나지 않게)
+const SIB = (id, f, t, x, l) => ({ id, f, t, from: "bottom", to: "bottom", shape: "ortho", via: [[x, 2.6]], l });
+
+const EDGES = [
+  { id: "p_a", f: "r4", t: "a" }, { id: "p_b", f: "r4", t: "b" }, { id: "p_c4", f: "r4", t: "c4" },
+  { id: "p_c5", f: "r4", t: "c5" }, { id: "p_d", f: "r4", t: "d" }, { id: "p_e", f: "r4", t: "e" },
+  { id: "q_a", f: "r5", t: "a" }, { id: "q_b", f: "r5", t: "b" }, { id: "q_cl", f: "r5", t: "cl" },
+  { id: "q_n", f: "r5", t: "n" }, { id: "q_d", f: "r5", t: "d" }, { id: "q_e", f: "r5", t: "e" },
+  { id: "i_a", f: "il", t: "a" }, { id: "i_b", f: "il", t: "b" }, { id: "i_cl", f: "il", t: "cl" },
+  { id: "j_n", f: "ir", t: "n" }, { id: "j_d", f: "ir", t: "d" }, { id: "j_e", f: "ir", t: "e" },
+  { id: "t_il", f: "nr", t: "il" }, { id: "t_ir", f: "nr", t: "ir" },
+  { id: "cu4", f: "n", t: "r4", dash: true, k: "good", l: "50 복사 올림" },
+  { id: "cu5", f: "n", t: "r5", dash: true, k: "good", l: "50 복사 올림" },
+  SIB("s_ab", "a", "b", 0.5, "다음 잎"), SIB("s_bc4", "b", "c4", 1.5), SIB("s_c4d", "c4", "d", 3),
+  SIB("s_bc5", "b", "c5", 1.5), SIB("s_c5d", "c5", "d", 3), SIB("s_bcl", "b", "cl", 1.5),
+  SIB("s_cln", "cl", "n", 2.5), SIB("s_nd", "n", "d", 3.5), SIB("s_de", "d", "e", 4.5),
+];
+
+// 생성 순서대로 한 단계씩: 보이는 노드·엣지, 강조, 패킷
+const STEPS = [
+  { caption: "52를 넣으려는 잎 C는 이미 4칸이 가득 찼다.",
+    nodes: ["r4", "a", "b", "c4", "d", "e"],
+    edges: ["p_a", "p_b", "p_c4", "p_d", "p_e", "s_ab", "s_bc4", "s_c4d", "s_de"], hl: ["c4"] },
+  { caption: "52가 들어가 잎에 키 5개가 생겨 칸을 넘는다. 이 초과가 분할의 원인이다.",
+    nodes: ["r4", "a", "b", "c5", "d", "e"],
+    edges: ["p_a", "p_b", "p_c5", "p_d", "p_e", "s_ab", "s_bc5", "s_c5d", "s_de"], hl: ["c5"] },
+  { caption: "잎을 둘로 나눈다. 새 오른쪽 잎 [50 52 55]가 생기고, 첫 키 50이 복사되어 부모로 올라간다(잎에는 그대로 남는다).",
+    nodes: ["r4", "a", "b", "cl", "n", "d", "e"],
+    edges: ["p_a", "p_b", "p_d", "p_e", "s_ab", "s_bcl", "s_cln", "s_nd", "s_de", "cu4"], hl: ["cl", "n"], send: ["n", "r4"] },
+  { caption: "부모 루트가 50을 받아 5키가 되어 넘친다. 가득 찬 조상이 이어져 있어 분할이 위로 전파된다.",
+    nodes: ["r5", "a", "b", "cl", "n", "d", "e"],
+    edges: ["q_a", "q_b", "q_cl", "q_n", "q_d", "q_e", "s_ab", "s_bcl", "s_cln", "s_nd", "s_de", "cu5"], hl: ["r5"] },
+  { caption: "루트를 둘로 나눈다. 가운데 50은 이동해 위로 올라가고 잎에는 남지 않는다. 양쪽 내부 노드에는 2키씩 남는다.",
+    nodes: ["il", "ir", "a", "b", "cl", "n", "d", "e"],
+    edges: ["i_a", "i_b", "i_cl", "j_n", "j_d", "j_e", "s_ab", "s_bcl", "s_cln", "s_nd", "s_de"], hl: ["il", "ir"] },
+  { caption: "올릴 부모가 없어 키 50 하나짜리 새 루트가 생긴다. 높이는 2에서 3이 되고, 모든 잎의 깊이는 같다.",
+    nodes: ["nr", "il", "ir", "a", "b", "cl", "n", "d", "e"],
+    edges: ["t_il", "t_ir", "i_a", "i_b", "i_cl", "j_n", "j_d", "j_e", "s_ab", "s_bcl", "s_cln", "s_nd", "s_de"], hl: ["nr"] },
+];
+
+// 단계마다 그 단계에 있는 노드·엣지만 그린다. 칸 좌표는 고정이라 자리는 그대로이고, 새로 그린 그림이 천천히 나타난다
+function draw(f, step) {
+  f.el.innerHTML = "";
+  const s = f.el.appendChild(document.createElementNS(SVG, "svg"));
+  s.style.animation = LTT.MOTION_MS ? `ltt-in ${LTT.MOTION_MS}ms ease` : "";
+  f.dg = LTT.diagram(s, {
+    cols: 6, rows: 4, cell: [180, 110], node: [160, 60],
+    nodes: NODES.filter(({ id }) => step.nodes.includes(id)),
+    edges: EDGES.filter(({ id }) => step.edges.includes(id)),
+  });
+  f.dg.highlight(step.hl);
+}
+
+function fig(el) {
+  const f = { el: el.appendChild(document.createElement("div")) };
+  draw(f, STEPS[0]);
+  return f;
+}
+
+LTT.deck({
+  title: "잎이 가득 차면 분할은 루트까지 올라가고, 트리는 위에 층을 더한다",
+  theme: "blueprint",
+  glossary: {
+    "팬아웃": "한 노드가 가진 자식 포인터 수. 페이지 크기와 키 길이로 정해진다.",
+  },
+  scenes: [{
+    type: "figure",
+    title: "잎이 가득 차면 분할은 루트까지 올라가고, 트리는 위에 층을 더한다",
+    en: "A full leaf splits, and the split climbs to the root.",
+    kicker: "DB · B+tree 삽입",
+    sub: "키 52를 넣는 한 번의 삽입이 루트에서 새 층을 만든다. 단계를 넘기며 어느 노드가 바뀌는지 본다.",
+    figure: fig,
+    steps: STEPS.map((s) => ({
+      caption: s.caption,
+      enter: (k, f) => {
+        draw(f, s);
+        if (s.send) f.dg.send(s.send[0], s.send[1], { count: 1, color: "var(--ltt-accent)", ms: 900 });
+      },
+    })),
+    takeaway: "분할은 가득 찬 잎에서 시작해 가득 찬 조상을 따라 루트까지 번지고, 루트가 나뉘면 새 층이 생겨 모든 잎이 한 칸 내려간다. 높이를 정하는 것은 {{팬아웃}}이다.",
+    recall: "가득 찬 잎에 키를 넣으면, 여유 있는 조상을 만나기 전까지 어디까지 분할되는가?",
+    basis: "모델로 계산한 예시: 페이지당 키 4개, 내부 노드 자식 5개로 가정한 손 계산이다. 실제 페이지 크기는 키 길이에 따라 달라진다.",
+  }],
+});
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 // usage: node audit-pw.mjs <galleryDir> <rel.html>... -> JSON per target/size
-import { chromium } from "/opt/node22/lib/node_modules/playwright/index.mjs";
-import { createLttServer } from "/home/user/learn-to-tell/skills/learn-to-tell/server/server.mjs";
+import { chromium } from "playwright";
+import { createLttServer } from "../../skills/learn-to-tell/server/server.mjs";
 import { mkdtempSync } from "node:fs"; import { tmpdir } from "node:os"; import { join } from "node:path";
 const [galleryDir, ...rels] = process.argv.slice(2);
 const server = createLttServer({ home: mkdtempSync(join(tmpdir(), "ltth-")), galleryDir });

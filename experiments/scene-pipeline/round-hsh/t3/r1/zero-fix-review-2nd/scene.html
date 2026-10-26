@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의 — 리더 선출과 로그 복제</title>
+<script type="application/json" id="ltt-meta">{"topic": "Raft 합의", "audience": "분산 시스템 입문 개발자", "theme": "sketch", "medium": "아키텍처 화이트보드", "decision": "합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .raft-wrap { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+  .raft-wrap svg { width: 100%; height: auto; display: block; }
+  .raft-panel { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .raft-col { border: 1px solid var(--ltt-line); border-radius: 8px; background: var(--ltt-card); padding: 6px 8px; }
+  .raft-col b { font-size: 13px; color: var(--ltt-ink-2); }
+  .raft-cells { display: flex; gap: 4px; margin-top: 4px; }
+  .raft-cell { flex: 1; height: 24px; border-radius: 4px; border: 1.5px solid var(--ltt-line-2); font-size: 12px; display: flex; align-items: center; justify-content: center; color: var(--ltt-ink-2); }
+  .raft-cell.c { background: var(--ltt-good-soft); border-color: var(--ltt-good); color: var(--ltt-ink); }
+  .raft-cell.u { border-style: dashed; border-color: var(--ltt-warn); background: var(--ltt-warn-soft); color: var(--ltt-ink); }
+  .raft-cell.none { border-style: dotted; opacity: .5; }
+  .raft-meter { display: flex; align-items: center; gap: 10px; min-height: 34px; font-size: 14px; color: var(--ltt-ink-2); }
+  .raft-slots { display: flex; gap: 4px; position: relative; }
+  .raft-slot { width: 34px; height: 24px; border-radius: 4px; border: 1.5px solid var(--ltt-line-2); }
+  .raft-slot.on { background: var(--ltt-accent-soft); border-color: var(--ltt-accent); }
+  .raft-slot.q { margin-right: 10px; position: relative; }
+  .raft-slot.q::after { content: ""; position: absolute; right: -8px; top: -6px; bottom: -6px; border-right: 2px dashed var(--ltt-ink); }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const N = 5, QUORUM = Math.floor(N / 2) + 1;
+LTT.expect("5노드 과반", QUORUM, 3);
+LTT.expect("5노드 허용 장애", N - QUORUM, 2);
+
+const POS = [[2, 0], [0.1, 1], [3.9, 1], [3.2, 2], [0.8, 2]];
+const NAMES = ["S1", "S2", "S3", "S4", "S5"];
+// roles/terms: 노드별 역할·term, x: 새 항목 상태('' 없음, u 미커밋, c 커밋), meter: {label, n}, edges: [from,to,label,dash], sends
+const BEATS = [
+  { cap: "① 평시: 리더 S1이 heartbeat를 보내고 팔로워 넷은 조용히 기다린다. 아래 칸은 각자의 로그(이미 커밋된 항목 둘).",
+    roles: ["리더", "팔로워", "팔로워", "팔로워", "팔로워"], terms: [1, 1, 1, 1, 1], x: ["", "", "", "", ""],
+    edges: [[0, 1], [0, 2, "heartbeat"], [0, 3], [0, 4]], sends: [[0, 1], [0, 2], [0, 3], [0, 4]] },
+  { cap: "② S1이 죽어 heartbeat가 끊긴다. 무작위 election timeout이 S2에서 먼저 끝난다.",
+    roles: ["장애", "timeout 만료", "팔로워", "팔로워", "팔로워"], terms: [1, 1, 1, 1, 1], x: ["", "", "", "", ""], edges: [], sends: [] },
+  { cap: "③ term을 먼저 +1 하고 후보가 된다. 자기에게 한 표: 득표 1, 과반선 3에는 모자라다.",
+    roles: ["장애", "후보", "팔로워", "팔로워", "팔로워"], terms: [1, 2, 1, 1, 1], x: ["", "", "", "", ""],
+    meter: { label: "득표", n: 1 }, edges: [], sends: [] },
+  { cap: "④ 그다음 RequestVote를 보낸다. term 2에 아직 표가 없고 로그가 뒤지지 않은 S3, S4가 표를 준다. 득표 3, 과반선을 넘는다.",
+    roles: ["장애", "후보", "표 줌", "표 줌", "팔로워"], terms: [1, 2, 2, 2, 1], x: ["", "", "", "", ""],
+    meter: { label: "득표", n: 3 }, edges: [[1, 2, "RequestVote"], [1, 3], [1, 4, "지연", true]], sends: [[1, 2], [1, 3]] },
+  { cap: "⑤ 과반을 얻은 S2가 리더가 되어 곧바로 heartbeat로 알린다. 같은 term에 리더는 둘일 수 없다(과반 둘은 겹친다).",
+    roles: ["장애", "리더", "팔로워", "팔로워", "팔로워"], terms: [1, 2, 2, 2, 2], x: ["", "", "", "", ""],
+    meter: { label: "득표", n: 3 }, edges: [[1, 2, "heartbeat"], [1, 3], [1, 4]], sends: [[1, 2], [1, 3], [1, 4]] },
+  { cap: "⑥ 클라이언트 쓰기 x가 리더 로그에 먼저 생긴다. 아직 미커밋(점선), 저장한 노드는 리더 1개.",
+    roles: ["장애", "리더", "팔로워", "팔로워", "팔로워"], terms: [1, 2, 2, 2, 2], x: ["", "u", "", "", ""],
+    meter: { label: "저장", n: 1 }, edges: [], sends: [] },
+  { cap: "⑦ AppendEntries로 복제한다. S3가 저장해 2개. 과반 3 미만이라 여전히 미커밋.",
+    roles: ["장애", "리더", "팔로워", "팔로워", "팔로워"], terms: [1, 2, 2, 2, 2], x: ["", "u", "u", "", ""],
+    meter: { label: "저장", n: 2 }, edges: [[1, 2, "AppendEntries"]], sends: [[1, 2]] },
+  { cap: "⑧ S4가 저장해 3개째. 과반이 되자 리더가 x를 커밋하고 상태 기계에 적용해 클라이언트에 답한다. S5가 늦어도 유효하다.",
+    roles: ["장애", "리더", "팔로워", "팔로워", "팔로워"], terms: [1, 2, 2, 2, 2], x: ["", "c", "u", "u", ""],
+    meter: { label: "저장", n: 3 }, edges: [[1, 2], [1, 3, "AppendEntries"]], sends: [[1, 2], [1, 3]] },
+  { cap: "⑨ 다음 AppendEntries가 commitIndex를 실어 보내 팔로워도 뒤따라 커밋한다. 팔로워의 커밋은 리더보다 늦다. S5는 아직 못 받았다.",
+    roles: ["장애", "리더", "팔로워", "팔로워", "팔로워(지연)"], terms: [1, 2, 2, 2, 2], x: ["", "c", "c", "c", ""],
+    meter: { label: "저장", n: 3 }, edges: [[1, 2, "commitIndex"], [1, 3], [1, 4, "", true]], sends: [[1, 2], [1, 3]] },
+];
+
+function draw(wrap, b) {
+  const kind = (i) => { const r = b.roles[i]; return r === "리더" ? "accent" : r === "후보" || r === "timeout 만료" ? "warn" : r === "장애" ? "bad" : r === "표 줌" ? "good" : undefined; };
+  const svg = wrap.querySelector("svg");
+  svg.innerHTML = "";
+  const dg = LTT.diagram(svg, { cols: 5, rows: 3, cell: [150, 112], node: [124, 58],
+    nodes: POS.map(([c, r], i) => ({ id: NAMES[i], c: c + 0.5, r, l: NAMES[i], s: b.roles[i] + " · term " + b.terms[i], k: kind(i), ring: b.roles[i] === "리더" })),
+    edges: b.edges.map(([f, t, l, dash]) => ({ f: NAMES[f], t: NAMES[t], l: l || undefined, dash: !!dash, k: "muted" })) });
+  const panel = wrap.querySelector(".raft-panel");
+  panel.innerHTML = NAMES.map((n, i) => {
+    const x = b.x[i];
+    return `<div class="raft-col"><b>${n} 로그</b><div class="raft-cells"><span class="raft-cell c">1</span><span class="raft-cell c">2</span>` +
+      `<span class="raft-cell ${x || "none"}">${x ? "x" : ""}</span></div></div>`;
+  }).join("");
+  const m = wrap.querySelector(".raft-meter");
+  if (!b.meter) { m.innerHTML = `<span>과반 = ⌊5/2⌋+1 = 3. 선출과 커밋이 같은 문턱을 쓴다.</span>`; }
+  else {
+    const slots = Array.from({ length: N }, (_, i) => `<span class="raft-slot ${i < b.meter.n ? "on" : ""} ${i === QUORUM - 1 ? "q" : ""}"></span>`).join("");
+    const state = b.meter.n >= QUORUM ? (b.meter.label === "득표" ? "과반 달성: 당선" : "과반 달성: 커밋") : "과반 미달";
+    m.innerHTML = `<b>${b.meter.label} ${b.meter.n}/${N}</b><span class="raft-slots">${slots}</span><span class="ltt-tag ${b.meter.n >= QUORUM ? "good" : "warn"}">${state}</span><span class="ltt-basis">점선 = 과반선 3</span>`;
+  }
+  return dg;
+}
+
+const raftFigure = (el) => {
+  const wrap = el.appendChild(document.createElement("div"));
+  wrap.className = "raft-wrap";
+  wrap.innerHTML = `<svg xmlns="${SVG}"></svg><div class="raft-meter"></div><div class="raft-panel"></div>`;
+  const fig = { el: wrap, dg: null };
+  fig.show = (i) => {
+    const b = BEATS[i];
+    fig.dg = draw(wrap, b);
+    requestAnimationFrame(() => b.sends.forEach(([f, t]) => fig.dg.send(NAMES[f], NAMES[t], { count: 1, ms: 800 })));
+  };
+  fig.show(0);
+  return fig;
+};
+
+LTT.deck({
+  title: "Raft 합의",
+  theme: "sketch",
+  glossary: {
+    "term": "임기 번호. 선거가 열릴 때마다 1씩 늘고 줄어드는 일이 없다.",
+    "과반": "전체 노드 수의 절반을 넘는 수, ⌊N/2⌋+1. 5노드면 3.",
+    "커밋": "과반 노드에 저장이 확인되어 되돌릴 수 없게 된 상태."
+  },
+  scenes: [{
+    type: "figure",
+    title: "Raft는 {{과반}} 투표로 리더를 뽑고, 과반이 저장하면 {{커밋}}한다",
+    en: "Raft: leader election and log replication",
+    sub: "상자는 노드, 아래 칸은 각 노드의 로그. 단계를 넘기며 term → 투표 → 복제 → 커밋 순서를 본다.",
+    figure: raftFigure,
+    steps: BEATS.map((b, i) => ({ caption: b.cap, enter: (k, fig) => fig.show(i) })),
+    caption: "5노드는 2대가 죽어도 3대로 선출·커밋이 가능하다. 합의 저장소는 홀수 노드로 고른다.",
+    takeaway: "Raft는 {{term}}마다 과반 투표로 리더 한 명을 뽑고, 과반이 저장해야 커밋하므로 일부 노드가 죽어도 합의된 값이 남는다.",
+    recall: "5노드에서 리더만 저장하고 죽으면 그 항목은 커밋된 걸까?",
+    basis: "Ongaro & Ousterhout, In Search of an Understandable Consensus Algorithm (Raft)"
+  }]
+});
+</script>
+</body>
+</html>

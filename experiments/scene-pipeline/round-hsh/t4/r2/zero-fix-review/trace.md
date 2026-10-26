@@ -1,0 +1,25 @@
+# stream.jsonl
+
+- 말: 작업 디렉터리에서 `shots/` 아래 파일 목록부터 확인하겠습니다.
+- Bash `find shots -type f | sort`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/storyboard.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/direction.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/scene.html`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/shots/index.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/shots/scene-audit.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/refs/API.md`
+- Bash `pwd; ls -la`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/shots/scene-t1s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/shots/scene-t4s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/shots/scene-t8s.jpg`
+- 말: 검수 결과를 먼저 review.md에 적고, 그다음 실패 항목만 Edit로 고치겠습니다.
+- Write `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/review.md` (+1751자)
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/scene.html`
+- 말: All three edits applied. Now the audit run.
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- 말: audit 결과 고침 0건이라 재실행은 필요 없습니다. 마지막으로 review.md에 고친 목록을 붙입니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t4/r2/zero-fix-review/review.md`
+- 말: 실패 3개 중 3개를 고쳤습니다. audit은 1회 실행했고 고침 0건이었습니다.
+- 결과: success $0.0325 18턴 158s

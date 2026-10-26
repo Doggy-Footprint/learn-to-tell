@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic": "신용 창조와 통화 승수", "audience": "경제 기사 독자", "theme": "ledger", "medium": "경제 신문 차트", "decision": "통화정책 기사 해석"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const D0 = 100, RR = 0.1, CEIL = D0 / RR;             // 최초 예금, 지급준비율, 상한 1000
+const ROUNDS = Array.from({ length: 5 }, (_, i) => {  // 라운드 i+1의 새 예금
+  const dep = D0 * (1 - RR) ** i;
+  return { dep, res: dep * RR, loan: dep * (1 - RR) };
+});
+const cumAt = (n) => CEIL * (1 - (1 - RR) ** n);      // n라운드까지 누적 예금
+const fmt = (v) => String(Number(v.toFixed(1)));
+const BASE = 300, PX = 2, CUR = 0.24;                 // 왼쪽 막대 1단위 2px, 오른쪽 누적 상한 1000 = 240px
+
+function node(tag, attrs, parent) {
+  const n = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  parent.appendChild(n);
+  return n;
+}
+function label(parent, x, y, s, attrs = {}) {
+  const t = node("text", { x, y, ...attrs }, parent);
+  t.textContent = s;
+  return t;
+}
+
+function chart(host) {
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("viewBox", "0 0 720 340");
+  host.appendChild(svg);
+  const g = node("g", {}, svg);
+  const xBar = (i) => 40 + i * 72;                    // 왼쪽 라운드 막대 x
+  const xR = (n) => 430 + n * 9;                      // 오른쪽 누적 그래프, n라운드 x
+  const yC = (v) => BASE - v * CUR;                   // 누적 예금 y
+
+  function draw(bars, split) {
+    g.replaceChildren();
+    label(g, 40, 22, `지급준비율 r = ${RR * 100}%  ·  승수 1/r = ${1 / RR}`, { class: "ltt-mono" });
+    node("rect", { x: 40, y: 36, width: 10, height: 10, fill: "var(--ltt-c1)" }, g);
+    label(g, 56, 45, "준비금");
+    node("rect", { x: 120, y: 36, width: 10, height: 10, fill: "var(--ltt-c2)" }, g);
+    label(g, 136, 45, "대출");
+    node("rect", { x: 200, y: 36, width: 10, height: 10, fill: "var(--ltt-card-2)", stroke: "var(--ltt-ink-2)", "stroke-dasharray": "4 3" }, g);
+    label(g, 216, 45, "새 예금(아직 나뉘기 전)");
+
+    // 왼쪽: 라운드별 새 예금을 준비금과 대출로 나눈다
+    node("line", { x1: 30, y1: BASE, x2: 390, y2: BASE, stroke: "var(--ltt-line)" }, g);
+    ROUNDS.slice(0, bars).forEach((r, i) => {
+      const x = xBar(i), w = 44;
+      if (i < split) {
+        node("rect", { x, y: BASE - r.res * PX, width: w, height: r.res * PX, fill: "var(--ltt-c1)" }, g);
+        node("rect", { x, y: BASE - r.dep * PX, width: w, height: r.loan * PX, fill: "var(--ltt-c2)" }, g);
+        label(g, x + w + 4, BASE - r.res * PX / 2 + 4, fmt(r.res), { class: "ltt-mono" });
+        label(g, x + w + 4, BASE - (r.res + r.loan / 2) * PX + 4, fmt(r.loan), { class: "ltt-mono" });
+      } else {
+        node("rect", { x, y: BASE - r.dep * PX, width: w, height: r.dep * PX, fill: "var(--ltt-card-2)", stroke: "var(--ltt-ink-2)", "stroke-dasharray": "4 3" }, g);
+      }
+      label(g, x + w / 2, BASE - r.dep * PX - 8, fmt(r.dep), { "text-anchor": "middle", class: "ltt-mono" });
+      label(g, x + w / 2, BASE + 18, `${i + 1}라운드`, { "text-anchor": "middle", fill: "var(--ltt-muted)" });
+    });
+
+    // 오른쪽: 누적 예금이 상한선을 향해 자란다
+    label(g, 430, 22, "누적 예금", { class: "ltt-mono" });
+    node("line", { x1: 420, y1: BASE, x2: 700, y2: BASE, stroke: "var(--ltt-line)" }, g);
+    node("line", { x1: 420, y1: yC(CEIL), x2: 700, y2: yC(CEIL), stroke: "var(--ltt-ink)", "stroke-dasharray": "6 5" }, g);
+    label(g, 430, yC(CEIL) - 8, "상한 1000 = 100 ÷ 0.1");
+    label(g, xR(0), BASE + 18, "0", { "text-anchor": "middle", fill: "var(--ltt-muted)" });
+    label(g, xR(30), BASE + 18, "30라운드", { "text-anchor": "middle", fill: "var(--ltt-muted)" });
+    const pts = (n) => Array.from({ length: n + 1 }, (_, k) => `${xR(k)},${yC(cumAt(k))}`).join(" ");
+    node("polyline", { points: pts(30), fill: "none", stroke: "var(--ltt-line-2)", "stroke-dasharray": "2 4", "stroke-width": 2 }, g);
+    node("polyline", { points: pts(bars), fill: "none", stroke: "var(--ltt-accent)", "stroke-width": 3 }, g);
+    for (let k = 1; k <= bars; k++) node("circle", { cx: xR(k), cy: yC(cumAt(k)), r: 4, fill: "var(--ltt-accent)" }, g);
+    label(g, xR(bars) + 8, yC(cumAt(bars)) - 8, fmt(cumAt(bars)), { class: "ltt-mono" });
+  }
+
+  draw(1, 0);
+  return { el: svg, draw };
+}
+
+const scene = {
+  type: "figure",
+  kicker: "신용 창조",
+  title: "대출금이 다시 예금이 되어, 100의 예금은 최대 1000까지 불어난다",
+  en: "Credit creation and the money multiplier",
+  sub: "지급준비율 10%, 최초 예금 100이 은행을 돌며 쌓이는 과정",
+  figure: (host) => chart(host),
+  caption: "준비금을 뺀 나머지가 대출되고, 그 대출이 다음 은행의 예금이 된다",
+  label: "라운드별 새 예금과 누적 예금",
+  steps: [
+    { caption: "① 100의 예금이 은행에 들어온다", enter: (k, f) => f.draw(1, 0) },
+    { caption: "② 준비금 10을 남기고 대출 90을 낸다", enter: (k, f) => f.draw(1, 1) },
+    { caption: "③ 대출 90이 다른 은행의 새 예금 90이 된다", enter: (k, f) => f.draw(2, 1) },
+    { caption: "④ 같은 일이 반복된다: 준비금 9, 대출 81, 다음 예금 81", enter: (k, f) => f.draw(2, 2) },
+    { caption: "⑤ 새 예금은 매번 0.9배로 줄어 막대가 짧아진다", enter: (k, f) => f.draw(5, 2) },
+    { caption: "⑥ 누적 예금은 3라운드 271, 5라운드 409.5로 계속 자란다", enter: (k, f) => f.draw(5, 5) },
+    { caption: "⑦ 누적은 상한 1000에 다가가며, 상한은 처음부터 100 ÷ 0.1로 정해진다", enter: (k, f) => f.draw(5, 5) },
+  ],
+  points: [
+    { at: [8, 40], text: "막대: 라운드별 새 예금" },
+    { at: [60, 16], text: "점선: 누적 예금의 상한선" },
+  ],
+  narration: "은행은 예금의 {{지급준비율}}만큼만 준비금으로 남기고 나머지를 대출한다. 대출금은 차입자가 쓰면서 다른 은행의 새 예금이 되고, 그 은행도 같은 비율로 되풀이한다. 새 예금은 매번 줄지만 누적 예금은 상한선을 향해 자란다.",
+  takeaway: "최대 예금은 최초 예금 ÷ {{지급준비율}}이고, {{승수|통화 승수}}는 1/지급준비율이다.",
+  recall: "지급준비율을 20%로 올리면 같은 100의 최대 예금은 얼마인가?",
+  basis: "이론적 상한이다. 현금 보유·초과 준비금·대출 수요가 있으면 실제 승수는 이보다 작다. 그림 수치는 모델로 계산한 예시다.",
+};
+
+LTT.expect("5라운드 누적 예금", cumAt(5), 409.51, { tol: 0.01 });
+LTT.expect("상한 예금", CEIL, 1000, { tol: 1e-9 });
+
+LTT.deck({
+  title: "신용 창조와 통화 승수",
+  theme: "ledger",
+  glossary: {
+    "지급준비율": "예금 중 은행이 대출하지 않고 준비금으로 남기는 비율",
+    "통화 승수": "본원이 되는 예금 1이 예금 총량을 키우는 배수(이론상 1/지급준비율)",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

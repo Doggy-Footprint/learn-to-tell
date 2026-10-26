@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import r1
 E = r1.E; G = E/"gallery"/"kw"; r1.G = G; r1.LOG = E/"kw.log"
-SH = Path("/home/user/learn-to-tell/site/gallery/shots"); KIT = Path("/home/user/learn-to-tell/skills/learn-to-tell/kit")
+SH = (Path(__file__).resolve().parents[2]/"site/gallery/shots"); KIT = (Path(__file__).resolve().parents[2]/"skills/learn-to-tell/kit")
 ax = r1.ax
 
 def brief(k):

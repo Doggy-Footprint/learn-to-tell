@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할</title>
+<script type="application/json" id="ltt-meta">{"topic": "B+tree 노드 분할", "audience": "백엔드 개발자", "theme": "blueprint", "medium": "DB 내부 구조 도해", "decision": "인덱스 설계와 페이지 크기 이해"}</script>
+<style>
+.tt text { font-family: inherit; }
+.tt .pg { fill: none; stroke: var(--ltt-ink-2); stroke-width: 1.6; }
+.tt .pg.over { stroke: var(--ltt-warn); stroke-width: 2.6; }
+.tt .cell { fill: var(--ltt-card); stroke: var(--ltt-line-2); stroke-width: 1; }
+.tt .cell.hot { fill: var(--ltt-accent-soft); }
+.tt .key { fill: var(--ltt-ink); font-size: 14px; font-weight: 600; text-anchor: middle; font-variant-numeric: tabular-nums; }
+.tt .key.hot { fill: var(--ltt-accent); font-weight: 800; }
+.tt .stub { fill: none; stroke: var(--ltt-line-2); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.tt .sb { fill: var(--ltt-muted); font-size: 13px; text-anchor: middle; }
+.tt .ed { stroke: var(--ltt-line-2); stroke-width: 1.4; }
+.tt .ed.hot { stroke: var(--ltt-accent); stroke-width: 2; }
+.tt .lk { stroke: var(--ltt-ink-2); stroke-width: 1.6; marker-end: url(#ar); }
+.tt .lk.hot { stroke: var(--ltt-accent); stroke-width: 2; marker-end: url(#arh); }
+.tt .lv { fill: var(--ltt-muted); font-size: 13px; }
+.tt .cap { fill: var(--ltt-ink-2); font-size: 14px; }
+.tt .cap.warn { fill: var(--ltt-warn); font-weight: 700; }
+.tt .cap.hot, .tt .lab.hot { fill: var(--ltt-accent); font-weight: 700; }
+.tt .lab { fill: var(--ltt-ink); font-size: 14px; font-weight: 600; }
+.tt .cap, .tt .lab, .tt .bd { paint-order: stroke; stroke: var(--ltt-bg); stroke-width: 4px; stroke-linejoin: round; }
+.tt .lg { fill: var(--ltt-muted); font-size: 13px; }
+.tt .bd { fill: var(--ltt-ink); font-size: 20px; font-weight: 800; }
+.tt .bd.hot { fill: var(--ltt-accent); }
+.tt .pt { fill: var(--ltt-ink); font-size: 18px; font-weight: 800; }
+.tt .big { fill: var(--ltt-ink); font-size: 20px; font-weight: 800; }
+.tt .mini { fill: var(--ltt-card); stroke: var(--ltt-ink-2); stroke-width: 1.4; }
+.tt .fx-in { animation: ttin .5s ease-out var(--d, 0s) both; transform-box: fill-box; transform-origin: center; }
+.tt .fx-fade { animation: ttfade .5s ease-out var(--d, 0s) both; }
+.tt .fx-out { animation: ttout .3s ease-in var(--d, 0s) both; }
+.tt .fx-drop { animation: ttdrop .8s ease-in-out var(--d, 0s) both; }
+.tt .fx-dropin { animation: ttdropin .8s ease-in-out var(--d, 0s) both; }
+@keyframes ttin { from { opacity: 0; transform: scale(.8); } to { opacity: 1; transform: none; } }
+@keyframes ttfade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ttout { to { opacity: 0; } }
+@keyframes ttdrop { from { transform: translateY(var(--dy)); } to { transform: none; } }
+@keyframes ttdropin { from { opacity: 0; transform: translateY(var(--dy)); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tt [class^="fx-"] { animation: none; } .tt .fx-out { opacity: 0; } }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const CW = 34, CH = 30;
+const st = (o) => `style="--dy:${o.dy || 0}px;--d:${o.d || 0}s"`;
+
+const node = (cx, y, keys, o = {}) => {
+  const w = keys.length * CW, x = cx - w / 2;
+  let s = `<g class="${o.fx || ""}" ${st(o)}>`;
+  keys.forEach((k, i) => {
+    const h = typeof k === "object", v = h ? k.k : k;
+    s += `<rect class="cell${h ? " hot" : ""}" x="${x + i * CW}" y="${y}" width="${CW}" height="${CH}"/>` +
+         `<text class="key${h ? " hot" : ""}" x="${x + i * CW + CW / 2}" y="${y + CH / 2 + 5}">${v}</text>`;
+  });
+  return s + `<rect class="pg${o.over ? " over" : ""}" x="${x}" y="${y}" width="${w}" height="${CH}" rx="4"/></g>`;
+};
+const stub = (cx, y, t, w = 70, o = {}) =>
+  `<g class="${o.fx || ""}" ${st(o)}><rect class="stub" x="${cx - w / 2}" y="${y}" width="${w}" height="${CH}" rx="4"/><text class="sb" x="${cx}" y="${y + 20}">${t}</text></g>`;
+const E = (a, b, c, d, cls = "", o = {}) =>
+  `<line class="ed ${cls}" x1="${a}" y1="${b}" x2="${c}" y2="${d}" ${st(o)}/>`;
+const fan = (px, py, pw, cxs, ytop, o = {}) => cxs.map((c, i) =>
+  E(px - pw / 2 + pw * (i + 1) / (cxs.length + 1), py + CH, c, ytop,
+    (o.hot === i ? "hot " : "") + (o.fx || ""), o)).join("");
+const lk = (x1, x2, y, cls = "", o = {}) =>
+  `<line class="lk ${cls} ${o.fx || ""}" x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" ${st(o)}/>`;
+const arr = (x1, y1, x2, y2, cls = "") => `<line class="lk ${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+const cap = (x, y, t, c = "", a = "start") => `<text class="cap ${c}" x="${x}" y="${y}" text-anchor="${a}">${t}</text>`;
+const lab = (x, y, t, c = "", o = {}) => `<text class="lab ${c} ${o.fx || ""}" x="${x}" y="${y}" text-anchor="middle" ${st(o)}>${t}</text>`;
+const lv = (names, ys) => names.map((t, i) => `<text class="lv" x="6" y="${ys[i] + 20}">${t}</text>`).join("");
+const badge = (t, c = "", o = {}) => `<text class="bd ${c} ${o.fx || ""}" x="812" y="34" text-anchor="end" ${st(o)}>${t}</text>`;
+const legend = `<text class="lg" x="6" y="490">노드 하나 = 페이지 하나, 키 칸은 최대 4개 · 점선 상자는 줄여 그린 이웃 노드 · n/4 = 찬 칸 수</text>`;
+const R3 = [40, 170, 300], R4 = [40, 150, 260, 370];
+const L3 = lv(["루트", "내부 노드", "잎"], R3);
+const defs = `<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ltt-ink-2)"/></marker>` +
+  `<marker id="arh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ltt-accent)"/></marker></defs>`;
+
+// 잎 가로 위치: 분할 전(L)과 분할 뒤(왼쪽 잎·오른쪽 잎)
+const AX = 140, LLX = 290, LRX = 430, L5X = 580;
+const stubs3 = (o = {}) => stub(130, 170, "I1") + stub(640, 170, "I3–I5", 80);
+const leafLinks = lk(175, 239, 315) + lk(341, 396, 315) + lk(464, 545, 315);
+
+const draw = [
+  // 0 시작: 경로의 세 노드가 모두 꽉 참
+  () => L3 + badge("높이 3") +
+    fan(360, 40, 136, [130, 360, 640], 170) + fan(360, 170, 136, [AX, 360, L5X], 300) +
+    node(360, 40, [50, 100, 150, 200]) + cap(436, 60, "4/4 꽉 참") +
+    node(360, 170, [60, 70, 80, 90]) + cap(436, 190, "4/4 꽉 참") +
+    node(360, 300, [81, 83, 85, 88]) + cap(360, 348, "4/4 꽉 참", "", "middle") +
+    stubs3() + stub(AX, 300, "앞 잎들") + stub(L5X, 300, "다음 잎") +
+    lk(175, 290, 315) + lk(428, 545, 315) + legend,
+  // 1 키 86이 꽉 찬 잎에 들어와 넘침
+  () => L3 + badge("높이 3") +
+    fan(360, 40, 136, [130, 360, 640], 170) + fan(360, 170, 136, [AX, 360, L5X], 300) +
+    node(360, 40, [50, 100, 150, 200]) + cap(436, 60, "4/4 꽉 참") +
+    node(360, 170, [60, 70, 80, 90]) + cap(436, 190, "4/4 꽉 참") +
+    node(360, 300, [81, 83, 85, { k: 86 }, 88], { over: 1, fx: "fx-in" }) + cap(376, 352, "5/4 넘침", "warn") +
+    stubs3() + stub(AX, 300, "앞 잎들") + stub(L5X, 300, "다음 잎") +
+    lk(175, 273, 315) + lk(445, 545, 315) +
+    arr(318, 410, 334, 337, "hot") + lab(318, 428, "키 86 삽입", "hot") + legend,
+  // 2 잎 분할: 새 오른쪽 잎이 먼저, 연결 리스트에 끼어듦. 부모는 아직 모른다
+  () => L3 + badge("높이 3") +
+    fan(360, 40, 136, [130, 360, 640], 170) + fan(360, 170, 136, [AX, LLX, L5X], 300) +
+    node(360, 40, [50, 100, 150, 200]) + cap(436, 60, "4/4 꽉 참") +
+    node(360, 170, [60, 70, 80, 90]) + cap(436, 190, "4/4 꽉 참") +
+    node(LLX, 300, [81, 83, 85]) + cap(LLX, 348, "3/4", "", "middle") +
+    node(LRX, 300, [{ k: 86 }, 88], { fx: "fx-in" }) + cap(LRX, 348, "2/4", "", "middle") +
+    lab(LRX, 370, "새 오른쪽 잎", "hot", { fx: "fx-fade" }) +
+    stubs3() + stub(AX, 300, "앞 잎들") + stub(L5X, 300, "다음 잎") +
+    lk(175, 239, 315) + lk(341, 396, 315, "hot", { fx: "fx-fade", d: .4 }) + lk(464, 545, 315, "hot", { fx: "fx-fade", d: .4 }) +
+    legend,
+  // 3 구분 키 86이 복사되어 부모에 올라감 → 부모 넘침
+  () => L3 + badge("높이 3") +
+    fan(360, 40, 136, [130, 360, 640], 170) + fan(360, 170, 170, [AX, LLX, LRX, L5X], 300, { hot: 2, fx: "fx-fade", d: .3 }) +
+    node(360, 40, [50, 100, 150, 200]) + cap(436, 60, "4/4 꽉 참") +
+    node(360, 170, [60, 70, 80, { k: 86 }, 90], { over: 1, fx: "fx-in", d: .3 }) + cap(453, 190, "5/4 넘침", "warn") +
+    node(LLX, 300, [81, 83, 85]) + node(LRX, 300, [{ k: 86 }, 88]) +
+    lab(268, 250, "86 복사", "hot", { fx: "fx-fade" }) + lab(LRX, 352, "86은 잎에도 남는다", "hot", {}) +
+    stubs3() + stub(AX, 300, "앞 잎들") + stub(L5X, 300, "다음 잎") +
+    leafLinks + legend,
+  // 4 내부 노드 분할: 새 오른쪽 형제 먼저, 가운데 80은 이동 → 루트 넘침
+  () => L3 + badge("높이 3") +
+    fan(360, 40, 170, [130, 270, 430, 640], 170, { fx: "fx-fade", d: .8 }) +
+    fan(270, 170, 68, [AX], 300) + fan(430, 170, 68, [LLX, LRX, L5X], 300, { fx: "fx-fade", d: .3 }) +
+    node(360, 40, [50, { k: 80 }, 100, 150, 200], { over: 1, fx: "fx-in", d: .8 }) + cap(453, 60, "5/4 넘침", "warn") +
+    node(270, 170, [60, 70]) + node(430, 170, [86, 90], { fx: "fx-in" }) +
+    lab(355, 137, "80 ↑ 이동", "hot", { fx: "fx-fade", d: .5 }) +
+    stub(130, 170, "I1") + stub(640, 170, "I3–I5", 80) +
+    node(LLX, 300, [81, 83, 85]) + node(LRX, 300, [86, 88]) + stub(AX, 300, "앞 잎들") + stub(L5X, 300, "다음 잎") +
+    leafLinks + legend,
+  // 5 루트 분할: 100 이동, 새 루트가 맨 마지막, 모든 잎이 한 층 내려감
+  () => lv(["루트", "내부 노드", "내부 노드", "잎"], R4) + badge("높이 3 → 4", "hot", { fx: "fx-in", d: 1.7 }) +
+    node(360, 40, [50, 80, { k: 100 }, 150, 200], { over: 1, fx: "fx-out", d: .3 }) +
+    fan(270, 150, 68, [130, 270, 430], 260, { fx: "fx-fade", d: 1.4 }) + fan(640, 150, 68, [640], 260, { fx: "fx-fade", d: 1.4 }) +
+    fan(270, 260, 68, [AX], 370, { fx: "fx-fade", d: 1.4 }) + fan(430, 260, 68, [LLX, LRX, L5X], 370, { fx: "fx-fade", d: 1.4 }) +
+    fan(455, 40, 34, [270, 640], 150, { fx: "fx-fade", d: 1.7 }) +
+    node(270, 150, [50, 80], { fx: "fx-dropin", dy: -110, d: .6 }) + node(640, 150, [150, 200], { fx: "fx-dropin", dy: -110, d: .6 }) +
+    stub(130, 260, "I1", 70, { fx: "fx-drop", dy: -90, d: .6 }) + node(270, 260, [60, 70], { fx: "fx-drop", dy: -90, d: .6 }) +
+    node(430, 260, [86, 90], { fx: "fx-drop", dy: -90, d: .6 }) + stub(640, 260, "I3–I5", 80, { fx: "fx-drop", dy: -90, d: .6 }) +
+    node(LLX, 370, [81, 83, 85], { fx: "fx-drop", dy: -70, d: .6 }) + node(LRX, 370, [86, 88], { fx: "fx-drop", dy: -70, d: .6 }) +
+    stub(AX, 370, "앞 잎들", 70, { fx: "fx-drop", dy: -70, d: .6 }) + stub(L5X, 370, "다음 잎", 70, { fx: "fx-drop", dy: -70, d: .6 }) +
+    `<g class="fx-drop" ${st({ dy: -70, d: .6 })}>${lk(175, 239, 385) + lk(341, 396, 385) + lk(464, 545, 385)}</g>` +
+    node(455, 40, [{ k: 100 }], { fx: "fx-in", d: 1.7 }) + lab(455, 104, "새 루트", "hot", { fx: "fx-fade", d: 1.7 }) +
+    cap(453, 60, "", "") + `<text class="lg" x="6" y="490">모든 잎이 같은 깊이를 유지한 채 한 층씩 내려갔다 · 높이는 루트가 쪼개질 때만 +1</text>`,
+  // 6 대비: 빈 칸 있는 부모에서는 한 번 분할로 멈춘다
+  () => L3 + badge("높이 3 그대로") +
+    fan(360, 40, 68, [130, 360, 640], 170) + fan(360, 170, 136, [AX, LLX, LRX], 300) +
+    node(360, 40, [50, 100]) + cap(404, 60, "2/4 · 변화 없음") +
+    node(360, 170, [60, 70, 80, { k: 86 }]) + cap(436, 184, "3/4 → 4/4") + cap(436, 204, "여기서 멈춤", "hot") +
+    stub(130, 170, "I1") + stub(640, 170, "I3", 80) +
+    node(LLX, 300, [81, 83, 85]) + node(LRX, 300, [{ k: 86 }, 88]) + stub(AX, 300, "앞 잎들") + stub(L5X, 300, "다음 잎") +
+    leafLinks + legend,
+  // 7 페이지 크기 → 팬아웃 → 높이 3의 키 수
+  () => {
+    const panel = (ox, t, sub, m, big, calc, n2) => {
+      const cx = ox + 150, xs = Array.from({ length: m }, (_, i) => cx + (i - (m - 1) / 2) * 50), mid = xs[(m - 1) / 2];
+      const box = (x, y) => `<rect class="mini" x="${x - 20}" y="${y}" width="40" height="26" rx="4"/>`;
+      return `<text class="pt" x="${ox}" y="40">${t}</text><text class="lg" x="${ox}" y="64">${sub}</text>` +
+        xs.map((x) => E(cx, 136, x, 190)).join("") + xs.map((x) => E(mid, 216, x, 270)).join("") +
+        box(cx, 110) + xs.map((x) => box(x, 190)).join("") + xs.map((x) => box(x, 270)).join("") +
+        `<text class="lg" x="${ox + 290}" y="128">루트 1페이지</text><text class="lg" x="${ox + 290}" y="208">내부 ≈ ${n2[0]}</text><text class="lg" x="${ox + 290}" y="288">잎 ≈ ${n2[1]}</text>` +
+        `<text class="big" x="${ox}" y="350">${big}</text><text class="lg" x="${ox}" y="374">${calc}</text>`;
+    };
+    return panel(20, "페이지 8 KB", "항목 16 B → 팬아웃 ≈ 500 (헤더 감안)", 5, "높이 3 → 키 ≈ 1.25억", "500 × 500 × 500", ["500", "25만"]) +
+      panel(430, "페이지 4 KB", "항목 16 B → 팬아웃 ≈ 250 (헤더 감안)", 3, "높이 3 → 키 ≈ 1,560만", "250 × 250 × 250", ["250", "6.3만"]) +
+      `<text class="big" x="410" y="440" text-anchor="middle">같은 1.25억 키는 4 KB 페이지에서 한 층 더 필요하다</text>` +
+      `<text class="lg" x="410" y="464" text-anchor="middle">모델로 계산한 예시 · 4 KB로 높이 4면 250⁴ ≈ 39억 키까지</text>`;
+  },
+];
+
+const captions = [
+  "① 높이 3 트리. 삽입 경로의 루트·내부 노드 I2·잎 L이 모두 키 4개로 꽉 차 있다.",
+  "② 키 86은 루트에서 50과 100 사이, I2에서 80과 90 사이로 내려가 L에 닿는다. 5개가 되어 용량 4를 넘긴다.",
+  "③ 잎이 3+2로 갈라진다. 새 오른쪽 잎이 먼저 생기고 연결도 L → 새 잎 → 다음 잎으로 이어진다. 부모는 아직 모른다.",
+  "④ 구분 키 86이 부모 I2에 올라간다. 복사라서 오른쪽 잎에도 86이 남는다. I2는 5개가 되어 넘친다.",
+  "⑤ I2도 쪼개진다. 새 오른쪽 I2가 먼저 생기고, 가운데 80은 이동해 아래에 남지 않는다. 루트가 5개로 넘친다.",
+  "⑥ 루트도 쪼개지고 가운데 100이 올라가 새 루트가 맨 마지막에 생긴다. 모든 잎이 한 층 내려가 높이가 3에서 4가 된다.",
+  "⑦ 같은 86 삽입이어도 부모에 빈 칸이 있으면 잎 분할 한 번으로 끝난다. 넘침은 꽉 찬 조상이 있는 만큼만 올라간다.",
+  "⑧ 페이지가 클수록 팬아웃이 커서 같은 높이에 더 많은 키가 든다. 8 KB는 4 KB보다 한 층 낮다.",
+];
+
+const tree = (el) => {
+  const s = el.appendChild(document.createElementNS(NS, "svg"));
+  s.setAttribute("viewBox", "0 0 820 500");
+  s.setAttribute("class", "tt");
+  s.style.cssText = "width:100%;height:auto;max-width:900px";
+  const render = (i) => { s.innerHTML = defs + draw[i](); };
+  render(0);
+  return { el: s, render };
+};
+
+LTT.deck({
+  title: "B+tree 분할은 꽉 찬 조상만큼만 올라가고, 루트가 쪼개질 때만 트리가 높아진다",
+  theme: "blueprint",
+  glossary: {
+    "페이지": "디스크와 메모리를 오가는 고정 크기 덩어리(보통 4 KB 또는 8 KB). B+tree 노드 하나가 페이지 하나를 차지한다.",
+    "팬아웃": "노드 하나가 가리키는 자식 수. 페이지 크기 ÷ 항목 크기에 가깝다.",
+  },
+  scenes: [{
+    type: "figure",
+    title: "B+tree 분할은 꽉 찬 조상만큼만 올라가고, 루트가 쪼개질 때만 트리가 높아진다",
+    kicker: "DB · B+tree",
+    en: "B+tree split propagation",
+    sub: "노드 하나는 {{페이지}} 하나, 키 칸은 최대 4개. 꽉 찬 잎에 키 86을 넣는다.",
+    chips: ["노드 분할", "구분 키", "팬아웃"],
+    figure: tree,
+    steps: captions.map((caption, i) => ({ caption, enter: (k, f) => f.render(i) })),
+    takeaway: "분할은 아래에서 위로 꽉 찬 노드만큼 이어지고, 루트가 쪼개질 때만 높이가 +1이다. {{팬아웃}}이 큰 페이지일수록 트리가 낮다.",
+    recall: "86을 넣었을 때 잎·내부 노드·루트에서 각각 올라가는 키는 복사일까 이동일까?",
+    basis: "팬아웃 ≈ 페이지 크기 ÷ 항목 크기. 8192 B ÷ 16 B = 512, 헤더를 감안해 약 500. 4 KB는 약 250. 항목 크기 16 B는 예시 가정이다.",
+  }],
+});
+</script>
+</body>
+</html>

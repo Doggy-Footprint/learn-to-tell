@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어: 손실 직후 cwnd는 어디로 떨어지나</title>
+<script type="application/json" id="ltt-meta">{"topic": "TCP 혼잡 제어", "audience": "백엔드·네트워크 개발자", "theme": "lab", "medium": "cwnd 시계열 플롯", "decision": "전송 처리량 문제 진단"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const trace = (el) => {
+  const p = LTT.axisPlot(el, {
+    width: 640, height: 360,
+    x: [0, 40], y: [0, 72],
+    labels: { x: "RTT 횟수", y: "cwnd (MSS)" },
+    series: [
+      { id: "base", color: "var(--ltt-muted)" },
+      { id: "dup", color: "var(--ltt-accent)" },
+      { id: "rto", color: "var(--ltt-c2)", dash: true },
+    ],
+  });
+  // 손실 전 slow start: RTT마다 2배, 64에서 손실
+  const base = [[0, 10], [1, 20], [2, 40], [3, 64]];
+  // 중복 ACK 경로: 64 → 32, 그 뒤 RTT마다 +1 MSS
+  const dup = [];
+  for (let k = 4; k <= 36; k++) dup.push([k, 28 + k]);
+  // 타임아웃 경로: 1로 추락, 그 뒤 slow start로 32까지 재상승
+  const rto = [[3, 64], [4, 1], [5, 2], [6, 4], [7, 8], [8, 16], [9, 32]];
+  p.set("base", base);
+  p.set("rto", rto);
+  if (!LTT.MOTION_MS) { p.set("dup", [[3, 64], ...dup]); return p; }
+  // 생성 순서대로 한 RTT씩 그린다
+  let i = 0;
+  const tick = () => {
+    p.set("dup", [[3, 64], ...dup.slice(0, i + 1)]);
+    if (++i < dup.length) setTimeout(tick, 60);
+  };
+  tick();
+  return p;
+};
+
+const predictScene = {
+  type: "predict",
+  title: "손실 직후 cwnd는 어디로 떨어질까",
+  sub: "cwnd 64 MSS에서 손실이 났다. 중복 ACK로 감지했다면 손실 뒤 cwnd는?",
+  question: "중복 ACK로 감지한 손실 뒤, cwnd는 얼마가 되는가?",
+  visual: () => LTT.facts([
+    { icon: "ruler", value: "1460 B", label: "MSS" },
+    { icon: "timer", value: "50 ms", label: "왕복 시간" },
+    { icon: "layers", value: "64 MSS", label: "손실 시점 cwnd", tone: "warn" },
+  ]),
+  choices: [
+    { id: "a", text: "1 MSS" },
+    { id: "b", text: "32 MSS" },
+    { id: "c", text: "16 MSS" },
+  ],
+  answer: "b",
+  answerVisual: trace,
+  why: "중복 ACK 손실은 {{ssthresh}} = cwnd/2 = 32, cwnd = 32로 절반만 깎인다. 1로 떨어지는 건 타임아웃일 때뿐이다. 그 뒤 {{RTT}}마다 +1 MSS라 64까지 32 RTT(약 1.6 s)가 걸리고, 톱니 평균은 최고점의 약 75%다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+  basis: "가정: MSS 1460 B, RTT 50 ms, Reno 빠른 회복. 타임아웃이면 cwnd = 1로 떨어진다.",
+  takeaway: "손실이 나면 cwnd는 절반으로 깎이고(타임아웃이면 1), 그 뒤 RTT마다 1 MSS씩 오른다.",
+  recall: "손실 뒤 cwnd가 1로 떨어지는 경우는 언제인가?",
+};
+
+LTT.deck({
+  title: "TCP 혼잡 제어: 손실 직후 cwnd는 어디로 떨어지나",
+  theme: "lab",
+  glossary: {
+    "RTT": "왕복 시간. 데이터를 보내고 확인 응답을 받을 때까지 걸리는 시간",
+    "ssthresh": "slow start를 끝내고 덧셈 증가(congestion avoidance)로 넘어가는 임계 cwnd",
+  },
+  scenes: [predictScene],
+});
+</script>
+</body>
+</html>

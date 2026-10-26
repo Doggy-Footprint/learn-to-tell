@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic": "신용 창조와 통화 승수", "audience": "경제 기사 독자", "theme": "ledger", "medium": "경제 신문 차트", "decision": "통화정책 기사 해석"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .sc-wrap { display: grid; gap: 10px; }
+  .sc-fig { width: 100%; height: auto; display: block; }
+  .sc-stats { display: flex; gap: 32px; flex-wrap: wrap; align-items: baseline; }
+  .sc-key { display: flex; flex-wrap: wrap; gap: 16px; color: var(--ltt-muted); }
+  .sc-key i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+<script>
+const TOTAL = 100, ROUNDS = 20, SHOWN = 6, YMAX = 2200, STOPS = [0.05, 0.1, 0.2], STEP = 480;
+const eok = (v) => (Math.round(v * 10) / 10).toLocaleString("ko-KR") + "억";
+const pct = (v) => Math.round(v * 100) + "%";
+
+// 라운드별 예금·준비금·대출과 누적 (억 원, 모델로 계산한 예시). 예금은 직전 대출이 다시 예금이 된 값이다.
+const rounds = (r) => {
+  const rows = [];
+  let dep = TOTAL, sum = 0;
+  for (let n = 1; n <= ROUNDS; n++) {
+    sum += dep;
+    rows.push({ n, dep, res: dep * r, loan: dep * (1 - r), total: sum, reserve: sum * r });
+    dep *= 1 - r;
+  }
+  return rows;
+};
+LTT.expect("10% 3라운드 누적 예금", rounds(0.1)[2].total, 271, { tol: 1e-9 });
+LTT.expect("10% 5라운드 누적 예금", rounds(0.1)[4].total, 409.51, { tol: 1e-9 });
+LTT.expect("5% 천장", TOTAL / 0.05, 2000, { tol: 1e-9 });
+
+const scene = {
+  kicker: "통화 · 지급준비율에 따라 예금이 불어나는 신용 창조",
+  title: "지급준비율이 낮을수록 같은 예금에서 불어나는 상한이 커진다",
+  en: "Credit creation and the money multiplier",
+  sub: "왼쪽은 라운드마다 예금이 준비금과 대출로 갈라지는 모습, 오른쪽은 쌓이는 총예금",
+  narration: "은행은 예금의 {{지급준비율}}만 쌓고 나머지를 빌려준다. 대출을 받은 쪽이 다시 맡기면 그것이 새 예금이다. 준비금은 100억에 머무는데 예금만 {{통화 승수}}가 정한 천장을 향해 쌓인다.",
+  takeaway: "지급준비율이 낮을수록 천장이 높고, 천장은 최초 예금 ÷ 지급준비율이다.",
+  recall: "지급준비율이 20%이면 최초 예금 100억의 천장은 얼마인가?",
+  basis: "가정: 최초 예금 100억, 현금 누출·초과 준비금 없음. 이론상 상한이며 실제 증가는 대출 수요와 은행 행동에 달려 있다.",
+  mount(body) {
+    body.innerHTML = `
+      <div class="sc-wrap">
+        <svg id="fig" class="sc-fig" viewBox="0 0 900 340"></svg>
+        <div class="sc-key">
+          <span><i style="background: var(--ltt-c1)"></i>예금</span>
+          <span><i style="background: var(--ltt-c2)"></i>지급준비금</span>
+          <span><i style="border: 1px dashed var(--ltt-accent)"></i>선택한 지급준비율의 천장</span>
+        </div>
+        <div class="sc-stats">
+          <div class="ltt-hero" id="h-dep"></div>
+          <div class="ltt-hero" id="h-res"></div>
+        </div>
+        <div class="ltt-param">지급준비율 <b id="r-v"></b><div id="r"></div></div>
+      </div>`;
+    const svg = d3.select(body.querySelector("#fig"));
+    const hDep = body.querySelector("#h-dep"), hRes = body.querySelector("#h-res");
+    let r = 0.1, timer = null, seq = [];
+
+    const L = { x: 150, w: 300, top: 14, row: 52 };            // 폭포
+    const T = { x: 600, w: 90, y0: 310, y1: 14 };               // 탑
+    const y = d3.scaleLinear([0, YMAX], [T.y0, T.y1]);
+    const bx = d3.scaleLinear([0, TOTAL], [0, L.w]);
+
+    // 일정: 앞 6라운드는 세 박자(예금 → 분할 → 새 예금), 이후 라운드는 한 박자
+    const makeSeq = () => {
+      const s = [];
+      for (let n = 1; n <= ROUNDS; n++) {
+        if (n <= SHOWN) for (let p = 0; p < 3; p++) s.push({ n, p });
+        else s.push({ n, p: 2 });
+      }
+      return s;
+    };
+
+    const draw = (n, p) => {
+      const rows = rounds(r);
+      svg.selectAll("*").remove();
+      const g = svg.append("g");
+      const txt = (x, yy, t, o = {}) => g.append("text").attr("x", x).attr("y", yy)
+        .attr("text-anchor", o.a || "start").attr("class", "ltt-mono")
+        .style("fill", o.c || "var(--ltt-muted)").text(t);
+
+      // 폭포: 1..min(n, SHOWN)행, 다음 행 예금은 p=2에서 점선 윤곽으로 먼저 나타난다
+      const vis = Math.min(n, SHOWN);
+      for (let k = 1; k <= vis; k++) {
+        const d = rows[k - 1], yy = L.top + (k - 1) * L.row;
+        const done = k < n || p >= 1 || n > SHOWN;
+        txt(L.x - 10, yy + 18, `${k}라운드`, { a: "end" });
+        const depW = bx(d.dep), resW = bx(d.res);
+        if (done) {
+          g.append("rect").attr("x", L.x).attr("y", yy).attr("width", resW).attr("height", 26).style("fill", "var(--ltt-c2)");
+          g.append("rect").attr("x", L.x + resW).attr("y", yy).attr("width", depW - resW).attr("height", 26).style("fill", "var(--ltt-c1)").style("opacity", 0.55);
+          if (resW > 22) txt(L.x + resW / 2, yy + 18, eok(d.res), { a: "middle", c: "var(--ltt-bg)" });
+          txt(L.x + depW + 8, yy + 18, `예금 ${eok(d.dep)} → 대출 ${eok(d.loan)}`, { c: "var(--ltt-ink-2)" });
+        } else {
+          g.append("rect").attr("x", L.x).attr("y", yy).attr("width", depW).attr("height", 26).style("fill", "var(--ltt-c1)");
+          txt(L.x + depW + 8, yy + 18, `예금 ${eok(d.dep)}`, { c: "var(--ltt-ink-2)" });
+        }
+        // 대출이 다음 행의 새 예금이 된다
+        if (k < SHOWN && (k < n || p >= 2)) {
+          const nx = rows[k];
+          const x0 = L.x + resW + (bx(d.dep) - resW) / 2;
+          g.append("path").attr("d", `M${x0},${yy + 28} L${x0},${yy + 40} L${L.x + bx(nx.dep) / 2},${yy + 40} L${L.x + bx(nx.dep) / 2},${yy + L.row - 1}`)
+            .style("fill", "none").style("stroke", "var(--ltt-ink-2)").style("stroke-width", 1.5);
+          if (k === 1) txt(L.x + depW + 8, yy + 44, "대출을 받은 쪽이 다시 예금", { c: "var(--ltt-muted)" });
+        }
+        if (k === n && p >= 2 && k < SHOWN) {
+          const nx = rows[k], y2 = yy + L.row;
+          g.append("rect").attr("x", L.x).attr("y", y2).attr("width", bx(nx.dep)).attr("height", 26)
+            .style("fill", "none").style("stroke", "var(--ltt-c1)").style("stroke-dasharray", "4 3");
+        }
+      }
+      txt(L.x, L.top + SHOWN * L.row + 6, n > SHOWN ? "… 6라운드 뒤로도 같은 일이 이어진다" : "폭은 라운드마다 (1 − 지준율)배", { c: "var(--ltt-muted)" });
+
+      // 탑: 라운드가 끝날 때마다 그 라운드 예금이 한 칸 쌓인다
+      const closed = p >= 2 ? n : n - 1;
+      g.append("line").attr("x1", T.x - 20).attr("x2", T.x + T.w + 150).attr("y1", y(0)).attr("y2", y(0)).style("stroke", "var(--ltt-line-2)");
+      STOPS.forEach((st) => {
+        const c = TOTAL / st, on = st === r, tone = on ? "var(--ltt-accent)" : "var(--ltt-muted)";
+        g.append("line").attr("x1", T.x - 20).attr("x2", T.x + T.w + 150).attr("y1", y(c)).attr("y2", y(c))
+          .style("stroke", tone).style("stroke-dasharray", "6 4").style("opacity", on ? 1 : 0.5);
+        txt(T.x + T.w + 24, y(c) - 5, `${pct(st)} → ${eok(c)}`, { c: tone });
+      });
+      for (let k = 1; k <= closed; k++) {
+        const d = rows[k - 1];
+        g.append("rect").attr("x", T.x).attr("width", T.w).attr("y", y(d.total)).attr("height", Math.max(0.5, y(d.total - d.dep) - y(d.total)))
+          .style("fill", "var(--ltt-c1)").style("opacity", k % 2 ? 0.95 : 0.65).style("stroke", "var(--ltt-bg)");
+      }
+      txt(T.x + T.w / 2, y(0) + 16, "총예금", { a: "middle" });
+
+      // 준비금 기둥: 100억 쪽으로만 자란다
+      const rs = closed ? rows[closed - 1].reserve : 0;
+      const rx = T.x + T.w + 24;
+      g.append("rect").attr("x", rx).attr("width", 28).attr("y", y(rs)).attr("height", y(0) - y(rs)).style("fill", "var(--ltt-c2)");
+      g.append("line").attr("x1", rx - 6).attr("x2", rx + 40).attr("y1", y(TOTAL)).attr("y2", y(TOTAL)).style("stroke", "var(--ltt-c2)").style("stroke-dasharray", "2 3");
+      txt(rx + 46, y(TOTAL) + 4, "준비금 100억", { c: "var(--ltt-c2)" });
+      txt(rx + 14, y(0) + 16, "준비금", { a: "middle" });
+
+      const tot = closed ? rows[closed - 1].total : 0;
+      hDep.innerHTML = `${eok(tot)}<small>예금 합계 · 천장 ${eok(TOTAL / r)}</small>`;
+      hRes.innerHTML = `${eok(rs)}<small>준비금 합계 · 최대 ${eok(TOTAL)}</small>`;
+    };
+
+    const stop = () => { clearInterval(timer); timer = null; };
+    const restart = () => {
+      stop(); seq = makeSeq();
+      let i = 0;
+      const tick = () => { const s = seq[i++]; draw(s.n, s.p); if (i >= seq.length) stop(); };
+      if (!LTT.MOTION_MS) { draw(ROUNDS, 2); return; }
+      tick();
+      timer = setInterval(() => { tick(); if (seq[i - 1].n > SHOWN) { /* 이후 라운드는 같은 박자로 한 칸씩 */ } }, STEP);
+    };
+
+    LTT.sweep({
+      params: { r: { kind: "steps", stops: STOPS, value: 0.1, fmt: pct } },
+      render: ({ r: v }) => { r = v; restart(); },
+    });
+
+    return { enter: restart, leave: stop };
+  },
+};
+
+LTT.deck({
+  title: "신용 창조와 통화 승수",
+  theme: "ledger",
+  glossary: {
+    "지급준비율": "예금 중 은행이 대출하지 않고 따로 쌓아 두는 비율. 10%면 예금 100억 중 10억을 쌓는다.",
+    "통화 승수": "최초 예금이 장부상 총예금을 몇 배로 키우는지 나타내는 배수. 지급준비율의 역수(1 ÷ 지급준비율)다.",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

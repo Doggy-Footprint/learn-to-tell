@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic":"신용 창조와 통화 승수","audience":"경제 기사 독자","theme":"ledger","medium":"경제 신문 차트","decision":"통화정책 기사 해석"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .cc-stats { display: flex; gap: 28px; flex-wrap: wrap; align-items: baseline; margin: 4px 0 8px; }
+  .cc-stats div { font-size: 14px; color: var(--ltt-ink-2); }
+  .cc-stats b { display: block; font-size: 28px; color: var(--ltt-ink); font-variant-numeric: tabular-nums; }
+  .cc-stats small { font-size: 14px; color: var(--ltt-muted); }
+  .cc-cap { min-height: 24px; font-size: 16px; color: var(--ltt-ink); margin: 6px 0; font-variant-numeric: tabular-nums; }
+  .cc-svg { width: 100%; height: auto; display: block; }
+  .cc-svg text { font-size: 13px; fill: var(--ltt-ink-2); }
+  .cc-svg .cc-ceil { font-size: 14px; font-weight: 700; fill: var(--ltt-ink); }
+  .cc-svg .cc-ghost { fill: var(--ltt-muted); }
+  .cc-replay { margin-left: 12px; }
+</style>
+</head>
+<body>
+<script>
+const N = 20, DEP0 = 100, YMAX = 2100;
+const SVG = "http://www.w3.org/2000/svg";
+const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 });
+
+// 라운드별 예금·준비금·대출·누적 (r은 소수)
+function rounds(r) {
+  const out = []; let dep = DEP0, cum = 0, res = 0;
+  for (let k = 0; k < N; k++) {
+    const reserve = dep * r, loan = dep - reserve;
+    out.push({ k: k + 1, dep, reserve, loan, from: cum, cum: cum + dep, resCum: res + reserve });
+    cum += dep; res += reserve; dep = loan;
+  }
+  return out;
+}
+LTT.expect("r=10% 3라운드 누적", rounds(0.1)[2].cum, 271, { tol: 1e-9 });
+LTT.expect("r=10% 5라운드 누적", rounds(0.1)[4].cum, 409.51, { tol: 1e-9 });
+
+LTT.deck({
+  title: "신용 창조와 통화 승수",
+  theme: "ledger",
+  glossary: {
+    "지급준비율": "예금 가운데 은행이 대출하지 않고 쌓아 두어야 하는 비율. 이 장면에서는 r로 쓴다.",
+    "통화 승수": "최초 예금이 최대 몇 배의 총예금으로 불어나는지를 나타내는 수. 1 ÷ r."
+  },
+  scenes: [{
+    title: "지급준비율이 낮을수록 같은 100억 예금이 더 높은 천장까지 불어난다",
+    en: "Credit creation and the money multiplier",
+    kicker: "통화 · 신용 창조",
+    sub: "손잡이로 {{지급준비율}} r을 고른다. 한 칸이 한 라운드의 예금이고, 아래 회색은 준비금, 위 파랑은 대출이다. 대출이 다음 칸의 예금이 된다.",
+    takeaway: "총예금의 상한은 최초 예금 ÷ r이다. 준비금 합계는 최초 예금 100억 그대로다.",
+    recall: "r이 5%면 100억 예금의 천장은 얼마인가?",
+    basis: "이론상 상한이다. 현금 보유와 초과 준비금이 있으면 실제 승수는 더 작다. 모델로 계산한 예시 (최초 예금 100억 원).",
+    mount(body) {
+      body.innerHTML = `
+        <div class="ltt-param">지급준비율 r <b id="r-v"></b><div id="r"></div>
+          <button class="cc-replay" id="replay" type="button">다시 쌓기</button></div>
+        <div class="cc-stats">
+          <div>총예금 (라운드마다 쌓임)<b id="s-cum">0<small> 억</small></b></div>
+          <div>준비금 합계<b id="s-res">0<small> 억 → 100억에 수렴</small></b></div>
+          <div>천장 100 ÷ r<b id="s-ceil"></b></div>
+        </div>
+        <div class="cc-cap" id="cap"></div>
+        <svg class="cc-svg" id="chart" viewBox="0 0 900 380" role="img" aria-label="라운드별 예금이 쌓여 천장에 가까워지는 차트"></svg>`;
+      const svg = body.querySelector("#chart");
+      const X0 = 70, X1 = 880, Y0 = 330, Y1 = 20, slot = (X1 - X0) / N, bw = slot * 0.72;
+      const y = (v) => Y0 - (Y0 - Y1) * v / YMAX;
+      const el = (tag, attrs, parent = svg) => { const e = document.createElementNS(SVG, tag);
+        for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+      // 눈금
+      [0, 500, 1000, 1500, 2000].forEach((t) => {
+        el("line", { x1: X0, x2: X1, y1: y(t), y2: y(t), stroke: "var(--ltt-line)", "stroke-width": 1 });
+        const tx = el("text", { x: X0 - 8, y: y(t) + 4, "text-anchor": "end" }); tx.textContent = t.toLocaleString("ko-KR");
+      });
+      const un = el("text", { x: X0 - 8, y: 12, "text-anchor": "end" }); un.textContent = "억 원";
+      for (let k = 1; k <= N; k++) if (k === 1 || k % 5 === 0) {
+        const tx = el("text", { x: X0 + (k - 0.5) * slot, y: Y0 + 20, "text-anchor": "middle" }); tx.textContent = k;
+      }
+      const ax = el("text", { x: X1, y: Y0 + 40, "text-anchor": "end" }); ax.textContent = "라운드";
+      // 다른 r의 천장 (흐리게)
+      [[0.05, 2000], [0.1, 1000], [0.2, 500]].forEach(([rr, c]) => {
+        const g = el("g", { "data-r": rr });
+        el("line", { x1: X0, x2: X1, y1: y(c), y2: y(c), stroke: "var(--ltt-muted)", "stroke-dasharray": "3 5", "stroke-width": 1 }, g);
+        const tx = el("text", { x: X1 - 4, y: y(c) - 6, "text-anchor": "end", class: "cc-ghost" }, g);
+        tx.textContent = "r " + Math.round(rr * 100) + "% → " + c.toLocaleString("ko-KR") + "억 (" + Math.round(1 / rr) + "배)";
+      });
+      const ceilG = el("g", {}); // 선택된 r의 천장
+      const barG = el("g", {});
+      let timers = [], cur = 0.1, data = rounds(cur), shown = 0;
+
+      const stats = (n) => {
+        const d = n ? data[n - 1] : { cum: 0, resCum: 0 };
+        body.querySelector("#s-cum").innerHTML = fmt(d.cum) + "<small> 억</small>";
+        body.querySelector("#s-res").innerHTML = fmt(d.resCum) + "<small> 억 → 100억에 수렴</small>";
+      };
+      const caption = (n) => {
+        const d = data[n - 1], c = body.querySelector("#cap");
+        if (!d) { c.textContent = "예금 100억이 들어온다. 지켜야 할 준비금 " + fmt(DEP0 * cur) + "억을 뺀 나머지만 대출할 수 있다."; return; }
+        c.innerHTML = "라운드 " + d.k + ": 예금 <b>" + fmt(d.dep) + "</b> → 준비금 " + fmt(d.reserve) + " + 대출 " + fmt(d.loan) +
+          (d.k < N ? " → 이 대출이 라운드 " + (d.k + 1) + "의 새 예금 " + fmt(d.loan) : "");
+      };
+      const drawRound = (d) => {
+        const x = X0 + (d.k - 1) * slot + (slot - bw) / 2;
+        const g = el("g", {}, barG);
+        const hRes = y(d.from) - y(d.from + d.reserve), hLoan = y(d.from + d.reserve) - y(d.cum);
+        el("rect", { x, y: y(d.from + d.reserve), width: bw, height: hRes, fill: "var(--ltt-muted)" }, g);
+        el("rect", { x, y: y(d.cum), width: bw, height: hLoan, fill: "var(--ltt-accent)" }, g);
+        el("rect", { x, y: y(d.cum), width: bw, height: hRes + hLoan, fill: "none", stroke: "var(--ltt-card)", "stroke-width": 1 }, g);
+        if (d.k <= 3) { const t = el("text", { x: x + bw / 2, y: y(d.cum) - 6, "text-anchor": "middle" }, g); t.textContent = fmt(d.dep); }
+        if (d.k === 1) { const t = el("text", { x: x + bw / 2 + 4, y: y(d.cum) - 24, "text-anchor": "start" }, g); t.textContent = "처음 예금"; }
+        if (!LTT.MOTION_MS) return;
+        g.style.opacity = 0; g.style.transition = "opacity " + LTT.MOTION_MS + "ms";
+        requestAnimationFrame(() => { g.style.opacity = 1; });
+      };
+      const setCeil = () => {
+        ceilG.innerHTML = "";
+        const c = DEP0 / cur;
+        el("line", { x1: X0, x2: X1, y1: y(c), y2: y(c), stroke: "var(--ltt-ink)", "stroke-width": 2, "stroke-dasharray": "8 4" }, ceilG);
+        const t = el("text", { x: X0 + 6, y: y(c) - 8, class: "cc-ceil" }, ceilG);
+        t.textContent = "천장 " + c.toLocaleString("ko-KR") + "억 = 100 ÷ " + cur.toFixed(2).replace(/0$/, "");
+        svg.querySelectorAll("[data-r]").forEach((g) => { g.style.display = (+g.getAttribute("data-r") === cur) ? "none" : ""; });
+        body.querySelector("#s-ceil").innerHTML = c.toLocaleString("ko-KR") + "<small> 억 (" + Math.round(1 / cur) + "배)</small>";
+      };
+      const stop = () => { timers.forEach(clearTimeout); timers = []; };
+      const play = () => {
+        stop(); barG.innerHTML = ""; shown = 0; data = rounds(cur); setCeil(); stats(0); caption(0);
+        const gap = LTT.MOTION_MS ? 650 : 0;
+        data.forEach((d, i) => {
+          const run = () => { drawRound(d); stats(d.k); caption(d.k); };
+          if (!gap) { run(); return; }
+          timers.push(setTimeout(run, 700 + i * (i < 5 ? gap : 220)));
+        });
+      };
+      body.querySelector("#replay").addEventListener("click", play);
+      LTT.sweep({
+        params: { r: { kind: "steps", stops: [0.05, 0.1, 0.2], value: 0.1, fmt: (v) => Math.round(v * 100) + "%" } },
+        render: ({ r }) => { if (r !== cur || !shown) { cur = r; shown = 1; play(); } }
+      });
+      return { enter() { play(); }, leave() { stop(); } };
+    }
+  }]
+});
+</script>
+</body>
+</html>

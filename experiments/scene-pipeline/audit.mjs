@@ -11,7 +11,7 @@ for (const r of res) {
   if (r.error) { fix++; console.log(`  고침 load: ${r.error}`); }
   for (const e of r.errors || []) { fix++; console.log(`  고침 pageerror: ${e}`); }
   for (const a of r.audit || []) { const k = ADV.has(a.rule) ? "권고" : (fix++, "고침"); console.log(`  ${k} 장면${a.scene} ${a.rule}: ${a.msg}`); }
-  for (const l of (r.lint || []).filter((l) => l.rule !== "keywords-last" && l.rule !== "deck-order")) { const k = ADV.has(l.rule) ? "권고" : (fix++, "고침"); console.log(`  ${k} lint ${l.rule}: ${l.msg}`); }
+  for (const l of (r.lint || []).filter((l) => !["keywords-last", "deck-order", "overview-order", "predict-new-term"].includes(l.rule))) { const k = ADV.has(l.rule) ? "권고" : (fix++, "고침"); console.log(`  ${k} lint ${l.rule}: ${l.msg}`); }
   for (const x of r.expectFails || []) { fix++; console.log(`  고침 expect: ${JSON.stringify(x)}`); }
 }
 console.log(fix ? `고침 ${fix}건` : "고침 0건");

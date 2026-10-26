@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어 · 첫 손실 뒤의 cwnd</title>
+<script type="application/json" id="ltt-meta">{"topic": "TCP 혼잡 제어", "audience": "백엔드·네트워크 개발자", "theme": "lab", "medium": "cwnd 시계열 플롯", "decision": "전송 처리량 문제 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+// 기대 곡선: 손실 전 slow start(RTT마다 2배), 손실 후 절반에서 선형(RTT마다 +1 MSS), 톱니 반복
+const pre = [[0, 10], [1, 20], [2, 40]];
+const full = [...pre, [2, 20]];
+for (let t = 3; t <= 22; t++) full.push([t, 18 + t]); // 20 → 40, 20 RTT
+full.push([22, 20]);
+for (let t = 23; t <= 42; t++) full.push([t, t - 2]); // 20 → 40, 다음 톱니
+const cap = [[0, 40], [44, 40]]; // 병목이 감당하는 한계 근처
+const ssth = [[2, 20], [44, 20]]; // 손실 순간 cwnd/2
+
+const cwndPlot = (el) => LTT.axisPlot(el, {
+  width: 720, height: 280,
+  x: [0, 44], y: [0, 48],
+  labels: { x: "RTT 수", y: "cwnd (MSS)" },
+  series: [
+    { id: "cwnd", color: "var(--ltt-accent)" },
+    { id: "ssth", color: "var(--ltt-muted)", dash: true },
+    { id: "cap", color: "var(--ltt-muted)", dot: true },
+  ],
+});
+
+// 손실 뒤 곡선을 시간순으로 한 점씩 자란다. reduced-motion이면 한 번에 그린다.
+const play = (p, pts, from) => {
+  const ms = (LTT.MOTION_MS || 0) * 6;
+  if (!ms) return p.set("cwnd", pts);
+  const step = ms / (pts.length - from);
+  let n = from;
+  const tick = () => { n++; p.set("cwnd", pts.slice(0, n)); if (n < pts.length) setTimeout(tick, step); };
+  tick();
+};
+
+const facts = () => [
+  { icon: "gauge", value: "10 MSS", label: "시작 cwnd (IW)" },
+  { icon: "clock", value: "100 ms", label: "RTT" },
+  { icon: "alert", value: "중복 ACK 3개", label: "손실 신호" },
+];
+
+const predictScene = {
+  type: "predict",
+  title: "첫 손실 뒤 {{cwnd}}는 어디로 갈까?",
+  kicker: "네트워크 · TCP 혼잡 제어",
+  sub: "손실 전까지의 곡선만 보인다. 단위는 {{MSS}}(패킷 한 개 분량)다.",
+  question: "2 RTT째 40 MSS에서 손실이 났다. 그 직후 cwnd는?",
+  choices: [
+    { id: "a", text: "1 MSS로 떨어지고 처음부터 다시 시작한다" },
+    { id: "b", text: "절반인 20 MSS에서 이어서 RTT마다 1 MSS씩 오른다" },
+    { id: "c", text: "40 MSS를 그대로 유지한다" },
+  ],
+  answer: "b",
+  hint: "중복 ACK로 손실을 알았을 때의 규칙을 떠올린다.",
+  visual: (el) => {
+    const box = document.createElement("div");
+    el.append(LTT.facts(facts()), box);
+    const p = cwndPlot(box);
+    p.set("cap", cap);
+    p.set("cwnd", pre);
+  },
+  answerVisual: (el) => {
+    const box = document.createElement("div");
+    el.append(box);
+    const p = cwndPlot(box);
+    p.set("cap", cap);
+    p.set("ssth", ssth);
+    p.set("cwnd", pre);
+    play(p, full, pre.length);
+  },
+  why: "중복 ACK 3개로 손실을 알면 ssthresh = cwnd/2 = 20, cwnd도 20으로 내려 선형 증가로 들어간다. 1 MSS로 떨어지는 것은 타임아웃일 때뿐이다.",
+  takeaway: "손실 뒤 TCP는 cwnd를 절반으로 줄이고 선형으로 다시 키운다(AIMD).",
+  recall: "손실 뒤 cwnd가 1로 떨어지는 것은 어떤 신호일 때인가?",
+  basis: "IW 10 MSS, MSS 1460 B, RTT 100 ms는 모델로 계산한 예시다. 손실 시점 2 RTT는 가정이다.",
+};
+
+LTT.deck({
+  title: "TCP 혼잡 제어",
+  theme: "lab",
+  glossary: {
+    cwnd: "송신자가 확인 응답 없이 보낼 수 있는 데이터 양의 상한",
+    MSS: "한 패킷에 실을 수 있는 최대 데이터 크기(maximum segment size)",
+  },
+  scenes: [predictScene],
+});
+</script>
+</body>
+</html>

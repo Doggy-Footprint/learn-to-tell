@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가비지 컬렉션 방식: 참조 카운팅과 mark-and-sweep</title>
+<script type="application/json" id="ltt-meta">{"topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단"}</script>
+<style>
+.chips { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const t = (text, tone) => [text, tone];
+
+// 같은 객체 그래프: 루트 → A ⇄ B, 루트 → C
+const SPEC = {
+  cols: 3, rows: 2, cell: [240, 150], node: [150, 56],
+  nodes: [
+    { id: "root", c: 0, r: 0, l: "루트 변수", icon: "anchor" },
+    { id: "A", c: 1, r: 0, l: "객체 A", icon: "package" },
+    { id: "B", c: 2, r: 0, l: "객체 B", icon: "package" },
+    { id: "C", c: 0, r: 1, l: "객체 C", icon: "package" },
+  ],
+  edges: [
+    { f: "root", t: "A", l: "보유" },
+    { f: "A", t: "B", l: "next" },
+    { f: "B", t: "A", l: "prev" },
+    { f: "root", t: "C", l: "보유" },
+  ],
+};
+
+// 생성 순서대로 진행한다. 칩(ch)은 각 단계의 객체 상태, hl은 강조할 노드·엣지("from>to")다.
+const RC = [
+  { caption: "루트가 A를 잡는다. A가 생기고 카운트는 1", hold: 1800, hl: ["root", "root>A", "A"],
+    ch: { A: t("A 참조 1", "good"), B: t("B 없음", "muted"), C: t("C 없음", "muted") } },
+  { caption: "A.next = B. B가 생기고 A가 B를 가리킨다. B 카운트 1", hold: 1800, hl: ["A", "B", "A>B"],
+    send: [["A", "B", { count: 1 }]],
+    ch: { A: t("A 참조 1", "good"), B: t("B 참조 1", "good"), C: t("C 없음", "muted") } },
+  { caption: "B.prev = A. B가 A를 가리켜 A 카운트 2", hold: 1800, hl: ["A", "B", "B>A"],
+    send: [["B", "A", { count: 1 }]],
+    ch: { A: t("A 참조 2", "good"), B: t("B 참조 1", "good"), C: t("C 없음", "muted") } },
+  { caption: "루트가 C를 잡는다. C 카운트 1", hold: 1600, hl: ["root", "root>C", "C"],
+    ch: { A: t("A 참조 2", "good"), B: t("B 참조 1", "good"), C: t("C 참조 1", "good") } },
+  { caption: "루트→A를 끊는다. A·B의 카운트는 서로에게서 받은 1로 남아 0이 되지 않는다", hold: 2600, hl: ["A", "B", "A>B", "B>A"],
+    ch: { A: t("A 참조 1", "bad"), B: t("B 참조 1", "bad"), C: t("C 참조 1", "good") } },
+  { caption: "프로파일러: 루트 경로 없이 A·B가 남는다. 보유 경로는 서로뿐", hold: 2600, hl: ["A", "B", "A>B", "B>A"],
+    ch: { A: t("A 참조 1", "bad"), B: t("B 참조 1", "bad"), C: t("C 참조 1", "good") } },
+];
+
+const MS = [
+  { caption: "루트가 A를 잡는다. 수거 전이라 모두 살아 있다", hold: 1800, hl: ["root", "root>A", "A"],
+    ch: { A: t("생존", "good"), B: t("없음", "muted"), C: t("없음", "muted") } },
+  { caption: "A.next = B. B가 생긴다", hold: 1800, hl: ["A", "B", "A>B"],
+    send: [["A", "B", { count: 1 }]],
+    ch: { A: t("생존", "good"), B: t("생존", "good"), C: t("없음", "muted") } },
+  { caption: "B.prev = A. 순환이 생겨도 수거 전에는 그대로다", hold: 1800, hl: ["A", "B", "B>A"],
+    send: [["B", "A", { count: 1 }]],
+    ch: { A: t("생존", "good"), B: t("생존", "good"), C: t("없음", "muted") } },
+  { caption: "루트가 C를 잡는다. C 생성", hold: 1600, hl: ["root", "root>C", "C"],
+    ch: { A: t("생존", "good"), B: t("생존", "good"), C: t("생존", "good") } },
+  { caption: "루트→A를 끊는다. 수거 주기가 오면 루트에서 출발해 닿는 객체만 mark한다", hold: 2000, hl: null,
+    ch: { A: t("생존", "good"), B: t("생존", "good"), C: t("생존", "good") } },
+  { caption: "mark: 루트 → C. A·B는 루트에서 닿지 않아 mark가 없다", hold: 2200, hl: ["root", "root>C", "C"],
+    ch: { A: t("mark 없음", "muted"), B: t("mark 없음", "muted"), C: t("mark", "good") } },
+  { caption: "sweep: mark가 없는 A·B를 해제한다. 프로파일러에는 루트와 C만 남는다", hold: 2600, hl: ["root", "root>C", "C"],
+    ch: { A: t("해제", "bad"), B: t("해제", "bad"), C: t("mark", "good") } },
+];
+
+// 한쪽 그림: 같은 그래프 + 단계 재생 + 객체별 칩
+const side = (mode) => (el) => {
+  const wrap = el.appendChild(document.createElement("div"));
+  const s = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  const dg = LTT.diagram(s, SPEC);
+  const chipRow = wrap.appendChild(document.createElement("div"));
+  chipRow.className = "chips";
+  const chip = {};
+  ["A", "B", "C"].forEach((n) => { chip[n] = chipRow.appendChild(document.createElement("span")); });
+  const ctl = wrap.appendChild(document.createElement("div"));
+  const data = mode === "rc" ? RC : MS;
+  const steps = data.map((st) => ({
+    caption: st.caption,
+    hold: st.hold,
+    send: st.send,
+    enter: () => {
+      dg.highlight(st.hl);
+      ["A", "B", "C"].forEach((n) => {
+        const [text, tone] = st.ch[n];
+        chip[n].className = "ltt-tag" + (tone ? " " + tone : "");
+        chip[n].textContent = text;
+      });
+    },
+  }));
+  dg.player(ctl, steps);
+  return { el: wrap };
+};
+
+const scene = {
+  type: "contrast",
+  title: "루트가 끊긴 순환을 참조 카운팅은 남기고, mark-and-sweep은 거둔다",
+  en: "Reference counting keeps a cycle; mark-and-sweep sweeps it",
+  sub: "같은 객체 그래프, 같은 순서로 진행한다. 칩은 객체별 상태, {{보유 경로}}는 힙 스냅샷에서 따라가는 참조 줄이다.",
+  before: { label: "참조 카운팅", visual: side("rc") },
+  after: { label: "mark-and-sweep", visual: side("ms") },
+  takeaway: "루트에서 닿지 않는 {{순환 참조}}는 mark-and-sweep이 수거하지만, 참조 카운팅은 카운트가 0이 되지 않아 남긴다.",
+  recall: "힙 스냅샷에서 루트 경로 없이 남은 객체가 보이면 무엇을 의심해야 하나?",
+  basis: "카운트와 mark 수치는 이 시나리오의 손 계산 예시다. 런타임별 실제 동작은 다를 수 있다.",
+};
+
+LTT.deck({
+  title: "가비지 컬렉션 방식: 참조 카운팅과 mark-and-sweep",
+  theme: "terminal",
+  glossary: {
+    "순환 참조": "객체들이 서로를 가리켜, 바깥의 루트에서 닿지 않아도 서로가 참조를 붙들고 있는 구조",
+    "보유 경로": "객체를 메모리에 붙들고 있는 참조의 연결 줄. 힙 스냅샷의 retainer 경로",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

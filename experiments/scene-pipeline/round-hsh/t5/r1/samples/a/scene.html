@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic":"신용 창조와 통화 승수","audience":"경제 기사 독자","theme":"ledger","medium":"경제 신문 차트","decision":"통화정책 기사 해석"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const D0 = 100, R = 0.1, N = 8;
+const X0 = 90, X1 = 740, Y0 = 350, H = 310, BW = 46;
+const rounds = Array.from({ length: N }, (_, i) => {
+  const dep = D0 * (1 - R) ** i;
+  return { dep, reserve: dep * R, loan: dep * (1 - R), cum: D0 * (1 - (1 - R) ** (i + 1)) / R };
+});
+const num = (v) => Math.round(v * 10) / 10;
+const yOf = (v) => Y0 - (v / 1000) * H;
+const slot = (X1 - X0) / N;
+const cxOf = (i) => X0 + slot * (i + 0.5);
+const make = (tag, attrs, style = "") => {
+  const n = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (style) n.setAttribute("style", style);
+  return n;
+};
+
+const figure = (el) => {
+  const s = el.appendChild(make("svg", { viewBox: "0 0 760 400", role: "img", "aria-label": "라운드별 새 예금과 누적 예금, 상한 1000" }));
+  const add = (tag, attrs, style, parent = s) => parent.appendChild(make(tag, attrs, `${style};transition:opacity .5s`));
+  const text = (parent, x, y, t, anchor, style) => {
+    const n = add("text", { x, y, "text-anchor": anchor, "font-size": 13, class: "ltt-mono" }, style, parent);
+    n.textContent = t;
+    return n;
+  };
+  const MUTED = "fill:var(--ltt-muted)";
+
+  // 눈금과 축
+  for (const v of [0, 250, 500, 750, 1000]) {
+    add("line", { x1: X0, x2: X1, y1: yOf(v), y2: yOf(v) }, "stroke:var(--ltt-line)");
+    text(s, X0 - 8, yOf(v) + 4, String(v), "end", MUTED);
+  }
+  add("line", { x1: X0, x2: X1, y1: Y0, y2: Y0 }, "stroke:var(--ltt-ink-2)");
+
+  // 상한 기준선: 처음부터 알 수 있는 값
+  add("line", { x1: X0, x2: X1, y1: yOf(1000), y2: yOf(1000), "stroke-dasharray": "6 5" }, "stroke:var(--ltt-ink-2)");
+  text(s, X1, 30, "상한 1000 = 100 ÷ 10% (승수 10)", "end", "fill:var(--ltt-ink-2)");
+  const ceil2 = add("g", {}, "opacity:0");
+  add("line", { x1: X0, x2: X1, y1: yOf(500), y2: yOf(500), "stroke-dasharray": "2 4" }, "stroke:var(--ltt-muted)", ceil2);
+  text(ceil2, X0 + 8, yOf(500) - 8, "r 20%면 상한 500 (승수 5)", "start", "fill:var(--ltt-ink-2)");
+
+  // 범례
+  const key = (x, fill, t) => {
+    add("rect", { x, y: 50, width: 12, height: 12 }, `fill:${fill}`);
+    text(s, x + 18, 61, t, "start", MUTED);
+  };
+  key(X0 + 8, "var(--ltt-c1)", "준비금");
+  key(X0 + 88, "var(--ltt-c2)", "대출");
+  add("line", { x1: X0 + 168, x2: X0 + 184, y1: 56, y2: 56, "stroke-width": 3 }, "stroke:var(--ltt-accent)");
+  const cumLabel = text(s, X0 + 190, 61, "누적 예금", "start", MUTED);
+
+  // 라운드별 새 예금: 예금 한 덩어리 → 준비금 + 대출로 갈라짐, 누적 점
+  const bars = rounds.map((r, i) => {
+    const cx = cxOf(i), x = cx - BW / 2;
+    const whole = add("rect", { x, y: yOf(r.dep), width: BW, height: (r.dep / 1000) * H }, "fill:var(--ltt-muted)");
+    const res = add("rect", { x, y: Y0 - (r.reserve / 1000) * H, width: BW, height: (r.reserve / 1000) * H }, "fill:var(--ltt-c1)");
+    const loan = add("rect", { x, y: yOf(r.dep), width: BW, height: (r.loan / 1000) * H }, "fill:var(--ltt-c2)");
+    const val = text(s, cx, yOf(r.dep) - 8, String(num(r.dep)), "middle", MUTED);
+    text(s, cx, Y0 + 20, `라운드 ${i + 1}`, "middle", MUTED);
+    const dot = add("circle", { cx, cy: yOf(r.cum), r: 5 }, "fill:var(--ltt-accent)");
+    return { whole, res, loan, val, dot };
+  });
+  const line = add("polyline", { fill: "none", "stroke-width": 3, "stroke-linejoin": "round" }, "stroke:var(--ltt-accent)");
+
+  // split: 갈라진 라운드 수, pend: 다음 라운드의 예금 덩어리가 나타남
+  const draw = (split, pend, r2) => {
+    bars.forEach((b, i) => {
+      const isSplit = i < split, isPend = i === split && pend;
+      b.whole.style.opacity = isPend ? 0.5 : 0;
+      b.res.style.opacity = isSplit ? 1 : 0;
+      b.loan.style.opacity = isSplit ? 1 : 0;
+      b.val.style.opacity = isSplit || isPend ? 1 : 0;
+      b.dot.style.opacity = isSplit ? 1 : 0;
+    });
+    line.setAttribute("points", rounds.slice(0, split).map((r, i) => `${cxOf(i)},${yOf(r.cum)}`).join(" "));
+    line.style.opacity = split ? 1 : 0;
+    cumLabel.textContent = split ? `누적 예금 ${num(rounds[split - 1].cum)}` : "누적 예금";
+    cumLabel.style.fill = split ? "var(--ltt-accent)" : "var(--ltt-muted)";
+    ceil2.style.opacity = r2 ? 1 : 0;
+  };
+  draw(0, false, false);
+  return { el: s, show: (split, pend = false, r2 = false) => draw(split, pend, r2) };
+};
+
+const steps = [
+  { caption: "① 100의 예금이 은행에 들어온다", enter: (k, f) => f.show(0, true) },
+  { caption: "② 10은 준비금으로 남고, 나머지 90은 대출로 나간다", enter: (k, f) => f.show(1) },
+  { caption: "③ 대출 90은 차입자가 쓰면서 다른 은행의 새 예금 90이 된다", enter: (k, f) => f.show(1, true) },
+  { caption: "④ 그 은행도 9는 준비금, 81은 대출로 나간다", enter: (k, f) => f.show(2) },
+  { caption: "⑤ 81이 또 다른 은행의 새 예금이 된다. 새 예금은 0.9배로 줄어든다", enter: (k, f) => f.show(2, true) },
+  { caption: "⑥ 3라운드 누적 예금은 271. 준비금은 쌓여 27.1이 된다", enter: (k, f) => f.show(3) },
+  { caption: "⑦ 8라운드 누적은 569. 계속 더하면 상한 1000(= 대출 900 + 준비금 100)에 다가간다", enter: (k, f) => f.show(N) },
+  { caption: "⑧ 지급준비율을 20%로 올리면 상한은 500으로 낮아진다", enter: (k, f) => f.show(N, false, true) },
+];
+
+LTT.deck({
+  title: "신용 창조와 통화 승수",
+  theme: "ledger",
+  glossary: { "지급준비율": "은행이 예금 중 대출하지 않고 남겨 두는 몫의 비율. 10%면 예금의 10%를 준비금으로 둔다" },
+  scenes: [{
+    type: "figure",
+    kicker: "통화 · 지급준비율에 따라 예금이 불어나는 신용 창조",
+    title: "처음 예금 100은 대출과 재예금을 거치며 상한 1000을 향해 불어난다",
+    en: "Deposits multiply toward D0 ÷ r",
+    sub: "막대는 라운드별 새 예금(준비금 + 대출), 선은 누적 예금이다. {{지급준비율}} 10%면 승수는 10배다.",
+    figure,
+    steps,
+    takeaway: "{{지급준비율}}을 r이라 하면 처음 예금은 최대 D0 ÷ r까지 불어난다. r이 오르면 상한이 내려간다.",
+    recall: "지급준비율이 5%면 예금 100의 상한은 얼마인가?",
+    basis: "이론적 상한. 현금 보유·초과 준비금·대출 수요 부족이 있으면 실제 승수는 이보다 작다. 모델로 계산한 예시 (D0=100, r=10%)",
+  }],
+});
+</script>
+</body>
+</html>

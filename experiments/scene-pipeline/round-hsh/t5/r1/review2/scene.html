@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic":"신용 창조와 통화 승수","audience":"경제 기사 독자","theme":"ledger","medium":"경제 신문 차트","decision":"통화정책 기사 해석"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .cc-stats { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-bottom: 6px; }
+  .cc-stats b { color: var(--ltt-ink); }
+  .cc-cap { min-height: 1.6em; margin-top: 4px; color: var(--ltt-ink-2); }
+  .cc-replay { margin-left: 14px; }
+  #cc-fig svg { display: block; width: 100%; max-height: 38vh; }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const D0 = 100, N = 12;
+const BASE = 310, PX = 2.2, CPX = 0.135;           // 막대 1단위 2.5px, 누적 기둥 1단위 0.16px
+const X0 = 50, SLOT = 40, BW = 26;
+const CX = 625, CW = 60;
+const round1 = (v) => String(Math.round(v * 10) / 10);
+const model = (r) => Array.from({ length: N }, (_, i) => {
+  const dep = D0 * (1 - r) ** i;
+  return { dep, res: dep * r, loan: dep * (1 - r), cum: D0 * (1 - (1 - r) ** (i + 1)) / r };
+});
+
+function make(tag, attrs, parent) {
+  const n = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+
+function chart(host) {
+  const svg = make("svg", { viewBox: "0 0 740 335", role: "img", "aria-label": "라운드별 새 예금 막대와 상한선을 향해 쌓이는 누적 예금" });
+  host.appendChild(svg);
+  const stage = make("g", {}, svg);
+  const xOf = (i) => X0 + SLOT * i + (SLOT - BW) / 2;
+  const T = "transition:opacity .35s";
+  let rows = [], ceilLine, ceilText, cumText, tail, r = 0.1;
+
+  function build(rate) {
+    r = rate;
+    stage.replaceChildren();
+    const m = model(r), ceil = D0 / r;
+    const txt = (x, y, s, attrs = {}) => { const t = make("text", { x, y, ...attrs }, stage); t.textContent = s; return t; };
+
+    txt(X0, 20, "라운드별 새 예금", { class: "ltt-mono", fill: "var(--ltt-ink-2)" });
+    txt(CX + CW, 20, "누적 예금", { class: "ltt-mono", "text-anchor": "end", fill: "var(--ltt-ink-2)" });
+    [[X0 + 190, "var(--ltt-c1)", "준비금"], [X0 + 260, "var(--ltt-c2)", "대출"]].forEach(([x, f, s]) => {
+      make("rect", { x, y: 10, width: 10, height: 10, fill: f }, stage);
+      txt(x + 14, 20, s, { fill: "var(--ltt-muted)" });
+    });
+    make("line", { x1: X0, y1: BASE, x2: X0 + SLOT * N, y2: BASE, stroke: "var(--ltt-ink-2)" }, stage);
+    make("line", { x1: CX - 10, y1: BASE, x2: CX + CW + 10, y2: BASE, stroke: "var(--ltt-ink-2)" }, stage);
+
+    // 상한선은 결과가 아니라 처음부터 알 수 있는 기준
+    const cy = BASE - ceil * CPX;
+    ceilLine = make("line", { x1: CX - 10, y1: cy, x2: CX + CW + 10, y2: cy, stroke: "var(--ltt-ink)", "stroke-width": 2, "stroke-dasharray": "6 4" }, stage);
+    ceilText = txt(CX - 16, cy + 4, `상한 ${ceil} = 100 ÷ ${Math.round(r * 100)}%`, { class: "ltt-mono", "text-anchor": "end", fill: "var(--ltt-ink)" });
+    cumText = txt(CX + CW / 2, BASE + 20, "", { class: "ltt-mono", "text-anchor": "middle", fill: "var(--ltt-accent)" });
+
+    let cumBottom = BASE;
+    rows = m.map((d, i) => {
+      const x = xOf(i), top = BASE - d.dep * PX;
+      const g = make("g", {}, stage);
+      const whole = make("rect", { x, y: top, width: BW, height: d.dep * PX, fill: "var(--ltt-card-2)", stroke: "var(--ltt-ink-2)", "stroke-dasharray": "4 3", style: `opacity:0;${T}` }, g);
+      const res = make("rect", { x, y: BASE - d.res * PX, width: BW, height: d.res * PX, fill: "var(--ltt-c1)", style: `opacity:0;${T}` }, g);
+      const loan = make("rect", { x, y: top, width: BW, height: d.loan * PX, fill: "var(--ltt-c2)", style: `opacity:0;${T}` }, g);
+      const val = make("text", { x: x + BW / 2, y: top - 6, "text-anchor": "middle", class: "ltt-mono", style: `opacity:0;${T}` }, g);
+      val.textContent = round1(d.dep);
+      const lab = make("text", { x: x + BW / 2, y: BASE + 16, "text-anchor": "middle", fill: "var(--ltt-muted)", style: `opacity:0;${T}` }, g);
+      lab.textContent = i + 1;
+      // 앞 라운드 대출 몫이 이 라운드의 새 예금이 된다
+      let arrow = null;
+      if (i > 0) {
+        const p = m[i - 1], x1 = xOf(i - 1) + BW, y1 = BASE - (p.res + p.loan / 2) * PX, y2 = BASE - d.dep * PX / 2;
+        arrow = make("g", { style: `opacity:0;${T}` }, g);
+        make("line", { x1, y1, x2: x - 2, y2, stroke: "var(--ltt-accent)", "stroke-width": 2 }, arrow);
+        make("path", { d: `M${x - 2},${y2} l-5,-3 v6 z`, fill: "var(--ltt-accent)" }, arrow);
+      }
+      // 누적 기둥: 같은 예금이 위로 쌓인다
+      const h = d.dep * CPX;
+      cumBottom -= h;
+      const seg = make("rect", { x: CX, y: cumBottom, width: CW, height: h, fill: "var(--ltt-card-2)", stroke: "var(--ltt-ink-2)", style: `opacity:0;${T}` }, g);
+      return { whole, res, loan, val, lab, arrow, seg, top: cumBottom };
+    });
+    // 극한 프레임: 누적 기둥이 상한까지 차오를 빈 칸(점선)
+    tail = make("rect", { x: CX, y: BASE - ceil * CPX, width: CW, height: (ceil - m[N - 1].cum) * CPX, fill: "none", stroke: "var(--ltt-ink-2)", "stroke-dasharray": "4 3", style: `opacity:0;${T}` }, stage);
+  }
+
+  // t = 0..2N-1: 짝수 박자는 예금이 생김, 홀수 박자는 준비금·대출로 갈라짐, t = 2N: 극한
+  function show(t, line, cap) {
+    const m = model(r), ceil = D0 / r;
+    const k = Math.floor(t / 2), limit = t >= 2 * N;
+    let resSum = 0, loanSum = 0;
+    rows.forEach((o, i) => {
+      const born = t >= 2 * i, split = t >= 2 * i + 1;
+      o.whole.style.opacity = born && !split ? 1 : 0;
+      o.res.style.opacity = split ? 1 : 0;
+      o.loan.style.opacity = split ? 1 : 0;
+      o.val.style.opacity = born ? 1 : 0;
+      o.lab.style.opacity = born ? 1 : 0;
+      if (o.arrow) o.arrow.style.opacity = born ? 1 : 0;
+      o.seg.style.opacity = born ? 1 : 0;
+      o.seg.style.fill = t === 2 * i || t === 2 * i + 1 ? "var(--ltt-accent-soft)" : "var(--ltt-card-2)";
+      if (split) { resSum += m[i].res; loanSum += m[i].loan; }
+    });
+    if (limit) { resSum = ceil * r; loanSum = ceil * (1 - r); }
+    tail.style.opacity = limit ? 1 : 0;
+    const n = Math.min(k + 1, N);
+    const cum = t < 0 ? 0 : limit ? ceil : m[n - 1].cum;
+    cumText.textContent = t < 0 ? "" : round1(cum);
+    const i = n - 1, d = m[i];
+    const isSplit = t % 2 === 1;
+    cap.textContent = limit
+      ? `무한히 되풀이하면 누적은 상한 ${ceil}에 이른다: 대출 ${round1(loanSum)} + 준비금 ${round1(resSum)} = ${ceil}`
+      : !isSplit
+      ? (i === 0 ? `예금 ${round1(d.dep)}이 은행에 들어온다` : `앞 은행이 낸 대출 ${round1(d.dep)}이 다른 은행의 새 예금으로 들어온다 (${i + 1}라운드)`)
+      : `${i + 1}라운드: 준비금 ${round1(d.res)}만 남기고 ${round1(d.loan)}을 대출한다`;
+    line.innerHTML = `승수 1/r = <b>${Math.round(1 / r)}배</b><span>누적 예금 <b>${round1(cum)}</b> / 상한 <b>${ceil}</b></span><span>준비금 합 <b>${round1(resSum)}</b> + 대출 합 <b>${round1(loanSum)}</b></span>`;
+  }
+  return { el: svg, build, show, total: 2 * N + 1 };
+}
+
+function mount(body) {
+  body.innerHTML = `<div class="cc-stats ltt-mono" id="cc-line"></div><div id="cc-fig"></div><div class="cc-cap" id="cc-cap" aria-live="polite"></div>
+    <div class="ltt-param">지급준비율 r <b id="r-v"></b><div id="r"></div><button class="cc-replay" id="cc-replay" type="button">다시 재생</button></div>`;
+  const ch = chart(body.querySelector("#cc-fig"));
+  const line = body.querySelector("#cc-line"), cap = body.querySelector("#cc-cap");
+  let timer = null, t = 0;
+  const stop = () => { clearInterval(timer); timer = null; };
+  const play = () => {
+    stop();
+    t = 0;
+    ch.show(0, line, cap);
+    if (!LTT.MOTION_MS) { ch.show(ch.total - 1, line, cap); return; }
+    timer = setInterval(() => {
+      t++;
+      if (t >= ch.total) { stop(); return; }
+      ch.show(t, line, cap);
+    }, 520);
+  };
+  ch.build(0.1);
+  LTT.sweep({
+    params: { r: { kind: "steps", stops: [5, 10, 20], value: 10, fmt: (v) => v + "%" } },
+    render: ({ r }) => { ch.build(r / 100); play(); },
+  });
+  body.querySelector("#cc-replay").addEventListener("click", play);
+  return { enter: play, leave: stop };
+}
+
+LTT.expect("5라운드 누적 예금", model(0.1)[4].cum, 409.51, { tol: 0.01 });
+LTT.expect("r 20% 상한", D0 / 0.2, 500, { tol: 1e-9 });
+
+LTT.deck({
+  title: "신용 창조와 통화 승수",
+  theme: "ledger",
+  glossary: { "지급준비율": "은행이 예금 중 대출하지 않고 준비금으로 남겨 두는 몫의 비율" },
+  scenes: [{
+    kicker: "통화 · 지급준비율에 따라 예금이 불어나는 신용 창조",
+    title: "대출이 다시 예금이 되어 예금은 {{지급준비율}}의 역수배로 불어난다",
+    en: "Deposits multiply toward D0 ÷ r",
+    sub: "막대는 라운드별 새 예금, 기둥은 누적 예금. 준비율을 바꿔 상한선을 옮겨 본다.",
+    mount,
+    takeaway: "예금은 최대 처음 예금 ÷ {{지급준비율}}까지 불어난다. 준비율 인상은 이 상한을 내린다.",
+    recall: "지급준비율이 20%로 오르면 예금 100의 상한은 얼마가 되는가?",
+    basis: "이론적 상한. 현금 보유·초과 준비금·대출 수요 부족이면 실제는 더 작다. 모델로 계산한 예시.",
+  }],
+});
+</script>
+</body>
+</html>

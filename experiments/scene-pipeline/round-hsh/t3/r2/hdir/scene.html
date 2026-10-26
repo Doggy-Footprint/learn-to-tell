@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의: 과반수가 리더를 뽑고 커밋을 정한다</title>
+<script type="application/json" id="ltt-meta">{"topic":"Raft 합의","audience":"분산 시스템 입문 개발자","theme":"sketch","medium":"아키텍처 화이트보드","decision":"합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.raft-fig { display: grid; gap: 12px; }
+.raft-fig svg { width: 100%; height: auto; display: block; }
+.raft-chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.raft-chip { padding: 6px 10px; border: 1.5px solid var(--ltt-line-2); border-radius: 10px; background: var(--ltt-card); font-size: 14px; color: var(--ltt-ink-2); }
+.raft-chip b { font-size: 16px; color: var(--ltt-ink); }
+.raft-chip small { display: block; color: var(--ltt-muted); }
+.raft-chip.lead { border-color: var(--ltt-good); }
+.raft-chip.cand { border-color: var(--ltt-warn); }
+.raft-chip.dead { border-style: dashed; opacity: .5; }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const MAJ = Math.floor(5 / 2) + 1; // 5대 중 3
+
+// 펜타곤: S1 위, S2·S3 가운데 높이, S4·S5 아래
+const SERVERS = [
+  { id: "S1", c: 2, r: 0, l: "S1" },
+  { id: "S2", c: 0, r: 1, l: "S2" },
+  { id: "S3", c: 4, r: 1, l: "S3" },
+  { id: "S4", c: 1, r: 2, l: "S4" },
+  { id: "S5", c: 3, r: 2, l: "S5" },
+];
+const IDS = SERVERS.map((s) => s.id);
+const PAIRS = [];
+for (let i = 0; i < IDS.length; i++)
+  for (let j = i + 1; j < IDS.length; j++)
+    PAIRS.push({ f: IDS[i], t: IDS[j], dash: true });
+const SPEC = {
+  cols: 5, rows: 3, cell: [240, 140], node: [176, 64],
+  nodes: SERVERS,
+  edges: PAIRS,
+};
+
+// 메시지 보내기 묶음: from이 여러 서버에 같은 메시지를 보낸다
+const send = (from, tos, opts = {}) => tos.map((t) => [from, t, { count: 1, ms: 900, ...opts }]);
+const GOOD = "var(--ltt-good)", ACC = "var(--ltt-accent)", MUTE = "var(--ltt-muted)";
+
+// 단계별 상태 띠: [역할, term, 로그]. 역할 글자로 강조 모양을 정한다
+const n = (role, t, log = "1–6 커밋") => ({ role, t, log });
+const STATES = [
+  { S1: n("리더", 3), S2: n("팔로워", 3), S3: n("팔로워", 3), S4: n("팔로워", 3), S5: n("팔로워", 3) },
+  { S1: n("멈춤", 3), S2: n("팔로워", 3), S3: n("팔로워", 3), S4: n("팔로워", 3), S5: n("팔로워", 3) },
+  { S1: n("멈춤", 3), S2: n("팔로워", 3), S3: n("후보 · 표 1", 4), S4: n("팔로워", 3), S5: n("팔로워", 3) },
+  { S1: n("멈춤", 3), S2: n("팔로워", 3), S3: n("후보 · 표 1", 4), S4: n("팔로워", 3), S5: n("팔로워", 3) },
+  { S1: n("멈춤", 3), S2: n("팔로워 · 표 줌", 4), S3: n("리더 · 표 3/5", 4), S4: n("팔로워 · 표 줌", 4), S5: n("팔로워", 3) },
+  { S1: n("멈춤", 3), S2: n("팔로워", 4), S3: n("리더", 4), S4: n("팔로워", 4), S5: n("팔로워", 4) },
+  { S1: n("멈춤", 3), S2: n("팔로워", 4), S3: n("리더", 4, "1–6 · 7 미커밋"), S4: n("팔로워", 4), S5: n("팔로워", 4) },
+  { S1: n("멈춤", 3), S2: n("팔로워", 4, "1–6 · 7 미커밋"), S3: n("리더", 4, "1–6 · 7 미커밋"), S4: n("팔로워", 4, "1–6 · 7 미커밋"), S5: n("팔로워", 4) },
+  { S1: n("멈춤", 3), S2: n("팔로워", 4, "1–6 · 7 미커밋"), S3: n("리더", 4, "1–6 · 7 커밋"), S4: n("팔로워", 4, "1–6 · 7 미커밋"), S5: n("팔로워", 4) },
+  { S1: n("멈춤", 3), S2: n("팔로워", 4, "1–6 · 7 커밋"), S3: n("리더", 4, "1–6 · 7 커밋"), S4: n("팔로워", 4, "1–6 · 7 커밋"), S5: n("팔로워", 4, "1–6 · 따라잡는 중") },
+];
+
+const steps = [
+  { caption: "S1이 리더다(term 3). 리더는 heartbeat를 보내 팔로워의 election timer를 되돌린다.",
+    hold: 2600, hot: ["S1"],
+    send: send("S1", ["S2", "S3", "S4", "S5"], { color: MUTE }) },
+  { caption: "S1이 멈췄다. heartbeat가 끊기고 팔로워들의 timer가 돌기 시작한다.",
+    hold: 2400 },
+  { caption: "가장 먼저 끝난 S3이 후보가 된다. term을 4로 올리고 자기에게 표 한 장을 준다.",
+    hold: 2600, hot: ["S3"] },
+  { caption: "S3이 RequestVote를 보낸다. 서버는 term마다 한 표만, 그리고 후보 로그가 자기 것 이상일 때만 준다.",
+    hold: 2800, hot: ["S3"],
+    send: send("S3", ["S2", "S4", "S5"], { color: ACC }) },
+  { caption: "S2, S4가 표를 줬다. S3 포함 3/5이 되는 순간 S3이 리더가 된다. S1이 멈춰도 과반은 채워진다.",
+    hold: 3000, hot: ["S3"],
+    send: [...send("S2", ["S3"], { color: GOOD }), ...send("S4", ["S3"], { color: GOOD })] },
+  { caption: "리더는 곧바로 heartbeat를 보내 다른 후보의 timer를 되돌린다. 한 term에 리더는 한 명뿐이다.",
+    hold: 2600, hot: ["S3"],
+    send: send("S3", ["S2", "S4", "S5"], { color: MUTE }) },
+  { caption: "클라이언트 요청은 리더 S3만 받는다. S3이 자기 로그 끝 index 7을 먼저 쓴다. 아직 미커밋이다.",
+    hold: 2600, hot: ["S3"] },
+  { caption: "S3이 index 7을 AppendEntries로 S2, S4에 복제한다. 저장만 되었을 뿐 아직 커밋이 아니다.",
+    hold: 2800, hot: ["S3"],
+    send: send("S3", ["S2", "S4"], { color: ACC }) },
+  { caption: "S2, S4가 저장을 확인했다. S3 포함 3/5이 저장했으므로 index 7을 커밋한다. S5는 아직 없어도 된다.",
+    hold: 3000, hot: ["S3"],
+    send: [...send("S2", ["S3"], { color: GOOD }), ...send("S4", ["S3"], { color: GOOD })] },
+  { caption: "커밋은 다음 AppendEntries의 commitIndex로 전해진다. 팔로워는 한 박자 늦게 커밋해 상태 기계에 적용한다.",
+    hold: 3400, hot: ["S3"],
+    send: send("S3", ["S2", "S4"], { color: GOOD }) },
+];
+
+const hub = (el) => {
+  const wrap = el.appendChild(document.createElement("div"));
+  wrap.className = "raft-fig";
+  const svg = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  const dg = LTT.diagram(svg, SPEC);
+
+  const chips = wrap.appendChild(document.createElement("div"));
+  chips.className = "raft-chips";
+  const chipEls = IDS.map(() => chips.appendChild(document.createElement("div")));
+  const paint = (i) => {
+    const st = STATES[i];
+    IDS.forEach((id, k) => {
+      const s = st[id];
+      const cls = s.role.startsWith("리더") ? "lead" : s.role.startsWith("후보") ? "cand" : s.role === "멈춤" ? "dead" : "";
+      chipEls[k].className = `raft-chip ${cls}`;
+      chipEls[k].innerHTML = `<b>${id}</b> ${s.role}<small>term ${s.t}</small><small>로그 ${s.log}</small>`;
+    });
+  };
+
+  paint(0);
+  dg.player(wrap, steps.map((s, i) => ({ ...s, enter: () => paint(i) })));
+  return { el: wrap, dg };
+};
+
+LTT.expect("5대 과반수", MAJ, 3, { tol: 0 });
+
+LTT.deck({
+  title: "Raft 합의: 과반수가 리더를 뽑고 커밋을 정한다",
+  theme: "sketch",
+  glossary: {
+    "과반수": "전체 서버 수의 절반을 넘는 수. 5대면 3대다.",
+    "리더": "로그를 쓰고 복제를 이끄는 서버. 한 임기에 최대 한 명이다.",
+    "커밋": "과반수가 저장해서 더는 사라지지 않는다고 확정한 항목.",
+    "term": "Raft의 임기 번호. 새 선거가 시작될 때마다 1씩 오른다.",
+  },
+  scenes: [{
+    type: "overview",
+    kicker: "분산 시스템 · Raft 리더 선출과 로그 복제",
+    title: "과반수 3/5가 리더를 뽑고 항목을 확정한다",
+    en: "One majority elects the leader and locks in the entry",
+    sub: "서버 5대, 리더 S1이 멈추는 순간부터 시작한다. 과반수가 저장한 항목만 {{커밋}}된다. 숫자 옆 {{임기|term}}은 선거 번호다.",
+    figure: hub,
+    caption: "같은 과반수 규칙이 선출과 커밋 두 곳에서 같은 역할을 한다.",
+    label: "선출 → 복제 → 커밋",
+    takeaway: "선출도 커밋도 {{과반수}}(5대 중 3대)로 정한다. 3대가 멈추면 {{리더}}도 커밋도 멈춘다.",
+    recall: "서버 5대 중 3대가 멈추면 리더를 뽑을 수 있는가?",
+    basis: "Raft 논문의 선출·복제 규칙. 5대 구성과 timer 값은 설명을 위한 예시다.",
+  }],
+});
+</script>
+</body>
+</html>

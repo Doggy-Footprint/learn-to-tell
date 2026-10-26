@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가비지 컬렉션 방식: 루트가 끊긴 순환은 참조 카운팅에만 남는다</title>
+<script type="application/json" id="ltt-meta">{"topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-mock.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.cmp { display: grid; justify-items: center; gap: 10px; width: 100%; min-width: 0; }
+.cmp > svg { width: 100%; max-width: 100%; height: auto; }
+.cmp-cap { margin: 0; min-height: 2.6em; text-align: center; color: var(--ltt-ink); }
+.cmp-ctl { position: relative; z-index: 1; display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
+.cmp-ctl button { font: inherit; color: var(--ltt-ink); background: var(--ltt-card-2); border: 1px solid var(--ltt-line); border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const HOLD = 2400;
+
+// 간선은 이름으로 부른다. rA·rC는 루트 참조, AB·BA는 객체 사이 참조다.
+const EDGE = { rA: ["root", "A"], rC: ["root", "C"], AB: ["A", "B"], BA: ["B", "A"] };
+const LABEL = { rA: "보유", rC: "보유", AB: "next", BA: "prev" };
+const POS = { root: { c: 0, r: 0.5 }, A: { c: 1, r: 0 }, B: { c: 2, r: 0 }, C: { c: 1, r: 1 } };
+
+// 생성 순서대로 한 단계씩 바뀐다. nodes는 이 단계까지 생긴 객체, edges는 살아 있는 참조다.
+// cut은 루트→A가 끊긴 뒤, hot은 A↔B가 카운트를 붙드는 강조, mark·sweep은 M&S 수거 단계다.
+// rc·ms는 각 쪽 자막. 같은 번호의 단계는 두 그림에서 동시에 바뀐다.
+const STEPS = [
+  { rc: "루트가 A를 잡는다. A 생성, 카운트 1", ms: "루트가 A를 잡는다. 아직 수거 전이라 살아 있다",
+    nodes: ["A"], edges: ["rA"] },
+  { rc: "A.next = B. B 생성, B의 카운트 1", ms: "A.next = B. B가 생기고 살아 있다",
+    nodes: ["A", "B"], edges: ["rA", "AB"] },
+  { rc: "B.prev = A. B가 A를 가리켜 A의 카운트 2", ms: "B.prev = A. 간선이 하나 늘지만 M&S는 세지 않는다",
+    nodes: ["A", "B"], edges: ["rA", "AB", "BA"] },
+  { rc: "루트가 C를 잡는다. C 카운트 1", ms: "루트가 C를 잡는다. C 생성",
+    nodes: ["A", "B", "C"], edges: ["rA", "AB", "BA", "rC"] },
+  { rc: "루트가 A를 놓는다. A·B는 서로에게서 받은 1로 남는다", ms: "루트가 A를 놓는다. 수거 주기 전이라 아직 남아 있다",
+    nodes: ["A", "B", "C"], edges: ["AB", "BA", "rC"], cut: true, hot: true },
+  { rc: "RC에는 mark가 없다. 카운트가 0이 아니라서 A·B는 해제되지 않는다", ms: "mark: 루트에서 닿는 root·C만 표시한다. A·B에는 표시가 없다",
+    nodes: ["A", "B", "C"], edges: ["AB", "BA", "rC"], cut: true, hot: true, mark: true },
+  { rc: "결과: A·B가 남는다. 루트 경로 없이 서로만 가리키는 누수", ms: "sweep: 표시 없는 A·B를 해제한다. 남은 것은 루트와 C",
+    nodes: ["A", "B", "C"], edges: ["AB", "BA", "rC"], cut: true, hot: true, mark: true, sweep: true },
+];
+const LAST = STEPS.length - 1;
+
+// 프로파일러 로그. 단계마다 한 줄씩 쌓인다.
+const LOG = {
+  rc: [
+    "new A           rc=1",
+    "A.next = B      rc(B)=1",
+    "B.prev = A      rc(A)=2",
+    "new C           rc=1",
+    { t: "warn", text: "root drop A   rc(A)=1" },
+    { t: "warn", text: "rc != 0 → A, B 해제 안 함" },
+    { t: "err", text: "leak: A ⇄ B · 루트 경로 없음" },
+  ],
+  ms: [
+    "new A",
+    "new B",
+    "B.prev = A",
+    "new C",
+    "root drop A",
+    { t: "dim", text: "mark: root → C" },
+    { t: "ok", text: "sweep: A, B 해제 · 남은 객체: root, C" },
+  ],
+};
+
+let cur = REDUCED ? LAST : 0;
+let views = [];
+let timer = 0;
+
+// 루트에서 간선을 따라 닿는 객체 집합
+function reach(edges) {
+  const seen = new Set(["root"]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const e of edges) {
+      const [f, t] = EDGE[e];
+      if (seen.has(f) && !seen.has(t)) { seen.add(t); grew = true; }
+    }
+  }
+  return seen;
+}
+
+// 노드 하나. RC는 들어오는 간선 수를 카운트로 적고 루트 경로가 없으면 빨갛게 한다. M&S는 mark 단계에만 표시한다.
+function node(id, st, kind, live) {
+  const n = { id, c: POS[id].c, r: POS[id].r, l: id === "root" ? "루트" : `객체 ${id}`, icon: id === "root" ? "anchor" : "package" };
+  if (kind === "rc" && id !== "root") {
+    n.s = `카운트 ${st.edges.filter((e) => EDGE[e][1] === id).length}`;
+    if (!live.has(id)) n.k = "bad";
+  }
+  if (kind === "ms" && st.mark) {
+    n.s = live.has(id) ? (st.sweep ? "남음" : "mark") : "표시 없음";
+    n.k = live.has(id) ? "good" : "muted";
+  }
+  return n;
+}
+
+// 간선은 양 끝이 그려진 것만 남긴다. 끊긴 루트 참조는 점선으로 한 번 보여 준다.
+function edgesOf(st, kind, ids) {
+  const out = [];
+  for (const e of st.edges) {
+    const [f, t] = EDGE[e];
+    if (!ids.includes(f) || !ids.includes(t)) continue;
+    const o = { f, t, l: LABEL[e] };
+    if (kind === "rc" && st.hot && e !== "rC") o.k = "accent";
+    out.push(o);
+  }
+  if (st.cut && ids.includes("A")) out.push({ f: "root", t: "A", l: "끊김", dash: true, k: "bad" });
+  return out;
+}
+
+function figure(i, kind) {
+  const st = STEPS[i];
+  const live = reach(st.edges);
+  const ids = ["root", ...st.nodes].filter((id) => kind === "rc" || !st.sweep || live.has(id));
+  return {
+    cols: 3, rows: 2, cell: [120, 90], node: [100, 44],
+    nodes: ids.map((id) => node(id, st, kind, live)),
+    edges: edgesOf(st, kind, ids),
+  };
+}
+
+function show(i) {
+  cur = i;
+  views = views.filter((v) => v.box.isConnected);
+  views.forEach((v) => v.draw(i));
+  if (!views.length) clearInterval(timer);
+}
+
+function restart() {
+  clearInterval(timer);
+  if (!REDUCED) timer = setInterval(() => show((cur + 1) % STEPS.length), HOLD);
+}
+
+function go(i) {
+  show((i + STEPS.length) % STEPS.length);
+  restart();
+}
+
+function panel(kind) {
+  return (el) => {
+    const box = document.createElement("div");
+    box.className = "cmp";
+    el.appendChild(box);
+
+    const draw = (i) => {
+      const svg = document.createElementNS(SVG, "svg");
+      const cap = document.createElement("p");
+      cap.className = "cmp-cap";
+      cap.textContent = STEPS[i][kind];
+      const log = LTT.mock.terminal({
+        title: kind === "rc" ? "힙 로그 · 참조 카운팅" : "힙 로그 · mark-and-sweep",
+        lines: LOG[kind].slice(0, i + 1),
+      });
+      box.replaceChildren(svg, cap, log.el);
+      LTT.diagram(svg, figure(i, kind));
+    };
+    views.push({ box, draw });
+    draw(cur);
+
+    if (kind === "rc") {
+      const ctl = document.createElement("div");
+      ctl.className = "cmp-ctl";
+      ctl.innerHTML = '<button type="button" data-d="-1">이전</button><button type="button" data-d="1">다음</button>';
+      ctl.addEventListener("click", (e) => {
+        const d = Number(e.target.dataset.d);
+        if (d) go(cur + d);
+      });
+      el.appendChild(ctl);
+    }
+    restart();
+  };
+}
+
+LTT.deck({
+  title: "루트가 끊긴 순환은 참조 카운팅에만 남고, mark-and-sweep은 거둔다",
+  theme: "terminal",
+  glossary: {
+    "루트": "프로그램이 직접 잡고 있는 시작점(전역·스택 변수). 루트에서 닿는 객체만 살아 있다고 본다",
+    "참조 카운팅": "객체마다 자기를 가리키는 참조 수를 세고, 0이 되는 순간 해제하는 방식",
+    "mark-and-sweep": "루트에서 닿는 객체에 표시(mark)를 남기고, 표시 없는 객체를 한꺼번에 해제(sweep)하는 방식",
+    "보유 경로": "객체를 메모리에 붙들고 있는 참조의 연결 줄. 힙 스냅샷의 retainer 경로",
+  },
+  scenes: [{
+    type: "contrast",
+    kicker: "런타임 · 가비지 컬렉션",
+    title: "루트가 끊긴 순환은 참조 카운팅에만 남는다",
+    en: "Reference counting keeps a cycle; mark-and-sweep sweeps it",
+    sub: "같은 객체 그래프를 같은 순서로 진행한다. {{루트}}를 끊은 뒤 참조 카운팅과 {{mark-and-sweep}}이 A↔B를 다르게 다룬다.",
+    before: { title: "참조 카운팅 (RC)", sub: "카운트가 0이어야 해제", visual: panel("rc") },
+    after: { title: "mark-and-sweep (M&S)", sub: "루트에서 닿는 것만 살린다", visual: panel("ms") },
+    takeaway: "힙 스냅샷에서 {{보유 경로}}가 루트 없이 서로만 가리키는 객체는 {{참조 카운팅}} 계열의 순환 누수를 의심할 자리다.",
+    recall: "루트를 끊은 뒤 A의 카운트가 1로 남는 이유는?",
+    basis: "시나리오 손 계산: 루트→A, A.next=B, B.prev=A, 루트→C. 카운트는 들어오는 참조 수로 단순화했다. <span class=\"ltt-tag muted\">모델로 계산한 예시</span> 실제 런타임은 세대별 수거 등으로 세부 동작이 다를 수 있다.",
+  }],
+});
+</script>
+</body>
+</html>

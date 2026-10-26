@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic": "DNA 복제 분기점", "audience": "생명과학 입문 학생", "theme": "paper", "medium": "교과서 도해", "decision": "복제 과정 이해"}</script>
+<style>
+.dna-wrap { max-width: 880px; margin: 0 auto; }
+.dna-fig { display: block; width: 100%; height: auto; }
+.dna-fig .tpl, .dna-fig .new { fill: none; stroke-linecap: round; }
+.dna-fig .tpl { stroke: var(--ltt-ink); stroke-width: 4; }
+.dna-fig .new { stroke: var(--ltt-accent); stroke-width: 6; }
+.dna-fig .prim { fill: var(--ltt-muted); }
+.dna-fig .heli { fill: var(--ltt-card-2); stroke: var(--ltt-ink-2); stroke-width: 2; }
+.dna-fig .lbl { fill: var(--ltt-ink-2); }
+.dna-fig .acc { fill: var(--ltt-accent); }
+.dna-fig .hide { opacity: 0; transition: opacity 0.4s; }
+.dna-cap { min-height: 3em; margin: 12px 0 0; color: var(--ltt-ink-2); }
+</style>
+</head>
+<body>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const NS = (tag, attrs = {}, parent) => {
+  const n = document.createElementNS(SVG, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+};
+const show = (n, on = true) => n.classList.toggle("hide", !on);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const ease = (p) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
+
+// 기하: O 복제 기점(왼쪽), F 분기점 x, Y 주형 위·선도·지연·주형 아래 y, S 아직 안 풀린 이중나선
+const O = 90, F0 = 200, FEND = 600;
+const Y = { t1: 110, l: 140, g: 260, t2: 290 };
+const S = { a: 190, b: 210, end: 800 };
+const X = (i) => O + 90 * (i + 1); // 절편 i의 5' 끝(프라이머 자리)
+const THR = (i) => X(i) + 40; // 분기점이 이 x를 지나면 절편 i를 만든다
+
+const CAP = [
+  "헬리케이스가 이중나선을 풀어 Y자 분기점이 열린다. 두 주형 가닥은 방향이 서로 반대다.",
+  "선도 가닥: 프라이머 하나가 먼저 놓이고, 분기점을 따라 끊김 없이 자란다.",
+  "지연 가닥: 분기점이 어느 정도 열린 뒤 프라이머가 놓이고, 분기점에서 먼 쪽으로 조각(오카자키 절편)이 생긴다. 나중 조각일수록 분기점에 가깝다.",
+  "두 새 가닥 모두 5'→3'로 자란다. 분기점 기준으로만 방향이 반대다.",
+  "프라이머가 지워져 틈이 드러나고, DNA 연결효소가 조각을 이어 한 가닥이 된다.",
+];
+
+const drawIn = (p, ms) => new Promise((done) => {
+  const L = p.getTotalLength();
+  p.style.transition = "none";
+  p.style.strokeDasharray = L;
+  p.style.strokeDashoffset = L;
+  p.getBoundingClientRect();
+  p.style.transition = `stroke-dashoffset ${ms}ms ease-in-out`;
+  p.style.strokeDashoffset = 0;
+  setTimeout(() => {
+    p.style.strokeDasharray = "";
+    p.style.strokeDashoffset = "";
+    p.style.transition = "";
+    done();
+  }, ms);
+});
+
+const tween = (live, ms, fn) => new Promise((done) => {
+  const t0 = performance.now();
+  const frame = (now) => {
+    if (!live()) return done(false);
+    const p = Math.min(1, (now - t0) / ms);
+    fn(p);
+    if (p < 1) requestAnimationFrame(frame);
+    else done(true);
+  };
+  requestAnimationFrame(frame);
+});
+
+const dnaMount = (body) => {
+  let token = 0;
+  body.innerHTML = `<div class="dna-wrap"><svg class="dna-fig" viewBox="0 0 840 380" role="img" aria-label="DNA 복제 분기점에서 선도 가닥과 지연 가닥이 자라는 과정"></svg><p class="dna-cap"></p></div>`;
+  const svg = body.querySelector(".dna-fig");
+  const cap = body.querySelector(".dna-cap");
+  const txt = (x, y, s, cls, anchor = "middle") => {
+    const t = NS("text", { x, y, class: cls, "text-anchor": anchor }, svg);
+    t.textContent = s;
+    return t;
+  };
+
+  const closed = [
+    NS("path", { class: "tpl", d: `M ${O} ${S.a} H ${S.end}` }, svg),
+    NS("path", { class: "tpl", d: `M ${O} ${S.b} H ${S.end}` }, svg),
+  ];
+  const t1 = NS("path", { class: "tpl" }, svg);
+  const t2 = NS("path", { class: "tpl" }, svg);
+  const s1 = NS("path", { class: "tpl" }, svg);
+  const s2 = NS("path", { class: "tpl" }, svg);
+  const heli = NS("ellipse", { class: "heli hide", rx: 12, ry: 22, cy: 200 }, svg);
+  const heliName = txt(F0, 250, "헬리케이스", "lbl hide");
+  const fwd = txt(F0 + 20, 60, "분기점 전진 →", "lbl hide", "start");
+
+  const lead = NS("path", { class: "new hide" }, svg);
+  const leadHead = NS("path", { class: "new hide" }, svg);
+  const leadPrim = NS("rect", { class: "prim hide", x: O - 4, y: Y.l - 6, width: 8, height: 12 }, svg);
+  const leadPrimName = txt(O + 4, Y.l + 26, "프라이머", "lbl hide", "start");
+  const leadArrow = txt(330, Y.l - 8, "5'→3'", "acc hide");
+  const leadName = txt(330, Y.l + 24, "선도 가닥", "lbl hide");
+
+  const frags = [0, 1, 2, 3, 4].map((i) => {
+    const x = X(i);
+    const g = NS("g", { class: "hide" }, svg);
+    const path = NS("path", { class: "new", d: `M ${x - 2} ${Y.g} H ${x - 88}` }, g);
+    NS("path", { class: "new", d: `M ${x - 80} ${Y.g - 6} L ${x - 88} ${Y.g} L ${x - 80} ${Y.g + 6}` }, g);
+    const prim = NS("rect", { class: "prim", x: x - 8, y: Y.g - 6, width: 8, height: 12 }, g);
+    return { g, path, prim, on: false };
+  });
+  const lagArrow = txt(X(2) - 45, Y.g - 10, "5'→3'", "acc hide");
+  const lagName = txt(200, 234, "지연 가닥 · 오카자키 절편", "lbl hide");
+  const gfull = NS("path", { class: "new hide", d: `M ${O} ${Y.g} H ${X(4)}` }, svg);
+  const linkName = txt(470, Y.g - 10, "연결효소", "lbl hide");
+  const gaps = [0, 1, 2, 3].map((i) => NS("rect", { class: "acc hide", x: X(i) - 2, y: Y.g - 12, width: 4, height: 24 }, svg));
+  const gapName = txt(X(1), Y.g + 36, "틈 4곳", "lbl hide");
+
+  const endTpl = [
+    txt(O - 18, Y.t1 + 5, "3'", "lbl hide", "end"),
+    txt(O - 18, Y.t2 + 5, "5'", "lbl hide", "end"),
+    txt(S.end + 8, S.a + 5, "5'", "lbl hide", "start"),
+    txt(S.end + 8, S.b + 5, "3'", "lbl hide", "start"),
+  ];
+  const endNew = [
+    txt(O - 18, Y.l + 5, "5'", "acc hide", "end"),
+    txt(O - 18, Y.g + 5, "3'", "acc hide", "end"),
+  ];
+
+  // 분기점 x에 따라 주형·나선·선도 가닥·헬리케이스를 다시 그린다
+  const geo = (F) => {
+    t1.setAttribute("d", `M ${F} ${S.a} C ${F - 40} ${S.a} ${F - 40} ${Y.t1} ${F - 90} ${Y.t1} H ${O}`);
+    t2.setAttribute("d", `M ${F} ${S.b} C ${F - 40} ${S.b} ${F - 40} ${Y.t2} ${F - 90} ${Y.t2} H ${O}`);
+    s1.setAttribute("d", `M ${F} ${S.a} H ${S.end}`);
+    s2.setAttribute("d", `M ${F} ${S.b} H ${S.end}`);
+    lead.setAttribute("d", `M ${O} ${Y.l} H ${F - 40}`);
+    leadHead.setAttribute("d", `M ${F - 48} ${Y.l - 6} L ${F - 40} ${Y.l} L ${F - 48} ${Y.l + 6}`);
+    heli.setAttribute("cx", F);
+    heliName.setAttribute("x", F);
+    fwd.setAttribute("x", F + 20);
+  };
+
+  const reset = () => {
+    geo(F0);
+    closed.forEach((c) => show(c, true));
+    [t1, t2].forEach((p) => show(p, false));
+    [heli, heliName, fwd, lead, leadHead, leadPrim, leadPrimName, leadArrow, leadName,
+      gfull, lagArrow, lagName, linkName, gapName, ...gaps, ...endTpl, ...endNew].forEach((n) => show(n, false));
+    frags.forEach((f) => { f.on = false; show(f.g, false); show(f.prim, true); });
+  };
+
+  const finalState = () => {
+    geo(FEND);
+    closed.forEach((c) => show(c, false));
+    [t1, t2, s1, s2, lead, leadHead, gfull, leadArrow, leadName, lagName, linkName, fwd, ...endTpl, ...endNew]
+      .forEach((n) => show(n, true));
+    cap.textContent = CAP[4];
+  };
+
+  const run = async (id) => {
+    const live = () => id === token;
+    const step = async (ms) => { await sleep(ms); return live(); };
+    reset();
+    cap.textContent = CAP[0];
+    if (!(await step(600))) return;
+
+    // 1. 헬리케이스가 풀어 분기점이 열린다
+    closed.forEach((c) => show(c, false));
+    show(heli, true);
+    show(heliName, true);
+    show(fwd, true);
+    show(t1, true);
+    show(t2, true);
+    endTpl.forEach((l) => show(l, true));
+    await Promise.all([drawIn(t1, 900), drawIn(t2, 900)]);
+    if (!(await step(400))) return;
+
+    // 2. 선도 가닥: 프라이머가 먼저, 이어서 연속 합성
+    cap.textContent = CAP[1];
+    show(leadPrim, true);
+    show(leadPrimName, true);
+    show(endNew[0], true);
+    if (!(await step(500))) return;
+    show(lead, true);
+    show(leadHead, true);
+    await drawIn(lead, 700);
+    if (!(await step(300))) return;
+
+    // 3. 분기점이 전진하며 선도 가닥이 자라고, 지연 가닥 절편이 분기점 뒤에 생긴다
+    const grew = await tween(live, 5600, (p) => {
+      geo(F0 + (FEND - F0) * ease(p));
+      frags.forEach((f, i) => {
+        if (f.on || F0 + (FEND - F0) * ease(p) < THR(i)) return;
+        f.on = true;
+        show(f.g, true);
+        drawIn(f.path, 700);
+        if (i === 0) cap.textContent = CAP[2];
+      });
+    });
+    if (!grew) return;
+
+    // 4. 같은 5'→3' 규칙, 분기점 기준으로만 반대
+    cap.textContent = CAP[3];
+    [leadArrow, leadName, lagArrow, lagName, endNew[1]].forEach((n) => show(n, true));
+    if (!(await step(2600))) return;
+
+    // 5. 프라이머가 지워지고 틈이 드러나며 연결효소가 조각을 잇는다
+    cap.textContent = CAP[4];
+    show(leadPrim, false);
+    show(leadPrimName, false);
+    frags.forEach((f) => show(f.prim, false));
+    show(lagArrow, false);
+    gaps.forEach((g) => show(g, true));
+    show(gapName, true);
+    if (!(await step(1800))) return;
+    gaps.forEach((g) => show(g, false));
+    show(gapName, false);
+    show(gfull, true);
+    await drawIn(gfull, 900);
+    frags.forEach((f) => show(f.g, false));
+    show(linkName, true);
+    await step(3200);
+  };
+
+  const loop = async (id) => { while (id === token) await run(id); };
+
+  return {
+    enter() {
+      if (LTT.MOTION_MS === 0) return finalState();
+      loop(++token);
+    },
+    leave() { token++; },
+  };
+};
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "선도 가닥": "분기점이 열리는 쪽으로 끊김 없이 합성되는 새 DNA 가닥",
+    "지연 가닥": "분기점에서 멀어지는 쪽으로 짧은 조각(오카자키 절편)을 이어 만드는 새 DNA 가닥",
+  },
+  scenes: [
+    {
+      type: "hook",
+      kicker: "생물 · DNA 복제",
+      title: "같은 5'→3' 규칙인데, 분기점 때문에 한 가닥은 조각난다",
+      en: "Leading and lagging strands",
+      sub: "복제 분기점이 전진하는 동안 두 새 가닥이 어떻게 자라는지 본다.",
+      narration: "{{선도 가닥}}은 분기점이 열리는 쪽으로 한 가닥이 끊김 없이 자란다. {{지연 가닥}}은 반대편에서 짧은 조각을 하나씩 이어 만든다. 두 가닥 모두 5'→3' 방향이다.",
+      takeaway: "두 새 가닥은 같은 5'→3' 규칙으로 자라고, 분기점 기준으로 방향이 반대라서 한쪽만 조각난다.",
+      recall: "지연 가닥이 조각나는 까닭은 중합효소가 3'→5'로 거꾸로 합성해서인가?",
+      mount: dnaMount,
+    },
+  ],
+});
+</script>
+</body>
+</html>

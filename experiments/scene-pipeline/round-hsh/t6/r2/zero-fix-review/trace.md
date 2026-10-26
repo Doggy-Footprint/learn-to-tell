@@ -1,0 +1,33 @@
+# stream.jsonl
+
+- Bash `ls -la shots/ refs/ 2>&1 | head -80`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/storyboard.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/direction.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/scene.html`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/shots/index.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/shots/scene-audit.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/refs/API.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/shots/scene-t1s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/shots/scene-t4s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/shots/scene-t8s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/shots/scene-step1.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/shots/scene-step2.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/shots/scene-step3.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/shots/scene-step4.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/shots/scene-step5.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/shots/scene-step6.jpg`
+- Write `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/review.md` (+2197자)
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- Bash `ls refs/api/ && grep -n -i -A12 "stepper" refs/api/controls.md | head -60`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/scene.html`
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r2/zero-fix-review/review.md`
+- 말: 실패 3건 중 고친 것은 2건입니다. 그림 글자 크기는 레이아웃을 바꿔야 해서 이번 수정에서 제외했습니다.
+
+- 고친 항목: 연결 전 단계(s<1)에서 존재하지 않는 `B.peer`를 retainer로 나열하던 문제, 캡션이 두 번 나오던 문제.
+- 미수정 항목: 그림 글자 크기. 1020 viewBox가 약 0.55배로 줄어 본문 글자가 약 8px로 보입니다.
+- audit: 기준선과 수정 후 모두 "고침 0건"입니다. 남은 권고는 `retainer` lint 하나뿐입니다(1280x800의 88% 축소 권고는 캡션 중복 제거 뒤 사라졌습니다).
+- 기록: `review.md`에 항목별 판정과 `## 고친 것` 목록을 남겼습니다. `load` 스크린샷은 캡처 실패라 로드 상태는 판정하지 못했습니다.
+- 결과: success $0.0304 25턴 139s

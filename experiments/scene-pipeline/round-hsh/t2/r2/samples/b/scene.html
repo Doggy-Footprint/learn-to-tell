@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어: 손실 직후 cwnd는 어디로 떨어지나</title>
+<script type="application/json" id="ltt-meta">{"topic": "TCP 혼잡 제어", "audience": "백엔드·네트워크 개발자", "theme": "lab", "medium": "cwnd 시계열 플롯", "decision": "전송 처리량 문제 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+// cwnd(MSS 단위)를 RTT 번호에 따라 그린다. 손실은 RTT 3, cwnd 64에서 난다.
+const SLOW_START = [[0, 10], [1, 20], [2, 40], [3, 64]];
+const LIMIT = [[0, 64], [44, 64]]; // 병목 용량(BDP + 큐) 한계선
+
+// 중복 ACK 손실: 64 → 32 (절반), 그 뒤 RTT마다 +1 MSS
+const DUP_ACK = [[3, 64], ...Array.from({ length: 33 }, (_, k) => [4 + k, 32 + k])];
+// 타임아웃: 64 → 1, slow start로 32까지 다시 오른 뒤 선형 증가
+const TIMEOUT = [[3, 64], [4, 1], [5, 2], [6, 4], [7, 8], [8, 16], [9, 32], ...Array.from({ length: 32 }, (_, k) => [10 + k, 33 + k])];
+
+function cwndPlot(el, lines) {
+  const plot = LTT.axisPlot(el, {
+    width: 640, height: 270, x: [0, 44], y: [0, 72],
+    labels: { x: "RTT 번호", y: "cwnd (MSS)" },
+    series: lines.map(({ id, color, dash }) => ({ id, color, dash })),
+  });
+  lines.forEach(({ id, pts }) => plot.set(id, pts));
+  return plot;
+}
+
+LTT.deck({
+  title: "손실이 나면 cwnd는 절반으로 줄고 천천히 다시 오른다",
+  theme: "lab",
+  glossary: {
+    "cwnd": "송신자가 한 번에 보낼 수 있는 미확인 데이터 양(혼잡 윈도)",
+    "MSS": "세그먼트 하나에 실을 수 있는 최대 데이터 크기",
+    "RTT": "송신 후 ACK가 돌아오기까지 걸리는 왕복 시간",
+    "RTO": "ACK가 오지 않을 때 송신자가 기다리는 제한 시간. 넘으면 타임아웃",
+  },
+  scenes: [
+    {
+      type: "predict",
+      title: "손실 신호를 받으면 송신량은 어디로 떨어질까",
+      sub: "{{cwnd}}가 64 {{MSS}}까지 {{RTT}}마다 두 배로 오른 뒤 패킷이 버려졌다. 점선은 병목 한계다.",
+      question: "같은 ACK가 세 번 중복으로 와서 손실을 알았다. 손실 직후 한 번에 보낼 수 있는 양은?",
+      choices: [
+        { id: "a", text: "32 MSS로 절반" },
+        { id: "b", text: "1 MSS로 처음부터" },
+        { id: "c", text: "64 MSS 그대로" },
+      ],
+      answer: "a",
+      visual: (el) => {
+        const box = document.createElement("div");
+        el.appendChild(box);
+        cwndPlot(box, [
+          { id: "slow", color: "var(--ltt-c1)", pts: SLOW_START },
+          { id: "limit", color: "var(--ltt-muted)", dash: true, pts: LIMIT },
+        ]);
+        el.appendChild(LTT.facts([
+          { icon: "ruler", value: "1460 B", label: "MSS" },
+          { icon: "clock", value: "50 ms", label: "RTT" },
+          { icon: "network", value: "64 MSS", label: "손실 시 cwnd" },
+        ]));
+      },
+      answerVisual: (el) => {
+        cwndPlot(el, [
+          { id: "slow", color: "var(--ltt-muted)", pts: SLOW_START },
+          { id: "limit", color: "var(--ltt-muted)", dash: true, pts: LIMIT },
+          { id: "dup", color: "var(--ltt-c1)", pts: DUP_ACK },
+          { id: "timeout", color: "var(--ltt-c2)", dash: true, pts: TIMEOUT },
+        ]);
+      },
+      why: "중복 ACK 손실은 64 → 32로 절반이 되고, 그 뒤 RTT마다 1 MSS씩 오른다(실선). 1로 떨어지는 건 ACK가 모자라 {{RTO}}가 터졌을 때뿐이다(점선). 32 → 64 복귀에 32 RTT, 약 1.6 s가 걸린다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+      basis: "Reno 기준 AIMD 규칙. 실제 구현(CUBIC 등)은 증가 방식이 다르다.",
+      takeaway: "손실이 나면 cwnd는 절반으로 줄고(타임아웃이면 1), 그 뒤 RTT마다 1 MSS씩 느리게 오른다.",
+      recall: "중복 ACK 손실 뒤 cwnd가 32에서 64로 돌아오려면 RTT가 몇 번 필요할까?",
+    },
+  ],
+});
+</script>
+</body>
+</html>

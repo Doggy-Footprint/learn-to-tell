@@ -5,27 +5,34 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 E = Path(__file__).resolve().parent; G = E/"gallery"/"r1"
 M = {"opus": "claude-opus-5-5", "sonnet": "claude-sonnet-5-5", "haiku": "claude-haiku-5-5"}
-plan = json.load(open(E/"plan.json")); ax = json.load(open("/home/user/learn-to-tell/site/gallery/shots/axes.json"))
+plan = json.load(open(E/"plan.json")) if (E/"plan.json").exists() else {}; ax = json.load(open(Path(__file__).resolve().parents[2]/"site/gallery/shots/axes.json"))
 LOG = E/"r1.log"; SEM = threading.Semaphore(int(os.environ.get("R1_PAR", "8")))
 
 def log(s):
     with open(LOG, "a") as f: f.write(time.strftime("%H:%M:%S ") + s + "\n")
     print(s, flush=True)
 
-def claude(d, model, prompt, tools, turns=60):
+def claude(d, model, prompt, tools, turns=60, effort="high"):
     """작업 디렉터리 d에서 claude -p를 돌린다. 세션 환경 변수를 지워 이 세션과 context를 나눈다."""
     (d/"prompt.md").write_text(prompt)
     env = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_REMOTE_SESSION_ID", "CLAUDE_CODE_CHILD_SESSION")}
-    cmd = ["timeout", "1800", "claude", "-p", prompt, "--model", M[model], "--effort", "high", "--session-id", str(uuid.uuid4()),
+    cmd = ["claude", "-p", prompt, "--model", M[model], "--effort", effort, "--session-id", str(uuid.uuid4()),
            "--strict-mcp-config", "--output-format", "stream-json", "--verbose", "--max-turns", str(turns),
            "--allowedTools", *tools, "--disallowedTools", "WebSearch", "WebFetch", "Agent", "Task", "Skill", "Glob", "Grep"]
     for attempt in range(3):
+        if (E/"STOP").exists(): raise RuntimeError(f"{d} STOP 파일로 중단")
         t = time.time()
+        if attempt: (d/"stream.jsonl").rename(d/f"stream.fail{attempt}.jsonl")
         with SEM, open(d/"stream.jsonl", "w") as out, open(d/"stderr.log", "w") as err:
-            rc = subprocess.run(cmd, cwd=d, env=env, stdout=out, stderr=err).returncode
+            try: rc = subprocess.run(cmd, cwd=d, env=env, stdout=out, stderr=err, timeout=1800).returncode
+            except subprocess.TimeoutExpired: rc = "timeout"
         r = result(d)
+        with open(d/"attempts.jsonl", "a") as f: f.write(json.dumps({"attempt": attempt + 1, "model": model, "effort": effort, "rc": rc, "wall_s": round(time.time()-t), **r}, ensure_ascii=False) + "\n")
         log(f"{d.relative_to(G)} {model} rc={rc} {round(time.time()-t)}s ${r.get('cost')} {r.get('subtype')}")
         if r.get("subtype") == "success" and not r.get("is_error"): return r
+        err = (d/"stderr.log").read_text() + str(r.get("result", "")) + (d/"stream.jsonl").read_text()[-3000:]
+        if re.search(r"usage limit|rate.?limit|limit reached|hit your limit|out of (extra )?usage", err, re.I):
+            (E/"STOP").write_text(f"{time.strftime('%F %T')} {d}\n{err[-500:]}"); log(f"사용량 제한 감지 {d.relative_to(G)}: STOP"); raise RuntimeError(f"{d} 사용량 제한")
         time.sleep(20 * (attempt + 1))
     raise RuntimeError(f"{d} 실패")
 
@@ -37,7 +44,8 @@ def result(d):
         if x.get("type") == "result": res = x
     if not res: return {}
     return {"cost": round(res.get("total_cost_usd", 0), 4), "wall_s": round(res.get("duration_ms", 0)/1000), "turns": res.get("num_turns"),
-            "out_tok": res.get("usage", {}).get("output_tokens"), "subtype": res.get("subtype"), "is_error": res.get("is_error"), "result": res.get("result", "")}
+            "out_tok": res.get("usage", {}).get("output_tokens"), "subtype": res.get("subtype"), "is_error": res.get("is_error"), "result": res.get("result", ""),
+            "usage": res.get("usage"), "model_usage": res.get("modelUsage")}
 
 def brief(k):
     b = dict(plan[k]["brief"]); [b.pop(x) for x in ("structure", "motion", "composition")]; return b
@@ -140,8 +148,11 @@ def audit(d):
     (d/"final-audit.txt").write_text(p.stdout + p.stderr); return p.returncode == 0
 
 def shots(d, out, prefix, small=False):
-    subprocess.run(["node", str(E/"shots.mjs"), str(out), prefix, str((d/"scene.html").relative_to(E/"gallery"))] + (["--small"] if small else []), capture_output=True, text=True)
-    return json.load(open(out/f"{prefix}-index.json"))
+    for _ in range(2):
+        p = subprocess.run(["node", str(E/"shots.mjs"), str(out), prefix, str((d/"scene.html").relative_to(E/"gallery"))] + (["--small"] if small else []), capture_output=True, text=True)
+        if (out/f"{prefix}-index.json").exists(): return json.load(open(out/f"{prefix}-index.json"))
+    log(f"녹화 실패 {d.relative_to(G)}: {(p.stderr or p.stdout).strip()[-300:]}")
+    return {"shots": [], "errors": ["녹화 실패"]}
 
 def stage_sb(k, i):
     d = G/f"s{k}"/f"sb{i}"; d.mkdir(parents=True, exist_ok=True)

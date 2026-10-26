@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할 — 가득 찬 잎의 분할은 루트까지 번진다</title>
+<script type="application/json" id="ltt-meta">{"topic":"B+tree 노드 분할","audience":"백엔드 개발자","theme":"blueprint","medium":"DB 내부 구조 도해","decision":"인덱스 설계와 페이지 크기 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.bt{width:100%;height:auto;display:block;overflow:visible}
+.bt text{fill:var(--ltt-ink);font-size:13px;text-anchor:middle;dominant-baseline:middle}
+.bt .lbl{fill:var(--ltt-muted);text-anchor:start}
+.bt .tag{fill:var(--ltt-muted)}
+.bt .acc{fill:var(--ltt-accent);text-anchor:start}
+.bt .frame{fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:1.5}
+.bt .over>.frame{stroke:var(--ltt-bad)}
+.bt .cell{fill:var(--ltt-card-2);stroke:var(--ltt-line);stroke-width:1.2}
+.bt .hot{fill:var(--ltt-accent-soft);stroke:var(--ltt-accent)}
+.bt .ov{fill:var(--ltt-bad-soft);stroke:var(--ltt-bad);stroke-dasharray:3 2}
+.bt .edge{stroke:var(--ltt-muted);stroke-width:1.5;fill:none}
+.bt .sib{stroke:var(--ltt-muted);stroke-width:1.2;fill:none;stroke-dasharray:4 3}
+.bt .cp{stroke:var(--ltt-accent);stroke-width:2;fill:none;stroke-dasharray:6 4}
+.bt .scale{fill:var(--ltt-card);stroke:var(--ltt-accent);stroke-width:1.2}
+.bt .ltt-in{animation:bt-in .6s ease both}
+.bt .ltt-draw{stroke-dasharray:6 4;animation:bt-in .9s ease both}
+@keyframes bt-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.bt .ltt-in,.bt .ltt-draw{animation:none}}
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const CAP = 4;                      // 페이지당 최대 키 (교육용 가정)
+const LEAF_Y = 400, INT_Y = 230, TOP_Y = 70, BOX_H = 56;
+const slotX = (s) => 80 + s * 160;  // 잎 칸의 왼쪽 x
+const SLOT = { A: 0, B: 1, C: 2, N: 3, D: 4, E: 5 };
+
+const LEAVES0 = { A: [8, 12], B: [20, 25, 30], D: [60, 65], E: [80, 88] };
+const leaves = (c, n) => ({ A: LEAVES0.A, B: LEAVES0.B, C: c, ...(n ? { N: n } : {}), D: LEAVES0.D, E: LEAVES0.E });
+const SPLIT = leaves([40, 45], [50, 52, 55]);
+const ROOT0 = { id: "R", cx: 545, y: INT_Y, keys: [20, 40, 60, 80], kids: ["A", "B", "C", "D", "E"] };
+const ROOT5 = { id: "R", cx: 545, y: INT_Y, keys: [20, 40, 50, 60, 80], kids: ["A", "B", "C", "N", "D", "E"] };
+const HALF = [{ id: "L", cx: 305, y: INT_Y, keys: [20, 40], kids: ["A", "B", "C"] },
+              { id: "Rn", cx: 785, y: INT_Y, keys: [60, 80], kids: ["N", "D", "E"] }];
+const TWO = [[INT_Y, "루트"], [LEAF_Y, "잎"]];
+const THREE = [[TOP_Y, "루트"], [INT_Y, "내부"], [LEAF_Y, "잎"]];
+const TOPN = { id: "T", cx: 545, y: TOP_Y, keys: [50], kids: ["L", "Rn"] };
+
+// hot: 강조할 칸("id:인덱스"), fresh: 새로 나타날 대상(잎 id, 노드 id, "id:인덱스", "e:자식id", "copy", "chip", "scale")
+const STEPS = [
+  { caption: "가득 찬 잎 [40, 45, 50, 55]에 52를 넣을 차례다. 잎은 키를 4개까지만 담는다.",
+    leaves: leaves([40, 45, 50, 55]), nodes: [ROOT0], rows: TWO, height: 2, hot: [], fresh: [], tags: [] },
+  { caption: "52가 들어가 잎에 키가 5개가 됐다. 칸은 4개뿐이라 한 칸이 넘친다. 이 초과가 분할의 원인이다.",
+    leaves: leaves([40, 45, 50, 52, 55]), nodes: [ROOT0], rows: TWO, height: 2, hot: ["C:3"], fresh: ["C:3"], tags: [] },
+  { caption: "잎을 둘로 나눈다. 새 오른쪽 잎 N이 먼저 할당되고 50·52·55가 옮겨진다. 잎끼리는 포인터로 이어 둔다.",
+    leaves: SPLIT, nodes: [ROOT0], rows: TWO, height: 2, hot: ["N:0", "N:1", "N:2"], fresh: ["N"], tags: [["N", "새 잎"]] },
+  { caption: "N의 첫 키 50을 복사해 루트에 넣는다. 50은 잎에도 그대로 남는다. 받은 루트는 5키가 되어 넘친다.",
+    leaves: SPLIT, nodes: [ROOT5], rows: TWO, height: 2, hot: ["N:0", "R:2"], fresh: ["R:2", "e:N", "copy"], tags: [], copy: true },
+  { caption: "루트가 넘쳤다. 가운데 키 50은 이동해 위로 올라가고 두 노드 어디에도 남지 않는다. 루트는 [20, 40]과 [60, 80]으로 갈라진다.",
+    leaves: SPLIT, nodes: HALF, rows: [[INT_Y, "갈라진 루트"], [LEAF_Y, "잎"]], height: 2, hot: ["chip"], fresh: ["L", "Rn", "chip"], tags: [], chip: { v: 50, cx: 545, y: 150 } },
+  { caption: "위로 올릴 노드가 없으니 키 50 하나짜리 새 루트가 맨 위에 생긴다. 높이는 2에서 3이 되고, 모든 잎은 같은 깊이다.",
+    leaves: SPLIT, nodes: [TOPN, ...HALF], rows: THREE, height: 3, hot: ["T:0"], fresh: ["T", "e:L", "e:Rn"], tags: [] },
+  { caption: "실제 8KB 페이지는 키 하나가 16B 안팎이라 한 노드에 자식이 약 500개 달린다(근사). 3층이어도 약 1.25억 키라서 루트 분할은 거의 일어나지 않는다.",
+    leaves: SPLIT, nodes: [TOPN, ...HALF], rows: THREE, height: 3, hot: [], fresh: ["scale"], tags: [], scale: true },
+];
+
+// 상태 하나를 SVG 내용으로 그린다. 매 단계 다시 그리고, 새로 생긴 것만 fresh로 나타낸다.
+function frame(st) {
+  const pos = {};
+  const leafIds = Object.keys(st.leaves).sort((a, b) => SLOT[a] - SLOT[b]);
+  leafIds.forEach((id) => {
+    const x = slotX(SLOT[id]), w = Math.max(130, 28 * st.leaves[id].length + 10);
+    pos[id] = { x, w, cx: x + w / 2, top: LEAF_Y, bot: LEAF_Y + BOX_H };
+  });
+  st.nodes.forEach((nd) => { pos[nd.id] = { cx: nd.cx, top: nd.y, bot: nd.y + BOX_H }; });
+
+  const hot = (k) => (st.hot.includes(k) ? " hot" : "");
+  const fresh = (k) => (st.fresh.includes(k) ? " ltt-in" : "");
+
+  let edges = "";
+  st.nodes.forEach((nd) => nd.kids.forEach((k) => {
+    const p = pos[nd.id], c = pos[k];
+    edges += `<line class="edge${fresh("e:" + k)}" x1="${p.cx}" y1="${p.bot}" x2="${c.cx}" y2="${c.top}"/>`;
+  }));
+
+  let sibs = "";
+  for (let i = 0; i + 1 < leafIds.length; i++) {
+    const a = pos[leafIds[i]], b = pos[leafIds[i + 1]];
+    sibs += `<path class="sib" d="M${a.cx} ${a.bot} V486 H${b.cx} V${b.bot}" marker-end="url(#bt-arr)"/>`;
+  }
+
+  let boxes = "";
+  leafIds.forEach((id) => {
+    const keys = st.leaves[id], p = pos[id];
+    const over = keys.length > CAP ? " over" : "";
+    let g = `<g class="leaf${over}${fresh(id)}"><rect class="frame" x="${p.x}" y="${LEAF_Y}" width="${p.w}" height="${BOX_H}" rx="6"/>`;
+    keys.forEach((v, i) => {
+      const x = p.x + 6 + i * 28, cls = "cell" + hot(`${id}:${i}`) + (i >= CAP ? " ov" : "");
+      g += `<rect class="${cls}${fresh(`${id}:${i}`)}" x="${x}" y="${LEAF_Y + 15}" width="26" height="26" rx="3"/><text x="${x + 13}" y="${LEAF_Y + 28}">${v}</text>`;
+    });
+    boxes += g + "</g>";
+  });
+  st.nodes.forEach((nd) => {
+    const n = nd.keys.length, w = 40 * n + 8, x = nd.cx - w / 2;
+    const over = n > CAP ? " over" : "";
+    let g = `<g class="node${over}${fresh(nd.id)}"><rect class="frame" x="${x}" y="${nd.y}" width="${w}" height="${BOX_H}" rx="6"/>`;
+    nd.keys.forEach((v, i) => {
+      const kx = x + 6 + i * 40, cls = "cell" + hot(`${nd.id}:${i}`) + (i >= CAP ? " ov" : "");
+      g += `<rect class="${cls}${fresh(`${nd.id}:${i}`)}" x="${kx}" y="${nd.y + 13}" width="36" height="30" rx="3"/><text x="${kx + 18}" y="${nd.y + 28}">${v}</text>`;
+    });
+    boxes += g + "</g>";
+  });
+  if (st.chip) {
+    const c = st.chip;
+    boxes += `<g class="chip${fresh("chip")}"><rect class="cell hot" x="${c.cx - 24}" y="${c.y}" width="48" height="30" rx="4"/><text x="${c.cx}" y="${c.y + 15}">${c.v}</text><text class="lbl" x="${c.cx + 34}" y="${c.y + 15}">위로 이동</text></g>`;
+  }
+  // N의 첫 키(50)에서 루트의 새 칸(50)으로 올라가는 복사 경로
+  let copy = "";
+  if (st.copy) {
+    copy = `<path class="cp ltt-draw" d="M${pos.N.x + 19} ${LEAF_Y} C${pos.N.x + 19} 340 545 340 545 ${INT_Y + BOX_H}" marker-end="url(#bt-arr-acc)"/>`
+      + `<text class="acc" x="${pos.N.x + 55}" y="372">50 복사 올림</text>`;
+  }
+  let scale = "";
+  if (st.scale) {
+    scale = `<g class="ltt-in"><rect class="scale" x="800" y="14" width="236" height="92" rx="6"/>`
+      + `<text class="acc" x="814" y="36">8KB 페이지, 자식 약 500</text>`
+      + `<text class="acc" x="814" y="62">3층 = 500³ ≈ 1.25억 키</text>`
+      + `<text class="lbl" x="814" y="88">키가 길면 자식이 줄어 높이가 빨리 커진다</text></g>`;
+  }
+
+  const tags = st.tags.map(([id, t]) => `<text class="tag" x="${pos[id].cx}" y="${LEAF_Y - 10}">${t}</text>`).join("");
+  const rows = st.rows.map(([y, t]) => `<text class="lbl" x="10" y="${y + 28}">${t}</text>`).join("");
+
+  return `<defs><marker id="bt-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--ltt-muted)"/></marker>`
+    + `<marker id="bt-arr-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" style="fill:var(--ltt-accent)"/></marker></defs>`
+    + sibs + edges + boxes + copy + tags + rows + scale
+    + `<text class="lbl" x="10" y="40">트리 높이 ${st.height}</text>`
+    + `<text class="lbl" x="80" y="512">잎끼리 이어진 연결 리스트 (범위 스캔용)</text>`;
+}
+
+let api = null;
+const figure = (el) => {
+  const s = el.appendChild(document.createElementNS(SVG, "svg"));
+  s.setAttribute("viewBox", "0 0 1040 530");
+  s.setAttribute("class", "bt");
+  const draw = (i) => { s.innerHTML = frame(STEPS[i]); };
+  draw(0);
+  api = { el: s, draw };
+  return api;
+};
+
+LTT.deck({
+  title: "가득 찬 잎에 키를 넣으면 분할이 루트까지 올라가고, 트리는 위에서 자란다",
+  theme: "blueprint",
+  glossary: { "구분 키": "부모 노드에서 자식 구간을 가르는 키. 잎을 나눌 때는 오른쪽 잎의 첫 키가 복사되어 올라간다." },
+  scenes: [{
+    type: "figure",
+    title: "가득 찬 잎에 키를 넣으면 분할이 루트까지 올라가고, 트리는 위에서 자란다",
+    en: "Splits climb to the root; the tree grows at the top",
+    sub: "{{구분 키}}는 자식 구간을 가르는 값. 이 장면은 페이지당 4키로 가정하고 52를 넣는다.",
+    figure,
+    steps: STEPS.map((st, i) => ({ caption: st.caption, enter: () => api && api.draw(i) })),
+    takeaway: "분할은 가득 찬 경로를 따라 잎에서 루트까지 번지고, 루트가 갈리면 맨 위에 새 층이 생겨 모든 잎이 같은 깊이를 유지한다.",
+    recall: "잎을 나눌 때 올라간 키는 잎에도 남는데, 내부 노드를 나눌 때 올라간 키는 왜 내부 노드에 남지 않을까?",
+    basis: "교육용 가정: 페이지당 키 4개. 실제 8KB 페이지는 키·포인터 약 16B로 자식이 약 500개(근사, 모델로 계산한 예시).",
+  }],
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>순환 참조는 참조 카운팅에서만 누수로 남는다</title>
+<script type="application/json" id="ltt-meta">{"topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-mock.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.cmp { display: grid; justify-items: center; gap: 10px; }
+.cmp-cap { margin: 0; min-height: 2.6em; text-align: center; color: var(--ltt-ink); }
+.cmp-ctl { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
+.cmp-ctl button { font: inherit; color: var(--ltt-ink); background: var(--ltt-card-2); border: 1px solid var(--ltt-line); border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const HOLD = 2200;
+
+// 간선은 [출발, 도착]. 객체의 카운트는 들어오는 간선 수로 계산된다.
+const EDGE = { rA: ["root", "A"], AB: ["A", "B"], BA: ["B", "A"], rC: ["root", "C"] };
+const POS = { root: { c: 0, r: 0.5 }, A: { c: 1, r: 0 }, B: { c: 2, r: 0 }, C: { c: 1, r: 1 } };
+
+// 생성 순서대로 한 단계씩 바뀐다. rc는 RC 쪽 자막(없으면 caption), hot은 강조 간선, mark·sweep은 M&S 수거 단계다.
+const STEPS = [
+  { caption: "① 루트가 A를 잡는다. A의 카운트는 1", nodes: ["A"], edges: ["rA"] },
+  { caption: "② A가 B를 만든다(A.next = B). B의 카운트는 1", nodes: ["A", "B"], edges: ["rA", "AB"] },
+  { caption: "③ B.prev = A: 둘이 서로를 가리킨다. A의 카운트는 2", nodes: ["A", "B"], edges: ["rA", "AB", "BA"] },
+  { caption: "④ C를 만들어 루트에 잡는다", nodes: ["A", "B", "C"], edges: ["rA", "AB", "BA", "rC"] },
+  { caption: "⑤ 루트가 A를 놓는다. A↔B 간선이 각자의 카운트를 1로 붙든다", nodes: ["A", "B", "C"], edges: ["AB", "BA", "rC"], hot: true },
+  { caption: "⑥ 수거 ①: 루트에서 닿는 것(C)만 mark한다", rc: "RC에는 mark가 없다. A, B의 카운트는 1이라 해제되지 않는다", nodes: ["A", "B", "C"], edges: ["AB", "BA", "rC"], mark: true },
+  { caption: "⑦ 수거 ②: mark 안 된 A, B를 sweep으로 해제한다", rc: "RC에서는 A, B가 해제되지 않고 남는다. 누수", nodes: ["A", "B", "C"], edges: ["AB", "BA", "rC"], mark: true, sweep: true },
+];
+const LAST = STEPS.length - 1;
+
+const LOG = {
+  rc: [
+    "new A            rc=1",
+    "A.next = B       rc(B)=1",
+    "B.prev = A       rc(A)=2",
+    "new C            rc=1",
+    { t: "warn", text: "root drop A    rc(A)=1" },
+    { t: "warn", text: "rc != 0 → A, B 해제 안 함" },
+    { t: "err", text: "leak: A ⇄ B 서로가 보유 · 루트 경로 없음" },
+  ],
+  ms: [
+    "new A",
+    "new B",
+    "B.prev = A",
+    "new C",
+    { t: "warn", text: "root drop A" },
+    "mark: root → C",
+    { t: "ok", text: "sweep: A, B 해제" },
+  ],
+};
+
+let cur = REDUCED ? LAST : 0;
+let views = [];
+let timer = 0;
+
+// 루트에서 간선을 따라 닿는 객체 집합
+function reach(edges) {
+  const seen = new Set(["root"]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const e of edges) {
+      const [f, t] = EDGE[e];
+      if (seen.has(f) && !seen.has(t)) { seen.add(t); grew = true; }
+    }
+  }
+  return seen;
+}
+
+function caption(i, kind) {
+  const s = STEPS[i];
+  return kind === "rc" ? s.rc || s.caption : s.caption;
+}
+
+function figure(i, kind) {
+  const s = STEPS[i];
+  const live = reach(s.edges);
+  const ids = ["root", ...s.nodes].filter((id) => kind === "rc" || !s.sweep || live.has(id));
+  const nodes = ids.map((id) => {
+    const n = { id, c: POS[id].c, r: POS[id].r, l: id === "root" ? "루트" : id };
+    if (kind === "rc" && id !== "root") n.s = `rc ${s.edges.filter((e) => EDGE[e][1] === id).length}`;
+    if (kind === "ms" && s.mark && live.has(id)) n.s = "mark";
+    if (!live.has(id)) n.k = kind === "rc" ? "bad" : "muted";
+    else if (kind === "ms" && s.mark) n.k = "good";
+    return n;
+  });
+  const edges = s.edges
+    .filter((e) => ids.includes(EDGE[e][0]) && ids.includes(EDGE[e][1]))
+    .map((e) => {
+      const [f, t] = EDGE[e];
+      return s.hot && e !== "rC" ? { f, t, k: "accent" } : { f, t };
+    });
+  return { cols: 3, rows: 2, cell: [170, 120], node: [116, 56], nodes, edges };
+}
+
+function show(i) {
+  cur = i;
+  views = views.filter((v) => v.box.isConnected);
+  views.forEach((v) => v.draw(i));
+  if (!views.length) clearInterval(timer);
+}
+
+function restart() {
+  clearInterval(timer);
+  if (!REDUCED) timer = setInterval(() => show((cur + 1) % STEPS.length), HOLD);
+}
+
+function go(i) {
+  show((i + STEPS.length) % STEPS.length);
+  restart();
+}
+
+function panel(kind) {
+  return (el) => {
+    const box = document.createElement("div");
+    box.className = "cmp";
+    el.appendChild(box);
+
+    const draw = (i) => {
+      const svg = document.createElementNS(SVG, "svg");
+      const cap = document.createElement("p");
+      cap.className = "cmp-cap";
+      cap.textContent = caption(i, kind);
+      const log = LTT.mock.terminal({
+        title: kind === "rc" ? "힙 로그 · 참조 카운팅" : "힙 로그 · mark-and-sweep",
+        lines: LOG[kind].slice(0, i + 1),
+      });
+      box.replaceChildren(svg, cap, log.el);
+      LTT.diagram(svg, figure(i, kind));
+    };
+    views.push({ box, draw });
+    draw(cur);
+
+    if (kind === "rc") {
+      const ctl = document.createElement("div");
+      ctl.className = "cmp-ctl";
+      ctl.innerHTML = '<button type="button" data-d="-1">이전</button><button type="button" data-d="1">다음</button>';
+      ctl.addEventListener("click", (e) => {
+        const d = Number(e.target.dataset.d);
+        if (d) go(cur + d);
+      });
+      el.appendChild(ctl);
+    }
+    restart();
+  };
+}
+
+LTT.deck({
+  title: "순환 참조는 참조 카운팅에서만 누수로 남는다",
+  theme: "terminal",
+  glossary: {
+    "루트": "프로그램이 직접 잡고 있는 시작점(전역·스택 변수). 루트에서 닿는 객체만 살아 있다고 본다",
+    "mark-and-sweep": "루트에서 닿는 객체를 표시(mark)한 뒤, 표시되지 않은 객체를 해제(sweep)하는 수거 방식",
+  },
+  scenes: [
+    {
+      type: "contrast",
+      kicker: "가비지 컬렉션 방식",
+      title: "순환 참조는 참조 카운팅에서만 누수로 남는다",
+      en: "Reference counting vs mark-and-sweep",
+      sub: "{{루트}}를 끊은 뒤 같은 A↔B 그래프가 두 방식에서 어떻게 다르게 남는지 본다.",
+      before: { label: "참조 카운팅", sub: "카운트가 0이 될 때만 해제", visual: panel("rc") },
+      after: { label: "{{mark-and-sweep}}", sub: "루트에서 닿는 것만 살린다", visual: panel("ms") },
+      takeaway: "루트에서 닿는지가 살아 있음의 기준이다. 서로를 가리키는 순환은 카운트가 0이 되지 않아 참조 카운팅에서만 남는다.",
+      recall: "힙 스냅샷에서 루트 경로 없이 남은 객체를 보면 무엇을 의심하는가?",
+      basis: "모델로 계산한 예시. 카운트는 들어오는 참조 수로 단순화했다.",
+    },
+  ],
+});
+</script>
+</body>
+</html>

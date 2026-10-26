@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.fork-wrap { width: 100%; max-width: 100%; overflow: hidden; }
+.fork-wrap svg { width: 100%; max-width: 100%; height: auto; max-height: 48vh; display: block; }
+.fork-wrap text { font-family: inherit; fill: var(--ltt-ink); }
+.fork-wrap .end { font-size: 15px; font-weight: 700; fill: var(--ltt-ink-2); }
+.fork-wrap .lab { font-size: 15px; fill: var(--ltt-ink); }
+.fork-wrap .lab-m { font-size: 14px; fill: var(--ltt-muted); }
+.fork-wrap .lab-a { font-size: 15px; font-weight: 700; fill: var(--ltt-accent); }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const CY = 240, X0 = 40, F0 = 200, F1 = 720, T_FORK = 12, T_LIG = 3, T_HOLD = 2.5;
+const S = [160, 280, 400, 520, 640]; // 지연 가닥 절편의 5' 끝(프라이머 자리)
+const LEN = 110;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+function forkFigure(el) {
+  const wrap = el.appendChild(document.createElement("div"));
+  wrap.className = "fork-wrap";
+  const svg = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  svg.setAttribute("viewBox", "0 0 900 470");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "DNA 복제 분기점: 선도 가닥은 분기점 방향으로 연속 합성, 지연 가닥은 반대 방향으로 짧은 절편을 합성한 뒤 연결");
+  let raf = 0, t0 = 0, running = false;
+
+  function render(tm) {
+    const fx = F0 + (F1 - F0) * clamp(tm / T_FORK, 0, 1);
+    const lt = clamp((tm - T_FORK) / T_LIG, 0, 1);
+    const off = (x) => (x < fx ? 10 + Math.min((fx - x) * 0.28, 130) : 10);
+    const y = (sign, x, d = 0) => CY + sign * (off(x) - d);
+    const pts = (sign, a, b, d = 0) => {
+      const out = [];
+      for (let x = a; x <= b + 0.1; x += 5) out.push(x.toFixed(1) + "," + y(sign, x, d).toFixed(1));
+      out.push(b.toFixed(1) + "," + y(sign, b, d).toFixed(1));
+      return out.join(" ");
+    };
+    const line = (p, color, w, extra = "") => `<polyline points="${p}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`;
+    const txt = (x, yy, s, cls, anchor = "middle") => `<text x="${x.toFixed(1)}" y="${yy.toFixed(1)}" class="${cls}" text-anchor="${anchor}">${s}</text>`;
+    let h = "";
+
+    // 부모 이중가닥과 염기쌍 가로대
+    for (let x = fx + 8; x < 850; x += 14) h += `<line x1="${x}" y1="${CY - 10}" x2="${x}" y2="${CY + 10}" stroke="var(--ltt-line-2)" stroke-width="2"/>`;
+    h += line(`${fx},${CY - 10} 850,${CY - 10}`, "var(--ltt-ink-2)", 4);
+    h += line(`${fx},${CY + 10} 850,${CY + 10}`, "var(--ltt-ink-2)", 4);
+    // 열린 주형 가닥
+    h += line(pts(-1, X0, fx), "var(--ltt-ink-2)", 4);
+    h += line(pts(1, X0, fx), "var(--ltt-ink-2)", 4);
+
+    // 선도 가닥: 분기점을 따라 연속
+    const lead = fx - 22;
+    h += line(pts(-1, X0, lead, 12), "var(--ltt-c1)", 5);
+    // 지연 가닥: 절편
+    let newest = -1, growing = -1;
+    S.forEach((s, k) => {
+      const len = clamp((fx - (s + 30)) * 2.2, 0, LEN);
+      if (fx >= s + 30) newest = k;
+      if (len > 0 && len < LEN) growing = k;
+      if (len <= 0) return;
+      const done = lt > 0 && lt >= k / S.length;
+      const a = s - len;
+      h += line(pts(1, a, s, 12), "var(--ltt-c2)", 5);
+      // RNA 프라이머(완성되면 DNA로 교체)
+      h += line(pts(1, s - 16, s, 12), done ? "var(--ltt-c2)" : "var(--ltt-warn)", 6);
+      if (len >= LEN) {
+        // 절편 성장 방향 화살표(분기점과 반대)
+        const ax = s - LEN / 2, ay = y(1, ax, 12) + 18;
+        h += `<path d="M${ax + 16},${ay} L${ax - 16},${ay} M${ax - 8},${ay - 6} L${ax - 16},${ay} L${ax - 8},${ay + 6}" fill="none" stroke="var(--ltt-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+      }
+      // 틈: 이웃한 오래된 절편 사이
+      if (k > 0 && len >= LEN) {
+        const nx = s - LEN - 5;
+        const closed = lt >= k / S.length + 0.1 && lt > 0 && (k - 1) / S.length <= lt;
+        const sealed = lt >= (k) / S.length && lt > 0;
+        if (sealed) h += line(`${nx - 7},${y(1, nx - 7, 12)} ${nx + 7},${y(1, nx + 7, 12)}`, "var(--ltt-c2)", 5);
+        else h += `<circle cx="${nx}" cy="${y(1, nx, 12)}" r="3" fill="var(--ltt-bg)" stroke="var(--ltt-bad)" stroke-width="1.5"/>`;
+      }
+    });
+
+    // 헬리카아제
+    h += `<circle cx="${fx}" cy="${CY}" r="19" fill="var(--ltt-card)" stroke="var(--ltt-ink)" stroke-width="2.5"/>`;
+    h += txt(fx, CY + 5, "▶", "end");
+    h += txt(fx, CY + 42, "헬리카아제", "lab");
+
+    // 선도 가닥 중합효소
+    const py = y(-1, lead, 12);
+    h += `<rect x="${lead - 18}" y="${py - 14}" width="36" height="28" rx="10" fill="var(--ltt-card)" stroke="var(--ltt-c1)" stroke-width="2.5"/>`;
+    h += txt(lead, py + 5, "Pol", "lab-m");
+    // 지연 가닥 중합효소(자라는 절편 끝)
+    if (growing >= 0) {
+      const s = S[growing], len = clamp((fx - (s + 30)) * 2.2, 0, LEN), gx = s - len, gy = y(1, gx, 12);
+      h += `<rect x="${gx - 22}" y="${gy - 14}" width="36" height="28" rx="10" fill="var(--ltt-card)" stroke="var(--ltt-c2)" stroke-width="2.5"/>`;
+      h += txt(gx - 4, gy + 5, "Pol", "lab-m");
+    }
+    // 분기점 전진 화살표
+    h += `<path d="M${fx - 70},62 L${fx + 40},62 M${fx + 28},51 L${fx + 42},62 L${fx + 28},73" fill="none" stroke="var(--ltt-ink)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+    h += txt(fx - 10, 40, "분기점 전진 방향", "lab");
+    // 선도 가닥 성장 화살표
+    const ly = y(-1, lead - 60, 12) - 26;
+    h += `<path d="M${lead - 90},${ly} L${lead - 30},${ly} M${lead - 40},${ly - 6} L${lead - 29},${ly} L${lead - 40},${ly + 6}" fill="none" stroke="var(--ltt-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+    // 5'/3' 표기
+    h += txt(24, y(-1, X0) + 5, "3'", "end") + txt(24, y(1, X0) + 5, "5'", "end");
+    h += txt(876, CY - 6, "5'", "end") + txt(876, CY + 20, "3'", "end");
+    h += txt(24, y(-1, X0, 12) + 22, "5'", "end");
+    h += txt(lead + 28, py - 18, "3'", "end");
+    // 지연 가닥의 5'(프라이머 쪽)와 3'(자라는 쪽)
+    if (newest >= 0) {
+      const s = S[newest], len = clamp((fx - (s + 30)) * 2.2, 0, LEN);
+      h += txt(s + 6, y(1, s, 12) + 24, "5'", "end");
+      h += txt(s - len - 4, y(1, s - len, 12) + 34, "3'", "end");
+    }
+
+    // 범례 / 라벨
+    h += txt(X0 + 8, 450, "선도 가닥: 방향이 같아 끊김 없이", "lab", "start");
+    h += txt(450, 450, "지연 가닥: 방향이 반대라 조각조각", "lab-a", "start");
+    if (lt === 0 || lt >= 1) h += "";
+    if (newest >= 0 && lt === 0) {
+      const s = S[newest];
+      h += txt(s + 20, y(1, s, 12) + 54, "RNA 프라이머", "lab", "start");
+    }
+    if (lt > 0 && lt < 1) {
+      const k = clamp(Math.floor(lt * S.length), 0, S.length - 1);
+      const nx = S[k] - 5, ny = y(1, nx, 12);
+      h += `<rect x="${nx - 8}" y="${ny - 18}" width="16" height="16" rx="5" fill="var(--ltt-card)" stroke="var(--ltt-good)" stroke-width="2.5"/>`;
+      h += txt(nx, ny - 26, "연결효소", "lab");
+    }
+    svg.innerHTML = h;
+  }
+
+  function loop(ts) {
+    if (!running) return;
+    if (!t0) t0 = ts;
+    const total = T_FORK + T_LIG + T_HOLD;
+    render(((ts - t0) / 1000) % total);
+    raf = requestAnimationFrame(loop);
+  }
+  const api = {
+    el: wrap,
+    enter() {
+      if (LTT.MOTION_MS === 0) { render(T_FORK + T_LIG); return; }
+      if (running) return;
+      running = true; t0 = 0; raf = requestAnimationFrame(loop);
+    },
+    leave() { running = false; cancelAnimationFrame(raf); }
+  };
+  render(0);
+  return api;
+}
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "분기점": "이중나선이 풀리면서 Y자로 갈라지는 복제의 현장",
+    "오카자키 절편": "지연 가닥에서 조각조각 만들어지는 짧은 새 DNA",
+    "프라이머": "중합효소가 붙일 3' 끝을 처음 만들어 주는 짧은 RNA"
+  },
+  scenes: [{
+    type: "hook",
+    pre: "생물 · DNA 복제",
+    text: "새 가닥 둘, 그런데 한쪽만 분기점을 따라간다",
+    sub: "중합효소는 3' 끝에만 덧붙인다. 그래서 한 가닥은 거꾸로, 짧게 만든다.",
+    mount(body) { return forkFigure(body); },
+    takeaway: "새 가닥은 항상 5'→3'으로 자란다. 그래서 {{분기점}}을 따라가는 선도 가닥은 연속, 반대로 자라는 지연 가닥은 {{오카자키 절편}}으로 만들어진다.",
+    aside: "조각마다 {{프라이머}}가 새로 필요하다.",
+    recall: "지연 가닥이 조각조각 만들어지는 까닭은?"
+  }]
+});
+</script>
+</body>
+</html>

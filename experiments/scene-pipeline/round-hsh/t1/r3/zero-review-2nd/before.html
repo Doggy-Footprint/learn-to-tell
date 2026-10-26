@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할</title>
+<script type="application/json" id="ltt-meta">{"topic":"B+tree 노드 분할","audience":"백엔드 개발자","theme":"blueprint","medium":"DB 내부 구조 도해","decision":"인덱스 설계와 페이지 크기 이해"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.bt { width: 100%; max-width: 980px; height: auto; display: block; margin: 0 auto; }
+.bt text { font-family: var(--ltt-mono, ui-monospace, monospace); fill: var(--ltt-ink); }
+.bt .cell { fill: var(--ltt-card); stroke: var(--ltt-line-2); stroke-width: 1.5; }
+.bt .cell.empty { fill: none; stroke-dasharray: 3 3; stroke: var(--ltt-line); }
+.bt .cell.new { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); }
+.bt .cell.over { fill: var(--ltt-warn-soft); stroke: var(--ltt-warn); stroke-dasharray: 4 3; }
+.bt .cell.copy { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); }
+.bt .cell.float { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); stroke-dasharray: 4 3; }
+.bt .edge { stroke: var(--ltt-line-2); stroke-width: 1.5; fill: none; }
+.bt .edge.hot { stroke: var(--ltt-accent); stroke-width: 2.2; }
+.bt .link { stroke: var(--ltt-muted); stroke-width: 1.5; fill: none; }
+.bt .link.hot { stroke: var(--ltt-accent); stroke-width: 2.2; }
+.bt .lbl { font-size: 13px; fill: var(--ltt-ink-2); }
+.bt .lbl.acc { fill: var(--ltt-accent); font-weight: 700; }
+.bt .lbl.warn { fill: var(--ltt-warn); font-weight: 700; }
+.bt .big { font-size: 15px; font-weight: 700; }
+.bt .k { font-size: 14px; text-anchor: middle; }
+.bt .pop { animation: btpop .6s ease-out both; }
+@keyframes btpop { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .bt .pop { animation: none; } }
+</style>
+</head>
+<body>
+<script>
+const KW = 28, CH = 30, CAP = 4;
+const Y1 = 40, Y2 = 170, Y3 = 305;
+const nodeW = (n) => Math.max(n, CAP) * KW + 6;
+
+// 단계별 상태: 잎 목록, 내부 노드(키, 자식 잎 범위/자식 노드), 강조
+const L = (keys, f = {}) => ({ keys, f });
+const base = () => [L([5, 10, 15]), L([20, 25, 30]), L([40, 45, 50, 55]), L([60, 70]), L([80, 90])];
+const six = (extra) => [L([5, 10, 15]), L([20, 25, 30]), L([40, 45], extra.a || {}), L([50, 52, 55], extra.b || {}), L([60, 70]), L([80, 90])];
+
+function stageState(k) {
+  if (k === 0) return { leaves: base(), nodes: [{ id: "r", y: Y2, keys: [20, 40, 60, 80], kids: [0, 1, 2, 3, 4] }], depth: "모든 잎의 깊이 = 2" };
+  if (k === 1) {
+    const lv = base(); lv[2] = L([40, 45, 50, 52, 55], { over: true, newKey: 52 });
+    return { leaves: lv, nodes: [{ id: "r", y: Y2, keys: [20, 40, 60, 80], kids: [0, 1, 2, 3, 4], hot: [2] }], depth: "모든 잎의 깊이 = 2",
+      notes: [{ leaf: 2, text: "52 삽입 → 5개, 칸은 4개뿐", cls: "warn" }] };
+  }
+  if (k === 2) return { leaves: six({ b: { fresh: true, copyKey: 50 } }), chain: 2,
+    nodes: [{ id: "r", y: Y2, keys: [20, 40, 50, 60, 80], kids: [0, 1, 2, 3, 4, 5], over: true, copyKey: 50, hot: [2, 3] }],
+    depth: "", notes: [{ leaf: 3, text: "50 복사 ↑ (잎에도 남음)", cls: "acc" }] };
+  if (k === 3) return { leaves: six({}),
+    nodes: [{ id: "a", y: Y2, keys: [20, 40], kids: [0, 1, 2], fresh: true }, { id: "b", y: Y2, keys: [60, 80], kids: [3, 4, 5], fresh: true }],
+    floatKey: 50, depth: "", notes: [{ floatNote: "50 이동 ↑ (내부 노드엔 안 남음)", cls: "acc" }] };
+  return { leaves: six({}),
+    nodes: [{ id: "a", y: Y2, keys: [20, 40], kids: [0, 1, 2] }, { id: "b", y: Y2, keys: [60, 80], kids: [3, 4, 5] },
+      { id: "root", y: Y1, keys: [50], nodes: ["a", "b"], fresh: k === 4, hotAll: k === 4 }],
+    depth: "모든 잎의 깊이 = 3 — 맨 위에 층이 얹혀 한꺼번에 한 칸 내려갔다", scale: k === 5 };
+}
+
+function cellsSvg(x, y, keys, o = {}) {
+  const n = Math.max(keys.length, CAP);
+  let s = "";
+  for (let i = 0; i < n; i++) {
+    const has = i < keys.length;
+    let cls = has ? "cell" : "cell empty";
+    if (has && o.over && i === CAP) cls = "cell over";
+    else if (has && o.over && keys.length > CAP && i >= CAP) cls = "cell over";
+    else if (has && o.fresh) cls = "cell new";
+    if (has && o.newKey === keys[i]) cls = "cell new";
+    if (has && o.copyKey === keys[i]) cls = "cell copy";
+    if (has && o.floatKey === keys[i]) cls = "cell float";
+    s += `<rect class="${cls}" x="${x + 3 + i * KW}" y="${y}" width="${KW}" height="${CH}" rx="3"/>`;
+    if (has) s += `<text class="k" x="${x + 3 + i * KW + KW / 2}" y="${y + 20}">${keys[i]}</text>`;
+  }
+  return s;
+}
+
+function draw(svg, k) {
+  const st = stageState(k);
+  const GAP = 18;
+  const widths = st.leaves.map((l) => nodeW(l.keys.length));
+  const total = widths.reduce((a, b) => a + b, 0) + GAP * (widths.length - 1);
+  let x = (900 - total) / 2;
+  const lp = st.leaves.map((l, i) => { const p = { x, w: widths[i], cx: x + widths[i] / 2 }; x += widths[i] + GAP; return p; });
+  let out = "";
+  const nodePos = {};
+  // 내부 노드 위치(자식 중심의 평균)
+  st.nodes.forEach((n) => {
+    const w = nodeW(n.keys.length);
+    let cs;
+    if (n.kids) cs = n.kids.map((i) => lp[i].cx);
+    else cs = n.nodes.map((id) => nodePos[id].cx);
+    const cx = (cs[0] + cs[cs.length - 1]) / 2;
+    nodePos[n.id] = { x: cx - w / 2, w, cx, y: n.y, cs };
+  });
+  // 간선(아래부터)
+  st.nodes.forEach((n) => {
+    const p = nodePos[n.id];
+    const tops = n.kids ? n.kids.map(() => Y3) : n.nodes.map((id) => nodePos[id].y);
+    p.cs.forEach((cx, i) => {
+      const bx = p.x + 3 + i * KW, hot = (n.hot && n.hot.includes(i)) || n.hotAll;
+      out += `<path class="edge${hot ? " hot" : ""}${n.fresh && k === 4 ? " pop" : ""}" d="M${bx} ${p.y + CH} C${bx} ${(p.y + CH + tops[i]) / 2}, ${cx} ${(p.y + CH + tops[i]) / 2}, ${cx} ${tops[i]}"/>`;
+    });
+  });
+  // 잎
+  st.leaves.forEach((l, i) => {
+    const p = lp[i], f = l.f;
+    out += `<g class="${f.fresh ? "pop" : ""}">${cellsSvg(p.x, Y3, l.keys, { over: f.over, newKey: f.newKey, copyKey: f.copyKey })}</g>`;
+    if (i < st.leaves.length - 1) {
+      const hot = st.chain === i || st.chain === i + 1 && false;
+      const hl = st.chain != null && (i === 2 || i === 3);
+      out += `<path class="link${hl ? " hot" : ""}" d="M${p.x + p.w} ${Y3 + CH / 2} H${lp[i + 1].x - 5}"/><path class="link${hl ? " hot" : ""}" d="M${lp[i + 1].x - 9} ${Y3 + CH / 2 - 4} l5 4 l-5 4"/>`;
+    }
+  });
+  // 내부 노드
+  st.nodes.forEach((n) => {
+    const p = nodePos[n.id];
+    out += `<g class="${n.fresh ? "pop" : ""}">${cellsSvg(p.x, p.y, n.keys, { over: n.over, copyKey: n.copyKey, fresh: n.fresh && k !== 3 && n.id === "root" })}</g>`;
+    if (n.over) out += `<text class="lbl warn" x="${p.x + p.w + 12}" y="${p.y + 20}">키 5개 → 초과</text>`;
+  });
+  if (st.floatKey) {
+    out += `<g class="pop">${cellsSvg(450 - 20, Y1, [st.floatKey], { floatKey: st.floatKey })}</g>`;
+    out += `<text class="lbl" x="${450 + 30}" y="${Y1 + 20}">올릴 부모가 없다</text>`;
+  }
+  (st.notes || []).forEach((nt) => {
+    if (nt.leaf != null) { const p = lp[nt.leaf]; out += `<text class="lbl ${nt.cls}" x="${p.cx}" y="${Y3 + CH + 24}" text-anchor="middle">${nt.text}</text>`; }
+    else out += `<text class="lbl ${nt.cls}" x="450" y="${Y1 + CH + 28}" text-anchor="middle">${nt.floatNote}</text>`;
+  });
+  // 잎 연결 리스트 이름표
+  if (k <= 2) out += `<text class="lbl" x="${lp[0].x}" y="${Y3 + CH + 54}">→ 잎끼리 오른쪽 형제 포인터로 이어져 범위 스캔이 된다</text>`;
+  if (st.depth) out += `<text class="lbl big" x="450" y="${k <= 2 ? Y1 + 6 : Y3 + CH + 54}" text-anchor="middle">${st.depth}</text>`;
+  // 층 표시
+  if (k >= 4) [["루트", Y1], ["내부", Y2], ["잎", Y3]].forEach(([t, y], i) => { out += `<text class="lbl" x="6" y="${y + 20}">${i + 1}층 ${t}</text>`; });
+  if (st.scale) {
+    out += `<g class="pop"><text class="lbl big" x="580" y="${Y1 + 6}">8KB 페이지 · 키+포인터 16B</text>
+    <text class="lbl" x="580" y="${Y1 + 28}">팬아웃 ≈ 500 (헤더 제외, 근사)</text>
+    <text class="lbl" x="580" y="${Y1 + 50}">3층 ≈ 500³ ≈ 1.25×10⁸ 키</text>
+    <text class="lbl acc" x="580" y="${Y1 + 72}">모델로 계산한 예시 · 루트 분할은 극히 드묾</text></g>`;
+  }
+  svg.innerHTML = out;
+}
+
+const SVGNS = "http://www.w3.org/2000/svg";
+const tree = (el) => {
+  const s = el.appendChild(document.createElementNS(SVGNS, "svg"));
+  s.setAttribute("class", "bt"); s.setAttribute("viewBox", "0 0 900 400");
+  draw(s, 0);
+  return { el: s, draw: (k) => draw(s, k) };
+};
+
+const scene = {
+  type: "figure",
+  title: "52 하나가 잎에서 루트까지 분할을 밀어 올려 트리를 한 층 키운다",
+  en: "A B+tree grows at the top, not at the leaves",
+  sub: "페이지당 키 4개, 내부 노드 자식 5개로 가정. 잎의 {{구분 키}}는 복사, 내부 노드의 가운데 키는 이동한다.",
+  figure: tree,
+  steps: [
+    { caption: "① 시작: 루트 [20·40·60·80]도, 세 번째 잎 [40·45·50·55]도 가득 찼다.", enter: (k, f) => f.draw(0) },
+    { caption: "② 52가 들어가자 잎이 5개가 되어 초과한다. 분할은 이 초과가 먼저 생긴 뒤에 시작된다.", enter: (k, f) => f.draw(1) },
+    { caption: "③ 새 오른쪽 잎이 만들어지고 [40·45] / [50·52·55]로 나뉜다. 50은 복사되어 부모로 올라가고, 부모 키는 5개로 초과한다.", enter: (k, f) => f.draw(2) },
+    { caption: "④ 부모(루트)도 쪼개진다: [20·40] / [60·80]. 가운데 50은 어느 쪽에도 남지 않고 이동한다.", enter: (k, f) => f.draw(3) },
+    { caption: "⑤ 올라갈 곳이 없으니 [50] 하나뿐인 새 루트가 맨 위에 생긴다. 모든 잎이 함께 한 층 내려가 깊이가 같다.", enter: (k, f) => f.draw(4) },
+    { caption: "⑥ 실제 규모: {{팬아웃}} 약 500이면 3층이 약 1.25억 키를 담아, 이 루트 분할은 거의 일어나지 않는다.", enter: (k, f) => f.draw(5) }
+  ],
+  takeaway: "분할은 가득 찬 경로를 따라 위로 번지고, 루트가 쪼개질 때만 맨 위에 층이 생겨 높이가 1 늘며 모든 잎의 깊이는 같게 유지된다.",
+  recall: "루트가 분할되면 트리는 아래와 위 중 어디로 자라고, 잎의 깊이는 어떻게 되나?"
+};
+
+LTT.deck({
+  title: "B+tree 노드 분할",
+  theme: "blueprint",
+  glossary: {
+    "구분 키": "부모 노드에서 어느 자식으로 내려갈지 가르는 기준 키. 잎이 갈라질 때 오른쪽 잎의 첫 키를 복사해 올린다.",
+    "팬아웃": "노드 하나가 가리키는 자식 수. 페이지 크기가 클수록, 키가 짧을수록 커서 트리 높이가 낮아진다."
+  },
+  scenes: [scene]
+});
+</script>
+</body>
+</html>
