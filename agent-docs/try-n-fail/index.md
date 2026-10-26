@@ -22,3 +22,23 @@ File: aa6e383acff221cd-desktop-only-lessons.md
 Summary: 폭 720px 이상 데스크톱 전용(폰 분기 삭제)이 standalone 폰 열람 경로 때문에 되돌려진 근거
 Related Files: skills/learn-to-tell/kit/ltt-deck.js, skills/learn-to-tell/kit/ltt.js, skills/learn-to-tell/standalone.md
 Related Symbols: LTT.mobile, mobileFit, data-ltt-mobile
+---
+File: 28cd9f5f6cda260b-v2-spec-runtime-renders.md
+Summary: v2의 agent는 spec만 쓰고 runtime이 화면을 모두 그리는 구조(slide 형식 보장, check·sheet 검사, 그림 필수·글자 상한 계약, 비용만 본 끝 조건)가 실패한 근거와 다시 시도할 조건
+Related Files: archive/v2:agent-docs/adr/3c44a1f91bcb8367-agent-writes-spec-runtime-renders.md, archive/v2:plan.md, archive/v2:bench/m1/generation-results.md, archive/v2:bench/m1/direction-review.md, archive/v2:packages/runtime/src/core/model.mjs, archive/v2:packages/runtime/src/layout/figure.mjs
+Related Symbols: ltt check, sheet, layoutViolations
+---
+File: a3a1740be8d3b066-v3-vega-lite-rule-check.md
+Summary: v3의 Vega-Lite 공개 API + Node rule 검사 구조가 사용자 검수에서 도식 표현 부족으로 중단된 근거, 수치 적분·사다리 목차·color/facet 차트 판정의 실패와 다시 시도할 조건
+Related Files: archive/v3:agent-docs/adr/ba753ada12166450-vega-lite-rule-check.md, archive/v3:agent-docs/handoff/c331223f7fdc00be-v3-user-review-pause.md, archive/v3:packages/check/src/chart.mjs, archive/v3:bench/v3/gen/gen-common.md
+Related Symbols: view.data, point-mark, point-group
+---
+File: 32d9be64cb950dee-gallery-shots-as-exemplars.md
+Summary: gallery shot 소스를 본보기로 주는 장면 생성(round0 복제, 키워드 본보기 10쌍, idf 키워드 검색)이 본보기 없음보다 낫지 않았던 근거와 다시 시도할 조건
+Related Files: experiments/scene-pipeline/kw.py, experiments/scene-pipeline/primitives.md, experiments/scene-pipeline/round0/, experiments/scene-pipeline/round-kw/, site/gallery/shots/
+Related Symbols: 없음
+---
+File: ac1876ba2e3a5c09-user-blind-scoring.md
+Summary: 사용자 본인의 블라인드 채점이 시간과 피로·익숙함에 따른 평가 변화로 실패해 LLM-as-a-judge로 넘어간 근거
+Related Files: experiments/scene-pipeline/round-judge/user-hsh.json, experiments/scene-pipeline/round-kw/, agent-docs/handoff/8712abeff5bd7bee-user-perspective-llm-judge.md
+Related Symbols: 없음
