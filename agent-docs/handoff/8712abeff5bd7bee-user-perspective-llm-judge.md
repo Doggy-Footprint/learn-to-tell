@@ -1,5 +1,5 @@
 ---
-commit: e374721535e5c0e8d5609b04a87f96d3e553e196
+commit: b24b9dcdd703c9dc670a4d03a867a2b8fff806e7
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -71,6 +71,61 @@ commit: e374721535e5c0e8d5609b04a87f96d3e553e196
 | PDF 출처를 WebFetch로 읽기 | 16개 PDF 모두 실패: 바이너리가 그대로 전달되어 추출 모델이 텍스트를 보지 못함, 또는 `maxContentLength size of 10485760 exceeded`. Tversky 2002는 SSL 인증서 오류 | verified: WebFetch는 PDF 본문을 텍스트로 바꾸지 않는다 |
 
 ## Next Step
+
+### 인용 데이터 품질 확인 (사용자 요청, 2026-10-26)
+
+`quotes.jsonl`의 통과 인용 3,718개는 원문에 글자 그대로 있다는 것만 검증되어 있다. 빠짐없이 뽑았는지, 관련 있는 것만 뽑았는지, 맥락이 맞는지는 측정되지 않았다. 그래서 아래 1–3을 측정한다. 같은 날 계산한 현황(`verified`만):
+- 40자 미만 258개
+- 숫자 위주 116개
+- 완전히 같은 인용의 추가 사본 27개
+- 같은 출처의 다른 인용에 포함된 것 17개
+- 다른 연구를 인용한 문장으로 보이는 것 약 105개(정규식으로 어림)
+- 출처별 인용 수 상위: `learnlm2024` 197, `bbc-subtitles` 170
+
+**1. 빠짐없음: Gemini로 같은 출처를 한 번 더 추출하고 겹침을 본다**
+- 대상 출처(제안):
+  - `lori2007`: 전문가 평가표
+  - `heer2007`: 모션 실험
+  - `berney2016`: 메타분석. 부록을 훑어봤다고 agent가 보고
+  - `bbc-subtitles`: 일부 구간은 키워드 검색만 했다고 agent가 보고
+- Gemini를 쓰는 경로는 두 가지다.
+  - **API 키(`.env`의 `GEMINI_API_KEY`):** `tools/ask.py gemini gemini-4-argon <prompt> <out> <max_tokens>`. prompt는 `tools/extract-local-brief.md` 규칙 + 해당 출처 `text.txt` 전문을 붙인 파일이다. 사용량은 API로 과금되며, 사용자 구독과 별개다.
+  - **사용자의 Gemini Pro 구독(Gemini CLI):** `/opt/homebrew/bin/gemini`가 설치되어 있다.
+    - 확인된 사실: 버전 0.1.9, 기본 모델 `gemini-2.5-pro`, `~/.gemini/oauth_creds.json` 존재(Google 계정 로그인).
+    - 구독 할당량으로 `gemini-4-argon`을 쓸 수 있는지는 확인하지 않았다. 확인 전에 CLI 업데이트가 필요해 보인다.
+    - 실행 형태: `cat sources/<id>/text.txt | gemini -m <모델> -p "<extract-local-brief 규칙, FOCUS>" > sources/<id>/quotes-gemini.md`. 원문을 stdin으로 넣고 결과를 stdout으로 받으면 CLI의 파일 도구와 `-y`(자동 승인)를 쓰지 않아도 된다.
+  - 어느 경로든 결과는 같은 형식(`- "<원문>" — <위치>`)으로 저장한다. `tools/verify.py`로 원문 대조를 먼저 한다. `verify.py`는 지금 `quotes.md`만 읽으므로 파일명 인자를 추가해야 한다.
+- 겹침 계산(스크립트 미작성):
+  - 두 추출기의 통과 인용을 정규화된 `text.txt` 안의 위치 구간으로 바꾼다.
+  - 한쪽 인용 중 다른 쪽 구간과 겹치는 비율을 양방향으로 계산한다.
+  - Gemini 인용 중 sonnet 구간과 겹치지 않는 것이 sonnet이 놓친 것의 추정치다. 그 내용을 읽어 중요한 누락인지 본다.
+
+**2. 관련성: haiku가 표본을 판정한다**
+- 표본: `verified` 인용에서 `kind`별로 층화한 무작위 100개. 표본 seed를 기록한다.
+- haiku 판정 질문: "이 인용이 infographic animation 수업 장면의 평가 기준·기준값·적용 조건·의존 관계 중 하나의 근거로 쓰일 수 있는가".
+  - 답: `yes` / `partial` / `no`, 그리고 한 줄 이유
+  - 입력: 인용, 출처 제목, `kind`
+- haiku 판정 자체의 신뢰도는 20개를 사용자나 다른 모델이 다시 판정해 일치율로 확인한다. 누가 할지는 미정이다.
+- 결과: `kind`별 `yes` 비율. 기준표 근거로 쓸 인용을 거를지 정하는 데 쓴다.
+
+**3. 맥락: haiku가 인용마다 꼬리표를 붙인다**
+- 대상: 통과 인용 3,718개 전부. 출처별로 묶어서 처리한다.
+- 입력: 인용 + `text.txt`에서 그 인용 앞뒤 약 500자.
+- 꼬리표:
+  - `own-finding`: 그 문서 자신의 결과
+  - `cited-work`: 다른 연구 인용
+  - `hypothesis-or-intro`: 가설·서론의 주장
+  - `method`: 방법 설명
+  - `definition`: 정의
+  - `recommendation`: 권고
+  - `requirement`: 표준·가이드의 요구사항
+  - `table-fragment`: 출처를 특정할 수 없는 표 조각
+- 꼬리표 정확도는 30개를 sonnet이나 opus가 다시 판정해 확인한다.
+- 기준표의 근거로는 `own-finding`, `recommendation`, `requirement`, `definition`만 쓰는 안을 사용자와 정한다.
+
+1–3 결과로 이 데이터를 기준표 근거로 쓸지, 어떤 부분을 거를지 정한 뒤에 기초 기준표 작성과 모델 검토(argon → sol → astra → fable → opus)로 넘어간다.
+
+### 전체 구조와 순서
 
 사용자가 동의한 judge 구조:
 
