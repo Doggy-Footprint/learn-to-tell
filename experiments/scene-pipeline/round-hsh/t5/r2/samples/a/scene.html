@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic": "신용 창조와 통화 승수", "audience": "경제 기사 독자", "theme": "ledger", "medium": "경제 신문 차트", "decision": "통화정책 기사 해석"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const D0 = 100;        // 최초 예금 (억 원)
+const ROUNDS = 10;     // 누적 그림의 라운드 수
+const BANKS = 5;       // 은행 연쇄에 보이는 은행 수
+const LETTERS = "ABCDE";
+const fmt = (v) => String(Math.round(v * 10) / 10);
+
+const scene = {
+  title: "지급준비율만큼만 남기고 빌려주면 예금은 1/r배까지 불어난다",
+  en: "Credit creation and the money multiplier",
+  kicker: "통화 · 신용 창조",
+  sub: "지급준비율 r을 고르면 예금 상한이 정해진다. 실제 승수는 이보다 작을 수 있다.",
+  chips: ["지급준비율", "신용 창조"],
+  narration: "은행은 받은 예금 중 {{지급준비율}}만큼만 남기고 나머지를 대출한다. 대출금이 다른 은행의 새 예금이 되므로 준비금이 그대로여도 예금 합계는 라운드마다 늘어난다. 지급준비율을 낮추면 그 합계의 상한이 커진다.",
+  takeaway: "예금 총액은 최초 예금의 1/r배, 곧 {{통화 승수}}까지 불어나고, 준비금 총량은 처음 그대로다.",
+  recall: "지급준비율이 5%이면 최초 예금 100억 원의 상한은 얼마인가?",
+  basis: "기준: 최초 예금 100억 원, 모든 은행이 같은 비율로 대출하고 현금 보유와 초과 지급준비금이 없다고 가정한 이론상 상한.",
+  mount(body) {
+    body.innerHTML = `
+      <div class="ltt-param">지급준비율 <b id="r-v"></b><div id="r"></div></div>
+      <div id="chain"></div>
+      <div id="cum"></div>
+      <div class="ltt-hero" id="lim"></div>
+      <div class="ltt-basis" id="stat"></div>`;
+    const $ = (sel) => body.querySelector(sel);
+
+    // 누적 예금 플롯: 축은 고정, 상한은 점선 목표선
+    const plot = LTT.axisPlot($("#cum"), {
+      width: 640, height: 220,
+      x: [0, ROUNDS], y: [0, 2100],
+      labels: { x: "라운드", y: "예금 누적(억 원)" },
+      series: [{ id: "sum" }, { id: "limit", dash: true }],
+    });
+
+    // 은행 연쇄 한 장: n개 은행, 각 은행은 예금의 r을 남기고 (1−r)을 대출한다
+    const drawChain = (n, r) => {
+      const chain = $("#chain");
+      chain.innerHTML = "";
+      const svg = chain.appendChild(document.createElementNS(SVG, "svg"));
+      const dep = (k) => D0 * Math.pow(1 - r, k - 1);
+      const nodes = Array.from({ length: n }, (_, i) => ({
+        id: "b" + (i + 1), c: i, r: 0, l: "은행 " + LETTERS[i],
+        s: "예금 " + fmt(dep(i + 1)) + "\n준비금 " + fmt(r * dep(i + 1)),
+      }));
+      const edges = nodes.slice(1).map((_, i) => ({
+        f: "b" + (i + 1), t: "b" + (i + 2), l: "대출 " + fmt((1 - r) * dep(i + 1)),
+      }));
+      return LTT.diagram(svg, { cols: BANKS, rows: 1, cell: [210, 110], node: [150, 66], nodes, edges });
+    };
+
+    let run = 0; // 진행 중인 애니메이션 식별자. leave 때 바뀌어 옛 타이머를 멈춘다
+
+    const draw = (r) => {
+      const my = ++run;
+      const cum = (k) => D0 * (1 - Math.pow(1 - r, k)) / r;
+      const lim = D0 / r;
+      $("#lim").innerHTML = `상한 D0 ÷ r = ${fmt(lim)} <small>억 원 (승수 ${fmt(1 / r)}배)</small>`;
+      plot.set("limit", [[0, lim], [ROUNDS, lim]]);
+      plot.set("sum", []);
+
+      // 라운드 k의 예금이 생기고, 대출이 다음 은행의 예금이 된 뒤 k+1로 넘어간다
+      const wait = LTT.MOTION_MS ? 350 : 0;
+      let k = 0;
+      const tick = () => {
+        if (my !== run) return;
+        k++;
+        plot.set("sum", Array.from({ length: k }, (_, i) => [i + 1, cum(i + 1)]));
+        if (k <= BANKS) {
+          const dg = drawChain(k, r);
+          if (k > 1) dg.send("b" + (k - 1), "b" + k, { count: 1, ms: wait * 2 });
+        }
+        $("#stat").innerHTML = `누적 예금 <b>${fmt(cum(k))}</b> 억 원, 상한 ${fmt(lim)}을 향해 간다. 준비금 총량은 최초 ${D0} 그대로다. <span class="ltt-tag">모델로 계산한 예시</span>`;
+        if (k < ROUNDS) setTimeout(tick, wait);
+      };
+      tick();
+    };
+
+    LTT.sweep({
+      params: { r: { kind: "steps", stops: [0.2, 0.1, 0.05], value: 0.1, fmt: (v) => Math.round(v * 100) + "%" } },
+      render: ({ r }) => { $("#r-v").textContent = Math.round(r * 100) + "%"; draw(r); },
+    });
+
+    return { leave() { run++; } };
+  },
+};
+
+LTT.deck({
+  title: "신용 창조와 통화 승수",
+  theme: "ledger",
+  glossary: {
+    "지급준비율": "은행이 받은 예금 중 대출하지 않고 남겨 두는 비율",
+    "통화 승수": "최초 예금이 예금 총액을 몇 배로 늘리는지, 이론상 1/지급준비율",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

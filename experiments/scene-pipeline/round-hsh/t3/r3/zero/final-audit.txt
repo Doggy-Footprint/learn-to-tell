@@ -1,0 +1,7 @@
+## 1440x900
+  권고 lint no-signature: 그림이 주인공인 장면(figure, contrast, layout:"full", mount)이 없다
+  고침 lint overview-order: overview는 summary 뒤, keywords 바로 앞에 둔다
+## 1280x800
+  권고 lint no-signature: 그림이 주인공인 장면(figure, contrast, layout:"full", mount)이 없다
+  고침 lint overview-order: overview는 summary 뒤, keywords 바로 앞에 둔다
+고침 2건

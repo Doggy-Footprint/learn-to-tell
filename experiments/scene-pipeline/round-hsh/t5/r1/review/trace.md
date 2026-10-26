@@ -1,0 +1,27 @@
+# stream.jsonl
+
+- 말: 먼저 지정된 텍스트 파일들을 한 번에 읽겠습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/storyboard.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/direction.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/scene.html`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/shots/index.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/shots/scene-audit.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/refs/API.md`
+- 말: 텍스트 파일을 읽었습니다. 이제 `shots/` 아래 파일 목록을 확인해 스크린샷 전부를 읽겠습니다.
+- Bash `ls -la shots/`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/shots/scene-t1s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/shots/scene-t4s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/shots/scene-t8s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/shots/scene-knob-rr-min.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/shots/scene-knob-rr-max.jpg`
+- 말: 스크린샷 5장과 텍스트 파일을 모두 읽었습니다. 스토리보드 항목을 대조해 `review.md`를 먼저 씁니다.
+- Write `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/review.md` (+2402자)
+- 말: 실패 항목은 두 원인입니다. 극한 상한 분해가 화면에 없고, 이론 상한 caveat이 화면에 없습니다. 두 곳을 한 Edit 묶음으로 고칩니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/scene.html`
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- 말: audit 결과 고침 0건이라 수정 루프는 여기서 끝납니다. 마지막으로 `review.md` 끝에 `## 고친 것`을 붙입니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/review.md`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r1/review/review.md`
+- 말: 실패 2건, 고친 2건입니다. audit은 고침 0건으로 끝났고, 남은 "shrunk 78%" 권고는 그대로 두었습니다.
+- 결과: success $0.0244 19턴 104s

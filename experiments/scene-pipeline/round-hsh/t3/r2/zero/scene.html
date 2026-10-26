@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의</title>
+<script type="application/json" id="ltt-meta">{"topic":"Raft 합의","audience":"분산 시스템 입문 개발자","theme":"sketch","medium":"아키텍처 화이트보드","decision":"합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const W = 1000, H = 610;
+const POS = { S1: [500, 120], S2: [170, 270], S3: [830, 270], S4: [290, 440], S5: [710, 440] };
+const IDS = ["S1", "S2", "S3", "S4", "S5"];
+const CELLS = [[5, 2, -57], [6, 2, -19], [7, 3, 19]];
+
+// 단계마다 한 번에 정해지는 상태: 서버별 [term, 역할], index 7 칸, 표/저장 점, 장애
+const STATES = [
+  { t: [2, 2, 2, 2, 2], role: ["팔로워", "팔로워", "팔로워", "팔로워", "팔로워"], c7: {}, dots: [], tally: "", dead: false, msg: "", timer: true },
+  { t: [3, 2, 2, 2, 2], role: ["후보", "팔로워", "팔로워", "팔로워", "팔로워"], c7: {}, dots: ["S1"], tally: "표 1/5 (자기 표)", dead: false, msg: "RequestVote" },
+  { t: [3, 3, 3, 2, 2], role: ["후보", "팔로워", "팔로워", "팔로워", "팔로워"], c7: {}, dots: ["S1", "S2", "S3"], tally: "표 3/5 ≥ 과반수 3", dead: false, msg: "" },
+  { t: [3, 3, 3, 3, 3], role: ["리더", "팔로워", "팔로워", "팔로워", "팔로워"], c7: {}, dots: ["S1", "S2", "S3"], tally: "표 3/5 → 리더 확정", dead: false, msg: "heartbeat" },
+  { t: [3, 3, 3, 3, 3], role: ["리더", "팔로워", "팔로워", "팔로워", "팔로워"], c7: { S1: "gray" }, dots: ["S1"], tally: "저장 1/5 (리더만)", dead: false, msg: "", client: true },
+  { t: [3, 3, 3, 3, 3], role: ["리더", "팔로워", "팔로워", "팔로워", "팔로워"], c7: { S1: "commit", S2: "gray", S3: "gray" }, dots: ["S1", "S2", "S3"], tally: "저장 3/5 ≥ 3 → 커밋", dead: true, msg: "AppendEntries" },
+  { t: [3, 3, 3, 3, 3], role: ["리더", "팔로워", "팔로워", "팔로워", "팔로워"], c7: { S1: "commit", S2: "commit", S3: "commit" }, dots: ["S1", "S2", "S3"], tally: "저장 3/5 ≥ 3 → 커밋", dead: true, msg: "commitIndex=7" },
+];
+
+const mk = (tag, attrs, parent, text) => {
+  const n = document.createElementNS(SVG, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (text != null) n.textContent = text;
+  if (parent) parent.appendChild(n);
+  return n;
+};
+
+const raft = (el) => {
+  const wrap = el.appendChild(document.createElement("div"));
+  const svg = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  const dg = LTT.diagram(svg, {
+    width: W, height: H, node: [140, 56],
+    nodes: IDS.map((id) => ({ id, x: POS[id][0], y: POS[id][1], l: id, icon: "server" })),
+    edges: ["S2", "S3", "S4", "S5"].map((t) => ({ f: "S1", t, shape: "straight" })),
+  });
+  const g = mk("g", {}, svg);
+  const info = {}, cells = {};
+  IDS.forEach((id) => {
+    const [x, y] = POS[id];
+    const ring = mk("rect", { x: x - 78, y: y - 34, width: 156, height: 68, rx: 10, fill: "none", "stroke-width": 3, opacity: 0 }, g);
+    const label = mk("text", { x, y: y - 42, "text-anchor": "middle", "font-size": 14 }, g, "");
+    label.setAttribute("style", "fill:var(--ltt-ink)");
+    const dead = mk("text", { x, y: y + 9, "text-anchor": "middle", "font-size": 26, opacity: 0 }, g, "✕ 장애");
+    dead.setAttribute("style", "fill:var(--ltt-bad);font-weight:700");
+    info[id] = { ring, label, dead };
+    cells[id] = CELLS.map(([idx, tm, dx]) => {
+      const r = mk("rect", { x: x + dx - 18, y: y + 38, width: 38, height: 26, rx: 4, "stroke-width": 1.5 }, g);
+      const tx = mk("text", { x: x + dx + 1, y: y + 56, "text-anchor": "middle", "font-size": 12 }, g, idx + "·t" + tm);
+      return { r, tx, idx };
+    });
+  });
+  // 메시지 이름
+  const msgL = mk("text", { x: 320, y: 150, "text-anchor": "middle", "font-size": 15 }, g, "");
+  const msgR = mk("text", { x: 680, y: 150, "text-anchor": "middle", "font-size": 15 }, g, "");
+  [msgL, msgR].forEach((m) => m.setAttribute("style", "fill:var(--ltt-accent);font-weight:700"));
+  // 클라이언트
+  const cl = mk("g", { opacity: 0 }, g);
+  mk("text", { x: 190, y: 90, "text-anchor": "middle", "font-size": 14 }, cl, "클라이언트: x=7 저장").setAttribute("style", "fill:var(--ltt-ink)");
+  const cline = mk("line", { x1: 280, y1: 100, x2: 418, y2: 116, "stroke-width": 2, "marker-end": "" }, cl);
+  cline.setAttribute("style", "stroke:var(--ltt-ink-2)");
+  mk("text", { x: 190, y: 112, "text-anchor": "middle", "font-size": 12 }, cl, "리더만 받는다").setAttribute("style", "fill:var(--ltt-muted)");
+  // 과반수 계수기
+  const tallyG = mk("g", {}, g);
+  mk("text", { x: 500, y: 530, "text-anchor": "middle", "font-size": 13 }, tallyG, "과반수 = ⌊5/2⌋+1 = 3  (선출도 커밋도 같은 숫자)").setAttribute("style", "fill:var(--ltt-muted)");
+  const tallyT = mk("text", { x: 500, y: 560, "text-anchor": "middle", "font-size": 18 }, tallyG, "");
+  tallyT.setAttribute("style", "fill:var(--ltt-ink);font-weight:700");
+  const dots = {};
+  IDS.forEach((id, i) => {
+    const cx = 420 + i * 40;
+    dots[id] = mk("circle", { cx, cy: 588, r: 11, "stroke-width": 2 }, tallyG);
+    mk("text", { x: cx, y: 593, "text-anchor": "middle", "font-size": 11 }, tallyG, id).setAttribute("style", "fill:var(--ltt-ink)");
+  });
+  // 범례
+  mk("text", { x: 975, y: 520, "text-anchor": "end", "font-size": 12 }, g, "칸 = index·term").setAttribute("style", "fill:var(--ltt-muted)");
+  const lg = (y, kind, txt) => {
+    const r = mk("rect", { x: 880, y, width: 22, height: 14, rx: 3, "stroke-width": 1.5 }, g);
+    paint(r, kind);
+    mk("text", { x: 970, y: y + 12, "text-anchor": "end", "font-size": 12 }, g, txt).setAttribute("style", "fill:var(--ltt-ink-2)");
+  };
+  function paint(r, kind) {
+    const f = { base: "var(--ltt-card)", gray: "var(--ltt-line)", commit: "var(--ltt-good-soft)", none: "none" }[kind];
+    const s = { base: "var(--ltt-ink-2)", gray: "var(--ltt-muted)", commit: "var(--ltt-good)", none: "var(--ltt-muted)" }[kind];
+    r.setAttribute("style", `fill:${f};stroke:${s}` + (kind === "none" ? ";stroke-dasharray:3 3;opacity:.5" : ""));
+  }
+  lg(530, "gray", "미커밋");
+  lg(550, "commit", "커밋");
+
+  let timers = [];
+  const apply = (i) => {
+    const S = STATES[i];
+    timers.forEach(clearTimeout); timers = [];
+    IDS.forEach((id, k) => {
+      const inf = info[id];
+      inf.label.textContent = `term ${S.t[k]} · ${S.role[k]}`;
+      const role = S.role[k];
+      inf.ring.setAttribute("opacity", role === "팔로워" ? 0 : 1);
+      inf.ring.setAttribute("stroke-dasharray", role === "후보" ? "6 5" : "0");
+      inf.ring.setAttribute("style", `stroke:${role === "리더" ? "var(--ltt-accent)" : "var(--ltt-warn)"}`);
+      inf.dead.setAttribute("opacity", S.dead && id === "S4" ? 1 : 0);
+      cells[id].forEach((c) => {
+        let kind = "base";
+        if (c.idx === 7) kind = S.c7[id] || "none";
+        paint(c.r, kind);
+        c.tx.setAttribute("opacity", c.idx === 7 && !S.c7[id] ? 0 : 1);
+        c.tx.setAttribute("style", "fill:var(--ltt-ink)");
+      });
+    });
+    msgL.textContent = S.msg; msgR.textContent = S.msg;
+    cl.setAttribute("opacity", S.client ? 1 : 0);
+    tallyT.textContent = S.tally;
+    const paintDot = (id, on) => dots[id].setAttribute("style",
+      on ? "fill:var(--ltt-accent);stroke:var(--ltt-accent)" : "fill:none;stroke:var(--ltt-muted)");
+    IDS.forEach((id) => paintDot(id, false));
+    S.dots.forEach((id, n) => {
+      if (n === 0) paintDot(id, true);
+      else timers.push(setTimeout(() => paintDot(id, true), 600 + n * 500));
+    });
+  };
+  apply(0);
+
+  const pkts = (from, tos, o) => tos.map((t) => [from, t, o]);
+  const steps = [
+    { caption: "① 리더가 없다. 팔로워 S1의 무작위 타이머(150~300ms)가 먼저 끝났다. 리더의 heartbeat(생존 신호)가 오지 않았다.", hold: 4000, enter: () => apply(0) },
+    { caption: "② S1이 term을 3으로 올리고 후보가 되어 자기에게 먼저 투표한 뒤, 다른 서버에 표를 요청한다.", hold: 4500, enter: () => apply(1), send: pkts("S1", ["S2", "S3", "S4", "S5"], { count: 1, ms: 1100 }) },
+    { caption: "③ 서버는 term마다 한 표만 준다. S2·S3이 표를 주어 3/5. 과반수를 넘었다.", hold: 4500, enter: () => apply(2) },
+    { caption: "④ 표를 센 뒤에야 S1이 리더가 된다. 곧바로 빈 AppendEntries(heartbeat)를 보내 다른 서버를 조용한 팔로워로 눌러 앉힌다.", hold: 4500, enter: () => apply(3), send: pkts("S1", ["S2", "S3", "S4", "S5"], { count: 1, ms: 900 }) },
+    { caption: "⑤ 클라이언트 요청은 리더만 받는다. S1이 자기 로그 끝에 index 7을 먼저 쓴다. 아직 회색, 미커밋이다.", hold: 4500, enter: () => apply(4) },
+    { caption: "⑥ AppendEntries로 복제한다. S2·S3이 저장하면 3/5 → 그 순간 S1이 커밋한다. S4가 죽어 있어도 커밋은 그대로다.", hold: 5000, enter: () => apply(5), send: pkts("S1", ["S2", "S3", "S4", "S5"], { count: 1, ms: 1100 }) },
+    { caption: "⑦ 다음 AppendEntries에 commitIndex=7이 실려 가면 S2·S3도 커밋한다. 팔로워는 리더보다 한 박자 늦다.", hold: 5000, enter: () => apply(6), send: pkts("S1", ["S2", "S3"], { count: 1, ms: 900 }) },
+  ];
+  const ctl = wrap.appendChild(document.createElement("div"));
+  dg.player(ctl, steps);
+  return { el: svg, dg };
+};
+
+LTT.deck({
+  title: "Raft 합의",
+  theme: "sketch",
+  glossary: {},
+  scenes: [{
+    type: "overview",
+    layout: "full",
+    title: "과반수의 표로 리더를 뽑고, 과반수가 저장해야 커밋한다",
+    en: "Raft: leader election and log replication",
+    sub: "서버 5대(S1~S5). 칸은 로그의 index·term. 아래 숫자판의 과반수 3이 선출과 커밋에서 같은 역할을 한다.",
+    figure: raft,
+    caption: "3대가 죽으면 선출도 커밋도 멈춘다. 일관성을 지키려고 가용성을 양보하는 구조다.",
+    label: "Raft 리더 선출과 로그 복제",
+    takeaway: "과반수 표로 리더 한 명을, 과반수 저장으로 커밋을 정하므로 일부 서버가 죽어도 모두 같은 순서의 같은 기록을 갖는다.",
+    recall: "5대 중 몇 대가 저장해야 커밋되고, 몇 대 장애까지 견디는가?",
+  }],
+});
+</script>
+</body>
+</html>

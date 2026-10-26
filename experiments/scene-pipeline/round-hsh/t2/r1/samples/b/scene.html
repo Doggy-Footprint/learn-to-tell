@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어: cwnd는 어떻게 움직이나</title>
+<script type="application/json" id="ltt-meta">{"topic": "TCP 혼잡 제어", "audience": "백엔드·네트워크 개발자", "theme": "lab", "medium": "cwnd 시계열 플롯", "decision": "전송 처리량 문제 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const T_END = 44;
+
+// cwnd(MSS) 시계열, 시간순. 같은 t에 두 점이 있으면 손실 직후의 수직 낙하다.
+// 손실은 t = 2, 22, 42에서 cwnd 40일 때 난다. 손실 뒤 cwnd = 20, 그 뒤 RTT마다 +1 MSS.
+const full = [[0, 10], [1, 20], [2, 40], [2, 20]];
+for (let t = 3; t <= 22; t++) full.push([t, 18 + t]);   // t=3 → 21 … t=22 → 40
+full.push([22, 20]);
+for (let t = 23; t <= 42; t++) full.push([t, t - 2]);   // t=23 → 21 … t=42 → 40
+full.push([42, 20], [43, 21], [44, 22]);
+const LOSS = new Set(["2,40", "22,40", "42,40"]);
+
+const text = (svg, x, y, s, tone) => {
+  const n = document.createElementNS(SVG, "text");
+  n.setAttribute("x", x); n.setAttribute("y", y); n.textContent = s;
+  if (tone) n.style.fill = tone;
+  svg.appendChild(n);
+};
+const dot = (svg, x, y, tone) => {
+  const c = document.createElementNS(SVG, "circle");
+  c.setAttribute("cx", x); c.setAttribute("cy", y); c.setAttribute("r", 6);
+  c.style.fill = tone;
+  svg.appendChild(c);
+};
+
+// 점을 시간순으로 하나씩 그린다. 손실점에서 표식이 찍히고, after일 때만 ssthresh와 병목 한계가 나타난다.
+function trace(el, pts, { after = false } = {}) {
+  const ax = LTT.axisPlot(el, {
+    width: 520, height: 240, x: [0, T_END], y: [0, 50],
+    labels: { x: "시간 (RTT 수)", y: "cwnd (MSS)" },
+    series: [{ id: "cwnd" }, { id: "ss", dash: true }, { id: "cap", dot: true }],
+  });
+  const svg = el.querySelector("svg");
+  ax.set("cap", [[0, 40], [T_END, 40]]);
+  if (after) text(svg, ax.x(T_END - 14), ax.y(40) - 8, "병목 한계 40 MSS", "var(--ltt-muted)");
+  else text(svg, ax.x(26), ax.y(30), "첫 손실 뒤는?", "var(--ltt-muted)");
+
+  const wait = LTT.MOTION_MS ? 90 : 0;
+  let i = 0;
+  const step = () => {
+    const [t, v] = pts[i];
+    ax.set("cwnd", pts.slice(0, i + 1));
+    if (LOSS.has(`${t},${v}`)) {
+      dot(svg, ax.x(t), ax.y(v), "var(--ltt-bad)");
+      text(svg, ax.x(t) + 10, ax.y(v) - 10, "손실 (cwnd 40)", "var(--ltt-bad)");
+    }
+    if (after && t === 2 && v === 20) {
+      ax.set("ss", [[2, 20], [T_END, 20]]);
+      text(svg, ax.x(T_END - 14), ax.y(20) - 8, "기준 20 MSS", "var(--ltt-warn)");
+    }
+    i += 1;
+    if (wait && i < pts.length) setTimeout(step, wait);
+  };
+  if (wait) step();
+  else while (i < pts.length) step();
+}
+
+LTT.deck({
+  title: "TCP 혼잡 제어: cwnd는 어떻게 움직이나",
+  theme: "lab",
+  glossary: {
+    "ssthresh": "slow start를 끝내고 선형 증가로 바꾸는 기준값이다. 손실 때마다 새로 정한다.",
+  },
+  scenes: [{
+    type: "predict",
+    kicker: "네트워크 · TCP 혼잡 제어",
+    title: "첫 손실 뒤 곡선은 어디로 갈까?",
+    sub: "cwnd(혼잡 윈도우)는 확인 응답 없이 보낼 수 있는 양이다(MSS 단위). 첫 손실까지를 본다.",
+    question: "손실이 나면 곡선은 어디로 가나?",
+    visual: (el) => {
+      el.append(LTT.facts([
+        { icon: "wind", value: "10 MSS", label: "연결 시작 cwnd" },
+        { icon: "clock", value: "100 ms", label: "왕복 시간(RTT)" },
+        { icon: "alert", value: "중복 ACK 3개", label: "손실 감지" },
+      ]));
+      trace(el, full.slice(0, 3));
+    },
+    choices: [
+      { id: "1", text: "1 MSS로 떨어진 뒤 지수로 다시 오른다" },
+      { id: "2", text: "절반(20 MSS)에서 RTT마다 +1 MSS로 오른다" },
+      { id: "3", text: "피크 40 MSS에서 그대로 유지된다" },
+    ],
+    answer: "2",
+    answerVisual: (el) => trace(el, full, { after: true }),
+    why: "손실 순간 cwnd 40을 보고 {{ssthresh}} = 20으로 정한 뒤 cwnd를 20으로 줄인다. 1 MSS로 떨어지는 것은 타임아웃일 때뿐이다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    takeaway: "손실 뒤 절반으로 줄고, RTT마다 1 MSS씩 선형으로 오른다. 처리량은 cwnd × MSS / RTT다.",
+    recall: "cwnd가 20 MSS, RTT 100 ms일 때 처리량은 약 얼마인가? (답: 2.34 Mbit/s)",
+    basis: "MSS 1,460 B, RTT 100 ms 가정. 손으로 계산한 값이다.",
+  }],
+});
+</script>
+</body>
+</html>

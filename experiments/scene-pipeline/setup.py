@@ -1,7 +1,7 @@
 import json, re, shutil, os
 from pathlib import Path
 from PIL import Image, ImageDraw
-R = Path("/home/user/learn-to-tell"); SK = R/"skills/learn-to-tell"; SH = R/"site/gallery/shots"
+R = Path(__file__).resolve().parents[2]; SK = R/"skills/learn-to-tell"; SH = R/"site/gallery/shots"
 E = Path(__file__).resolve().parent
 axes = json.load(open(SH/"axes.json"))
 HELD = ["10","33","07","12","13","16","04","47"]

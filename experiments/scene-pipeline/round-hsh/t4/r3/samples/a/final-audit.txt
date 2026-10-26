@@ -1,0 +1,9 @@
+## 1440x900
+  고침 장면1 hscroll: 가로로 넘친다 (폭 1241px 초과). 고정 폭을 max-width:100%로 바꿀 것
+  고침 장면1 overflow: 한 화면에 안 들어간다 (78%로 줄여도 넘친다). 해설·캡션을 줄이거나 장면을 나눌 것
+  권고 lint no-signature: 그림이 주인공인 장면(figure, contrast, layout:"full", mount)이 없다
+## 1280x800
+  고침 장면1 hscroll: 가로로 넘친다 (폭 1288px 초과). 고정 폭을 max-width:100%로 바꿀 것
+  고침 장면1 overflow: 한 화면에 안 들어간다 (78%로 줄여도 넘친다). 해설·캡션을 줄이거나 장면을 나눌 것
+  권고 lint no-signature: 그림이 주인공인 장면(figure, contrast, layout:"full", mount)이 없다
+고침 4건

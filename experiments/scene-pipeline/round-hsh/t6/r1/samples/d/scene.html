@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가비지 컬렉션 방식: 참조 카운팅 vs mark-and-sweep</title>
+<script type="application/json" id="ltt-meta">{"topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-mock.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .cap { margin: 10px 0 0; color: var(--ltt-ink-2); }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const LAST = 6;                              // 0–3 생성, 4 루트 끊김, 5 판정, 6 결과
+const HOLD = (LTT.MOTION_MS || 0) * 3;       // reduced-motion이면 0: 최종 상태로 바로 간다
+
+const CAP = {
+  rc: [
+    "같은 코드가 A를 만들고 루트가 A를 잡는다. A = 1",
+    "A.next = B. B가 생기고 B = 1",
+    "B.prev = A. A의 카운트가 2가 된다",
+    "루트가 C를 잡는다. C = 1",
+    "루트가 A를 놓는다. 카운트는 아직 A = 2",
+    "루트에서 닿을 길이 없어도 A↔B 간선이 서로를 1씩 붙든다. A = 1, B = 1",
+    "카운트가 0이 아니므로 해제되지 않는다. 누수",
+  ],
+  ms: [
+    "같은 코드가 A를 만들고 루트가 A를 잡는다",
+    "A.next = B. B가 생긴다",
+    "B.prev = A. 간선이 하나 더 생긴다. 카운트는 세지 않는다",
+    "루트가 C를 잡는다",
+    "루트가 A를 놓는다. A, B에 닿을 길이 없다",
+    "mark: 루트에서 출발해 닿는 root, C에만 표시한다",
+    "sweep: 표시 없는 A, B를 해제한다",
+  ],
+};
+
+// 프로파일러 로그. 단계마다 한 줄씩 쌓인다.
+const TERM = {
+  rc: {
+    5: [{ t: "warn", text: "A ← B (카운트 1), B ← A (카운트 1)" }],
+    6: [{ t: "err", text: "루트 경로 없음 · 남은 객체: A, B" }],
+  },
+  ms: {
+    5: [{ t: "dim", text: "mark: root → C" }],
+    6: [{ t: "ok", text: "sweep: A, B 해제 · 남은 객체: root, C" }],
+  },
+};
+
+const drop = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
+
+// 같은 그래프를 두 방식으로 본다. 생성 순서는 같고, 5·6단계에서 갈린다.
+function graph(i, side) {
+  const rc = side === "rc";
+  const aCount = i >= 2 && i <= 4 ? 2 : 1;
+  const unmarked = !rc && i === 5;   // MS: mark 중, A·B는 표시 없음
+  const dead = !rc && i >= 6;        // MS: sweep으로 해제
+  const ab = (count) => ({
+    s: rc ? `카운트 ${count}` : unmarked ? "표시 없음" : dead ? "해제" : undefined,
+    k: rc ? (i >= 5 ? "bad" : undefined) : dead ? "bad" : unmarked ? "muted" : undefined,
+  });
+  const link = { k: rc ? (i >= 5 ? "accent" : undefined) : dead ? "bad" : undefined, dash: dead ? true : undefined };
+
+  const nodes = [
+    drop({ id: "root", c: 0, r: 0, l: "루트", icon: "anchor", k: i >= 5 ? "good" : undefined, s: !rc && i >= 5 ? "mark" : undefined }),
+    drop({ id: "a", c: 1, r: 0, l: "A", icon: "package", ...ab(aCount) }),
+  ];
+  if (i >= 1) nodes.push(drop({ id: "b", c: 2, r: 0, l: "B", icon: "package", ...ab(1) }));
+  if (i >= 3) nodes.push(drop({ id: "c", c: 0, r: 1, l: "C", icon: "package", s: rc ? "카운트 1" : i >= 5 ? "mark" : undefined, k: i >= 5 ? "good" : undefined }));
+
+  const edges = [];
+  if (i <= 3) edges.push({ id: "r-a", f: "root", t: "a", l: "root" });
+  if (i === 4) edges.push({ id: "r-a", f: "root", t: "a", l: "끊김", dash: true, k: "bad" });
+  if (i >= 1) edges.push(drop({ id: "a-b", f: "a", t: "b", l: "next", ...link }));
+  if (i >= 2) edges.push(drop({ id: "b-a", f: "b", t: "a", l: "prev", ...link }));
+  if (i >= 3) edges.push(drop({ id: "r-c", f: "root", t: "c", l: "root", k: i >= 5 ? "good" : undefined }));
+
+  return { cols: 3, rows: 2, cell: [230, 150], node: [126, 62], nodes, edges };
+}
+
+function draw(box, spec) {
+  box.innerHTML = "";
+  const svg = box.appendChild(document.createElementNS(SVG, "svg"));
+  LTT.diagram(svg, spec);
+}
+
+function mountSide(side, el) {
+  const box = el.appendChild(document.createElement("div"));
+  const cap = el.appendChild(document.createElement("p"));
+  cap.className = "cap";
+  const term = LTT.mock.terminal({ title: "heap-snapshot", lines: ["$ heap-snapshot --retainers"] });
+  el.appendChild(term.el);
+
+  let shown = -1;
+  const go = (to) => {
+    for (let j = shown + 1; j <= to; j++) (TERM[side][j] || []).forEach((l) => term.add(l));
+    shown = to;
+    draw(box, graph(to, side));
+    cap.textContent = CAP[side][to];
+  };
+  const run = (i) => { go(i); if (i < LAST) setTimeout(() => run(i + 1), HOLD); };
+  if (!HOLD) go(LAST);
+  else run(0);
+}
+
+LTT.deck({
+  title: "가비지 컬렉션 방식",
+  theme: "terminal",
+  glossary: {
+    "참조 카운팅": "객체마다 자기를 가리키는 참조 수를 세고, 0이 되는 순간 해제하는 방식",
+    "mark-and-sweep": "루트에서 닿는 객체에 표시를 남기고, 표시 없는 객체를 한꺼번에 해제하는 방식",
+  },
+  scenes: [{
+    type: "contrast",
+    kicker: "메모리 누수 진단",
+    title: "루트에서 닿지 않는 순환은 참조 카운팅에서만 남는다",
+    sub: "같은 객체 그래프를 두 방식으로 수거한다. 루트를 놓은 뒤의 차이를 본다.",
+    before: { title: "참조 카운팅", sub: "카운트가 0이어야 해제", visual: (el) => mountSide("rc", el) },
+    after: { title: "mark-and-sweep", sub: "루트에서 닿는 것만 살린다", visual: (el) => mountSide("ms", el) },
+    takeaway: "{{참조 카운팅}}은 순환이 있으면 카운트가 0이 되지 않아 남고, {{mark-and-sweep}}은 루트에서 닿는 것만 살려 같은 순환을 수거한다.",
+    recall: "힙 스냅샷에서 루트 경로 없이 남은 객체가 보이면 무엇을 의심하나?",
+    basis: "객체 4개로 줄인 예시다. 실제 런타임은 세대별·증분 수거를 함께 쓰므로 세부 동작은 다를 수 있다.",
+  }],
+});
+</script>
+</body>
+</html>

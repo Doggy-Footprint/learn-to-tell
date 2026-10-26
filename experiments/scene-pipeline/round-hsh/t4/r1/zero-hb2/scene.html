@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<link rel="stylesheet" href="/kit/ltt.css">
+<style>
+.rf{display:grid;gap:10px;width:100%;max-width:960px;margin:0 auto}
+.rf svg{width:100%;height:auto;display:block}
+.rf text{font-family:inherit;fill:var(--ltt-ink)}
+.rf .t14{font-size:14px}
+.rf .t13{font-size:13px;fill:var(--ltt-ink-2)}
+.rf .tmp-line{fill:none;stroke:var(--ltt-ink);stroke-width:4;stroke-linecap:round}
+.rf .nw{fill:none;stroke:var(--ltt-accent);stroke-width:5;stroke-linecap:butt}
+.rf .pr{fill:none;stroke:var(--ltt-warn);stroke-width:7;stroke-linecap:butt}
+.rf .enz{fill:var(--ltt-card);stroke:var(--ltt-ink-2);stroke-width:1.5}
+.rf .ssb{fill:var(--ltt-ink-2)}
+.rf .arrow{fill:none;stroke:var(--ltt-accent);stroke-width:3}
+.rf .head{fill:var(--ltt-accent)}
+.rf .forkline{fill:none;stroke:var(--ltt-ink);stroke-width:3}
+.rf .forkhead{fill:var(--ltt-ink)}
+.rf .acc{fill:var(--ltt-accent);font-weight:700}
+.rf .lig{fill:var(--ltt-card);stroke:var(--ltt-ink-2);stroke-width:2}
+.rf .rv{opacity:0;animation:rfrv .5s ease var(--d,0s) forwards}
+.rf .gr{stroke-dasharray:1;stroke-dashoffset:1;animation:rfgr var(--t,3s) linear var(--d,0s) forwards}
+.rf .mvR{animation:rfrv .4s ease var(--d) forwards,rfslideR var(--t) linear var(--d) forwards}
+.rf .mvL{animation:rfrv .4s ease var(--d) forwards,rfslideL var(--t) linear var(--d) forwards}
+.rf .mvL.tmp{animation:rfrv .4s ease var(--d) forwards,rfslideL var(--t) linear var(--d) forwards,rfout .4s ease var(--o) forwards}
+.rf .pc{animation:rfpc .6s ease var(--d) forwards}
+.rf .cap{grid-area:1/1;opacity:0;font-size:1.05rem;line-height:1.5;color:var(--ltt-ink);animation:rfcap var(--t) ease var(--d) forwards}
+.rf .cap.last{animation:rfrv .5s ease var(--d) forwards}
+.rf .capbox{display:grid;min-height:3.4em;align-items:center;border-top:1px solid var(--ltt-line);padding-top:8px}
+.rf .again{justify-self:end;font:inherit;font-size:.9rem;padding:4px 12px;border:1px solid var(--ltt-line-2);background:var(--ltt-card);color:var(--ltt-ink);border-radius:6px;cursor:pointer}
+@keyframes rfrv{to{opacity:1}}
+@keyframes rfout{to{opacity:0}}
+@keyframes rfgr{to{stroke-dashoffset:0}}
+@keyframes rfslideR{from{transform:translateX(var(--dx))}to{transform:translateX(0)}}
+@keyframes rfslideL{from{transform:translateX(0)}to{transform:translateX(var(--dx))}}
+@keyframes rfcap{0%{opacity:0}8%{opacity:1}92%{opacity:1}100%{opacity:0}}
+@keyframes rfpc{to{stroke:var(--ltt-accent)}}
+@media (prefers-reduced-motion:reduce){
+ .rf .rv,.rf .cap.last{animation:none;opacity:1}
+ .rf .gr{animation:none;stroke-dashoffset:0}
+ .rf .mvR,.rf .mvL,.rf .pc{animation:none;opacity:1}
+ .rf .pc{stroke:var(--ltt-accent)}
+ .rf .tmp{opacity:0!important}
+ .rf .cap{animation:none;opacity:0}
+ .rf .cap.last{opacity:1}
+}
+</style>
+</head>
+<body>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const arrowR = (x1, x2, y, cls, hcls) => `<path class="${cls}" d="M${x1},${y} H${x2 - 4}"/><path class="${hcls}" d="M${x2},${y} l-12,-7 v14 z"/>`;
+const arrowL = (x1, x2, y, cls, hcls) => `<path class="${cls}" d="M${x1},${y} H${x2 + 4}"/><path class="${hcls}" d="M${x2},${y} l12,-7 v14 z"/>`;
+const blob = (cx, cy, rx, label) => `<ellipse class="enz" cx="${cx}" cy="${cy}" rx="${rx}" ry="16"/><text class="t13" x="${cx}" y="${cy + 5}" text-anchor="middle" style="fill:var(--ltt-ink)">${label}</text>`;
+
+// 시간표(초): 장면 단계마다 시작 시각
+const T = { ssb: 3.5, lead: 7, lag1: 11.5, f2: 16, f3: 18.8, fix: 21.5 };
+
+function forkSvg() {
+  const up = "M40,110 H330 C400,110 400,245 470,245 H860";
+  const lo = "M40,410 H330 C400,410 400,285 470,285 H860";
+  return `<svg viewBox="0 0 900 510" role="img" aria-label="DNA 복제 분기점: 선도 가닥은 분기점 방향으로, 지연 가닥은 반대 방향으로 짧은 절편이 합성된다">
+  <path class="tmp-line" d="${up}"/><path class="tmp-line" d="${lo}"/>
+  <text class="t13" x="30" y="98">3'</text><text class="t13" x="866" y="236">5'</text>
+  <text class="t13" x="30" y="436" style="display:none">5'</text><text class="t13" x="866" y="312">3'</text>
+  <text class="t13" x="30" y="402">5'</text>
+  <text class="t14" x="640" y="222" text-anchor="middle">부모 이중가닥</text>
+  <text class="t14" x="40" y="80">주형 가닥 (부모)</text>
+
+  <ellipse class="enz" cx="462" cy="265" rx="34" ry="36"/>
+  <text class="t13" x="462" y="262" text-anchor="middle" style="fill:var(--ltt-ink)">헬리</text>
+  <text class="t13" x="462" y="278" text-anchor="middle" style="fill:var(--ltt-ink)">카아제</text>
+  ${arrowR(190, 340, 262, "forkline", "forkhead")}
+  <text class="t14" x="265" y="248" text-anchor="middle" style="font-weight:700">분기점 전진</text>
+
+  <g class="rv" style="--d:${T.ssb}s">
+    <circle class="ssb" cx="371" cy="131" r="8"/><circle class="ssb" cx="400" cy="177" r="8"/>
+    <circle class="ssb" cx="371" cy="390" r="8"/><circle class="ssb" cx="400" cy="347" r="8"/>
+    <text class="t13" x="418" y="168">SSB</text>
+    <text class="t13" x="418" y="352">SSB</text>
+  </g>
+
+  <!-- 프라이머 -->
+  <path class="pr rv pc" style="--d:${T.ssb + 0.3}s" d="M40,138 H62"/>
+  <path class="pr rv pc" style="--d:${T.ssb + 0.3}s" d="M160,382 H138"/>
+  <text class="t13 rv" style="--d:${T.ssb + 0.3}s;fill:var(--ltt-ink)" x="40" y="168">RNA 프라이머</text>
+
+  <!-- 선도 가닥 -->
+  <path class="nw gr" pathLength="1" style="--d:${T.lead}s;--t:4s" d="M62,138 H335"/>
+  <text class="t13 rv" style="--d:${T.ssb + 0.3}s" x="22" y="142">5'</text>
+  <text class="t13 rv" style="--d:${T.lead}s" x="344" y="143">3'</text>
+  <g class="mvR" style="--d:${T.lead}s;--t:4s;--dx:-290px;opacity:0"><g transform="translate(335,165)">${blob(0, 0, 38, "중합효소")}</g></g>
+  <g class="rv" style="--d:${T.lead}s">${arrowR(190, 310, 205, "arrow", "head")}
+    <text class="t14 acc" x="250" y="193" text-anchor="middle">분기점과 같은 방향</text></g>
+  <text class="t14 rv" style="--d:${T.lead}s" x="30" y="40">선도 가닥: 끊김 없이 연속 합성</text>
+
+  <!-- 지연 가닥 절편 1: 5' 160 → 3' 40 -->
+  <path class="nw gr" pathLength="1" style="--d:${T.lag1}s;--t:3s" d="M138,382 H40"/>
+  <text class="t13 rv" style="--d:${T.lag1}s" x="22" y="387">3'</text>
+  <g class="mvL tmp" style="--d:${T.lag1}s;--t:3s;--dx:-90px;--o:${T.lag1 + 3.2}s;opacity:0"><g transform="translate(130,352)">${blob(0, 0, 38, "중합효소")}</g></g>
+  <g class="rv" style="--d:${T.lag1}s">${arrowL(150, 45, 342, "arrow", "head")}
+    <text class="t14 acc" x="30" y="322">분기점과 반대 방향</text></g>
+  <text class="t14 rv" style="--d:${T.lag1}s" x="30" y="470">지연 가닥: 짧은 절편(오카자키 절편)을 거꾸로 합성</text>
+
+  <!-- 절편 2: 5' 270 → 165 -->
+  <path class="pr rv pc" style="--d:${T.f2}s" d="M270,382 H248"/>
+  <path class="nw gr" pathLength="1" style="--d:${T.f2 + 0.3}s;--t:2.4s" d="M248,382 H165"/>
+  <g class="mvL tmp" style="--d:${T.f2 + 0.3}s;--t:2.4s;--dx:-85px;--o:${T.f2 + 2.8}s;opacity:0"><g transform="translate(250,352)">${blob(0, 0, 38, "중합효소")}</g></g>
+  <!-- 절편 3: 5' 318 → 3' 280 (아직 자라는 중) -->
+  <path class="pr rv pc" style="--d:${T.f3}s" d="M318,382 H296"/>
+  <path class="nw gr" pathLength="1" style="--d:${T.f3 + 0.3}s;--t:1s" d="M296,382 H280"/>
+  <g class="rv" style="--d:${T.f3 + 0.3}s"><g transform="translate(300,350)">${blob(0, 0, 38, "중합효소")}</g></g>
+  <text class="t13 rv" style="--d:${T.f3}s" x="318" y="372" text-anchor="middle">5'</text>
+
+  <g class="rv" style="--d:${T.lag1}s"><text class="t13" x="100" y="436" text-anchor="middle">절편 1</text></g>
+  <g class="rv" style="--d:${T.f2}s"><text class="t13" x="218" y="436" text-anchor="middle">절편 2</text></g>
+  <g class="rv" style="--d:${T.f3}s"><text class="t13" x="300" y="436" text-anchor="middle">절편 3</text></g>
+  <g class="rv" style="--d:${T.f3 + 0.5}s"><text class="t13" x="30" y="456">가장 오래됨, 분기점에서 멂</text>
+    <text class="t13" x="372" y="456" text-anchor="end">가장 새것, 분기점 가까이</text></g>
+
+  <!-- 마무리: 중합효소 I이 프라이머를 DNA로, 연결효소가 틈을 잇는다 -->
+  <g class="rv" style="--d:${T.fix}s"><g transform="translate(205,322)">${blob(0, 0, 40, "중합효소 I")}</g></g>
+  <g class="rv" style="--d:${T.fix + 1.2}s"><circle class="lig" cx="162" cy="382" r="9"/>
+    <text class="t13" x="162" y="436" text-anchor="middle" style="display:none">연결효소</text>
+    <path d="M162,391 V420" stroke="var(--ltt-ink-2)" stroke-width="1.5"/>
+    <text class="t13" x="162" y="486" text-anchor="middle" style="display:none">연결효소</text>
+    <text class="t13" x="190" y="436" text-anchor="start" style="display:none">연결효소</text></g>
+  <text class="t13 rv" style="--d:${T.fix + 1.2}s" x="462" y="436">연결효소: 틈(nick)을 잇는다 (먼 쪽부터)</text>
+  <path class="rv" style="--d:${T.fix + 1.2}s" d="M162,420 L300,430 L455,432" fill="none" stroke="var(--ltt-line-2)" stroke-width="1" display="none"/>
+
+  <!-- 범례 -->
+  <g transform="translate(560,484)">
+    <path class="tmp-line" d="M0,0 H28" style="stroke-width:4"/><text class="t13" x="36" y="5">주형</text>
+    <path class="nw" d="M90,0 H118"/><text class="t13" x="126" y="5">새 DNA</text>
+    <path class="pr" d="M200,0 H228"/><text class="t13" x="236" y="5">RNA 프라이머</text>
+  </g>
+</svg>`;
+}
+
+const capHtml = () => [
+  [0, T.ssb, "분기점은 오른쪽으로 열린다. 새 가닥 두 개는 둘 다 그 방향으로 자랄까?"],
+  [T.ssb, T.lead - T.ssb, "헬리카아제가 두 가닥을 풀고, 프라이머가 자리를 잡는다. 중합효소는 3' 끝에만 붙이므로 새 가닥은 언제나 5'→3'로 자란다."],
+  [T.lead, T.lag1 - T.lead, "선도 가닥: 자라는 방향이 분기점 전진 방향과 같아서 끊김 없이 이어진다."],
+  [T.lag1, T.f2 - T.lag1, "지연 가닥: 주형이 반대 방향이라 5'→3' 성장이 분기점과 반대로 향한다. 짧은 절편 하나가 먼저 만들어진다."],
+  [T.f2, T.fix - T.f2, "분기점이 더 열릴 때마다 새 프라이머와 새 절편이 분기점 쪽에서 생긴다. 오래된 절편일수록 분기점에서 멀다."],
+].map(([d, t, s]) => `<div class="cap" style="--d:${d}s;--t:${t}s">${s}</div>`).join("")
+  + `<div class="cap last" style="--d:${T.fix}s">중합효소 I이 프라이머를 DNA로 바꾸고 연결효소가 틈을 잇는다. 지연 가닥도 결국 이어진 이중가닥이 된다.</div>`;
+
+const art = `<div class="rf" id="rf">${forkSvg()}<div class="capbox">${capHtml()}</div><button class="again" type="button" onclick="(function(){var r=document.getElementById('rf'),s=r.querySelectorAll('*');s.forEach(function(e){e.style.animation='none'});void r.offsetWidth;s.forEach(function(e){e.style.animation=''});})()">다시 보기</button></div>`;
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "선도 가닥": "분기점이 열리는 방향으로 끊김 없이 이어서 만들어지는 새 가닥",
+    "지연 가닥": "분기점과 반대 방향으로 짧은 조각을 만들어 나중에 잇는 새 가닥",
+    "오카자키 절편": "지연 가닥에서 따로 만들어지는 짧은 DNA 조각"
+  },
+  scenes: [{
+    type: "hook",
+    pre: "DNA 복제 분기점",
+    text: "한 방향으로 열리는데, 새 가닥은 왜 한쪽만 따라갈까",
+    sub: "{{선도 가닥}}은 이어서, {{지연 가닥}}은 {{오카자키 절편}}으로 만든다",
+    art,
+    takeaway: "중합효소는 3' 끝에만 붙이므로, 분기점과 반대로 자라는 지연 가닥은 절편으로 만들어 나중에 잇는다.",
+    recall: "지연 가닥은 왜 한 번에 이어서 만들 수 없을까?"
+  }]
+});
+</script>
+</body>
+</html>

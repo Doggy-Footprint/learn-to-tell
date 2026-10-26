@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .dna-wrap { width: 100%; }
+  .dna-wrap svg { width: 100%; height: auto; display: block; }
+  .dna-wrap text { fill: var(--ltt-ink); font-family: inherit; }
+  .dna-wrap .mut { fill: var(--ltt-muted); }
+  .dna-stage { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .dna-stage span { padding: 4px 10px; border: 1px solid var(--ltt-line-2); border-radius: 999px; color: var(--ltt-muted); }
+  .dna-stage span.on { background: var(--ltt-ink); color: var(--ltt-bg); border-color: var(--ltt-ink); }
+</style>
+</head>
+<body>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const cl = (v) => Math.max(0, Math.min(1, v));
+const F0 = 420, SPD = 35, END = 12;            // 분기점 x(t) = F0 + SPD*t
+const FX = (t) => F0 + SPD * Math.min(t, END);
+const LEAD_T = 1.5, FR_T = [3, 6, 9], FR_LEN = 90, FR_DUR = 2;
+const YU = 110, YL = 350, YLEAD = 148, YLAG = 312, XL = 70, XR = 1060;
+const STAGES = ["분기점이 열린다", "선도 가닥: 프라이머 1개", "지연 가닥: 조각마다 프라이머", "방향 규칙은 하나", "프라이머 제거 · 연결효소"];
+
+function mk(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const txt = (parent, x, y, s, size, extra = {}) => { const e = mk("text", { x, y, "font-size": size, ...extra }, parent); e.textContent = s; return e; };
+
+function build(body) {
+  body.innerHTML = `<div class="dna-wrap"><svg viewBox="0 0 1120 420" role="img" aria-label="DNA 복제 분기점: 선도 가닥은 분기점 쪽으로 연속 합성되고 지연 가닥은 오카자키 절편으로 합성된다"></svg><div class="dna-stage"></div></div>`;
+  const svg = body.querySelector("svg");
+  const pills = [...STAGES].map((s, i) => { const p = document.createElement("span"); p.textContent = (i + 1) + " " + s; body.querySelector(".dna-stage").appendChild(p); return p; });
+  const R = {};
+  const strokeT = { fill: "none", stroke: "var(--ltt-ink-2)", "stroke-width": 5, "stroke-linecap": "round", "stroke-linejoin": "round" };
+  R.rungs = mk("line", { y1: 230, y2: 230, stroke: "var(--ltt-line-2)", "stroke-width": 30, "stroke-dasharray": "2 9" }, svg);
+  R.up = mk("path", strokeT, svg);
+  R.lo = mk("path", strokeT, svg);
+  // 주형 끝 표기
+  txt(svg, 40, YU + 5, "3′", 18, { "text-anchor": "middle", "font-weight": 700 });
+  txt(svg, 40, YL + 5, "5′", 18, { "text-anchor": "middle", "font-weight": 700 });
+  txt(svg, 1085, 220, "5′", 18, { "text-anchor": "middle", "font-weight": 700 });
+  txt(svg, 1085, 256, "3′", 18, { "text-anchor": "middle", "font-weight": 700 });
+  txt(svg, XL, 90, "주형 가닥 (서로 반대 방향)", 14, { class: "mut" });
+  // 가닥 이름
+  txt(svg, XL, 156, "선도 가닥", 18, { "font-weight": 700 });
+  txt(svg, XL, 178, "분기점 쪽으로 끊김 없이", 14, { class: "mut" });
+  txt(svg, XL, 316, "지연 가닥", 18, { "font-weight": 700 });
+  txt(svg, XL, 338, "분기점 반대쪽으로 조각조각", 14, { class: "mut" });
+  // 선도 가닥
+  R.leadTicks = mk("line", { y1: (YU + YLEAD) / 2, y2: (YU + YLEAD) / 2, stroke: "var(--ltt-line-2)", "stroke-width": YLEAD - YU, "stroke-dasharray": "2 9" }, svg);
+  R.lead = mk("line", { y1: YLEAD, y2: YLEAD, stroke: "var(--ltt-c1)", "stroke-width": 7, "stroke-linecap": "butt" }, svg);
+  R.leadHead = mk("path", { fill: "var(--ltt-c1)" }, svg);
+  R.leadPrimer = mk("rect", { y: YLEAD - 8, width: 14, height: 16, fill: "var(--ltt-warn)", stroke: "var(--ltt-ink)", "stroke-width": 1.5 }, svg);
+  R.leadPrimerT = txt(svg, 0, 186, "RNA 프라이머", 14, { "text-anchor": "middle" });
+  R.leadDir = txt(svg, 0, 178, "5′→3′", 16, { "text-anchor": "middle", "font-weight": 700 });
+  R.leadPol = mk("ellipse", { cy: YLEAD, rx: 22, ry: 17, fill: "var(--ltt-card-2)", stroke: "var(--ltt-ink-2)", "stroke-width": 2, opacity: 0.92 }, svg);
+  R.leadPolT = txt(svg, 0, 124, "DNA 중합효소", 14, { "text-anchor": "middle" });
+  // 지연 가닥 절편
+  R.frag = FR_T.map(() => {
+    const f = {};
+    f.ticks = mk("line", { y1: (YL + YLAG) / 2, y2: (YL + YLAG) / 2, stroke: "var(--ltt-line-2)", "stroke-width": YL - YLAG, "stroke-dasharray": "2 9" }, svg);
+    f.line = mk("line", { y1: YLAG, y2: YLAG, stroke: "var(--ltt-c2)", "stroke-width": 7 }, svg);
+    f.head = mk("path", { fill: "var(--ltt-c2)" }, svg);
+    f.primer = mk("rect", { y: YLAG - 8, width: 14, height: 16, fill: "var(--ltt-warn)", stroke: "var(--ltt-ink)", "stroke-width": 1.5 }, svg);
+    f.dir = txt(svg, 0, 292, "5′→3′", 16, { "text-anchor": "middle", "font-weight": 700 });
+    f.pol = mk("ellipse", { cy: YLAG, rx: 20, ry: 16, fill: "var(--ltt-card-2)", stroke: "var(--ltt-ink-2)", "stroke-width": 2, opacity: 0.92 }, svg);
+    return f;
+  });
+  R.gaps = [0, 1].map(() => mk("line", { y1: YLAG, y2: YLAG, stroke: "var(--ltt-c2)", "stroke-width": 7 }, svg));
+  R.nicks = [0, 1].map(() => mk("path", { fill: "var(--ltt-ink)" }, svg));
+  R.ligT = txt(svg, 0, 268, "DNA 연결효소가 틈을 잇는다", 14, { "text-anchor": "middle" });
+  R.lagPrimerT = txt(svg, 0, 268, "RNA 프라이머", 14, { "text-anchor": "middle" });
+  R.lagNote = txt(svg, XL, 380, "나중 절편일수록 분기점에 가깝다", 14, { class: "mut" });
+  // 중앙 강조
+  R.rule1 = txt(svg, XL, 226, "두 새 가닥 모두 5′→3′로만 자란다", 18, { "font-weight": 700 });
+  R.rule2 = txt(svg, XL, 250, "달라지는 건 분기점 기준의 방향뿐", 16, { class: "mut" });
+  // 헬리케이스
+  R.hel = mk("circle", { cy: 230, r: 17, fill: "var(--ltt-card-2)", stroke: "var(--ltt-ink)", "stroke-width": 2.5 }, svg);
+  R.helT = txt(svg, 0, 196, "헬리케이스 (이중나선을 푼다)", 14, {});
+  R.helArrow = mk("path", { fill: "var(--ltt-ink)" }, svg);
+  R.pills = pills;
+  R.svg = svg;
+  return R;
+}
+
+function head(p, x, y, dir) { p.setAttribute("d", `M${x},${y - 11} L${x + 16 * dir},${y} L${x},${y + 11} Z`); }
+
+function render(R, t) {
+  const F = FX(t), E = F - 90;               // E: 주형 직선부가 끝나는 x
+  R.up.setAttribute("d", `M${XR},215 L${F},215 C${F - 45},215 ${F - 45},${YU} ${E},${YU} L${XL},${YU}`);
+  R.lo.setAttribute("d", `M${XR},245 L${F},245 C${F - 45},245 ${F - 45},${YL} ${E},${YL} L${XL},${YL}`);
+  R.rungs.setAttribute("x1", F + 4); R.rungs.setAttribute("x2", XR);
+  R.hel.setAttribute("cx", F - 2);
+  R.helT.setAttribute("x", F + 26);
+  head(R.helArrow, F + 24, 230, 1);
+  R.helArrow.setAttribute("transform", `translate(${F + 34} 0)`);
+  R.helArrow.setAttribute("opacity", t < END ? 1 : 0);
+
+  // 선도 가닥
+  const lOn = t >= LEAD_T;
+  const sx = FX(LEAD_T) - 90, tip = Math.max(sx + 14, E);
+  for (const e of [R.lead, R.leadTicks, R.leadHead, R.leadPrimer, R.leadPol]) e.setAttribute("opacity", lOn ? (e === R.leadPol ? 0.92 : 1) : 0);
+  R.lead.setAttribute("x1", sx); R.lead.setAttribute("x2", tip);
+  R.leadTicks.setAttribute("x1", sx); R.leadTicks.setAttribute("x2", tip);
+  head(R.leadHead, tip, YLEAD, 1);
+  R.leadPrimer.setAttribute("x", sx);
+  R.leadPol.setAttribute("cx", tip + 10);
+  const llen = tip - sx;
+  R.leadPrimerT.setAttribute("x", sx + 30);
+  R.leadPrimerT.setAttribute("opacity", lOn && t < 3.6 ? 1 : 0);
+  R.leadDir.setAttribute("x", (sx + tip) / 2);
+  R.leadDir.setAttribute("opacity", lOn && llen > 100 ? 1 : 0);
+  R.leadPolT.setAttribute("x", tip + 10);
+  R.leadPolT.setAttribute("opacity", lOn && t > 2 && t < 7 ? 1 : 0);
+  const pOut = cl((t - 12) / 2.5), q = cl((t - 14.5) / 2);
+  R.leadPrimer.setAttribute("fill", pOut > 0.5 ? "var(--ltt-c1)" : "var(--ltt-warn)");
+  R.leadPrimer.setAttribute("stroke-opacity", 1 - pOut);
+
+  // 지연 가닥
+  const starts = FR_T.map((tk) => FX(tk) - 90);
+  R.frag.forEach((f, i) => {
+    const tk = FR_T[i], on = t >= tk, g = cl((t - tk) / FR_DUR);
+    const x0 = starts[i], len = FR_LEN * g, x1 = x0 - len;
+    const vis = on ? 1 : 0;
+    for (const e of [f.line, f.ticks, f.head, f.primer]) e.setAttribute("opacity", vis);
+    f.line.setAttribute("x1", x0); f.line.setAttribute("x2", x1);
+    f.ticks.setAttribute("x1", x0); f.ticks.setAttribute("x2", x1);
+    head(f.head, x1, YLAG, -1);
+    f.head.setAttribute("opacity", on && q < 0.5 ? 1 : 0);
+    f.primer.setAttribute("x", x0 - 14);
+    f.primer.setAttribute("fill", pOut > 0.5 ? "var(--ltt-c2)" : "var(--ltt-warn)");
+    f.primer.setAttribute("stroke-opacity", 1 - pOut);
+    f.dir.setAttribute("x", (x0 + x1) / 2);
+    f.dir.setAttribute("opacity", on && len > 60 && q < 0.5 ? 1 : 0);
+    f.pol.setAttribute("cx", x1 - 8);
+    f.pol.setAttribute("opacity", on && g < 1 ? 0.92 : 0);
+  });
+  // 틈과 연결
+  [0, 1].forEach((i) => {
+    const a = starts[i] - FR_LEN, b = starts[i + 1];  // 오래된 절편의 분기점 쪽 반대 끝 ~ 새 절편 5′ 끝
+    const gx0 = b, gx1 = starts[i];                   // 틈: 새 절편 왼끝(= b-FR_LEN)과 오래된 절편 오른끝(= starts[i])
+    const left = b - FR_LEN, right = starts[i];
+    const shown = t >= FR_T[i + 1] + FR_DUR;
+    R.gaps[i].setAttribute("x1", right); R.gaps[i].setAttribute("x2", left + 0);
+    R.gaps[i].setAttribute("x1", right); R.gaps[i].setAttribute("x2", right + (left - right) * 0);
+    R.gaps[i].setAttribute("x1", right);
+    R.gaps[i].setAttribute("x2", right + (right < left ? (left - right) * q : 0));
+    R.gaps[i].setAttribute("opacity", shown ? q : 0);
+    const nx = (right + left) / 2;
+    R.nicks[i].setAttribute("d", `M${nx},${YLAG - 12} L${nx + 8},${YLAG} L${nx},${YLAG + 12} L${nx - 8},${YLAG} Z`);
+    R.nicks[i].setAttribute("opacity", shown && t >= 12 && q < 1 ? (t < 14.5 ? cl((t - 12) / 1) : 1 - q) : 0);
+    void a; void gx0; void gx1;
+  });
+  R.ligT.setAttribute("x", (starts[0] + starts[1] - FR_LEN) / 2 + 20);
+  R.ligT.setAttribute("opacity", t >= 14.5 && q < 1 ? 1 : 0);
+  R.lagPrimerT.setAttribute("x", starts[0] - 20);
+  R.lagPrimerT.setAttribute("opacity", t >= 3 && t < 6 ? 1 : 0);
+  R.lagNote.setAttribute("opacity", t >= 9 + FR_DUR && t < 12 ? 1 : 0);
+  const r = cl((t - 8) / 1);
+  R.rule1.setAttribute("opacity", t >= 8 && t < 14.5 ? r : 0);
+  R.rule2.setAttribute("opacity", t >= 8 && t < 14.5 ? r : 0);
+
+  const stage = t < LEAD_T ? 0 : t < 3 ? 1 : t < 8 ? 2 : t < 12 ? 3 : 4;
+  R.pills.forEach((p, i) => p.classList.toggle("on", i === stage));
+}
+
+const LOOP = 21, HOLD_FROM = 17;
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  scenes: [{
+    type: "hook",
+    title: "새 가닥은 한 방향으로만 자란다. 그래서 한쪽은 끊어진다",
+    sub: "복제 분기점이 앞으로 열리는 동안, 위·아래 새 가닥이 어떻게 만들어지는지 순서대로 본다.",
+    mount(body) {
+      const R = build(body);
+      let raf = 0, t0 = 0;
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const tick = (now) => {
+        if (!t0) t0 = now;
+        const t = ((now - t0) / 1000) % LOOP;
+        render(R, t);
+        raf = requestAnimationFrame(tick);
+      };
+      render(R, HOLD_FROM);
+      return {
+        enter() { if (reduce) { render(R, HOLD_FROM); return; } t0 = 0; raf = requestAnimationFrame(tick); },
+        leave() { cancelAnimationFrame(raf); render(R, HOLD_FROM); },
+      };
+    },
+    takeaway: "합성 규칙은 5′→3′ 하나다. 분기점 기준으로 반대가 되는 쪽만 조각난다.",
+    recall: "지연 가닥이 조각나는 까닭을 '합성 방향'으로 설명해 보자.",
+  }],
+});
+</script>
+</body>
+</html>

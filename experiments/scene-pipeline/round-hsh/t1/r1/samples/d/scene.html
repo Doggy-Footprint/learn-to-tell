@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할이 루트까지 전파</title>
+<script type="application/json" id="ltt-meta">{"topic": "B+tree 노드 분할", "audience": "백엔드 개발자", "theme": "blueprint", "medium": "DB 내부 구조 도해", "decision": "인덱스 설계와 페이지 크기 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 요소가 보이는 단계 [나타남, 사라짐). 분할은 아래 리프에서 시작해 위로 번지고, 새 루트가 맨 나중에 생긴다.
+const LIFE = {
+  // 노드
+  ins: [0, 9], R: [0, 4], N2: [0, 3], O: [0, 9], NR: [5, 9], RL: [4, 9], RR: [4, 9], O2: [4, 9],
+  N2L: [3, 9], N2R: [3, 9], L0: [0, 1], L0a: [1, 9], L0b: [1, 9], L1: [0, 9], L2: [0, 9], L3: [0, 9], L4: [0, 9],
+  // 엣지
+  ins0: [0, 1], ins1: [1, 9], sibA: [1, 9], sibB: [1, 9], sib1: [0, 9], sib2: [0, 9], sib3: [0, 9],
+  nL0: [0, 1], nL1: [0, 3], nL2: [0, 3], nL3: [0, 3], nL4: [0, 3], rN2: [0, 3],
+  rO: [0, 4], copy25: [2, 3], move60: [3, 4], rN2L: [3, 4], rN2R: [3, 4],
+  n2lA: [3, 9], n2lB: [3, 9], n2lC: [3, 9], n2rA: [3, 9], n2rB: [3, 9], n2rC: [3, 9],
+  rlN2L: [4, 9], rlN2R: [4, 9], rlO: [4, 9], rrO2: [4, 9], nrRL: [5, 9], nrRR: [5, 9]
+};
+
+// 단계 자막과 강조(hot)
+const STEPS = [
+  { caption: "높이 3 트리. 키 25의 경로 루트 → N2 → 리프, 경로의 세 노드가 모두 4키로 가득 찼다.", hot: ["R", "N2", "L0", "ins0", "rN2", "nL0"] },
+  { caption: "① 리프에 25가 들어가 5키로 넘친다. 정렬하면 왼쪽 [10 20 22], 오른쪽 새 리프 [25 28]로 갈라진다.", hot: ["L0a", "L0b", "ins1"] },
+  { caption: "② 오른쪽 리프의 첫 키 25는 부모 N2로 복사되어 올라간다. 리프에 남은 25는 그대로다.", hot: ["L0b", "N2", "copy25"] },
+  { caption: "③ N2가 5키로 넘쳐 둘로 갈라진다. 가운데 60은 복사가 아니라 위로 옮겨진다.", hot: ["N2L", "N2R", "move60", "R"] },
+  { caption: "④ 루트도 60을 받아 5키로 넘친다. 가운데 200을 기준으로 루트가 둘로 갈라진다.", hot: ["RL", "RR", "O2"] },
+  { caption: "⑤ 갈라진 두 노드 위에 새 루트 [200]이 생긴다. 높이 3 → 4, 모든 리프의 깊이가 함께 1 늘었다.", hot: ["NR", "nrRL", "nrRR"] }
+];
+
+// 격자 좌표(열 c, 행 r). 행 0은 새 루트가 들어갈 자리다.
+const NODES = [
+  { id: "ins", c: 0.5, r: 4, l: "키 25", s: "삽입", k: "accent" },
+  { id: "R", c: 4.5, r: 1, l: "루트", s: "100 200 300 400" },
+  { id: "N2", c: 2.8, r: 2, l: "내부 N2", s: "30 60 80 90" },
+  { id: "O", c: 6.2, r: 2, l: "⋯", s: "나머지 자식", k: "muted" },
+  { id: "NR", c: 5.3, r: 0, l: "새 루트", s: "200" },
+  { id: "RL", c: 3.0, r: 1, l: "루트 왼쪽", s: "60 100" },
+  { id: "RR", c: 7.6, r: 1, l: "루트 오른쪽", s: "300 400" },
+  { id: "O2", c: 7.6, r: 2, l: "⋯", s: "나머지 자식", k: "muted" },
+  { id: "N2L", c: 1, r: 2, l: "N2 왼쪽", s: "25 30" },
+  { id: "N2R", c: 4, r: 2, l: "새 내부 노드", s: "80 90" },
+  { id: "L0", c: 0, r: 3, l: "리프 (가득)", s: "10 20 22 28", k: "accent" },
+  { id: "L0a", c: 0, r: 3, l: "왼쪽 리프", s: "10 20 22" },
+  { id: "L0b", c: 1, r: 3, l: "새 리프", s: "25 28" },
+  { id: "L1", c: 2, r: 3, l: "리프", s: "30 40 50" },
+  { id: "L2", c: 3, r: 3, l: "리프", s: "60 70" },
+  { id: "L3", c: 4, r: 3, l: "리프", s: "80 85" },
+  { id: "L4", c: 5, r: 3, l: "리프", s: "90 95 99" }
+];
+
+const EDGES = [
+  { id: "ins0", f: "ins", t: "L0", k: "accent" },
+  { id: "ins1", f: "ins", t: "L0b", k: "accent" },
+  { id: "sibA", f: "L0a", t: "L0b", from: "right", to: "left", dash: true },
+  { id: "sibB", f: "L0b", t: "L1", from: "right", to: "left", dash: true },
+  { id: "sib1", f: "L1", t: "L2", from: "right", to: "left", dash: true },
+  { id: "sib2", f: "L2", t: "L3", from: "right", to: "left", dash: true },
+  { id: "sib3", f: "L3", t: "L4", from: "right", to: "left", dash: true },
+  { id: "nL0", f: "N2", t: "L0", to: "top" },
+  { id: "nL1", f: "N2", t: "L1" },
+  { id: "nL2", f: "N2", t: "L2" },
+  { id: "nL3", f: "N2", t: "L3" },
+  { id: "nL4", f: "N2", t: "L4" },
+  { id: "rN2", f: "R", t: "N2" },
+  { id: "rO", f: "R", t: "O" },
+  { id: "copy25", f: "L0b", t: "N2", from: "top", to: "bottom", dash: true, k: "accent", l: "25 복사 ↑" },
+  { id: "move60", f: "N2R", t: "R", dash: true, k: "accent", l: "60 이동 ↑" },
+  { id: "rN2L", f: "R", t: "N2L" },
+  { id: "rN2R", f: "R", t: "N2R" },
+  { id: "n2lA", f: "N2L", t: "L0a" },
+  { id: "n2lB", f: "N2L", t: "L0b" },
+  { id: "n2lC", f: "N2L", t: "L1" },
+  { id: "n2rA", f: "N2R", t: "L2" },
+  { id: "n2rB", f: "N2R", t: "L3" },
+  { id: "n2rC", f: "N2R", t: "L4" },
+  { id: "rlN2L", f: "RL", t: "N2L" },
+  { id: "rlN2R", f: "RL", t: "N2R" },
+  { id: "rlO", f: "RL", t: "O" },
+  { id: "rrO2", f: "RR", t: "O2" },
+  { id: "nrRL", f: "NR", t: "RL", dash: true, k: "accent", l: "200 이동 ↑" },
+  { id: "nrRR", f: "NR", t: "RR" }
+];
+
+// 현재 단계에 맞게 요소를 켜고 끈다. 단계를 거꾸로 가도 같은 상태가 나온다.
+function apply(dg, i) {
+  for (const id in LIFE) {
+    const el = dg.node(id) || dg.edge(id);
+    if (el) el.style.display = i >= LIFE[id][0] && i < LIFE[id][1] ? "" : "none";
+  }
+  dg.highlight(STEPS[i].hot);
+}
+
+const hubScene = {
+  title: "분할은 아래에서 위로 번지고, 루트가 갈라질 때만 트리가 한 층 자란다",
+  en: "A split climbs one level at a time and only a root split grows the tree",
+  kicker: "DB · B+tree",
+  sub: "키 25를 넣으면 꽉 찬 {{리프}}가 갈라지고, 그 위 {{구분 키}}가 같은 일을 한 층씩 반복한다",
+  type: "figure",
+  figure: (el) => {
+    const s = el.appendChild(document.createElementNS(SVG, "svg"));
+    const dg = LTT.diagram(s, { cols: 9, rows: 5, cell: [136, 100], node: [114, 56], nodes: NODES, edges: EDGES });
+    apply(dg, 0);
+    return { el: s, dg };
+  },
+  caption: "노드당 최대 4키라고 가정한 설명용 트리다. 화살표 라벨은 위로 올라가거나 옮겨지는 키다.",
+  steps: STEPS.map((step, i) => ({ caption: step.caption, enter: (_, f) => apply(f.dg, i) })),
+  takeaway: "분할은 리프에서 시작해 부모로 번지고, 루트에서 멈출 때만 트리 높이가 1 늘어난다.",
+  recall: "분할이 중간 노드에서 멈추면 트리 높이는 어떻게 될까?",
+  basis: "가정: 노드당 최대 4키, 자식 최대 5개(설명용 값). 실제 DB는 페이지 크기로 팬아웃이 정해진다."
+};
+
+LTT.deck({
+  title: "B+tree 노드 분할이 루트까지 전파",
+  theme: "blueprint",
+  glossary: {
+    "리프": "키와 데이터 위치를 담는 맨 아래 노드. 옆 리프끼리 오른쪽 형제 링크로 이어진다.",
+    "구분 키": "내부 노드에서 자식들의 키 범위를 나누는 기준 키. 분할되면 한 층 위로 올라간다."
+  },
+  scenes: [hubScene]
+});
+</script>
+</body>
+</html>

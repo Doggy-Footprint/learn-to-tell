@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic": "신용 창조와 통화 승수", "audience": "경제 기사 독자", "theme": "ledger", "medium": "경제 신문 차트", "decision": "통화정책 기사 해석"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .row { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 12px; }
+  #chain svg { width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<script>
+const D0 = 100;
+const LETTERS = "ABCDE";
+const SVG = "http://www.w3.org/2000/svg";
+const STEPS = [
+  "은행 A가 최초 예금을 받아 준비금만 남기고 나머지를 빌려준다",
+  "대출금이 지출되어 은행 B의 새 예금이 된다. 예금 합계가 늘었다",
+  "같은 일이 되풀이되고, 라운드마다 새로 생기는 예금은 전 라운드보다 작아진다",
+  "준비금은 예금의 r만큼만 남는다. 불어난 것은 예금과 대출이다",
+  "누적 예금은 상한에 다가가지만 넘지 못한다. 상한은 최초 예금 ÷ r이다"
+];
+
+const fmt = (v) => +v.toFixed(2);
+// i번째 은행(0부터)이 받는 예금
+const dep = (i, r) => D0 * (1 - r) ** i;
+// k라운드까지 누적 예금 총액
+const cumAt = (k, r) => { let s = 0; for (let i = 0; i < k; i++) s += dep(i, r); return s; };
+// 극한 상한 = 최초 예금 ÷ 지급준비율
+const ceilOf = (r) => D0 / r;
+
+LTT.expect("5라운드 누적 예금 (r=10%)", cumAt(5, 0.1), 409.51, { tol: 0.01 });
+LTT.expect("예금 상한 (r=10%)", ceilOf(0.1), 1000, { tol: 1e-9 });
+
+// k개 은행을 한 줄로 그린다. 대출이 다음 은행의 예금이 된다.
+function chainSpec(k, r) {
+  const nodes = [], edges = [];
+  for (let i = 0; i < k; i++) {
+    const id = "b" + i;
+    nodes.push({ id, c: i, r: 0, l: `은행 ${LETTERS[i]}`,
+      s: `예금 ${fmt(dep(i, r))}\n준비금 ${fmt(dep(i, r) * r)}`,
+      k: i === k - 1 ? "accent" : "muted" });
+    if (i) edges.push({ f: "b" + (i - 1), t: id, l: `대출 ${fmt(dep(i - 1, r) * (1 - r))}` });
+  }
+  return { cols: 5, rows: 1, cell: [180, 150], node: [132, 64], nodes, edges };
+}
+
+const scene = {
+  title: "은행은 예금의 일부만 남기고 빌려주며, 그 대출이 다시 예금이 된다",
+  en: "Each loan becomes a new deposit",
+  kicker: "신용 창조",
+  sub: "지급준비율 r이 낮을수록 예금 총액의 상한이 커진다",
+  narration: "은행 A가 받은 예금 100 중 준비금 10만 남기고 90을 빌려준다. 대출금이 은행 B의 새 예금이 되고, 이 과정이 되풀이되며 누적 예금은 상한 1000에 가까워진다.",
+  takeaway: "예금 총액의 상한은 최초 예금 ÷ {{지급준비율}}이다. 지급준비율이 낮을수록 {{통화 승수}}가 커진다.",
+  recall: "지급준비율이 5%라면 상한은 얼마인가?",
+  basis: "이론상 상한. 현금 보유, 초과 준비금, 대출 수요 부족이 없다고 가정한다. 최초 예금 100, 지급준비율 10%는 모델로 계산한 예시다.",
+  mount(body) {
+    body.innerHTML = `
+      <div id="chain"></div>
+      <div class="row">
+        <div class="ltt-stat">누적 예금 <b id="cum"></b><small>억 원</small></div>
+        <div class="ltt-stat">예금 상한 <b id="ceil"></b><small>억 원</small></div>
+        <div class="ltt-stat">준비금 총량 <b>100</b><small>처음 그대로</small></div>
+      </div>
+      <div id="prog"></div>
+      <div class="ltt-param">지급준비율 <b id="r-v"></b><div id="r"></div></div>
+      <div id="steps"></div>`;
+    let k = 1, r = 0.1;
+    const chain = body.querySelector("#chain");
+    const bar = LTT.bar("prog", [{ color: "var(--ltt-accent)" }, { color: "var(--ltt-line)" }]);
+    function redraw() {
+      chain.innerHTML = "";
+      const s = chain.appendChild(document.createElementNS(SVG, "svg"));
+      LTT.diagram(s, chainSpec(k, r));
+      const cum = cumAt(k, r), ceil = ceilOf(r), pct = cum / ceil * 100;
+      body.querySelector("#cum").textContent = fmt(cum);
+      body.querySelector("#ceil").textContent = fmt(ceil);
+      bar.set([pct, 100 - pct], [`누적 ${fmt(cum)}`, ""]);
+    }
+    // 지급준비율을 바꾸면 연쇄 전체를 같은 라운드에서 다시 계산한다
+    LTT.sweep({ params: { r: { kind: "steps", stops: [20, 10, 5], value: 10, fmt: (v) => v + "%" } },
+      render: ({ r: v }) => { r = v / 100; redraw(); } });
+    const st = LTT.stepper(body.querySelector("#steps"),
+      STEPS.map((caption, i) => ({ caption, enter: () => { k = i + 1; redraw(); } })));
+    redraw();
+    return { leave: () => st.stop() };
+  }
+};
+
+LTT.deck({
+  title: "신용 창조와 통화 승수",
+  theme: "ledger",
+  glossary: {
+    "지급준비율": "은행이 받은 예금 중 대출하지 않고 남겨 두는 비율",
+    "통화 승수": "최초 예금이 예금 총액으로 몇 배까지 불어나는지. 지급준비율의 역수(1/r)"
+  },
+  scenes: [scene]
+});
+</script>
+</body>
+</html>

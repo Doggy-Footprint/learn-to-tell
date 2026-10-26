@@ -1,0 +1,8 @@
+{
+ "t1": {"topic_line": "DB · B+tree 삽입 시 노드 분할이 루트까지 전파", "topic": "B+tree 노드 분할", "audience": "백엔드 개발자", "theme": "blueprint", "medium": "DB 내부 구조 도해", "decision": "인덱스 설계와 페이지 크기 이해", "domain": "DB", "role": "figure"},
+ "t2": {"topic_line": "네트워크 · TCP 혼잡 제어, slow start에서 AIMD 톱니로", "topic": "TCP 혼잡 제어", "audience": "백엔드·네트워크 개발자", "theme": "lab", "medium": "cwnd 시계열 플롯", "decision": "전송 처리량 문제 진단", "domain": "네트워크", "role": "predict"},
+ "t3": {"topic_line": "분산 시스템 · Raft 리더 선출과 로그 복제 한 장 정리", "topic": "Raft 합의", "audience": "분산 시스템 입문 개발자", "theme": "sketch", "medium": "아키텍처 화이트보드", "decision": "합의 기반 저장소 선택", "domain": "분산 시스템", "role": "overview"},
+ "t4": {"topic_line": "생물 · DNA 복제 분기점, 선도 가닥과 오카자키 절편", "topic": "DNA 복제 분기점", "audience": "생명과학 입문 학생", "theme": "paper", "medium": "교과서 도해", "decision": "복제 과정 이해", "domain": "생물", "role": "hook"},
+ "t5": {"topic_line": "통화 · 지급준비율에 따라 예금이 불어나는 신용 창조", "topic": "신용 창조와 통화 승수", "audience": "경제 기사 독자", "theme": "ledger", "medium": "경제 신문 차트", "decision": "통화정책 기사 해석", "domain": "통화", "role": "sweep"},
+ "t6": {"topic_line": "런타임 · mark-and-sweep GC vs 참조 카운팅, 순환 참조", "topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단", "domain": "런타임", "role": "contrast"}
+}

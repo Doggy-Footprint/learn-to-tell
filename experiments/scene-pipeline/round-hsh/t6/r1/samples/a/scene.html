@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가비지 컬렉션 방식: 참조 카운팅 vs mark-and-sweep</title>
+<script type="application/json" id="ltt-meta">{"topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 간선은 "from>to"로 부른다. 시나리오: 루트→A, A.next=B, B.prev=A, 루트→C
+const CAPTIONS = [
+  "A를 만들고 루트가 잡는다",
+  "B를 만들고 A.next=B로 잇는다",
+  "B.prev=A로 B가 A를 가리킨다. 이제 A↔B가 서로를 가리킨다",
+  "루트가 C를 잡는다",
+  "루트가 A를 놓는다. 프로그램은 A, B에 닿을 방법이 없다",
+  "RC는 카운트가 0인지 보고, M&S는 루트에서 닿는지 mark한다",
+  "두 방식의 결과가 갈린다: RC는 A, B를 남기고 M&S는 해제한다"
+];
+const BUILD_LIT = [
+  ["root", "A", "root>A"],
+  ["root", "A", "root>A", "B", "A>B"],
+  ["root", "A", "root>A", "B", "A>B", "B>A"],
+  ["root", "A", "root>A", "B", "A>B", "B>A", "C", "root>C"]
+];
+const ALL_LIVE = ["root", "A", "B", "C", "root>C", "A>B", "B>A"];
+const ROOT_ONLY = ["root", "C", "root>C"];
+
+const RC_COUNTS = ["A=1", "A=1 · B=1", "A=2 · B=1", "A=2 · B=1 · C=1", "A=1 · B=1 · C=1", "A=1 · B=1 · C=1", "A=1 · B=1 · C=1"];
+const RC_NOTES = [
+  "카운트 A=1: 루트가 잡음",
+  "카운트 A=1 · B=1: A.next=B",
+  "카운트 A=2 · B=1: B.prev=A가 A를 한 번 더 셈",
+  "카운트 A=2 · B=1 · C=1",
+  "루트 해제로 A만 1 줄어듦",
+  "A=1, B=1은 0이 아니므로 <span class=\"ltt-tag bad\">해제 안 됨</span>",
+  "남은 객체 A(보유: B), B(보유: A). 루트 경로 없음 → <span class=\"ltt-tag bad\">누수 2개</span>"
+];
+const MS_NOTES = [
+  "수거 전: 살아 있음",
+  "수거 전: 살아 있음",
+  "수거 전: 살아 있음 (카운트는 쓰지 않음)",
+  "수거 전: 살아 있음",
+  "루트 해제 후에도 수거 주기 전이라 남아 있음",
+  "mark: 루트에서 닿는 <span class=\"ltt-tag good\">C만 표시</span>",
+  "sweep: 표시 안 된 <span class=\"ltt-tag warn\">A, B 해제</span>"
+];
+
+let cur = 0;
+const sides = [];
+function apply(i) {
+  cur = i;
+  sides.forEach((s) => s.apply(i));
+}
+
+function side(kind) {
+  return (el) => {
+    const box = el.appendChild(document.createElement("div"));
+    const stage = box.appendChild(document.createElement("div"));
+    const svg = stage.appendChild(document.createElementNS(SVG, "svg"));
+    const note = box.appendChild(document.createElement("div"));
+    note.className = "ltt-basis";
+    const ctl = box.appendChild(document.createElement("div"));
+    const dg = LTT.diagram(svg, {
+      cols: 3, rows: 2, cell: [200, 130], node: [120, 56],
+      nodes: [
+        { id: "root", c: 0, r: 0, l: "루트", icon: "anchor" },
+        { id: "A", c: 1, r: 0, l: "객체 A" },
+        { id: "B", c: 2, r: 0, l: "객체 B" },
+        { id: "C", c: 0, r: 1, l: "객체 C" }
+      ],
+      edges: [
+        { f: "root", t: "A", l: "루트 참조" },
+        { f: "A", t: "B", l: "A.next" },
+        { f: "B", t: "A", l: "B.prev" },
+        { f: "root", t: "C", l: "루트 참조" }
+      ]
+    });
+    const s = {
+      apply(i) {
+        const isRC = kind === "rc";
+        if (isRC) dg.highlight(i < 4 ? BUILD_LIT[i] : ALL_LIVE);
+        else dg.highlight(i < 4 ? BUILD_LIT[i] : i === 4 ? ALL_LIVE : ROOT_ONLY);
+        note.innerHTML = isRC ? RC_NOTES[i] : MS_NOTES[i];
+      }
+    };
+    sides.push(s);
+    s.apply(cur);
+    if (kind === "rc") {
+      dg.player(ctl, CAPTIONS.map((caption, i) => ({
+        caption,
+        hold: 2400,
+        enter: () => apply(i)
+      })));
+    }
+    return {};
+  };
+}
+
+LTT.deck({
+  title: "가비지 컬렉션 방식",
+  theme: "terminal",
+  glossary: {
+    "참조 카운팅": "객체마다 자기를 가리키는 참조 수를 세고, 0이 되면 바로 해제하는 방식.",
+    "mark-and-sweep": "루트에서 닿는 객체를 표시(mark)한 뒤, 표시되지 않은 것을 해제(sweep)하는 방식."
+  },
+  scenes: [
+    {
+      type: "contrast",
+      title: "루트에서 닿지 않는 순환 쌍은 참조 카운팅에 남고, mark-and-sweep에서는 사라진다",
+      en: "Reference counting vs mark-and-sweep on a cycle",
+      kicker: "런타임 · 가비지 컬렉션",
+      sub: "루트를 끊은 뒤 두 방식이 같은 객체 그래프를 어떻게 다르게 보는지",
+      narration: "{{참조 카운팅}}은 객체가 몇 번 참조되는지 세고 0이 되면 해제한다. A와 B가 서로를 가리키면 루트를 끊어도 카운트가 1로 남는다. {{mark-and-sweep}}은 루트에서 닿는 것만 표시하므로 같은 두 객체를 해제한다.",
+      before: { title: "참조 카운팅 (RC)", visual: side("rc") },
+      after: { title: "mark-and-sweep (M&S)", visual: side("ms") },
+      takeaway: "루트에서 닿지 않는데 힙 스냅샷에 남은 객체는 참조 카운팅 계열의 순환 누수를 의심할 자리다.",
+      recall: "루트를 끊은 뒤 A의 카운트가 1로 남는 이유는?",
+      basis: "시나리오 손 계산: 루트→A, A.next=B, B.prev=A, 루트→C. 수치는 <span class=\"ltt-tag muted\">모델로 계산한 예시</span>"
+    }
+  ]
+});
+</script>
+</body>
+</html>

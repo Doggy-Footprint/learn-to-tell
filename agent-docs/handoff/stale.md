@@ -80,3 +80,8 @@ File: 3972a821cdeee012-scene-pipeline-experiment.md
 Summary: 장면 생성 실험 round0(현재 흐름 vs 본보기 복제, 사전 기준 실패) 결과와 round1(스토리보드 Opus → 계획 Sonnet → Haiku 샘플/바로 생성 분기 → corrector) 설계
 Related Files: experiments/scene-pipeline/, skills/learn-to-tell/SKILL.md, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/server/audit.mjs, site/gallery/shots/axes.json
 Related Symbols: LTT.deck, LTT.expect, LTT.sweep
+---
+File: 2b0025305e515b67-noshot-haiku-sample-correction.md
+Summary: 장면 생성 HSH 실험(Haiku 샘플 4 → Sonnet 방향·제작 → Haiku 검수)과 절제 갈래(0R, HHH, 샘플 2개, 2회차 검수), 새 주제 6개 × 3회. 비용·채점관 결과, 사용자 블라인드 채점 대기, 생성기 수정 후보(hook art, predict visual 분리 요소)
+Related Files: experiments/scene-pipeline/hsh.py, experiments/scene-pipeline/judge.py, experiments/scene-pipeline/r1.py, experiments/scene-pipeline/round-hsh/, experiments/scene-pipeline/round-judge/, skills/learn-to-tell/kit/API.md, skills/learn-to-tell/kit/api/deck-contracts.md
+Related Symbols: LTT.deck, hook art, mount, predict visual

@@ -1,0 +1,506 @@
+{
+ "t1-r1": {
+  "note": "",
+  "at": 1792978626121,
+  "arms": {
+   "zero": {
+    "label": "가",
+    "score": 8,
+    "note": ""
+   },
+   "0RR2": {
+    "label": "나",
+    "score": 9,
+    "note": ""
+   },
+   "HHH": {
+    "label": "다",
+    "score": 5,
+    "note": "어떻게 분할이 시작되는지에 대한 게 없어서 아쉬움\n그리고 다른 장면의 ㅁㅁㅁㅁ 표기에 비해 10,20,22는 가시성이 좀 떨어짐."
+   },
+   "S4R2": {
+    "label": "라",
+    "score": 5,
+    "note": "어떻게 분할이 시작되는지에 대한 게 없어서 아쉬움\n그리고 다른 장면의 ㅁㅁㅁㅁ 표기에 비해 10,20,22는 가시성이 좀 떨어짐."
+   },
+   "S4": {
+    "label": "마",
+    "score": 5,
+    "note": "어떻게 분할이 시작되는지에 대한 게 없어서 아쉬움\n그리고 다른 장면의 ㅁㅁㅁㅁ 표기에 비해 10,20,22는 가시성이 좀 떨어짐."
+   },
+   "0R": {
+    "label": "바",
+    "score": 9,
+    "note": ""
+   }
+  }
+ },
+ "t1-r2": {
+  "note": "",
+  "at": 1792980303018,
+  "arms": {
+   "zero": {
+    "label": "가",
+    "score": 4,
+    "note": "infographic animation은 들어가나, 어떻게 움직이는지 정보 없이 나타나서 이해가 어려움"
+   },
+   "S4": {
+    "label": "나",
+    "score": 7,
+    "note": ""
+   },
+   "HHH": {
+    "label": "다",
+    "score": 8,
+    "note": "나에 비해 처음 86 삽입이 명시적으로 보이는 게 좋았음."
+   },
+   "S4R2": {
+    "label": "라",
+    "score": 7,
+    "note": ""
+   },
+   "0R": {
+    "label": "마",
+    "score": 4,
+    "note": "infographic animation은 들어가나, 어떻게 움직이는지 정보 없이 나타나서 이해가 어려움"
+   },
+   "0RR2": {
+    "label": "바",
+    "score": 3,
+    "note": "infographic animation은 들어가나, 어떻게 움직이는지 정보 없이 나타나서 이해가 어려움\npage 개념은 갑자기 왜 나오는 지 모르겠음. 맥락이 부족"
+   }
+  }
+ },
+ "t1-r3": {
+  "note": "",
+  "at": 1792980325254,
+  "arms": {
+   "0R": {
+    "label": "가",
+    "score": 3,
+    "note": "infographic animation이 끊어져 보여서 이해가 어려움"
+   },
+   "0RR2": {
+    "label": "나",
+    "score": 3,
+    "note": "infographic animation이 끊어져 보여서 이해가 어려움"
+   },
+   "zero": {
+    "label": "다",
+    "score": 3,
+    "note": "infographic animation이 끊어져 보여서 이해가 어려움"
+   },
+   "S4": {
+    "label": "라",
+    "score": 5,
+    "note": "infographic animation이 끊어져 보여서 이해가 어려움. 단, 중간에 위로 전달되는 표시가 있어 추가 점수를 줌."
+   },
+   "S4R2": {
+    "label": "마",
+    "score": 4,
+    "note": "infographic animation이 끊어져 보여서 이해가 어려움. 단, 중간에 위로 전달되는 표시가 있어 추가 점수를 줌.\n페이지는 왜 있는지 모르겠음. 맥락이 부족"
+   },
+   "HHH": {
+    "label": "바",
+    "score": 9,
+    "note": "이동하는 게 잘 보여서 이해하기 쉬움"
+   }
+  }
+ },
+ "t2-r1": {
+  "note": "평가 불가. 페이지 구성에 문제가 있음. 뜨는 infographic animation이 보이지 않고, 스크롤 해서 보려고 하면 이미 끝나 있음.",
+  "at": 1792980332059,
+  "arms": {
+   "S4": {
+    "label": "가",
+    "score": null,
+    "note": "일단 처음 위치에서 보이지 않음. 내리고 나서야 보임. → 이건 이 타입의 문제인 것 같음.\n그리고 애니메이션도 투박함."
+   },
+   "0R": {
+    "label": "나",
+    "score": null,
+    "note": ""
+   },
+   "HHH": {
+    "label": "다",
+    "score": null,
+    "note": ""
+   },
+   "zero": {
+    "label": "라",
+    "score": null,
+    "note": ""
+   },
+   "0RR2": {
+    "label": "마",
+    "score": null,
+    "note": ""
+   },
+   "S4R2": {
+    "label": "바",
+    "score": null,
+    "note": ""
+   }
+  }
+ },
+ "t2-r2": {
+  "note": "",
+  "at": 1792979345440,
+  "arms": {
+   "0RR2": {
+    "label": "가",
+    "score": 7,
+    "note": ""
+   },
+   "zero": {
+    "label": "나",
+    "score": 7,
+    "note": ""
+   },
+   "S4R2": {
+    "label": "다",
+    "score": 2,
+    "note": "연속적이지 않고 투박하며, 스크롤을 해서 내려야 보이는 문제가 있음"
+   },
+   "0R": {
+    "label": "라",
+    "score": 7,
+    "note": ""
+   },
+   "HHH": {
+    "label": "마",
+    "score": 2,
+    "note": "연속적이지 않고 투박하며, 스크롤을 해서 내려야 보이는 문제가 있음"
+   },
+   "S4": {
+    "label": "바",
+    "score": 2,
+    "note": "연속적이지 않고 투박하며, 스크롤을 해서 내려야 보이는 문제가 있음"
+   }
+  }
+ },
+ "t2-r3": {
+  "note": "",
+  "at": 1792980362351,
+  "arms": {
+   "S4": {
+    "label": "가",
+    "score": 1,
+    "note": "설명 장면에서 infographic animation이 거의 없음."
+   },
+   "S4R2": {
+    "label": "나",
+    "score": 1,
+    "note": "설명 장면에서 infographic animation이 거의 없음."
+   },
+   "0RR2": {
+    "label": "다",
+    "score": 2,
+    "note": "스크롤을 해서 내려야 보이는 문제가 있음"
+   },
+   "HHH": {
+    "label": "라",
+    "score": 2,
+    "note": "스크롤을 해서 내려야 보이는 문제가 있음"
+   },
+   "zero": {
+    "label": "마",
+    "score": 2,
+    "note": "infographic animation이 없으며 스크롤을 해서 내려야 보이는 문제가 있음"
+   },
+   "0R": {
+    "label": "바",
+    "score": 2,
+    "note": "infographic animation이 없으며 스크롤을 해서 내려야 보이는 문제가 있음"
+   }
+  }
+ },
+ "t3-r1": {
+  "note": "",
+  "at": 1792979845696,
+  "arms": {
+   "zero": {
+    "label": "가",
+    "score": 4,
+    "note": "진행 마다 그림의 frame이 움직임"
+   },
+   "S4R2": {
+    "label": "나",
+    "score": 9,
+    "note": ""
+   },
+   "0R": {
+    "label": "다",
+    "score": 4,
+    "note": "진행 마다 그림의 frame이 움직임"
+   },
+   "0RR2": {
+    "label": "라",
+    "score": 8,
+    "note": ""
+   },
+   "S4": {
+    "label": "마",
+    "score": 9,
+    "note": ""
+   },
+   "HHH": {
+    "label": "바",
+    "score": 6,
+    "note": "아 퀴즈 후 설명 체제구나. \n설명은 좀 더 구체적이면 좋겠음. 실제 유저의 대답을 모르니까 포괄적으로 해답과 이유를 설명하는 게 좋을 듯\n\ninfographic animation에서는 graphic이 흔들림\n\n좀 엉성하지만 퀴즈 → 설명 → 복습 구조는 괜찮음"
+   }
+  }
+ },
+ "t3-r2": {
+  "note": "",
+  "at": 1792980074848,
+  "arms": {
+   "0R": {
+    "label": "가",
+    "score": 4,
+    "note": "프레임이 흔들린다."
+   },
+   "S4R2": {
+    "label": "나",
+    "score": 6,
+    "note": "좋은데, 좀 빨라서 보기 어려움. 느리면 답답할테니 stepper가 더 나았을 것 같음\nstepper의 작은(UI를 덜 차지하는) 버전 도 만들면 좋을 것 같음. 이 이미지는 크게 화면을 차지해서 집중이 잘 됨."
+   },
+   "HHH": {
+    "label": "다",
+    "score": 9,
+    "note": "설명부가 살짝 흔들리지만 안정적.\n구성도 퀴즈 설명 복습으로 좋음"
+   },
+   "S4": {
+    "label": "라",
+    "score": 6,
+    "note": "좋은데, 좀 빨라서 보기 어려움. 느리면 답답할테니 stepper가 더 나았을 것 같음\nstepper의 작은(UI를 덜 차지하는) 버전 도 만들면 좋을 것 같음. 이 이미지는 크게 화면을 차지해서 집중이 잘 됨."
+   },
+   "0RR2": {
+    "label": "마",
+    "score": 4,
+    "note": "프레임이 흔들린다."
+   },
+   "zero": {
+    "label": "바",
+    "score": 4,
+    "note": "프레임이 흔들린다."
+   }
+  }
+ },
+ "t3-r3": {
+  "note": "",
+  "at": 1792980271760,
+  "arms": {
+   "S4": {
+    "label": "가",
+    "score": 5,
+    "note": "프레임이 흔들린다. 많이는 아니지만 거슬림"
+   },
+   "S4R2": {
+    "label": "나",
+    "score": 3,
+    "note": "프레임과 설명은 안정적이지만 한 페이지에서 조작이 안 됨. → stepper ui를 작은 형태로 제공하는 방안을 다시 지지"
+   },
+   "0R": {
+    "label": "다",
+    "score": 2,
+    "note": "구성은 넣었으나, 마무리가 아쉽고, infographic animation 이 없음. "
+   },
+   "0RR2": {
+    "label": "라",
+    "score": 2,
+    "note": "구성은 넣었으나, 마무리가 아쉽고, infographic animation 이 없음. "
+   },
+   "zero": {
+    "label": "마",
+    "score": 1,
+    "note": "그냥 그림만 있고 infographic animation 도 없고 아무것도 없음."
+   },
+   "HHH": {
+    "label": "바",
+    "score": 6,
+    "note": "구성에서 마감이 아쉽고, UI가 너무 커서 스크롤 하며 사용해야 함."
+   }
+  }
+ },
+ "t4-r1": {
+  "note": "",
+  "at": 1792980494090,
+  "arms": {
+   "S4R2": {
+    "label": "가",
+    "score": 8,
+    "note": ""
+   },
+   "zero": {
+    "label": "나",
+    "score": 2,
+    "note": "infographic animation은 보이지 않을 정도로 작고, 설명은 과하게 큼. kit에서 잘못된 페이지 형식을 가져다 쓴 것 같음"
+   },
+   "0R": {
+    "label": "다",
+    "score": 2,
+    "note": "infographic animation은 보이지 않을 정도로 작고, 설명은 과하게 큼. kit에서 잘못된 페이지 형식을 가져다 쓴 것 같음"
+   },
+   "S4": {
+    "label": "라",
+    "score": 8,
+    "note": ""
+   },
+   "HHH": {
+    "label": "마",
+    "score": 6,
+    "note": ""
+   },
+   "0RR2": {
+    "label": "바",
+    "score": 2,
+    "note": "infographic animation은 보이지 않을 정도로 작고, 설명은 과하게 큼. kit에서 잘못된 페이지 형식을 가져다 쓴 것 같음"
+   }
+  }
+ },
+ "t4-r2": {
+  "note": "",
+  "at": 1792980720135,
+  "arms": {
+   "S4R2": {
+    "label": "가",
+    "score": 9,
+    "note": "핵심을 잘 설명했으며 지연 가닥만 긴 것도 효과적으로 상황을 잘 표현함 (혼자 길어서 뭐지? 했는데, 지연 가닥이라 떠서 이해됨)"
+   },
+   "0RR2": {
+    "label": "나",
+    "score": 7,
+    "note": ""
+   },
+   "zero": {
+    "label": "다",
+    "score": 7,
+    "note": ""
+   },
+   "HHH": {
+    "label": "라",
+    "score": 8,
+    "note": "마지막에 합쳐지는 건 좋았으나 그러면서  절편으로 처리된다는 정보가 사라짐"
+   },
+   "0R": {
+    "label": "마",
+    "score": 7,
+    "note": ""
+   },
+   "S4": {
+    "label": "바",
+    "score": 9,
+    "note": "핵심을 잘 설명했으며 지연 가닥만 긴 것도 효과적으로 상황을 잘 표현함 (혼자 길어서 뭐지? 했는데, 지연 가닥이라 떠서 이해됨)"
+   }
+  }
+ },
+ "t4-r3": {
+  "note": "",
+  "at": 1792981493780,
+  "arms": {
+   "S4": {
+    "label": "가",
+    "score": 5,
+    "note": "그림이 많이 작음 이정도 크기면 핵심만 표현한 animation 없는 infographic이 나을듯"
+   },
+   "0R": {
+    "label": "나",
+    "score": 3,
+    "note": "그림이 많이 작음 이정도 크기면 핵심만 표현한 animation 없는 infographic이 나을듯"
+   },
+   "HHH": {
+    "label": "다",
+    "score": 6,
+    "note": "지연 가닥에 대한 설명이 없고, 프라이머를 때는 모션이 화살표가 커지는 것과 연관성이 떨어짐"
+   },
+   "0RR2": {
+    "label": "라",
+    "score": 3,
+    "note": "그림이 많이 작음 이정도 크기면 핵심만 표현한 animation 없는 infographic이 나을듯"
+   },
+   "S4R2": {
+    "label": "마",
+    "score": 5,
+    "note": "그림이 많이 작음 이정도 크기면 핵심만 표현한 animation 없는 infographic이 나을듯"
+   },
+   "zero": {
+    "label": "바",
+    "score": 3,
+    "note": "그림이 많이 작음 이정도 크기면 핵심만 표현한 animation 없는 infographic이 나을듯"
+   }
+  }
+ },
+ "t5-r1": {
+  "note": "내가 개념이 부족해서 그런가, 무슨 맥락인지 모르겠음.",
+  "at": 1792989138265,
+  "arms": {
+   "0RR2": {
+    "label": "가",
+    "score": 4,
+    "note": "진행 라운드 개념은 좋았는데, 지급 준비율을 바꾸면 다시 진행이 되어야 함. \n또한 graph에서 각각이 어떤 걸 의미하는지 파악이 어려움"
+   },
+   "S4": {
+    "label": "나",
+    "score": 5,
+    "note": "지급 준비율 별 비교가 어려움"
+   },
+   "HHH": {
+    "label": "다",
+    "score": 6,
+    "note": "틀린 부분은 없음.\n하지만 설명(글)은 너무 빠르고 탬포는 너무 느림"
+   },
+   "0R": {
+    "label": "라",
+    "score": 2,
+    "note": "15%에서 화면이 깨짐. 숫자의 크기가 너무 큼"
+   },
+   "zero": {
+    "label": "마",
+    "score": 2,
+    "note": "15%에서 화면이 깨짐. 숫자의 크기가 너무 큼"
+   },
+   "S4R2": {
+    "label": "바",
+    "score": 5,
+    "note": "지급 준비율 별 비교가 어려움"
+   }
+  }
+ },
+ "t5-r2": {
+  "note": "",
+  "at": 1792989337604,
+  "arms": {
+   "S4R2": {
+    "label": "가",
+    "score": 4,
+    "note": "은행에 남는 돈과 대출로 나간 돈의 관계가 직관적으로 보이지 않고, 정확하게 표시되지도 않음."
+   },
+   "0R": {
+    "label": "나",
+    "score": 7,
+    "note": "라운드 별 비교가 어려움"
+   },
+   "zero": {
+    "label": "다",
+    "score": 7,
+    "note": "라운드 별 비교가 어려움"
+   },
+   "HHH": {
+    "label": "라",
+    "score": 5,
+    "note": "돈의 크기가 직관적이지 않음"
+   },
+   "S4": {
+    "label": "마",
+    "score": 4,
+    "note": ""
+   },
+   "0RR2": {
+    "label": "바",
+    "score": 7,
+    "note": ""
+   }
+  }
+ }
+}

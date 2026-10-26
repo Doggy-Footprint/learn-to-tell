@@ -1,0 +1,35 @@
+# stream.jsonl
+
+- 말: 먼저 지정된 텍스트 파일들과 `shots/` 목록을 함께 읽겠습니다. 스크린샷 이름은 목록을 봐야 알 수 있습니다.
+- Bash `ls -la shots/ 2>&1`
+- Read `storyboard.md`
+- Read `direction.md`
+- Read `scene.html`
+- Read `shots/index.txt`
+- Read `shots/scene-audit.txt`
+- Read `refs/API.md`
+- 말: 스크린샷 세 장을 읽습니다. 크기가 세 장 모두 90598 B로 같아서, 같은 화면이 반복될 가능성도 있습니다.
+- Read `shots/scene-t1s.jpg`
+- Read `shots/scene-t4s.jpg`
+- Read `shots/scene-t8s.jpg`
+- 말: 스크린샷 세 장은 모두 공개 전 질문 화면이고 내용이 같습니다. 이제 검수 결과를 `review.md`에 씁니다. 고치기 전 단계입니다.
+- Write `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t2/r2/review2/review.md` (+1868자)
+- 말: 표 판정이 끝났습니다. 질문 문장이 안 보이는 원인과 `answerVisual` 계약을 확인하려고 허용된 부품 문서 하나를 읽습니다.
+- Read `refs/api/deck-contracts.md`
+- 말: 계약 문서에서 확인한 사실은 두 가지입니다. 배율이 문제 상태와 정답 상태 중 큰 쪽에 맞춰지므로 플롯 높이를 줄이면 잘림과 축소가 함께 풀립니다. `question` 누락의 원인은 이 문서에 없습니다. 규칙대로 먼저 audit을 돌려 "고침" 지적을 확인합니다.
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html 2>&1`
+- 말: audit은 "고침 0건"입니다. 다만 audit은 정답 보기 버튼 잘림을 잡지 못했습니다. 그래서 이번 라운드의 고침 목록은 `review.md`의 실패 항목으로 정하고, 이 Edit 묶음 뒤에 다시 audit해서 "고침 0건"을 확인하겠습니다. 실패 항목 중 플롯 높이, 처리량 단서, 75%, 진단 판단을 고칩니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t2/r2/review2/scene.html`
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t2/r2/review2/scene.html`
+- 말: Edit 묶음을 반영했습니다. 다시 audit합니다.
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html 2>&1`
+- 말: audit은 여전히 "고침 0건"입니다. 다만 78% 축소는 플롯 높이를 줄여도 풀리지 않았습니다. 마지막으로 `review.md`의 판정 요약을 정정하고 `## 고친 것`을 붙입니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t2/r2/review2/review.md`
+- 말: 실패 6건 중 4건을 고쳤고 2건은 고치지 못했습니다. 실패 6건은 처리량 단서, 75% 값, 비트 5, 비트 6, 질문 문장 미표시, 정답 보기 잘림입니다.
+
+- **고친 것 (4건):** 처리량 basis에 rwnd 단서 추가, why에 톱니 평균 75% 추가, takeaway에 "1까지 자주 무너지면 처리량 저하 원인" 추가, 플롯 높이 330→280.
+- **고치지 못한 것:**
+  - **질문 문장:** 스크린샷에 `question` 텍스트가 안 보입니다. 경로 제약 때문에 kit의 predict 렌더링을 확인하지 못해 원인을 모릅니다.
+  - **정답 보기 잘림:** 플롯 높이를 줄여도 78% 축소가 그대로입니다. 다시 캡처하지 않아 잘림이 풀렸는지 확인하지 못했습니다.
+  - **비트 5·6:*
+- 결과: success $0.0271 18턴 125s

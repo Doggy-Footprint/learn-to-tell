@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할은 가득 찬 잎에서 루트까지 올라간다</title>
+<script type="application/json" id="ltt-meta">{"topic": "B+tree 노드 분할", "audience": "백엔드 개발자", "theme": "blueprint", "medium": "DB 내부 구조 도해", "decision": "인덱스 설계와 페이지 크기 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .bt svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .bt text { fill: var(--ltt-ink); font-size: 13px; text-anchor: middle; dominant-baseline: middle; font-variant-numeric: tabular-nums; }
+  .bt .lbl { fill: var(--ltt-muted); font-size: 12px; text-anchor: start; }
+  .bt .lblr { fill: var(--ltt-muted); font-size: 12px; text-anchor: end; }
+  .bt .tag { fill: var(--ltt-accent); font-size: 12px; text-anchor: start; }
+  .bt .frame { fill: var(--ltt-card); stroke: var(--ltt-line-2); stroke-width: 1.5; }
+  .bt .over > .frame { stroke: var(--ltt-bad); }
+  .bt .cell { fill: var(--ltt-card-2); stroke: var(--ltt-line); }
+  .bt .hot { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); }
+  .bt .ov { fill: var(--ltt-bad-soft); stroke: var(--ltt-bad); stroke-dasharray: 3 2; }
+  .bt .ghost { fill: none; stroke: var(--ltt-line-2); stroke-dasharray: 4 4; }
+  .bt .edge { fill: none; stroke: var(--ltt-muted); stroke-width: 1.5; }
+  .bt .sib { fill: none; stroke: var(--ltt-muted); stroke-width: 1.2; stroke-dasharray: 4 3; }
+  .bt .ltt-in { animation: bt-in .6s ease both; }
+  .bt .rise { animation: bt-rise .8s ease both; }
+  @keyframes bt-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  @keyframes bt-rise { from { opacity: 0; transform: translateY(var(--dy)); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .bt .ltt-in, .bt .rise { animation: none; } }
+</style>
+</head>
+<body>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const CAP = 4;                          // 페이지당 최대 키 (교육용 가정)
+const TOP_Y = 70, INT_Y = 190, LEAF_Y = 380, BOX_H = 56;
+const LEAF_W = 140;
+const slotX = (s) => 70 + s * 165;      // 잎 칸의 왼쪽 x (여섯 슬롯, 슬롯 3은 할당 전 빈 자리)
+const SLOT = { L0: 0, L1: 1, A: 2, B: 3, L3: 4, L4: 5 };
+
+const FULL = { L0: [5, 12, 18], L1: [20, 25, 30, 35], A: [40, 45, 50, 55], L3: [60, 65, 70, 75], L4: [80, 85, 90] };
+const ROWS_LEAF = [[INT_Y, "루트"], [LEAF_Y, "잎"]];
+const ROWS_SPLIT = [[INT_Y, "내부"], [LEAF_Y, "잎"]];
+const ROWS_3 = [[TOP_Y, "루트"], [INT_Y, "내부"], [LEAF_Y, "잎"]];
+const ROOT = { id: "R", cx: 552, y: INT_Y };
+const I1 = { id: "I1", cx: 305, y: INT_Y, keys: [20, 40], kids: ["L0", "L1", "A"] };
+const I2 = { id: "I2", cx: 800, y: INT_Y, keys: [60, 80], kids: ["B", "L3", "L4"] };
+
+// 단계마다 화면에 있는 잎·노드를 적는다. fresh는 이 단계에서 새로 나타날 것, hot은 강조 칸("id:인덱스")
+const STEPS = [
+  { caption: "가득 찬 잎 [40 45 50 55]에 52를 넣을 차례다. 잎은 키를 4개까지만 담는다.",
+    leaves: { ...FULL }, tags: [["A", "4/4 가득"]], ghost: true, chip: null, hot: [], fresh: [],
+    nodes: [{ ...ROOT, keys: [20, 40, 60, 80], kids: ["L0", "L1", "A", "L3", "L4"] }],
+    rows: ROWS_LEAF, height: 2, note: "" },
+  { caption: "52가 들어가 잎에 키가 5개가 됐다. 칸은 4개뿐이라 넘친다. 이 초과가 분할의 원인이다.",
+    leaves: { ...FULL, A: [40, 45, 50, 52, 55] }, tags: [["A", "5키 · 초과"]], ghost: true, chip: null,
+    hot: ["A:3"], fresh: ["A:3"],
+    nodes: [{ ...ROOT, keys: [20, 40, 60, 80], kids: ["L0", "L1", "A", "L3", "L4"] }],
+    rows: ROWS_LEAF, height: 2, note: "" },
+  { caption: "잎을 둘로 나눈다. 새 오른쪽 잎 B에 [50 52 55]를 옮기고, 첫 키 50은 복사해서 부모로 올린다. 잎에는 그대로 남는다.",
+    leaves: { ...FULL, A: [40, 45], B: [50, 52, 55] }, tags: [["B", "새 페이지"]], ghost: false,
+    chip: { v: 50, cx: 635, y: 290, dy: 90, label: "복사해 올림", left: true }, hot: ["B:0"], fresh: ["B"],
+    nodes: [{ ...ROOT, keys: [20, 40, 60, 80], kids: ["L0", "L1", "A", "L3", "L4"] }],
+    rows: ROWS_LEAF, height: 2, note: "" },
+  { caption: "부모인 루트가 50을 받아 5키가 되어 넘친다. 가득 찬 조상을 따라 분할이 위로 이어진다.",
+    leaves: { ...FULL, A: [40, 45], B: [50, 52, 55] }, tags: [], ghost: false, chip: null,
+    hot: ["R:2"], fresh: ["R:2", "e:B"],
+    nodes: [{ ...ROOT, keys: [20, 40, 50, 60, 80], kids: ["L0", "L1", "A", "B", "L3", "L4"] }],
+    rows: ROWS_LEAF, height: 2, note: "" },
+  { caption: "루트를 둘로 나눈다. 가운데 키 50은 복사가 아니라 이동해서 위로 올라가고, 루트는 [20 40]과 [60 80]으로 갈라진다.",
+    leaves: { ...FULL, A: [40, 45], B: [50, 52, 55] }, tags: [], ghost: false,
+    chip: { v: 50, cx: 552, y: 128, dy: 62, label: "위로 이동" }, hot: [],
+    fresh: ["I1", "I2", "e:L0", "e:L1", "e:A", "e:B", "e:L3", "e:L4"],
+    nodes: [I1, I2], rows: ROWS_SPLIT, height: 2, note: "" },
+  { caption: "올릴 노드가 없어 키 50 하나짜리 새 루트가 맨 위에 생긴다. 높이는 2에서 3이 되고, 모든 잎은 같은 깊이다.",
+    leaves: { ...FULL, A: [40, 45], B: [50, 52, 55] }, tags: [], ghost: false, chip: null,
+    hot: ["T:0"], fresh: ["T", "e:I1", "e:I2"],
+    nodes: [{ id: "T", cx: 552, y: TOP_Y, keys: [50], kids: ["I1", "I2"] }, I1, I2],
+    rows: ROWS_3, height: 3, note: "모든 잎의 깊이는 3" },
+];
+
+// 상태 하나를 그림 내용으로 그린다. 매 단계 다시 그리고, fresh에 든 것만 ltt-in으로 나타난다
+function frame(st) {
+  const pos = {};
+  const leafIds = Object.keys(st.leaves).sort((a, b) => SLOT[a] - SLOT[b]);
+  leafIds.forEach((id) => {
+    const x = slotX(SLOT[id]);
+    pos[id] = { x, cx: x + LEAF_W / 2, top: LEAF_Y, bot: LEAF_Y + BOX_H };
+  });
+  st.nodes.forEach((nd) => { pos[nd.id] = { cx: nd.cx, top: nd.y, bot: nd.y + BOX_H }; });
+
+  const hot = (k) => (st.hot.includes(k) ? " hot" : "");
+  const fresh = (k) => (st.fresh.includes(k) ? " ltt-in" : "");
+
+  const ghost = st.ghost ? `<rect class="ghost" x="${slotX(SLOT.B)}" y="${LEAF_Y}" width="${LEAF_W}" height="${BOX_H}" rx="6"/>` : "";
+
+  let edges = "";
+  st.nodes.forEach((nd) => nd.kids.forEach((k) => {
+    const p = pos[nd.id], c = pos[k];
+    edges += `<line class="edge${fresh("e:" + k)}" x1="${p.cx}" y1="${p.bot}" x2="${c.cx}" y2="${c.top}"/>`;
+  }));
+
+  let sibs = "";
+  for (let i = 0; i + 1 < leafIds.length; i++) {
+    const a = pos[leafIds[i]], b = pos[leafIds[i + 1]];
+    sibs += `<path class="sib" d="M${a.cx} ${a.bot} V486 H${b.cx} V${b.bot}" marker-end="url(#bt-arr)"/>`;
+  }
+
+  let boxes = "";
+  leafIds.forEach((id) => {
+    const keys = st.leaves[id], p = pos[id];
+    const over = keys.length > CAP ? " over" : "";
+    let g = `<g class="leaf${over}${fresh(id)}"><rect class="frame" x="${p.x}" y="${LEAF_Y}" width="${LEAF_W}" height="${BOX_H}" rx="6"/>`;
+    keys.forEach((v, i) => {
+      const x = p.x + 8 + i * 26, cls = "cell" + hot(`${id}:${i}`) + (i >= CAP ? " ov" : "");
+      g += `<rect class="${cls}${fresh(`${id}:${i}`)}" x="${x}" y="${LEAF_Y + 15}" width="22" height="26" rx="3"/><text x="${x + 11}" y="${LEAF_Y + 28}">${v}</text>`;
+    });
+    boxes += g + "</g>";
+  });
+  st.nodes.forEach((nd) => {
+    const n = nd.keys.length, w = 40 * n + 6, x = nd.cx - w / 2;
+    const over = n > CAP ? " over" : "";
+    let g = `<g class="node${over}${fresh(nd.id)}"><rect class="frame" x="${x}" y="${nd.y}" width="${w}" height="${BOX_H}" rx="6"/>`;
+    nd.keys.forEach((v, i) => {
+      const kx = x + 5 + i * 40, cls = "cell" + hot(`${nd.id}:${i}`) + (i >= CAP ? " ov" : "");
+      g += `<rect class="${cls}${fresh(`${nd.id}:${i}`)}" x="${kx}" y="${nd.y + 13}" width="34" height="30" rx="3"/><text x="${kx + 17}" y="${nd.y + 28}">${v}</text>`;
+    });
+    boxes += g + "</g>";
+  });
+
+  let chip = "";
+  if (st.chip) {
+    const c = st.chip;
+    chip = `<g class="chip rise" style="--dy:${c.dy}px"><rect class="cell hot" x="${c.cx - 22}" y="${c.y}" width="44" height="28" rx="4"/><text x="${c.cx}" y="${c.y + 14}">${c.v}</text><text class="tag" x="${c.cx + (c.left ? -30 : 30)}" y="${c.y + 14}"${c.left ? ' style="text-anchor:end"' : ""}>${c.label}</text></g>`;
+  }
+
+  const tags = st.tags.map(([id, t]) => `<text class="tag" x="${pos[id].x}" y="${LEAF_Y - 10}">${t}</text>`).join("");
+  const rows = st.rows.map(([y, t]) => `<text class="lbl" x="10" y="${y + 28}">${t}</text>`).join("");
+
+  return sibs + edges + ghost + boxes + tags + chip + rows
+    + `<text class="lblr" x="1030" y="28">트리 높이 ${st.height}</text>`
+    + (st.note ? `<text class="lblr" x="1030" y="50">${st.note}</text>` : "")
+    + `<text class="lbl" x="70" y="512">잎끼리 이어진 연결 리스트 (범위 스캔용)</text>`;
+}
+
+const figure = (el) => {
+  el.className = "bt";
+  el.innerHTML = `<svg viewBox="0 0 1040 540" role="img" aria-label="B+tree 노드 분할 단계 도해">
+    <defs><marker id="bt-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--ltt-muted)"/></marker></defs>
+    <g class="stage"></g></svg>`;
+  const stage = el.querySelector(".stage");
+  return { el: el.querySelector("svg"), show: (i) => { stage.innerHTML = frame(STEPS[i]); } };
+};
+
+LTT.deck({
+  title: "가득 찬 잎의 분할은 루트까지 올라가고, 루트가 갈라질 때만 높이가 늘어난다",
+  theme: "blueprint",
+  glossary: {
+    "구분 키": "내부 노드에서 자식 구간을 가르는 키. 잎을 나눌 때 오른쪽 잎의 첫 키가 복사되어 올라간다.",
+    "팬아웃": "한 노드가 가진 자식 포인터 수. 페이지 크기와 키 길이로 정해진다.",
+  },
+  scenes: [{
+    type: "figure",
+    title: "가득 찬 잎의 분할은 루트까지 올라가고, 루트가 갈라질 때만 높이가 늘어난다",
+    en: "A full leaf splits, the split climbs to the root, and only a root split adds a level.",
+    kicker: "DB · B+tree 삽입",
+    sub: "키 52를 넣는 한 번의 삽입이 루트에서 새 층을 만든다. 잎을 나눌 때 {{구분 키}}가 부모로 올라간다.",
+    figure,
+    label: "페이지당 최대 4키로 줄인 예시",
+    steps: STEPS.map((s, i) => ({ caption: s.caption, enter: (k, f) => f.show(i) })),
+    takeaway: "분할은 가득 찬 경로를 따라 루트까지 번지고, 루트가 갈라질 때만 트리 높이가 1 늘어난다. 높이를 정하는 것은 {{팬아웃}}이다.",
+    recall: "잎을 나눌 때는 구분 키를 복사하고, 내부 노드를 나눌 때는 이동하는 이유는?",
+    basis: "8KB 페이지, 키·포인터 16B 가정 → 팬아웃 약 500(근사), 3층이면 약 1.25억 키. 그림은 페이지당 4키로 줄인 모델로 계산한 예시.",
+  }],
+});
+</script>
+</body>
+</html>

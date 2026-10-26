@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const ART = `<svg viewBox="0 0 760 380" role="img" aria-label="분기점에서 선도 가닥은 중합효소가 한 번에 이어 자라고, 지연 가닥은 짧은 절편이 분기점 반대쪽으로 자란 뒤 연결효소가 잇는다" style="width:100%;height:auto">
+<style>.dna-t{font-size:14px;fill:var(--ltt-ink)}.dna-m{font-size:13px;fill:var(--ltt-muted)}.dna-a{font-size:14px;fill:var(--ltt-accent)}</style>
+<defs><marker id="dna-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 z" style="fill:var(--ltt-ink)"/></marker></defs>
+<g>
+<animate attributeName="opacity" values="1;1;0" keyTimes="0;0.93;1" dur="10s" repeatCount="indefinite"/>
+
+<path d="M90 130 L520 130 L560 203 M560 203 L712 203 M560 217 L712 217 M560 217 L520 290 L90 290" fill="none" style="stroke:var(--ltt-muted)" stroke-width="3"/>
+<text class="dna-t" x="66" y="134">3'</text>
+<text class="dna-t" x="66" y="294">5'</text>
+<text class="dna-t" x="718" y="199">5'</text>
+<text class="dna-t" x="718" y="233">3'</text>
+<text class="dna-m" x="96" y="150">주형 A</text>
+<text class="dna-m" x="96" y="274">주형 B</text>
+
+<text class="dna-t" x="96" y="100">선도 가닥: 중합효소가 한 번에 이어 붙인다 →<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.10;0.25" dur="10s" repeatCount="indefinite"/></text>
+<path d="M90 112 L508 112 L548 194" fill="none" style="stroke:var(--ltt-ink)" stroke-width="4" stroke-dasharray="512" stroke-dashoffset="512"><animate attributeName="stroke-dashoffset" values="512;512;0;0" keyTimes="0;0.10;0.25;1" dur="10s" repeatCount="indefinite"/></path>
+<text class="dna-t" x="66" y="116">5'</text>
+<text class="dna-t" x="566" y="184">3'</text>
+<circle r="9" cx="0" cy="0" style="fill:var(--ltt-card);stroke:var(--ltt-ink)" stroke-width="2"><animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;0.10;0.24;0.25;1" calcMode="discrete" dur="10s" repeatCount="indefinite"/><animateMotion path="M90 112 L508 112 L548 194" keyPoints="0;0;1;1" keyTimes="0;0.10;0.25;1" calcMode="linear" dur="10s" repeatCount="indefinite"/></circle>
+
+<circle cx="560" cy="210" r="14" style="fill:var(--ltt-card);stroke:var(--ltt-ink)" stroke-width="2"/>
+<text class="dna-t" x="586" y="256">헬리카아제: 두 가닥을 푼다</text>
+<path d="M600 62 L726 62" fill="none" style="stroke:var(--ltt-ink-2)" stroke-width="2" marker-end="url(#dna-ah)"/>
+<text class="dna-m" x="600" y="50">분기점 전진 방향</text>
+
+<path d="M240 308 L100 308" fill="none" style="stroke:var(--ltt-accent)" stroke-width="4" stroke-dasharray="141" stroke-dashoffset="141"><animate attributeName="stroke-dashoffset" values="141;141;0;0" keyTimes="0;0.30;0.38;1" dur="10s" repeatCount="indefinite"/></path>
+<path d="M380 308 L270 308" fill="none" style="stroke:var(--ltt-accent)" stroke-width="4" stroke-dasharray="111" stroke-dashoffset="111"><animate attributeName="stroke-dashoffset" values="111;111;0;0" keyTimes="0;0.45;0.53;1" dur="10s" repeatCount="indefinite"/></path>
+<path d="M500 308 L400 308" fill="none" style="stroke:var(--ltt-accent)" stroke-width="4" stroke-dasharray="101" stroke-dashoffset="101"><animate attributeName="stroke-dashoffset" values="101;101;0;0" keyTimes="0;0.60;0.68;1" dur="10s" repeatCount="indefinite"/></path>
+
+<rect x="234" y="302" width="12" height="12" style="fill:var(--ltt-ink)"><animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;0.28;0.80;0.84;1" calcMode="discrete" dur="10s" repeatCount="indefinite"/></rect>
+<rect x="374" y="302" width="12" height="12" style="fill:var(--ltt-ink)"><animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;0.43;0.80;0.84;1" calcMode="discrete" dur="10s" repeatCount="indefinite"/></rect>
+<rect x="494" y="302" width="12" height="12" style="fill:var(--ltt-ink)"><animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;0.58;0.80;0.84;1" calcMode="discrete" dur="10s" repeatCount="indefinite"/></rect>
+<text class="dna-m" x="250" y="334">RNA 프라이머<animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;0.28;0.80;0.84;1" calcMode="discrete" dur="10s" repeatCount="indefinite"/></text>
+
+<path d="M100 308 L500 308" fill="none" style="stroke:var(--ltt-ink)" stroke-width="3" stroke-dasharray="400" stroke-dashoffset="400"><animate attributeName="stroke-dashoffset" values="400;400;0;0" keyTimes="0;0.84;0.92;1" dur="10s" repeatCount="indefinite"/></path>
+<text class="dna-t" x="96" y="364">연결효소가 틈을 잇는다<animate attributeName="opacity" values="0;0;1" keyTimes="0;0.84;0.90" dur="10s" repeatCount="indefinite"/></text>
+
+<text class="dna-a" x="96" y="344">지연 가닥: 절편이 분기점 반대로 자란다 ←</text>
+</g>
+</svg>`;
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "DNA 중합효소": "새 DNA 가닥의 3' 끝에 뉴클레오티드를 하나씩 이어 붙이는 효소. 5'→3' 방향으로만 자란다.",
+    "오카자키 절편": "지연 가닥에서 만들어지는 짧은 DNA 조각. 나중에 이어 붙는다."
+  },
+  scenes: [
+    {
+      type: "hook",
+      art: ART,
+      pre: "생물 · DNA 복제 분기점",
+      text: "분기점은 한 방향으로 열리는데, 새 가닥은 왜 한쪽만 끊김 없이 자랄까?",
+      sub: "{{DNA 중합효소}}는 3' 끝에만 붙일 수 있다. 그래서 두 새 가닥은 같은 방향으로 자라지 못하고, 한쪽은 {{오카자키 절편}}으로 나뉜다."
+    }
+  ]
+});
+</script>
+</body>
+</html>

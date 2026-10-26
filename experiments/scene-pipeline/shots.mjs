@@ -1,7 +1,7 @@
 // usage: node shots.mjs <outDir> <prefix> <rel.html> [--small] [--checks-only]  (rel는 gallery/ 기준)
 // 기본 화면(시각 3개, 단계마다 마지막 상태, 손잡이 양 끝)과 장면 안 #ltt-checks 지점을 찍고 <outDir>/<prefix>-index.json에 남긴다.
-import { chromium } from "/opt/node22/lib/node_modules/playwright/index.mjs";
-import { createLttServer } from "/home/user/learn-to-tell/skills/learn-to-tell/server/server.mjs";
+import { chromium } from "playwright";
+import { createLttServer } from "../../skills/learn-to-tell/server/server.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs"; import { tmpdir } from "node:os"; import { join, resolve, dirname } from "node:path"; import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2), flags = new Set(args.filter((a) => a.startsWith("--")));

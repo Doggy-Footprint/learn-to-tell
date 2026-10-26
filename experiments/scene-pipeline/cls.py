@@ -7,7 +7,7 @@ from pathlib import Path
 import r1
 E = r1.E; G = r1.G; AX = ("structure", "motion", "composition")
 axes = r1.ax
-look = (Path("/home/user/learn-to-tell/skills/learn-to-tell/look/look.md")).read_text()
+look = (Path(__file__).resolve().parents[2]/"skills/learn-to-tell/look/look.md").read_text()
 principle = {m[0]: m[1].strip() for m in re.findall(r"^\| s(\d+) \|(?:[^|]*\|){5}([^|]*)\|$", look, re.M)}
 VOCAB = {a: sorted({v[a] for v in axes.values()}) for a in AX}
 

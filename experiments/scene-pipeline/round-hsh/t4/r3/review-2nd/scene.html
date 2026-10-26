@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점: 선도 가닥과 오카자키 절편</title>
+<script type="application/json" id="ltt-meta">{"topic": "DNA 복제 분기점", "audience": "생명과학 입문 학생", "theme": "paper", "medium": "교과서 도해", "decision": "복제 과정 이해"}</script>
+<style>
+.dr-wrap { width: 100%; max-width: 500px; margin: 0 auto; min-width: 0; }
+.dr-wrap svg { width: 100%; max-width: 100%; height: auto; display: block; }
+.dr-cap { margin: 6px 0 4px; min-height: 3.2em; font-size: 0.95em; color: var(--ltt-ink); }
+.dr-ctl { display: flex; align-items: center; gap: 10px; }
+.dr-ctl input { flex: 1; min-width: 0; }
+.dr-ctl button { border: 1px solid var(--ltt-line-2); background: var(--ltt-card); color: var(--ltt-ink); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const TOTAL = 28;
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const ease = (p) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
+
+// 분기점은 오른쪽(닫힌 줄기 쪽)으로 전진한다. 지연 가닥 절편은 분기점이 멈춘 자리마다
+// 프라이머 하나에서 시작해 왼쪽(분기점 반대)으로 자란다. 먼저 만든 절편이 가장 왼쪽.
+const FRAGS = [
+  { px: 230, tp: 6.8, ts: 7.2, te: 9.0 },
+  { px: 360, tp: 12.4, ts: 12.8, te: 14.6 },
+  { px: 490, tp: 18.0, ts: 18.4, te: 20.2 },
+];
+const FLEN = 130, PLEN = 14;
+const CAPS = [
+  [0, "헬리케이스가 이중나선을 풀어 Y자 분기점이 생기고, 분기점은 오른쪽으로 나아간다."],
+  [2.2, "중합효소는 새 가닥의 3' 끝에만 뉴클레오타이드를 붙인다. 새 가닥은 5'→3' 한 방향으로만 자란다."],
+  [3.4, "위쪽 주형은 3'→5'가 분기점 쪽으로 열린다. 새 가닥이 분기점을 따라 끊김 없이 자란다: 선도 가닥."],
+  [6.6, "아래쪽 주형은 방향이 반대다. 열린 자리에 프라이머를 놓고, 분기점 반대쪽(←)으로 절편을 만든다."],
+  [9.6, "분기점이 더 열린다. 선도 가닥은 계속 이어서 자란다."],
+  [12.2, "새로 열린 자리에 새 프라이머와 다음 절편이 생긴다. 먼저 만든 절편이 분기점에서 더 멀다."],
+  [15.2, "분기점이 또 열린다."],
+  [17.9, "가장 새 절편이 분기점에 가장 가깝다. 절편마다 프라이머가 하나씩 필요하다."],
+  [20.8, "절편 하나를 확대해도 방향은 똑같이 5'→3'이다. 그 방향이 분기점에서 멀어지는 쪽일 뿐이라 끊어진다."],
+  [25, "프라이머를 떼어 DNA로 메우고 연결효소가 틈을 이어, 지연 가닥이 한 가닥이 된다."],
+];
+
+function render(svg, t) {
+  const o = ease(seg(t, 0, 1.8));
+  const F = 170 + 130 * ease(seg(t, 3.4, 6.4)) + 130 * ease(seg(t, 9.6, 12)) + 130 * ease(seg(t, 15.2, 17.6));
+  const yT = 170 - 65 * o, yB = 190 + 65 * o, dx = 50 * o;
+  const yL = yT + 20, yG = yB - 20;
+  const pair = seg(t, 2.2, 3.2);
+  const j = seg(t, 25, 27);
+  const leadEnd = 70 + (F - 105) * pair;
+  let s = "";
+  const line = (x1, y1, x2, y2, c, w, extra = "") => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w}" stroke-linecap="round" ${extra}/>`;
+  const txt = (x, y, str, o2 = {}) => `<text x="${x}" y="${y}" font-size="${o2.size || 14}" fill="${o2.fill || 'var(--ltt-ink-2)'}" text-anchor="${o2.anchor || 'start'}" ${o2.bold ? 'font-weight="600"' : ''} opacity="${o2.op ?? 1}">${str}</text>`;
+
+  // 닫힌 이중나선 줄기: 분기점 앞(오른쪽)
+  for (let x = F + 14; x < 730; x += 16) s += line(x, 170, x, 190, "var(--ltt-line-2)", 2);
+  // 주형 가닥
+  s += `<path d="M735,170 L${F},170 L${F - dx},${yT} L60,${yT}" fill="none" stroke="var(--ltt-ink-2)" stroke-width="3" stroke-linejoin="round"/>`;
+  s += `<path d="M735,190 L${F},190 L${F - dx},${yB} L60,${yB}" fill="none" stroke="var(--ltt-ink-2)" stroke-width="3" stroke-linejoin="round"/>`;
+  s += txt(44, yT + 5, "3'", { anchor: "end" }) + txt(44, yB + 5, "5'", { anchor: "end" });
+  s += txt(742, 175, "5'") + txt(742, 195, "3'");
+  s += `<circle cx="${F}" cy="180" r="${5 * o}" fill="var(--ltt-ink)"/>`;
+  s += txt(F + 14, 158, "분기점 →", { fill: "var(--ltt-muted)", op: o });
+
+  // 선도 가닥: 프라이머 1개, 분기점을 따라 연속 신장
+  if (pair > 0) {
+    for (let x = 90; x < leadEnd; x += 12) s += line(x, yT + 3, x, yL - 3, "var(--ltt-line-2)", 1.5);
+    s += line(70, yL, 86, yL, "var(--ltt-ink)", 6, `opacity="${1 - j}"`);
+    s += line(70, yL, 86, yL, "var(--ltt-c1)", 5, `opacity="${j}"`);
+    if (leadEnd > 86) s += line(86, yL, leadEnd, yL, "var(--ltt-c1)", 5);
+    s += `<polygon points="${leadEnd + 9},${yL} ${leadEnd - 1},${yL - 6} ${leadEnd - 1},${yL + 6}" fill="var(--ltt-c1)"/>`;
+    // 2.2~3.4s: 새 뉴클레오타이드가 3' 끝에 붙는 자리를 표시한다
+    const addPt = 1 - seg(t, 3.0, 3.4);
+    if (addPt > 0) s += `<circle cx="${leadEnd}" cy="${yL}" r="8" fill="none" stroke="var(--ltt-ink)" stroke-width="2" opacity="${addPt}"/>`;
+    s += txt(56, yL + 5, "5'", { anchor: "end" }) + txt(leadEnd + 14, yL + 5, "3'");
+    s += txt(70, yT - 16, "선도 가닥 · 분기점을 따라 연속", { fill: "var(--ltt-c1)", bold: true });
+    s += `<rect x="598" y="30" width="10" height="10" fill="var(--ltt-ink)"/>` + txt(614, 40, "RNA 프라이머");
+  }
+
+  // 지연 가닥: 절편마다 프라이머 하나
+  FRAGS.forEach((f, k) => {
+    const pp = seg(t, f.tp, f.tp + 0.4), g = ease(seg(t, f.ts, f.te));
+    if (pp <= 0) return;
+    const left = f.px - PLEN - (FLEN - PLEN) * g;
+    const keep = 1 - j;
+    if (g > 0) {
+      for (let x = left + 4; x < f.px - PLEN; x += 12) s += line(x, yB - 3, x, yG + 3, "var(--ltt-line-2)", 1.5);
+      s += line(left, yG, f.px - PLEN, yG, "var(--ltt-c2)", 5);
+      s += `<polygon points="${left - 9},${yG} ${left + 1},${yG - 6} ${left + 1},${yG + 6}" fill="var(--ltt-c2)"/>`;
+    }
+    s += line(f.px - PLEN, yG, f.px, yG, "var(--ltt-ink)", 6, `opacity="${pp * keep}"`);
+    if (j > 0) {
+      s += line(f.px - PLEN, yG, f.px, yG, "var(--ltt-c2)", 5, `opacity="${j}"`);
+      if (j > 0.7 && k < 2) s += `<rect x="${f.px - PLEN - 4}" y="${yG - 4}" width="8" height="8" fill="var(--ltt-ink)" transform="rotate(45 ${f.px - PLEN} ${yG})"/>`;
+    }
+    const growing = g > 0 && g < 1;
+    if (growing || (k === 2 && g > 0)) s += txt(left - 4, yG - 10, "3'", { anchor: "middle" });
+    if (k === 2) s += txt(f.px + 4, yG - 10, "5'");
+  });
+  if (t >= 6.6) s += txt(70, yB + 38, "지연 가닥 · 분기점 반대로 짧은 절편 (오카자키 절편)", { fill: "var(--ltt-c2)", bold: true });
+  if (j > 0.7) s += txt(300, yB + 18, "연결효소가 마름모 자리의 틈을 잇는다", { size: 12, fill: "var(--ltt-muted)", anchor: "middle", op: j });
+
+  // 절편 확대
+  const zin = seg(t, 20.8, 21.6) * (1 - seg(t, 24.8, 25.4));
+  if (zin > 0) {
+    const nt = [["U", "A"], ["A", "T"], ["C", "G"], ["G", "C"], ["T", "A"], ["C", "G"], ["A", "T"]];
+    s += `<g opacity="${zin}">`;
+    s += `<rect x="356" y="${yG - 9}" width="138" height="18" rx="4" fill="none" stroke="var(--ltt-accent)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+    s += `<polygon points="425,${yG - 11} 417,${yG - 22} 433,${yG - 22}" fill="var(--ltt-accent)"/>`;
+    s += `<rect x="205" y="${yG - 98}" width="290" height="76" rx="8" fill="var(--ltt-card)" stroke="var(--ltt-accent)" stroke-width="1.5"/>`;
+    s += txt(215, yG - 78, "← 합성 방향 5'→3'", { fill: "var(--ltt-accent)", bold: true, size: 13 });
+    s += txt(485, yG - 78, "분기점 진행 →", { fill: "var(--ltt-muted)", anchor: "end", size: 13 });
+    nt.forEach((p, i) => {
+      const x = 450 - i * 30, rna = i < 3;
+      s += `<rect x="${x}" y="${yG - 68}" width="28" height="22" rx="3" fill="${rna ? 'var(--ltt-ink)' : 'var(--ltt-c2)'}"/>`;
+      s += txt(x + 14, yG - 52, p[0], { anchor: "middle", fill: "var(--ltt-card)", bold: true });
+      s += line(x + 14, yG - 45, x + 14, yG - 40, "var(--ltt-line-2)", 1.5);
+      s += txt(x + 14, yG - 28, p[1], { anchor: "middle", fill: "var(--ltt-muted)" });
+    });
+    s += `<rect x="240" y="${yG - 68}" width="28" height="22" rx="3" fill="none" stroke="var(--ltt-c2)" stroke-dasharray="3 3"/>`;
+    s += txt(254, yG - 52, "+", { anchor: "middle", fill: "var(--ltt-c2)", bold: true });
+    s += txt(234, yG - 52, "3'", { anchor: "end" }) + txt(484, yG - 52, "5'");
+    s += `</g>`;
+  }
+  svg.innerHTML = s;
+  svg.setAttribute("aria-label", "분기점이 오른쪽으로 열리며 선도 가닥은 분기점을 따라 연속으로, 지연 가닥은 분기점 반대쪽으로 짧은 절편으로 자란다");
+}
+
+function replicationFigure(body) {
+  const wrap = document.createElement("div");
+  wrap.className = "dr-wrap";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", "0 20 780 280");
+  svg.setAttribute("role", "img");
+  const cap = document.createElement("p");
+  cap.className = "dr-cap";
+  const ctl = document.createElement("div");
+  ctl.className = "dr-ctl";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  const rng = document.createElement("input");
+  rng.type = "range"; rng.min = 0; rng.max = TOTAL; rng.step = 0.02; rng.value = 0;
+  rng.setAttribute("aria-label", "복제 진행 시간");
+  ctl.append(btn, rng);
+  wrap.append(svg, cap, ctl);
+  body.appendChild(wrap);
+
+  let t = 0, playing = false, raf = 0, last = 0;
+  const show = () => {
+    render(svg, t);
+    rng.value = t;
+    let c = CAPS[0][1];
+    CAPS.forEach(([a, str]) => { if (t >= a) c = str; });
+    cap.textContent = c;
+    btn.textContent = playing ? "멈춤" : t >= TOTAL ? "다시 재생" : "재생";
+  };
+  const tick = (now) => {
+    t = Math.min(TOTAL, t + (now - last) / 1000);
+    last = now;
+    if (t >= TOTAL) playing = false;
+    show();
+    if (playing) raf = requestAnimationFrame(tick);
+  };
+  const play = () => {
+    if (t >= TOTAL) t = 0;
+    playing = true; last = performance.now();
+    raf = requestAnimationFrame(tick);
+    show();
+  };
+  const stop = () => { playing = false; cancelAnimationFrame(raf); show(); };
+  btn.onclick = () => (playing ? stop() : play());
+  rng.oninput = () => { stop(); t = +rng.value; show(); };
+
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) { t = TOTAL; show(); }
+  else play();
+  return { leave: stop };
+}
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "선도 가닥": "분기점이 열리는 쪽을 따라 프라이머 하나로 끊김 없이 합성되는 새 가닥",
+    "지연 가닥": "분기점과 반대 방향으로만 합성할 수 있어 짧은 절편으로 만들어지는 새 가닥",
+    "오카자키 절편": "지연 가닥에서 프라이머마다 만들어지는 짧은 DNA 조각. 나중에 이어져 한 가닥이 된다",
+  },
+  scenes: [
+    {
+      type: "hook",
+      pre: "생물 · DNA 복제",
+      art: "route",
+      text:"새 가닥은 5'→3'으로만 자라서, 한쪽 가닥은 끊어서 만든다",
+      sub: "{{선도 가닥}}은 이어지고 {{지연 가닥}}은 {{오카자키 절편}}으로 나뉜다.",
+      layout: "full",
+      mount: replicationFigure,
+    },
+  ],
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>TCP 혼잡 제어 · 손실 뒤 cwnd</title>
+<script type="application/json" id="ltt-meta">{"topic": "TCP 혼잡 제어", "audience": "백엔드·네트워크 개발자", "theme": "lab", "medium": "cwnd 시계열 플롯", "decision": "전송 처리량 문제 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+// 가정: TCP Reno, MSS 1,460 B, RTT 100 ms, 초기 ssthresh 32 MSS, 3 중복 ACK 손실.
+// 1 → 2 → 4 → 8 → 16 → 32 (RTT마다 ×2). 32에서 손실, cwnd = 16. 이후 RTT마다 +1 MSS.
+const pre = [[0, 1], [1, 2], [2, 4], [3, 8], [4, 16], [5, 32]];
+const post = Array.from({ length: 16 }, (_, k) => [6 + k, 17 + k]); // 17 … 32 (t = 6 … 21)
+const plotOpts = {
+  width: 640, height: 320,
+  x: [0, 22], y: [0, 36],
+  labels: { x: "시간 (RTT)", y: "cwnd (MSS)" },
+  series: [{ id: "cwnd" }, { id: "ssthresh", color: "var(--ltt-muted)", dash: true }, { id: "cut", color: "var(--ltt-muted)", dot: true }],
+};
+
+LTT.deck({
+  title: "TCP 혼잡 제어",
+  theme: "lab",
+  glossary: {
+    "ssthresh": "slow start를 끝내고 선형 증가(혼잡 회피)로 넘어가는 임계값.",
+  },
+  scenes: [
+    {
+      type: "predict",
+      title: "손실 뒤 cwnd는 어디로 갈까",
+      kicker: "네트워크 · TCP 혼잡 제어",
+      sub: "TCP Reno. 가로축은 시간(RTT), 세로축은 혼잡 창 cwnd(확인 없이 보낼 수 있는 양, MSS 단위). 32 MSS에서 패킷이 버려졌다.",
+      question: "손실 뒤, 한 번에 보낼 수 있는 양은 몇 MSS일까?",
+      choices: [
+        { id: "1", text: "1 MSS" },
+        { id: "16", text: "16 MSS" },
+        { id: "32", text: "32 MSS" },
+      ],
+      answer: "16",
+      visual: (el) => {
+        const box = document.createElement("div");
+        el.append(box, LTT.facts([
+          { icon: "clock", value: "100 ms", label: "RTT" },
+          { icon: "layers", value: "1,460 B", label: "MSS" },
+          { icon: "alert", value: "중복 ACK 3개", label: "손실 신호" },
+        ]));
+        const p = LTT.axisPlot(box, plotOpts);
+        p.set("cwnd", pre);
+        p.set("cut", [[5, 0], [5, 36]]);
+      },
+      answerVisual: (el) => {
+        const box = document.createElement("div");
+        el.append(box, LTT.facts([
+          { icon: "arrow-down", value: "32 → 16", label: "손실 직후 cwnd (절반)", tone: "bad" },
+          { icon: "trend", value: "+1 MSS / RTT", label: "이후 선형 증가" },
+          { icon: "gauge", value: "≈ 3/4", label: "톱니 평균 ÷ 최고점" },
+        ]));
+        const p = LTT.axisPlot(box, plotOpts);
+        // 손실은 cwnd가 32까지 커진 결과다. 그 순간 ssthresh = 16이 정해지고, 선이 16에서 다시 오른다.
+        const draw = (k) => {
+          p.set("cwnd", [...pre, [5, 16], ...post.slice(0, k)]);
+          p.set("ssthresh", [[5, 16], [5 + k, 16]]);
+        };
+        if (!LTT.MOTION_MS) { draw(post.length); return; }
+        let k = 0;
+        draw(0);
+        const timer = setInterval(() => {
+          k += 1;
+          draw(k);
+          if (k >= post.length) clearInterval(timer);
+        }, 110);
+      },
+      why: "3 중복 ACK는 패킷이 한두 개 버려졌지만 연결은 살아 있다는 신호다. 그래서 {{ssthresh}} = cwnd ÷ 2 = 16이 되고, cwnd도 16으로 반감된다. 이후 RTT마다 +1 MSS로 선형 증가한다. 1로 떨어지는 것은 타임아웃(RTO)일 때뿐이다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+      basis: "가정: TCP Reno, 초기 임계값 32 MSS, RTT 100 ms, MSS 1,460 B. 수치는 이 가정의 손 계산이다.",
+      takeaway: "손실은 cwnd를 절반으로 줄이고, 그 뒤 RTT마다 1 MSS씩 되찾는다. 그래서 평균 처리량은 최고점의 약 3/4이다.",
+      recall: "3 중복 ACK 손실이면 cwnd는 왜 1이 아니라 절반으로 떨어질까?",
+    },
+  ],
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .fork-wrap { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+  .fork-wrap svg { width: 100%; height: auto; display: block; }
+  .fork-cap { font-size: 1.05rem; color: var(--ltt-ink); min-height: 2.8em; }
+  .fork-ctl { display: flex; align-items: center; gap: 12px; }
+  .fork-ctl input[type=range] { flex: 1; }
+  .fork-ctl button { padding: 4px 14px; border: 1px solid var(--ltt-line-2); background: var(--ltt-card); color: var(--ltt-ink); border-radius: 6px; cursor: pointer; }
+</style>
+</head>
+<body>
+<script>
+const T = 19;
+const F = (t) => 260 + 45 * Math.min(t, 12);
+const ease = (x, f) => { const d = f - x; if (d <= 0) return 0; const s = Math.min(1, d / 160); return s * s * (3 - 2 * s); };
+const yT = (x, f) => 252 - 120 * ease(x, f);
+const yB = (x, f) => 268 + 120 * ease(x, f);
+const P = [240, 400, 560, 720];
+const TP = P.map((p) => (p - 190) / 45);
+const TC = P.map((p, k) => 14.6 + k * 0.9);
+const GROW = 2.2, DELAY = 0.4, FRAG = 160, PRIM = 18;
+
+function pts(a, b, fn, off = 0) {
+  const out = []; const step = a <= b ? 6 : -6;
+  for (let x = a; step > 0 ? x < b : x > b; x += step) out.push([x, fn(x) + off]);
+  out.push([b, fn(b) + off]);
+  return out.map((q, i) => (i ? "L" : "M") + q[0].toFixed(1) + " " + q[1].toFixed(1)).join(" ");
+}
+const pill = (x, y, w, label, stroke) =>
+  `<rect x="${x - w / 2}" y="${y - 11}" width="${w}" height="22" rx="11" fill="var(--ltt-card)" stroke="${stroke || 'var(--ltt-ink-2)'}" stroke-width="1.5"/>` +
+  `<text x="${x}" y="${y + 4.5}" text-anchor="middle" font-size="12.5" fill="var(--ltt-ink)">${label}</text>`;
+const txt = (x, y, s, o = "") => `<text x="${x}" y="${y}" font-size="12.5" fill="var(--ltt-ink-2)" ${o}>${s}</text>`;
+
+function caption(t) {
+  if (t < TP[0] + 0.3) return "헬리카아제가 두 가닥을 풀면서 분기점이 오른쪽으로 전진한다. 열린 가닥은 SSB가 붙잡는다.";
+  if (t < TP[1]) return "아래 가닥: 프라이머를 한 번 놓은 뒤 중합효소가 분기점을 따라가며 끊김 없이 자란다. 자라는 방향 = 분기점 전진 방향.";
+  if (t < TC[0] - 0.2) return "위 가닥: 분기점이 더 열려야 프라이머를 놓을 수 있다. 절편은 분기점 반대로 자라 그 사이 틈이 남고, 새 절편은 늘 분기점 쪽에서 생긴다.";
+  if (t < TC[2] + 1.8) return "앞 절편에 닿으면 DNA 중합효소 I이 RNA 프라이머를 DNA로 바꾸고, 연결효소가 틈을 잇는다. 분기점에서 먼 쪽부터 봉합된다.";
+  return "두 새 가닥 모두 5'→3'으로만 자랐다. 선도 가닥은 연속, 지연 가닥은 오카자키 절편을 이은 것이다.";
+}
+
+function frame(t) {
+  const f = F(t);
+  let s = `<defs>
+    <marker id="ah-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ltt-accent)"/></marker>
+    <marker id="ah-1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ltt-c1)"/></marker>
+    <marker id="ah-k" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ltt-ink)"/></marker>
+  </defs>`;
+
+  // 부모(주형) 가닥
+  s += `<path d="${pts(40, 990, (x) => yT(x, f))}" fill="none" stroke="var(--ltt-ink)" stroke-width="4" stroke-linecap="round"/>`;
+  s += `<path d="${pts(40, 990, (x) => yB(x, f))}" fill="none" stroke="var(--ltt-ink)" stroke-width="4" stroke-linecap="round"/>`;
+  // 5'/3' 표기
+  s += txt(14, 137, "5'", 'font-weight="700"') + txt(14, 393, "3'", 'font-weight="700"');
+  s += txt(972, 247, "3'", 'font-weight="700"') + txt(972, 287, "5'", 'font-weight="700"');
+  s += txt(44, 114, "지연 가닥의 주형");
+  s += txt(44, 418, "선도 가닥의 주형");
+
+  // SSB
+  for (let x = 70; x < f - 30; x += 46) {
+    s += `<circle cx="${x}" cy="${yT(x, f) - 8}" r="4.5" fill="var(--ltt-muted)"/><circle cx="${x + 20}" cy="${yB(x + 20, f) + 8}" r="4.5" fill="var(--ltt-muted)"/>`;
+  }
+  if (f > 330) s += txt(f - 190, yT(f - 190, f) - 18, "SSB(단일가닥결합단백질)");
+
+  // 선도 가닥
+  if (t >= TP[0]) {
+    const x0 = 290, pe = 308;
+    const xe = Math.max(pe, f - 30);
+    const fy = (x) => yB(x, f);
+    s += `<path d="${pts(x0, pe, fy, -16)}" fill="none" stroke="var(--ltt-warn)" stroke-width="5"/>`;
+    if (t >= 1.7 && xe > pe) s += `<path d="${pts(pe, xe, fy, -16)}" fill="none" stroke="var(--ltt-c1)" stroke-width="5"/>`;
+    const tip = t >= 1.7 ? xe : pe;
+    s += `<path d="${pts(x0, Math.max(tip + 10, x0 + 20), fy, 26)}" fill="none" stroke="var(--ltt-c1)" stroke-width="2.5" marker-end="url(#ah-1)"/>`;
+    s += txt(x0 - 6, fy(x0) - 6, "5'", 'font-weight="700" text-anchor="end"');
+    s += txt(tip + 8, fy(tip) - 20, "3'", 'font-weight="700"');
+    if (t >= 1.7) s += pill(tip - 26, fy(tip) - 44, 62, "중합효소");
+    if (t < 3.4) s += pill(x0 + 16, fy(x0) - 44, 92, "RNA 프라이머", "var(--ltt-warn)");
+  }
+
+  // 지연 가닥
+  let last = -1;
+  P.forEach((p, k) => { if (t >= TP[k]) last = k; });
+  P.forEach((p, k) => {
+    if (t < TP[k]) return;
+    const fy = (x) => yT(x, f);
+    const g = Math.max(0, Math.min(1, (t - TP[k] - DELAY) / GROW));
+    const xl = p - FRAG * g;
+    const conv = k < 3 && t >= TC[k] + 0.45;
+    s += `<path d="${pts(p - PRIM, p, fy, 16)}" fill="none" stroke="${conv ? 'var(--ltt-c2)' : 'var(--ltt-warn)'}" stroke-width="5"/>`;
+    if (xl < p - PRIM) s += `<path d="${pts(xl, p - PRIM, fy, 16)}" fill="none" stroke="var(--ltt-c2)" stroke-width="5"/>`;
+    if (k === last) {
+      s += `<path d="${pts(p, Math.min(xl, p - 24), fy, -22)}" fill="none" stroke="var(--ltt-accent)" stroke-width="3" marker-end="url(#ah-a)"/>`;
+      s += txt(p + 8, fy(p) + 10, "5'", 'font-weight="700"');
+      s += txt(xl - 14, fy(xl) + 24, "3'", 'font-weight="700"');
+      if (t - TP[k] < 2.8) s += pill(p + 6, fy(p) + 46, 92, "RNA 프라이머", "var(--ltt-warn)");
+    }
+    if (g > 0 && g < 1) s += pill(xl + 30, fy(xl) + 46, 62, "중합효소");
+  });
+
+  // 틈, 프라이머 교체, 봉합
+  for (let k = 0; k < 3; k++) {
+    const p = P[k], ny = yT(p, f) + 16;
+    const done = TP[k + 1] + DELAY + GROW;
+    const tl = TC[k] + 0.9;
+    if (t >= done && t < tl) {
+      s += `<line x1="${p}" y1="${ny - 12}" x2="${p}" y2="${ny + 12}" stroke="var(--ltt-bad)" stroke-width="3"/>`;
+      if (t < TC[k]) s += txt(p - 8, ny + 40, "틈", 'fill="var(--ltt-bad)" font-weight="700" text-anchor="end"');
+    }
+    if (t >= TC[k] && t < TC[k] + 0.9) s += pill(p - 40, ny + 38, 86, "중합효소 I");
+    if (t >= tl && t < tl + 0.9) s += pill(p, ny + 38, 70, "연결효소", "var(--ltt-good)");
+  }
+
+  // 헬리카아제와 분기점 전진
+  s += `<ellipse cx="${f + 14}" cy="260" rx="40" ry="21" fill="var(--ltt-card)" stroke="var(--ltt-ink)" stroke-width="2"/>`;
+  s += `<text x="${f + 14}" y="264.5" text-anchor="middle" font-size="12.5" fill="var(--ltt-ink)">헬리카아제</text>`;
+  s += `<path d="M${f + 62} 260 L${f + 140} 260" stroke="var(--ltt-ink)" stroke-width="3" marker-end="url(#ah-k)"/>`;
+  s += txt(f + 62, 300, "분기점 전진", 'font-weight="700" fill="var(--ltt-ink)"');
+
+  // 강조 문구
+  s += `<text x="44" y="58" font-size="15" font-weight="700" fill="var(--ltt-accent)">지연 가닥: 절편이 분기점과 반대로 자란다</text>`;
+  s += `<text x="44" y="488" font-size="15" font-weight="700" fill="var(--ltt-c1)">선도 가닥: 분기점과 같은 방향으로 이어서 자란다</text>`;
+
+  // 범례
+  s += `<g transform="translate(640 478)"><line x1="0" y1="0" x2="26" y2="0" stroke="var(--ltt-ink)" stroke-width="4"/>${txt(32, 4, "부모 가닥")}
+    <line x1="112" y1="0" x2="138" y2="0" stroke="var(--ltt-warn)" stroke-width="5"/>${txt(144, 4, "RNA 프라이머")}
+    <line x1="250" y1="0" x2="276" y2="0" stroke="var(--ltt-c1)" stroke-width="5"/><line x1="276" y1="0" x2="302" y2="0" stroke="var(--ltt-c2)" stroke-width="5"/>${txt(308, 4, "새 DNA")}</g>`;
+  return s;
+}
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  scenes: [{
+    type: "hook",
+    title: "한 분기점에서 새 가닥 하나는 이어 자라고, 다른 하나는 거꾸로 조각난다",
+    sub: "중합효소는 3' 끝에만 덧붙인다. 아래를 재생하며 두 새 가닥이 분기점과 어느 방향으로 자라는지 본다.",
+    mount(body) {
+      body.innerHTML = `<div class="fork-wrap"><svg viewBox="0 0 1000 510" role="img" aria-label="DNA 복제 분기점: 선도 가닥은 분기점을 따라 연속 합성, 지연 가닥은 오카자키 절편으로 합성"></svg>
+        <div class="fork-cap"></div>
+        <div class="fork-ctl"><button type="button">멈춤</button><input type="range" min="0" max="${T}" step="0.02" value="0" aria-label="재생 위치"></div></div>`;
+      const svg = body.querySelector("svg"), cap = body.querySelector(".fork-cap");
+      const btn = body.querySelector("button"), rng = body.querySelector("input");
+      const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let t = reduce ? T : 0, playing = !reduce, raf = 0, prev = 0;
+      const draw = () => { svg.innerHTML = frame(t); cap.textContent = caption(t); rng.value = t; btn.textContent = playing ? "멈춤" : "재생"; };
+      const tick = (ts) => {
+        if (playing) {
+          const dt = prev ? Math.min(0.1, (ts - prev) / 1000) : 0;
+          t += dt; if (t > T + 3) t = 0;
+          draw();
+        }
+        prev = ts; raf = requestAnimationFrame(tick);
+      };
+      btn.onclick = () => { playing = !playing; if (playing && t >= T) t = 0; draw(); };
+      rng.oninput = () => { playing = false; t = +rng.value; draw(); };
+      draw();
+      return {
+        enter() { if (!reduce) { prev = 0; cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); } },
+        leave() { playing = false; cancelAnimationFrame(raf); draw(); }
+      };
+    }
+  }]
+});
+</script>
+</body>
+</html>

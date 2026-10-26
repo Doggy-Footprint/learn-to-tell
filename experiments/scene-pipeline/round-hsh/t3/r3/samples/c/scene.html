@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의 — 리더 선출과 로그 복제</title>
+<script type="application/json" id="ltt-meta">{"topic": "Raft 합의", "audience": "분산 시스템 입문 개발자", "theme": "sketch", "medium": "아키텍처 화이트보드", "decision": "합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 노드 5대: S2가 term 3에 후보로 나서 리더가 된다. S1은 끊긴 옛 리더다.
+const NODES = [
+  { id: "S3", c: 0, r: 0, l: "S3 · 팔로워", s: "term 2 · 1:t1 2:t2" },
+  { id: "S4", c: 2, r: 0, l: "S4 · 팔로워", s: "term 2 · 1:t1 2:t2" },
+  { id: "S2", c: 1, r: 1, l: "S2 · 후보 → 리더", s: "term 3 · 1:t1 2:t2 3:t3 · commit 2", k: "accent" },
+  { id: "S5", c: 0, r: 2, l: "S5 · 팔로워", s: "term 2 · 1:t1 2:t2" },
+  { id: "S1", c: 2, r: 2, l: "S1 · 옛 리더", s: "term 2 · 끊김", k: "muted" },
+];
+const EDGES = [
+  { f: "S2", t: "S3" },
+  { f: "S2", t: "S4", l: "투표 · AppendEntries" },
+  { f: "S2", t: "S5" },
+  { f: "S1", t: "S2", dash: true, l: "heartbeat 끊김", k: "muted" },
+];
+const spec = { cols: 3, rows: 3, cell: [300, 200], node: [250, 76], nodes: NODES, edges: EDGES };
+
+const figure = (el) => {
+  const s = el.appendChild(document.createElementNS(SVG, "svg"));
+  return { el: s, dg: LTT.diagram(s, spec) };
+};
+
+const ACCENT = "var(--ltt-accent)";
+const GOOD = "var(--ltt-good)";
+
+const overviewScene = {
+  type: "overview",
+  title: "{{과반수}}에 복제된 항목만 {{커밋}}이 된다",
+  en: "Raft: leader election and log replication",
+  kicker: "Raft 합의",
+  sub: "노드 5대. 리더가 죽으면 선출이 다시 돌고, 커밋된 항목은 새 리더에게 남는다",
+  figure,
+  caption: "쓰기는 리더 로그에 들어가는 것만으로 커밋이 아니다. 과반수 3대가 저장해야 커밋이다.",
+  label: "리더 선출 → 로그 복제 → 커밋",
+  steps: [
+    { caption: "① S1의 heartbeat가 끊기고, S2의 election timeout이 먼저 만료된다",
+      enter: (k, f) => f.dg.highlight(["S2"]) },
+    { caption: "② S2가 term을 3으로 올리고 후보가 되어 투표를 요청한다",
+      enter: (k, f) => {
+        f.dg.highlight(["S2"]);
+        ["S3", "S4", "S5"].forEach((t) => f.dg.send("S2", t, { count: 1, color: ACCENT }));
+      } },
+    { caption: "③ S3·S4가 표를 준다. S2 자신을 더해 과반수 3표가 되어 리더가 된다",
+      enter: (k, f) => {
+        f.dg.highlight(["S2"]);
+        ["S3", "S4"].forEach((t) => f.dg.send(t, "S2", { count: 1, color: GOOD }));
+      } },
+    { caption: "④ 클라이언트 쓰기가 리더 S2의 로그 3번에 append된다. 아직 미커밋이다",
+      enter: (k, f) => f.dg.highlight(["S2"]) },
+    { caption: "⑤ AppendEntries로 팔로워 셋에 복제한다",
+      enter: (k, f) => {
+        f.dg.highlight(["S2"]);
+        ["S3", "S4", "S5"].forEach((t) => f.dg.send("S2", t, { count: 1, color: ACCENT }));
+      } },
+    { caption: "⑥ 저장 응답이 쌓여 S2 포함 3대가 저장하면 3번 항목이 커밋된다. 그 뒤에 클라이언트에 ack한다",
+      enter: (k, f) => {
+        f.dg.highlight(["S2"]);
+        ["S3", "S4"].forEach((t) => f.dg.send(t, "S2", { count: 1, color: GOOD }));
+      } },
+    { caption: "⑦ 다음 heartbeat로 팔로워들도 commitIndex를 따라 올린다",
+      enter: (k, f) => {
+        f.dg.highlight(null);
+        ["S3", "S4", "S5"].forEach((t) => f.dg.send("S2", t, { count: 1, color: GOOD }));
+      } },
+  ],
+  takeaway: "커밋 = 과반수(5대 중 3대)가 저장한 항목이다. 리더가 append한 것만으로는 안전하지 않다.",
+  recall: "5대 중 2대만 저장한 항목은 리더가 죽으면 어떻게 될까?",
+  basis: "과반수 = floor(N/2)+1, N=5이면 3. 허용 장애 = N − 과반수 = 2대.",
+};
+
+LTT.deck({
+  title: "Raft 합의 — 리더 선출과 로그 복제",
+  theme: "sketch",
+  glossary: {
+    "과반수": "절반을 넘는 수. 노드 5대면 3대",
+    "커밋": "과반수가 저장해, 새 리더도 잃지 않는다고 확정된 항목",
+  },
+  scenes: [overviewScene],
+});
+</script>
+</body>
+</html>

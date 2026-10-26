@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할</title>
+<script type="application/json" id="ltt-meta">{"topic":"B+tree 노드 분할","audience":"백엔드 개발자","theme":"blueprint","medium":"DB 내부 구조 도해","decision":"인덱스 설계와 페이지 크기 이해"}</script>
+<style>
+  .bt-node rect { fill: var(--ltt-card); stroke: var(--ltt-line-2); stroke-width: 1.5; }
+  .bt-node.path rect { stroke: var(--ltt-accent); stroke-width: 2.5; }
+  .bt-node.warn rect { stroke: var(--ltt-warn); stroke-width: 2.5; fill: var(--ltt-warn-soft); }
+  .bt-node.hl rect { stroke: var(--ltt-accent); stroke-width: 2.5; }
+  .bt-node.stub rect { fill: var(--ltt-card-2); stroke-dasharray: 4 3; }
+  .bt-node text { fill: var(--ltt-ink); font-family: inherit; font-size: 14px; text-anchor: middle; dominant-baseline: central; }
+  .bt-node .sep { stroke: var(--ltt-line); stroke-width: 1; }
+  .bt-node .up rect { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); stroke-width: 1.5; }
+  .bt-node .up text { fill: var(--ltt-ink); font-weight: 700; }
+  .bt-node .dup rect { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); stroke-dasharray: 3 2; }
+  .bt-tag { fill: var(--ltt-muted); font-size: 12px; text-anchor: middle; font-family: inherit; }
+  .bt-tag.warn { fill: var(--ltt-ink); font-weight: 700; }
+  .bt-tag.acc { fill: var(--ltt-accent); font-weight: 700; }
+  .bt-edge { stroke: var(--ltt-line-2); stroke-width: 1.5; fill: none; }
+  .bt-edge.path { stroke: var(--ltt-accent); stroke-width: 2.5; }
+  .bt-link { stroke: var(--ltt-muted); stroke-width: 1.5; fill: none; }
+  .bt-note { fill: var(--ltt-ink-2); font-size: 13px; font-family: inherit; }
+  .bt-note.b { fill: var(--ltt-ink); font-weight: 700; }
+  .bt-badge rect { fill: var(--ltt-card); stroke: var(--ltt-line-2); }
+  .bt-badge.on rect { stroke: var(--ltt-accent); fill: var(--ltt-accent-soft); }
+  .bt-badge text { fill: var(--ltt-ink); font-size: 15px; font-weight: 700; text-anchor: middle; dominant-baseline: central; font-family: inherit; }
+  .bt-chip rect { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); stroke-width: 1.5; }
+  .bt-chip text { fill: var(--ltt-ink); font-weight: 700; font-size: 14px; text-anchor: middle; dominant-baseline: central; font-family: inherit; }
+  .bt-box rect { fill: var(--ltt-card); stroke: var(--ltt-line-2); }
+  .bt-new { animation: bt-pop .6s ease both; transform-box: fill-box; transform-origin: center; }
+  .bt-rise { animation: bt-rise .8s ease both; }
+  @keyframes bt-pop { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: scale(1); } }
+  @keyframes bt-rise { from { transform: translateY(var(--dy)); opacity: .3; } to { transform: translateY(0); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .bt-new, .bt-rise { animation: none; } }
+</style>
+</head>
+<body>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const CW = 38, H = 30, Y = [56, 140, 245, 355];
+
+const N = (id, x, lv, keys, o = {}) => ({ id, x, y: Y[lv], keys, ...o });
+const S = (id, x, lv) => ({ id, x, y: Y[lv], keys: ["…"], stub: true });
+const stubsLeaf = () => [S("lc", 262, 3), S("ld", 315, 3), S("le", 368, 3), S("lf", 421, 3)];
+const stubsMid = () => [S("m1", 510, 2), S("m2", 620, 2), S("m3", 730, 2), S("m4", 840, 2)];
+const w = (n) => (n.stub ? 44 : n.keys.length * CW);
+
+// 단계별 트리 상태. 키 [값, 종류, 상승 거리]: up = 위로 올라온 키, dup = 리프에 남은 복사본
+function stage(s) {
+  const leafRow = ["lc", "ld", "le", "lf"];
+  let nodes = [], edges = [], links = [], tags = [], height = 3, extra = "";
+  if (s === 0) {
+    nodes = [
+      N("R", 540, 1, [100, 200, 300, 400], { tone: "path" }),
+      N("N2", 255, 2, [30, 60, 80, 90], { tone: "path" }),
+      N("A", 100, 3, [10, 20, 22, 28], { tone: "path" }),
+      ...stubsMid(), ...stubsLeaf()];
+    edges = [["R", "N2", 1], ["R", "m1"], ["R", "m2"], ["R", "m3"], ["R", "m4"],
+      ["N2", "A", 1], ["N2", "lc"], ["N2", "ld"], ["N2", "le"], ["N2", "lf"]];
+    links = ["A", ...leafRow];
+    tags = [["R", "4/4 가득", "warn"], ["N2", "4/4 가득", "warn"], ["A", "4/4 가득", "warn"]];
+    extra = "insert";
+  } else if (s === 1) {
+    nodes = [
+      N("R", 540, 1, [100, 200, 300, 400]),
+      N("N2", 255, 2, [[25, "up", Y[3] - Y[2]], 30, 60, 80, 90], { tone: "warn" }),
+      N("A", 85, 3, [10, 20, 22]),
+      N("B", 190, 3, [[25, "dup"], 28], { isNew: true }),
+      ...stubsMid(), ...stubsLeaf()];
+    edges = [["R", "N2"], ["R", "m1"], ["R", "m2"], ["R", "m3"], ["R", "m4"],
+      ["N2", "A"], ["N2", "B"], ["N2", "lc"], ["N2", "ld"], ["N2", "le"], ["N2", "lf"]];
+    links = ["A", "B", ...leafRow];
+    tags = [["N2", "5키 초과", "warn"], ["B", "25 복사", "acc"], ["A", "왼쪽 3키", "muted"]];
+  } else if (s === 2) {
+    nodes = [
+      N("R", 540, 1, [[60, "up", Y[2] - Y[1]], 100, 200, 300, 400], { tone: "warn" }),
+      N("N2a", 175, 2, [25, 30]),
+      N("N2b", 368, 2, [80, 90], { isNew: true }),
+      N("A", 85, 3, [10, 20, 22]), N("B", 190, 3, [25, 28]),
+      ...stubsMid(), ...stubsLeaf()];
+    edges = [["R", "N2a"], ["R", "N2b"], ["R", "m1"], ["R", "m2"], ["R", "m3"], ["R", "m4"],
+      ["N2a", "A"], ["N2a", "B"], ["N2a", "lc"], ["N2b", "ld"], ["N2b", "le"], ["N2b", "lf"]];
+    links = ["A", "B", ...leafRow];
+    tags = [["R", "5키 초과 · 60은 아래에서 이동", "warn"]];
+  } else {
+    height = 4;
+    nodes = [
+      N("NR", 536, 0, [[200, "up", Y[1] - Y[0]]], { isNew: true }),
+      N("R1", 343, 1, [60, 100]),
+      N("R2", 730, 1, [300, 400], { isNew: true }),
+      N("N2a", 175, 2, [25, 30]), N("N2b", 368, 2, [80, 90]),
+      N("A", 85, 3, [10, 20, 22]), N("B", 190, 3, [25, 28]),
+      ...stubsMid(), ...stubsLeaf()];
+    edges = [["NR", "R1"], ["NR", "R2"], ["R1", "N2a"], ["R1", "N2b"], ["R1", "m1"],
+      ["R2", "m2"], ["R2", "m3"], ["R2", "m4"],
+      ["N2a", "A"], ["N2a", "B"], ["N2a", "lc"], ["N2b", "ld"], ["N2b", "le"], ["N2b", "lf"]];
+    links = ["A", "B", ...leafRow];
+    tags = [["NR", "새 루트 · 200은 아래에서 이동", "acc"]];
+    if (s === 4) { extra = "depth"; nodes.forEach((n) => { if (n.y === Y[3]) n.tone = "hl"; }); }
+  }
+  return { nodes, edges, links, tags, height, extra };
+}
+
+function draw(svg, s) {
+  const st = stage(s);
+  const byId = Object.fromEntries(st.nodes.map((n) => [n.id, n]));
+  let h = `<defs><marker id="bt-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="var(--ltt-muted)"/></marker>
+    <marker id="bt-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="var(--ltt-accent)"/></marker></defs>`;
+  // 엣지
+  st.edges.forEach(([p, c, path]) => {
+    const a = byId[p], b = byId[c];
+    h += `<path class="bt-edge${path ? " path" : ""}" d="M${a.x} ${a.y + H} L${b.x} ${b.y}"/>`;
+  });
+  // 리프 오른쪽 형제 링크
+  for (let i = 0; i < st.links.length - 1; i++) {
+    const a = byId[st.links[i]], b = byId[st.links[i + 1]];
+    h += `<path class="bt-link" marker-end="url(#bt-arr)" d="M${a.x + w(a) / 2} ${a.y + H / 2 + 5} L${b.x - w(b) / 2 - 1} ${b.y + H / 2 + 5}"/>`;
+  }
+  // 노드
+  st.nodes.forEach((n) => {
+    const W = w(n), x0 = n.x - W / 2;
+    h += `<g class="bt-node${n.stub ? " stub" : ""} ${n.tone || ""}${n.isNew ? " bt-new" : ""}">`;
+    h += `<rect x="${x0}" y="${n.y}" width="${W}" height="${H}" rx="4"/>`;
+    n.keys.forEach((k, i) => {
+      const [t, kind, dy] = Array.isArray(k) ? k : [k];
+      const cx = x0 + i * (n.stub ? 0 : CW) + (n.stub ? W / 2 : CW / 2);
+      if (i > 0) h += `<line class="sep" x1="${x0 + i * CW}" y1="${n.y + 4}" x2="${x0 + i * CW}" y2="${n.y + H - 4}"/>`;
+      if (kind) {
+        h += `<g class="${kind}${kind === "up" ? " bt-rise" : ""}"${dy ? ` style="--dy:${dy}px"` : ""}><rect x="${cx - CW / 2 + 2}" y="${n.y + 2}" width="${CW - 4}" height="${H - 4}" rx="3"/><text x="${cx}" y="${n.y + H / 2}">${t}</text></g>`;
+      } else {
+        h += `<text x="${cx}" y="${n.y + H / 2}">${t}</text>`;
+      }
+    });
+    h += `</g>`;
+  });
+  // 태그
+  st.tags.forEach(([id, txt, tone]) => {
+    const n = byId[id];
+    // 부모에서 내려오는 엣지가 노드 상단 중앙으로 들어오므로, 자식 노드의 태그는 왼쪽 모서리로 밀고 리프는 아래에 둔다
+    const kid = st.edges.some(([, c]) => c === id);
+    const leaf = n.y === Y[3];
+    h += kid
+      ? `<text class="bt-tag ${tone}" x="${n.x - w(n) / 2}" y="${leaf ? n.y + H + 14 : n.y - 7}" style="text-anchor:start">${txt}</text>`
+      : `<text class="bt-tag ${tone}" x="${n.x}" y="${n.y - 7}">${txt}</text>`;
+  });
+  // 높이 배지
+  h += `<g class="bt-badge${st.height === 4 ? " on" : ""}"><rect x="780" y="10" width="120" height="32" rx="6"/><text x="840" y="26">트리 높이 ${st.height}</text></g>`;
+  if (st.extra === "insert") {
+    h += `<g class="bt-chip"><rect x="330" y="${Y[1]}" width="76" height="${H}" rx="15"/><text x="368" y="${Y[1] + H / 2}">25 삽입</text></g>
+      <path class="bt-edge path" marker-end="url(#bt-arr-a)" d="M406 ${Y[1] + H / 2} L${540 - 95 - 2} ${Y[1] + H / 2}"/>`;
+  }
+  if (st.extra === "depth") {
+    h += `<path d="M30 ${Y[3] + 50} H450" stroke="var(--ltt-accent)" stroke-width="2" fill="none"/>
+      <text class="bt-tag acc" x="240" y="${Y[3] + 68}">모든 리프의 깊이가 함께 3 → 4</text>
+      <g class="bt-box"><rect x="490" y="${Y[3] - 30}" width="410" height="84" rx="6"/></g>
+      <text class="bt-note b" x="504" y="${Y[3] - 8}">페이지가 클수록 팬아웃이 커서 분할이 드물다 (근사)</text>
+      <text class="bt-note" x="504" y="${Y[3] + 14}">8KB ≈ 팬아웃 500 → 500³ ≈ 1.25억 키가 높이 3</text>
+      <text class="bt-note" x="504" y="${Y[3] + 36}">4KB ≈ 팬아웃 250 → 250³ ≈ 1,600만 키</text>`;
+  }
+  svg.innerHTML = h;
+}
+
+const treeFigure = (el) => {
+  const svg = el.appendChild(document.createElementNS(SVG, "svg"));
+  svg.setAttribute("viewBox", "0 0 920 450");
+  svg.style.cssText = "width:100%;max-width:1000px;height:auto;display:block;margin:0 auto";
+  draw(svg, 0);
+  return { el: svg, show: (s) => draw(svg, s) };
+};
+
+LTT.deck({
+  title: "B+tree 노드 분할",
+  theme: "blueprint",
+  scenes: [{
+    type: "figure",
+    title: "분할은 리프에서 시작해 한 층씩 위로 번지고, 루트가 넘칠 때만 트리가 높아진다",
+    sub: "노드당 최대 4키로 줄여 그렸다. 굵은 선이 25가 내려가는 길이다",
+    figure: treeFigure,
+    steps: [
+      { caption: "① 25가 들어갈 리프 [10,20,22,28]이 가득 차 있다. 부모 N2와 루트도 4키로 가득하다.", enter: (k, f) => f.show(0) },
+      { caption: "② 리프에 넣으면 5키가 되어 둘로 갈라진다. 새 리프 [25,28]이 오른쪽 형제가 되고, 25는 복사되어 N2로 올라간다(리프에도 남는다). N2가 5키로 넘친다.", enter: (k, f) => f.show(1) },
+      { caption: "③ N2가 갈라져 오른쪽에 새 노드가 생긴다. 가운데 키 60은 복사가 아니라 이동해 루트로 올라가고, 루트가 5키로 넘친다.", enter: (k, f) => f.show(2) },
+      { caption: "④ 루트가 갈라진 뒤, 200이 이동해 맨 위에 새 루트가 생긴다. 새 루트는 키 1개, 자식 2개뿐이어도 된다.", enter: (k, f) => f.show(3) },
+      { caption: "⑤ 기존 노드가 밀려난 게 아니라 모든 리프의 깊이가 함께 1 늘었다. 부모에 빈자리가 있었다면 연쇄는 그 층에서 멈췄다.", enter: (k, f) => f.show(4) }
+    ],
+    basis: "노드당 최대 4키는 설명용 가정. 실제는 8KB 페이지에 키+포인터 약 16B 기준 팬아웃 약 500(근사, 불확실).",
+    takeaway: "분할은 아래에서 위로 한 층씩 번지고, 루트가 분할될 때만 새 루트가 생겨 높이가 1 커진다.",
+    recall: "부모에 빈자리가 있으면 분할은 어디서 멈추는가?"
+  }]
+});
+</script>
+</body>
+</html>

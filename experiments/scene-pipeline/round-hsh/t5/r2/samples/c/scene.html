@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic": "신용 창조와 통화 승수", "audience": "경제 기사 독자", "theme": "ledger", "medium": "경제 신문 차트", "decision": "통화정책 기사 해석"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const D0 = 100;                                            // 최초 예금
+const dep = (i, r = 0.1) => D0 * (1 - r) ** i;             // i번째 은행이 받는 예금
+const cum = (k, r = 0.1) => D0 * (1 - (1 - r) ** k) / r;   // k라운드까지 누적 예금
+const cap = (r) => D0 / r;                                 // 예금 상한 = 최초 예금 ÷ 지급준비율
+const ids = ["a", "b", "c", "d", "e"];
+const L = "ABCDE";
+const f = (v) => +v.toFixed(2);
+const pct = (v) => v + "%";
+
+LTT.expect("5라운드 누적 예금", cum(5), 409.51, { tol: 1e-6 });
+LTT.expect("10라운드 누적 예금", cum(10), 651.3, { tol: 0.1 });
+LTT.expect("상한 (r=10%)", cap(0.1), 1000, { tol: 1e-9 });
+
+const scene = {
+  title: "대출은 새 예금이 되어, 예금 총액은 최초 예금의 1/r배까지 불어난다",
+  en: "Credit creation and the money multiplier",
+  sub: "지급준비율 10%, 최초 예금 100. 대출금이 다른 은행으로 건너가 예금으로 다시 잡힌다",
+  narration: "은행은 받은 예금의 {{지급준비율}}만 남기고 나머지를 대출한다. 대출금은 다른 은행의 새 예금이 되어 같은 일이 반복된다.",
+  basis: "숫자는 모델로 계산한 예시. 가정: 현금 보유와 초과 지급준비금이 없고 대출 수요가 충분하다. 이론상 상한이다.",
+  takeaway: "지급준비율이 r이면 예금 총액의 상한은 최초 예금의 1/r배다.",
+  recall: "지급준비율이 5%이면 같은 최초 예금 100의 상한은?",
+  mount(body) {
+    body.innerHTML = `<div id="g"></div>
+      <div id="p"></div>
+      <div class="ltt-param">지급준비율 <b id="r-v"></b><div id="r"></div></div>
+      <div class="ltt-bar" id="b"></div>
+      <div class="ltt-basis" id="cap"></div>`;
+    const bar = LTT.bar("b", [{ color: "var(--ltt-accent)" }, { color: "var(--ltt-line)" }]);
+    const capEl = body.querySelector("#cap");
+    let round = 0, rate = 10;
+
+    // 누적 예금이 상한 대비 어디쯤인지 막대로 보인다
+    const paint = () => {
+      const r = rate / 100, total = cum(round, r), c = cap(r);
+      bar.set([total, c - total], [`누적 ${f(total)}`, ""]);
+      capEl.textContent = `예금 상한 = 100 ÷ ${rate}% = ${c}. 준비금 총량은 처음 100 그대로다`;
+    };
+
+    // 지급준비율이 바뀌면 연쇄 전체를 처음부터 다시 전개한다
+    const build = () => {
+      const r = rate / 100;
+      const d = (i) => dep(i, r);
+      const c = (k) => cum(k, r);
+      const gEl = body.querySelector("#g"), pEl = body.querySelector("#p");
+      gEl.innerHTML = "";
+      pEl.innerHTML = "";
+      round = 0;
+      const sv = gEl.appendChild(document.createElementNS(SVG, "svg"));
+      const dg = LTT.diagram(sv, {
+        cols: 5, rows: 1, cell: [230, 120], node: [120, 64],
+        nodes: ids.map((id, i) => ({ id, c: i, r: 0, l: `은행 ${L[i]}`, s: `예금 ${f(d(i))}` })),
+        edges: ids.slice(0, 4).map((id, i) => ({ f: id, t: ids[i + 1], l: `대출 ${f(d(i + 1))}` })),
+      });
+      const caption = (i) => i === 0
+        ? `① 은행 A에 예금 ${f(d(0))}이 들어온다. ${f(d(0) * r)}을 남기고 ${f(d(1))}을 대출한다`
+        : `${"②③④⑤"[i - 1]} 대출 ${f(d(i))}이 은행 ${L[i]}의 새 예금이 된다. 누적 예금 ${f(c(i + 1))}`;
+      dg.player(pEl, ids.map((id, i) => ({
+        caption: caption(i),
+        hold: 2200,
+        hot: [id],
+        send: i ? [[ids[i - 1], id, {}]] : [],
+        enter: () => { round = i + 1; paint(); },
+      })));
+      paint();
+    };
+
+    LTT.sweep({
+      params: { r: { kind: "steps", stops: [20, 10, 5], value: 10, fmt: pct } },
+      render: ({ r }) => { rate = r; build(); },
+    });
+    return {};
+  },
+};
+
+LTT.deck({
+  title: "신용 창조와 통화 승수",
+  theme: "ledger",
+  glossary: { "지급준비율": "은행이 예금 중 대출하지 않고 남겨 두는 비율. 10%면 예금 100에 준비금 10" },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

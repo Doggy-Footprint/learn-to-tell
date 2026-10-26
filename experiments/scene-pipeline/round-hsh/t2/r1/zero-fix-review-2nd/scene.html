@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어: slow start에서 AIMD 톱니로</title>
+<script type="application/json" id="ltt-meta">{"topic":"TCP 혼잡 제어","audience":"백엔드·네트워크 개발자","theme":"lab","medium":"cwnd 시계열 플롯","decision":"전송 처리량 문제 진단"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .cw-svg { width: 100%; height: auto; display: block; }
+  .cw-svg text { font-family: var(--ltt-mono, ui-monospace, monospace); fill: var(--ltt-ink-2); font-size: 13px; }
+  .cw-svg .tick { fill: var(--ltt-muted); font-size: 12px; }
+  .cw-svg .grid { stroke: var(--ltt-line); stroke-width: 1; }
+  .cw-svg .axis { stroke: var(--ltt-line-2); stroke-width: 1.5; }
+  .cw-svg .curve { fill: none; stroke: var(--ltt-c1); stroke-width: 2.5; stroke-linejoin: round; }
+  .cw-svg .ghost { fill: none; stroke: var(--ltt-muted); stroke-width: 2; stroke-dasharray: 6 5; }
+  .cw-svg .cap { stroke: var(--ltt-bad); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  .cw-svg .thr { stroke: var(--ltt-accent); stroke-width: 1.5; stroke-dasharray: 2 4; }
+  .cw-svg .loss { stroke: var(--ltt-bad); stroke-width: 3; stroke-linecap: round; }
+  .cw-svg .lbl-bad { fill: var(--ltt-bad); }
+  .cw-svg .lbl-acc { fill: var(--ltt-accent); }
+  .cw-svg .lbl-ink { fill: var(--ltt-ink); font-weight: 600; }
+  .cw-svg .q { fill: var(--ltt-muted); font-size: 20px; }
+  .cw-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: cw-draw var(--d, 1.6s) ease-out var(--delay, 0s) forwards; }
+  .cw-fade { opacity: 0; animation: cw-fade .5s ease-out var(--delay, 0s) forwards; }
+  @keyframes cw-draw { to { stroke-dashoffset: 0; } }
+  @keyframes cw-fade { to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .cw-draw { animation: none; stroke-dashoffset: 0; } .cw-fade { animation: none; opacity: 1; } }
+</style>
+</head>
+<body>
+<script>
+const W = 760, H = 330, L = 56, R = 18, T = 14, B = 42, TMAX = 46, CMAX = 48;
+const X = (t) => L + (t / TMAX) * (W - L - R);
+const Y = (c) => H - B - (c / CMAX) * (H - T - B);
+const NS = "http://www.w3.org/2000/svg";
+const f = (n) => n.toFixed(1);
+const path = (pts) => "M" + pts.map(([t, c]) => f(X(t)) + " " + f(Y(c))).join(" L");
+// slow start: RTT마다 2배, 10 → 20 → 40
+const slow = Array.from({ length: 21 }, (_, i) => { const t = i / 10; return [t, 10 * Math.pow(2, t)]; });
+// 손실 뒤: 절반으로 내려와 RTT당 +1 MSS
+const saw = [[2, 40], [2, 20], [22, 40], [22, 20], [42, 40], [42, 20], [46, 24]];
+const lossAt = [2, 22, 42];
+const cross = (t, c) => `<path class="loss" d="M${f(X(t) - 6)} ${f(Y(c) - 6)} l12 12 M${f(X(t) + 6)} ${f(Y(c) - 6)} l-12 12"/>`;
+
+function frame() {
+  let g = "";
+  for (const c of [0, 10, 20, 30, 40]) g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${f(Y(c))}" y2="${f(Y(c))}"/><text class="tick" x="${L - 8}" y="${f(Y(c) + 4)}" text-anchor="end">${c}</text>`;
+  for (const t of [0, 10, 20, 30, 40]) g += `<text class="tick" x="${f(X(t))}" y="${H - B + 18}" text-anchor="middle">${t}</text>`;
+  g += `<line class="axis" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/><line class="axis" x1="${L}" x2="${L}" y1="${T}" y2="${H - B}"/>`;
+  g += `<text class="tick" x="${f((L + W - R) / 2)}" y="${H - 6}" text-anchor="middle">시간 (RTT 수)</text>`;
+  g += `<text class="tick" x="${L}" y="${T - 2}" text-anchor="start" transform="translate(6 0)">cwnd (MSS)</text>`;
+  g += `<line class="cap" x1="${L}" x2="${W - R}" y1="${f(Y(40))}" y2="${f(Y(40))}"/>`;
+  g += `<text class="lbl-bad" x="${W - R}" y="${f(Y(40) - 7)}" text-anchor="end">병목이 감당하는 한계 ≈ 40 MSS</text>`;
+  return g;
+}
+function startPts() {
+  return [0, 1, 2].map((t) => `<circle cx="${f(X(t))}" cy="${f(Y(10 * Math.pow(2, t)))}" r="4.5" fill="var(--ltt-c1)"/>`).join("")
+    + `<text class="lbl-ink" x="${f(X(0) + 8)}" y="${f(Y(10) - 8)}">10</text>`
+    + `<text class="lbl-ink" x="${f(X(1) - 8)}" y="${f(Y(20) - 8)}" text-anchor="end">20</text>`
+    + `<text class="lbl-ink" x="${f(X(2) - 10)}" y="${f(Y(40) + 18)}" text-anchor="end">40</text>`;
+}
+function svgIn(node, inner, label) {
+  const s = document.createElementNS(NS, "svg");
+  s.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  s.setAttribute("class", "cw-svg");
+  s.setAttribute("role", "img");
+  s.setAttribute("aria-label", label);
+  s.innerHTML = inner;
+  node.appendChild(s);
+  return s;
+}
+
+// 문제: 첫 손실 직전까지만 그린다
+function questionPlot(node) {
+  svgIn(node, frame()
+    + `<path class="curve cw-draw" pathLength="1" style="--d:1.4s" d="${path(slow)}"/>`
+    + `<g class="cw-fade" style="--delay:1.5s">${startPts()}${cross(2, 40)}
+       <text class="lbl-bad" x="${f(X(3.2))}" y="${f(Y(44.5))}">첫 손실: cwnd 40에서 중복 ACK 3개</text>
+       <text class="q" x="${f(X(24))}" y="${f(Y(24))}" text-anchor="middle">손실 직후 곡선은 어디로 갈까?</text></g>`,
+    "cwnd 시계열: 10, 20, 40 MSS로 두 배씩 오르다 40에서 첫 손실이 난 지점까지");
+}
+
+// 정답 공개: 선택한 예측(점선)과 실제 곡선
+function ghostFor(id) {
+  if (id === "a") return { d: path([[2, 40], [2, 1], [3, 2], [4, 4], [5, 8], [6, 16], [7, 32], [7.4, 40]]), tx: X(8.4), ty: Y(9), t: "내 예측: 1로 추락" };
+  if (id === "c") return { d: path([[2, 40], [2.4, 48]]), tx: X(3.2), ty: Y(45.5), t: "내 예측: 계속 2배" };
+  if (id === "d") return { d: path([[2, 40], [2, 20], [3, 40], [3.4, 48]]), tx: X(4.4), ty: Y(43), t: "내 예측: 20에서 다시 2배" };
+  return null;
+}
+function answerPlot(node, id) {
+  const g = ghostFor(id);
+  let inner = frame()
+    + `<path class="curve" d="${path(slow)}"/>` + startPts() + cross(2, 40)
+    + `<line class="thr cw-fade" style="--delay:1s" x1="${L}" x2="${W - R}" y1="${f(Y(20))}" y2="${f(Y(20))}"/>`
+    + `<text class="lbl-acc cw-fade" style="--delay:1s" x="${f(X(23))}" y="${f(Y(20) + 18)}">ssthresh = 20 (손실 때 cwnd 40의 절반)</text>`
+    + `<path class="curve cw-draw" pathLength="1" style="--d:3.4s;--delay:.6s" d="${path(saw)}"/>`
+    + `<g class="cw-fade" style="--delay:1.5s">${cross(22, 40)}</g>`
+    + `<g class="cw-fade" style="--delay:2.8s">${cross(42, 40)}</g>`
+    + `<g class="cw-fade" style="--delay:4s">
+        <text x="${f(X(3))}" y="${f(Y(5))}">① slow start: RTT마다 ×2</text>
+        <text x="${f(X(7))}" y="${f(Y(13))}" class="lbl-ink">② congestion avoidance: RTT마다 +1 MSS</text>
+        <text x="${f(X(30))}" y="${f(Y(32))}" text-anchor="middle">손실마다 ×0.5, 평균 30 ≈ 피크의 75%</text></g>`;
+  if (g) inner += `<path class="ghost" d="${g.d}"/><text x="${f(g.tx)}" y="${f(g.ty)}" class="tick">${g.t}</text>`;
+  svgIn(node, inner, "cwnd 시계열: 첫 손실에서 40의 절반인 20으로 내려온 뒤 RTT마다 1씩 선형으로 오르고 40에서 다시 손실이 나는 톱니");
+}
+
+LTT.deck({
+  title: "TCP 혼잡 제어",
+  theme: "lab",
+  glossary: {
+    cwnd: "송신자가 ACK를 받기 전에 네트워크에 내보낼 수 있는 데이터 양의 상한. MSS 단위로 센다.",
+    ssthresh: "slow start를 끝내고 선형 증가로 넘어가는 경계값. 손실이 난 순간 cwnd의 절반으로 정해진다."
+  },
+  scenes: [{
+    type: "predict",
+    kicker: "네트워크 · 혼잡 제어",
+    title: "첫 손실 직후, {{cwnd}}는 어디로 갈까?",
+    en: "TCP congestion control",
+    question: "연결을 열자 cwnd가 10 → 20 → 40 MSS(세그먼트 1개 크기)로 RTT(왕복 시간)마다 두 배가 됐다. 40에서 병목 큐가 넘쳐 패킷이 버려지고 중복 ACK 3개가 돌아온다. 이어지는 곡선은?",
+    chips: ["MSS 1460 B", "RTT 100 ms"],
+    visual: questionPlot,
+    choices: [
+      { id: "a", text: "1 MSS로 떨어져 다시 slow start" },
+      { id: "b", text: "20 MSS로 절반 감소 후 RTT마다 +1" },
+      { id: "c", text: "40을 넘어 계속 2배" },
+      { id: "d", text: "20 MSS로 절반 감소 후 다시 2배" }
+    ],
+    answer: "b",
+    hint: "중복 ACK는 뒤 패킷이 도착하고 있다는 신호다. 길이 완전히 막힌 것은 아니다.",
+    answerVisual: answerPlot,
+    why: "중복 ACK 3개면 {{ssthresh}} = cwnd/2 = 20, cwnd = 20이 되고 거기서 RTT마다 +1 MSS로 올라 20 RTT 뒤 다시 40에 닿는다. 1로 떨어지는 것은 타임아웃일 때뿐이다. 처리량은 cwnd × 1460 B × 8 ÷ 0.1 s라서 손실 순간 4.67 Mbit/s, 직후 2.34 Mbit/s, 톱니 평균 3.50 Mbit/s다. <span class=\"ltt-tag\">모델로 계산한 예시</span> 진단은 이렇게 읽는다. 톱니면 정상 AIMD라 손실률과 RTT를 보고, 1까지 파인 골이면 타임아웃, 손실 없는 평평한 지붕이면 수신 윈도 제한이다.",
+    rest: "dim",
+    takeaway: "손실은 cwnd를 절반으로 줄이고, 회복은 RTT당 +1 MSS라서 곡선이 톱니가 된다.",
+    recall: "중복 ACK 3개로 손실이 났을 때 cwnd는 얼마가 되고, 어떤 기울기로 오르는가?",
+    basis: "Reno 기준(RFC 5681). 최신 리눅스 기본은 CUBIC이라 증가 모양이 다르다."
+  }]
+});
+LTT.expect("손실 순간 처리량(Mbit/s)", 40 * 1460 * 8 / 0.1 / 1e6, 4.67, { tol: 0.01 });
+LTT.expect("톱니 평균 처리량(Mbit/s)", 30 * 1460 * 8 / 0.1 / 1e6, 3.50, { tol: 0.01 });
+</script>
+</body>
+</html>

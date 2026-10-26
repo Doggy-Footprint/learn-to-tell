@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할이 루트까지 전파</title>
+<script type="application/json" id="ltt-meta">{"topic": "B+tree 노드 분할", "audience": "백엔드 개발자", "theme": "blueprint", "medium": "DB 내부 구조 도해", "decision": "인덱스 설계와 페이지 크기 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const N = (id, c, r, l, s, tone) => ({ id, c, r, l, ...(s ? { s } : {}), ...(tone ? { k: tone } : {}) });
+const E = (f, t, o = {}) => ({ f, t, ...o });
+const DOWN = (from, tos) => tos.map((t) => E(from, t));
+const CHAIN = (ids) => ids.slice(1).map((t, i) => E(ids[i], t, { dash: true, k: "muted" }));
+
+// 단계마다 그림을 새로 그린다. 같은 id는 같은 자리에 있는 것으로 읽힌다.
+function build(k) {
+  if (k <= 1) {
+    const nodes = [
+      N("R", 2, 0, "50 100 150 200", "루트 · 4/4"),
+      N("A", 0, 1, "…"),
+      N("I2", 2, 1, "60 70 80 90", "내부 · 4/4"),
+      N("B", 3, 1, "…"),
+      N("LA", 0, 2, "…"), N("LB", 1, 2, "…"), N("LW", 2, 2, "…"),
+      k === 0 ? N("L", 3, 2, "81 83 85 88", "잎 · 4/4") : N("L", 3, 2, "81 83 85 86 88", "잎 · 5/4 넘침", "bad"),
+      N("LE", 4, 2, "…"),
+    ];
+    const edges = [E("R", "A"), E("R", "I2"), E("R", "B"), ...DOWN("I2", ["LA", "LB", "LW", "L", "LE"]), ...CHAIN(["LA", "LB", "LW", "L", "LE"])];
+    if (k === 0) {
+      nodes.push(N("P", 3, 3, "86", "삽입 키"));
+      edges.push(E("P", "L", { l: "86", dash: true }));
+    }
+    return { nodes, edges };
+  }
+  if (k <= 3) {
+    const nodes = [
+      N("R", 2, 0, "50 100 150 200", "루트 · 4/4"),
+      N("A", 0, 1, "…"),
+      k === 2 ? N("I2", 2, 1, "60 70 80 90", "내부 · 4/4") : N("I2", 2, 1, "60 70 80 86 90", "내부 · 5/4 넘침", "bad"),
+      N("B", 3, 1, "…"),
+      N("LA", 0, 2, "…"), N("LB", 1, 2, "…"), N("LW", 2, 2, "…"),
+      N("L1", 3, 2, "81 83 85", "잎 · 3/4"),
+      N("L2", 4, 2, "86 88", "잎 · 2/4"),
+      N("LE", 5, 2, "…"),
+    ];
+    const leaves = ["LA", "LB", "LW", "L1", "L2", "LE"];
+    const edges = [E("R", "A"), E("R", "I2"), E("R", "B"), ...leaves.map((t) => E("I2", t, t === "L2" && k === 2 ? { l: "86 복사" } : {})), ...CHAIN(leaves)];
+    return { nodes, edges };
+  }
+  if (k <= 5) {
+    const nodes = [
+      k === 5 ? N("R", 2, 0, "50 80 100 150 200", "루트 · 5/4 넘침", "bad") : N("R", 2, 0, "50 100 150 200", "루트 · 4/4"),
+      N("A", 0, 1, "…"),
+      N("I2L", 1, 1, "60 70", "내부 · 2/4"),
+      N("I2R", 2, 1, "86 90", "내부 · 2/4"),
+      N("B", 3, 1, "…"),
+      N("LA", 0, 2, "…"), N("LB", 1, 2, "…"), N("LW", 2, 2, "…"),
+      N("L1", 3, 2, "81 83 85", "잎 · 3/4"),
+      N("L2", 4, 2, "86 88", "잎 · 2/4"),
+      N("LE", 5, 2, "…"),
+    ];
+    const edges = [
+      E("R", "A"), E("R", "I2L"), E("R", "I2R", k === 4 ? { l: "80 이동" } : {}), E("R", "B"),
+      ...DOWN("I2L", ["LA", "LB", "LW"]), ...DOWN("I2R", ["L1", "L2", "LE"]),
+      ...CHAIN(["LA", "LB", "LW", "L1", "L2", "LE"]),
+    ];
+    return { nodes, edges };
+  }
+  const nodes = [
+    N("NR", 2, 0, "100", "새 루트 · 1/4"),
+    N("LR", 1, 1, "50 80", "내부 · 2/4"),
+    N("RR", 3, 1, "150 200", "내부 · 2/4"),
+    N("A", 0, 2, "…"), N("I2L", 1, 2, "60 70", "내부 · 2/4"), N("I2R", 2, 2, "86 90", "내부 · 2/4"), N("X", 3, 2, "…"),
+    N("LA", 0, 3, "…"), N("LB", 1, 3, "…"), N("LW", 2, 3, "…"),
+    N("L1", 3, 3, "81 83 85", "잎 · 3/4"),
+    N("L2", 4, 3, "86 88", "잎 · 2/4"),
+    N("LE", 5, 3, "…"),
+  ];
+  const edges = [
+    E("NR", "LR"), E("NR", "RR"),
+    E("LR", "A"), E("LR", "I2L"), E("LR", "I2R"), E("RR", "X"),
+    ...DOWN("I2L", ["LA", "LB", "LW"]), ...DOWN("I2R", ["L1", "L2", "LE"]),
+    ...CHAIN(["LA", "LB", "LW", "L1", "L2", "LE"]),
+  ];
+  return { nodes, edges };
+}
+
+const HOT = [
+  ["R", "I2", "L"],
+  ["L"],
+  ["L1", "L2"],
+  ["I2"],
+  ["I2L", "I2R"],
+  ["R"],
+  ["LA", "LB", "LW", "L1", "L2", "LE"],
+  ["NR"],
+];
+
+const CAPTIONS = [
+  "① 꽉 찬 경로: 루트, 내부 노드 I2, 잎 L이 모두 4/4다. 키 86이 들어온다.",
+  "② 잎 L에 86이 들어와 5개가 된다. 용량 4를 넘었다(넘침).",
+  "③ 잎이 3+2로 쪼개진다. 새 오른쪽 잎 [86 88]이 생기고, 구분 키 86은 복사되어 부모로 올라간다.",
+  "④ 부모 I2가 86을 받아 5개가 되어 또 넘친다. 넘침은 꽉 찬 조상이 있는 만큼만 위로 이어진다.",
+  "⑤ I2를 쪼갠다. 가운데 키 80은 위로 이동하고, 잎과 달리 I2 쪽에는 남지 않는다.",
+  "⑥ 80을 받은 루트가 5개가 되어 넘친다. 루트 위에는 쪼갤 곳이 없다.",
+  "⑦ 가운데 100이 올라가 새 루트가 생긴다. 모든 잎이 한 층 내려가 높이가 3에서 4가 된다.",
+  "⑧ 높이는 루트가 쪼개질 때만 는다. 같은 키 수라도 페이지가 크면 팬아웃이 커서 트리가 낮다.",
+];
+
+// 그림을 한 단계 상태로 다시 그리고, 그 단계의 강조 노드만 남긴다.
+function paint(svg, k) {
+  svg.replaceChildren();
+  const { nodes, edges } = build(k);
+  const dg = LTT.diagram(svg, { cols: 6, rows: 4, cell: [190, 112], node: [164, 60], nodes, edges });
+  dg.highlight(HOT[k]);
+  return dg;
+}
+
+const figure = (el) => {
+  const svg = el.appendChild(document.createElementNS(SVG, "svg"));
+  return { el: svg, dg: paint(svg, 0) };
+};
+
+const scene = {
+  type: "figure",
+  title: "넘침은 꽉 찬 조상까지만 올라가고, 루트가 쪼개질 때만 트리가 한 층 높아진다",
+  en: "A split climbs only through full ancestors",
+  kicker: "DB · B+tree 삽입",
+  sub: "노드 한 장은 키 4개를 담는다. 넣은 키 86이 잎에서 부모로 올라가는 {{구분 키}}가 되고, 넘침은 꽉 찬 조상을 따라 올라간다.",
+  label: "B+tree 삽입 경로 · 노드 용량 4키(자식 최대 5개)",
+  figure,
+  steps: CAPTIONS.map((caption, i) => ({
+    caption,
+    enter: (_k, f) => { f.dg = paint(f.el, i); },
+  })),
+  takeaway: "잎이 쪼개져도 높이는 그대로다. 높이는 루트가 쪼개질 때만 한 층 늘고, 그래서 {{팬아웃}}이 큰 페이지일수록 트리가 낮다.",
+  recall: "같은 키 수에서 페이지를 4 KB에서 8 KB로 키우면 트리 높이는 어떻게 될까?",
+  basis: "팬아웃 ≈ 페이지 크기 ÷ 항목 크기. 8 KB ÷ 16 B ≈ 500, 4 KB ÷ 16 B ≈ 250(헤더 제외, 모델로 계산한 예시). 그림의 키 4개는 설명용 가정이다.",
+};
+
+LTT.deck({
+  title: "B+tree 노드 분할이 루트까지 전파",
+  theme: "blueprint",
+  glossary: {
+    "팬아웃": "노드 하나가 가리키는 자식 수. 페이지 크기를 항목 크기로 나눈 값에 가깝다.",
+    "구분 키": "부모 노드에서 자식 범위를 나누는 키. 잎에서 올라온 키는 복사, 내부 노드에서 올라온 키는 이동한다.",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

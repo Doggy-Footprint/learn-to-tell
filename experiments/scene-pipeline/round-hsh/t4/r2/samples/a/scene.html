@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점: 선도 가닥과 지연 가닥</title>
+<script type="application/json" id="ltt-meta">{"topic": "DNA 복제 분기점", "audience": "생명과학 입문 학생", "theme": "paper", "medium": "교과서 도해", "decision": "복제 과정 이해"}</script>
+<style>
+.lt-fig { width: 100%; max-width: 760px; height: auto; display: block; margin: 0 auto; }
+.lt-fig text { fill: var(--ltt-ink-2); font-size: 13px; font-family: inherit; }
+.lt-draw { stroke-dasharray: 100; stroke-dashoffset: 100; animation: lt-draw var(--dur, 1.2s) ease-out var(--d, 0s) forwards; }
+.lt-in { opacity: 0; animation: lt-in .5s ease var(--d, 0s) forwards; }
+.lt-out { animation: lt-out .4s ease var(--d, 0s) forwards; }
+@keyframes lt-draw { to { stroke-dashoffset: 0; } }
+@keyframes lt-in { to { opacity: 1; } }
+@keyframes lt-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .lt-draw { animation: none; stroke-dashoffset: 0; }
+  .lt-in { animation: none; opacity: 1; }
+  .lt-out { animation: none; opacity: 0; }
+}
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const art = `<svg class="lt-fig" viewBox="0 0 760 390" role="img" aria-label="Y자 분기점에서 선도 가닥은 분기점 쪽으로 연속 합성되고, 지연 가닥은 분기점에서 멀어지며 오카자키 절편으로 합성된 뒤 이어진다">
+  <path class="lt-draw" pathLength="100" style="--d:.4s;--dur:1.6s" d="M740 196 L470 196 L410 120 L60 120" fill="none" stroke="var(--ltt-ink-2)" stroke-width="4" stroke-linejoin="round"/>
+  <path class="lt-draw" pathLength="100" style="--d:.4s;--dur:1.6s" d="M740 224 L470 224 L410 270 L60 270" fill="none" stroke="var(--ltt-ink-2)" stroke-width="4" stroke-linejoin="round"/>
+  <circle class="lt-in" style="--d:.2s" cx="470" cy="210" r="20" fill="var(--ltt-card-2)" stroke="var(--ltt-ink)" stroke-width="2"/>
+  <text class="lt-in" style="--d:.2s" x="520" y="178">헬리케이스가 풀며 전진</text>
+  <text class="lt-in" style="--d:.4s" x="640" y="258" text-anchor="middle">아직 풀리지 않은 부모 DNA</text>
+  <text class="lt-in" style="--d:.4s" x="40" y="124" text-anchor="end">3'</text>
+  <text class="lt-in" style="--d:.4s" x="752" y="200">5'</text>
+  <text class="lt-in" style="--d:.4s" x="40" y="274" text-anchor="end">5'</text>
+  <text class="lt-in" style="--d:.4s" x="752" y="228">3'</text>
+
+  <path class="lt-draw" pathLength="100" style="--d:2.4s;--dur:2.2s" d="M60 100 L386 100" fill="none" stroke="var(--ltt-c1)" stroke-width="4"/>
+  <polygon class="lt-in" style="--d:4.6s" points="396,100 384,94 384,106" fill="var(--ltt-accent)"/>
+  <text class="lt-in" style="--d:4.6s" x="228" y="84" text-anchor="middle">선도 가닥: 한 가닥으로 끊김 없이 5'→3'</text>
+  <g class="lt-out" style="--d:7.6s"><rect class="lt-in" style="--d:2s" x="55" y="95" width="10" height="10" fill="var(--ltt-ink)"/></g>
+
+  <path class="lt-draw" pathLength="100" style="--d:3.4s;--dur:1.2s" d="M150 292 L60 292" fill="none" stroke="var(--ltt-c2)" stroke-width="4"/>
+  <polygon class="lt-in" style="--d:4.6s" points="60,292 70,286 70,298" fill="var(--ltt-accent)"/>
+  <text class="lt-in" style="--d:4.6s" x="105" y="316" text-anchor="middle">5'→3'</text>
+  <path class="lt-draw" pathLength="100" style="--d:4.8s;--dur:1.2s" d="M280 292 L180 292" fill="none" stroke="var(--ltt-c2)" stroke-width="4"/>
+  <polygon class="lt-in" style="--d:6s" points="180,292 190,286 190,298" fill="var(--ltt-accent)"/>
+  <text class="lt-in" style="--d:6s" x="230" y="316" text-anchor="middle">5'→3'</text>
+  <path class="lt-draw" pathLength="100" style="--d:6.2s;--dur:1.2s" d="M396 292 L300 292" fill="none" stroke="var(--ltt-c2)" stroke-width="4"/>
+  <polygon class="lt-in" style="--d:7.4s" points="300,292 310,286 310,298" fill="var(--ltt-accent)"/>
+  <text class="lt-in" style="--d:7.4s" x="348" y="316" text-anchor="middle">5'→3'</text>
+  <g class="lt-out" style="--d:7.6s">
+    <rect class="lt-in" style="--d:3.2s" x="145" y="287" width="10" height="10" fill="var(--ltt-ink)"/>
+    <rect class="lt-in" style="--d:4.6s" x="275" y="287" width="10" height="10" fill="var(--ltt-ink)"/>
+    <rect class="lt-in" style="--d:6s" x="391" y="287" width="10" height="10" fill="var(--ltt-ink)"/>
+  </g>
+  <path class="lt-draw" pathLength="100" style="--d:8s;--dur:.6s" d="M150 292 L180 292" fill="none" stroke="var(--ltt-c2)" stroke-width="4"/>
+  <path class="lt-draw" pathLength="100" style="--d:8s;--dur:.6s" d="M280 292 L300 292" fill="none" stroke="var(--ltt-c2)" stroke-width="4"/>
+  <text class="lt-in" style="--d:6.4s" x="230" y="350" text-anchor="middle">지연 가닥: 분기점에서 멀어지며 짧은 절편으로 합성</text>
+  <text class="lt-in" style="--d:8.6s" x="230" y="368" text-anchor="middle">프라이머 제거 → 틈 메움 → 연결효소가 이어 한 가닥이 된다</text>
+  <text class="lt-in" style="--d:2s" x="20" y="384">■ 프라이머(짧은 RNA)</text>
+</svg>`;
+
+LTT.deck({
+  title: "DNA 복제 분기점: 선도 가닥과 지연 가닥",
+  theme: "paper",
+  glossary: {
+    "오카자키 절편": "지연 가닥에서 분기점을 등지고 따로 합성되는 짧은 DNA 조각. 조각마다 프라이머가 먼저 놓인다"
+  },
+  scenes: [
+    {
+      type: "hook",
+      pre: "생물 · DNA 복제",
+      text: "두 새 가닥은 같은 5'→3' 규칙으로 자라지만, 분기점 기준으로는 반대로 자란다",
+      sub: "헬리케이스(이중나선을 푸는 효소)가 분기점을 열면, 한 가닥은 끊김 없이 자라고 다른 가닥은 {{오카자키 절편}}이라는 짧은 조각들로 자란다.",
+      art,
+      takeaway: "같은 규칙, 반대 방향: 선도 가닥은 분기점을 향해, 지연 가닥은 분기점에서 멀어지며 자란다.",
+      recall: "지연 가닥은 왜 여러 조각으로 나뉠까?"
+    }
+  ]
+});
+</script>
+</body>
+</html>

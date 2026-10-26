@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의 — 리더 선출과 로그 복제</title>
+<script type="application/json" id="ltt-meta">{"topic": "Raft 합의", "audience": "분산 시스템 입문 개발자", "theme": "sketch", "medium": "아키텍처 화이트보드", "decision": "합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.raft { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.cards { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; width: 100%; }
+.card { flex: 1 1 130px; max-width: 170px; min-width: 130px; border: 1px solid var(--ltt-line); border-radius: 10px; background: var(--ltt-card); padding: 8px 10px; }
+.card .head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.cells { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.cell { padding: 2px 6px; border-radius: 4px; border: 1px solid var(--ltt-line); }
+.cell.c { background: var(--ltt-good-soft); border-color: var(--ltt-good); }
+.cell.u { border-style: dashed; border-color: var(--ltt-warn); }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const NAMES = ["A", "B", "C", "D", "E"];
+const MUTED = "var(--ltt-muted)", WARN = "var(--ltt-warn)", GOOD = "var(--ltt-good)", ACCENT = "var(--ltt-accent)";
+const ROLE_TAG = { "리더": "good", "후보": "warn", "팔로워": "muted", "단절": "bad", "죽음": "bad" };
+
+// 노드 5개를 오각형에 배치(픽셀 중심). 쌍마다 옅은 점선 엣지: 투표·복제가 오가는 길이다.
+const POS = { A: [380, 40], B: [599, 137], C: [515, 293], D: [245, 293], E: [161, 137] };
+const pairs = [];
+for (let i = 0; i < 5; i++) for (let j = i + 1; j < 5; j++) pairs.push([NAMES[i], NAMES[j]]);
+const spec = {
+  width: 760, height: 340, node: [160, 52],
+  nodes: NAMES.map((id) => ({ id, x: POS[id][0], y: POS[id][1], l: "노드 " + id, icon: "server" })),
+  edges: pairs.map(([f, t]) => ({ f, t, dash: true, k: "muted" })),
+};
+
+const sendAll = (from, tos, color, ms = 800) => tos.map((t) => [from, t, { color, count: 1, ms }]);
+const ackAll = (froms, to, color) => froms.map((f) => [f, to, { color, count: 1, ms: 800 }]);
+
+// 로그 칸은 항목의 term 배열(index = 배열 위치 + 1). commit은 커밋 경계.
+const BASE = {};
+for (const id of NAMES) BASE[id] = { role: id === "A" ? "리더" : "팔로워", term: 2, log: [1, 2], commit: 2 };
+
+// 생성 순서: heartbeat → 타이머 만료 → 후보·term 상승 → 투표 → 리더 → append → 복제 → 과반수 커밋 → ack → 팔로워 커밋 → 리더 사망·재선출 → 따라잡기
+const BEATS = [
+  { cap: "정상: 리더 A의 heartbeat가 팔로워의 타이머를 되돌린다. 모든 로그는 index 2까지 같다.", hl: ["A"], send: sendAll("A", ["B", "C", "D", "E"], MUTED) },
+  { cap: "A의 heartbeat가 끊긴다. 팔로워 B의 election timeout이 가장 먼저 끝난다.", hl: ["B"], set: { A: { role: "단절" } } },
+  { cap: "B가 후보가 되어 term을 3으로 올리고, 자기 표를 찍은 뒤 나머지에게 투표를 요청한다.", hl: ["B"], set: { B: { role: "후보", term: 3 } }, send: sendAll("B", ["C", "D", "E"], WARN) },
+  { cap: "C·D·E는 term 3에 노드마다 한 표씩 B에게 준다. 자기 표를 더해 3표면 과반수다.", hl: ["B"], set: { C: { term: 3 }, D: { term: 3 }, E: { term: 3 } }, send: ackAll(["C", "D", "E"], "B", GOOD) },
+  { cap: "B가 term 3의 리더가 된다. term마다 리더는 한 명이다. 끊긴 A는 아직 term 2를 믿는다.", hl: ["B"], set: { B: { role: "리더" } } },
+  { cap: "클라이언트 쓰기가 리더 B의 로그 index 3(term 3)에 들어간다. 아직 미커밋이다.", hl: ["B"], set: { B: { log: [1, 2, 3] } } },
+  { cap: "B가 AppendEntries로 index 3을 C·D·E에 복제한다.", hl: ["B"], send: sendAll("B", ["C", "D", "E"], ACCENT) },
+  { cap: "C가 저장하고 응답한다. B와 C 둘뿐이라 3개에 못 미쳐 여전히 미커밋이다.", hl: ["B", "C"], set: { C: { log: [1, 2, 3] } }, send: ackAll(["C"], "B", GOOD) },
+  { cap: "D까지 저장하면 5개 중 3개다. index 3이 커밋되고 B의 commitIndex가 3이 된다.", hl: ["B", "C", "D"], set: { D: { log: [1, 2, 3] }, B: { commit: 3 } }, send: ackAll(["D"], "B", GOOD) },
+  { cap: "커밋된 뒤에야 클라이언트에 ack를 보낸다. append 직후에는 보내지 않는다.", hl: ["B"] },
+  { cap: "다음 heartbeat로 C·D도 commitIndex 3을 따라간다. 밀려 있던 E는 이때 index 3을 받는다.", hl: ["B"], set: { C: { commit: 3 }, D: { commit: 3 }, E: { log: [1, 2, 3], commit: 3 } }, send: sendAll("B", ["C", "D", "E"], MUTED) },
+  { cap: "리더 B가 죽는다. 커밋 항목 index 3을 가진 C가 선거에 나서 term 4를 연다.", hl: ["C"], set: { B: { role: "죽음" }, C: { role: "후보", term: 4 } }, send: sendAll("C", ["D", "E"], WARN) },
+  { cap: "D·E는 C의 로그가 자기만큼 최신이라 표를 준다. C가 term 4의 리더가 되고, 커밋된 index 3은 C에게 남는다.", hl: ["C"], set: { C: { role: "리더" }, D: { term: 4 }, E: { term: 4 } }, send: ackAll(["D", "E"], "C", GOOD) },
+  { cap: "단절이 풀린 A는 term 4를 보고 팔로워로 내려가, 빠진 index 3을 받아 따라잡는다.", hl: ["C"], set: { A: { role: "팔로워", term: 4, log: [1, 2, 3], commit: 3 } }, send: sendAll("C", ["A"], ACCENT) },
+];
+
+const next = (prev, set) => {
+  const s = {};
+  for (const id of NAMES) s[id] = { ...prev[id], ...(set[id] || {}) };
+  return s;
+};
+const states = [];
+BEATS.reduce((prev, b) => {
+  const s = next(prev, b.set || {});
+  states.push(s);
+  return s;
+}, BASE);
+
+let panel;
+const render = (st) => {
+  panel.innerHTML = NAMES.map((id) => {
+    const n = st[id];
+    const cells = n.log.map((t, i) => `<span class="cell ltt-mono ${i + 1 <= n.commit ? "c" : "u"}">${i + 1}:t${t}</span>`).join("");
+    return `<div class="card"><div class="head"><b>노드 ${id}</b><span class="ltt-tag ${ROLE_TAG[n.role]}">${n.role}</span></div>` +
+      `<div class="ltt-mono">term ${n.term}</div><div class="cells">${cells}</div><div class="ltt-basis">commit ${n.commit}</div></div>`;
+  }).join("");
+};
+
+const steps = BEATS.map((b, i) => ({
+  caption: b.cap,
+  hold: 2600,
+  send: b.send || [],
+  enter: (dg) => { dg.highlight(b.hl || null); render(states[i]); },
+}));
+
+const figure = (el) => {
+  const wrap = document.createElement("div");
+  wrap.className = "raft";
+  const svg = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  panel = wrap.appendChild(document.createElement("div"));
+  panel.className = "cards";
+  const ctl = wrap.appendChild(document.createElement("div"));
+  el.appendChild(wrap);
+  const dg = LTT.diagram(svg, spec);
+  dg.player(ctl, steps);
+  render(states[0]);
+  return { el: wrap, dg };
+};
+
+LTT.expect("과반수(N=5)", Math.floor(5 / 2) + 1, 3);
+
+LTT.deck({
+  title: "Raft 합의 — 리더 선출과 로그 복제",
+  theme: "sketch",
+  glossary: {
+    "과반수": "전체 노드 수의 절반을 넘는 수. 5대면 3대다.",
+    "commitIndex": "과반수가 저장을 확인한 로그의 마지막 index. 이 아래 항목만 상태 머신에 적용된다.",
+  },
+  scenes: [{
+    type: "summary",
+    takeaway: "{{과반수}}에 복제된 항목만 커밋되고, 커밋된 항목은 리더가 바뀌어도 새 리더에게 남는다.",
+    recall: "리더가 죽으면 커밋된 항목은 어떻게 되나?",
+  }, {
+    type: "overview",
+    layout: "full",
+    kicker: "분산 시스템 · Raft 합의",
+    title: "{{과반수}}에 복제된 항목만 커밋된다",
+    en: "Raft: leader election and log replication",
+    sub: "5노드 중 3개가 저장해야 커밋된다. 리더가 바뀌어도 커밋된 항목은 새 리더에게 남는다.",
+    figure,
+    caption: "박스는 노드, 칸은 index:term, 밝은 칸은 커밋된 항목이다. <span class=\"ltt-tag muted\">모델로 계산한 예시</span>",
+    label: "과반수 = 5개 중 3개",
+    takeaway: "{{과반수}}에 복제된 항목만 {{commitIndex}}가 넘어가 커밋되고, 커밋된 항목은 리더가 죽어도 사라지지 않는다.",
+    recall: "5노드에서 2개만 저장한 항목은 커밋인가?",
+    basis: "과반수 = floor(N/2)+1, N=5면 3, 허용 장애는 2대(노드는 term마다 한 표).",
+  }, {
+    type: "keywords",
+    terms: [
+      { ko: "리더", en: "leader" },
+      { ko: "로그 복제", en: "log replication" },
+      { ko: "커밋", en: "commit" },
+    ],
+  }],
+});
+</script>
+</body>
+</html>

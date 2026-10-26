@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어 · 손실 뒤 cwnd</title>
+<script type="application/json" id="ltt-meta">{"topic": "TCP 혼잡 제어", "audience": "백엔드·네트워크 개발자", "theme": "lab", "medium": "cwnd 시계열 플롯", "decision": "전송 처리량 문제 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 같은 손실 시점(RTT 3, cwnd 64)에서 두 경로를 나란히 그린다. 순서: 손실 → ssthresh → cwnd 하강
+const STEPS = [
+  { id: "ss", pts: [[0, 10], [1, 20], [2, 40], [3, 64]] },                 // slow start, 지수 증가
+  { id: "loss", pts: [[3, 0], [3, 72]] },                                   // 손실 시점
+  { id: "ssth", pts: [[0, 32], [40, 32]] },                                 // ssthresh = 손실 시점 cwnd / 2
+  { id: "dup", pts: [[3, 64], [3, 32], ...Array.from({ length: 32 }, (_, i) => [i + 4, i + 33])] }, // 중복 ACK: 절반에서 +1/RTT
+  { id: "to", pts: [[3, 64], [3, 1], [4, 2], [5, 4], [6, 8], [7, 16], [8, 32], ...Array.from({ length: 32 }, (_, i) => [i + 9, i + 33])] } // 타임아웃: 1에서 slow start
+];
+
+const play = (plot, i = 0) => {
+  if (i >= STEPS.length) return;
+  const { id, pts } = STEPS[i];
+  let k = 1;
+  const grow = () => {
+    plot.set(id, pts.slice(0, k));
+    if (k++ < pts.length) setTimeout(grow, 90);
+    else setTimeout(() => play(plot, i + 1), 400);
+  };
+  grow();
+};
+
+const curvePlot = (el) => {
+  const wrap = document.createElement("div");
+  const svg = document.createElementNS(SVG, "svg");
+  wrap.appendChild(svg);
+  const plot = LTT.axisPlot(svg, {
+    width: 640, height: 320, x: [0, 40], y: [0, 72],
+    labels: { x: "RTT 번호", y: "cwnd (MSS)" },
+    series: [
+      { id: "ss", color: "var(--ltt-c1)" },
+      { id: "loss", color: "var(--ltt-bad)", dash: true },
+      { id: "ssth", color: "var(--ltt-muted)", dash: true },
+      { id: "dup", color: "var(--ltt-accent)" },
+      { id: "to", color: "var(--ltt-c2)", dot: true }
+    ]
+  });
+  if (!LTT.MOTION_MS) STEPS.forEach((s) => plot.set(s.id, s.pts));
+  else play(plot);
+  return wrap;
+};
+
+const scene = {
+  type: "predict",
+  title: "중복 ACK로 손실을 알았다면 cwnd는 어디로 떨어질까",
+  sub: "cwnd(혼잡 윈도, 확인 응답을 기다리지 않고 보낼 수 있는 양)는 slow start로 64까지 올랐다. 그때 큐가 차서 패킷 하나가 버려졌다",
+  question: "cwnd가 64 MSS일 때 중복 ACK가 3개 도착해 손실이 감지됐다. 다음 cwnd는?",
+  visual: () => LTT.facts([
+    { icon: "gauge", value: "64 MSS", label: "손실 직전 cwnd" },
+    { icon: "alert", value: "3개", label: "중복 ACK", tone: "warn" },
+    { icon: "ruler", value: "1460 B", label: "MSS" }
+  ]),
+  choices: [
+    { id: "1", text: "1 MSS로 떨어진다" },
+    { id: "2", text: "32 MSS로 절반이 된다" },
+    { id: "3", text: "64 MSS 그대로 유지된다" }
+  ],
+  answer: "2",
+  answerVisual: curvePlot,
+  why: "중복 ACK 손실은 곱셈 감소다. ssthresh = cwnd/2 = 32, cwnd = 32로 내린 뒤 RTT마다 +1 MSS로 다시 오른다. 1로 떨어지는 건 중복 ACK가 모자라 RTO가 터졌을 때뿐이다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+  hint: "손실을 알아챈 방식이 줄이는 폭을 정한다.",
+  basis: "MSS 1460 B, RTT 50 ms, 손실 직전 cwnd 64 가정. Reno 기준 모델로 계산한 예시.",
+  takeaway: "중복 ACK 손실은 cwnd를 절반으로 낮추고, 타임아웃은 1로 낮춘다. 두 경우 모두 그 뒤 RTT마다 1 MSS씩 느리게 오른다.",
+  recall: "같은 손실이 타임아웃이었다면 cwnd는 어디서 다시 시작할까?"
+};
+
+LTT.deck({
+  title: "TCP 혼잡 제어 · 손실 뒤 cwnd",
+  theme: "lab",
+  scenes: [scene]
+});
+</script>
+</body>
+</html>

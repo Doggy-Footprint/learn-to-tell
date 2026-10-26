@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic":"신용 창조와 통화 승수","audience":"경제 기사 독자","theme":"ledger","medium":"경제 신문 차트","decision":"통화정책 기사 해석"}</script>
+<style>
+.mc { display: grid; gap: 14px; }
+.mc-chain { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mc-chain > i { font-style: normal; color: var(--ltt-muted); }
+.mc-split { display: grid; gap: 6px; }
+.mc-cell { min-width: 120px; padding: 6px 10px; border: 1px solid var(--ltt-line); border-radius: 8px; background: var(--ltt-card-2); opacity: .25; transition: opacity .3s; }
+.mc-cell.on { opacity: 1; }
+.mc-cell span { display: block; font-size: 12px; color: var(--ltt-muted); }
+.mc-cell b { font-size: 18px; font-variant-numeric: tabular-nums; color: var(--ltt-ink); }
+.mc-grid { stroke: var(--ltt-line); }
+.mc-bar { fill: var(--ltt-accent); }
+.mc-cap { fill: none; stroke: var(--ltt-muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.mc-cap.on { stroke: var(--ltt-ink); stroke-width: 2; stroke-dasharray: none; }
+.mc-txt { font-size: 12px; fill: var(--ltt-muted); paint-order: stroke; stroke: var(--ltt-card); stroke-width: 3px; }
+.mc-txt.on { fill: var(--ltt-ink); }
+.mc-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.mc-stats span { display: block; font-size: 12px; color: var(--ltt-muted); }
+.mc-stats b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.mc-stats small { font-size: 12px; color: var(--ltt-muted); margin-left: 4px; }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const RANGE = 20, DEP = 100, STOPS = [0.05, 0.1, 0.2];
+const SVGNS = "http://www.w3.org/2000/svg";
+const num = (v) => v.toLocaleString("ko-KR", { maximumFractionDigits: 1 });
+const ceiling = (r) => DEP / r;                                                        // 천장 = 최초 예금 ÷ 지준율
+const deposits = (r) => Array.from({ length: RANGE }, (_, i) => DEP * (1 - r) ** i);  // 라운드별 예금
+const X0 = 64, X1 = 700, Y0 = 280, YH = 260, MAX = 2000;
+const yOf = (v) => Y0 - (v / MAX) * YH;
+const slot = (X1 - X0) / RANGE;
+const T = LTT.MOTION_MS ? 700 : 0;                                                     // 라운드 한 칸의 길이
+LTT.expect("지준율 10% 천장", ceiling(0.1), 1000, { tol: 1e-9 });
+
+const scene = {
+  title: "같은 100억이라도 지준율이 낮을수록 예금은 더 많이 쌓인다",
+  en: "Credit creation and the money multiplier",
+  kicker: "통화 · 신용 창조",
+  sub: "최초 예금 100억 원이 대출과 새 예금을 거치며 쌓이는 과정",
+  narration: "은행은 예금의 일부를 {{지급준비금}}으로 쌓고 나머지를 대출한다. 대출금은 쓰인 뒤 다른 은행에 새 예금으로 들어오고, 그 예금에서 같은 일이 되풀이된다. 손잡이로 {{지준율}}을 바꾸면 쌓이는 천장이 함께 움직인다.",
+  mount(body) {
+    body.innerHTML = `
+      <div class="mc">
+        <div class="ltt-param">지준율 <b id="r-v"></b><div id="r"></div></div>
+        <div class="mc-chain">
+          <div class="mc-cell" id="c-dep"><span>예금</span><b>–</b></div>
+          <i>→</i>
+          <div class="mc-split">
+            <div class="mc-cell" id="c-res"><span>준비금</span><b>–</b></div>
+            <div class="mc-cell" id="c-loan"><span>대출</span><b>–</b></div>
+          </div>
+          <i>→</i>
+          <div class="mc-cell" id="c-next"><span>다음 라운드 예금</span><b>–</b></div>
+        </div>
+        <svg id="mc-svg" viewBox="0 0 720 300" role="img" aria-label="라운드별 누적 총예금과 지준율별 천장"></svg>
+        <div class="mc-stats">
+          <div><span>라운드</span><b id="s-round"></b></div>
+          <div><span>총예금 누적</span><b id="s-dep"></b><small>억 원</small></div>
+          <div><span>준비금 누적</span><b id="s-res"></b><small>억 원</small></div>
+          <div><span>천장 = 최초 예금 ÷ 지준율</span><b id="s-cap"></b><small>억 원</small></div>
+          <div><span>승수 = 1 ÷ 지준율</span><b id="s-mult"></b></div>
+        </div>
+        <p class="ltt-basis">준비금 누적은 최초 예금 100억을 향해 가고, 총예금 누적은 천장에 가까워질 뿐 넘지 못한다. 현금 보유와 초과 준비금이 없다고 가정한 이론상 상한이다. <span class="ltt-tag">모델로 계산한 예시</span></p>
+      </div>`;
+    const $ = (s) => body.querySelector(s);
+    const svg = $("#mc-svg");
+    const make = (tag, attrs) => {
+      const n = document.createElementNS(SVGNS, tag);
+      for (const k in attrs) n.setAttribute(k, attrs[k]);
+      svg.appendChild(n);
+      return n;
+    };
+    [0, 500, 1000, 1500, 2000].forEach((v) => {
+      make("line", { x1: X0, x2: X1, y1: yOf(v), y2: yOf(v), class: "mc-grid" });
+      make("text", { x: X0 - 8, y: yOf(v) + 4, "text-anchor": "end", class: "mc-txt" }).textContent = num(v);
+    });
+    const bars = Array.from({ length: RANGE }, (_, i) =>
+      make("rect", { x: X0 + i * slot + 5, width: slot - 10, y: Y0, height: 0, class: "mc-bar" }));
+    const caps = STOPS.map((s) => {
+      const y = yOf(ceiling(s));
+      const label = make("text", { x: X0 + 8, y: y - 6, class: "mc-txt" });
+      label.textContent = `지준율 ${Math.round(s * 100)}% 천장 ${num(ceiling(s))}억`;
+      return { s, line: make("line", { x1: X0, x2: X1, y1: y, y2: y, class: "mc-cap" }), label };
+    });
+    const chain = { dep: $("#c-dep"), res: $("#c-res"), loan: $("#c-loan"), next: $("#c-next") };
+    let timers = [];
+    const later = (ms, fn) => timers.push(setTimeout(fn, ms));
+    const stop = () => { timers.forEach(clearTimeout); timers = []; };
+
+    // 예금 → 준비금 + 대출 → 다음 예금 순서로 한 라운드씩 쌓고, 라운드가 끝날 때 누적 막대가 한 칸 올라간다
+    function draw(r) {
+      stop();
+      caps.forEach((c) => {
+        const on = c.s === r;
+        c.line.setAttribute("class", on ? "mc-cap on" : "mc-cap");
+        c.label.setAttribute("class", on ? "mc-txt on" : "mc-txt");
+      });
+      bars.forEach((b) => { b.setAttribute("y", yOf(0)); b.setAttribute("height", 0); });
+      Object.values(chain).forEach((c) => c.classList.remove("on"));
+      $("#s-cap").textContent = num(ceiling(r));
+      $("#s-mult").textContent = `×${Math.round(1 / r)}`;
+      const deps = deposits(r);
+      let cum = 0;
+      const round = (k) => {
+        if (k >= RANGE) return;
+        const d = deps[k], reserve = r * d, loan = d - reserve;
+        chain.dep.querySelector("b").textContent = `${num(d)}억`;
+        chain.dep.classList.add("on");
+        later(T / 3, () => {
+          chain.res.querySelector("b").textContent = `${num(reserve)}억`;
+          chain.loan.querySelector("b").textContent = `${num(loan)}억`;
+          chain.res.classList.add("on");
+          chain.loan.classList.add("on");
+        });
+        later((T * 2) / 3, () => {
+          chain.next.querySelector("b").textContent = `${num(loan)}억`;
+          chain.next.classList.add("on");
+        });
+        later(T, () => {
+          cum += d;
+          bars[k].setAttribute("y", yOf(cum));
+          bars[k].setAttribute("height", Y0 - yOf(cum));
+          $("#s-round").textContent = `${k + 1} / ${RANGE}`;
+          $("#s-dep").textContent = num(cum);
+          $("#s-res").textContent = num(r * cum);
+          round(k + 1);
+        });
+      };
+      round(0);
+    }
+
+    draw(0.1);
+    LTT.sweep({
+      params: { r: { kind: "steps", stops: STOPS, value: 0.1, fmt: (v) => `${Math.round(v * 100)}%` } },
+      render: ({ r }) => draw(r),
+    });
+    return { leave: stop };
+  },
+  takeaway: "지준율을 낮추면 같은 최초 예금에서 총예금 상한(최초 예금 ÷ 지준율)이 커진다.",
+  recall: "지준율 10%, 최초 예금 100억이면 총예금 상한은 얼마인가?",
+  basis: "승수 1/지준율은 현금 보유와 초과 준비금이 없다는 이론상 상한이다. 실제 증가는 대출 수요와 은행 행동에 달려 있다.",
+};
+
+LTT.deck({
+  title: "통화 · 지급준비율에 따라 예금이 불어나는 신용 창조",
+  theme: "ledger",
+  glossary: {
+    "지준율": "예금 가운데 지급준비금으로 쌓아 두는 비율. 10%면 예금 100억 중 10억을 쌓는다",
+    "지급준비금": "은행이 예금의 일부로 남겨 두어 인출에 대비하는 돈. 대출에 쓰지 않는다",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

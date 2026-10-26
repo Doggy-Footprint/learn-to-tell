@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가비지 컬렉션 방식: 같은 순환 쌍</title>
+<script type="application/json" id="ltt-meta">{"topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단"}</script>
+<style>
+  .side { display: grid; gap: 8px; min-width: 0; }
+  .side svg { display: block; width: 100%; height: auto; }
+  .side .ltt-mono { font-size: 13px; color: var(--ltt-muted); }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const PAIRS = 100;     // 반복한 쌍 수. 쌍 하나 = 객체 2개 × 512 KB = 1 MB
+const GC_PAIRS = 16;   // mark 쪽: 쌓인 쌍 16개(16 MB)마다 GC
+const BASE_MB = 4;     // 힙 기준선
+const heapAt = (mark, n) => BASE_MB + (mark ? n % GC_PAIRS : n);
+const ROOT = { id: "root", c: 1, r: 0, l: "루트", s: "지역 변수", icon: "anchor" };
+
+// 상태 한 칸: 루트가 쥔 a·b(rA·rB), peer 참조(ab: A→B, ba: B→A), mark 쪽 GC 단계(gc)
+const COUNT = [
+  { cap: "A를 만든다. 루트 a가 쥐고 있어 rc 1", hold: 1800, A: 1, rA: 1 },
+  { cap: "B를 만든다. 루트 b가 쥐어 rc 1", hold: 1800, A: 1, B: 1, rA: 1, rB: 1 },
+  { cap: "A.peer = B. B를 가리키는 화살표가 생겨 B의 rc는 2", hold: 1800, A: 1, B: 1, rA: 1, rB: 1, ab: 1 },
+  { cap: "B.peer = A. A의 rc도 2. 순환이 완성된다", hold: 2000, A: 1, B: 1, rA: 1, rB: 1, ab: 1, ba: 1 },
+  { cap: "루트가 A, B를 놓는다. rc는 1, 1에서 멈춘다. 0이 아니라 해제되지 않는다", hold: 2600, A: 1, B: 1, ab: 1, ba: 1 },
+  { cap: "같은 코드를 반복하면 쌍이 쌓인다. 쌍마다 1 MB씩 계단처럼 오른다", hold: 3600, loop: true },
+];
+const MARK = [
+  { cap: "A를 만든다. 루트가 쥐고 있어 루트에서 닿는다", hold: 1800, A: 1, rA: 1 },
+  { cap: "B를 만든다. 역시 루트에서 닿는다", hold: 1800, A: 1, B: 1, rA: 1, rB: 1 },
+  { cap: "A.peer = B, B.peer = A. 카운트 없이 화살표만 생기고 순환이 완성된다", hold: 2000, A: 1, B: 1, rA: 1, rB: 1, ab: 1, ba: 1 },
+  { cap: "루트가 A, B를 놓는다. GC가 아직 오지 않아 메모리에 그대로 있다", hold: 2200, A: 1, B: 1, ab: 1, ba: 1 },
+  { cap: "GC: 루트에서 출발해 닿는 것만 mark한다. A, B는 표시되지 않는다", hold: 2200, A: 1, B: 1, ab: 1, ba: 1, gc: "mark" },
+  { cap: "sweep: 표시되지 않은 A, B를 회수한다. 순환 여부는 판단에 영향이 없다", hold: 2000, gc: "sweep" },
+  { cap: "쌍이 16개 쌓일 때마다 GC가 돌아 힙이 4 MB 기준선으로 돌아온다", hold: 3600, loop: true },
+];
+
+// 객체 노드: 카운팅은 rc(들어오는 참조 수), mark는 루트에서 닿는지와 GC 단계
+function objNode(id, st, mark) {
+  const c = id === "A" ? 0 : 2;
+  const root = id === "A" ? st.rA : st.rB;
+  const refs = id === "A" ? st.ba : st.ab;
+  const base = { id, c, r: 1, l: `객체 ${id}`, icon: "package" };
+  if (!mark) return { ...base, s: `rc ${root + refs}`, k: !root && refs ? "warn" : undefined };
+  return {
+    ...base,
+    s: root ? "루트에서 닿음" : st.gc === "mark" ? "mark 안 됨" : "GC 전",
+    k: st.gc === "mark" ? "muted" : undefined,
+  };
+}
+
+function board(box, st, mark) {
+  const nodes = [ROOT];
+  const edges = [];
+  if (st.rA) edges.push({ f: "root", t: "A", l: "a" });
+  if (st.rB) edges.push({ f: "root", t: "B", l: "b" });
+  if (st.ab) edges.push({ f: "A", t: "B", l: "peer" });
+  if (st.ba) edges.push({ f: "B", t: "A", l: "peer" });
+  if (st.A) nodes.push(objNode("A", st, mark));
+  if (st.B) nodes.push(objNode("B", st, mark));
+  box.innerHTML = "";
+  const svg = box.appendChild(document.createElementNS(SVG, "svg"));
+  return LTT.diagram(svg, { cols: 3, rows: 2, cell: [150, 84], node: [116, 50], nodes, edges });
+}
+
+// 한쪽 패널: 그림(단계 재생), 힙 시계열(쌍 누적), 스냅샷 한 줄
+function side(el, mark) {
+  const steps = mark ? MARK : COUNT;
+  const wrap = el.appendChild(document.createElement("div"));
+  wrap.className = "side";
+  const box = wrap.appendChild(document.createElement("div"));
+  const plotEl = wrap.appendChild(document.createElement("div"));
+  const snap = wrap.appendChild(document.createElement("div"));
+  snap.className = "ltt-mono";
+  const ctl = wrap.appendChild(document.createElement("div"));
+
+  const plot = LTT.axisPlot(plotEl, {
+    width: 420, height: 100, x: [0, PAIRS], y: [0, 110],
+    series: [{ id: "heap", k: mark ? "good" : "bad" }],
+    labels: { x: "반복한 쌍", y: "힙 MB" },
+  });
+
+  const show = (n) => {
+    if (!n) { snap.textContent = "힙 스냅샷 · 아직 쌍이 없다"; return; }
+    const live = mark ? n % GC_PAIRS : n;
+    snap.textContent = `힙 스냅샷 · Pair(A, B) ${2 * live}개 · retained ${live} MB · 보유 경로: ${mark ? "없음, 다음 GC에서 회수" : "A↔B뿐, 루트 없음"}`;
+  };
+
+  // 쌍이 하나씩 쌓이며 선이 자란다. 모션이 꺼져 있으면 한 번에 그린다.
+  let timer = 0;
+  const runPlot = () => {
+    clearTimeout(timer);
+    const pts = [];
+    const add = (n) => { pts.push([n, heapAt(mark, n)]); plot.set("heap", pts.slice()); show(n); };
+    if (!LTT.MOTION_MS) { for (let n = 0; n <= PAIRS; n++) add(n); return; }
+    const tick = (n) => { add(n); if (n < PAIRS) timer = setTimeout(() => tick(n + 1), 20); };
+    tick(0);
+  };
+
+  const dg = board(box, steps[0], mark);
+  plot.set("heap", [[0, BASE_MB]]);
+  show(0);
+  dg.player(ctl, steps.map((st, i) => ({
+    caption: st.cap,
+    hold: st.hold,
+    enter: () => {
+      if (i === 0) { clearTimeout(timer); plot.set("heap", [[0, BASE_MB]]); show(0); }
+      if (st.loop) return runPlot();
+      board(box, st, mark);
+    },
+  })));
+}
+
+LTT.deck({
+  title: "가비지 컬렉션 방식",
+  theme: "terminal",
+  glossary: {
+    "참조 카운팅": "객체를 가리키는 참조 수(rc)를 세고, 0이 되는 순간 회수하는 방식",
+    "mark-and-sweep": "루트에서 닿는 객체를 표시(mark)하고, 표시되지 않은 객체를 회수(sweep)하는 방식",
+  },
+  scenes: [{
+    type: "contrast",
+    kicker: "런타임 · 순환 참조",
+    title: "순환 쌍은 카운트로는 0이 안 되고, mark는 루트가 끊기면 회수한다",
+    sub: "같은 코드, 같은 입력. 루트가 A, B에서 손을 뗀 뒤 두 방식이 무엇을 보는지 본다",
+    before: { label: "참조 카운팅", visual: (el) => side(el, false) },
+    after: { label: "mark-and-sweep", visual: (el) => side(el, true) },
+    takeaway: "{{참조 카운팅}}은 화살표 수가 0이어야 회수해서 순환 쌍이 남고, {{mark-and-sweep}}은 루트에서 닿지 않으면 순환이어도 회수한다.",
+    recall: "루트를 놓은 뒤 카운트가 1, 1로 남는 이유는?",
+    basis: "모델로 계산한 예시. 객체 512 KB(쌍 1 MB), 쌓인 쌍 16개마다 GC는 설명용 가정이다. 순수 참조 카운팅 모델이며, CPython은 순환 감지기로 순환도 회수한다.",
+  }],
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+장면 | 상태 | 파일 | 메모
+가 | t1s | 가-t1s.jpg | 
+가 | t4s | 가-t4s.jpg | 
+가 | t8s | 가-t8s.jpg | 
+가 | checks | - | #ltt-checks 없음 또는 JSON 오류
+나 | t1s | 나-t1s.jpg | 
+나 | t4s | 나-t4s.jpg | 
+나 | t8s | 나-t8s.jpg | 
+나 | knob-rr-min | 나-knob-rr-min.jpg | 
+나 | knob-rr-max | 나-knob-rr-max.jpg | 
+나 | checks | - | #ltt-checks 없음 또는 JSON 오류
+다 | t1s | 다-t1s.jpg | 
+다 | t4s | 다-t4s.jpg | 
+다 | t8s | 다-t8s.jpg | 
+다 | knob-r-min | 다-knob-r-min.jpg | 
+다 | knob-r-max | 다-knob-r-max.jpg | 
+다 | knob-n-min | 다-knob-n-min.jpg | 
+다 | knob-n-max | 다-knob-n-max.jpg | 
+다 | checks | - | #ltt-checks 없음 또는 JSON 오류
+라 | t1s | 라-t1s.jpg | 
+라 | t4s | 라-t4s.jpg | 
+라 | t8s | 라-t8s.jpg | 
+라 | knob-r-min | 라-knob-r-min.jpg | 
+라 | knob-r-max | 라-knob-r-max.jpg | 
+라 | knob-n-min | 라-knob-n-min.jpg | 
+라 | knob-n-max | 라-knob-n-max.jpg | 
+라 | checks | - | #ltt-checks 없음 또는 JSON 오류
+마 | t1s | 마-t1s.jpg | 
+마 | t4s | 마-t4s.jpg | 
+마 | t8s | 마-t8s.jpg | 
+마 | knob-r-min | 마-knob-r-min.jpg | 
+마 | knob-r-max | 마-knob-r-max.jpg | 
+마 | checks | - | #ltt-checks 없음 또는 JSON 오류
+바 | t1s | 바-t1s.jpg | 
+바 | t4s | 바-t4s.jpg | 
+바 | t8s | 바-t8s.jpg | 
+바 | knob-rr-min | 바-knob-rr-min.jpg | 
+바 | knob-rr-max | 바-knob-rr-max.jpg | 
+바 | checks | - | #ltt-checks 없음 또는 JSON 오류

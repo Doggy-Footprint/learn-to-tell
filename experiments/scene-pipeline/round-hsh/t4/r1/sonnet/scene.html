@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic": "DNA 복제 분기점", "audience": "생명과학 입문 학생", "theme": "paper", "medium": "교과서 도해", "decision": "복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .fk svg { width: 100%; height: auto; display: block; }
+  .fk text { font-size: 13px; fill: var(--ltt-ink); }
+  .fk .mu { fill: var(--ltt-muted); }
+  .fk .sm { font-size: 12px; }
+  .fk-cap { margin: 6px 0 4px; min-height: 2.6em; color: var(--ltt-ink); }
+  .fk-ctl { display: flex; gap: 12px; align-items: center; }
+  .fk-ctl input { flex: 1; }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// 시간표(초). 분기점은 30px/s로 전진하고, 장면 전체는 t의 함수다.
+const T_END = 21;
+const FORK_STOP = 13.5;
+const LEAD_T = 1.6;                 // 선도 가닥 프라이머
+const LAG_T = [4, 7.5, 11];          // 지연 가닥 프라이머가 놓이는 시각
+const CONV = [14.5, 16.5, 18.5];     // 프라이머 → DNA
+const LIGATE = [0, 15.5, 17.5];      // 절편 i와 i-1 사이 틈이 이어지는 시각
+const FRAG = 105;                    // 절편 길이(px). 프라이머 간격과 같아 앞 절편에 닿는다
+
+const Fx = (t) => 330 + 30 * Math.min(t, FORK_STOP);
+const topY = (x, F) => 120 + ((x - 40) / (F - 40)) * 110;
+const bot = (x, F) => 350 - ((x - 40) / (F - 40)) * 110;
+const ramp = (t, a, d = 0.4) => Math.max(0, Math.min(1, (t - a) / d));
+
+function mk(tag, attrs, parent) {
+  const n = document.createElementNS(SVG, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+const set = (n, attrs) => { for (const k in attrs) n.setAttribute(k, attrs[k]); };
+const line = (p, st, w, extra = {}) => mk("line", { style: `stroke:${st}`, "stroke-width": w, "stroke-linecap": "round", ...extra }, p);
+function text(p, s, cls = "", extra = {}) { const t = mk("text", { class: cls, ...extra }, p); t.textContent = s; return t; }
+function badge(p, s) {
+  const g = mk("g", {}, p);
+  mk("rect", { x: -34, y: -11, width: 68, height: 20, rx: 5, style: "fill:var(--ltt-card);stroke:var(--ltt-ink)", "stroke-width": 1.5 }, g);
+  text(g, s, "sm", { "text-anchor": "middle", y: 4 });
+  return g;
+}
+function tri(p, fill) { return mk("polygon", { points: "0,0 -11,-5.5 -11,5.5", style: `fill:${fill}` }, p); }
+function placeTri(n, x, y, deg) { set(n, { transform: `translate(${x} ${y}) rotate(${deg})` }); }
+
+const INK = "var(--ltt-ink)", DUP = "var(--ltt-ink-2)", C_LEAD = "var(--ltt-c1)", C_LAG = "var(--ltt-c2)", RNA = "var(--ltt-c3)", ACC = "var(--ltt-accent)";
+
+function build(svg) {
+  const o = {};
+  mk("defs", {}, svg).innerHTML = `<marker id="fk-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ltt-ink)"/></marker>
+  <marker id="fk-ahh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ltt-accent)"/></marker>`;
+
+  // 주형 두 팔과 닫힌 이중가닥
+  o.armT = line(svg, DUP, 3); o.armB = line(svg, DUP, 3);
+  o.dupT = line(svg, DUP, 3); o.dupB = line(svg, DUP, 3);
+  text(svg, "3'", "", { x: 20, y: 124 }); text(svg, "5'", "", { x: 20, y: 354 });
+  text(svg, "5'", "", { x: 912, y: 234 }); text(svg, "3'", "", { x: 912, y: 250 });
+  text(svg, "닫힌 이중가닥", "mu", { x: 800, y: 280, "text-anchor": "middle" });
+  text(svg, "주형 (선도 가닥용)", "mu sm", { x: 56, y: 108 });
+  text(svg, "주형 (지연 가닥용)", "mu sm", { x: 56, y: 372 });
+
+  // 헬리카아제와 분기점 전진 방향
+  o.heli = mk("circle", { r: 15, style: "fill:var(--ltt-card);stroke:var(--ltt-ink)", "stroke-width": 2.5 }, svg);
+  o.heliT = text(svg, "헬리카아제", "");
+  o.fwd = line(svg, INK, 2.5, { "marker-end": "url(#fk-ah)" });
+  o.fwdT = text(svg, "분기점 전진 방향", "");
+
+  // SSB
+  o.ssb = [110, 190, 270, 350, 430].map((x, i) => ({ x, i, a: mk("circle", { r: 6, style: "fill:var(--ltt-card);stroke:var(--ltt-ink-2)", "stroke-width": 2 }, svg), b: mk("circle", { r: 6, style: "fill:var(--ltt-card);stroke:var(--ltt-ink-2)", "stroke-width": 2 }, svg) }));
+  o.ssbT = text(svg, "SSB: 풀린 가닥을 붙잡는다", "mu sm", {});
+
+  // 선도 가닥
+  text(svg, "선도 가닥: 분기점 쪽으로 끊김 없이 자란다 →", "", { x: 120, y: 58, style: `fill:${C_LEAD};font-weight:600` });
+  o.lead = line(svg, C_LEAD, 4); o.leadP = line(svg, RNA, 8, { "stroke-linecap": "butt" });
+  o.leadH = tri(svg, C_LEAD);
+  o.lead5 = text(svg, "5'", "sm"); o.lead3 = text(svg, "3'", "sm");
+  o.leadPol = badge(svg, "중합효소");
+  o.leadPm = text(svg, "프라이머가아제", "mu sm", { "text-anchor": "middle" });
+
+  // 지연 가닥 절편
+  o.frags = LAG_T.map((tp, i) => {
+    const f = {};
+    f.line = line(svg, C_LAG, 4); f.prim = line(svg, RNA, 8, { "stroke-linecap": "butt" });
+    f.head = tri(svg, C_LAG);
+    f.t5 = text(svg, "5'", "sm"); f.t3 = text(svg, "3'", "sm");
+    f.pol = badge(svg, "중합효소");
+    f.pm = text(svg, "프라이머가아제", "mu sm", { "text-anchor": "middle" });
+    f.nick = line(svg, INK, 2.5, { "stroke-linecap": "butt" });
+    f.nickT = text(svg, "틈", "sm", { "text-anchor": "middle" });
+    f.lig = badge(svg, "연결효소");
+    return f;
+  });
+  o.okT = text(svg, "오카자키 절편", "", { "text-anchor": "middle" });
+
+  // 강조: 지연 가닥 자라는 방향
+  o.hot = line(svg, ACC, 3, { "marker-end": "url(#fk-ahh)" });
+  o.hotT = text(svg, "지연 가닥은 분기점 전진과 반대 방향(←)으로 자란다", "", { "text-anchor": "middle", style: `fill:${ACC};font-weight:600` });
+
+  // 범례
+  line(svg, RNA, 8, { x1: 40, y1: 452, x2: 62, y2: 452, "stroke-linecap": "butt" }); text(svg, "RNA 프라이머 (나중에 DNA로 바뀜)", "mu sm", { x: 70, y: 456 });
+  line(svg, C_LEAD, 4, { x1: 330, y1: 452, x2: 360, y2: 452 }); text(svg, "새 DNA (선도)", "mu sm", { x: 368, y: 456 });
+  line(svg, C_LAG, 4, { x1: 480, y1: 452, x2: 510, y2: 452 }); text(svg, "새 DNA (지연 절편)", "mu sm", { x: 518, y: 456 });
+  return o;
+}
+
+function render(o, t) {
+  const F = Fx(t), fade = (n, v) => set(n, { opacity: v });
+  const L = (n, x1, y1, x2, y2) => set(n, { x1, y1, x2, y2 });
+  L(o.armT, 40, 120, F, 230); L(o.armB, 40, 350, F, 240);
+  L(o.dupT, F, 230, 900, 230); L(o.dupB, F, 240, 900, 240);
+
+  set(o.heli, { cx: F, cy: 235 }); fade(o.heli, ramp(t, 0, 0.5)); fade(o.heliT, ramp(t, 0, 0.5));
+  set(o.heliT, { x: F + 24, y: 208 });
+  L(o.fwd, F + 24, 160, F + 110, 160); set(o.fwdT, { x: F + 24, y: 150 }); fade(o.fwd, ramp(t, 0.2, 0.5)); fade(o.fwdT, ramp(t, 0.2, 0.5));
+
+  o.ssb.forEach((s) => {
+    const v = F - 40 > s.x ? ramp(t, 0.8 + 0.25 * s.i, 0.4) : 0;
+    set(s.a, { cx: s.x, cy: topY(s.x, F) }); set(s.b, { cx: s.x, cy: bot(s.x, F) }); fade(s.a, v); fade(s.b, v);
+  });
+  set(o.ssbT, { x: 130, y: bot(130, F) - 12 }); fade(o.ssbT, ramp(t, 0.8, 0.5) * (1 - ramp(t, 3.5, 0.5)));
+
+  // 선도 가닥: 3' 끝이 분기점을 따라간다
+  const x0 = 90, tip = t < LEAD_T ? x0 : Math.min(x0 + 110 * (t - LEAD_T), F - 34);
+  const ly = (x) => topY(x, F) - 22, ang = Math.atan2(110, F - 40) * 180 / Math.PI;
+  const lv = ramp(t, LEAD_T, 0.3);
+  L(o.leadP, x0, ly(x0), x0 + 12, ly(x0 + 12));
+  set(o.leadP, { style: `stroke:${t >= CONV[0] ? C_LEAD : RNA}` }); fade(o.leadP, lv);
+  L(o.lead, x0 + 12, ly(x0 + 12), tip, ly(tip)); fade(o.lead, tip > x0 + 12 ? 1 : 0);
+  placeTri(o.leadH, tip + 10, ly(tip) + (10 * 110) / (F - 40), ang); fade(o.leadH, tip > x0 + 14 ? 1 : 0);
+  set(o.lead5, { x: x0 - 16, y: ly(x0) - 6 }); fade(o.lead5, lv);
+  set(o.lead3, { x: tip + 16, y: ly(tip) - 8 }); fade(o.lead3, tip > x0 + 14 ? 1 : 0);
+  set(o.leadPol, { transform: `translate(${tip} ${ly(tip) - 26})` }); fade(o.leadPol, ramp(t, LEAD_T + 0.3, 0.4));
+  set(o.leadPm, { x: x0 + 6, y: ly(x0) + 22 }); fade(o.leadPm, ramp(t, LEAD_T - 0.4, 0.3) * (1 - ramp(t, LEAD_T + 1.2, 0.4)));
+
+  // 지연 가닥 절편: 새 프라이머는 분기점 쪽에서 놓이고 절편은 왼쪽으로 자란다
+  const xps = LAG_T.map((tp) => Fx(tp) - 30);
+  o.frags.forEach((f, i) => {
+    const tp = LAG_T[i], xp = xps[i], pv = ramp(t, tp, 0.3);
+    const len = Math.max(0, Math.min(FRAG, 45 * (t - tp - 0.8))), xl = xp - len;
+    const y = (x) => bot(x, F) + 22, a = Math.atan2(-110, F - 40) * 180 / Math.PI;
+    L(f.prim, xp - 12, y(xp - 12), xp, y(xp)); fade(f.prim, pv);
+    set(f.prim, { style: `stroke:${t >= CONV[i] ? C_LAG : RNA}` });
+    L(f.line, xp - 12, y(xp - 12), xl, y(xl)); fade(f.line, len > 12 ? 1 : 0);
+    placeTri(f.head, xl - 10, y(xl) + (10 * 110) / (F - 40), 180 + a); fade(f.head, len > 14 ? 1 : 0);
+    set(f.t5, { x: xp + 8, y: y(xp) + 16 }); fade(f.t5, pv);
+    set(f.t3, { x: xl - 14, y: y(xl) + 16 }); fade(f.t3, len > 14 ? 1 : 0);
+    set(f.pol, { transform: `translate(${xl} ${y(xl) + 30})` }); fade(f.pol, len > 14 && len < FRAG ? 1 : 0);
+    set(f.pm, { x: xp - 6, y: y(xp) - 10 }); fade(f.pm, ramp(t, tp - 0.4, 0.3) * (1 - ramp(t, tp + 1.2, 0.4)));
+    // 틈: 앞 절편의 프라이머에 닿은 자리
+    if (i > 0) {
+      const nx = xps[i - 1], ny = y(nx), gap = len >= FRAG && t < LIGATE[i];
+      L(f.nick, nx, ny - 10, nx, ny + 10); fade(f.nick, gap ? 1 : 0);
+      set(f.nickT, { x: nx, y: ny + 28 }); fade(f.nickT, gap ? 1 : 0);
+      set(f.lig, { transform: `translate(${nx} ${ny + 30})` });
+      fade(f.lig, ramp(t, LIGATE[i], 0.3) * (1 - ramp(t, LIGATE[i] + 1.4, 0.5)));
+    } else { fade(f.nick, 0); fade(f.nickT, 0); fade(f.lig, 0); }
+  });
+  set(o.okT, { x: xps[0] - 40, y: bot(xps[0] - 40, F) + 70 });
+  fade(o.okT, ramp(t, LAG_T[0] + 2.2, 0.5));
+
+  L(o.hot, 560, 412, 300, 412); set(o.hotT, { x: 430, y: 434 });
+  const hv = ramp(t, LAG_T[0] + 0.8, 0.5) * (1 - ramp(t, 13.8, 0.5) * 0.6);
+  fade(o.hot, hv); fade(o.hotT, hv);
+}
+
+const BEATS = [
+  [0, "① 헬리카아제가 두 가닥을 풀며 오른쪽으로 전진하고, SSB가 열린 가닥을 붙잡는다."],
+  [LEAD_T, "② 선도 가닥: 프라이머 하나로 시작해 중합효소가 3' 끝에 덧붙인다. 자라는 방향이 분기점 전진과 같아 끊김이 없다."],
+  [3.6, "③ 지연 가닥: 분기점이 더 열린 뒤에야 프라이머가 놓이고, 절편은 5'→3'이라 분기점 반대 쪽(←)으로 자란다."],
+  [7, "④ 분기점은 계속 전진한다. 새 프라이머와 절편은 늘 분기점 쪽에서 생겨, 오래된 절편일수록 분기점에서 멀다. 절편 사이엔 틈이 남는다."],
+  [14, "⑤ 오래된 쪽부터 프라이머가 DNA로 바뀌고, 연결효소가 틈을 이어 두 가닥이 모두 이어진 이중가닥이 된다."],
+];
+const beatAt = (t) => BEATS.filter((b) => t >= b[0]).pop()[1];
+
+const scene = {
+  type: "hook",
+  title: "분기점은 한쪽으로 열리는데, 두 새 가닥은 왜 같은 방향으로 자랄 수 없을까?",
+  sub: "{{DNA 중합효소}}는 3' 끝에만 붙이므로 새 가닥은 언제나 5'→3'이다. 그래서 한 가닥은 이어지고 다른 가닥은 {{오카자키 절편}}으로 끊어진다.",
+  mount(body) {
+    body.innerHTML = `<div class="fk"><svg viewBox="0 0 960 470" role="img" aria-label="복제 분기점. 선도 가닥은 분기점 쪽으로 이어서 자라고, 지연 가닥은 분기점 반대쪽으로 짧은 절편이 차례로 생긴 뒤 연결효소가 틈을 잇는다"></svg>
+      <p class="fk-cap" aria-live="polite"></p>
+      <div class="fk-ctl"><button class="ltt-btn" type="button">일시정지</button><input type="range" min="0" max="${T_END}" step="0.05" value="0" aria-label="재생 위치"></div></div>`;
+    const svg = body.querySelector("svg"), cap = body.querySelector(".fk-cap"), btn = body.querySelector("button"), rng = body.querySelector("input");
+    const o = build(svg);
+    let t = 0, playing = false, raf = 0, last = 0;
+    const draw = () => { render(o, t); cap.textContent = beatAt(t); rng.value = t; btn.textContent = playing ? "일시정지" : t >= T_END ? "다시 재생" : "재생"; };
+    const tick = (now) => {
+      t = Math.max(0, Math.min(T_END, t + Math.max(0, now - last) / 1000)); last = now; draw();
+      if (t >= T_END) playing = false, draw(); else raf = requestAnimationFrame(tick);
+    };
+    const play = () => { if (t >= T_END) t = 0; playing = true; last = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); draw(); };
+    const pause = () => { playing = false; cancelAnimationFrame(raf); draw(); };
+    btn.onclick = () => (playing ? pause() : play());
+    rng.oninput = () => { cancelAnimationFrame(raf); playing = false; t = +rng.value; draw(); };
+    draw();
+    return {
+      enter() { t = 0; if (reduced) { t = T_END; draw(); } else play(); },
+      leave() { pause(); },
+    };
+  },
+};
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "DNA 중합효소": "새 뉴클레오티드를 3'-OH 끝에 붙여 새 가닥을 5'→3' 방향으로만 만드는 효소",
+    "오카자키 절편": "지연 가닥에서 따로 만들어지는 짧은 DNA 조각. 나중에 연결효소가 잇는다",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

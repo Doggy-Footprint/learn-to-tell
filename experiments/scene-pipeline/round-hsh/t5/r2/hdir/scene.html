@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic": "신용 창조와 통화 승수", "audience": "경제 기사 독자", "theme": "ledger", "medium": "경제 신문 차트", "decision": "통화정책 기사 해석"}</script>
+<style>
+  #chain svg { width: 100%; height: auto; }
+  .stats { display: flex; gap: 24px; flex-wrap: wrap; margin: 12px 0; }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const D0 = 100;     // 최초 예금 (억 원)
+const N = 10;       // 연쇄 은행 수 = 라운드 수
+const LET = "ABCDEFGHIJ";
+const f = (v) => String(Math.round(v * 10) / 10);
+const dep = (i, r) => D0 * Math.pow(1 - r, i);            // i번째 은행(0부터)이 받는 예금
+const loan = (i, r) => dep(i, r) * (1 - r);               // i번째 은행이 내보내는 대출
+const cum = (n, r) => D0 * (1 - Math.pow(1 - r, n)) / r;  // n개 은행까지 누적 예금
+const cap = (r) => D0 / r;                                // 예금 상한 = 최초 예금 ÷ r
+
+LTT.expect("5라운드 누적 예금 (r=10%)", cum(5, 0.1), 409.51, { tol: 1e-6 });
+LTT.expect("10라운드 누적 예금 (r=10%)", cum(10, 0.1), 651.3, { tol: 0.1 });
+LTT.expect("예금 상한 (r=10%)", cap(0.1), 1000, { tol: 1e-9 });
+
+// 단계: 짝수 = 은행 n의 예금이 들어온 모습, 홀수 = 은행 n이 대출을 내보내 n+1이 받는 중
+const STEPS = [];
+for (let n = 1; n <= N; n++) {
+  STEPS.push({ n, pending: false });
+  if (n < N) STEPS.push({ n, pending: true });
+}
+
+// 은행을 다섯 칸씩 두 줄로 꺾어 그린다(둘째 줄은 오른쪽에서 왼쪽). 대출은 바로 옆 은행으로 이어진다
+const ROW = N / 2;
+const pos = (i) => (i < ROW ? { c: i, r: 0 } : { c: N - 1 - i, r: 1 });
+// n개 은행을 그린다. 받는 중이면 다음 은행 자리를 흐리게 하나 더 둔다
+function chainSpec(s, r) {
+  const { n, pending } = STEPS[s];
+  const nodes = [], edges = [];
+  for (let i = 0; i < n + (pending ? 1 : 0); i++) {
+    const waiting = pending && i === n;
+    const k = i === n - 1 ? "accent" : waiting ? "muted" : null;
+    nodes.push({
+      id: "b" + i, ...pos(i), l: "은행 " + LET[i],
+      s: waiting ? "받는 중" : `예금 ${f(dep(i, r))}\n준비 ${f(dep(i, r) * r)}`,
+      ...(k ? { k } : {}),
+    });
+    if (i) edges.push({ f: "b" + (i - 1), t: "b" + i, l: `대출 ${f(loan(i - 1, r))}`, lo: i === ROW ? [64, 0] : [0, -58] });
+  }
+  return { cols: ROW, rows: 2, cell: [200, 150], node: [150, 84], nodes, edges };
+}
+
+const scene = {
+  title: "대출은 다음 은행의 새 예금이 되어, 예금 총액은 최초 예금의 1/r배까지 불어난다",
+  en: "Each loan becomes a new deposit",
+  kicker: "통화 · 신용 창조",
+  sub: "{{지급준비율}} r을 고르면 예금 상한이 정해진다. 준비금 총량은 처음 그대로다.",
+  takeaway: "예금 총액의 상한은 최초 예금의 1/r배, 곧 {{통화 승수}}다. {{지급준비율}}이 낮을수록 상한이 커진다.",
+  recall: "지급준비율이 5%이면 최초 예금 100의 상한은 얼마인가?",
+  basis: "가정: 받은 예금의 r를 남기고 나머지는 전부 대출, 현금 보유와 초과 준비금이 없다. 이론상 상한이며 실제 승수는 이보다 작을 수 있다. 10개 은행(10라운드)까지만 그린다.",
+  layout: "full",
+  mount(body) {
+    body.innerHTML = `
+      <div class="ltt-param">지급준비율 <b id="r-v"></b><div id="r"></div></div>
+      <div id="chain"></div>
+      <div class="ltt-bar" id="meter"></div>
+      <div class="stats">
+        <div class="ltt-stat">누적 예금 <b id="s-cum"></b><small>억 원</small></div>
+        <div class="ltt-stat">예금 상한 <b id="s-ceil"></b><small>억 원 = 100 ÷ r</small></div>
+        <div class="ltt-stat">준비금 총량 <b>100</b><small>처음 그대로</small></div>
+        <span class="ltt-tag muted">모델로 계산한 예시</span>
+      </div>
+      <div id="steps"></div>`;
+    const $ = (id) => body.querySelector("#" + id);
+    const bar = LTT.bar("meter", [{ color: "var(--ltt-accent)" }, { color: "var(--ltt-line)" }]);
+    const chain = $("chain");
+    let rate = 10, st = null, playing = false;
+
+    // 한 단계를 그린다. 같은 단계는 다시 들어와도 같은 화면이 되도록 상태를 단계 번호에서만 정한다
+    const show = (s) => {
+      const r = rate / 100, { n, pending } = STEPS[s];
+      chain.innerHTML = "";
+      const svg = chain.appendChild(document.createElementNS(SVG, "svg"));
+      const dg = LTT.diagram(svg, chainSpec(s, r));
+      if (pending) dg.send("b" + (n - 1), "b" + n, { count: 1, ms: 900 });
+      const c = cum(n, r);
+      $("s-cum").textContent = f(c);
+      $("s-ceil").textContent = f(cap(r));
+      bar.set([c, cap(r) - c], [`누적 ${f(c)}`, ""]);
+    };
+
+    const caption = (s) => {
+      const r = rate / 100, { n, pending } = STEPS[s], i = n - 1;
+      return pending
+        ? `${n}라운드 · ${LET[i]} 은행이 대출 ${f(loan(i, r))}을 내보낸다. 이 돈이 ${LET[n]} 은행의 새 예금이 된다`
+        : `${n}라운드 · ${LET[i]} 은행이 예금 ${f(dep(i, r))}을 받아 준비금 ${f(dep(i, r) * r)}만 남긴다. 누적 예금 ${f(cum(n, r))}`;
+    };
+
+    // 지급준비율이 바뀌면 연쇄 전체를 처음부터 다시 전개한다
+    const build = () => {
+      if (st) st.stop();
+      $("steps").innerHTML = "";
+      st = LTT.stepper($("steps"), STEPS.map((_, s) => ({
+        caption: caption(s), hold: 1400, enter: () => show(s),
+      })));
+      st.go(LTT.MOTION_MS === 0 ? STEPS.length - 1 : 0);
+      if (playing) st.play();
+    };
+
+    LTT.sweep({
+      params: { r: { kind: "steps", stops: [20, 10, 5], value: 10, fmt: (v) => v + "%" } },
+      render: ({ r }) => { rate = r; build(); },
+    });
+
+    return {
+      enter() {
+        playing = LTT.MOTION_MS !== 0;
+        if (playing) { st.go(0); st.play(); }
+        else st.go(STEPS.length - 1);
+      },
+      leave() { playing = false; st.stop(); },
+    };
+  },
+};
+
+LTT.deck({
+  title: "신용 창조와 통화 승수",
+  theme: "ledger",
+  glossary: {
+    "지급준비율": "은행이 받은 예금 중 대출하지 않고 남겨 두는 비율",
+    "통화 승수": "최초 예금이 예금 총액으로 몇 배까지 불어나는지. 지급준비율의 역수(1/r)",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+장면 | 상태 | 파일 | 메모
+가 | t1s | 가-t1s.jpg | 
+가 | t4s | 가-t4s.jpg | 
+가 | t8s | 가-t8s.jpg | 
+가 | checks | - | #ltt-checks 없음 또는 JSON 오류
+나 | t1s | 나-t1s.jpg | 
+나 | t4s | 나-t4s.jpg | 
+나 | t8s | 나-t8s.jpg | 
+나 | knob-shift-min | 나-knob-shift-min.jpg | 
+나 | knob-shift-max | 나-knob-shift-max.jpg | 
+나 | checks | - | #ltt-checks 없음 또는 JSON 오류
+다 | t1s | 다-t1s.jpg | 
+다 | t4s | 다-t4s.jpg | 
+다 | t8s | 다-t8s.jpg | 
+다 | knob-basket-min | 다-knob-basket-min.jpg | 
+다 | knob-basket-max | 다-knob-basket-max.jpg | 
+다 | checks | - | #ltt-checks 없음 또는 JSON 오류

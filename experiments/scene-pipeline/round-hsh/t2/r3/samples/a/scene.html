@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어: 손실 뒤 cwnd</title>
+<script type="application/json" id="ltt-meta">{"topic": "TCP 혼잡 제어", "audience": "백엔드·네트워크 개발자", "theme": "lab", "medium": "cwnd 시계열 플롯", "decision": "전송 처리량 문제 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+// slow start: RTT마다 2배. 32에서 손실이 난다고 가정하고, 손실 뒤 16에서 RTT마다 1 MSS씩 늘어난다.
+const SAW = [[0, 1], [1, 2], [2, 4], [3, 8], [4, 16], [5, 32]];
+for (let t = 6; t <= 22; t++) SAW.push([t, 16 + (t - 6)]);
+for (let t = 23; t <= 30; t++) SAW.push([t, 16 + (t - 23)]);
+
+// 시간은 RTT, 세로축은 cwnd(MSS)다. 축 범위를 고정해 두면 톱니의 높이가 한눈에 보인다.
+function curve(el) {
+  return LTT.axisPlot(el, {
+    width: 640, height: 320, x: [0, 30], y: [0, 40],
+    labels: { x: "시간 (RTT)", y: "cwnd (MSS)" },
+    series: [{ id: "cwnd" }, { id: "loss", k: "bad", dot: true }, { id: "half", k: "warn", dash: true }]
+  });
+}
+
+// 하락 전까지만 보인다. 손실 지점(RTT 5, cwnd 32)에 표시만 붙인다.
+function visual() {
+  const wrap = document.createElement("div");
+  const box = document.createElement("div");
+  wrap.append(LTT.facts([
+    { icon: "ruler", value: "1,460 B", label: "MSS 한 패킷" },
+    { icon: "timer", value: "100 ms", label: "RTT" },
+    { icon: "gauge", value: "1 MSS", label: "연결 직후 cwnd" }
+  ]), box);
+  const p = curve(box);
+  p.set("cwnd", SAW.slice(0, 6));
+  p.set("loss", [[5, 32]]);
+  return wrap;
+}
+
+// 곡선을 시간순으로 그린 뒤 손실 표시와 절반선(ssthresh 16)을 올린다.
+function answerVisual() {
+  const wrap = document.createElement("div");
+  const box = document.createElement("div");
+  wrap.append(box);
+  const p = curve(box);
+  const draw = (n) => p.set("cwnd", SAW.slice(0, n));
+  const mark = () => {
+    p.set("loss", [[5, 32], [22, 32]]);
+    p.set("half", [[5, 16], [30, 16]]);
+  };
+  if (!LTT.MOTION_MS) { draw(SAW.length); mark(); return wrap; }
+  let n = 1;
+  draw(n);
+  const tick = () => {
+    n++;
+    draw(n);
+    if (n < SAW.length) setTimeout(tick, 90); else mark();
+  };
+  setTimeout(tick, 90);
+  return wrap;
+}
+
+const predictScene = {
+  type: "predict",
+  title: "손실 뒤 cwnd는 얼마까지 떨어질까",
+  sub: "가로는 왕복 시간(RTT) 단위의 시간, 세로는 한 번에 보낼 수 있는 양(cwnd, MSS 단위)이다. 패킷이 버려진 지점까지 그려져 있다.",
+  question: "한 번에 보내는 양이 32 MSS까지 늘었을 때 패킷이 버려졌다. 송신자는 중복 ACK 3개로 손실을 알아챘다. 손실 직후 한 번에 보낼 수 있는 양은?",
+  choices: [
+    { id: "1", text: "1 MSS (처음부터 다시)" },
+    { id: "16", text: "16 MSS (절반)" },
+    { id: "32", text: "32 MSS (그대로)" }
+  ],
+  answer: "16",
+  visual,
+  answerVisual,
+  why: "중복 ACK 3개면 임계값 ssthresh = cwnd ÷ 2 = 16이고, cwnd도 16이 된다. 1로 돌아가는 것은 타임아웃(RTO)일 때뿐이다. 16 MSS의 처리량은 16 × 1,460 × 8 ÷ 0.1 ≈ 1.87 Mbps로, 손실 직전 3.74 Mbps의 절반이다. <span class='ltt-tag'>모델로 계산한 예시</span>",
+  basis: "가정: MSS 1,460 B, RTT 100 ms, Reno 방식(중복 ACK로 손실 감지). 실제 값은 망과 구현에 따라 다르다.",
+  takeaway: "손실이 중복 ACK로 감지되면 cwnd는 절반으로 줄고, 그 뒤로 RTT마다 1 MSS씩 늘어 톱니가 된다."
+};
+
+LTT.deck({
+  title: "TCP 혼잡 제어: 손실 뒤 cwnd",
+  theme: "lab",
+  glossary: {},
+  scenes: [predictScene]
+});
+
+// 손 계산 확인: 톱니 평균 cwnd(16~32의 선형 평균 24)는 최고점 32의 3/4이다.
+LTT.expect("톱니 평균 cwnd ÷ 최고점", 24 / 32, 0.75, { tol: 1e-9 });
+</script>
+</body>
+</html>

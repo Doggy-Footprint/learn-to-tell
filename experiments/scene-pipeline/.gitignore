@@ -18,3 +18,14 @@ __pycache__/
 /review-key-kw.json
 /kw.out
 /review-kw2/
+/node_modules/
+/hsh.log
+/review-hsh/
+/hsh-files.json
+/hsh-*.out
+/STOP
+/review-hsh-score/
+/review-hsh-score-files.json
+/hsh-score-files.json
+/judge.log
+/judge-*.out

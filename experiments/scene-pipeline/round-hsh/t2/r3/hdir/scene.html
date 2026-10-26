@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어: 손실 뒤 cwnd</title>
+<script type="application/json" id="ltt-meta">{"topic": "TCP 혼잡 제어", "audience": "백엔드·네트워크 개발자", "theme": "lab", "medium": "cwnd 시계열 플롯", "decision": "전송 처리량 문제 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+// 가정: TCP Reno, MSS 1,460 B, RTT 100 ms, 초기 ssthresh 32 MSS, 3 중복 ACK 손실.
+// 시간은 RTT, 값은 cwnd(MSS). slow start는 RTT마다 두 배로 32까지 오르고(t=5 손실),
+// 그 뒤 16에서 RTT마다 +1 MSS로 선형 증가해 32(t=21)에서 다시 손실, 16으로 떨어진 뒤 t=37까지 간다.
+const PRE = [[0, 1], [1, 2], [2, 4], [3, 8], [4, 16], [5, 32]];
+const SAW = [...PRE, [5, 16]];
+for (let t = 6; t <= 21; t++) SAW.push([t, 11 + t]);   // 17 … 32
+SAW.push([21, 16]);
+for (let t = 22; t <= 37; t++) SAW.push([t, t - 5]);   // 17 … 32
+const PEAKS = [[5, 32], [21, 32]];                     // 손실은 cwnd가 최고점에 닿은 순간이다
+const CUT = PRE.length;                                // SAW에서 [5, 16]이 놓이는 위치
+
+LTT.expect("cwnd 32 처리량(bps)", 32 * 1460 * 8 / 0.1, 3737600, { tol: 1 });
+LTT.expect("톱니 평균 cwnd ÷ 최고점", 24 / 32, 0.75, { tol: 1e-9 });
+
+function curve(el) {
+  return LTT.axisPlot(el, {
+    width: 760, height: 340, x: [0, 38], y: [0, 36],
+    labels: { x: "시간 (RTT)", y: "cwnd (MSS)" },
+    series: [{ id: "cwnd" }, { id: "loss", k: "bad", dot: true }, { id: "ssth", color: "var(--ltt-muted)", dash: true }],
+  });
+}
+
+// 점을 하나씩 이어 그려 시간순으로 나타나게 한다. 모션이 꺼져 있으면 최종 상태를 바로 보인다.
+function reveal(plot, id, pts, step, done) {
+  if (!LTT.MOTION_MS) { plot.set(id, pts); return done && done(); }
+  let i = 1;
+  (function next() {
+    plot.set(id, pts.slice(0, i));
+    if (i++ >= pts.length) return done && done();
+    setTimeout(next, step);
+  })();
+}
+
+const predictScene = {
+  type: "predict",
+  layout: "full",
+  kicker: "네트워크 · TCP 혼잡 제어",
+  title: "손실이 나면 보낼 수 있는 양은 어디로 떨어질까",
+  sub: "가로는 시간(RTT), 세로는 한 번에 보낼 수 있는 양(MSS 단위). 32 MSS에서 패킷이 버려졌다.",
+  question: "중복 ACK 3개로 손실을 알아챘다. 손실 직후 한 번에 보낼 수 있는 양은 몇 MSS일까?",
+  choices: [
+    { id: "1", text: "1 MSS" },
+    { id: "16", text: "16 MSS" },
+    { id: "32", text: "32 MSS" },
+  ],
+  answer: "16",
+  visual: (el) => {
+    const box = document.createElement("div");
+    const plot = curve(box);
+    const cap = document.createElement("p");
+    cap.className = "ltt-basis";
+    cap.textContent = "RTT마다 두 배(지수 증가). 곡선이 32에 닿는 순간 손실 신호가 온다.";
+    el.append(box, cap);
+    reveal(plot, "cwnd", PRE, 330, () => plot.set("loss", [[5, 32]]));
+  },
+  answerVisual: (el) => {
+    const box = document.createElement("div");
+    const plot = curve(box);
+    el.append(box);
+    // 손실 순간 cwnd가 32에서 16으로 떨어지고, 그때 ssthresh = 16이 정해져 오른쪽으로 자란다.
+    const draw = (k) => {
+      const tNow = SAW[k - 1][0];
+      plot.set("cwnd", SAW.slice(0, k));
+      plot.set("loss", PEAKS.filter(([t]) => t <= tNow));
+      plot.set("ssth", k > CUT ? [[5, 16], [tNow, 16]] : []);
+    };
+    const finish = () => {
+      const note = LTT.callout("톱니 평균 ≈ 24 MSS = 최고점 32의 3/4. 처리량도 최고점의 약 3/4에 머문다.", { title: "진단" });
+      el.append(note);
+    };
+    if (!LTT.MOTION_MS) { draw(SAW.length); return finish(); }
+    let k = 1;
+    draw(k);
+    const timer = setInterval(() => {
+      k += 1;
+      draw(k);
+      if (k >= SAW.length) { clearInterval(timer); finish(); }
+    }, 90);
+  },
+  why: "3 중복 ACK면 {{cwnd}}는 절반이 된다. {{ssthresh}} = 32 ÷ 2 = 16이고 cwnd도 16이 된다. 이후 RTT마다 +1 MSS로 선형 증가한다. 1로 돌아가는 것은 타임아웃(RTO)일 때뿐이다. 처리량 ≈ cwnd × MSS ÷ RTT이므로 32 MSS의 약 3.74 Mbps가 16 MSS에서 약 1.87 Mbps로 절반이 된다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+  basis: "가정: TCP Reno(3 중복 ACK로 손실 감지), MSS 1,460 B, RTT 100 ms, 초기 ssthresh 32 MSS. 손 계산 값이다.",
+  takeaway: "손실이 나면 cwnd는 절반으로 줄고, 그 뒤 RTT마다 1 MSS씩 되찾아 톱니가 된다. 그래서 평균 처리량은 최고점의 약 3/4이다.",
+};
+
+LTT.deck({
+  title: "TCP 혼잡 제어: 손실 뒤 cwnd",
+  theme: "lab",
+  glossary: {
+    cwnd: "혼잡 윈도. 확인 응답을 기다리지 않고 보낼 수 있는 데이터 양(MSS 단위)이다.",
+    ssthresh: "slow start를 끝내고 선형 증가(혼잡 회피)로 바꾸는 임계값. 손실이 나는 순간 정해진다.",
+  },
+  scenes: [predictScene],
+});
+</script>
+</body>
+</html>

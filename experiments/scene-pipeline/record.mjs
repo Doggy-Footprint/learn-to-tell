@@ -1,6 +1,6 @@
 // usage: node record.mjs <outDir> <rel.html>...  (rel는 gallery/ 기준) -> <outDir>/<slug>.webm
-import { chromium } from "/opt/node22/lib/node_modules/playwright/index.mjs";
-import { createLttServer } from "/home/user/learn-to-tell/skills/learn-to-tell/server/server.mjs";
+import { chromium } from "playwright";
+import { createLttServer } from "../../skills/learn-to-tell/server/server.mjs";
 import { mkdtempSync, mkdirSync, renameSync } from "node:fs"; import { tmpdir } from "node:os"; import { join, resolve, dirname } from "node:path"; import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const [outDir, ...rels] = process.argv.slice(2); mkdirSync(outDir, { recursive: true });
