@@ -1,5 +1,5 @@
 ---
-commit: 9c0c2549ffc312c10790a6546f01a921022c046e
+commit: e374721535e5c0e8d5609b04a87f96d3e553e196
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -24,7 +24,11 @@ commit: 9c0c2549ffc312c10790a6546f01a921022c046e
 - 브랜치 `feat/sample-n-correct`(worktree `sample-correct`). 이 handoff와 같은 커밋에 HSH 실험 전체(코드, `round-hsh/`, `round-judge/`)가 들어 있다.
 - 2026-10-26 이후 작업 브랜치는 `feat/llm-judge`. 아래 재료(사용자 점수, 기존 채점관 결과, 기존 장면)는 사용자 결정에 따라 "참고" 수준이다. 새 judge의 검증 근거로 쓰지 않는다.
 - 외부 검토(프로젝트를 읽지 않은 Opus high subagent, brief만 받음)의 판정: "개발자 관점 judge" 전제와 "개발자 선호를 지표로 쓰기" 전제 모두 조건부 통과. 지적: 기존 채점관의 불일치는 "관점 차이"와 "정지 화면이라 볼 수 없었음"이 갈리지 않는다(사용자 채점 페이지 `review-score.tpl.html`은 장면을 iframe으로 재생, 기존 채점관은 정지 스크린샷). 갈래별 사용자 평균의 표준오차는 약 0.65(갈래당 13장면, 표준편차 2.2–2.5).
-- 1단계(조사) 원문 인용 수집 결과는 `experiments/rubric-sources/`에 있다(커밋 안 됨).
+- 1단계(조사) 원문 인용 수집 결과는 `experiments/rubric-sources/`에 있다. 저장소에는 커밋하지 않았다.
+  - 비공개(secret) gist에 올렸다: https://gist.github.com/Doggy-Footprint/201fc70da1b36648db9f05e573e6cd4b
+  - gist는 디렉터리를 담지 못해서 경로 `a/b/c`를 파일명 `a__b__c`로 저장했다
+  - 복원: `git clone https://gist.github.com/201fc70da1b36648db9f05e573e6cd4b.git g && cd g && sh restore.sh <저장소>/experiments/rubric-sources`
+  - 2026-10-26에 복원본이 로컬과 같음을 `diff -rq`로 확인했다(원본과 전문 텍스트 제외)
   - `sources.tsv`: 출처 43개와 종류
   - `quotes.jsonl`: 인용 3,764개, 원문 대조 통과 3,718개(`verified`)
   - `verified-quotes.md`: 통과 인용과 `[출처#번호]`
