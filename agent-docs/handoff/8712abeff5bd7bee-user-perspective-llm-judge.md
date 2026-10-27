@@ -1,5 +1,5 @@
 ---
-commit: 3ad9d586437869ed8fd3d8cea9cb4d0f10f13360
+commit: 85f2cffc77b46a358fc6489008f46b7a692be8a2
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -467,6 +467,22 @@ commit: 3ad9d586437869ed8fd3d8cea9cb4d0f10f13360
   - 메모 결함: t3-r2 0("프레임이 흔들린다") `frame_jumps` 4, 최대 263px(단계마다 SVG 크기가 626→500→400px로 바뀜). t2-r2에서 "연속적이지 않고 투박, 스크롤해야 보임" 메모 3갈래(S4, S4R2, HHH)는 `teleport_ratio` 0.80–0.82·`hidden_controls` 5(예측 선택지 단추가 카드 스크롤 밖), 메모 없는 3갈래는 0·0. t2-r3(6갈래 모두 스크롤 메모)은 `hidden_controls` 1이 3갈래, 0이 3갈래. t1-r3 0("끊어져 보여서")은 `teleport_ratio`·`isolated_change`로 안 잡히고 `travel_per_change` 0.29(깨끗한 기준 2.11·1.70)로만 갈린다. t2-r3 S4·S4R2("animation이 거의 없음")는 `travel_px` 361–381로 메모 없는 장면보다 크다.
   - 파일럿 중 고친 것: SVG 크기 변화가 요소 이동으로 잡힘(좌표를 SVG 너비로 정규화), `svg.innerHTML`로 매 단계 다시 그리는 장면은 DOM 정체성으로 이동을 못 따라감(정체성 없는 상자 서명 지표 `isolated_change` 추가), 덱 카드(`.dk-stage`) 안쪽 스크롤에 가린 내용을 못 봄(조상 overflow 상자와 교차 검사), 로드 직후 스크롤바로 생기는 9px 재배치(첫 1.5초 제외).
   - 확인 못 한 것: 사용자 채점 페이지 iframe의 실제 크기(`review-score.tpl.html` `.stage`는 16:10, 최대 82vh). 파일럿 판정 기준을 실행 전에 글로 정해 두지 않았다.
+- 측정 본실험 사전 등록(사용자 지시 "커밋하고 본실험 하자", 2026-10-27, 실행 전에 기록).
+  - 라벨: `measure/labels.json`. main agent가 `round-judge/user-hsh.json` 메모를 형식 결함 6종(shake 8, choppy 12, hidden 15, no_anim 7, small 8, fast 3)으로 코딩했다. clean 24 = 점수 7 이상이고 형식 결함 메모가 없는 장면. 측정 밖 메모(가독성, 조작 후 화면 깨짐, 조작 후 재실행 없음)는 `not_measured`. 사용자 확인 전이다.
+  - 새 주입 미니 파일럿(깨끗한 2개: t1-r1 0RR2, t4-r2 S4): small(주 SVG 0.4배) `svg_area` 0.21·0.23 → 0.03·0.04, freeze(rAF 버림, CSS 애니메이션 정지) `smooth_px` 5102·2702 → 0·10, fast(시계 3배) `speed_p90` 13.7·5.4 → 37.2·17.0. `new_chars_max_1s`는 fast에 반응하지 않았다(글이 시간이 아니라 "다음" 클릭으로 바뀐다).
+  - 실행: 84장면 원본 + clean 24 × 주입 6종(shake, choppy, below, small, freeze, fast). 1280x800.
+  - 결함 종류별 지표와 방향(고정): shake → `frame_jumps` 높음. choppy → `teleport_ratio` 높음, `travel_per_change` 낮음. hidden → `hidden_controls` 높음, `svg_visible` 낮음, `hidden_text` 높음. no_anim → `smooth_px` 낮음. small → `svg_area` 낮음. fast → `speed_p90` 높음.
+  - 임계값: clean 원본 24개 중 실패 판정이 2개(10%) 이하가 되는 가장 엄격한 값. 동점은 실패 쪽에 넣는다.
+  - 통과 기준(지표별): 해당 주입 탐지율 90% 이상, 그리고 자연 라벨이 3개 이상인 종류는 clean 대비 AUC 0.75 이상. 같은 장면 파일(해시 동일)은 한 번만 센다. 한 결함 종류에 지표가 여러 개라 우연 통과 위험이 있음을 결과와 함께 적는다.
+- 측정 본실험 1차(사전 등록 그대로, `measure/analyze.py out/main/metrics.tsv`, 252회 오류 0, 7분). 표본 시간 12초, 첫 쪽만.
+  - 통과: shake `frame_jumps`(임계 1, clean 1/24, 주입 1.00, 라벨 6/8, AUC 0.85), hidden `hidden_text`(0.34, 2/24, 1.00, 5/15, 0.80), no_anim `smooth_px`(20 이하, 0/24, 1.00, 2/7, 0.92), small `svg_area`(0.14 이하, 2/24, 1.00, 8/8, 1.00).
+  - 탈락: choppy `teleport_ratio`(주입 0.58, AUC 0.56), choppy `travel_per_change`(주입 0.12), hidden `hidden_controls`(주입 0.83, AUC 0.67), hidden `svg_visible`(라벨 0/15, AUC 0.50), fast `speed_p90`(임계 37.3, 주입 0.21, 라벨 1/3).
+  - 원인 확인: 84장면 모두 `ltt-deck` 덱이다. 도구는 첫 쪽만 봤다. t3 장면은 1쪽이 퀴즈이고 그림은 2–3쪽에 있어 t3-r2 S4·S4R2(fast 라벨), t3-r3 HHH는 주 SVG가 18x18 아이콘으로 잡혔다(`svg_area` 0, 변화 0). t2 예측 장면은 선택지를 고르기 전 상태만 봤다(메모 없는 t2-r2 0·0R·0RR2와 hidden 라벨 t2-r1이 같은 값). no_anim 라벨 중 놓친 t2-r3 4개도 같은 이유일 수 있다(확인 안 함).
+- 2차(사후 변경, 1차 결과를 본 뒤 도구를 고쳤다): 학습자 대용 드라이버(3초마다 한 동작: 정답 안 본 예측이면 첫 선택지 → 정답 보기, 화면 밖 단계 단추는 직접 클릭, 아니면 → 키, `.ltt-nudge`는 클릭, 마지막 쪽에서 남은 단계·예측이 없어진 뒤 6초에 종료, 최대 90초). 주입 shake·small은 현재 쪽의 SVG를 계속 대상으로 한다. 지표는 쪽 경계를 넘는 표본 쌍을 빼고, 첫 화면 지표는 쪽 도착 0.5초(그림)·1초(글·단추)에 쪽마다 재서 `svg_visible` 최소, `svg_area` 중앙값(뷰포트 1% 이상인 SVG가 있는 쪽만), `hidden_text`·`hidden_controls` 최대로 모은다. frame 지표는 창·덱 카드 스크롤을 더한 좌표로, 같은 쪽·같은 SVG 요소끼리만 비교한다. 임계값·통과 기준·라벨은 사전 등록 그대로 쓴다. 드라이버 미니 파일럿(장면 6개 + t1-r1 0RR2 주입 6종): 주입 6종 모두 반응, t2 예측 장면이 선택→공개까지, t3 덱이 3쪽까지 진행했다.
+  - 결과(`analyze.py out/main2/metrics.tsv`, 252회 오류 0, 11분). 통과: shake `frame_jumps`(임계 1, clean 1/24, 주입 1.00, 라벨 8/8, AUC 0.98), hidden `hidden_text`(0.34, 2/24, 1.00, 5/15, 0.80), no_anim `smooth_px`(264 이하, 2/24, 1.00, 5/7, 0.96), small `svg_area`(0.15 이하, 2/24, 1.00, 8/8, 1.00).
+  - 탈락: choppy `teleport_ratio`(주입 0.67, AUC 0.55), choppy `travel_per_change`(주입 0.42, AUC 0.72), hidden `hidden_controls`(주입 0.83, AUC 0.67), hidden `svg_visible`(라벨 0/15, AUC 0.50, 모든 장면 1.0), fast `speed_p90`(임계 40.0, 주입 0.38, 라벨 1/3, AUC 0.92). fast 임계가 높은 이유: clean t3-r1 S4·S4R2(9점, 메모 없음)의 `speed_p90`이 59.4·51.4.
+  - 탐색(사전 등록 밖, 지표 8개 × 결함 4종을 같은 임계 규칙으로 훑어 고른 것이라 과적합 위험): hidden `hidden_change`(화면 밖에서 일어난 요소 변화 비율, 임계 0.17, 주입 1.00, 라벨 13/15, AUC 0.92). choppy `isolated_change`(0.04, 주입 1.00, 라벨 3/12, AUC 0.85).
+  - 탐색(뷰포트): 원본 108개를 1240x680(채점 페이지 `.wrap` 최대 1240px, `.stage` 최대 82vh에서 고른 가정값)으로 다시 측정. hidden AUC: `hidden_controls` 0.67 → 0.85, `hidden_text` 0.80 → 0.86, `hidden_change` 0.92 → 0.91, `svg_visible` 0.50 → 0.50. 출력 `measure/out/vp680/`.
 
 ### 회고 (세션 3a457627, 2026-10-27)
 
