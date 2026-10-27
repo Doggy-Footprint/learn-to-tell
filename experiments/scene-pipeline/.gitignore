@@ -29,3 +29,4 @@ __pycache__/
 /hsh-score-files.json
 /judge.log
 /judge-*.out
+/measure/out/

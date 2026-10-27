@@ -1,5 +1,5 @@
 ---
-commit: 5056267f55c4251f3730d89255dd97da4ea24725
+commit: 3ad9d586437869ed8fd3d8cea9cb4d0f10f13360
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -461,6 +461,12 @@ commit: 5056267f55c4251f3730d89255dd97da4ea24725
   - 사용자 조건: "HSH 항목이 기준이 되는거야? 그런거면 신경써서 다시 생성하고. 퀄리티가 크게 상관 없으면 진행해도 돼."
   - main agent 판단: HSH 장면은 측정 도구의 시험 재료다. 결함 주입의 탐지율은 원본 품질과 덜 관련된다. 오탐(잘못된 실패) 기준선은 원본에 이미 결함이 있으면 흐려지므로, 사용자 메모에 형식 결함이 없는 고득점 장면을 깨끗한 기준선 후보로 쓴다. golden set은 이전 결정대로 새로 생성한다.
   - `drafts/revised.json`은 보류. 73개 항목은 후보 목록으로 보고, 결함 주입·작은 라벨 묶음에 반응하는 항목만 남기는 안이다.
+- 측정 파일럿(2026-10-27). 도구: `experiments/scene-pipeline/measure/measure.mjs`(Playwright 1.63.0, `createLttServer`로 `round-hsh/` 제공, 1280x800, 50ms 표본 12초, stepper는 2초 뒤부터 3초마다 "다음"), `measure/metrics.py`. 출력 `measure/out/`(gitignore), 표 `measure/out/metrics.tsv`. Playwright 설치: `cd experiments/scene-pipeline && npm install --no-save --prefix . playwright@1.63.0`.
+  - 대상 22회 실행, 오류 0: 깨끗한 기준 2개(t1-r1 0RR2 9점, t4-r2 S4 9점, 메모 없음), 메모 결함 장면(t3-r2 0 흔들림, t1-r3 0 끊김, t2-r2·t2-r3 6갈래 전부), 깨끗한 2개에 주입 3종(shake: 주 SVG 상자 1.2초마다 6px, choppy: rAF 250ms + CSS 전환 0s, below: 본문 앞 900px).
+  - 주입: shake → `frame_jumps` 9 대 원본 0. choppy → `isolated_change` 0.42·0.77 대 0.01·0.12, `teleport_ratio` 0.97·0.98 대 0. below → `hidden_controls` 전부, `hidden_text` 1.0.
+  - 메모 결함: t3-r2 0("프레임이 흔들린다") `frame_jumps` 4, 최대 263px(단계마다 SVG 크기가 626→500→400px로 바뀜). t2-r2에서 "연속적이지 않고 투박, 스크롤해야 보임" 메모 3갈래(S4, S4R2, HHH)는 `teleport_ratio` 0.80–0.82·`hidden_controls` 5(예측 선택지 단추가 카드 스크롤 밖), 메모 없는 3갈래는 0·0. t2-r3(6갈래 모두 스크롤 메모)은 `hidden_controls` 1이 3갈래, 0이 3갈래. t1-r3 0("끊어져 보여서")은 `teleport_ratio`·`isolated_change`로 안 잡히고 `travel_per_change` 0.29(깨끗한 기준 2.11·1.70)로만 갈린다. t2-r3 S4·S4R2("animation이 거의 없음")는 `travel_px` 361–381로 메모 없는 장면보다 크다.
+  - 파일럿 중 고친 것: SVG 크기 변화가 요소 이동으로 잡힘(좌표를 SVG 너비로 정규화), `svg.innerHTML`로 매 단계 다시 그리는 장면은 DOM 정체성으로 이동을 못 따라감(정체성 없는 상자 서명 지표 `isolated_change` 추가), 덱 카드(`.dk-stage`) 안쪽 스크롤에 가린 내용을 못 봄(조상 overflow 상자와 교차 검사), 로드 직후 스크롤바로 생기는 9px 재배치(첫 1.5초 제외).
+  - 확인 못 한 것: 사용자 채점 페이지 iframe의 실제 크기(`review-score.tpl.html` `.stage`는 16:10, 최대 82vh). 파일럿 판정 기준을 실행 전에 글로 정해 두지 않았다.
 
 ### 회고 (세션 3a457627, 2026-10-27)
 
