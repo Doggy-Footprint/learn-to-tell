@@ -53,6 +53,56 @@ def metrics(path):
     out["travel_px"] = round(travel); out["travel_per_change"] = round(travel / out["change"], 2) if out["change"] else None; out["teleport_ratio"] = round(tele / travel, 2) if travel else None; out["opacity_change"] = round(fade, 1)
     # smooth_px: travel made of consecutive small steps (a static or jump-only scene has ~0); speed_p90: per-50ms step size of moving elements
     out["smooth_px"] = round(travel - tele); out["speed_p90"] = round(sorted(moves)[int(0.9 * (len(moves) - 1))], 1) if moves else 0
+    # text_jump_ratio / path_shown: SVG labels tracked by their string (nodes are often rebuilt, and one key can show in two nodes), matched one-to-one
+    # by nearest position between samples; a large step with no motion into it before and none out of it after is a jump, as is a label reappearing
+    # away from where the same string vanished within the last second. Fast glides span several large steps, so they count as motion.
+    # path_shown credits a reappeared label for the distance it then travels toward where it settles (a rebuilt node whose key flies up still shows the path).
+    def occ(s):
+        el = {e[0]: e for e in s["els"]}; o = collections.defaultdict(list)
+        for t in s["texts"]:
+            e = el.get(t[0])
+            if e and e[5] > 0.05: x, y, w, h = norm(s, *e[1:5]); o[t[1]].append((round(x + w / 2, 1), round(y + h / 2, 1)))
+        return o
+    O = [occ(s) for s in S]; dist = lambda p, q: ((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2) ** .5
+    pairs = [None] * len(S); moved_in = [set() for _ in S]; moved_out = [set() for _ in S]
+    for i in range(1, len(S)):
+        if not same[i]: continue
+        ms, arr = [], []
+        for txt, bs in O[i].items():
+            cand = sorted((dist(p, q), j, k) for j, p in enumerate(bs) for k, q in enumerate(O[i - 1].get(txt, [])) if dist(p, q) <= 300)
+            ub, ua = set(), set()
+            for d, j, k in cand:
+                if j in ub or k in ua: continue
+                ub.add(j); ua.add(k); ms.append((txt, O[i - 1][txt][k], bs[j], d))
+                if d > 0.5: moved_in[i].add((txt, bs[j])); moved_out[i - 1].add((txt, O[i - 1][txt][k]))
+            arr += [(txt, p) for j, p in enumerate(bs) if j not in ub]
+        pairs[i] = (ms, arr)
+    nxt = [{} for _ in S]
+    for i in range(1, len(S)):
+        if pairs[i]:
+            for txt, q, p, d in pairs[i][0]: nxt[i - 1][(txt, q)] = (p, d)
+    jump = glide = resid = stepj = 0.0; gone = collections.defaultdict(list)
+    for i in range(1, len(S)):
+        if pairs[i] is None: gone.clear(); continue
+        ms, arr = pairs[i]; t = S[i]["t"]
+        for txt, q, p, d in ms:
+            if d <= 0.5: continue
+            if d >= 8 and (txt, q) not in moved_in[i - 1] and (txt, p) not in moved_out[i]: jump += d; stepj += d
+            else: glide += d
+        for txt, p in arr:
+            old = [q for q, tq in gone.get(txt, []) if t - tq <= 1000]
+            if not old: continue
+            far = min(dist(p, q) for q in old)
+            if far > 8: jump += far
+            src = min(old, key=lambda q: dist(p, q)); cur, j, trav = p, i, 0.0
+            while (txt, cur) in nxt[j] and S[j]["t"] - t <= 2000:
+                cur, d = nxt[j][(txt, cur)]; trav += d; j += 1
+            if dist(src, cur) > 8: resid += max(0.0, dist(src, cur) - trav)
+        matched_prev = {(txt, q) for txt, q, _, _ in ms}
+        for txt, qs in O[i - 1].items():
+            gone[txt].extend((q, S[i - 1]["t"]) for q in qs if (txt, q) not in matched_prev)
+    out["text_jump_ratio"] = round(jump / (jump + glide), 2) if jump + glide else None
+    out["path_shown"] = round(glide / (glide + stepj + resid), 2) if glide + stepj + resid else None
     keys = [set(e[0] for e in s["els"]) for s in S]
     out["appear"] = sum(len(b - a) for i, (a, b) in enumerate(zip(keys, keys[1:])) if same[i + 1])
     # first screen per page: figure (largest SVG at least FIGURE of the viewport) 0.5s after arrival, text and controls 1s after arrival

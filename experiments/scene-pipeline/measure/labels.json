@@ -1,11 +1,124 @@
 {
- "_source": "round-judge/user-hsh.json memos, coded by the main agent 2026-10-27 before the main run; keys are <topic>/<round>/<arm dir>",
- "shake": ["t3/r1/zero", "t3/r1/zero-review", "t3/r1/hreview", "t3/r2/zero", "t3/r2/zero-review", "t3/r2/zero-review-2nd", "t3/r2/hreview", "t3/r3/review"],
- "choppy": ["t1/r3/zero", "t1/r3/zero-review", "t1/r3/zero-review-2nd", "t1/r3/review", "t1/r3/review-2nd", "t2/r2/review", "t2/r2/review-2nd", "t2/r2/hreview", "t2/r1/review", "t1/r2/zero", "t1/r2/zero-review", "t1/r2/zero-review-2nd"],
- "hidden": ["t2/r1/zero", "t2/r1/zero-review", "t2/r1/zero-review-2nd", "t2/r1/review", "t2/r1/review-2nd", "t2/r1/hreview", "t2/r2/review", "t2/r2/review-2nd", "t2/r2/hreview", "t2/r3/zero", "t2/r3/zero-review", "t2/r3/zero-review-2nd", "t2/r3/hreview", "t3/r3/hreview", "t3/r3/review-2nd"],
- "no_anim": ["t2/r3/zero", "t2/r3/zero-review", "t2/r3/review", "t2/r3/review-2nd", "t3/r3/zero", "t3/r3/zero-review", "t3/r3/zero-review-2nd"],
- "small": ["t4/r1/zero", "t4/r1/zero-review", "t4/r1/zero-review-2nd", "t4/r3/zero", "t4/r3/zero-review", "t4/r3/zero-review-2nd", "t4/r3/review", "t4/r3/review-2nd"],
- "fast": ["t3/r2/review", "t3/r2/review-2nd", "t5/r1/hreview"],
- "not_measured": {"legibility": ["t1/r1/review", "t1/r1/review-2nd", "t1/r1/hreview"], "layout_break_after_control": ["t5/r1/zero", "t5/r1/zero-review"], "no_rerun_after_control": ["t5/r1/zero-review-2nd"]},
- "clean": ["t1/r1/zero", "t1/r1/zero-review", "t1/r1/zero-review-2nd", "t1/r2/review", "t1/r2/review-2nd", "t1/r2/hreview", "t1/r3/hreview", "t2/r2/zero", "t2/r2/zero-review", "t2/r2/zero-review-2nd", "t3/r1/zero-review-2nd", "t3/r1/review", "t3/r1/review-2nd", "t4/r1/review", "t4/r1/review-2nd", "t4/r2/zero", "t4/r2/zero-review", "t4/r2/zero-review-2nd", "t4/r2/review", "t4/r2/review-2nd", "t4/r2/hreview", "t5/r2/zero", "t5/r2/zero-review", "t5/r2/zero-review-2nd"]
+ "_source": "round-judge/user-hsh.json memos, coded by the main agent 2026-10-27 before the main run; keys are <topic>/<round>/<arm dir>; choppy split into recreate/rough and t1-r2 0R added to no_anim after the user's explanations (handoff 2026-10-27)",
+ "shake": [
+  "t3/r1/zero",
+  "t3/r1/zero-review",
+  "t3/r1/hreview",
+  "t3/r2/zero",
+  "t3/r2/zero-review",
+  "t3/r2/zero-review-2nd",
+  "t3/r2/hreview",
+  "t3/r3/review"
+ ],
+ "recreate": [
+  "t1/r3/zero",
+  "t1/r3/zero-review",
+  "t1/r3/zero-review-2nd",
+  "t1/r3/review",
+  "t1/r3/review-2nd",
+  "t1/r2/zero",
+  "t1/r2/zero-review-2nd"
+ ],
+ "rough": [
+  "t2/r2/review",
+  "t2/r2/review-2nd",
+  "t2/r2/hreview",
+  "t2/r1/review"
+ ],
+ "hidden": [
+  "t2/r1/zero",
+  "t2/r1/zero-review",
+  "t2/r1/zero-review-2nd",
+  "t2/r1/review",
+  "t2/r1/review-2nd",
+  "t2/r1/hreview",
+  "t2/r2/review",
+  "t2/r2/review-2nd",
+  "t2/r2/hreview",
+  "t2/r3/zero",
+  "t2/r3/zero-review",
+  "t2/r3/zero-review-2nd",
+  "t2/r3/hreview",
+  "t3/r3/hreview",
+  "t3/r3/review-2nd"
+ ],
+ "no_anim": [
+  "t2/r3/zero",
+  "t2/r3/zero-review",
+  "t2/r3/review",
+  "t2/r3/review-2nd",
+  "t3/r3/zero",
+  "t3/r3/zero-review",
+  "t3/r3/zero-review-2nd",
+  "t1/r2/zero-review"
+ ],
+ "small": [
+  "t4/r1/zero",
+  "t4/r1/zero-review",
+  "t4/r1/zero-review-2nd",
+  "t4/r3/zero",
+  "t4/r3/zero-review",
+  "t4/r3/zero-review-2nd",
+  "t4/r3/review",
+  "t4/r3/review-2nd"
+ ],
+ "fast": [
+  "t3/r2/review",
+  "t3/r2/review-2nd",
+  "t5/r1/hreview"
+ ],
+ "not_measured": {
+  "legibility": [
+   "t1/r1/review",
+   "t1/r1/review-2nd",
+   "t1/r1/hreview"
+  ],
+  "layout_break_after_control": [
+   "t5/r1/zero",
+   "t5/r1/zero-review"
+  ],
+  "no_rerun_after_control": [
+   "t5/r1/zero-review-2nd"
+  ]
+ },
+ "clean": [
+  "t1/r1/zero",
+  "t1/r1/zero-review",
+  "t1/r1/zero-review-2nd",
+  "t1/r2/review",
+  "t1/r2/review-2nd",
+  "t1/r2/hreview",
+  "t1/r3/hreview",
+  "t2/r2/zero",
+  "t2/r2/zero-review",
+  "t2/r2/zero-review-2nd",
+  "t3/r1/zero-review-2nd",
+  "t3/r1/review",
+  "t3/r1/review-2nd",
+  "t4/r1/review",
+  "t4/r1/review-2nd",
+  "t4/r2/zero",
+  "t4/r2/zero-review",
+  "t4/r2/zero-review-2nd",
+  "t4/r2/review",
+  "t4/r2/review-2nd",
+  "t4/r2/hreview",
+  "t5/r2/zero",
+  "t5/r2/zero-review",
+  "t5/r2/zero-review-2nd"
+ ],
+ "_choppy_v1": [
+  "t1/r3/zero",
+  "t1/r3/zero-review",
+  "t1/r3/zero-review-2nd",
+  "t1/r3/review",
+  "t1/r3/review-2nd",
+  "t2/r2/review",
+  "t2/r2/review-2nd",
+  "t2/r2/hreview",
+  "t2/r1/review",
+  "t1/r2/zero",
+  "t1/r2/zero-review",
+  "t1/r2/zero-review-2nd"
+ ]
 }
