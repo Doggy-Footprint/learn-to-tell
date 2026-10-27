@@ -1,5 +1,5 @@
 ---
-commit: 58f8cbdd94cce196e95e66b8c7760578417eb20c
+commit: 5056267f55c4251f3730d89255dd97da4ea24725
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -69,6 +69,7 @@ commit: 58f8cbdd94cce196e95e66b8c7760578417eb20c
 | 사용자에게 18묶음 × 6장면 블라인드 채점을 맡기기 | t1–t5 r2까지 13묶음 채점 후 중단("나 이거 힘드렄") | verified: 묶음당 6장면 × 18묶음은 사람에게 부담이 너무 크다. 다음 채점 묶음은 더 작아야 한다 |
 | 조사 subagent가 WebSearch 요약으로 평가표 항목과 기준값을 모으기(`candidates/*.md`) | 사용자 지적: WebSearch는 여러 URL의 내용을 한 요약으로 합쳐 돌려주므로, 숫자가 어느 출처에서 왔는지 섞인다 | hypothesis: WebFetch도 작은 모델의 요약을 거친다. 그래서 원문 그대로 인용하고 원문 텍스트와 문자열 대조하는 방식으로 바꿨다 |
 | PDF 출처를 WebFetch로 읽기 | 16개 PDF 모두 실패: 바이너리가 그대로 전달되어 추출 모델이 텍스트를 보지 못함, 또는 `maxContentLength size of 10485760 exceeded`. Tversky 2002는 SSL 인증서 오류 | verified: WebFetch는 PDF 본문을 텍스트로 바꾸지 않는다 |
+| 비판 반영을 "비판 모델 2개 이상 같은 방향"으로 판정(`tools/revise.py`, sonnet) | 정성 판정으로 바뀐 기준값 17개 중 7개가 OpenAI 두 모델(sol, astra)의 지적만으로 바뀜. measure data+llm 37 → 47 | verified: 같은 회사 두 모델이 두 표로 셈해졌다. 사용자는 이후 다회사 합의를 구성 원칙에서 뺐다 |
 | 문헌 인용에서 LLM(sonnet)이 이진 항목을 먼저 만들고, 사용자 충실도 판정과 LLM 판정자의 일치로 나머지 출처 판정을 맡기기(trial, 2회) | 1차: 사용자 충실 13/30(43%), 판정자 kappa 0.36–0.48. 프롬프트 수정 뒤 2차(출처 6개, 60개, 한국어 지문): 사용자 같다 29/60(48%), 판정자 6개의 kappa 0.11–0.22, 1차와 겹치지 않은 47개에서 0.05–0.18 | hypothesis: 번역 모델이 인용 일부를 빼거나 조건을 넓힌다. 판정자는 사용자보다 너그럽고, 사용자와 모델의 "같다" 정의가 다르다(누락 포함 여부). 정의를 맞춘 재측정은 하지 않았다 |
 
 ## Next Step
@@ -438,6 +439,28 @@ commit: 58f8cbdd94cce196e95e66b8c7760578417eb20c
   - 기준값 근거 누락 원인을 확인한다.
   - 항목표를 한국어로 사용자에게 보인다. 사용자 검토 범위는 "측정 가능하게 쓰였는가"다.
   - 지각·인지 연구의 연도 규칙 예외: 사용자가 답했다(위 "2026-10-27 변경").
+
+### 비판 반영 시도와 다회사 합의 포기 (2026-10-27, 다음 세션)
+
+- 기준값 근거 누락 원인(위 "확인하지 않은 것"): propose는 수치를 잡았다(682쌍 중 `value` 있는 것 143개, threshold/both 136쌍). verify 프롬프트가 "인용이 항목의 threshold를 말하는가"를 물었고, 병합 threshold가 범위·수치 없는 문장이라 Netflix 12 cps 같은 인용도 partial이 됐다(threshold supports 1, both supports 4, partial 82). 확인: `evidence/verify-gpt-6.1-sol.json`에서 `part != "check"`인 쌍의 `rating`과 `reason`.
+- `tools/revise.py run sonnet 8` → `drafts/revised.json`, 항목별 캐시 `drafts/revise-sonnet/`, 비용 $2.099.
+  - 규칙: 비판 2개 이상이 같은 방향이면 반영, 병합 흔적(모델명, 값 병기)은 고침. verify에서 `no`가 아닌 인용의 `value`가 항목에 맞으면 기준값(`quoted`), 아니면 후보값(`candidate`), 수치가 필요 없거나 비판 2개 이상이 정성 판정을 요구하면 `none`. 비판의 누락 항목 10개는 그대로 추가(`origin: critic`, 근거 연결 안 됨).
+  - 결과: revise 36, keep 34, add 10, remove 3(persistent-end-state → result-hold, role-fulfilled → one-sentence-takeaway, eased-motion → semantically-appropriate-easing). 기준값 상태 none 47, candidate 23, quoted 10. measure: data+llm 37 → 47.
+  - 관찰: 기준값을 정성 판정으로 바꾼 항목 17개 중 7개는 비판이 gpt-6.1-sol·gpt-6-astra(둘 다 OpenAI)뿐이었다. opus·argon은 값 하나로 정하자고 했지만 값이 서로 달라 "같은 방향 2개"로 묶이지 않았다.
+  - 관찰: `quoted` 중 motion-concurrency(≤1 그룹, `simons-rensink2005` 변화맹 문장)와 temporal-contiguity(BBC 자막 동기화 1.5s/2s)는 verify partial 인용을 장면 글에 옮긴 것이다.
+  - 이 산출물을 쓸지는 정하지 않았다.
+- 사용자 결정: "다 회사 합의는 포기하고, 어떻게 Judge를 구성하는 게 효과적인지 /scored-web-search로 조사한다. (subagent)". 조사 보고 위치: `experiments/rubric-sources/notes/2026-10-27-judge-construction-research.md`(subagent, `scored-web-search`, 후보 89개 중 통과 23개, 19개 읽음, 대부분 초록·일부). gist 미동기화.
+  - 보고의 요지([근거]는 보고가 출처에서 옮긴 것, main agent가 원문을 다시 확인하지 않았다):
+    - 패널: 정답 있는 QA에서 사람과의 kappa 단일 0.83 대 3모델 다수결 0.86(Badshah & Sajjad 2024). 강한 모델일수록 오류가 닮는다(Goel et al., ICML 2025).
+    - 체크리스트: 쌍대 판정에서는 이득, 직접 점수에서는 유의차 없음, 항목의 약 40%가 사람 일치를 낮춤(Furuhashi et al., EMNLP 2025). 항목을 쪼개고 거르면 JudgeBench +17.7점(Shen et al., NeurIPS 2026).
+    - 기준 출처: 산출물·사람 판정에서 기준을 끌어낸 방식이 사람 일치를 올렸다(EvalGen UIST 2024: 채점 16개로 coverage 49% → 73%, SPADE, HypoEval 판정 30개). "문헌 → 항목"과 비교한 연구는 없다.
+    - 검증: 결함 주입에서 judge가 품질 저하의 절반 넘게 놓쳤고 참조(이 프로젝트의 storyboard)를 준 판정이 나았다(FBI, EMNLP 2024). 변성 시험 점수로 매긴 judge 순위와 사람 라벨 순위 Spearman 0.852(SANE, NeurIPS 2026 워크숍). 최소 라벨 수를 직접 답한 출처는 없다.
+    - 시간 축: Manim 교육 영상 judge의 사람 상관은 시각 관련성 0.72, 배치 0.42, 시각 일관성 0.17(TheoremExplainAgent, ACL 2025). MotionBench 최고 VLM 0.58.
+    - 코드 측정 + LLM 결합을 LLM 단독과 통제 비교한 연구는 없다. 임계값 설정은 EvalGen의 "잘못된 실패 비율 상한 안에서 coverage 최대화"만 찾았다.
+- 다음 작업(main agent 제안, 사용자 승인 2026-10-27: "커밋하고 시작해. 본실험 전에 작게 pilot test 잊지 말고"): 진행 순서 2(측정 기반)와 결함 주입. 기존 HSH 장면을 재료로 쓴다.
+  - 사용자 조건: "HSH 항목이 기준이 되는거야? 그런거면 신경써서 다시 생성하고. 퀄리티가 크게 상관 없으면 진행해도 돼."
+  - main agent 판단: HSH 장면은 측정 도구의 시험 재료다. 결함 주입의 탐지율은 원본 품질과 덜 관련된다. 오탐(잘못된 실패) 기준선은 원본에 이미 결함이 있으면 흐려지므로, 사용자 메모에 형식 결함이 없는 고득점 장면을 깨끗한 기준선 후보로 쓴다. golden set은 이전 결정대로 새로 생성한다.
+  - `drafts/revised.json`은 보류. 73개 항목은 후보 목록으로 보고, 결함 주입·작은 라벨 묶음에 반응하는 항목만 남기는 안이다.
 
 ### 회고 (세션 3a457627, 2026-10-27)
 
