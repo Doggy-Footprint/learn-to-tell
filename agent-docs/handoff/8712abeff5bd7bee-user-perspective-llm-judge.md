@@ -1,5 +1,5 @@
 ---
-commit: 3309b106056ab90221225e6617e86101198e3203
+commit: 2b1806a1397f9a1f866596297c55b041ef293bdb
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -389,6 +389,47 @@ commit: 3309b106056ab90221225e6617e86101198e3203
   - 지각·인지 연구(`healey1996` 전주의 처리, `legge2011` 글자 크기)는 기술에 덜 의존하지만 예외를 두지 않았다. 사용자 지시가 연도 기준이어서다.
   - 판 번호가 있는 지침(WCAG 2.2, Material 3, Carbon, HIG, Netflix, BBC)은 현재 판의 연도로 본다.
 
+### 1단계 진행: 독립 초안 → 병합 → 비판 → 근거 연결 (2026-10-27)
+
+도구는 `experiments/rubric-sources/tools/`(gitignore 범위)에 있다. 사본은 secret gist(`tools__*.py`, `drafts__*`, `evidence__*.json`)이고, 로컬 gist 사본 커밋까지 했다. push는 사용자가 한다.
+
+- 독립 초안: `tools/draft.py opus gpt-6.1-sol gpt-6-astra argon`. 초안 모델은 인용을 보지 않는다.
+  - 프롬프트(영어)에는 장면 설명, judge가 관찰할 수 있는 것, 사용자 메모에서 나온 결함 9개("반드시 잡아야 함"), 층 4개, 항목 필드가 들어간다. 항목 필드: id, layer, check, instruction(생성기용), applies_when, threshold, measure, evidence(모르면 "practice"), weight 1–3. 항목은 30–60개를 요구했다.
+  - 결과: opus 58개($0.61, 한국어로 답함), gpt-6.1-sol 50개($0.117), gpt-6-astra 48개($1.068), argon 35개(구독). evidence가 "practice"인 항목: 18 / 31 / 24 / 13.
+- 병합: `tools/merge.py sonnet <4개>`, $0.34. 초안을 쓰지 않은 sonnet이 묶음과 문장만 맡는다. 출처 모델, 가중치(median_low), 근거 주장은 코드가 복사한다. 모든 초안 항목이 정확히 한 묶음에 들어가는지 검사한다.
+  - 결과 `drafts/merged.json`: 73개. 제안 모델 수별: 4개 29, 3개 10, 2개 7, 1개 27. 층별: pedagogy 24, format 20, animation 17, storyboard 12.
+  - sonnet이 threshold 문자열에 "(opus)/(argon)" 같은 모델 표기를 남겼다. 고치지 않았다.
+- 비판: `tools/critique.py <4개>`. 출처 모델은 숨겼다. 누락 / 과잉 수, 비용:
+  - opus 3 / 19, $0.43
+  - gpt-6.1-sol 3 / 37, $0.206
+  - gpt-6-astra 1 / 39, $0.865
+  - argon 3 / 18
+  - 누락 후보(중복 정리 전 10개): no-runtime-errors, control-diagram-co-visible, predict-setup-sufficient, read-observe-opportunity, input-error-recovery, no-keyboard-trap, guided-parameter-exploration, pointer-path-non-overlap, state-delta-highlighted, step-backward-restores-state.
+  - 4개 모두 지적: text-size, temporal-contiguity, persistent-end-state, no-unsupported-claims, entrance-from-origin, no-dead-time-or-filler, text-reading-pace, motion-concurrency, cue-leads-change, result-hold, loop-reset-distinct, trackable-duration. 대부분 threshold-wrong이고, persistent-end-state는 4개 모두 duplicate(result-hold와 중복)다.
+  - 3개가 지적: keyboard-operable-controls, reduced-motion-suppresses-motion, predict-before-reveal, continuous-motion, control-change-reruns, animation-starts-when-visible, eased-motion.
+  - 기준값 의견이 갈렸다. opus·argon은 값 하나로 통일하자고 했다. GPT 두 모델은 연구 근거가 없으니 숫자를 빼고 data+llm으로 판정하자고 했다.
+- 근거 연결: `tools/evidence.py`.
+  - 사용 인용: `context/haiku.jsonl`에서 usable인 인용만 쓴다. 1등급 = own-finding, recommendation, requirement, definition. 2등급 = cited-work, hypothesis-or-intro.
+  - 제안: `propose sonnet`, $2.473. 출처 43개에서 682쌍이 나왔고, 출처별 캐시는 `evidence/sonnet/`이다.
+  - 검증: `verify gpt-6.1-sol sonnet`, $0.853. 결과는 supports 89, partial 396, no 197.
+  - 판정: `report sonnet gpt-6.1-sol` → `evidence/items.json`. 나이 규칙을 적용했다.
+    - 점수: 1등급 3, 2등급 2. 2005–2014년이면 1을 빼고, partial이면 1을 더 뺀다.
+    - 2005년 이전 출처는 2015년 이후 출처의 supports가 있을 때만 센다.
+    - 항목 수준은 최댓값이다.
+  - 결과: strong 18, moderate 28, weak 3, none 24.
+  - 기준값을 supports한 인용이 있는 항목은 no-flashing(WCAG, 5개) 하나다. text-reading-pace는 strong(bbc-subtitles, brysbaert2019, netflix)이지만 기준값 supports는 0이다.
+  - none 24개: theme-token-colors, diagram-first-screen, diagram-dominance, self-contained, animation-starts-when-visible, element-no-jitter, visible-focus, control-names-states, diagram-text-alternative, motivated-introduction, contrast-aligned, persistent-end-state, worked-example-concrete-values, predict-options-plausible, one-sentence-takeaway, build-order-matches, role-fulfilled, control-values-correct, correct-initial-state, entrance-from-origin, no-dead-time-or-filler, loop-reset-distinct, playback-state-coherence, path-following. 사용자 메모 결함과 스토리보드 준수 항목이 대부분이다. entrance-from-origin은 근거가 chang-ungar1993 하나여서 나이 규칙으로 none이 됐다.
+  - 확인하지 않은 것: 수치를 말하는 인용(Netflix·BBC 읽기 속도, nng 지속시간, Material 3 토큰)이 기준값 근거로 잡히지 않은 원인. 가능성은 propose의 part 지정이나 verify의 엄격도다(hypothesis).
+- main agent가 사용자에게 밝힌 기본값(사용자가 바꿀 수 있다):
+  - 인용이 수치를 말하면 그 값을 기준값으로 쓴다.
+  - 없으면 고정값을 두지 않고 후보값으로 남긴다. 후보값은 golden set과 결함 주입으로 맞춘다.
+  - 근거 none 항목은 "관찰된 결함" 또는 "모델 합의"로 표시하고 남긴다.
+- 남은 일:
+  - 비판 반영: duplicate 다수 항목을 합친다(persistent-end-state → result-hold 등). 누락 후보는 중복을 정리해 넣는다.
+  - 기준값 근거 누락 원인을 확인한다.
+  - 항목표를 한국어로 사용자에게 보인다. 사용자 검토 범위는 "측정 가능하게 쓰였는가"다.
+  - 사용자 답 대기: `healey1996`, `legge2011`을 나이 규칙의 예외로 둘지.
+
 ### 전체 구조와 순서
 
 사용자가 동의한 judge 구조:
@@ -430,5 +471,10 @@ commit: 3309b106056ab90221225e6617e86101198e3203
   - gpt-5.6-sol: 연결 확인 1회, $0.001 미만
   - gpt-6-astra: 호출 없음
   - 사용자가 정한 GPT 예산은 $10이다.
+- 2026-10-27 1단계(초안·병합·비판·근거 연결) 비용:
+  - GPT: 초안 $1.185, 비판 $1.071, 근거 검증 $0.853, 합 $3.109.
+  - GPT 누적: 그 전 기록 합 약 $1.44(이 파일의 판정·번역 항목 합)에 더해 약 $4.5.
+  - Claude(`claude -p` 보고): opus 초안 $0.61, sonnet 병합 $0.34, opus 비판 $0.43, sonnet 근거 제안 $2.473.
+  - argon(agy 구독): 초안 1회, 비판 1회.
 - 같은 날 웹 검색 요약 기반 조사 agent의 결과는 출처 섞임 문제로 후보 목록으로만 쓰기로 했다(사용자 지적).
 - 이전 실험 handoff: `agent-docs/handoff/stale/2b0025305e515b67-noshot-haiku-sample-correction.md`.
