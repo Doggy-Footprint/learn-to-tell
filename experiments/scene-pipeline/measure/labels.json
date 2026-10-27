@@ -17,6 +17,7 @@
   "t1/r3/review",
   "t1/r3/review-2nd",
   "t1/r2/zero",
+  "t1/r2/zero-review",
   "t1/r2/zero-review-2nd"
  ],
  "rough": [
@@ -49,8 +50,7 @@
   "t2/r3/review-2nd",
   "t3/r3/zero",
   "t3/r3/zero-review",
-  "t3/r3/zero-review-2nd",
-  "t1/r2/zero-review"
+  "t3/r3/zero-review-2nd"
  ],
  "small": [
   "t4/r1/zero",
