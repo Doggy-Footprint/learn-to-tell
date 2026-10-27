@@ -351,6 +351,9 @@ commit: 6826ee5519e976ffa47c9df469eefcdf3e50515e
   - 사용자 판정 페이지: https://claude.ai/artifact/4BUqhzJ8k7vSbWWidk51EL (비공개, `db` 컬렉션 `judgments`, 문서 `j<표본 번호>`).
   - 판정 모델 6개(flash = agy `gemini-3.8-flash-high`, gpt-6.1-sol, argon, gpt-6-astra, opus, sonnet)를 `fidelity2.py judge <model>`로 돌렸다. 결과(`items-trial/fidelity2-<model>.json`)는 사용자 판정이 끝날 때까지 보지 않는다. sonnet은 번역 모델과 같아서 자기 출력 선호가 있을 수 있다.
   - 사용자 요청으로 중립 검토 subagent를 같은 시점에 돌렸다("sub agent하나 호출해서 우리가 하고 있는게 맞는 방향인지 중립적인 시각에서 검토해봐"). subagent에게는 `fidelity2-*` 판정 결과를 읽지 말라고 했다.
+    - 보고: `experiments/rubric-sources/notes/2026-10-27-direction-review.md`(gist 미동기화).
+    - 결론: 멈출 정도는 아니지만 구조를 바꿔야 한다. 충실도만 쟀고, 변별·판정 가능성·결함 탐지는 재지 않았다. 남은 출처로 번역을 넓히지 말고, v2 항목을 HSH 장면 20개에 미리 적용하고 결함 주입을 먼저 하라는 권고다.
+  - 2차 표본의 독립성 결함(검토가 지적, main agent가 qid 대조로 확인): 2차 인용 60개 중 13개가 1차 정답 인용과 같다. 1차 후보 인용까지 치면 25개가 겹친다. 1차의 출처 3개에서 같은 인용 풀로 다시 뽑았기 때문이다. 그래서 2차 결과는 겹친 13개와 나머지 47개로 나눠 계산한다.
 
 ### 전체 구조와 순서
 
