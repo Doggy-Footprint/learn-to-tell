@@ -8,13 +8,27 @@ SETTLE = 1500  # ms; the page reflows once when its scrollbar appears, so the fr
 FIGURE = 0.01  # share of the viewport; a smaller largest SVG is an icon, not the page's figure
 
 def norm(s, x, y, w, h):
-    ox, oy, sw = (s["svg"][0], s["svg"][1], s["svg"][2] or 1) if s["svg"] else (0, 0, 1000)
+    f = s.get("frame", s["svg"])
+    ox, oy, sw = (f[0], f[1], f[2] or 1) if f else (0, 0, 1000)
     k = 1000 / sw
     return (x - ox) * k, (y - oy) * k, w * k, h * k
 
+def fix_frames(S):
+    """Pin one figure per page: the largest SVG 0.5s after the page arrives (or its first figure later), so a page that swaps or
+    resizes a smaller SVG past the main one does not make every element jump. Older runs without per-SVG boxes keep the largest SVG."""
+    if not S or "svgs" not in S[0]: return
+    page_of, first = [s.get("page", "") for s in S], {}
+    for s, pg in zip(S, page_of): first.setdefault(pg, s["t"])
+    pin = {}
+    for s, pg in zip(S, page_of):
+        if pg not in pin and s["svgs"] and s["t"] >= first[pg] + 500: pin[pg] = max(s["svgs"], key=lambda b: b[3] * b[4])[0]
+    for s, pg in zip(S, page_of):
+        box = next((b[1:] for b in s["svgs"] if b[0] == pin.get(pg)), None)
+        s["frameKey"], s["frame"] = (pin.get(pg), box) if box else (None, None)
+
 def metrics(path):
-    d = json.load(open(path)); S = d["samples"]; W, H = d["viewport"]
-    out = {"run": path.split("/")[-1].removesuffix(".json"), "errors": len(d["errors"])}
+    d = json.load(open(path)); S = d["samples"]; W, H = d["viewport"]; fix_frames(S)
+    out = {"run": path.split("/")[-1].removesuffix(".json"), "errors": len(d["errors"]), "seconds": round(S[-1]["t"] / 1000, 1), "capped": d.get("driver", {}).get("capped")}
     pages = [s.get("page", "") for s in S]; out["pages"] = len(set(pages))
     arrive, same = [], [True]
     for i, s in enumerate(S):
@@ -24,9 +38,10 @@ def metrics(path):
     jumps = []
     for i in range(1, len(S)):
         a, b = S[i - 1], S[i]
-        if not (same[i] and a["svg"] and b["svg"] and a.get("svgKey") == b.get("svgKey") and a["t"] >= SETTLE): continue
-        ya, yb = a["svg"][1] + a["scrollY"] + a.get("stageY", 0), b["svg"][1] + b["scrollY"] + b.get("stageY", 0)
-        jumps.append(max(abs(a["svg"][0] - b["svg"][0]), abs(ya - yb), abs(a["svg"][2] - b["svg"][2]), abs(a["svg"][3] - b["svg"][3])))
+        fa, fb = a.get("frame", a["svg"]), b.get("frame", b["svg"])
+        if not (same[i] and fa and fb and a.get("frameKey", a.get("svgKey")) == b.get("frameKey", b.get("svgKey")) and a["t"] >= SETTLE): continue
+        ya, yb = fa[1] + a["scrollY"] + a.get("stageY", 0), fb[1] + b["scrollY"] + b.get("stageY", 0)
+        jumps.append(max(abs(fa[0] - fb[0]), abs(ya - yb), abs(fa[2] - fb[2]), abs(fa[3] - fb[3])))
     out["frame_jumps"] = sum(j > 1 for j in jumps); out["frame_max_px"] = round(max(jumps + [0]), 1)
     # identity-free change: multiset of rounded normalized boxes + opacity per sample
     sig = [collections.Counter((round(a / 4), round(b / 4), round(c / 4), round(e / 4), round(o * 10)) for _, *xywh, o, _v in s["els"] for a, b, c, e in [norm(s, *xywh)]) for s in S]

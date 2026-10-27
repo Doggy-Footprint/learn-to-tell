@@ -1,4 +1,4 @@
-// usage: node measure.mjs <out.json> <rel.html> [--inject shake|choppy|below|small|freeze|fast] [--seconds 90] [--viewport 1280x800]  (rel는 round-hsh/ 기준)
+// usage: node measure.mjs <out.json> <rel.html> [--inject shake|choppy|below|small|freeze|fast] [--seconds 240] [--viewport 1280x800]  (rel는 round-hsh/ 기준)
 // 장면을 1280x800에서 열고 50ms마다 요소 상자·실효 불투명도·보이는 글자·실행 중 애니메이션 수를 기록한다.
 // 수집기는 주입보다 먼저 원래 setInterval을 잡아 두므로, rAF를 늦추는 choppy 주입이 표본 간격을 바꾸지 않는다.
 import { chromium } from "playwright";
@@ -7,7 +7,7 @@ import { mkdtempSync, writeFileSync } from "node:fs"; import { tmpdir } from "no
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2), opt = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const [out, rel] = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));
-const inject = opt("--inject", null), seconds = Number(opt("--seconds", 90));
+const inject = opt("--inject", null), seconds = Number(opt("--seconds", 240));
 const [W, H] = opt("--viewport", "1280x800").split("x").map(Number), DT = 50;
 
 function collector({ DT, H, W }) {
@@ -42,11 +42,18 @@ function collector({ DT, H, W }) {
     // learner controls (deck navigation excluded): a control the learner must scroll to reach is the predict-scene defect users reported
     const controls = [...document.querySelectorAll("button, input, select, textarea, [role=button], [role=slider]")].filter((n) => !n.closest(".dk-nav, .dk-top, .dk-foot, #ltt-expect"))
       .map((n) => { const r = n.getBoundingClientRect(); return r.width ? [key(n), (n.textContent || n.value || n.type || "").trim().slice(0, 30), shown(n, r)] : null; }).filter(Boolean);
-    const m = mainSvg(), st = document.querySelector(".dk-stage");
-    samples.push({ t, scrollY: scrollY, stageY: st ? st.scrollTop : 0, page: document.querySelector(".dk-count")?.textContent || "", svgKey: m && key(m[0]), svg: m && [+m[1].x.toFixed(1), +m[1].y.toFixed(1), +m[1].width.toFixed(1), +m[1].height.toFixed(1)],
+    // the deck scrolls the current page card (.dk-scene.cur), not .dk-stage
+    const m = mainSvg(), cur = document.querySelector(".dk-scene.cur") || document.body;
+    const svgs = [...document.querySelectorAll("svg")].map((s) => [s, s.getBoundingClientRect()]).filter(([, r]) => r.width * r.height >= 0.01 * W * H)
+      .map(([s, r]) => [key(s), +r.x.toFixed(1), +r.y.toFixed(1), +r.width.toFixed(1), +r.height.toFixed(1)]);
+    // the driver waits for the current page to stop changing before acting
+    const sig = [...cur.querySelectorAll(LEAF)].map((n) => { const r = n.getBoundingClientRect(); return `${r.x | 0},${r.y | 0},${r.width | 0},${r.height | 0},${opacity(n).toFixed(2)}`; }).join(";") + "|" + cur.textContent.length;
+    if (sig !== lastSig) { lastSig = sig; window.__ltt_measure.lastChange = t; window.__ltt_measure.sig = sig; }
+    samples.push({ t, scrollY: scrollY, stageY: cur === document.body ? 0 : cur.scrollTop, page: document.querySelector(".dk-count")?.textContent || "", svgKey: m && key(m[0]), svg: m && [+m[1].x.toFixed(1), +m[1].y.toFixed(1), +m[1].width.toFixed(1), +m[1].height.toFixed(1)], svgs,
       anims: document.getAnimations().filter((a) => a.playState === "running").length, els, texts, controls });
   }
-  window.__ltt_measure = { samples, start: () => setI(sample, DT) };
+  let lastSig = "";
+  window.__ltt_measure = { samples, lastChange: 0, now: () => Math.round(now() - t0), start: () => setI(sample, DT) };
 }
 
 const INJECT = {
@@ -87,35 +94,50 @@ if (inject) await ctx.addInitScript(INJECT[inject]);
 const page = await ctx.newPage(); const errors = []; page.on("pageerror", (e) => errors.push(String(e.message).slice(0, 200)));
 await page.goto(`http://127.0.0.1:${server.address().port}/gallery/${rel}`, { waitUntil: "domcontentloaded" });
 await page.evaluate(() => window.__ltt_measure.start());
-// 학습자 대용: 2초 뒤부터 3초마다 한 동작. 현재 쪽에 정답을 안 본 예측이 있으면 첫 선택지를 고르고 다음 동작에서 "정답 보기"를 누른다.
-// 단계 단추가 화면 밖이면(덱의 → 키는 보이는 단계 단추만 누른다) 스크롤 없이 직접 누르고, 아니면 → 키를 누른다. 덱이 "아직 안 봤어요"로 막은 단추(.ltt-nudge)는 누른다.
-// 마지막 쪽에서 남은 단계·예측이 없어진 뒤 6초 더 보고 끝낸다.
-const act = () => {
-  const st = document.querySelector(".dk-stage"), [cur, n] = (document.querySelector(".dk-count")?.textContent || "1/1").split("/").map((x) => parseInt(x));
-  const el = st?.children[cur - 1] || document.body;
+// 학습자 대용: 쪽 도착 2초 뒤부터, 현재 쪽이 QUIET ms 동안 바뀌지 않았거나 마지막 동작 뒤 CAP ms가 지나면 한 동작을 한다(움직임이 끝날 때까지 본다).
+// 동작 순서: 정답 안 본 예측이면 첫 선택지 → 정답 보기, 남은 kit 단계(화면 밖이면 직접 클릭, 아니면 → 키), 장면 자체 "다음" 단추(누른 뒤 변화가 없으면 끝),
+// 매개변수 단추(.ltt-steps)를 아직 안 누른 것부터 하나씩, 그다음 → 키로 다음 쪽. 덱이 "아직 안 봤어요"로 막은 단추(.ltt-nudge)는 누른다.
+// 재생 제어(정지·일시정지·다시 재생·반복 재생·자동 재생·초기화), 슬라이더, 회상 "답 보기"는 누르지 않는다. 마지막 쪽에서 할 동작이 없고 DONE ms 동안 바뀌지 않으면(또는 마지막 동작 뒤 FINAL_CAP) 끝낸다.
+const QUIET = 2000, DONE = 4000, CAP = 15000, FINAL_CAP = 60000, ARRIVE = 2000, OWN_MAX = 30;
+const act = ({ QUIET, DONE, CAP, FINAL_CAP, ARRIVE, OWN_MAX }) => {
+  const M = window.__ltt_measure, now = M.now(), D = (window.__ltt_drv ??= { page: null, arrive: 0, last: 0, clicked: new WeakSet(), own: null, ownSeen: new Set(), ownN: 0 });
+  const pg = document.querySelector(".dk-count")?.textContent || "", [cur, n] = (pg || "1/1").split("/").map((x) => parseInt(x));
+  if (pg !== D.page) { D.page = pg; D.arrive = now; D.last = now; D.own = null; D.ownSeen = new Set(); D.ownN = 0; }
+  const quiet = now - M.lastChange >= QUIET;
+  if (now - D.arrive < ARRIVE || !(quiet || now - D.last >= CAP)) return [false, null];
+  const el = document.querySelector(".dk-scene.cur") || document.body, vis = (b) => b && !b.disabled && b.getBoundingClientRect().width;
   const pred = [...el.querySelectorAll(".dk-pred:not(.done)")].find((p) => p.getBoundingClientRect().width);
   const step = [...el.querySelectorAll(".ltt-stepper")].map((b) => b.querySelectorAll("button")[1]).find((b) => b && !b.disabled);
-  const done = cur === n && !pred && !step;
+  // a scene-built "next" button counts as exhausted once a press produced no change or brought back a screen already seen (it wraps around)
+  if (D.own && !D.own.done && (M.lastChange < D.own.at || D.ownSeen.has(M.sig) || D.ownN >= OWN_MAX)) D.own.done = true;
+  if (D.own && !D.own.done) D.ownSeen.add(M.sig);
+  const own = D.own?.done ? null : [...el.querySelectorAll("button")].find((b) => /^다음\s*→?$/.test(b.textContent.trim()) && !b.closest(".ltt-stepper, .dk-nav, .dk-foot") && vis(b));
+  const param = [...el.querySelectorAll(".ltt-steps button[aria-pressed=false]")].find((b) => vis(b) && !D.clicked.has(b));
+  const go = (b, kind) => { D.last = now; D.clicked.add(b); b.click(); return [false, kind]; };
   if (pred) {
-    if (!pred.querySelector("[aria-pressed=true]")) { const c = pred.querySelector("button[data-choice]:not(.unsure)") || pred.querySelector("button[data-choice]"); c?.click(); return [done, "choice"]; }
-    const lock = pred.querySelector(".dk-actions button.accent"); if (lock && !lock.disabled) { lock.click(); return [done, "reveal"]; }
+    if (!pred.querySelector("[aria-pressed=true]")) { const c = pred.querySelector("button[data-choice]:not(.unsure)") || pred.querySelector("button[data-choice]"); if (c) return go(c, "choice"); }
+    const lock = pred.querySelector(".dk-actions button.accent"); if (lock && !lock.disabled) return go(lock, "reveal");
   }
-  if (step) { const r = step.getBoundingClientRect(); if (r.bottom <= 0 || r.top >= innerHeight) { step.click(); return [done, "step-offscreen"]; } }
-  return [done, "key"];
+  if (step) { const r = step.getBoundingClientRect(); if (r.bottom <= 0 || r.top >= innerHeight) return go(step, "step-offscreen"); D.last = now; return [false, "key"]; }
+  if (own) { if (!D.own) D.ownSeen.add(M.sig); D.own = { at: now }; D.ownN++; return go(own, "own-next"); }
+  if (param) return go(param, "param");
+  if (cur === n) return [now - M.lastChange >= DONE || now - D.last >= FINAL_CAP, null];
+  D.last = now; return [false, "key"];
 };
 const clicks = []; let doneAt = null;
-for (let t = 0; t < seconds * 1000; t += 500) {
-  await page.waitForTimeout(500);
-  if (t < 2000 || (t - 2000) % 3000) continue;
-  const [done, kind] = await page.evaluate(act);
-  if (done) { doneAt ??= t; if (t - doneAt >= 6000) break; } else doneAt = null;
+for (let t = 0; t < seconds * 1000; t += 250) {
+  await page.waitForTimeout(250);
+  const [done, kind] = await page.evaluate(act, { QUIET, DONE, CAP, FINAL_CAP, ARRIVE, OWN_MAX });
+  if (done) { doneAt = t; break; }
+  if (!kind) continue;
   if (kind === "key") {
     await page.keyboard.press("ArrowRight"); await page.waitForTimeout(150);
     const nudge = await page.evaluate(() => { const n = document.querySelector(".ltt-nudge"); if (!n) return null; const c = n.matches("button") ? n : n.querySelector("button[data-choice]"); c?.click(); return c ? "nudge" : null; });
     clicks.push([t, kind, nudge]);
   } else clicks.push([t, kind]);
 }
+const capped = doneAt === null;
 const samples = await page.evaluate(() => window.__ltt_measure.samples);
-writeFileSync(out, JSON.stringify({ rel, inject, viewport: [W, H], dt: DT, clicks, errors, samples }));
+writeFileSync(out, JSON.stringify({ rel, inject, viewport: [W, H], dt: DT, driver: { QUIET, DONE, CAP, FINAL_CAP, ARRIVE, OWN_MAX, capped }, clicks, errors, samples }));
 await browser.close(); server.closeAllConnections(); server.close();
-console.log(`${rel} ${inject || "orig"}: ${samples.length} samples, ${clicks.length} clicks, ${errors.length} errors`);
+console.log(`${rel} ${inject || "orig"}: ${samples.length} samples, ${clicks.length} clicks, ${errors.length} errors${capped ? ", CAPPED" : ""}`);
