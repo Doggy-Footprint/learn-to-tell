@@ -1,5 +1,5 @@
 ---
-commit: 9d76def5b4b0517ec0c19e762b53396b027bcfe5
+commit: 7ade806f4bfbacbacb3f8a19360b99e037a83b35
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -388,6 +388,14 @@ commit: 9d76def5b4b0517ec0c19e762b53396b027bcfe5
   - 2005년 이전: 단독 근거로 쓰지 않는다. 2015년 이후 출처가 같은 말을 할 때만 보조 근거로 남긴다. 해당: `chang-ungar1993`, `healey1996`, `tversky2002`.
   - 지각·인지 연구(`healey1996` 전주의 처리, `legge2011` 글자 크기)는 기술에 덜 의존하지만 예외를 두지 않았다. 사용자 지시가 연도 기준이어서다.
   - 판 번호가 있는 지침(WCAG 2.2, Material 3, Carbon, HIG, Netflix, BBC)은 현재 판의 연도로 본다.
+  - 2026-10-27 변경. 사용자: "인지 지각 연구는 예외로 한다. 기술 발전에 의해 달라지는 부분들만 연도 규칙에 넣는다."
+    - 분류는 main agent 기본값이다. 사용자가 바꿀 수 있다. 출처별로 나눴다.
+    - 예외 11개(지각·인지): `simons-rensink2005`, `kalyuga2007`, `dekoning2009`, `spanjers2010`, `legge2011`, `healey1996`, `tversky2002`, `bateman2010`, `dragicevic2011`, `robertson2008`, `heer2007`. 이 중 `heer2007`(통계 그래픽 전환 애니메이션)과 `robertson2008`(추세 시각화 애니메이션)은 특정 시각화 도구로 한 실험이어서 경계 사례다.
+    - 연도 규칙 유지 4개(매체·도구 의존): `lori2007`(학습 객체 평가 도구), `achieve-oer`(OER 채점표), `guo2014`(MOOC 영상 제작 방식), `chang-ungar1993`(1993년 UI 애니메이션 원칙).
+    - `tools/evidence.py`의 `EXEMPT`에 반영했다. `evidence/items.json`의 `year`는 실제 연도이고, `age_exempt`가 예외 여부다.
+    - 재계산 결과: strong 22, moderate 27, weak 0, none 24(이전 18 / 28 / 3 / 24).
+      - moderate → strong: learner-pause-replay, congruent-motion, continuous-motion, trackable-duration.
+      - weak → moderate: persistent-reference, object-constancy, motion-concurrency.
 
 ### 1단계 진행: 독립 초안 → 병합 → 비판 → 근거 연결 (2026-10-27)
 
@@ -429,7 +437,7 @@ commit: 9d76def5b4b0517ec0c19e762b53396b027bcfe5
   - 비판 반영: duplicate 다수 항목을 합친다(persistent-end-state → result-hold 등). 누락 후보는 중복을 정리해 넣는다.
   - 기준값 근거 누락 원인을 확인한다.
   - 항목표를 한국어로 사용자에게 보인다. 사용자 검토 범위는 "측정 가능하게 쓰였는가"다.
-  - 사용자 답 대기: `healey1996`, `legge2011`을 나이 규칙의 예외로 둘지.
+  - 지각·인지 연구의 연도 규칙 예외: 사용자가 답했다(위 "2026-10-27 변경").
 
 ### 전체 구조와 순서
 
