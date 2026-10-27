@@ -61,6 +61,9 @@ commit: 1b84f047ecdc810bd8f0cd7663b809cf680e832b
   - 애니메이션이 없으면 최하점(1–2점)
 - 지금 채점관(`judge.py`)은 정지 스크린샷과 장면 코드만 본다. 사용자가 깎은 이유의 대부분(연속성, 흔들림, 속도, 스크롤해야 보임, 이미 끝나 있음)은 시간에 따라 봐야 드러난다.
 
+- 측정 도구(2026-10-27, 커밋 85f2cff, 1b84f04, b090b75): `experiments/scene-pipeline/measure/`의 `measure.mjs`(Playwright 측정, 결함 주입 6종, 학습자 대용 드라이버), `metrics.py`(지표), `analyze.py`(사전 등록 판정 규칙), `labels.json`(사용자 메모 코딩). 측정 출력 `measure/out/`은 gitignore다. 한 장면: `cd experiments/scene-pipeline/measure && node measure.mjs out.json t1/r1/zero/scene.html [--inject shake] [--viewport 1240x680]`. 전체: `out/main2/jobs.txt`(줄마다 `<t/r/arm> <orig|주입>`)를 `xargs -P 8 -L 1 sh -c 'n=$(echo $0 | tr / _); if [ "$1" = orig ]; then node measure.mjs out/main2/$n.json $0/scene.html; else node measure.mjs out/main2/$n+$1.json $0/scene.html --inject $1; fi'`로 돌린 뒤 `python3 metrics.py out/main2/*.json > out/main2/metrics.tsv && python3 analyze.py out/main2/metrics.tsv`(약 11분).
+- 웹 모션 glitch 목록(subagent, 조사 없이 지식으로): `experiments/rubric-sources/notes/2026-10-27-motion-glitch-list.md`(gitignore, gist 미동기화).
+
 ## Failed Attempts
 
 | attempt | failure evidence | cause |
@@ -71,6 +74,10 @@ commit: 1b84f047ecdc810bd8f0cd7663b809cf680e832b
 | PDF 출처를 WebFetch로 읽기 | 16개 PDF 모두 실패: 바이너리가 그대로 전달되어 추출 모델이 텍스트를 보지 못함, 또는 `maxContentLength size of 10485760 exceeded`. Tversky 2002는 SSL 인증서 오류 | verified: WebFetch는 PDF 본문을 텍스트로 바꾸지 않는다 |
 | 비판 반영을 "비판 모델 2개 이상 같은 방향"으로 판정(`tools/revise.py`, sonnet) | 정성 판정으로 바뀐 기준값 17개 중 7개가 OpenAI 두 모델(sol, astra)의 지적만으로 바뀜. measure data+llm 37 → 47 | verified: 같은 회사 두 모델이 두 표로 셈해졌다. 사용자는 이후 다회사 합의를 구성 원칙에서 뺐다 |
 | 문헌 인용에서 LLM(sonnet)이 이진 항목을 먼저 만들고, 사용자 충실도 판정과 LLM 판정자의 일치로 나머지 출처 판정을 맡기기(trial, 2회) | 1차: 사용자 충실 13/30(43%), 판정자 kappa 0.36–0.48. 프롬프트 수정 뒤 2차(출처 6개, 60개, 한국어 지문): 사용자 같다 29/60(48%), 판정자 6개의 kappa 0.11–0.22, 1차와 겹치지 않은 47개에서 0.05–0.18 | hypothesis: 번역 모델이 인용 일부를 빼거나 조건을 넓힌다. 판정자는 사용자보다 너그럽고, 사용자와 모델의 "같다" 정의가 다르다(누락 포함 여부). 정의를 맞춘 재측정은 하지 않았다 |
+| 장면을 12초 동안 첫 화면만 측정(측정 본실험 1차) | t3 장면의 주 SVG가 18x18 아이콘으로 잡힘(`svg_area` 0), t2 예측 장면은 선택 전 상태만 측정, fast 라벨 2개 측정 불가 | verified: 84장면 모두 여러 쪽 `ltt-deck`이고 그림이 2–3쪽에 있거나 선택 뒤에 나온다. 학습자 대용 드라이버로 고쳤다 |
+| 끊김을 `teleport_ratio`(DOM 정체성 기준 고립 점프 비율)·`travel_per_change`로 판정 | 2차에서 choppy 주입 탐지 0.67·0.42, 라벨 AUC 0.55·0.72 | verified(사용자 설명): 사용자의 "끊김"은 두 종류다. 대상이 이동 없이 새 위치에 다시 생김(이해 방해)과 선 단위로 툭툭 그려짐(미감). 장면이 노드를 다시 만들어 DOM 정체성이 끊긴다 |
+| 다시 생김을 `text_jump_ratio`(같은 문자열 최근접 짝, 8 넘는 이동 = 점프)로 판정 | 파일럿에서 t1-r3 HHH(9점) 0.92, 라벨 0.95–0.97로 포화. 고립 조건을 넣은 수정판도 HHH 0.84 | verified: 빠른 연속 이동을 점프로 셌고, 잎 노드 재생성(양쪽 공통)이 비율을 지배했다. `path_shown`으로 바꿨다 |
+| 빠름을 절대 속도 `speed_p90`으로 판정 | 임계 40.0, 주입 탐지 0.38, 라벨 1/3. clean t3-r1 S4·S4R2(9점)가 59.4·51.4 | verified(사용자 설명): 허용 속도는 움직임 종류(날아감만 인지 / 읽어야 함 / 변화를 관찰)에 따라 다르다 |
 
 ## Next Step
 
@@ -490,6 +497,17 @@ commit: 1b84f047ecdc810bd8f0cd7663b809cf680e832b
   - recreate·rough 결과(`analyze.py out/main2/metrics.tsv`, 재측정 없음, 움직이는 SVG 글자가 없는 장면은 `path_shown`·`text_jump_ratio` 해당 없음으로 뺌): recreate `path_shown`(임계 0.24 이하, clean 2/21, 주입 0.89, 라벨 3/6, AUC 0.90) 탈락(주입 90% 미달). `text_jump_ratio`도 같은 값. t1-r3 제외 시 AUC 0.85, 라벨 0/2(t1-r2 0·0RR2 0.43–0.44가 임계 0.29 위). clean 중 낮은 값: t1-r3 HHH 0.17, t5-r2 0R·0·0RR2 0.21·0.25·0.30(라운드마다 바뀌는 수치 라벨로 보이나 확인 안 함). 놓친 choppy 주입 2개: t4-r1 S4·S4R2(0.30·0.31). rough `isolated_change`는 형식상 PASS(주입 1.00, AUC 0.83)지만 라벨 4개 값 0.02–0.03이 임계 0.04 아래라 재현 0/4.
   - 탐색(뷰포트): 원본 108개를 1240x680(채점 페이지 `.wrap` 최대 1240px, `.stage` 최대 82vh에서 고른 가정값)으로 다시 측정. hidden AUC: `hidden_controls` 0.67 → 0.85, `hidden_text` 0.80 → 0.86, `hidden_change` 0.92 → 0.91, `svg_visible` 0.50 → 0.50. 출력 `measure/out/vp680/`.
 
+### 측정 이후 진행과 대기 중인 일 (2026-10-27, 이 세션)
+
+- 사용자 지시 순서: "커밋하고 본실험 하자" → 본실험(위 절) → "서브 에이전트 하나 호출해서 web UI로 모션 만들 때 발생할 수 있는 glitch listup 해달라고 해. 조사 없이 지식으로" → 속도·끊김 판단(위 "사용자 판단") → "sub agent하나 붙혀서 독립 검토 시켜보고 진행하자." → "지금까지 진행하는 과정 handoff에 기록 부탁해."
+- glitch 목록: 8묶음 약 70항목과 측정 함정 6개. 측정 함정 중 getAnimations 누락, innerHTML 재생성 정체 추적 실패, 실효 가시성 누락은 파일럿에서 이미 겪고 고쳤다. 남은 것: 50ms 표본 간격(짧은 깜빡임·jank 놓침), headless 차이.
+- 사용자에게 끊김 예시 위치로 블라인드 채점 페이지 https://claude.ai/artifact/495GEDWmuQdLPhKTBHvxF4 (t1-r3, t2-r2, t1-r2 항목)를 안내했다. 이 세션에서 페이지를 다시 열어 확인하지는 않았다.
+- 빠름 관찰(`out/main2`, 글자/도형으로 나눈 이동 속도 p90, SVG 너비 1000 기준 50ms당): t3-r1 S4·S4R2(9점) 도형 64·60, 움직이는 글자 없음. t1-r1 0(8점) 숫자 라벨 "200"·"400" 최대 57. t3-r2 S4(빠름 메모) 움직이는 글자는 "생존 신호" 라벨 11, 도형 20(이 장면은 stepper 없이 자동 진행). main agent 해석(확인 안 함): t3-r2의 "빠름"은 요소 속도가 아니라 자동 진행 간격일 수 있다.
+- main agent 제안(사용자 응답 "sub agent하나 붙혀서 독립 검토 시켜보고 진행하자"): 속도는 LLM이 storyboard와 장면으로 움직임마다 종류(날아감만 인지 / 읽어야 함 / 변화를 관찰)를 붙이고, 코드가 종류별 속도를 재서 읽어야 할 글자는 자막 읽기 속도(cps), 5초 넘는 자동 움직임은 WCAG 2.2.2(멈춤 수단), 관찰 대상은 사용자 라벨로 기준을 정한다. 다시 생김은 `path_shown`을 신호로, 무엇이 옮겨 가는 핵심인지는 LLM이 정하는 결합 판정. LLM 호출 비용이 생긴다.
+- 독립 검토: general-purpose subagent 1개에 코드·데이터·기록 경로와 사용자 판단 원문, 위 제안을 주고 (1) 측정·지표 버그와 타당성, (2) 분석 규칙·사후 변경·과적합, (3) 라벨 코딩, (4) 제안의 약점과 대안, (5) handoff 사실 오류를 검토하게 했다(읽기 전용, 외부 호출 없음). 이 기록 시점에 결과를 받지 않았다. 결과를 받으면 이 절에 적고, 반영 여부를 사용자에게 보고한 뒤 진행한다.
+- 아직 사용자 확인을 받지 않은 main agent 기본값: `labels.json` 전체 코딩, t1-r3 S4·S4R2를 recreate에 넣은 것, t1-r2 가·바의 "위와 비슷함"을 t1-r3 쪽으로 읽은 것, 측정 뷰포트 1280x800.
+- 비용: 이 절과 위 측정 실험 전체에서 외부 모델 호출 0건(subagent 2개는 세션 모델).
+
 ### 회고 (세션 3a457627, 2026-10-27)
 
 사용자가 처방과 의견을 빼고 관찰과 가설만 남기는 데 동의했다. 아래는 그 기준으로 쓴 것이다.
@@ -542,6 +560,9 @@ commit: 1b84f047ecdc810bd8f0cd7663b809cf680e832b
 - 총점과 실제 학습 효과의 관계는 이 구조로 검증되지 않는다. 사용자가 초보인 주제의 퀴즈로 확인하는 선택지가 남아 있다.
 - 메모가 드러낸 생성기 결함(AGENTS.md "Generated Lesson Defects")을 언제 kit에 반영할지: predict 장면에서 그림이 첫 화면 아래에 있고 스크롤하면 애니메이션이 이미 끝나 있다(t2 전 묶음), hook 그림이 너무 작다(t4), 프레임 흔들림(t3).
 
+- 사용자가 채점 때 본 iframe 실제 크기. 숨김 지표가 뷰포트에 민감하다(`hidden_controls` AUC 1280x800 0.67, 1240x680 0.85).
+- t1-r2 가·바 "위와 비슷함"이 t1-r3(다시 생김)과 t2-r2(미감) 중 어느 쪽인지.
+
 ## Spec
 
 없음. workflow-approach 작업이 아니다. 채점관 구현을 workflow-approach로 진행하게 되면 그때 spec을 만든다.
@@ -563,3 +584,4 @@ commit: 1b84f047ecdc810bd8f0cd7663b809cf680e832b
   - argon(agy 구독): 초안 1회, 비판 1회.
 - 같은 날 웹 검색 요약 기반 조사 agent의 결과는 출처 섞임 문제로 후보 목록으로만 쓰기로 했다(사용자 지적).
 - 이전 실험 handoff: `agent-docs/handoff/stale/2b0025305e515b67-noshot-haiku-sample-correction.md`.
+- 2026-10-27 측정 실험(파일럿 22회, 본실험 1차 252회, 2차 252회, 뷰포트 탐색 108회, 미니 파일럿): 로컬 Playwright, 외부 모델 호출 0건.
