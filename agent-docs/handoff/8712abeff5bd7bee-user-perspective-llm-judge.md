@@ -1,5 +1,5 @@
 ---
-commit: 45444d136ac367ddfffc1cc497015c9e21177bdc
+commit: c1d376b197bc1c5d26f31708611796511639adf0
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -539,6 +539,25 @@ general-purpose subagent 1개, 읽기·계산만, 외부 호출 없음. 스크�
 - 사용자 확인(2026-10-27, 세션 오염 지적 뒤): "가의 메모는 \"위와 비슷함\"일 수 없어. 그건 앞쪽과 같다는 말이거든. 내가 지금 보는데, 둘 다 \"infographic animation은 들어가나, 어떻게 움직이는지 정보 없이 나타나서 이해가 어려움\"이거야". main agent가 직전 보고에서 사용자의 설명 "위와 비슷함"을 채점 메모처럼 옮겼다. t1-r2 가·바(0·0RR2)를 recreate로 넣은 `labels.json` 코딩은 사용자 확인으로 바뀌었다.
 - t1-r2 마(0R) 재코딩(사용자 결정, "마를 가·바와 같은 recreate로 옮길까요?"에 "ㅇㅇ"): `labels.json`에서 no_anim에서 빼고 recreate에 넣었다. `out/main2/metrics.tsv` 재분석(재측정 없음): recreate `path_shown` 임계 0.24, clean 2/21, 주입 0.89, 라벨 3/7, AUC 0.89, 탈락. t1-r3 제외 시 임계 0.29, 라벨 0/3, AUC 0.85. t1-r2 0·0R·0RR2 `path_shown` 0.43·0.44·0.44(같은 묶음 S4·S4R2 0.98, HHH 0.91). no_anim `smooth_px` 임계 264, 주입 1.00, 라벨 5/7, AUC 0.96, 통과(놓친 라벨 t2-r3 0·0R).
 - 검토의 우선순위 권고: (1) 사용자에게 t1-r2 "정답 보기"와 "위와 비슷함" 확인, (2) 드라이버 종료 조건·수동 관찰 실행·`.dk-scene` 스크롤·쪽별 주 SVG 고정 후 3회 반복 재측정, (3) 판정 표에 라벨 없는 채점 장면 전체 대비 오탐·운영 임계 재현·묶음 하나 빼기, (4) WCAG 2.2.2는 구조 검사로 바로, cps는 타이머 글에만, 관찰형은 통제된 속도 실험, 움직임 종류는 생성·kit 단계 선언.
+
+### glitch 목록 대조와 기준표 후보 추가 (2026-10-27)
+
+- 사용자: "이게 다른 서브 에이전트에서 조사한 web HTML에서 생길 수 있는 애니메이션 글리치야. 우리가 조사한 자료와 대조해서 넣어야 할 것들은 넣어줘."
+- 대조 결과: `experiments/rubric-sources/notes/2026-10-27-glitch-vs-rubric.md`. 장면 결함 77개를 `merged.json` 73개와 비판 추가 10개에 대조했다.
+  - 기존 항목만으로 다룸: 40개
+  - 새 항목만으로 다룸: 31개
+  - 기존 항목과 새 항목이 함께 다룸: 4개
+  - 제외: 2개(내부 스크롤 갇힘, 텍스트·선 흐림)
+- 새 항목 20개: `experiments/rubric-sources/drafts/glitch-additions.json`(`origin: "glitch-list"`).
+  - 층: format 13, animation 7
+  - 인용 기준값: responsive-reflow(WCAG 1.4.4·1.4.10), input-response-latency(nng 0.1초)
+- 근거 연결 방식:
+  - main agent가 `verified-quotes.md`를 grep했다. `evidence.py`의 propose·verify를 거치지 않았다.
+  - 나이 규칙은 수동으로 적용했다.
+- 범위 밖으로 둔 것:
+  - `merged.json`·`revised.json`·`evidence/items.json`은 바꾸지 않았다(main agent 기본값).
+  - glitch 목록의 "측정 자체의 함정" 6개는 기준표에 넣지 않았다.
+- 두 파일은 gitignore 범위(`experiments/rubric-sources/`)지만 사용자 요청("결과 파일만 넣으면 돼")으로 `git add -f`해 저장소에 커밋했다. 대조 원본인 `notes/2026-10-27-motion-glitch-list.md`는 커밋하지 않았고 gist에도 동기화하지 않았다.
 
 ### 회고 (세션 3a457627, 2026-10-27)
 
