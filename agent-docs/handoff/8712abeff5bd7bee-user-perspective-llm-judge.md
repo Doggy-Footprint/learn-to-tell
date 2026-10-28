@@ -1,5 +1,5 @@
 ---
-commit: 19664d34fd02becd9db81237fde4d160019b5481
+commit: 6d75d086b26e7f20a4e80c497b293458334285e9
 ---
 
 # 장면 평가 LLM-as-a-judge 만들기 (사용자 선호 배제, 외부 기준 기반 체크리스트)
@@ -646,6 +646,19 @@ general-purpose subagent 1개, 읽기·계산만, 외부 호출 없음. 스크�
    - 근거 연결이 안 된 항목 30개(비판 추가 10, glitch 추가 20. glitch 추가는 grep만 했다)도 `evidence.py` propose·verify에 같이 넣는다.
 2. 그다음 위 "shot 카드로 사용자 라벨 세트 만들기"를 진행한다. 1에서 나온 새 기준 후보가 체크리스트 초안에 들어갈 수 있다.
 
+### 다음 작업 순서 1 진행 (2026-10-28, 사용자 지시 "1부터 시작하자")
+
+결과 기록: `experiments/rubric-sources/notes/2026-10-28-quotes-vs-rubric.md`(gitignore, gist 미동기화). 요약:
+
+- 근거 없는 30개 항목: `tools/evidence.py`에 `--set extra`를 더해 propose(sonnet $1.698)·verify(gpt-6.1-sol $0.202)·report를 돌렸다. strong 2, moderate 13, weak 2, none 13(`evidence/items-extra.json`).
+- 연결 안 된 1등급 인용: 30개 연결 뒤 1,272 → 1,251개. 새 도구 `tools/classify.py`(sonnet, $2.918, 파일럿 3출처 102개를 main agent가 전부 읽은 뒤 전체 실행). 기존 항목이 다룸 399, 새 기준 후보 61, 기준 없음 492, 범위 밖 203, judge 구성 방법 96.
+- 새 후보 61개를 main agent가 33묶음으로 묶고 묶음마다 추가·보류·제외 권고를 붙였다(추가 19, 보류 10, 제외 3, 합쳐 추가 1쌍). 사용자 결정 전이다.
+- glitch 75개(제외 2개 뺌) 중 근거 있는 항목에 대응하는 것 47개(63%), none 28개.
+- 사용자 결정(2026-10-28): "권고대로 진행해도 되겠다." 추가 19개를 `drafts/quote-additions.json`에 썼다(D7·D8 합침, 가중치 null). 근거 연결(sonnet $1.355, gpt-6.1-sol $0.177): strong 12, moderate 7. 항목을 만든 인용을 빼면 strong 4, moderate 9, weak 2, none 4. `merged.json`·`revised.json`에는 합치지 않았다.
+- 저장소 상태: 결과 파일 `drafts/quote-additions.json`과 기록 `notes/2026-10-28-quotes-vs-rubric.md`는 이전 결과 파일(glitch-additions)과 같이 `git add -f`로 커밋했다(main agent 기본값). `tools/classify.py`, `tools/evidence.py`의 `--set` 변경, `classify/`, `evidence/*-extra*`·`*-quotes*`는 gitignore 범위에 남았고 gist에도 동기화하지 않았다.
+- 다음 세션: 사용자 "2번 작업은 다음 세션에서 진행할게"(2026-10-28). 다음 작업은 위 "shot 카드로 사용자 라벨 세트 만들기"다.
+- judge 구성 방법 인용 96개: 사용자 질문 "2번 작업 전에 정리하는 게 낫겠지?"에 main agent가 예로 답하고 정리했다(위 기록 파일 D절, 비용 0). 2번 작업(라벨 세트)과 연결되는 관찰: 판정은 항목별 1/0과 N/A, 보이지 않으면 No(igenbench2026). 시각 근거 차원에서 judge가 후하다(edupanel2026 +0.67, Gemini). 차원별 사람 상관이 0.14–0.72로 갈린다(theoremexplain2025). 영상을 빼면 오차가 두 배(edupanel2026). 사람 사이 일치 α 0.33–0.50, κ 0.59. 천장 효과로 변별력 없는 차원을 파일럿에서 뺐다(edupanel2026).
+
 ### 회고 (이 세션, 2026-10-27–28)
 
 사용자가 아래 초안에 동의했다("회고 초안은 그렇게 하면 되고"). 기준은 지난 회고와 같다. 관찰과 가설만 남기고 처방은 넣지 않았다.
@@ -730,6 +743,14 @@ general-purpose subagent 1개, 읽기·계산만, 외부 호출 없음. 스크�
 2. 측정 기반. 모션 구조 데이터 추출(`document.getAnimations()`로 CSS·WAAPI 애니메이션, rAF 기반 움직임은 요소 위치 샘플링), 프레임 캡처, 화면 글자 타임라인.
 3. 항목별 judge 구현과 검증(golden set, 결함 주입). workflow-approach로 진행한다.
 4. 새 장면 생성과 평가.
+5. 마무리: LLM judge의 오탐·미탐 처리(사용자 요청 2026-10-28: "handoff에 LLM Judge의 오탐/미탐에 대한 처리를 마무리 작업 쪽에 추가해줘."). 처리 방식은 정하지 않았다.
+   - 이 handoff에서 쓰는 뜻: 오탐 = 결함이 없는데 judge가 실패로 판정. 미탐 = 결함이 있는데 judge가 통과로 판정.
+   - 지금까지 관찰된 것은 측정 지표의 오탐·미탐뿐이다(위 "드라이버 수정과 3회 재측정" 절). 무라벨 오탐: small 14/75, no_anim 13/76, shake 8/75, rough 34/79. 미탐: recreate 라벨 재현 2/7, fast 주입 탐지 0.38. 무라벨 오탐 장면이 실제 결함인지는 확인하지 않았다.
+   - LLM judge 항목의 오탐·미탐은 아직 잴 수 없다. 사람 라벨(다음 작업 2의 라벨 세트)이 있어야 항목별로 센다.
+   - 정하지 않은 것:
+     - 오탐·미탐 사례를 누가 어떻게 확인하는가.
+     - 확인 결과를 어디에 되돌리는가(항목 문구, 임계값, judge 프롬프트, 측정 도구, 항목 제거).
+     - judge를 관문으로도 쓸 때 오탐과 미탐 중 어느 쪽을 더 줄이는가(Open Questions의 관문 여부와 연결).
 
 ## Open Questions
 
