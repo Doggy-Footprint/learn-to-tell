@@ -11,3 +11,4 @@ packages/ltt-kit/*
 node_modules
 measurements
 experiments/rubric-sources/
+.harness/sessions/progress-*.json
