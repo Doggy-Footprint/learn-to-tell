@@ -1,9 +1,9 @@
-// usage: node measure.mjs <out.json> <rel.html> [--inject shake|choppy|below|small|freeze|fast] [--seconds 240] [--viewport 1280x800]  (rel는 round-hsh/ 기준)
+// usage: node measure.mjs <out.json> <rel.html> [--inject shake|choppy|below|small|freeze|fast] [--seconds 240] [--viewport 1280x800] [--gallery <dir>] [--frames <dir>]  (rel는 --gallery 기준, 기본 round-hsh/)
 // 장면을 1280x800에서 열고 50ms마다 요소 상자·실효 불투명도·보이는 글자·실행 중 애니메이션 수를 기록한다.
 // 수집기는 주입보다 먼저 원래 setInterval을 잡아 두므로, rAF를 늦추는 choppy 주입이 표본 간격을 바꾸지 않는다.
 import { chromium } from "playwright";
 import { createLttServer } from "../../../skills/learn-to-tell/server/server.mjs";
-import { mkdtempSync, writeFileSync } from "node:fs"; import { tmpdir } from "node:os"; import { join, resolve, dirname } from "node:path"; import { fileURLToPath } from "node:url";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"; import { tmpdir } from "node:os"; import { join, resolve, dirname } from "node:path"; import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2), opt = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const [out, rel] = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));
@@ -84,7 +84,7 @@ const INJECT = {
   },
 };
 
-const server = createLttServer({ home: mkdtempSync(join(tmpdir(), "ltth-")), galleryDir: resolve(here, "..", "round-hsh") });
+const server = createLttServer({ home: mkdtempSync(join(tmpdir(), "ltth-")), galleryDir: resolve(opt("--gallery", resolve(here, "..", "round-hsh"))) });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: W, height: H } });
@@ -124,12 +124,30 @@ const act = ({ QUIET, DONE, CAP, FINAL_CAP, ARRIVE, OWN_MAX }) => {
   if (cur === n) return [now - M.lastChange >= DONE || now - D.last >= FINAL_CAP, null];
   D.last = now; return [false, "key"];
 };
+// --frames: judge input. A full screenshot 1.5s after each page arrives, then one per second while the page changes and one once it has been
+// still for 600ms, so every step's end state is kept. Times are on the collector's clock, like the samples.
+const fdir = opt("--frames", null), frames = [], actions = []; let fPage = null, fArrive = 0, fArrived = false, fLast = -1e9;
+if (fdir) mkdirSync(fdir, { recursive: true });
+async function frame() {
+  const m = await page.evaluate(() => { const M = window.__ltt_measure, cur = document.querySelector(".dk-scene.cur"), de = document.documentElement;
+    return { t: M.now(), page: document.querySelector(".dk-count")?.textContent || "", lastChange: M.lastChange, scroll: (cur ? cur.scrollHeight > cur.clientHeight + 1 : false) || de.scrollHeight > innerHeight + 1 }; });
+  if (m.page !== fPage) { fPage = m.page; fArrive = m.t; fArrived = false; }
+  const still = m.t - m.lastChange >= 600;
+  const kind = !fArrived ? (m.t - fArrive >= 1500 ? "arrive" : null) : m.lastChange > fLast && (still || m.t - fLast >= 1000) ? (still ? "settled" : "motion") : null;
+  if (!kind) return;
+  if (kind === "arrive") fArrived = true;
+  fLast = m.t; const file = `f${String(frames.length).padStart(3, "0")}.jpg`;
+  await page.screenshot({ path: join(fdir, file), type: "jpeg", quality: 75 });
+  frames.push({ file, t: m.t, page: m.page, kind, scroll: m.scroll });
+}
 const clicks = []; let doneAt = null;
 for (let t = 0; t < seconds * 1000; t += 250) {
   await page.waitForTimeout(250);
+  if (fdir) await frame();
   const [done, kind] = await page.evaluate(act, { QUIET, DONE, CAP, FINAL_CAP, ARRIVE, OWN_MAX });
   if (done) { doneAt = t; break; }
   if (!kind) continue;
+  if (fdir) actions.push({ t: await page.evaluate(() => window.__ltt_measure.now()), kind });
   if (kind === "key") {
     await page.keyboard.press("ArrowRight"); await page.waitForTimeout(150);
     const nudge = await page.evaluate(() => { const n = document.querySelector(".ltt-nudge"); if (!n) return null; const c = n.matches("button") ? n : n.querySelector("button[data-choice]"); c?.click(); return c ? "nudge" : null; });
@@ -138,6 +156,22 @@ for (let t = 0; t < seconds * 1000; t += 250) {
 }
 const capped = doneAt === null;
 const samples = await page.evaluate(() => window.__ltt_measure.samples);
-writeFileSync(out, JSON.stringify({ rel, inject, viewport: [W, H], dt: DT, driver: { QUIET, DONE, CAP, FINAL_CAP, ARRIVE, OWN_MAX, capped }, clicks, errors, samples }));
+writeFileSync(out, JSON.stringify({ rel, inject, viewport: [W, H], dt: DT, driver: { QUIET, DONE, CAP, FINAL_CAP, ARRIVE, OWN_MAX, capped }, clicks, errors, samples, ...(fdir ? { frames, actions } : {}) }));
+// contact sheets: per page, up to 18 frames after arrival (every settled frame, then the earliest motion frames, so a looping card keeps
+// one cycle at 1s spacing) as 3x3 tiles of 512x320 with their time
+if (fdir) {
+  const sheet = await ctx.newPage();
+  for (const pg of [...new Set(frames.map((f) => f.page))]) {
+    let fs = frames.filter((f) => f.page === pg && f.kind !== "arrive"); const keep = fs.filter((f) => f.kind === "settled"), mo = fs.filter((f) => f.kind === "motion");
+    fs = [...keep.slice(0, 18), ...mo.slice(0, Math.max(0, 18 - keep.length))].sort((a, b) => a.t - b.t);
+    for (let k = 0; k * 9 < fs.length; k++) {
+      const part = fs.slice(k * 9, k * 9 + 9), file = `sheet-p${String(frames.findIndex((f) => f.page === pg)).padStart(3, "0")}-${k}.jpg`;
+      await sheet.setViewportSize({ width: 1536, height: Math.ceil(part.length / 3) * 320 });
+      await sheet.setContent(`<body style="margin:0;display:grid;grid-template-columns:repeat(3,512px);grid-auto-rows:320px;background:#000;font:bold 18px sans-serif">${part.map((f) => `<div style="position:relative;width:512px;height:320px"><img style="display:block;width:512px;height:320px" src="data:image/jpeg;base64,${readFileSync(join(fdir, f.file)).toString("base64")}"><span style="position:absolute;left:4px;top:4px;background:#ffeb3b;color:#000;padding:1px 6px">${(f.t / 1000).toFixed(1)}s${f.kind === "settled" ? " 멈춤" : ""}</span></div>`).join("")}</body>`);
+      await sheet.screenshot({ path: join(fdir, file), type: "jpeg", quality: 80 }); part.forEach((f) => (f.sheet = file));
+    }
+  }
+  writeFileSync(join(fdir, "frames.json"), JSON.stringify({ frames, actions }, null, 1));
+}
 await browser.close(); server.closeAllConnections(); server.close();
 console.log(`${rel} ${inject || "orig"}: ${samples.length} samples, ${clicks.length} clicks, ${errors.length} errors${capped ? ", CAPPED" : ""}`);
