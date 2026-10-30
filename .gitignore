@@ -12,3 +12,4 @@ node_modules
 measurements
 experiments/rubric-sources/
 .harness/sessions/progress-*.json
+.harness/sessions/progress-*.d/
