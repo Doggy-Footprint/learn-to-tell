@@ -25,7 +25,16 @@ __pycache__/
 /hsh-*.out
 /STOP
 /review-hsh-score/
+/label-set/
+/label-set-files.json
 /review-hsh-score-files.json
 /hsh-score-files.json
 /judge.log
 /judge-*.out
+/measure/out/
+/label-key.json
+/label-pilot-v2.json
+/label-backup-intent.json
+/label-backup-wrong.json
+/label-r1.json
+/judge-out/
