@@ -1,7 +1,7 @@
 """mklabel.py -> label-set/ (artifact page + scenes + kit) and label-key.json.
 Blind label set: shot cards with beats + chosen HSH scenes, shuffled with a fixed seed; REPEATS earlier scenes come back near the end
 for self-agreement; each original goes to dev or holdout (stratified by shot role / HSH topic). The page only sees opaque tokens."""
-import json, random, shutil
+import html, json, random, re, shutil
 from pathlib import Path
 E = Path(__file__).resolve().parent; R = E.parents[1]; K = R/"skills/learn-to-tell/kit"; SH = R/"site/gallery/shots"
 OUT = E/"label-set"; KEY = E/"label-key.json"; SEED = 20261028; PILOT = 10; REPEATS = 7
@@ -13,6 +13,29 @@ HSH = ["t1/r2/zero", "t1/r3/review-2nd", "t2/r1/hreview", "t2/r2/zero", "t2/r2/z
 axes = json.load(open(SH/"axes.json")); beats = {p.stem for p in (SH/"beats").glob("s*.json")}
 shots = [(f"shots/{v['file']}", v["role"], SH/v["file"]) for k, v in sorted(axes.items()) if f"s{int(k):02d}" in beats]
 hsh = [(f"hsh/{s}", s.split("/")[0], E/"round-hsh"/s/"scene.html") for s in HSH]
+def sections(md):
+    out, cur = {}, None
+    for line in md.splitlines():
+        if line.startswith("## "): cur = line[3:].strip(); out[cur] = []
+        elif cur: out[cur].append(line)
+    return {k: "\n".join(v).strip().replace("**", "").replace("`", "") for k, v in out.items()}
+def pick(sec, prefix): return next(v for k, v in sec.items() if k.startswith(prefix))
+notes = {int(n): html.unescape(t) for n, t in re.findall(r'data-n="(\d+)">.*?<i>움직임</i> (.*?)</p>', (SH/"index.html").read_text(), re.S)}
+# Intent shown to the labeler (2026-10-28 user choice A): only what each scene's maker recorded. Shots never had a storyboard;
+# their "옮길 원리" is left out because it reads like a legend that fills in what the scene itself fails to show.
+intent = {}
+for k, v in axes.items():
+    n = f"shots/{v['file']}"
+    if n not in {x for x, _, _ in shots}: continue
+    m = json.loads(re.search(r'id="ltt-meta">(.*?)</script>', (SH/v["file"]).read_text(), re.S).group(1))
+    intent[n] = [["대상 독자", m["audience"]], ["결정", m["decision"]], ["주제", v["topic"]], ["무엇이 움직이나", notes[int(k)]],
+                 ["비트", "\n".join(b["text"] for b in json.load(open(SH/"beats"/f"s{int(k):02d}.json"))["beats"])]]
+for s in HSH:
+    t, r, _ = s.split("/")
+    b = json.loads(re.search(r"```json\n(.*?)\n```", (E/"round-hsh"/t/r/"sb/prompt.md").read_text(), re.S).group(1))
+    sec = sections((E/"round-hsh"/s/"storyboard.md").read_text())
+    intent[f"hsh/{s}"] = [["대상 독자", b["audience"]], ["결정", b["decision"]], ["주제", b["topic_line"]],
+                          ["독자가 말할 한 문장", pick(sec, "독자가")], ["인과 사슬", pick(sec, "인과 사슬")], ["비트", pick(sec, "비트")]]
 rng = random.Random(SEED)
 scenes = shots + hsh; rng.shuffle(scenes)
 split, odd = {}, 0
@@ -39,7 +62,7 @@ for pos, n in enumerate(order):
     seen.add(n)
 json.dump({"seed": SEED, "pilot": PILOT, "entries": entries}, open(KEY, "w"), ensure_ascii=False, indent=1)
 items = json.load(open(E/"label-items.json"))
-page = {"items": [{k: v for k, v in i.items() if k not in ("rubric", "metric")} for i in items], "order": [e["token"] for e in entries], "pilot": PILOT}
+page = {"items": [{k: v for k, v in i.items() if k not in ("rubric", "metric")} for i in items], "order": [e["token"] for e in entries], "intent": [intent[e["scene"]] for e in entries], "pilot": PILOT}
 (OUT/"index.html").write_text((E/"label-set.tpl.html").read_text().replace("/*DATA*/null", json.dumps(page, ensure_ascii=False)))
 fl = sorted(str(q.relative_to(OUT)) for q in OUT.rglob("*") if q.is_file() and q.name != "index.html")
 json.dump(fl, open(E/"label-set-files.json", "w"))

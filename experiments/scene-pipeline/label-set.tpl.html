@@ -58,6 +58,12 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1
 .picked li.na .pval { color: var(--muted) }
 .picked li button { border: 0; background: none; color: var(--muted); font-size: 12px; cursor: pointer; padding: 1px 4px }
 .picked li button:hover { color: var(--accent) }
+.intent { flex-shrink: 0; border: 1px solid var(--accent); border-radius: 6px; font-size: 13px; background: var(--surface) }
+.intent summary { cursor: pointer; padding: 5px 10px; font-weight: 600; color: var(--accent) }
+.intent dl { margin: 0; padding: 0 10px 8px; max-height: 34vh; overflow-y: auto; display: grid; gap: 6px }
+.intent dt { font-size: 12px; color: var(--muted); font-weight: 600 }
+.intent dd { margin: 0; white-space: pre-line; line-height: 1.5 }
+.intent p { margin: 0 0 2px; font-size: 12px; color: var(--muted) }
 .panel-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13px; color: var(--muted) }
 .panel-top strong { color: var(--ink); font-weight: 600 }
 .notice { border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 10px 12px; font-size: 13px }
@@ -105,6 +111,7 @@ textarea { width: 100%; min-height: 56px; resize: vertical; border: 1px solid va
       <p>파일럿 10장면을 마쳤습니다. 여기서 멈추고 Claude에게 알려 주세요. 한 번도 체크되지 않았거나 판단이 애매했던 항목을 정리한 뒤 이어서 합니다.</p>
       <button class="btn" type="button" id="pilotGo">그래도 계속하기</button>
     </div>
+    <details class="intent" id="intent"><summary>이 장면의 의도</summary><dl id="intentList"></dl></details>
     <details class="picked" id="picked"><summary id="pickedSum">평가함 0개</summary><ul id="pickedList"></ul></details>
     <div id="groups"></div>
     <div>
@@ -127,7 +134,7 @@ const N = DATA.order.length;
 let labels = {}, cur = -1, active = 0, lastInput = performance.now(), db = null, pilotAck = !!ls.get("pilotAck"), jumped = false, dirty = false;
 async function leaveTo(i) { if (dirty && !(await save())) return; go(i); }
 
-const ANS = { yes: "있음", no: "없음", na: "해당 없음" };
+const ANS = { yes: "있음", no: "없음", na: "해당 없음" }, NEUTRAL = ["na", "unsure"];
 function choices(it) { return it.options ? [it.options[0], ["no", "문제 없음"], ...it.options.slice(1)] : [["yes", "문제 있음"], ["no", "문제 없음"], ...(it.na ? [["na", "해당 없음"]] : [])]; }
 const ansText = (it, a) => (it.options && it.options.find((o) => o[0] === a)?.[1]) || ANS[a];
 function buildForm() {
@@ -169,7 +176,7 @@ function refreshPicked() {
   const rows = [...document.querySelectorAll("#groups .item")], done = rows.filter((r) => answer(r));
   for (const row of done) {
     const it = DATA.items.find((i) => i.id === row.dataset.id), a = answer(row), li = document.createElement("li");
-    li.className = a === "no" ? "ok" : a === "na" ? "na" : "bad";
+    li.className = a === "no" ? "ok" : NEUTRAL.includes(a) ? "na" : "bad";
     const name = document.createElement("span"); name.className = "pname"; name.textContent = it.label;
     const val = document.createElement("span"); val.className = "pval"; val.textContent = ansText(it, a);
     const edit = document.createElement("button"); edit.type = "button"; edit.textContent = "고치기";
@@ -178,7 +185,7 @@ function refreshPicked() {
     x.addEventListener("click", () => { row.querySelectorAll("input").forEach((i) => (i.checked = false)); delete row.dataset.open; paintRow(row); refreshPicked(); dirty = true; });
     li.append(name, val, edit, x); list.append(li);
   }
-  const bad = done.filter((r) => !["no", "na"].includes(answer(r))).length;
+  const bad = done.filter((r) => answer(r) !== "no" && !NEUTRAL.includes(answer(r))).length;
   $("pickedSum").textContent = `평가함 ${done.length}개` + (bad ? ` · 문제 ${bad}개` : "");
   $("left").textContent = rows.length - done.length ? `남은 항목 ${rows.length - done.length}개` : "모든 항목을 평가했습니다";
   document.querySelectorAll("#groups fieldset").forEach((fs) => (fs.hidden = ![...fs.querySelectorAll(".item")].some((r) => !r.hidden)));
@@ -193,6 +200,11 @@ function fillForm(d) {
   document.querySelectorAll("#groups input[type=radio]").forEach((x) => (x.checked = a[x.name.slice(2)] === x.value));
   document.querySelectorAll("#groups .item").forEach((r) => { delete r.dataset.open; paintRow(r); }); refreshPicked();
   $("memo").value = (d && d.memo) || "";
+}
+function showIntent(i) {
+  const dl = $("intentList"); dl.innerHTML = ""; $("intent").open = false;
+  const p = document.createElement("p"); p.textContent = "장면을 먼저 본 뒤 펼치세요. 대상 독자 입장에서, 아래 내용을 화면의 그림·움직임·글로 따라갈 수 있는지 봅니다."; dl.append(p);
+  for (const [k, v] of DATA.intent[i]) { const dt = document.createElement("dt"); dt.textContent = k; const dd = document.createElement("dd"); dd.textContent = v; dl.append(dt, dd); }
 }
 function setDefs(open) {
   document.querySelectorAll(".def").forEach((p) => (p.hidden = !open));
@@ -222,7 +234,7 @@ function go(i) {
   if (i < 0 || i >= N) return;
   cur = i; const tok = DATA.order[i];
   iframe.src = `s/${tok}.html`; $("open").href = `s/${tok}.html`;
-  fillForm(labels[tok]); dirty = false; active = 0; lastInput = performance.now(); $("msg").textContent = "";
+  showIntent(i); fillForm(labels[tok]); dirty = false; active = 0; lastInput = performance.now(); $("msg").textContent = "";
   $("pilotDone").hidden = true; $("groups").scrollTop = 0; strip(); fit(); window.scrollTo({ top: 0 });
 }
 async function save() {
