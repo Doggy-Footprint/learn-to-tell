@@ -1,9 +1,7 @@
-"""Element positions are taken relative to the main SVG box and scaled to its width, so a moving or resizing frame (shake) is not counted as element motion.
-Some scenes rebuild the SVG with innerHTML on every step, so DOM identity does not follow a shape; isolated_change uses identity-free box signatures instead."""
 import sys, json, statistics, collections
 
-SETTLE = 1500  # ms; the page reflows once when its scrollbar appears, so the frame is judged after this
-FIGURE = 0.01  # share of the viewport; a smaller largest SVG is an icon, not the page's figure
+SETTLE = 1500
+FIGURE = 0.01
 
 def norm(s, x, y, w, h):
     f = s.get("frame", s["svg"])
@@ -12,8 +10,6 @@ def norm(s, x, y, w, h):
     return (x - ox) * k, (y - oy) * k, w * k, h * k
 
 def fix_frames(S):
-    """Pin one figure per page: the largest SVG 0.5s after the page arrives (or its first figure later), so a page that swaps or
-    resizes a smaller SVG past the main one does not make every element jump. Older runs without per-SVG boxes keep the largest SVG."""
     if not S or "svgs" not in S[0]: return
     page_of, first = [s.get("page", "") for s in S], {}
     for s, pg in zip(S, page_of): first.setdefault(pg, s["t"])
@@ -62,10 +58,6 @@ def metrics(path):
             if dd >= 8 and (i == 0 or ds[i - 1] < 0.5) and (i + 1 == len(ds) or ds[i + 1] < 0.5): tele += dd
     out["travel_px"] = round(travel); out["travel_per_change"] = round(travel / out["change"], 2) if out["change"] else None; out["teleport_ratio"] = round(tele / travel, 2) if travel else None; out["opacity_change"] = round(fade, 1)
     out["smooth_px"] = round(travel - tele); out["speed_p90"] = round(sorted(moves)[int(0.9 * (len(moves) - 1))], 1) if moves else 0
-    # text_jump_ratio / path_shown: SVG labels tracked by their string (nodes are often rebuilt, and one key can show in two nodes), matched one-to-one
-    # by nearest position between samples; a large step with no motion into it before and none out of it after is a jump, as is a label reappearing
-    # away from where the same string vanished within the last second. Fast glides span several large steps, so they count as motion.
-    # path_shown credits a reappeared label for the distance it then travels toward where it settles (a rebuilt node whose key flies up still shows the path).
     def occ(s):
         el = {e[0]: e for e in s["els"]}; o = collections.defaultdict(list)
         for t in s["texts"]:

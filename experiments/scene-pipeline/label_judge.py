@@ -1,5 +1,3 @@
-"""The judge gets only what the labeler saw (intent as shown on the label page, screenshots, measured events, metrics), never the scene code:
-code would let it credit what the screen does not show."""
 import base64, json, os, subprocess, sys, uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -9,7 +7,6 @@ KEY = {e["pos"]: e for e in json.load(open(E/"label-key.json"))["entries"]}
 ITEMS = json.load(open(sys.argv[sys.argv.index("--items") + 1] if "--items" in sys.argv else E/"label-items.json"))
 _page = (E/"label-set/index.html").read_text(); DATA, _ = json.JSONDecoder().raw_decode(_page[_page.index("const DATA = ") + 13:])
 NEUTRAL = {"no", "na", "unsure"}
-# values come from the clean measurement runs, not the --frames capture, whose screenshots disturb timing
 METRICS = {"frame_jumps": "쪽 안에서 주 그림 상자의 위치·크기가 1px 넘게 바뀐 횟수(그림 틀 흔들림)", "frame_max_px": "그 변화의 최대 px",
            "svg_area": "쪽 도착 0.5초 뒤 주 그림 넓이 / 화면 넓이(쪽 중앙값)", "svg_visible": "그 그림이 첫 화면 안에 보인 비율(쪽 최솟값)",
            "hidden_text": "쪽 도착 1초 뒤 화면 밖 글자 비율(쪽 최댓값)", "hidden_controls": "도착 1초 뒤 화면 밖 조작 단추 수(최댓값)",
@@ -34,7 +31,6 @@ def metrics(pos):
     r = dict(zip(rows[0], next(x for x in rows[1:] if x[0] == run)))
     return "\n".join(f"- {k} = {r[k]}: {v}" for k, v in METRICS.items())
 
-# Judge-only additions: label-items.json definitions must stay identical to what the labeler saw.
 NOTES = {"no-anim": "학습자가 화면만 보고 두 가지를 할 수 있는지 본다. "
                     "(1) 결과를 이루는 각 부분이 어떤 입력에서 오는가: 그림의 단위(칸 크기, 막대 높이)가 어떤 변수와 어떻게 연결되는지 표시되고, 한 단계(예: 클럭 한 번)가 결과 한 조각(예: 에너지 CV²)으로 바뀌는 과정이 보여야 한다. "
                     "결과가 여러 변수에 비례한다고 말하면 변수를 하나씩 바꿀 때 결과가 어떻게 달라지는지 보여야 한다. 공식대로 만든 결과 모양(예: 높이가 V²인 블록이 쌓임)만 보이면 원인을 보인 것이 아니다. "
@@ -69,7 +65,6 @@ PROMPT = """너는 학습 장면 하나를 보고 결함 체크리스트 20개 �
 ## 항목
 {items}"""
 
-# Split so the rules and items (same for every scene) form the cached prefix of each request.
 SCENE = """## 이 장면의 의도
 {intent}
 

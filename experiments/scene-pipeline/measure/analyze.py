@@ -1,4 +1,3 @@
-"""Thresholds and pass rules were pre-registered in the handoff (2026-10-27) before the main run; changing them invalidates that result."""
 import sys, csv, json, hashlib, pathlib, statistics
 HERE = pathlib.Path(__file__).resolve().parent
 L = json.load(open(HERE / "labels.json"))
@@ -7,8 +6,6 @@ SCORED = [f"{b.replace('-', '/')}/{ARM[a]}" for b, v in json.load(open(HERE.pare
 MAP = [("shake", "frame_jumps", "high", "shake"), ("recreate", "path_shown", "low", "choppy"), ("recreate", "text_jump_ratio", "high", "choppy"), ("rough", "isolated_change", "high", "choppy"),
        ("hidden", "hidden_controls", "high", "below"), ("hidden", "svg_visible", "low", "below"), ("hidden", "hidden_text", "high", "below"), ("hidden", "hidden_change", "high", "below"),
        ("no_anim", "smooth_px", "low", "freeze"), ("small", "svg_area", "low", "small"), ("fast", "speed_p90", "high", "fast")]
-# a missing value means nothing moved / no SVG: ratios with no motion count as 0, a missing SVG counts as not visible and zero area
-# except label-tracking metrics, where no moving SVG label means the check does not apply and the scene is left out
 NA = {"path_shown", "text_jump_ratio"}
 def one(v, m):
     if v in (None, "", "None"): return None if m in NA else 0.0

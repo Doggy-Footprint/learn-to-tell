@@ -1,5 +1,3 @@
-"""The published page sees only opaque tokens; scene identities and the dev/holdout split live only in label-key.json, which stays unpublished
-until labeling ends."""
 import html, json, random, re, shutil
 from pathlib import Path
 E = Path(__file__).resolve().parent; R = E.parents[1]; K = R/"skills/learn-to-tell/kit"; SH = R/"site/gallery/shots"
@@ -18,7 +16,6 @@ def sections(md):
     return {k: "\n".join(v).strip().replace("**", "").replace("`", "") for k, v in out.items()}
 def pick(sec, prefix): return next(v for k, v in sec.items() if k.startswith(prefix))
 notes = {int(n): html.unescape(t) for n, t in re.findall(r'data-n="(\d+)">.*?<i>움직임</i> (.*?)</p>', (SH/"index.html").read_text(), re.S)}
-# Shots' "옮길 원리" is left out of the intent: it reads like a legend that fills in what the scene itself fails to show.
 intent = {}
 for k, v in axes.items():
     n = f"shots/{v['file']}"
