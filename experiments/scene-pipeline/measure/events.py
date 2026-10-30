@@ -1,6 +1,5 @@
-"""events.py <capture.json> -> plain-text event list for the label judge (stdout).
-Positions are viewport px, the same frame as the judge's 1280x800 screenshots. Only SVG shapes/text and visible text nodes are tracked
-(measure.mjs collector), so HTML boxes that move without text are invisible here. Events of one kind that start in the same 100ms are merged."""
+"""Positions are viewport px, the same frame as the judge's 1280x800 screenshots. Only SVG shapes/text and visible text nodes are tracked
+(measure.mjs collector), so HTML boxes that move without text are invisible here."""
 import sys, json, collections
 VIS, MOVE, JUMP, CAP = 0.05, 1.0, 30.0, 60
 ACT = {"key": "→ 키(다음 단계·쪽)", "choice": "예측 선택지 고름", "reveal": "정답 보기 누름", "step-offscreen": "화면 밖 단계 단추 누름",

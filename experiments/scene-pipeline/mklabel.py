@@ -1,12 +1,9 @@
-"""mklabel.py -> label-set/ (artifact page + scenes + kit) and label-key.json.
-Blind label set: shot cards with beats + chosen HSH scenes, shuffled with a fixed seed; REPEATS earlier scenes come back near the end
-for self-agreement; each original goes to dev or holdout (stratified by shot role / HSH topic). The page only sees opaque tokens."""
+"""The published page sees only opaque tokens; scene identities and the dev/holdout split live only in label-key.json, which stays unpublished
+until labeling ends."""
 import html, json, random, re, shutil
 from pathlib import Path
 E = Path(__file__).resolve().parent; R = E.parents[1]; K = R/"skills/learn-to-tell/kit"; SH = R/"site/gallery/shots"
 OUT = E/"label-set"; KEY = E/"label-key.json"; SEED = 20261028; PILOT = 10; REPEATS = 7
-# 2026-10-28: scenes the measurement flagged without a user label (small, no_anim, shake, recreate, hidden, fast), label-missed scenes,
-# unflagged clean scenes and one unscored t6 scene (handoff "shot 카드로 사용자 라벨 세트 만들기").
 HSH = ["t1/r2/zero", "t1/r3/review-2nd", "t2/r1/hreview", "t2/r2/zero", "t2/r2/zero-review-2nd", "t2/r3/review", "t3/r1/zero-review-2nd",
        "t3/r1/review-2nd", "t3/r2/hreview", "t3/r2/review", "t3/r3/zero-review", "t4/r2/review", "t4/r3/review", "t4/r3/hreview",
        "t5/r1/zero", "t5/r1/hreview", "t5/r2/zero", "t5/r2/review", "t5/r2/hreview", "t6/r2/hreview"]
@@ -21,8 +18,7 @@ def sections(md):
     return {k: "\n".join(v).strip().replace("**", "").replace("`", "") for k, v in out.items()}
 def pick(sec, prefix): return next(v for k, v in sec.items() if k.startswith(prefix))
 notes = {int(n): html.unescape(t) for n, t in re.findall(r'data-n="(\d+)">.*?<i>움직임</i> (.*?)</p>', (SH/"index.html").read_text(), re.S)}
-# Intent shown to the labeler (2026-10-28 user choice A): only what each scene's maker recorded. Shots never had a storyboard;
-# their "옮길 원리" is left out because it reads like a legend that fills in what the scene itself fails to show.
+# Shots' "옮길 원리" is left out of the intent: it reads like a legend that fills in what the scene itself fails to show.
 intent = {}
 for k, v in axes.items():
     n = f"shots/{v['file']}"

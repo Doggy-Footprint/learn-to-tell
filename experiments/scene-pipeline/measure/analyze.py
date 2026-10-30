@@ -1,9 +1,4 @@
-"""analyze.py <metrics.tsv>... [--exclude t1/r3] -> per metric: threshold, clean false-failure, injection detection, natural-label recall and AUC.
-Rules were fixed in the handoff before the main run: threshold = strictest value that fails at most 10% of clean originals (ties fail);
-pass = injection detection >= 90% and, for defect types with >= 3 labelled scenes, AUC vs clean >= 0.75. Identical scene files count once.
-With several TSVs (repeated runs) each run's value is the median over repeats. Added before the third run (handoff 2026-10-27), reported but not part of pass:
-neg_fail = failures among every scored original not labelled with that defect; LOBO = threshold refit without one topic/round bundle, judged on that
-bundle's labels and unlabelled scenes; flips = scored originals whose fail/pass at the threshold differs between repeats."""
+"""Thresholds and pass rules were pre-registered in the handoff (2026-10-27) before the main run; changing them invalidates that result."""
 import sys, csv, json, hashlib, pathlib, statistics
 HERE = pathlib.Path(__file__).resolve().parent
 L = json.load(open(HERE / "labels.json"))
