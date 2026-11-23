@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>온도조절기 오버슈트</title>
+<script type="application/json" id="ltt-meta">{"topic":"온도조절기 되먹임 루프와 오버슈트","audience":"제어 입문자","theme":"lab","medium":"실험 노트 플롯","decision":"히스테리시스 폭과 난방 지연","domain":"제어","pattern":["hook"],"mode":"카탈로그용: 장면 하나짜리. 되먹임 구조를 \"입자가 흐름\" 움직임과 겹쳐 놓기 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.tc-wrap{width:100%;max-width:1020px;margin:0 auto}
+.tc-ctl{display:flex;flex-wrap:wrap;gap:8px 28px;align-items:center;margin:0 0 10px;font-size:14px;color:var(--ltt-ink-2)}
+.tc-grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tc-btn{font:inherit;font-size:14px;padding:4px 12px;border-radius:6px;border:1px solid var(--ltt-line-2);background:var(--ltt-card);color:var(--ltt-ink);cursor:pointer}
+.tc-btn[aria-pressed="true"]{background:var(--ltt-accent-soft);border-color:var(--ltt-accent);font-weight:700}
+.tc-host svg{width:100%;height:auto;display:block}
+.tc-host text{font-family:inherit}
+.tc-halo{paint-order:stroke;stroke:var(--ltt-bg);stroke-width:4px;stroke-linejoin:round}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head><body><script>
+const SVG = "http://www.w3.org/2000/svg";
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ease = (x) => x < .5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+const frac = (x) => x - Math.floor(x);
+const rnd = (k, s) => frac(Math.sin(k * 12.9898 + s * 78.233) * 43758.5453);
+const el = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// 방 열수지: dT/dt = kh·q − kl·(T − Tout). q는 스위치 신호를 td분 늦춘 값(온수 배관). 계수는 설명용 가정
+const C = { sp: 21, Tout: 10, kh: 0.5, kl: 0.02, dt: 0.02, TMAX: 90, T0: 17, pk: 0.25 };
+function sim(td, h) {
+  const n = Math.round(C.TMAX / C.dt), nd = Math.round(td / C.dt);
+  const T = new Float64Array(n + 1), U = new Uint8Array(n + 1); T[0] = C.T0; let u = 0, sw = 0;
+  for (let i = 0; i <= n; i++) {
+    if (T[i] < C.sp - h) u = 1; else if (T[i] > C.sp + h) u = 0;
+    U[i] = u; if (i > 0 && U[i] !== U[i - 1]) sw++;
+    if (i < n) { const q = i >= nd ? U[i - nd] : 0; T[i + 1] = T[i] + C.dt * (C.kh * q - C.kl * (T[i] - C.Tout)); }
+  }
+  let iOff = -1; for (let i = 1; i <= n; i++) if (U[i] === 0 && U[i - 1] === 1) { iOff = i; break; }
+  let j = iOff < 0 ? 0 : iOff; while (iOff >= 0 && j < n && T[j + 1] > T[j]) j++;
+  const peak = T[j], over = iOff < 0 ? 0 : Math.max(0, peak - (C.sp + h));
+  // 열 입자: 난방기는 0.5분마다 스위치가 켜져 있으면 1개(=0.25°C), 벽은 손실이 0.25°C 쌓일 때마다 1개
+  const heat = []; for (let k = 0; k * 0.5 <= C.TMAX; k++) if (U[Math.round(k * 0.5 / C.dt)]) heat.push([k * 0.5, k]);
+  const leak = []; let acc = 0, ln = 0; for (let i = 0; i < n; i++) { acc += C.kl * (T[i] - C.Tout) * C.dt; if (acc >= C.pk) { acc -= C.pk; leak.push([i * C.dt, ln++]); } }
+  return { T, U, n, nd, td, h, sw, peak, tp: j * C.dt, over, heat, leak };
+}
+// 손으로 계산: 꺼짐선 21.5°C에서 스위치를 끈 뒤 3분 더 가열 → T = 35 − (35 − 21.5)·e^(−0.02·3) = 22.29°C
+LTT.expect("지연 3분, 첫 최고점(°C)", sim(3, 0.5).peak, 22.29, { tol: 0.05 });
+LTT.expect("계속 가열했을 때 평형 온도(°C)", C.Tout + C.kh / C.kl, 35, { tol: 0.01 });
+
+function loop(period, draw, node) {
+  let raf = 0, t0 = 0;
+  return { restart() { t0 = Date.now(); },
+    enter() { clearTimeout(raf); if (reduced) { draw(0.95); return; }
+      t0 = Date.now(); const f = () => { if (node && !node.isConnected) return; if (!node || node.checkVisibility()) draw(((Date.now() - t0) / period) % 1); raf = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(raf); } };
+}
+
+function mount(body) {
+  const wrap = body.appendChild(document.createElement("div")); wrap.className = "tc-wrap";
+  const ctl = wrap.appendChild(document.createElement("div")); ctl.className = "tc-ctl";
+  const host = wrap.appendChild(document.createElement("div")); host.className = "tc-host"; host.setAttribute("data-annotate", "");
+  const W = 900, H = 555, L = 92, R = 790, T = 185, B = 455, YMIN = 16.5, YMAX = 24;
+  const X = (t) => L + t / C.TMAX * (R - L), Y = (v) => B - (v - YMIN) / (YMAX - YMIN) * (B - T);
+  const cy = (v) => clamp(Y(v), T, B);
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}` }, host);
+  const txt = (p, x, y, str, st, a) => { const t = el("text", { x, y, style: st, ...(a ? { "text-anchor": a } : {}) }, p); t.textContent = str; return t; };
+
+  // ── 위쪽: 난방기 → 배관(지연) → 방 → 벽 ──
+  const PY = 78, HX0 = 60, HX1 = 150, RX0 = 330, RX1 = 640;
+  const room = el("rect", { x: RX0, y: 40, width: RX1 - RX0, height: 80, rx: 4, style: "fill:var(--ltt-card-2);stroke:var(--ltt-line-2);stroke-width:1.5" }, s);
+  const glow = el("rect", { x: RX0, y: 40, width: RX1 - RX0, height: 80, rx: 4, style: "fill:var(--ltt-warn);opacity:0" }, s);
+  el("rect", { x: HX1, y: PY - 6, width: RX0 - HX1, height: 12, style: "fill:var(--ltt-card-2);stroke:var(--ltt-line-2);stroke-width:1.5" }, s);
+  const box = el("rect", { x: HX0, y: PY - 22, width: HX1 - HX0, height: 44, rx: 5, style: "fill:var(--ltt-card-2);stroke:var(--ltt-line-2);stroke-width:2" }, s);
+  txt(s, (HX0 + HX1) / 2, PY + 5, "난방기", "font-size:16px;font-weight:700;fill:var(--ltt-ink)", "middle");
+  const swTxt = txt(s, (HX0 + HX1) / 2, 122, "", "font-size:14px;font-weight:700", "middle");
+  const pipeTxt = txt(s, (HX1 + RX0) / 2, 62, "", "font-size:14px;fill:var(--ltt-ink-2)", "middle");
+  const roomTxt = txt(s, RX0, 30, "", "font-size:15px;font-weight:700;fill:var(--ltt-ink)");
+  el("line", { x1: RX1, x2: RX1, y1: 36, y2: 124, style: "stroke:var(--ltt-ink-2);stroke-width:4" }, s);
+  txt(s, RX1 + 10, 30, "벽 너머 바깥 10°C", "font-size:14px;fill:var(--ltt-ink-2)");
+  el("circle", { cx: RX0 + 6, cy: 142, r: 5, style: "fill:var(--ltt-warn)" }, s);
+  txt(s, RX0 + 18, 147, "열 입자 1개 = 0.25°C어치 (난방기 → 방 → 벽 밖)", "font-size:14px;fill:var(--ltt-muted)");
+  const heatC = Array.from({ length: 70 }, () => el("circle", { r: 5, cx: -20, cy: -20, style: "fill:var(--ltt-warn);opacity:0" }, s));
+  const leakC = Array.from({ length: 40 }, () => el("circle", { r: 4.5, cx: -20, cy: -20, style: "fill:var(--ltt-muted);opacity:0" }, s));
+
+  // ── 아래쪽: 실험 노트 플롯 ──
+  for (let v = 17; v <= 24; v++) {
+    el("line", { x1: L, x2: R, y1: Y(v), y2: Y(v), style: "stroke:var(--ltt-line);stroke-width:1" }, s);
+    txt(s, L - 10, Y(v) + 5, v + (v === 24 ? "°C" : ""), "font-size:14px;fill:var(--ltt-muted)", "end");
+  }
+  for (let t = 0; t <= C.TMAX; t += 15) {
+    el("line", { x1: X(t), x2: X(t), y1: T, y2: 500, style: "stroke:var(--ltt-line);stroke-width:1" }, s);
+    txt(s, X(t), 522, t + (t === C.TMAX ? "분" : ""), "font-size:14px;fill:var(--ltt-muted)", "middle");
+  }
+  el("line", { x1: L, x2: R, y1: B, y2: B, style: "stroke:var(--ltt-ink);stroke-width:2" }, s);
+  el("line", { x1: L, x2: L, y1: T, y2: 500, style: "stroke:var(--ltt-ink);stroke-width:2" }, s);
+  txt(s, L - 10, 478, "스위치", "font-size:14px;fill:var(--ltt-ink-2)", "end");
+  txt(s, L - 10, 496, "실제 열", "font-size:14px;fill:var(--ltt-warn)", "end");
+  const defs = el("defs", {}, s), cp = el("clipPath", { id: "tc-clip" }, defs), clipR = el("rect", { x: L, y: 0, width: 0, height: H }, cp);
+  const dyn = el("g", {}, s), body_ = el("g", { "clip-path": "url(#tc-clip)" }, s);
+  const head = el("line", { y1: T, y2: 500, style: "stroke:var(--ltt-ink);stroke-width:1.5;stroke-dasharray:4 4" }, s);
+  const dot = el("circle", { r: 7, style: "fill:var(--ltt-accent);stroke:var(--ltt-bg);stroke-width:2" }, s);
+  const ann = el("g", { style: "opacity:0" }, s);
+
+  let td = 3, h = 0.5, A, Bm;
+  function pathOf(m) { let d = ""; for (let i = 0; i <= m.n; i += 5) d += (d ? "L" : "M") + X(i * C.dt).toFixed(1) + "," + cy(m.T[i]).toFixed(1); return d; }
+  function bars(U, nd, y0) { let d = "", st = -1; const n = U.length - 1;
+    for (let i = 0; i <= n; i++) { const on = i >= nd ? U[i - nd] : 0;
+      if (on && st < 0) st = i; if ((!on || i === n) && st >= 0) { const x1 = X(st * C.dt), x2 = X(i * C.dt); d += `M${x1.toFixed(1)},${y0}H${x2.toFixed(1)}V${y0 + 12}H${x1.toFixed(1)}Z`; st = -1; } }
+    return d; }
+  function rebuild() {
+    A = sim(0, h); Bm = sim(td, h);
+    dyn.textContent = ""; body_.textContent = ""; ann.textContent = "";
+    const yU = Y(C.sp + h), yD = Y(C.sp - h);
+    el("rect", { x: L, y: yU, width: R - L, height: yD - yU, style: "fill:var(--ltt-accent-soft);opacity:.55" }, dyn);
+    el("line", { x1: L, x2: R, y1: Y(C.sp), y2: Y(C.sp), style: "stroke:var(--ltt-line-2);stroke-width:1.2;stroke-dasharray:6 5" }, dyn);
+    [[yU, "꺼짐선 " + (C.sp + h).toFixed(2).replace(/0$/, "") + "°C"], [yD, "켜짐선 " + (C.sp - h).toFixed(2).replace(/0$/, "") + "°C"]].forEach(([y, l], i) => {
+      el("line", { x1: L, x2: R, y1: y, y2: y, style: "stroke:var(--ltt-accent);stroke-width:1.5" }, dyn);
+      txt(dyn, R + 8, y + (i ? 12 : -2), l, "font-size:14px;fill:var(--ltt-accent);font-weight:700"); });
+    el("path", { d: pathOf(A), style: "fill:none;stroke:var(--ltt-ink-2);stroke-width:2;stroke-linejoin:round" }, body_);
+    el("path", { d: pathOf(Bm), style: "fill:none;stroke:var(--ltt-accent);stroke-width:3.5;stroke-linejoin:round" }, body_);
+    el("path", { d: bars(Bm.U, 0, 466), style: "fill:var(--ltt-ink-2)" }, body_);
+    el("path", { d: bars(Bm.U, Bm.nd, 484), style: "fill:var(--ltt-warn)" }, body_);
+    // 범례: 겹쳐 놓은 두 실험의 읽을 값
+    el("line", { x1: L, x2: L + 30, y1: 168, y2: 168, style: "stroke:var(--ltt-ink-2);stroke-width:2" }, dyn);
+    txt(dyn, L + 38, 173, `지연 없음 · 전환 ${A.sw}회`, "font-size:14px;fill:var(--ltt-ink-2)");
+    el("line", { x1: L + 270, x2: L + 300, y1: 168, y2: 168, style: "stroke:var(--ltt-accent);stroke-width:3.5" }, dyn);
+    txt(dyn, L + 308, 173, `배관 지연 ${td}분 · ${Bm.over >= 0.1 ? "넘침 +" + Bm.over.toFixed(1) + "°C" : "밴드 안"} · 전환 ${Bm.sw}회`, "font-size:14px;fill:var(--ltt-accent);font-weight:700");
+    pipeTxt.textContent = `온수 배관 · 지연 ${td}분`;
+    if (Bm.over >= 0.1) { const x = X(Bm.tp);
+      el("line", { x1: x, x2: x, y1: Y(Bm.peak), y2: yU, style: "stroke:var(--ltt-bad);stroke-width:3" }, ann);
+      el("line", { x1: x - 6, x2: x + 6, y1: Y(Bm.peak), y2: Y(Bm.peak), style: "stroke:var(--ltt-bad);stroke-width:3" }, ann);
+      const t = txt(ann, x + 12, Math.max(Y(Bm.peak) + 2, T + 14), `꺼도 +${Bm.over.toFixed(1)}°C 더 오른다`, "font-size:14px;font-weight:700;fill:var(--ltt-bad)"); t.setAttribute("class", "tc-halo"); }
+  }
+  function ctlGroup(label, opts, cur, fmt, set) {
+    const g = ctl.appendChild(document.createElement("div")); g.className = "tc-grp"; g.appendChild(document.createTextNode(label));
+    opts.forEach((o) => { const b = g.appendChild(document.createElement("button")); b.className = "tc-btn"; b.type = "button"; b.textContent = fmt(o);
+      b.setAttribute("aria-pressed", o === cur ? "true" : "false");
+      b.onclick = () => { set(o); g.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false")); rebuild(); lp.restart(); if (reduced) draw(0.95); }; }); }
+  ctlGroup("난방 지연", [0, 3, 6], td, (o) => o + "분", (o) => { td = o; });
+  ctlGroup("히스테리시스 폭 ±", [0.25, 0.5, 1], h, (o) => o + "°C", (o) => { h = o; });
+
+  function draw(u) {
+    const t = reduced ? C.TMAX : Math.min(1, u / 0.9) * C.TMAX, i = Math.min(Bm.n, Math.round(t / C.dt)), Tn = Bm.T[i];
+    clipR.setAttribute("width", X(t) - L);
+    head.setAttribute("x1", X(t)); head.setAttribute("x2", X(t)); dot.setAttribute("cx", X(t)); dot.setAttribute("cy", cy(Tn));
+    ann.style.opacity = t >= Bm.tp ? 1 : 0;
+    glow.style.opacity = (clamp((Tn - 16) / 8) * 0.4).toFixed(3);
+    const on = Bm.U[i];
+    box.style.stroke = on ? "var(--ltt-accent)" : "var(--ltt-line-2)"; box.style.fill = on ? "var(--ltt-accent-soft)" : "var(--ltt-card-2)";
+    swTxt.textContent = on ? "스위치 켜짐" : "스위치 꺼짐"; swTxt.style.fill = on ? "var(--ltt-accent)" : "var(--ltt-muted)";
+    roomTxt.textContent = `방 · 실온 ${Tn.toFixed(1)}°C`;
+    let ci = 0;
+    for (const [ts, k] of Bm.heat) { if (ts > t) break; const a = t - ts; let x, y = PY, o = 1;
+      if (a < td) x = HX1 + (RX0 - HX1) * (a / td);
+      else { const age = a - td; if (age > 8) continue; const e = ease(clamp(age / 1.5));
+        x = RX0 + 6 + (20 + rnd(k, 1) * 270) * e; y = PY + (50 + rnd(k, 2) * 58 - PY - 40 + 40 - 40) * e; y = PY + ((52 + rnd(k, 2) * 56) - PY) * e; o = age > 6.5 ? (8 - age) / 1.5 : 1; }
+      if (ci >= heatC.length) break; const c = heatC[ci++]; c.setAttribute("cx", x.toFixed(1)); c.setAttribute("cy", y.toFixed(1)); c.style.opacity = o.toFixed(2); }
+    for (; ci < heatC.length; ci++) heatC[ci].style.opacity = 0;
+    let li = 0;
+    for (const [ts, k] of Bm.leak) { if (ts > t) break; const a = t - ts; if (a > 4) continue; if (li >= leakC.length) break;
+      const x0 = 560 + rnd(k, 3) * 60, c = leakC[li++]; c.setAttribute("cx", (x0 + (790 - x0) * a / 4).toFixed(1)); c.setAttribute("cy", (52 + rnd(k, 4) * 56).toFixed(1)); c.style.opacity = a > 3 ? (4 - a).toFixed(2) : 1; }
+    for (; li < leakC.length; li++) leakC[li].style.opacity = 0;
+  }
+  rebuild();
+  const lp = loop(26000, draw, s);
+  draw(reduced ? 0.95 : 0);
+  return lp;
+}
+
+LTT.deck({ title: "온도조절기 오버슈트", theme: "lab",
+  glossary: {
+    "히스테리시스": "켜짐 기준과 꺼짐 기준을 일부러 다르게 둔 간격. 좁을수록 스위치가 자주 켜졌다 꺼진다",
+    "오버슈트": "목표선을 넘어 지나쳐 올라가는 양. 스위치를 끈 뒤에도 열이 계속 들어올 때 생긴다" },
+  scenes: [{ type: "hook", pre: "온도조절기", text: "스위치를 꺼도 온도는 한동안 계속 오른다",
+    sub: "설정 21°C, 켜짐·꺼짐선은 ±0.5°C({{히스테리시스}}). 배관이 길면 꺼진 뒤에도 뜨거운 물이 3분 더 들어와 {{오버슈트}}가 생긴다. 단추로 지연과 폭을 바꿔 두 곡선이 어떻게 벌어지는지 보자.",
+    basis: "방 열수지 dT/dt = k_h·q − k_l·(T − T_out), q는 스위치 신호를 배관 지연만큼 늦춘 값. 계수 k_h=0.5°C/분, k_l=0.02/분(시정수 50분), 바깥 10°C, 시작 17°C는 설명용 가정이며 실측이 아니다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    mount }] });
+</script></body></html>

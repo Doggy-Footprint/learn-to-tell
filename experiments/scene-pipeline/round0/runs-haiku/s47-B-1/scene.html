@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>국가별 전력 믹스</title>
+<script type="application/json" id="ltt-meta">{"topic":"국가별 전력 믹스","audience":"에너지 정책 입문자","theme":"atlas","medium":"에너지 통계 차트","decision":"전원 구성 비교","domain":"에너지","pattern":["sweep"],"mode":"장면 하나짜리. 부분-전체 구조를 \"모양이 바뀜\" 움직임과 좌우 분할 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.ms{width:100%;max-width:1080px;height:auto;display:block;margin:0 auto}
+.ms-ctl{display:flex;justify-content:center}
+.ms-ctl .ltt-param{min-width:520px}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+
+// 가상의 세 나라(A·B·C)를 가정한 예시 비율(%). 실제 국가 통계가 아니다.
+// 값은 [석탄, 가스, 원자력, 재생] 순서이고, 2000·2025·2050년 사이는 직선으로 잇는다.
+const KEYS = ["석탄", "가스", "원자력", "재생"];
+const COL = ["var(--ltt-c1)", "var(--ltt-c2)", "var(--ltt-c3)", "var(--ltt-c4)"];
+const YEARS = [2000, 2025, 2050];
+const COUNTRY = [
+  { n: "A국", t: "석탄 의존형", col: "var(--ltt-c5)", at: [[60, 15, 15, 10], [45, 20, 15, 20], [15, 15, 15, 55]] },
+  { n: "B국", t: "원전 의존형", col: "var(--ltt-c6)", at: [[30, 20, 45, 5], [25, 15, 45, 15], [5, 10, 35, 50]] },
+  { n: "C국", t: "가스 의존형", col: "var(--ltt-accent)", at: [[25, 55, 0, 20], [15, 45, 0, 40], [0, 20, 0, 80]] }];
+function mix(c, y) {
+  const i = y < YEARS[1] ? 0 : 1, u = (y - YEARS[i]) / (YEARS[i + 1] - YEARS[i]);
+  return c.at[i].map((v, k) => v + (c.at[i + 1][k] - v) * u);
+}
+LTT.expect("A국 2037년 재생 비중", mix(COUNTRY[0], 2037)[3], 36.8, { tol: 0.01 });
+LTT.expect("B국 2050년 원자력 비중", mix(COUNTRY[1], 2050)[2], 35, { tol: 0.01 });
+
+function mixFig(host) {
+  const W = 1080, H = 520, TOP = 110, BOT = 440, CW = 120, GX = 680, GW = 320, GY = 130, GH = 310;
+  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "ms", "data-annotate": "" }, host);
+  const T = (x, y, t, st, a = "start") => { const n = mk("text", { x, y, "text-anchor": a, style: st }, s); n.textContent = t; return n; };
+
+  // 왼쪽: 나라마다 100% 막대. 띠 높이가 발전원의 몫이다
+  const cols = COUNTRY.map((c, i) => {
+    const cx = 130 + i * 160;
+    mk("rect", { x: cx - CW / 2, y: TOP, width: CW, height: BOT - TOP, rx: 4, style: "fill:none;stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:4 4" }, s);
+    const segs = KEYS.map((k, j) => ({
+      r: mk("rect", { x: cx - CW / 2, width: CW, rx: 2, style: `fill:${COL[j]};stroke:var(--ltt-ink);stroke-width:1.5` }, s),
+      lab: T(cx, 0, "", "font-size:15px;font-weight:700;fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-bg);stroke-width:4px", "middle") }));
+    T(cx, BOT + 28, c.n, "font-size:18px;font-weight:700;fill:var(--ltt-ink)", "middle");
+    T(cx, BOT + 52, c.t, "font-size:15px;fill:var(--ltt-muted)", "middle");
+    return { c, segs };
+  });
+
+  // 가운데 가르는 선. 오른쪽은 재생에너지 몫의 추이
+  mk("line", { x1: 610, x2: 610, y1: 40, y2: BOT + 60, style: "stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:3 5" }, s);
+  T(GX, 56, "재생에너지 몫(%) 추이", "font-size:16px;font-weight:700;fill:var(--ltt-ink)");
+  const X = (t) => GX + (t - 2000) / 50 * GW, Y = (v) => GY + GH - v / 100 * GH;
+  [0, 50, 100].forEach((v) => { mk("line", { x1: GX, x2: GX + GW, y1: Y(v), y2: Y(v), style: "stroke:var(--ltt-line);stroke-width:1" }, s); T(GX - 8, Y(v) + 5, v + "%", "font-size:14px;fill:var(--ltt-muted)", "end"); });
+  YEARS.forEach((t) => T(X(t), BOT + 24, t + "년", "font-size:14px;fill:var(--ltt-muted)", "middle"));
+  const lines = COUNTRY.map((c, i) => {
+    mk("line", { x1: GX + i * 90, x2: GX + i * 90 + 18, y1: 92, y2: 92, style: `stroke:${c.col};stroke-width:4` }, s);
+    T(GX + i * 90 + 24, 97, c.n, "font-size:15px;fill:var(--ltt-ink-2)");
+    const path = mk("path", { style: `fill:none;stroke:${c.col};stroke-width:3` }, s);
+    const dot = mk("circle", { r: 6, style: `fill:${c.col};stroke:var(--ltt-bg);stroke-width:2` }, s);
+    const val = T(0, 0, "", "font-size:15px;font-weight:700;fill:var(--ltt-ink)");
+    return { c, path, dot, val };
+  });
+
+  const year = T(40, 56, "", "font-size:26px;font-weight:700;fill:var(--ltt-ink);font-variant-numeric:tabular-nums");
+
+  function draw(y) {
+    year.textContent = Math.round(y) + "년";
+    cols.forEach(({ c, segs }) => { const m = mix(c, y); let cum = 0;
+      segs.forEach((g, j) => { const h = m[j] / 100 * (BOT - TOP), top = BOT - cum - h; cum += h;
+        g.r.setAttribute("y", top); g.r.setAttribute("height", Math.max(0.01, h));
+        g.lab.setAttribute("y", top + h / 2 + 5);
+        g.lab.textContent = h >= 22 ? `${KEYS[j]} ${Math.round(m[j])}%` : ""; }); });
+    lines.forEach(({ c, path, dot, val }) => { const pts = [];
+      for (let t = 2000; t < y; t += 1) pts.push([t, mix(c, t)[3]]);
+      pts.push([y, mix(c, y)[3]]);
+      const [px, pv] = pts[pts.length - 1];
+      path.setAttribute("d", d3.line()(pts.map(([t, v]) => [X(t), Y(v)])));
+      dot.setAttribute("cx", X(px)); dot.setAttribute("cy", Y(pv));
+      val.setAttribute("x", X(px) + 12); val.setAttribute("y", Y(pv) + 5); val.textContent = pv.toFixed(1) + "%"; });
+  }
+  return { el: s, draw };
+}
+
+LTT.deck({
+  title: "국가별 전력 믹스", theme: "atlas",
+  glossary: { "전원 구성": "발전량 가운데 석탄·가스·원자력·재생에너지 같은 발전원이 차지하는 몫",
+    "재생에너지": "햇빛·바람·물처럼 쓰면 줄지 않는 자원으로 만든 전기" },
+  scenes: [{
+    type: "sweep",
+    title: "나라마다 전원 구성은 다르고, 연도에 따라 띠 모양이 바뀐다",
+    en: "Power mix by country and year",
+    sub: "막대 한 개가 한 나라의 {{전원 구성}} 100%다. 띠 높이가 발전원의 몫이며, 연도가 흐르면 {{재생에너지}} 띠가 커지는 모습이 자동 재생된다. 손잡이를 잡으면 멈춘다.",
+    basis: "가상의 세 나라(A·B·C)를 가정한 예시 비율이다. 실제 국가 통계가 아니며, 2000·2025·2050년 세 시점 사이는 직선으로 이었다. 실제 수치는 국제에너지기구(IEA) 등 국가 에너지 통계로 확인한다.",
+    mount(body) {
+      body.innerHTML = `<div id="g"></div><div id="fig"></div><div class="ms-ctl"><div class="ltt-param">연도 <b id="year-v"></b><input id="year" type="range"></div></div>`;
+      const f = mixFig(body.querySelector("#fig"));
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let timer = 0, t0 = 0, auto = !reduced;
+      const stopAuto = () => { auto = false; clearTimeout(timer); };
+      ["pointerdown", "keydown"].forEach((ev) => body.querySelector(".ms-ctl").addEventListener(ev, stopAuto));
+      // 2000년에서 2050년까지 9초에 한 번 오갔다. 코사인이라 양 끝에서 천천히 멈춘다
+      const yearAt = (ms) => 2000 + 25 * (1 - Math.cos(2 * Math.PI * (ms / 1000) / 9));
+      const tick = () => { if (!auto) return; const y = yearAt(Date.now() - t0); f.draw(y); body.querySelector("#year-v").textContent = Math.round(y) + "년 · 자동 재생"; timer = setTimeout(tick, 16); };
+      LTT.sweep({ params: { year: { kind: "log", min: 2000, max: 2050, value: 2025, fmt: (v) => Math.round(v) + "년" } },
+        render: ({ year }) => { if (!auto) f.draw(year); },
+        goal: { el: "g", text: "어느 나라든 재생에너지 몫이 절반을 넘는 해를 찾는다", check: ({ year }) => COUNTRY.some((c) => mix(c, year)[3] > 50) } });
+      f.draw(reduced ? 2025 : 2000);
+      return { enter() { if (!auto) return; t0 = Date.now(); tick(); }, leave() { clearTimeout(timer); } };
+    },
+    takeaway: "같은 100%라도 원전 중심 나라와 재생 중심 나라의 띠 모양은 다르다. 연도가 갈수록 석탄 띠는 줄고 재생 띠는 커진다.",
+    recall: "A국 2037년의 재생에너지 몫은 대략 몇 %인가?"
+  }]
+});
+</script>
+</body>
+</html>

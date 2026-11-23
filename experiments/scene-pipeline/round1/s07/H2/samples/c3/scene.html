@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fan-out과 p99 꼬리 지연</title>
+<script type="application/json" id="ltt-meta">{"topic":"fan-out과 p99 꼬리 지연","audience":"백엔드 개발자","theme":"terminal","medium":"터미널·대시보드","decision":"한 요청이 부르는 백엔드 수","domain":"백엔드","role":"sweep","pattern":["mount"],"mode":"수업 장면 sweep: 손잡이로 N을 올리면 요청 줄이 하나씩 빨갛게 번지며 최댓값 구조를 보인다"}</script>
+<script type="application/json" id="ltt-checks">
+[
+ {"id": "k1", "expect": "N=1에서 요청 분포가 백엔드와 같다. 느린 요청 1.0%, 요청 p50·p99 = 10 ms, 요청 줄은 칸 하나짜리다.", "reach": [{"knob": "steps", "stop": 0}]},
+ {"id": "k2", "expect": "N=2에서 느린 요청 2.0%(1.99%)로 요청 p99가 1000 ms로 넘어가고, 백엔드 p50·p99·평균(19.9 ms)은 N=1과 같다.", "reach": [{"knob": "steps", "stop": 1}]},
+ {"id": "k3", "expect": "N=50에서 느린 요청 39.5%, 요청 p50은 아직 10 ms이고 p99는 1000 ms다. 꼬리가 분포 위쪽부터 아래로 내려온다.", "reach": [{"knob": "steps", "stop": 4}]},
+ {"id": "k4", "expect": "N=69에서 느린 요청 50.0%(50.02%)이고 요청 p50이 1000 ms로 넘어간다. 손잡이 눈금 69에서 표시가 바뀐다.", "reach": [{"knob": "steps", "stop": 5}]},
+ {"id": "k5", "expect": "N=100에서 느린 요청 63.4%, 요청 p50 = 1000 ms인데 백엔드 열은 p50 10 ms·p99 10 ms·평균 19.9 ms로 그대로 나란히 보인다.", "reach": [{"knob": "steps", "stop": 6}]},
+ {"id": "k6", "expect": "N을 1에서 100까지 훑을 때 느린 %는 줄어드는 구간 없이 증가해 100%에 못 미치고, 백엔드 열은 한 번도 바뀌지 않는다.", "reach": [{"knob": "steps", "stop": 0}, {"knob": "steps", "stop": 1}, {"knob": "steps", "stop": 2}, {"knob": "steps", "stop": 3}, {"knob": "steps", "stop": 4}, {"knob": "steps", "stop": 5}, {"knob": "steps", "stop": 6}]},
+ {"id": "k7", "expect": "N=100에서 요청 p99를 지키려면 백엔드 p99.99여야 한다는 줄이 보이고, 화면에 독립 가정과 범위 밖(상관·헤지·타임아웃) 한 줄이 있다.", "reach": [{"knob": "steps", "stop": 6}]},
+ {"id": "k8", "expect": "약 400 px 폭과 전폭에서 격자·표·라벨이 잘리거나 겹치지 않고, 라벨은 대상 옆에 있다.", "reach": [{"wait": 500}]}
+]
+</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.fo{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:28px;align-items:center;width:100%}
+.fo-grid,.fo-side{min-width:0}
+.fo-side{display:flex;flex-direction:column;gap:14px}
+.fo-cap{margin-bottom:10px;font-family:var(--ltt-mono);font-size:14px;color:var(--ltt-muted)}
+.fo-note{margin:12px 0 0;font-size:15px;color:var(--ltt-ink-2)}
+.fo-rows{display:flex;flex-direction:column;gap:5px}
+.fo-row{display:grid;grid-template-columns:minmax(0,1fr) 70px;gap:10px;align-items:center}
+.fo-cells{display:grid;grid-template-columns:repeat(100,minmax(0,1fr));height:14px;background:var(--ltt-card-2);border-radius:3px;overflow:hidden}
+.fo-cells.bad{background:var(--ltt-bad-soft)}
+.fo-cells i{display:block;background:var(--ltt-good);opacity:.55}
+.fo-cells i.slow{background:var(--ltt-bad);opacity:1}
+.fo-b{font-family:var(--ltt-mono);font-size:14px;text-align:right;color:var(--ltt-muted)}
+.fo-b.bad{color:var(--ltt-bad);font-weight:700}
+.fo-tb{overflow-x:auto}
+.fo-t{width:100%;border-collapse:collapse;font-family:var(--ltt-mono);font-size:15px}
+.fo-t th,.fo-t td{padding:7px 8px;border-bottom:1px solid var(--ltt-line);text-align:right}
+.fo-t thead th{font-size:14px;font-weight:400;color:var(--ltt-muted)}
+.fo-t tbody th{text-align:left;color:var(--ltt-ink-2)}
+.fo-t .bk{color:var(--ltt-muted)}
+.fo-t .rq{color:var(--ltt-ink);font-weight:700}
+.fo-t .rq.bad{color:var(--ltt-bad)}
+.fo-need{margin:0;font-size:15px;color:var(--ltt-ink-2)}
+@media (max-width:640px){.fo{grid-template-columns:minmax(0,1fr)}}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const ROWS = 30, P = 0.01, FAST = 10, SLOW = 1000;
+const slowFrac = (n) => 1 - Math.pow(1 - P, n);                       // 느린 요청 비율 = 1 − 0.99^N
+const quant = (q, n) => (Math.pow(1 - P, n) >= q ? FAST : SLOW);     // 요청 분포의 q분위 (F(10 ms) = 0.99^N)
+// 층화 표본: 요청 i의 첫 느린 칸 위치 K_i(1부터). N ≥ K_i이면 그 요청은 느리다
+const FIRST = Array.from({ length: ROWS }, (_, i) => Math.ceil(Math.log(1 - (i + .5) / ROWS) / Math.log(1 - P)));
+
+function gridRows(host) {
+  const rows = FIRST.map(() => {
+    const r = document.createElement("div");
+    r.className = "fo-row";
+    r.innerHTML = '<div class="fo-cells"></div><span class="fo-b"></span>';
+    host.appendChild(r);
+    return r;
+  });
+  return { set(n) {
+    rows.forEach((r, i) => {
+      const k = FIRST[i], bad = k <= n, cells = r.querySelector(".fo-cells"), b = r.querySelector(".fo-b");
+      let html = "";
+      for (let c = 1; c <= n; c++) html += c === k ? '<i class="slow"></i>' : "<i></i>";
+      cells.innerHTML = html;
+      cells.classList.toggle("bad", bad);
+      b.textContent = (bad ? SLOW : FAST) + " ms";
+      b.classList.toggle("bad", bad);
+    });
+  } };
+}
+
+function mount(body) {
+  body.innerHTML = `<div class="fo"><div class="fo-grid">
+      <div class="fo-cap">가로 한 줄 = 요청 한 건이 부른 백엔드 N칸 · 표본 요청 30건 · 빨간 칸 = 1000 ms로 느린 백엔드</div>
+      <div class="fo-rows" id="rows"></div>
+      <p class="fo-note">요청 지연 = N칸 중 가장 늦은 응답. 칸 하나만 빨개도 그 줄 전체가 느리다.</p>
+    </div>
+    <div class="fo-side">
+      <div class="ltt-stat"><span class="ltt-hero" id="slow"></span> <small>느린 요청 (1000 ms)</small></div>
+      <div class="ltt-param">한 요청이 부르는 백엔드 N개 <b id="steps-v"></b><div id="steps"></div></div>
+      <div class="fo-tb"><table class="fo-t">
+        <thead><tr><th></th><th>백엔드 1개</th><th>요청 (N개 중 최댓값)</th></tr></thead>
+        <tbody>
+          <tr><th>p50</th><td class="bk">10 ms</td><td class="rq" id="r50"></td></tr>
+          <tr><th>p99</th><td class="bk">10 ms</td><td class="rq" id="r99"></td></tr>
+          <tr><th>평균</th><td class="bk">19.9 ms</td><td class="rq" id="ravg"></td></tr>
+        </tbody>
+      </table></div>
+      <p class="fo-need">요청 p99를 지키려면 백엔드가 p<b id="need"></b>에서 빨라야 한다</p>
+      <div id="goal"></div>
+      <span class="ltt-tag muted">모델로 계산한 예시 · 독립 가정, 상관·헤지·타임아웃은 범위 밖</span>
+    </div></div>`;
+  const $ = (id) => body.querySelector("#" + id);
+  const rows = gridRows($("rows"));
+  LTT.sweep({ params: { steps: { kind: "steps", stops: [1, 2, 10, 20, 50, 69, 100], value: 1, fmt: (v) => v + "개" } },
+    render: ({ steps: n }) => {
+      const f = slowFrac(n), p50 = quant(.5, n), p99 = quant(.99, n);
+      rows.set(n);
+      $("slow").textContent = (f * 100).toFixed(1) + "%";
+      $("r50").textContent = p50 + " ms"; $("r50").classList.toggle("bad", p50 === SLOW);
+      $("r99").textContent = p99 + " ms"; $("r99").classList.toggle("bad", p99 === SLOW);
+      $("ravg").textContent = (FAST + (SLOW - FAST) * f).toFixed(1) + " ms";
+      $("need").textContent = (100 * Math.pow(1 - P, 1 / n)).toFixed(2);
+    },
+    goal: { el: "goal", text: "느린 요청이 절반을 넘는 N을 찾는다", check: ({ steps: n }) => slowFrac(n) > 0.5 } });
+}
+
+LTT.deck({
+  title: "fan-out과 p99 꼬리 지연", theme: "terminal",
+  glossary: {
+    "fan-out": "요청 하나를 여러 백엔드에 동시에 보내고, 전부 응답해야 끝나는 호출 구조",
+    "p99": "지연을 짧은 순으로 세웠을 때 99%가 이 값 이하인 지점"
+  },
+  scenes: [{
+    title: "백엔드는 그대로여도, 한 요청이 부르는 수 N이 늘면 느린 요청이 많아진다",
+    sub: "요청 하나가 백엔드 N개에 동시에 보내는 {{fan-out}}이다. 요청은 가장 늦은 응답을 기다리고, 그래서 {{p99}}가 먼저 백엔드의 꼬리 값으로 넘어간다. 손잡이로 N을 올려 보라.",
+    basis: "가정: 백엔드 하나는 99%가 10 ms, 1%가 1000 ms, 백엔드끼리 독립(p = 0.01). 느린 요청 비율 = 1−0.99^N. 숫자는 Dean & Barroso, 'The Tail at Scale'의 예와 같은 값. 격자는 표본 요청 30건이고, 큰 수치와 표는 공식값이다.",
+    mount
+  }]
+});
+LTT.expect("N=1 느린 요청 비율", slowFrac(1), 0.01, { tol: 0.0005 });
+LTT.expect("N=10 느린 요청 비율", slowFrac(10), 0.0956, { tol: 0.0005 });
+LTT.expect("N=50 느린 요청 비율", slowFrac(50), 0.395, { tol: 0.0005 });
+LTT.expect("N=100 느린 요청 비율", slowFrac(100), 0.634, { tol: 0.0005 });
+</script>
+</body>
+</html>

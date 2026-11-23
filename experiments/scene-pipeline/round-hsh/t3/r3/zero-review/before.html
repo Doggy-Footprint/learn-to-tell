@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의</title>
+<script type="application/json" id="ltt-meta">{"topic":"Raft 합의","audience":"분산 시스템 입문 개발자","theme":"sketch","medium":"아키텍처 화이트보드","decision":"합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const MAJ = Math.floor(5 / 2) + 1; // 과반수 = 3
+LTT.expect("5노드 과반수", MAJ, 3);
+LTT.expect("5노드 허용 장애", 5 - MAJ, 2);
+
+const POS = { 1: [2, 0], 2: [0, 1], 3: [4, 1], 4: [1, 2], 5: [3, 2] };
+// 단계별 상태: role(F 팔로워·C 후보·L 리더·D 다운), term, log
+const ROLE = { F: "팔로워", C: "후보", L: "리더", D: "다운" };
+const KIND = { F: undefined, C: "warn", L: "accent", D: "bad" };
+const E = "—", U = "▢1", C1 = "▣1";
+const S = [
+  { n: [["F", 0, E], ["F", 0, E], ["F", 0, E], ["F", 0, E], ["F", 0, E]], hot: { 1: "warn" }, hotL: "타이머 만료",
+    ctr: ["heartbeat 없음", "term 0 · 리더 없음", "muted"], edges: [] },
+  { n: [["C", 1, E], ["F", 1, E], ["F", 1, E], ["F", 1, E], ["F", 1, E]],
+    ctr: ["N1 득표 1/5", "자기 표 · 과반수는 3", "warn"],
+    edges: [[1, 2, "표 요청 T1"], [1, 3], [1, 4], [1, 5]], send: [[1, 2], [1, 3], [1, 4], [1, 5]] },
+  { n: [["L", 1, E], ["F", 1, E], ["F", 1, E], ["F", 1, E], ["F", 1, E]],
+    ctr: ["득표 3/5 ≥ 3", "T1 리더 확정", "good"],
+    edges: [[1, 2, "표"], [1, 3, "표"]], send: [[2, 1], [3, 1]] },
+  { n: [["L", 1, U], ["F", 1, E], ["F", 1, E], ["F", 1, E], ["F", 1, E]],
+    ctr: ["저장 1/5", "미커밋 · ack 아직 없음", "warn"], client: "write",
+    edges: [], send: [] },
+  { n: [["L", 1, U], ["F", 1, U], ["F", 1, E], ["F", 1, E], ["F", 1, E]],
+    ctr: ["저장 2/5", "미커밋 · 과반수 3 미달", "warn"], client: "write",
+    edges: [[1, 2, "AppendEntries"], [1, 3], [1, 4], [1, 5]], send: [[1, 2], [1, 3], [1, 4], [1, 5]] },
+  { n: [["L", 1, C1], ["F", 1, U], ["F", 1, U], ["F", 1, E], ["F", 1, E]],
+    ctr: ["저장 3/5 ≥ 3", "커밋 · commitIndex=1", "good"], client: "ack",
+    edges: [[1, 2, "응답"], [1, 3, "응답"]], send: [[2, 1], [3, 1]] },
+  { n: [["L", 1, C1], ["F", 1, C1], ["F", 1, C1], ["F", 1, C1], ["F", 1, C1]],
+    ctr: ["저장 5/5", "팔로워도 커밋 따라감", "good"],
+    edges: [[1, 2, "heartbeat+commit"], [1, 3], [1, 4], [1, 5]], send: [[1, 2], [1, 3], [1, 4], [1, 5]] },
+  { n: [["D", 1, C1], ["F", 2, C1], ["F", 2, C1], ["C", 2, E], ["F", 2, E]],
+    ctr: ["커밋 ▣1 보존", "▣1 보유 노드만 리더 가능", "good"],
+    edges: [[4, 2, "표 요청 T2"], [4, 3, "거절: 로그 덜 최신"]], send: [[4, 2], [4, 3]] },
+];
+// 실제 흐름: 단계 4·5·6에서 N4·N5가 아직 항목이 없도록 7번째 단계 로그는 별도 시나리오(N4는 끊겨 있던 노드)
+S[7].n[3] = ["C", 2, E]; S[7].n[4] = ["F", 2, E];
+
+function spec(i) {
+  const st = S[i];
+  const nodes = st.n.map(([r, t, log], k) => ({
+    id: "n" + (k + 1), c: POS[k + 1][0], r: POS[k + 1][1],
+    l: "N" + (k + 1) + " " + (st.hot && st.hot[k + 1] ? st.hotL : ROLE[r]),
+    s: "T" + t + " · 로그 " + log,
+    k: st.hot && st.hot[k + 1] ? st.hot[k + 1] : KIND[r], ring: r === "L",
+  }));
+  nodes.push({ id: "ctr", c: 2, r: 2, w: 210, h: 70, l: st.ctr[0], s: st.ctr[1], k: st.ctr[2] });
+  const edges = st.edges.map(([f, t, l]) => ({ f: "n" + f, t: "n" + t, l, both: true, k: l && /거절/.test(l) ? "bad" : undefined }));
+  if (st.client) {
+    nodes.push({ id: "cl", c: 0, r: 0, l: "클라이언트", s: st.client === "ack" ? "ack 수신" : "x=1 쓰기", icon: "user", k: st.client === "ack" ? "good" : "muted" });
+    edges.push({ f: "cl", t: "n1", l: st.client === "ack" ? "ack (커밋 후)" : "쓰기", dash: st.client === "ack", arrow: true });
+  }
+  return { cols: 5, rows: 3, cell: [210, 150], node: [170, 66], sketch: true, nodes, edges };
+}
+
+const cap = [
+  "① 리더가 없어 heartbeat가 끊긴다. N1의 election timeout이 먼저 끝난다. 노드마다 타이머가 무작위라 한 노드가 먼저 나선다.",
+  "② N1은 후보가 되며 term을 T1로 올린 뒤 투표를 요청한다. 선출 결과보다 term이 먼저 바뀐다.",
+  "③ N2·N3이 표를 주어 3/5 과반수. N1이 T1 리더가 된다. 노드는 term마다 한 표뿐이라 리더는 한 명이다.",
+  "④ 쓰기 x=1이 리더 로그에 먼저 들어간다(▢ 미커밋). 아직 팔로워에 닿지 않았고 ack도 없다.",
+  "⑤ AppendEntries로 복제. N2가 저장해 2/5. 과반수 3에 못 미쳐 아직 미커밋이다.",
+  "⑥ N3까지 저장해 3/5. 이 순간 N1이 commitIndex를 올리고(▣) 클라이언트에 ack한다.",
+  "⑦ 다음 heartbeat에서 팔로워도 commitIndex를 따라가고, 뒤처진 N4·N5도 항목을 받는다.",
+  "⑧ 리더가 죽어도 ▣1을 가진 N2·N3이 있어 데이터는 남는다. 로그가 덜 최신인 N4는 표를 못 받는다.",
+];
+
+LTT.deck({
+  title: "Raft: 과반수가 고른 리더만 쓰고, 과반수에 저장된 것만 커밋한다",
+  theme: "sketch",
+  scenes: [{
+    type: "overview",
+    title: "과반수 3/5 저장이 되는 순간 항목이 커밋된다",
+    en: "Raft leader election and log replication",
+    sub: "▢ 미커밋 · ▣ 커밋 · T는 term · 아래 가운데 상자가 과반수 계수. 단계를 넘겨 본다.",
+    label: "5노드 클러스터",
+    caption: "쓰기마다 과반수 왕복 지연을 치르는 대신, 2대 장애까지 커밋된 데이터를 잃지 않는다.",
+    figure: (el) => {
+      const s = el.appendChild(document.createElementNS(SVG, "svg"));
+      const fig = { el: s, dg: null, show(i) { s.innerHTML = ""; fig.dg = LTT.diagram(s, spec(i)); return fig.dg; } };
+      fig.show(0);
+      return fig;
+    },
+    steps: cap.map((c, i) => ({
+      caption: c,
+      enter: (k, fig) => {
+        const dg = fig.show(i);
+        (S[i].send || []).forEach(([a, b]) => dg.send("n" + a, "n" + b, { count: 1 }));
+      },
+    })),
+    takeaway: "과반수(5개 중 3개)가 투표한 리더만 쓰고, 과반수에 저장된 항목만 커밋하므로 2대가 죽어도 커밋 데이터는 남는다.",
+    recall: "리더가 로그에 append한 직후 죽으면 그 항목은 어떻게 되나?",
+  }],
+});
+</script>
+</body>
+</html>

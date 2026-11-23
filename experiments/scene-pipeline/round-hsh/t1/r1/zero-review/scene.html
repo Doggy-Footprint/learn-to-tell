@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할</title>
+<script type="application/json" id="ltt-meta">{"topic": "B+tree 노드 분할", "audience": "백엔드 개발자", "theme": "blueprint", "medium": "DB 내부 구조 도해", "decision": "인덱스 설계와 페이지 크기 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const NS = "http://www.w3.org/2000/svg", C = 36, H = 34, OX = 90, ROW = [40, 150, 275, 410];
+const el$ = (p, n, a = {}) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
+
+// 노드 명세: row(층 줄), keys, kids(자식 id, 키 수 + 1개), x(리프·생략 노드만), cls(full|over), tag, newKeys, spawn(분할 전 원본)
+const leaf = (id, keys, x, o = {}) => ({ id, row: 3, keys, x, ...o });
+const stubs = [880, 948, 1016, 1084].map((x, i) => ({ id: "s" + (i + 1), row: 2, stub: true, x, keys: [] }));
+const K = { A: [10, 20, 22, 28], B: [30, 40, 50, 55], C: [60, 65, 70, 75], D: [80, 85, 88, 89], E: [90, 95, 97, 99] };
+const X0 = { A: 0, B: 200, C: 366, D: 532, E: 698 };
+const X1 = { A: 0, A2: 130, B: 224, C: 390, D: 556, E: 722 };
+const leaves0 = (o = {}) => ["A", "B", "C", "D", "E"].map(i => leaf(i, K[i], X0[i], o[i] || {}));
+const leaves1 = (a, a2) => [leaf("A", a[0], X1.A, a[1] || {}), leaf("A2", [25, 28], X1.A2, a2 || {}),
+  ...["B", "C", "D", "E"].map(i => leaf(i, K[i], X1[i]))];
+const LV0 = ["", "1층 루트", "2층 내부", "3층 리프"], LV1 = ["1층 루트", "2층 내부", "3층 내부", "4층 리프"];
+const ctr = (L, id) => [L[id].x + L[id].w / 2, L[id].y + H / 2];
+const kc = (L, id, i) => [L[id].x + i * C + C / 2, L[id].y + H / 2];
+
+const S = [
+  { path: [], labels: LV0, height: 3, chain: [], nodes: [
+    { id: "R", row: 1, keys: [100, 200, 300, 400], kids: ["N2", "s1", "s2", "s3", "s4"], cls: "full", tag: "가득 4/4" },
+    { id: "N2", row: 2, keys: [30, 60, 80, 90], kids: ["A", "B", "C", "D", "E"], cls: "full", tag: "가득 4/4" },
+    ...stubs, ...leaves0({ A: { cls: "full", tag: "가득 4/4" } })] },
+  { path: ["R", "N2", "A"], labels: LV0, height: 3, chain: [],
+    fly: { label: "25", keep: true, pts: (p, L) => [[ctr(L, "R")[0], ROW[0] + H / 2], ctr(L, "R"), ctr(L, "N2"), [ctr(L, "A")[0], 372]] },
+    nodes: [
+    { id: "R", row: 1, keys: [100, 200, 300, 400], kids: ["N2", "s1", "s2", "s3", "s4"], cls: "full" },
+    { id: "N2", row: 2, keys: [30, 60, 80, 90], kids: ["A", "B", "C", "D", "E"], cls: "full" },
+    ...stubs, ...leaves0({ A: { cls: "full" } })] },
+  { path: ["R", "N2", "A"], labels: LV0, height: 3, chain: [],
+    fly: { label: "25", pts: (p, L) => [[ctr(p, "A")[0], 372], kc(L, "A", 3)], ghost: ["A", 3] },
+    nodes: [
+    { id: "R", row: 1, keys: [100, 200, 300, 400], kids: ["N2", "s1", "s2", "s3", "s4"], cls: "full" },
+    { id: "N2", row: 2, keys: [30, 60, 80, 90], kids: ["A", "B", "C", "D", "E"], cls: "full" },
+    ...stubs, ...leaves0({ A: { keys: [10, 20, 22, 25, 28], cls: "over", tag: "5/4 초과", newKeys: [3] } })] },
+  { path: [], labels: LV0, height: 3, chain: [{ k: 25, t: "복사" }],
+    fly: { label: "25", pts: (p, L) => [kc(L, "A2", 0), kc(L, "N2", 0)], ghost: ["N2", 0] },
+    nodes: [
+    { id: "R", row: 1, keys: [100, 200, 300, 400], kids: ["N2", "s1", "s2", "s3", "s4"], cls: "full" },
+    { id: "N2", row: 2, keys: [25, 30, 60, 80, 90], kids: ["A", "A2", "B", "C", "D", "E"], cls: "over", tag: "5/4 초과", newKeys: [0] },
+    ...stubs, ...leaves1([[10, 20, 22]], { spawn: "A", tag: "새 리프", newKeys: [0] })] },
+  { path: [], labels: LV0, height: 3, chain: [{ k: 25, t: "복사" }, { k: 60, t: "이동" }],
+    fly: { label: "60", pts: (p, L) => [kc(p, "N2", 2), kc(L, "R", 0)], ghost: ["R", 0] },
+    nodes: [
+    { id: "R", row: 1, keys: [60, 100, 200, 300, 400], kids: ["N2", "N2b", "s1", "s2", "s3", "s4"], cls: "over", tag: "5/4 초과", newKeys: [0] },
+    { id: "N2", row: 2, keys: [25, 30], kids: ["A", "A2", "B"] },
+    { id: "N2b", row: 2, keys: [80, 90], kids: ["C", "D", "E"], spawn: "N2", tag: "새 노드" },
+    ...stubs, ...leaves1([[10, 20, 22]], {})] },
+  { path: [], labels: LV1, height: 4, chain: [{ k: 25, t: "복사" }, { k: 60, t: "이동" }, { k: 200, t: "이동" }],
+    fly: { label: "200", pts: (p, L) => [kc(p, "R", 2), kc(L, "NR", 0)], ghost: ["NR", 0] },
+    nodes: [
+    { id: "NR", row: 0, keys: [200], kids: ["R", "R2"], spawn: "R", tag: "새 루트 · 키 1개", newKeys: [0] },
+    { id: "R", row: 1, keys: [60, 100], kids: ["N2", "N2b", "s1"] },
+    { id: "R2", row: 1, keys: [300, 400], kids: ["s2", "s3", "s4"], spawn: "R", tag: "새 노드" },
+    { id: "N2", row: 2, keys: [25, 30], kids: ["A", "A2", "B"] },
+    { id: "N2b", row: 2, keys: [80, 90], kids: ["C", "D", "E"] },
+    ...stubs, ...leaves1([[10, 20, 22]], {})] },
+  { path: ["NR", "R", "N2", "A"], labels: LV1, hlRows: [3], height: 4, chain: [{ k: 25, t: "복사" }, { k: 60, t: "이동" }, { k: 200, t: "이동" }],
+    nodes: [
+    { id: "NR", row: 0, keys: [200], kids: ["R", "R2"], tag: "새 루트 · 키 1개" },
+    { id: "R", row: 1, keys: [60, 100], kids: ["N2", "N2b", "s1"] },
+    { id: "R2", row: 1, keys: [300, 400], kids: ["s2", "s3", "s4"] },
+    { id: "N2", row: 2, keys: [25, 30], kids: ["A", "A2", "B"] },
+    { id: "N2b", row: 2, keys: [80, 90], kids: ["C", "D", "E"] },
+    ...stubs, ...leaves1([[10, 20, 22]], {})] },
+];
+
+function layout(st) {
+  const m = {}, L = {};
+  st.nodes.forEach(n => m[n.id] = n);
+  const place = n => {
+    if (L[n.id]) return L[n.id];
+    const w = n.stub ? 56 : n.keys.length * C; let x;
+    if (n.kids) { const ks = n.kids.map(i => place(m[i])); x = (Math.min(...ks.map(k => k.x)) + Math.max(...ks.map(k => k.x + k.w))) / 2 - w / 2; }
+    else x = n.x + OX;
+    return L[n.id] = { x, y: ROW[n.row], w, n };
+  };
+  st.nodes.forEach(place);
+  return L;
+}
+
+function drawNode(g, n, w, ghostIdx, hl) {
+  g.textContent = "";
+  if (n.stub) {
+    el$(g, "rect", { width: w, height: H, rx: 4, fill: "var(--ltt-card-2)", stroke: "var(--ltt-line-2)", "stroke-dasharray": "4 3" });
+    el$(g, "text", { x: w / 2, y: H / 2 + 5, "text-anchor": "middle", "font-size": 16, fill: "var(--ltt-muted)" }).textContent = "…";
+    return;
+  }
+  const fill = n.cls === "over" ? "var(--ltt-bad-soft)" : n.cls === "full" ? "var(--ltt-warn-soft)" : "var(--ltt-card)";
+  const edge = n.cls === "over" ? "var(--ltt-bad)" : hl ? "var(--ltt-accent)" : "var(--ltt-ink-2)";
+  n.keys.forEach((k, i) => {
+    const nk = (n.newKeys || []).includes(i), gh = i === ghostIdx;
+    const c = el$(g, "g", { opacity: gh ? 0 : 1 }); if (gh) c.dataset.ghost = 1;
+    el$(c, "rect", { x: i * C, width: C, height: H, fill: nk ? "var(--ltt-accent-soft)" : fill, stroke: "var(--ltt-line-2)" });
+    el$(c, "text", { x: i * C + C / 2, y: H / 2 + 5, "text-anchor": "middle", "font-size": 15, "font-weight": nk ? 700 : 500, fill: "var(--ltt-ink)" }).textContent = k;
+  });
+  el$(g, "rect", { width: w, height: H, rx: 3, fill: "none", stroke: edge, "stroke-width": hl || n.cls === "over" ? 2.5 : 1.5 });
+  if (n.tag) {
+    const tc = n.cls === "over" ? "var(--ltt-bad)" : "var(--ltt-ink-2)";
+    el$(g, "text", { x: 0, y: -8, "font-size": 17, "font-weight": 600, fill: tc, stroke: "var(--ltt-bg)", "stroke-width": 4, "paint-order": "stroke" }).textContent = n.tag;
+  }
+}
+
+const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const lerp = (a, b, t) => a + (b - a) * t;
+
+function build(el) {
+  const svg = el$(el, "svg", { viewBox: "0 0 1280 520", width: "100%", role: "img", "aria-label": "B+tree 노드 분할이 루트까지 번지는 과정" });
+  svg.style.maxHeight = "100%";
+  const defs = el$(svg, "defs");
+  const mk = el$(defs, "marker", { id: "bt-arr", viewBox: "0 0 8 8", refX: 7, refY: 4, markerWidth: 7, markerHeight: 7, orient: "auto" });
+  el$(mk, "path", { d: "M0 0L8 4L0 8z", fill: "var(--ltt-muted)" });
+  const labelG = el$(svg, "g"), edgeG = el$(svg, "g"), linkG = el$(svg, "g"), nodeG = el$(svg, "g"), chipG = el$(svg, "g"), tokG = el$(svg, "g");
+  const lab = [0, 1, 2, 3].map(r => el$(labelG, "text", { x: 0, y: ROW[r] + H / 2 + 5, "font-size": 18, fill: "var(--ltt-muted)" }));
+  el$(svg, "text", { x: 880 + OX, y: ROW[2] + H + 20, "font-size": 16, fill: "var(--ltt-muted)" }).textContent = "루트의 다른 자식(생략)";
+  const badge = el$(svg, "text", { x: 1270, y: 64, "text-anchor": "end", "font-size": 18, "font-weight": 700, fill: "var(--ltt-ink)" });
+  const tok = el$(tokG, "g", { display: "none" });
+  el$(tok, "rect", { x: -C / 2, y: -H / 2, width: C, height: H, rx: 4, fill: "var(--ltt-dark)", stroke: "var(--ltt-accent)", "stroke-width": 2 });
+  const tokT = el$(tok, "text", { y: 5, "text-anchor": "middle", "font-size": 15, "font-weight": 700, fill: "var(--ltt-on-dark)" });
+
+  let cur = {}, gen = 0, idx = -1, prevL = null;
+
+  function drawEdges(st) {
+    edgeG.textContent = ""; linkG.textContent = "";
+    const pos = id => cur[id];
+    st.nodes.forEach(n => {
+      if (!n.kids) return;
+      const p = pos(n.id);
+      n.kids.forEach((cid, i) => {
+        const c = pos(cid); if (!c) return;
+        const on = st.path.includes(n.id) && st.path[st.path.indexOf(n.id) + 1] === cid;
+        const isStub = /^s\d$/.test(cid);
+        el$(edgeG, "line", { x1: p.x + i * C, y1: p.y + H, x2: c.x + c.w / 2, y2: c.y,
+          stroke: on ? "var(--ltt-accent)" : "var(--ltt-ink-2)", "stroke-width": on ? 2.5 : 1.3,
+          "stroke-dasharray": isStub ? "4 3" : "none", opacity: Math.min(p.op, c.op) });
+      });
+    });
+    const lv = st.nodes.filter(n => n.row === 3);
+    for (let i = 0; i < lv.length - 1; i++) {
+      const a = pos(lv[i].id), b = pos(lv[i + 1].id);
+      el$(linkG, "line", { x1: a.x + a.w + 2, y1: a.y + H / 2, x2: b.x - 2, y2: b.y + H / 2, stroke: "var(--ltt-muted)", "stroke-width": 1.5,
+        "marker-end": "url(#bt-arr)", opacity: Math.min(a.op, b.op) });
+    }
+  }
+
+  function chips(st) {
+    chipG.textContent = "";
+    el$(chipG, "text", { x: OX, y: 500, "font-size": 14, fill: "var(--ltt-muted)" }).textContent = "위로 올라간 구분 키";
+    st.chain.forEach((c, i) => {
+      const x = 270 + i * 150, g = el$(chipG, "g", { transform: `translate(${x},480)` });
+      el$(g, "rect", { width: 134, height: 28, rx: 14, fill: "var(--ltt-accent-soft)", stroke: "var(--ltt-accent)" });
+      el$(g, "text", { x: 67, y: 19, "text-anchor": "middle", "font-size": 14, "font-weight": 700, fill: "var(--ltt-ink)" }).textContent = (i ? "→ " : "") + c.k + " · " + c.t;
+    });
+  }
+
+  function go(i, instant) {
+    const st = S[i], L = layout(st), my = ++gen, pL = prevL || L, ms = instant ? 0 : LTT.MOTION_MS === 0 ? 0 : 800;
+    tok.setAttribute("display", "none");
+    const from = {}, to = {};
+    st.nodes.forEach(n => {
+      const t = L[n.id]; let c = cur[n.id];
+      if (!c) { const sp = n.spawn && cur[n.spawn]; c = cur[n.id] = { x: sp ? sp.x : t.x, y: sp ? sp.y : t.y, op: 0, g: el$(nodeG, "g") }; }
+      c.dying = false; c.w = t.w; c.n = n;
+      from[n.id] = { x: c.x, y: c.y, op: c.op }; to[n.id] = { x: t.x, y: t.y, op: 1 };
+      const gh = st.fly && st.fly.ghost && st.fly.ghost[0] === n.id && ms ? st.fly.ghost[1] : -1;
+      drawNode(c.g, n, t.w, gh, st.path.includes(n.id));
+    });
+    Object.keys(cur).forEach(id => { if (!L[id]) { const c = cur[id]; c.dying = true; from[id] = { x: c.x, y: c.y, op: c.op }; to[id] = { x: c.x, y: c.y, op: 0 }; } });
+    lab.forEach((t, r) => { t.textContent = st.labels[r]; t.setAttribute("fill", (st.hlRows || []).includes(r) ? "var(--ltt-accent)" : "var(--ltt-muted)"); t.setAttribute("font-weight", (st.hlRows || []).includes(r) ? 700 : 400); });
+    badge.textContent = "트리 높이 " + st.height;
+    chips(st);
+    const pts = st.fly ? st.fly.pts(pL, L) : null;
+    const segMs = pts ? (pts.length > 2 ? 600 : 900) : 0, flyTot = pts ? segMs * (pts.length - 1) : 0, total = Math.max(ms, ms ? flyTot : 0);
+    prevL = L; idx = i;
+
+    const apply = (t) => {
+      Object.keys(cur).forEach(id => { const c = cur[id], f = from[id], o = to[id]; if (!f) return;
+        c.x = lerp(f.x, o.x, t); c.y = lerp(f.y, o.y, t); c.op = lerp(f.op, o.op, t);
+        c.g.setAttribute("transform", `translate(${c.x},${c.y})`); c.g.style.opacity = c.op; });
+      drawEdges(st);
+    };
+    const finish = () => {
+      apply(1);
+      Object.keys(cur).forEach(id => { if (cur[id].dying) { cur[id].g.remove(); delete cur[id]; } });
+      if (st.fly && st.fly.ghost) { const c = cur[st.fly.ghost[0]]; drawNode(c.g, c.n, c.w, -1, st.path.includes(c.n.id)); }
+      if (pts && st.fly.keep) { tokT.textContent = st.fly.label; tok.setAttribute("transform", `translate(${pts[pts.length - 1]})`); tok.setAttribute("display", ""); }
+      drawEdges(st);
+    };
+    if (!ms) { finish(); return; }
+    let t0 = null;
+    const frame = now => {
+      if (my !== gen) return;
+      if (t0 === null) t0 = now;
+      const el = now - t0, t = Math.min(1, el / 800);
+      apply(ease(t));
+      if (pts) {
+        const q = Math.min(1, el / flyTot), s = Math.min(pts.length - 2, Math.floor(q * (pts.length - 1))), u = ease(q * (pts.length - 1) - s > 1 ? 1 : q * (pts.length - 1) - s);
+        const a = pts[s], b = pts[s + 1];
+        tokT.textContent = st.fly.label; tok.setAttribute("transform", `translate(${lerp(a[0], b[0], u)},${lerp(a[1], b[1], u)})`); tok.setAttribute("display", "");
+      }
+      if (el < total) requestAnimationFrame(frame); else finish();
+    };
+    requestAnimationFrame(frame);
+  }
+  go(0, true);
+  return { el: svg, go };
+}
+
+LTT.deck({
+  title: "B+tree 분할 연쇄",
+  theme: "blueprint",
+  glossary: {
+    "리프": "실제 키(와 행 위치)가 놓이는 맨 아래 층의 노드. 리프끼리는 오른쪽 형제 링크로 이어진다.",
+    "구분 키": "부모 노드에서 어느 자식으로 내려갈지 가르는 기준 키. 분할 때마다 하나가 위로 올라간다."
+  },
+  scenes: [{
+    type: "figure",
+    kicker: "DB 내부 구조",
+    title: "분할은 가득 찬 노드마다 한 층씩 번지다 새 루트에서 멈춘다",
+    en: "A B+tree split propagates upward until a new root is born",
+    sub: "노드 하나는 최대 4키라고 가정한다. 25를 넣을 {{리프}}와 그 조상 둘이 모두 가득 차 있고, 분할마다 {{구분 키}} 하나가 올라간다.",
+    figure: build,
+    steps: [
+      { caption: "① 25가 들어갈 길(루트 → N2 → 맨 왼쪽 리프)의 노드 셋이 모두 4키로 가득 차 있다", hold: 3800, enter: (k, f) => f.go(0) },
+      { caption: "② 25는 루트에서 아래로 내려가며 자기 자리를 찾는다", hold: 4200, enter: (k, f) => f.go(1) },
+      { caption: "③ 리프에 25를 끼우면 5키가 되어 용량 4를 넘는다", hold: 3600, enter: (k, f) => f.go(2) },
+      { caption: "④ 리프 분할: 오른쪽에 새 리프가 생겨 [25, 28]을 받고, 25는 복사되어 N2로 올라간다. 25는 리프에도 남고, N2가 5키로 넘친다", hold: 5200, enter: (k, f) => f.go(3) },
+      { caption: "⑤ N2 분할: 오른쪽에 새 노드가 생기고, 가운데 키 60은 이동해 루트로 올라간다. 아래 노드에는 남지 않고, 루트가 5키로 넘친다", hold: 5600, enter: (k, f) => f.go(4) },
+      { caption: "⑥ 루트 분할: 200이 이동해 올라가고, 갈라진 둘을 가리키는 새 루트가 맨 위에 생긴다", hold: 5000, enter: (k, f) => f.go(5) },
+      { caption: "⑦ 기존 노드는 그대로이고 맨 위에 한 층이 얹혀 모든 리프의 깊이가 함께 1 늘었다. 높이 3 → 4. 부모에 빈자리가 있었다면 연쇄는 그 층에서 멈춘다", hold: 5600, enter: (k, f) => f.go(6) }
+    ],
+    takeaway: "분할은 가득 찬 노드를 따라 아래에서 위로 번지고, 루트까지 가득 찼을 때만 새 루트가 생겨 높이가 1 커진다.",
+    recall: "리프가 가득 찼지만 부모에 빈자리가 있다면 분할은 어디까지 번질까?",
+    basis: "노드당 최대 4키는 도해용 가정이다. 8KB 페이지에서 키+포인터를 약 16B로 보면 자식 수(팬아웃)가 약 500이고 500³ ≈ 1.25억 키가 높이 3에 들어간다(근사, 불확실). 대부분의 삽입은 리프 하나에서 끝난다."
+  }]
+});
+</script>
+</body>
+</html>

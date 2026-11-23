@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>온도조절기 오버슈트</title>
+<script type="application/json" id="ltt-meta">{"topic":"온도조절기 되먹임 루프와 오버슈트","audience":"제어 입문자","theme":"lab","medium":"실험 노트 플롯","decision":"히스테리시스 폭과 난방 지연","domain":"제어","pattern":["hook"],"mode":"장면 하나짜리. 되먹임 구조를 \"입자가 흐름\" 움직임과 겹쳐 놓기 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>.tc-host{width:820px;max-width:100%;margin:0 auto}.tc-host svg{width:100%;height:auto;display:block}.tc-host text{font-family:inherit}</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head><body><script>
+const SVG = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function loop(period, draw) { let raf = 0, t0 = 0;
+  return { enter() { clearTimeout(raf); if (reduced) { draw(0.999); return; }
+      t0 = Date.now(); const f = () => { draw(((Date.now() - t0) / period) % 1); raf = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(raf); } }; }
+
+// 1차 열 모델 + 켜짐/꺼짐 조절기 + 난방 지연. 계수는 가정이다.
+const K = 0.05, G = 1.0, TA = 10, SP = 20, HALF = 0.5, LAG_MIN = 2; // 열 손실 1/분, 난방 세기 °C/분, 외기 °C, 목표 °C, 밴드 반폭 °C, 지연 분
+const SPAN = 90, DT = 0.01, STEPS = Math.round(SPAN / DT), LAG = Math.round(LAG_MIN / DT);
+const T = new Float64Array(STEPS + 1), U = new Uint8Array(STEPS);
+T[0] = 17; let on = true;
+for (let i = 0; i < STEPS; i++) {
+  if (T[i] > SP + HALF) on = false; else if (T[i] < SP - HALF) on = true;
+  U[i] = on ? 1 : 0;
+  T[i + 1] = T[i] + DT * (-K * (T[i] - TA) + (i >= LAG ? G * U[i - LAG] : 0));
+}
+// 0.1분 간격 표본. 방 온도, 조절기 명령, 명령에서 지연되어 실제로 들어가는 열
+const N = STEPS / 10, RT = [];
+for (let k = 0; k <= N; k++) RT.push(T[k * 10]);
+const cmd = (k) => U[Math.min(k * 10, STEPS - 1)];
+const heat = (k) => k * 10 >= LAG ? U[k * 10 - LAG] : 0;
+const LAGK = LAG / 10;
+let pk = 0; for (let k = 0; k <= 300; k++) if (RT[k] > RT[pk]) pk = k; // 처음 30분 안의 첫 정점
+const PEAK = RT[pk];
+let off = 0; while (off < N && cmd(off)) off++; // 조절기가 처음 끄는 순간
+// 정상 상태(60분 이후) 평균 온도. 손계산: 외기 10 + 난방 1 × 켜진 비율 1/2 ÷ 열 손실 0.05 = 20
+let sum = 0; for (let k = 600; k <= N; k++) sum += RT[k];
+LTT.expect("정상 상태 평균 온도 (목표 20°C)", sum / (N - 599), 20, { tol: 0.3 });
+
+const VW = 820, VH = 432, L = 100, R = 700, TOP = 30, BOT = 290, TLO = 16, THI = 24;
+const X = (m) => L + m / SPAN * (R - L);
+const Y = (c) => BOT - (c - TLO) / (THI - TLO) * (BOT - TOP);
+const CMD_ON = 330, CMD_OFF = 344, HEAT_ON = 366, HEAT_OFF = 380;
+const pts = (from, to, yOf) => { let d = ""; for (let k = from; k <= to; k++) d += (d ? "L" : "M") + X(k / 10).toFixed(1) + "," + yOf(k).toFixed(1); return d; };
+
+function scene(host) {
+  const s = el("svg", { viewBox: `0 0 ${VW} ${VH}` }, host);
+  const txt = (x, y, str, css, anchor) => { const n = el("text", { x, y, "text-anchor": anchor || "start", style: css }, s); n.textContent = str; return n; };
+  const AX = "stroke:var(--ltt-ink);stroke-width:2", DASH = "stroke:var(--ltt-line-2);stroke-width:1.2;stroke-dasharray:5 6", GREY = "font-size:14px;fill:var(--ltt-ink-2)";
+  el("rect", { x: L, y: Y(20.5), width: R - L, height: Y(19.5) - Y(20.5), style: "fill:var(--ltt-accent-soft)" }, s);
+  el("line", { x1: L, x2: R, y1: Y(20), y2: Y(20), style: DASH }, s);
+  el("line", { x1: L, x2: L, y1: TOP, y2: BOT, style: AX }, s);
+  el("line", { x1: L, x2: R, y1: BOT, y2: BOT, style: AX }, s);
+  for (const c of [16, 18, 20, 22, 24]) txt(L - 10, Y(c) + 5, `${c}°`, GREY, "end");
+  txt(L - 10, TOP - 12, "방 온도", GREY, "end");
+  txt(R + 10, Y(20.5) + 5, "끔 20.5", GREY);
+  txt(R + 10, Y(20) + 5, "목표 20", GREY);
+  txt(R + 10, Y(19.5) + 5, "켬 19.5", GREY);
+  txt(L - 10, (CMD_ON + CMD_OFF) / 2 + 5, "조절기", GREY, "end");
+  txt(L - 10, (HEAT_ON + HEAT_OFF) / 2 + 5, "실제 열", GREY, "end");
+  for (const m of [0, 30, 60, 90]) txt(X(m), 420, `${m}분`, GREY, "middle");
+
+  // 겹쳐 놓기: 위는 방 온도, 아래는 같은 시간축의 조절기 명령과 실제 열
+  const trace = el("path", { fill: "none", style: "stroke:var(--ltt-ink);stroke-width:3" }, s);
+  const cmdP = el("path", { fill: "none", style: "stroke:var(--ltt-accent);stroke-width:4" }, s);
+  const heatP = el("path", { fill: "none", style: "stroke:var(--ltt-warn);stroke-width:4" }, s);
+  const lagBar = el("path", { d: `M${X(off / 10)},394 H${X((off + LAGK) / 10)} M${X(off / 10)},390 V398 M${X((off + LAGK) / 10)},390 V398`, style: "fill:none;stroke:var(--ltt-ink-2);stroke-width:1.5" }, s);
+  const lagTx = txt((X(off / 10) + X((off + LAGK) / 10)) / 2, 412, `지연 ${LAG_MIN}분`, GREY, "middle");
+  const peakTx = txt(X(pk / 10) + 6, Y(PEAK) - 12, `최고 ${PEAK.toFixed(1)}°C · 오버슈트 +${(PEAK - (SP + HALF)).toFixed(1)}°C`, "font-size:14px;fill:var(--ltt-bad);font-weight:700");
+  const cursor = el("line", { y1: TOP - 4, y2: 388, style: "stroke:var(--ltt-muted);stroke-width:1.2;stroke-dasharray:2 4" }, s);
+
+  // 입자가 흐름: 머리 입자 뒤로 방 온도 곡선 위를 따라 흐려지는 입자가 따라온다
+  const trail = Array.from({ length: 8 }, (_, j) => el("circle", { r: 4.5 - j * 0.35, style: `fill:var(--ltt-accent);opacity:${(1 - j / 8) * 0.7}` }, s));
+  const head = el("circle", { r: 8, style: "fill:var(--ltt-accent)" }, s);
+
+  return function draw(u) {
+    const kh = Math.min(N, Math.round(u * N));
+    trace.setAttribute("d", pts(0, kh, (k) => Y(RT[k])));
+    cmdP.setAttribute("d", pts(0, kh, (k) => cmd(k) ? CMD_ON : CMD_OFF));
+    heatP.setAttribute("d", pts(0, kh, (k) => heat(k) ? HEAT_ON : HEAT_OFF));
+    cursor.setAttribute("x1", X(kh / 10)); cursor.setAttribute("x2", X(kh / 10));
+    head.setAttribute("cx", X(kh / 10)); head.setAttribute("cy", Y(RT[kh]));
+    trail.forEach((c, j) => { const k = Math.max(0, kh - (j + 1) * 9); c.setAttribute("cx", X(k / 10)); c.setAttribute("cy", Y(RT[k])); });
+    peakTx.style.opacity = kh >= pk ? 1 : 0;
+    lagBar.style.opacity = lagTx.style.opacity = kh >= off + LAGK ? 1 : 0;
+  };
+}
+
+LTT.deck({
+  title: "온도조절기 오버슈트", theme: "lab",
+  glossary: {
+    "오버슈트": "목표값을 넘어서 올라가는 현상. 명령이 늦게 효과를 내는 되먹임에서 생긴다",
+    "지연": "조절기가 명령을 내린 뒤 실제 열이 방에 들어올 때까지 걸리는 시간",
+  },
+  scenes: [{
+    type: "hook", pre: "온도조절기 · 되먹임 루프", text: "히터를 끈 뒤에도 방은 더 따뜻해진다",
+    sub: "조절기는 20.5°C에서 난방을 끈다. 그런데 이미 나간 열은 {{지연}}만큼 더 들어와서, 온도는 목표를 넘어 {{오버슈트}}를 만든 뒤에야 내려온다.",
+    basis: "모델로 계산한 예시: 1차 열 모델 dT/dt = −0.05(T−10) + 1.0·u(t−2분) (°C/분), 목표 20°C, 밴드 ±0.5°C. 계수와 2분 지연은 가정이다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    mount(body) {
+      const host = body.appendChild(document.createElement("div"));
+      host.className = "tc-host"; host.setAttribute("data-annotate", "");
+      return loop(12000, scene(host));
+    } }]
+});
+</script></body></html>

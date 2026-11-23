@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fan-out과 p99 꼬리 지연</title>
+<script type="application/json" id="ltt-meta">{"topic":"fan-out 수에 따른 p99 꼬리 지연","audience":"백엔드 개발자","theme":"terminal","medium":"터미널·대시보드","decision":"한 요청이 부르는 백엔드 수","domain":"백엔드","pattern":["mount"],"mode":"sweep: 손잡이로 N을 옮기며 고정된 백엔드 분포와 움직이는 요청 분포를 위아래 두 띠로 대비한다"}</script>
+<script type="application/json" id="ltt-checks">
+[
+ {"id": "k1", "expect": "N=1일 때 위아래 두 띠가 같다. 느린 요청 1.0%, 요청 p99 = 10 ms, 요청 경계 = 백엔드 경계(99%).", "reach": [{"wait": 300}]},
+ {"id": "k2", "expect": "N=2에서 1.99%로 요청 p99가 1000 ms로 넘어간다.", "reach": [{"knob": "n", "stop": 1}]},
+ {"id": "k3", "expect": "N=50에서 39.5%, 요청 p90이 1000 ms이고 p50은 아직 10 ms다.", "reach": [{"knob": "n", "stop": 4}]},
+ {"id": "k4", "expect": "N=69에서 50.0%로 요청 p50이 1000 ms로 넘어간다. N=68에서는 49.5%로 p50이 10 ms다.", "reach": [{"knob": "n", "stop": 6}]},
+ {"id": "k5", "expect": "N=100에서 63.4%, 요청 p50 = 1000 ms인데 백엔드 p50·p99 10 ms·평균 19.9 ms는 그대로 나란히 보인다.", "reach": [{"knob": "n", "stop": 7}]},
+ {"id": "k6", "expect": "N을 1에서 100까지 훑을 때 느린 %는 줄어드는 구간 없이 단조 증가하고 100%를 넘지 않으며, 백엔드 수치는 한 번도 바뀌지 않는다.", "reach": [{"knob": "n", "stop": 1}, {"wait": 200}, {"knob": "n", "stop": 2}, {"wait": 200}, {"knob": "n", "stop": 3}, {"wait": 200}, {"knob": "n", "stop": 4}, {"wait": 200}, {"knob": "n", "stop": 5}, {"wait": 200}, {"knob": "n", "stop": 6}, {"wait": 200}, {"knob": "n", "stop": 7}]},
+ {"id": "k7", "expect": "N=10에서 요청 p99를 지키려면 백엔드 p99.90이 10 ms여야 하고, N=100에서는 p99.99로 읽힌다. 독립 가정과 범위 밖 한 줄이 화면에 있다.", "reach": [{"knob": "n", "stop": 2}]},
+ {"id": "k8", "expect": "약 400 px 폭에서도 띠·눈금·라벨이 잘리거나 겹치지 않고, 글자는 14px 이상이다.", "reach": [{"knob": "n", "stop": 4}]}
+]
+</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.rq{display:grid;gap:18px;width:100%;font-family:var(--ltt-mono)}
+.rq-top{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;justify-content:space-between}
+.rq-top .ltt-param{flex:1 1 240px;min-width:0}
+.rq-axis{position:relative;height:22px;font-size:14px;color:var(--ltt-muted)}
+.rq-axis span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+.rq-axis .r{transform:translateX(-100%)}
+.rq-band{display:grid;gap:6px;min-width:0}
+.rq-lab{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 12px;font-size:14px;color:var(--ltt-ink-2)}
+.rq-lab b{color:var(--ltt-ink)}
+.rq-track{position:relative;height:44px;overflow:hidden;border-radius:8px;background:var(--ltt-card-2);border:1px solid var(--ltt-line)}
+.rq-track i{position:absolute;top:0;bottom:0;transition:left .5s cubic-bezier(.3,.7,.2,1),width .5s cubic-bezier(.3,.7,.2,1)}
+.rq-track .fast{left:0;background:var(--ltt-good);opacity:.45}
+.rq-track .slow{background:var(--ltt-bad);opacity:.8}
+.rq-track.fixed .fast{background:var(--ltt-muted);opacity:.35}
+.rq-track .g{width:0;border-left:1.5px dashed var(--ltt-ink-2);opacity:.6;transition:none}
+.rq-q{font-size:14px;color:var(--ltt-ink-2);display:flex;flex-wrap:wrap;gap:4px 14px}
+.rq-q b{color:var(--ltt-ink)}
+.rq-need{margin:0;font-size:15px;color:var(--ltt-ink)}
+.rq-need b{color:var(--ltt-accent)}
+.rq-note{margin:0;font-size:14px;color:var(--ltt-muted)}
+@media (prefers-reduced-motion: reduce){.rq-track i{transition:none}}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SLOW = (n) => 1 - Math.pow(0.99, n);          // 요청 1건이 1000 ms를 맞을 확률
+const FAST = (n) => Math.pow(0.99, n);              // 백엔드 N개가 모두 10 ms 안에 끝날 확률
+const lat = (q, n) => (q <= FAST(n) ? 10 : 1000);  // 요청 지연의 q분위(0–1)
+const $ = (id) => document.getElementById(id);
+const cut = (id, pct) => {
+  const t = $(id), f = t.querySelector(".fast"), s = t.querySelector(".slow");
+  f.style.width = pct + "%"; s.style.left = pct + "%"; s.style.width = (100 - pct) + "%";
+};
+
+function draw(n) {
+  cut("bk", 99);             // 백엔드 띠: 경계는 99%에 고정
+  cut("rq", FAST(n) * 100);  // 요청 띠: 경계는 0.99^N
+  $("slow").textContent = (SLOW(n) * 100).toFixed(1) + "%";
+  $("q50").textContent = lat(0.5, n) + " ms";
+  $("q90").textContent = lat(0.9, n) + " ms";
+  $("q99").textContent = lat(0.99, n) + " ms";
+  $("need").textContent = (100 * Math.pow(0.99, 1 / n)).toFixed(2);
+}
+
+function mount(body) {
+  body.innerHTML = `<div class="rq">
+    <div class="rq-top">
+      <div class="ltt-stat"><span class="ltt-hero" id="slow" style="color:var(--ltt-bad)"></span> <small>요청 중 느린 비율 (1−0.99<sup>N</sup>)</small></div>
+      <div class="ltt-param">백엔드 N개 <b id="n-v"></b><div id="n"></div></div>
+    </div>
+    <div class="rq-axis"><span style="left:50%">p50</span><span style="left:90%">p90</span><span class="r" style="left:99%">p99</span></div>
+    <div class="rq-band">
+      <div class="rq-lab"><b>백엔드 1개</b><span>고정 · 99%는 10 ms, 1%는 1000 ms</span></div>
+      <div class="rq-track fixed" id="bk"><i class="fast"></i><i class="slow"></i><i class="g" style="left:50%"></i><i class="g" style="left:90%"></i><i class="g" style="left:99%"></i></div>
+      <div class="rq-q">p50 <b>10 ms</b> · p99 <b>10 ms</b> · 평균 <b>19.9 ms</b> · N과 무관</div>
+      <div class="rq-lab"><b>요청 1건</b><span>요청 = max(백엔드 N개)</span></div>
+      <div class="rq-track" id="rq"><i class="fast"></i><i class="slow"></i><i class="g" style="left:50%"></i><i class="g" style="left:90%"></i><i class="g" style="left:99%"></i></div>
+      <div class="rq-q">p50 <b id="q50"></b> · p90 <b id="q90"></b> · p99 <b id="q99"></b></div>
+    </div>
+    <p class="rq-need">요청 p99를 지키려면 백엔드는 p<b id="need"></b>까지 10 ms 안이어야 한다.</p>
+    <p class="rq-note">띠 왼쪽 초록 = 10 ms, 오른쪽 빨강 = 1000 ms. 점선은 p50·p90·p99. 가정: 백엔드는 서로 독립. 상관된 지연·헤지 요청·타임아웃은 범위 밖.</p>
+  </div>`;
+  LTT.sweep({ params: { n: { kind: "steps", stops: [1, 2, 10, 20, 50, 68, 69, 100], value: 1, fmt: (v) => v + "개" } },
+    render: ({ n }) => draw(n) });
+}
+
+LTT.deck({
+  title: "fan-out과 p99 꼬리 지연", theme: "terminal",
+  glossary: { "p99": "백분위 99. 응답을 빠른 순서로 세웠을 때 99%가 이 값 이하인 지점" },
+  scenes: [{
+    title: "백엔드는 그대로인데, 한 요청이 부르는 수가 늘면 요청 p50까지 꼬리가 된다",
+    sub: "백엔드 하나는 99%가 10 ms, 1%가 1000 ms다. 요청은 백엔드 N개를 모두 기다리므로 그중 하나라도 느리면 느려진다. 손잡이로 N을 옮기며 {{p99}}가 어디로 넘어가는지 본다.",
+    layout: "full",
+    basis: "백엔드 가정: 99%·10 ms, 1%·1000 ms, 백엔드끼리 독립(Dean & Barroso, \"The Tail at Scale\"의 예와 같은 숫자). 느린 요청 비율 = 1−0.99^N. 모델로 계산한 예시.",
+    mount
+  }]
+});
+LTT.expect("N=1 느린 요청 1.0%", SLOW(1) * 100, 1.0, { tol: 0.05 });
+LTT.expect("N=10 느린 요청 9.6%", SLOW(10) * 100, 9.6, { tol: 0.05 });
+LTT.expect("N=50 느린 요청 39.5%", SLOW(50) * 100, 39.5, { tol: 0.05 });
+LTT.expect("N=100 느린 요청 63.4%", SLOW(100) * 100, 63.4, { tol: 0.05 });
+</script>
+</body>
+</html>

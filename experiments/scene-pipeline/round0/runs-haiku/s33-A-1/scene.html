@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>편향-분산 트레이드오프</title>
+<script type="application/json" id="ltt-meta">{"topic": "편향-분산 트레이드오프", "audience": "ML 입문 개발자", "theme": "lab", "medium": "실험 플롯", "decision": "모델 복잡도(다항식 차수) 고르기"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const make = (tag, attrs, parent) => {
+  const n = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (parent) parent.appendChild(n);
+  return n;
+};
+
+// 모델로 계산한 예시: 편향²은 차수마다 0.55배로 줄고, 분산은 차수의 제곱에 비례해 커진다. 잡음 항은 뺐다.
+const DEGREES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const biasSq = (d) => 40 * Math.pow(0.55, d);
+const variance = (d) => 0.12 * d * d;
+const validation = (d) => biasSq(d) + variance(d);
+const best = DEGREES.reduce((a, b) => (validation(b) < validation(a) ? b : a));
+LTT.expect("검증 오차가 가장 낮은 차수", best, 5, { tol: 0 });
+
+const W = 720, H = 380, P = { l: 56, r: 20, t: 44, b: 48 };
+const band = (W - P.l - P.r) / DEGREES.length;
+const cx = (d) => P.l + (d - 0.5) * band;
+const yAt = (v) => H - P.b - (v / 25) * (H - P.t - P.b);
+
+const figure = (el) => {
+  const svg = el.appendChild(document.createElementNS(SVG, "svg"));
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "차수별 편향²과 분산이 쌓인 막대와 검증 오차 선");
+  const text = (x, y, s, attrs = {}, parent = svg) => {
+    const t = make("text", { x, y, "font-size": 12, style: "fill: var(--ltt-muted)", ...attrs }, parent);
+    t.textContent = s;
+    return t;
+  };
+
+  for (let v = 0; v <= 25; v += 5) {
+    make("line", { x1: P.l, x2: W - P.r, y1: yAt(v), y2: yAt(v), style: "stroke: var(--ltt-line)" }, svg);
+    text(P.l - 10, yAt(v) + 4, v, { "text-anchor": "end" });
+  }
+  DEGREES.forEach((d) => text(cx(d), H - P.b + 20, d, { "text-anchor": "middle" }));
+  text((P.l + W - P.r) / 2, H - 6, "다항식 차수", { "text-anchor": "middle" });
+
+  [["편향²", "fill: var(--ltt-c1)"], ["분산", "fill: var(--ltt-c2)"]].forEach(([label, style], i) => {
+    const x = P.l + i * 110;
+    make("rect", { x, y: 16, width: 12, height: 12, style }, svg);
+    text(x + 18, 26, label, { style: "fill: var(--ltt-ink-2)", "font-size": 13 });
+  });
+  make("line", { x1: P.l + 230, x2: P.l + 252, y1: 22, y2: 22, style: "stroke: var(--ltt-ink); stroke-width: 2" }, svg);
+  text(P.l + 258, 26, "검증 오차 (합)", { style: "fill: var(--ltt-ink-2)", "font-size": 13 });
+  text(W - P.r, 26, "모델로 계산한 예시", { "text-anchor": "end" });
+
+  const cols = DEGREES.map((d) => {
+    const g = make("g", { style: `transition: opacity ${LTT.MOTION_MS}ms` }, svg);
+    const bw = band * 0.56;
+    make("rect", { x: cx(d) - bw / 2, y: yAt(biasSq(d)), width: bw, height: yAt(0) - yAt(biasSq(d)), style: "fill: var(--ltt-c1)" }, g);
+    make("rect", { x: cx(d) - bw / 2, y: yAt(validation(d)), width: bw, height: yAt(biasSq(d)) - yAt(validation(d)), style: "fill: var(--ltt-c2)" }, g);
+    return { d, g };
+  });
+
+  const line = make("polyline", { fill: "none", style: "stroke: var(--ltt-ink); stroke-width: 2" }, svg);
+  const dots = DEGREES.map((d) => make("circle", { cx: cx(d), cy: yAt(validation(d)), r: 4, style: "fill: var(--ltt-ink)" }, svg));
+
+  const marker = make("g", { style: `transition: opacity ${LTT.MOTION_MS}ms` }, svg);
+  make("circle", { cx: cx(best), cy: yAt(validation(best)), r: 10, fill: "none", style: "stroke: var(--ltt-accent); stroke-width: 2" }, marker);
+  text(cx(best), yAt(validation(best)) - 18, `최소 · 차수 ${best} (${validation(best).toFixed(1)})`, { "text-anchor": "middle", style: "fill: var(--ltt-accent)" }, marker);
+
+  const show = (n) => {
+    cols.forEach(({ d, g }) => { g.style.opacity = d <= n ? 1 : 0; });
+    dots.forEach((dot, i) => { dot.style.opacity = i + 1 <= n ? 1 : 0; });
+    line.setAttribute("points", DEGREES.filter((d) => d <= n).map((d) => `${cx(d)},${yAt(validation(d))}`).join(" "));
+    marker.style.opacity = n >= best ? 1 : 0;
+  };
+  show(3);
+  return { el: svg, show };
+};
+
+const scene = {
+  type: "figure",
+  kicker: "ML · 편향-분산",
+  title: "편향은 줄고 분산은 쌓여, 검증 오차는 차수 5에서 가장 낮다",
+  en: "Bias falls and variance builds, so validation error bottoms out at degree 5",
+  sub: "차수를 한 칸씩 올리며 {{편향}}과 {{분산}}이 쌓이는 모습을 본다",
+  figure,
+  steps: [
+    { caption: "① 차수 1~3: 편향²이 줄고 분산이 붙기 시작한다", enter: (k, f) => f.show(3) },
+    { caption: "② 차수 5에서 두 값의 합이 가장 낮다", enter: (k, f) => f.show(5) },
+    { caption: "③ 차수 6부터는 분산이 빨리 쌓여 검증 오차가 다시 오른다", enter: (k, f) => f.show(10) },
+  ],
+  basis: "모델로 계산한 예시. 편향² = 40 × 0.55^차수, 분산 = 0.12 × 차수², 잡음 항은 뺐다. 실제 데이터의 곡선이 아니다.",
+  takeaway: "모델 복잡도는 검증 오차의 바닥에서 고른다. 복잡할수록 좋아지는 것은 아니다.",
+  recall: "차수 10은 편향이 가장 작은데, 검증 오차가 차수 5보다 높은 이유는?",
+};
+
+LTT.deck({
+  title: "편향-분산 트레이드오프",
+  theme: "lab",
+  glossary: {
+    "편향": "모델이 너무 단순해서 생기는 체계적인 빗나감",
+    "분산": "학습 데이터가 바뀔 때 예측이 흔들리는 정도",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

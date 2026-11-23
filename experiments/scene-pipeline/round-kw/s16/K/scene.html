@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>남향 북향 채광</title>
+<script type="application/json" id="ltt-meta">{"topic":"남향 vs 북향 방의 하루 채광","audience":"집을 고르는 비전문가","theme":"sketch","medium":"화이트보드 단면 스케치","decision":"방의 향 선택","domain":"건축","pattern":["contrast"],"mode":"카탈로그용: 장면 하나짜리 본보기. 같은 건물 두 방의 단면을 나란히 놓고 해 고도에 따라 광선과 햇빛 바닥 구간이 변한다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.sec{width:100%;display:block}
+.sec text{font-family:inherit}
+.ltt-ba-side{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+.ltt-ba-rail{order:-1;padding:0}
+.ltt-ba-stage{padding:8px}
+.sx-btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin-top:6px}
+.sx-btns button{font:inherit;font-size:14px;padding:6px 12px;border-radius:8px;border:1.5px solid var(--ltt-line-2);background:var(--ltt-card);color:var(--ltt-ink);cursor:pointer}
+.sx-btns button[aria-pressed="true"]{border-color:var(--ltt-accent);background:var(--ltt-accent-soft);font-weight:700}
+.sx-btns .sx-lab{font-size:13px;color:var(--ltt-muted)}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, attrs, parent, text) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; parent && parent.appendChild(n); return n; };
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const rad = (d) => d * Math.PI / 180;
+
+// 단면 치수(m): 방 깊이 5, 천장 2.7, 창 0.9~2.4, 처마 0.6(창 위끝 높이). 위도 37°의 정오 태양 고도 = 90 − 37 ± 23.4
+const S = 64, X0 = 150, YF = 330, DEPTH = 5, CEIL = 2.7, SILL = 0.9, HEAD = 2.4, EAVE = 0.6;
+const ALTS = [30, 53, 76];
+const NAMES = ["겨울 정오 (동지)", "봄·가을 정오 (춘·추분)", "여름 정오 (하지)"];
+const PX = (x, h) => [X0 + x * S, YF - h * S];
+const NR = 14, HW = Array.from({ length: NR }, (_, i) => 0.1 + i * 0.25);
+
+// 햇빛 바닥 구간: 창 아래끝 높이 0.9 m, 위끝은 처마가 가린 만큼 낮아진다
+const topEff = (a) => HEAD - EAVE * Math.tan(rad(a));
+const lit = (a) => topEff(a) > SILL + 0.02;
+const floorSpan = (a) => { const t = Math.tan(rad(a)); return [SILL / t, topEff(a) / t]; };
+LTT.expect("겨울 정오 햇빛 바닥 시작", floorSpan(30)[0], 1.56, { tol: 0.02 });
+LTT.expect("겨울 정오 햇빛 바닥 끝", floorSpan(30)[1], 3.56, { tol: 0.03 });
+LTT.expect("여름 정오 창 위끝(처마 그림자)", topEff(76) < SILL ? 1 : 0, 1, { tol: 0 });
+
+const st = { a: 30, target: 30, auto: true, draws: [], btns: [] };
+
+function room(host, kind) {
+  const south = kind === "S";
+  const s = mk("svg", { viewBox: "0 0 600 410", class: "sec", "data-annotate": "" }, host);
+  const defs = mk("defs", {}, s);
+  const mkr = mk("marker", { id: "ar" + kind, viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto-start-reverse" }, defs);
+  mk("path", { d: "M0,0L10,5L0,10Z", style: "fill:var(--ltt-accent)" }, mkr);
+  // 땅, 방
+  mk("line", { x1: 10, x2: 590, y1: YF, y2: YF, style: "stroke:var(--ltt-ink-2);stroke-width:2.5;stroke-linecap:round" }, s);
+  const [rx, ry] = PX(0, CEIL), rw = DEPTH * S, rh = CEIL * S;
+  mk("rect", { x: rx, y: ry, width: rw, height: rh, style: "fill:var(--ltt-card-2)" }, s);
+  const glow = mk("path", { style: "fill:var(--ltt-warn-soft);opacity:.95" }, s);
+  const skyGlow = mk("path", { style: "fill:var(--ltt-accent-soft);opacity:.7" }, s);
+  // 눈금(벽에서 거리)
+  for (let m = 0; m <= DEPTH; m++) {
+    const [x] = PX(m, 0);
+    mk("line", { x1: x, x2: x, y1: YF, y2: YF + 6, style: "stroke:var(--ltt-muted)" }, s);
+    mk("text", { x, y: YF + 20, "text-anchor": "middle", style: "font-size:12px;fill:var(--ltt-muted)" }, s, m + (m === DEPTH ? " m" : ""));
+  }
+  mk("text", { x: X0 - 8, y: YF + 20, "text-anchor": "end", style: "font-size:12px;fill:var(--ltt-muted)" }, s, "벽에서");
+  // 햇빛 바닥 띠
+  const floorBar = mk("line", { y1: YF, y2: YF, style: "stroke:var(--ltt-warn);stroke-width:8;stroke-linecap:round" }, s);
+  // 벽(창 구간은 비움), 천장, 처마
+  const wall = { style: "stroke:var(--ltt-ink);stroke-width:4;stroke-linecap:round" };
+  mk("line", { x1: X0, x2: X0, y1: YF, y2: PX(0, SILL)[1], ...wall }, s);
+  mk("line", { x1: X0, x2: X0, y1: PX(0, HEAD)[1], y2: ry, ...wall }, s);
+  mk("line", { x1: X0, x2: X0, y1: PX(0, SILL)[1], y2: PX(0, HEAD)[1], style: "stroke:var(--ltt-sea);stroke-width:6" }, s);
+  mk("line", { x1: X0 + rw, x2: X0 + rw, y1: YF, y2: ry, ...wall }, s);
+  mk("line", { x1: X0 - 6, x2: X0 + rw + 6, y1: ry, y2: ry, ...wall }, s);
+  mk("line", { x1: PX(-EAVE, 0)[0], x2: X0, y1: PX(0, HEAD)[1], y2: PX(0, HEAD)[1], style: "stroke:var(--ltt-ink);stroke-width:5;stroke-linecap:round" }, s);
+  mk("text", { x: PX(-EAVE, 0)[0] - 4, y: PX(0, HEAD)[1] - 8, "text-anchor": "end", style: "font-size:13px;fill:var(--ltt-ink-2)" }, s, "처마 0.6 m");
+  mk("text", { x: X0 - 12, y: PX(0, 1.65)[1] + 5, "text-anchor": "end", style: "font-size:13px;fill:var(--ltt-ink-2)" }, s, "창");
+  // 방위
+  mk("text", { x: 14, y: YF - 10, style: "font-size:17px;font-weight:700;fill:var(--ltt-ink)" }, s, south ? "← 남쪽" : "← 북쪽");
+  mk("text", { x: 586, y: YF - 10, "text-anchor": "end", style: "font-size:17px;font-weight:700;fill:var(--ltt-ink)" }, s, south ? "북쪽 →" : "남쪽 →");
+  // 광선(바깥 구간, 안쪽 구간)
+  const rays = HW.map(() => ({
+    o: mk("line", { style: "stroke:var(--ltt-warn);stroke-width:3;stroke-linecap:round;stroke-dasharray:10 8" }, s),
+    i: mk("line", { style: "stroke:var(--ltt-warn);stroke-width:3;stroke-linecap:round;stroke-dasharray:10 8" }, s) }));
+  // 북향 하늘빛: 하늘 전체에서 창으로 모이는 화살표
+  const cx = X0, cy = PX(0, 1.65)[1];
+  if (!south) {
+    mk("path", { d: `M${cx + 130 * Math.cos(rad(105))},${cy - 130 * Math.sin(rad(105))} A130,130 0 0 0 ${cx + 130 * Math.cos(rad(178))},${cy - 130 * Math.sin(rad(178))}`, style: "fill:none;stroke:var(--ltt-muted);stroke-dasharray:3 5" }, s);
+    mk("text", { x: 34, y: 96, style: "font-size:14px;fill:var(--ltt-ink)" }, s, "하늘 전체에서 흩어진 빛");
+    mk("path", { d: `M${X0},${PX(0, HEAD)[1] + 8} L${X0 + 3.4 * S},${YF} L${X0},${YF}Z`, style: "fill:none" }, s);
+    skyGlow.setAttribute("d", `M${X0},${PX(0, HEAD)[1] + 8} L${X0 + 3.6 * S},${YF} L${X0},${YF}Z`);
+  }
+  const sky = !south ? [112, 128, 144, 160, 174].map((th) => {
+    const u = [Math.cos(rad(th)), -Math.sin(rad(th))];
+    return mk("line", { x1: cx + u[0] * 130, y1: cy + u[1] * 130, x2: cx + u[0] * 22, y2: cy + u[1] * 22, "marker-end": `url(#ar${kind})`, style: "stroke:var(--ltt-accent);stroke-width:2.5;stroke-dasharray:10 8;stroke-linecap:round" }, s); }) : [];
+  // 해
+  const sun = mk("g", {}, s);
+  mk("circle", { r: 14, style: "fill:var(--ltt-warn);stroke:var(--ltt-bg);stroke-width:2" }, sun);
+  mk("circle", { r: 20, style: "fill:none;stroke:var(--ltt-warn);stroke-dasharray:3 4" }, sun);
+  const altT = mk("text", { "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, s);
+  const seasonT = mk("text", { x: 300, y: 26, "text-anchor": "middle", style: "font-size:19px;font-weight:700;fill:var(--ltt-ink)" }, s);
+  // 판독
+  const r1 = mk("text", { x: 300, y: 372, "text-anchor": "middle", style: "font-size:19px;font-weight:700;fill:var(--ltt-ink)" }, s);
+  const r2 = mk("text", { x: 300, y: 395, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, s);
+  const pt = (x, h) => PX(x, h).map((v) => v.toFixed(1)).join(",");
+
+  function draw(a, tm) {
+    const t = Math.tan(rad(a)), c = Math.cos(rad(a)), sn = Math.sin(rad(a)), L = 110;
+    const off = -((tm * 40) % 18);
+    rays.forEach((r, i) => {
+      const hw = HW[i]; let e, inEnd = null, dim = false;
+      if (south) {
+        if (hw > CEIL) e = [(hw - CEIL) / t, CEIL];
+        else if (hw > HEAD) e = [0, hw];
+        else if (hw + EAVE * t > HEAD) { e = [-(HEAD - hw) / t, HEAD]; dim = true; }
+        else if (hw < SILL) { e = [0, hw]; dim = true; }
+        else { e = [0, hw]; const xf = hw / t; inEnd = xf <= DEPTH ? [xf, 0] : [DEPTH, hw - DEPTH * t]; }
+        if (hw > HEAD) dim = true;
+        const [ex, ey] = PX(e[0], e[1]);
+        r.o.setAttribute("x1", ex - c * L); r.o.setAttribute("y1", ey - sn * L); r.o.setAttribute("x2", ex); r.o.setAttribute("y2", ey);
+        if (inEnd) { const [fx, fy] = PX(inEnd[0], inEnd[1]); r.i.setAttribute("x1", ex); r.i.setAttribute("y1", ey); r.i.setAttribute("x2", fx); r.i.setAttribute("y2", fy); }
+      } else {
+        if (hw > CEIL) e = [Math.max(0, DEPTH - (hw - CEIL) / t), CEIL]; else e = [DEPTH, hw];
+        dim = true;
+        const [ex, ey] = PX(e[0], e[1]);
+        r.o.setAttribute("x1", ex + c * L); r.o.setAttribute("y1", ey - sn * L); r.o.setAttribute("x2", ex); r.o.setAttribute("y2", ey);
+      }
+      r.o.style.opacity = dim ? 0.38 : 1; r.o.setAttribute("stroke-dashoffset", off);
+      r.i.style.opacity = inEnd ? 1 : 0; r.i.setAttribute("stroke-dashoffset", off);
+    });
+    // 해 위치
+    let sx, sy;
+    if (south) { const p = PX(0, HEAD); sx = p[0] - c * 140; sy = p[1] - sn * 140; }
+    else { const p = PX(DEPTH, CEIL); sx = p[0] + c * 120; sy = p[1] - sn * 120; }
+    sun.setAttribute("transform", `translate(${sx},${sy})`);
+    altT.setAttribute("x", sx); altT.setAttribute("y", sy + 38); altT.textContent = "고도 " + Math.round(a) + "°";
+    const k = ALTS.reduce((b, v, j) => Math.abs(v - a) < Math.abs(ALTS[b] - a) ? j : b, 0);
+    seasonT.textContent = Math.abs(ALTS[k] - a) < 2.5 ? NAMES[k] : "정오 해 고도가 바뀌는 중";
+    if (south) {
+      if (lit(a)) {
+        const [f0, f1] = floorSpan(a), te = topEff(a);
+        glow.setAttribute("d", `M${pt(0, te)} L${pt(f1, 0)} L${pt(f0, 0)} L${pt(0, SILL)}Z`);
+        floorBar.setAttribute("x1", PX(f0, 0)[0]); floorBar.setAttribute("x2", PX(f1, 0)[0]); floorBar.style.opacity = 1;
+        r1.textContent = `햇빛 바닥: 벽에서 ${f0.toFixed(1)}~${f1.toFixed(1)} m`;
+        r2.textContent = `처마가 창 위쪽 ${(EAVE * t).toFixed(2)} m만 가린다 (이 값은 모델로 계산한 예시)`;
+      } else {
+        glow.setAttribute("d", ""); floorBar.style.opacity = 0;
+        r1.textContent = "직사광 없음 — 처마가 창을 가린다";
+        r2.textContent = "광선이 0.6 m 나가는 동안 " + (EAVE * t).toFixed(1) + " m 내려가 창(2.4 m)보다 낮아진다";
+      }
+    } else {
+      glow.setAttribute("d", ""); floorBar.style.opacity = 0;
+      sky.forEach((l) => l.setAttribute("stroke-dashoffset", off));
+      r1.textContent = "직사광 없음 — 하늘빛만 들어온다";
+      r2.textContent = "해가 어디 있든 밝기는 낮지만 거의 일정하다";
+    }
+  }
+  st.draws.push(draw);
+  draw(st.a, 0);
+  return s;
+}
+
+function southVisual(host) {
+  const wrap = document.createElement("div"); host.appendChild(wrap);
+  room(wrap, "S");
+  const b = document.createElement("div"); b.className = "sx-btns"; wrap.appendChild(b);
+  const lab = document.createElement("span"); lab.className = "sx-lab"; lab.textContent = "정오의 해:"; b.appendChild(lab);
+  const defs = [["자동", null], ["겨울 30°", 30], ["봄·가을 53°", 53], ["여름 76°", 76]];
+  defs.forEach(([txt, v]) => {
+    const bt = document.createElement("button"); bt.type = "button"; bt.textContent = txt;
+    bt.setAttribute("aria-pressed", v === null ? "true" : "false");
+    bt.onclick = () => { st.auto = v === null; if (v !== null) st.target = v;
+      st.btns.forEach((x) => x.setAttribute("aria-pressed", x === bt ? "true" : "false"));
+      if (reduced) { if (v !== null) { st.a = v; st.draws.forEach((d) => d(st.a, 0)); } } else if (v === null) st.t0 = Date.now(); };
+    st.btns.push(bt); b.appendChild(bt);
+  });
+}
+
+// 정오 고도가 겨울 30° → 봄·가을 53° → 여름 76° → 53°로 오르내린다. 계절마다 1.6초 머문다.
+const SEQ = [30, 53, 76, 53];
+function autoAlt(ms) { const u = (ms / 1000) % 11.2, seg = Math.floor(u / 2.8), r = u - seg * 2.8;
+  const k0 = SEQ[seg], k1 = SEQ[(seg + 1) % 4], f = r < 1.6 ? 0 : ease((r - 1.6) / 1.2); return k0 + (k1 - k0) * f; }
+
+function runLoop() {
+  let tm = 0;
+  return { enter() { clearTimeout(tm); if (reduced) { st.draws.forEach((d) => d(st.a, 0)); return; }
+      st.t0 = Date.now(); const t00 = Date.now();
+      const f = () => { if (st.auto) st.target = autoAlt(Date.now() - st.t0);
+        st.a += (st.target - st.a) * 0.2;
+        st.draws.forEach((d) => d(st.a, (Date.now() - t00) / 1000)); tm = setTimeout(f, 16); };
+      f(); },
+    leave() { clearTimeout(tm); } };
+}
+
+LTT.deck({
+  title: "남향 북향 채광", theme: "sketch",
+  glossary: {},
+  scenes: [{
+    type: "contrast", title: "남향은 겨울 해만 방 깊이 들이고, 북향은 직사광 없이 고른 빛만 든다", en: "South vs north room daylight",
+    sub: "서울 근처(북위 37°) 같은 건물의 단면. 해는 낮에 남쪽 하늘을 지난다. 줄무늬 광선은 해에서 곧장 오는 빛, 화살표는 하늘 전체에서 흩어진 빛이다. 정오 해의 높이(수평선 위 각도)가 바뀌는 동안 두 방을 비교한다.",
+    before: { label: "남향 방 · 창이 해 쪽", visual: southVisual },
+    after: { label: "북향 방 · 창이 해 반대쪽", tone: "muted", visual: (el) => room(el, "N") },
+    takeaway: "같은 정오라도 낮은 겨울 해는 남향 바닥 깊이 닿고 높은 여름 해는 처마에 막힌다. 북향은 직사광이 없어 어둡지만 일정하다.",
+    basis: "정오 태양 고도 = 90° − 위도 ± 23.4°(위도 37°: 약 30°·53°·76°). 빛이 닿는 깊이 = 높이 ÷ tan(고도). 창 0.9~2.4 m, 처마 0.6 m는 가정한 모델로 계산한 예시. 남향의 여름 열 부담은 정오보다 낮은 각도로 깊이 드는 서향 오후 햇빛이 더 크다.",
+    mount: () => runLoop()
+  }]
+});
+</script>
+</body>
+</html>

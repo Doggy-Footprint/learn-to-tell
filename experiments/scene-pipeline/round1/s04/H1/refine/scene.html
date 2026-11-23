@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>키르히호프 전류 법칙</title>
+<script type="application/json" id="ltt-meta">{"topic":"키르히호프 전류 법칙","audience":"회로 입문자","theme":"blueprint","medium":"회로 도면","decision":"분기점에서 전류가 어떻게 나뉘나","domain":"전기 회로","pattern":["figure"]}</script>
+<script type="application/json" id="ltt-checks">
+[
+{"id": "k1", "expect": "단계 1(또는 재생 시작): 본선에 6 A 화살표 하나가 A를 향한다. 방향은 전원 + → 회로 → − 이고 전자 화살표는 없다.", "reach": [{"step": 1}]},
+{"id": "k2", "expect": "반반 예상이 보이는 순간: 가지 입구에 \"3 A / 3 A?\" 점선 유령이 예상임을 알아볼 수 있게 뜬다. 실제 값으로 오해할 수 없고 실제 값과 같은 화면 색으로 쓰이지 않는다.", "reach": [{"step": 2}]},
+{"id": "k3", "expect": "실제 값이 찍힌 뒤: R1(6 Ω) 가지 2 A, R2(3 Ω) 가지 4 A. 저항이 작은 가지의 화살표가 더 굵고 값이 크다. 같은 가지의 저항 앞뒤 화살표 값은 같다.", "reach": [{"step": 3}]},
+{"id": "k4", "expect": "A에서 합을 맞춘 뒤: 들어오는 화살표 1개(6 A) = 나가는 두 화살표의 합(2 + 4). 부호 식 +6 −2 −4 = 0. 이것이 화면에서 가장 크고 강한 대상이다.", "reach": [{"step": 4}]},
+{"id": "k5", "expect": "역할 표기: \"합은 KCL(전하 보존)\", \"비율 2:4는 같은 전압 + 옴의 법칙(R2:R1)\"이 서로 다른 라벨로 나뉘어 있다.", "reach": [{"step": 4}]},
+{"id": "k6", "expect": "합류점 B: 2 A + 4 A 두 화살표가 합쳐져 6 A로 돌아간다. 본선과 같은 굵기로 복귀한다.", "reach": [{"step": 5}]},
+{"id": "k7", "expect": "그림이 칸 안에 보임: 데스크톱 폭과 모바일 폭 모두 도면 전체와 라벨이 잘리거나 찌그러지지 않고(viewBox 비율 유지) SVG 글자는 14px 이상이다.", "reach": [{"step": 5}, {"wait": 300}]},
+{"id": "k8", "expect": "수치 대조: LTT.expect 4건(I1=2, I2=4, I=6, 합성저항 경로 I=6)이 모두 통과하고 불일치 패널이 뜨지 않는다.", "reach": [{"step": 5}]}
+]
+</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.sec{width:960px;max-width:100%;height:auto;display:block;margin:0 auto}
+.sec text{font-family:inherit}
+.sec g,.sec text,.sec circle{transition:opacity .4s}
+.ctl{display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.ctl button{font:inherit;color:var(--ltt-ink);background:var(--ltt-card);border:1px solid var(--ltt-line-2);border-radius:6px;padding:6px 16px;cursor:pointer}
+.ctl button:disabled{opacity:.4;cursor:default}
+.line{text-align:center;color:var(--ltt-ink-2);margin:10px 0 0;min-height:3em}
+@media (prefers-reduced-motion: reduce){ .sec g,.sec text,.sec circle{transition:none} }
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const tx = (p, x, y, text, style, anchor) => { const n = mk("text", { x, y, "text-anchor": anchor || "middle", style }, p); n.textContent = text; return n; };
+const ACC = "var(--ltt-accent)", MUT = "var(--ltt-muted)";
+const STEPS = [
+  "본선에 6 A가 흐르고, 분기점 A로 들어온다.",
+  "반반이면 3 A / 3 A?일 거라고 예상한다. 이것은 틀린 예상이다. 저항이 같을 때만 반반이 된다.",
+  "실제로는 R1(6 Ω) 가지에 2 A, R2(3 Ω) 가지에 4 A. 저항이 작은 쪽이 더 굵고 많이 흐른다.",
+  "A에서 들어온 6 A = 나간 2 A + 4 A. 합은 KCL(전하 보존)이 정하고, 비율 2 : 4는 같은 전압과 옴의 법칙이 정한다.",
+  "B에서 2 A와 4 A가 다시 합쳐져 본선 6 A로 돌아온다."
+];
+
+// 손 계산 한 세트: 12 V, R1 = 6 Ω, R2 = 3 Ω 병렬. 그림의 수치는 모두 여기서 나온다.
+const V = 12, R1 = 6, R2 = 3;
+const I1 = V / R1, I2 = V / R2, I = I1 + I2;
+const Req = (R1 * R2) / (R1 + R2);
+LTT.expect("I1 = V / R1", I1, 2);
+LTT.expect("I2 = V / R2", I2, 4);
+LTT.expect("I = I1 + I2", I, 6);
+LTT.expect("합성저항 경로 I = V / Req", V / Req, 6);
+
+// 전류 화살표. 굵기는 전류에 비례하고(1.5 px/A), 방향은 관례 전류(+ → 회로 → −)다.
+function circuit(host) {
+  const s = mk("svg", { viewBox: "30 12 820 424", class: "sec", "data-annotate": "" }, host);
+  const layers = [];
+  const layer = (el, on) => { layers.push({ el, on }); return el; };
+  const arrow = (p, x, y, dir, amps, color, label, ly, dash) => {
+    const g = mk("g", {}, p);
+    const d = dash ? ";stroke-dasharray:6 5" : "";
+    mk("line", { x1: x - 18 * dir, y1: y, x2: x + 8 * dir, y2: y, style: `stroke:${color};stroke-width:${1.5 * amps}${d}` }, g);
+    mk("polygon", { points: `${x + 18 * dir},${y} ${x + 6 * dir},${y - 8} ${x + 6 * dir},${y + 8}`, style: `fill:${color}` }, g);
+    tx(g, x, ly, label, `font-size:15px;font-weight:700;fill:${color}`);
+    return g;
+  };
+
+  // 도면 뼈대: 전원(왼쪽), 위·아래 두 가지, 분기점 A와 합류점 B
+  mk("path", { d: "M120,130 H820 V380 H120 V257 M120,245 V130 M320,130 V250 H660 V130", style: "stroke:var(--ltt-ink);stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round" }, s);
+  mk("line", { x1: 100, y1: 245, x2: 140, y2: 245, style: "stroke:var(--ltt-ink);stroke-width:4" }, s);
+  mk("line", { x1: 110, y1: 257, x2: 130, y2: 257, style: "stroke:var(--ltt-ink);stroke-width:2.5" }, s);
+  tx(s, 152, 244, "+", "font-size:18px;font-weight:800;fill:var(--ltt-ink)");
+  tx(s, 152, 268, "−", "font-size:18px;font-weight:800;fill:var(--ltt-ink)");
+  tx(s, 84, 262, `${V} V`, "font-size:16px;font-weight:700;fill:var(--ltt-ink)", "end");
+  [[440, 110, `R1 = ${R1} Ω`], [440, 230, `R2 = ${R2} Ω`]].forEach(([x, y, t]) => {
+    mk("rect", { x, y, width: 100, height: 40, rx: 4, style: "fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:2.5" }, s);
+    tx(s, x + 50, y + 25, t, "font-size:15px;font-weight:700;fill:var(--ltt-ink)");
+  });
+  [320, 660].forEach((x) => mk("circle", { cx: x, cy: 130, r: 5, style: "fill:var(--ltt-ink)" }, s));
+  tx(s, 320, 100, "A", "font-size:18px;font-weight:800;fill:var(--ltt-ink)");
+  tx(s, 660, 100, "B", "font-size:18px;font-weight:800;fill:var(--ltt-ink)");
+
+  // 1 본선 전류: 전원 + 단자에서 나와 A로 흐른다
+  layer(arrow(s, 220, 130, 1, I, ACC, `${I} A`, 108), (n) => n >= 1);
+
+  // 2 반반 예상(틀린 예상): 점선 유령을 각 가지 앞뒤에 놓는다
+  const SITES = [
+    { x: 380, y: 130, ly: 108, amps: I1 },
+    { x: 600, y: 130, ly: 108, amps: I1 },
+    { x: 380, y: 250, ly: 228, amps: I2 },
+    { x: 600, y: 250, ly: 228, amps: I2 }
+  ];
+  SITES.forEach((q) => layer(arrow(s, q.x, q.y, 1, 3, MUT, "예상 3 A?", q.ly, true), (n) => n === 2));
+
+  // 3 실제 값: 같은 가지의 저항 앞뒤 값은 같다
+  SITES.forEach((q) => layer(arrow(s, q.x, q.y, 1, q.amps, ACC, `${q.amps} A`, q.ly), (n) => n >= 3));
+
+  // 4 분기점 A: 강조 고리, 합 식, KCL과 비율의 역할 라벨
+  layer(mk("circle", { cx: 320, cy: 130, r: 24, style: `fill:none;stroke:${ACC};stroke-width:2.5;stroke-dasharray:5 4` }, s), (n) => n >= 4);
+  layer(tx(s, 480, 44, `${I} A = ${I1} A + ${I2} A`, "font-size:32px;font-weight:800;fill:var(--ltt-ink)"), (n) => n >= 4);
+  layer(tx(s, 480, 72, `KCL: 들어온 합 = 나간 합 (전하 보존) · 부호식 +${I} −${I1} −${I2} = 0`, "font-size:15px;fill:var(--ltt-ink-2)"), (n) => n >= 4);
+  layer(tx(s, 490, 318, "비율 2 : 4 = R2 : R1 · 같은 전압 + 옴의 법칙", "font-size:15px;font-weight:700;fill:var(--ltt-c2)"), (n) => n >= 4);
+
+  // 5 합류점 B: 두 가지가 다시 합쳐져 본선 전류로 돌아온다
+  layer(arrow(s, 740, 130, 1, I, ACC, `${I} A`, 108), (n) => n >= 5);
+  layer(mk("circle", { cx: 660, cy: 130, r: 18, style: `fill:none;stroke:${ACC};stroke-width:2.5` }, s), (n) => n === 5);
+  layer(tx(s, 740, 180, "B에서 합류", "font-size:15px;fill:var(--ltt-ink-2)"), (n) => n >= 5);
+  layer(tx(s, 740, 202, `${I1} A + ${I2} A = ${I} A`, "font-size:15px;font-weight:700;fill:var(--ltt-ink)"), (n) => n >= 5);
+  layer(arrow(s, 500, 380, -1, I, ACC, `${I} A`, 406), (n) => n >= 5);
+
+  return (n) => layers.forEach((l) => { l.el.style.opacity = l.on(n) ? 1 : 0; });
+}
+
+function scene(h) {
+  const box = document.createElement("div");
+  const show = circuit(box);
+  const ctl = document.createElement("div");
+  ctl.className = "ctl";
+  const prev = document.createElement("button");
+  prev.textContent = "이전";
+  const cnt = document.createElement("span");
+  const next = document.createElement("button");
+  next.textContent = "다음";
+  ctl.append(prev, cnt, next);
+  const line = document.createElement("p");
+  line.className = "line";
+  box.append(ctl, line);
+
+  let n = 1;
+  const go = (k) => {
+    n = Math.min(STEPS.length, Math.max(1, k));
+    show(n);
+    cnt.textContent = `단계 ${n} / ${STEPS.length}`;
+    line.textContent = STEPS[n - 1];
+    prev.disabled = n === 1;
+    next.disabled = n === STEPS.length;
+  };
+  prev.addEventListener("click", () => go(n - 1));
+  next.addEventListener("click", () => go(n + 1));
+  go(1);
+  h.appendChild(box);
+}
+
+LTT.deck({
+  title: "키르히호프 전류 법칙", theme: "blueprint",
+  glossary: {
+    "키르히호프 전류 법칙": "분기점으로 들어온 전류의 합은 나가는 전류의 합과 같다. 전하는 마디에 쌓이지 않는다",
+    "분기점": "전류가 둘 이상의 가지로 나뉘거나 다시 합쳐지는 마디"
+  },
+  scenes: [{
+    type: "figure", kicker: "전기 회로", title: "분기점에서 전류는 합을 지키며 저항을 따라 나뉜다",
+    sub: "가운데 {{분기점}} A가 주인공이다. 들어온 전류의 합은 나가는 가지들의 합과 같다.",
+    figure: (h) => scene(h),
+    caption: "{{키르히호프 전류 법칙}}에 따라 A로 들어온 6 A는 2 A와 4 A로 나뉘고, 합류점 B에서 다시 6 A가 된다. 저항이 작은 가지가 더 많이 흐른다.",
+    basis: "손 계산: 12 V ÷ 6 Ω = 2 A, 12 V ÷ 3 Ω = 4 A, 합 6 A(합성저항 2 Ω로 교차 확인). 이상적 도선, 직류 정상 상태 가정.",
+    mount() { return { enter() {}, leave() {} }; }
+  }]
+});
+</script>
+</body>
+</html>

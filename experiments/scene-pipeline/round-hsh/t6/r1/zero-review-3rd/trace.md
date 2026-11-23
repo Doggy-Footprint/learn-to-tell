@@ -1,0 +1,26 @@
+# stream.jsonl
+
+- 말: 작업 디렉터리의 장면 파일과 참조 문서를 먼저 읽겠습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/storyboard.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/direction.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/scene.html`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/shots/index.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/shots/scene-audit.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/refs/API.md`
+- 말: 스토리보드, 장면 코드, 인덱스, audit 결과를 읽었습니다. 다음은 `shots/` 아래 스크린샷 전체를 확인합니다.
+- Bash `ls -la shots/`
+- 말: 스크린샷 파일은 9개입니다. 이제 9장을 모두 읽습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/shots/scene-t1s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/shots/scene-t4s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/shots/scene-t8s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/shots/scene-step1.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/shots/scene-step2.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/shots/scene-step3.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/shots/scene-step4.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/shots/scene-step5.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/shots/scene-step6.jpg`
+- 말: 스크린샷 9장과 코드를 대조했습니다. 스토리보드 사실 점검표, 비트 1–6, 화면 필수 요소, 화면 결함 항목에서 실패는 찾지 못했습니다. 먼저 `review.md`를 씁니다.
+- Write `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/review.md` (+2123자)
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t6/r1/zero-review-3rd/review.md`
+- 말: 실패 0건, 고친 0건입니다. `scene.html`은 수정하지 않았고 audit도 다시 돌리지 않았습니다. 기록은 `review.md`에 있습니다.
+- 결과: success $0.0234 19턴 95s

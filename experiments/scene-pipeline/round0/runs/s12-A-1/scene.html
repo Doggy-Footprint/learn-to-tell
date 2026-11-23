@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Node.js 이벤트 루프 단계</title>
+<script type="application/json" id="ltt-meta">{"topic":"Node.js 이벤트 루프 단계","audience":"Node.js 백엔드 입문자","theme":"terminal","medium":"터미널 로그","decision":"setTimeout·setImmediate·nextTick 중 무엇으로 미룰지"}</script>
+<style>
+.loop-svg{display:block;width:100%;height:auto;max-height:68vh;margin:0 auto}
+.loop-svg text{font-family:inherit}
+.loop-svg .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.sec{fill:none;stroke:var(--ltt-card-2);stroke-width:40}
+.sec.on{stroke:var(--ltt-accent-soft)}
+.sep{stroke:var(--ltt-bg);stroke-width:3}
+.pname{font-size:18px;font-weight:700;fill:var(--ltt-ink-2)}
+.psub{font-size:15px;fill:var(--ltt-muted)}
+.pname.on{fill:var(--ltt-ink)}
+.trail{fill:none;stroke:var(--ltt-accent);stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+.dot{fill:var(--ltt-accent);stroke:var(--ltt-bg);stroke-width:3}
+.ripple{fill:none;stroke:var(--ltt-accent);stroke-width:2.5}
+.start{fill:none;stroke:var(--ltt-ink-2);stroke-width:2}
+.panel{fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:1.5}
+.ph{font-size:15px;fill:var(--ltt-muted)}
+.lg{font-size:16px;fill:var(--ltt-ink)}
+.lg .tg{fill:var(--ltt-accent);font-weight:700}
+.lg{transition:opacity .25s}
+.chip rect{fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:1.5}
+.chip.off rect{stroke-dasharray:5 4}
+.chip.armed rect{stroke:var(--ltt-ink-2)}
+.chip.fired rect{fill:var(--ltt-accent-soft);stroke:var(--ltt-accent)}
+.chip .tx{font-size:15px;fill:var(--ltt-ink)}
+.chip.off .tx{fill:var(--ltt-muted)}
+.chip .bd circle{fill:var(--ltt-accent)}
+.chip .bd text{font-size:14px;font-weight:700;fill:var(--ltt-bg);text-anchor:middle}
+.chip .bd{opacity:0}
+.chip.fired .bd{opacity:1}
+.note{font-size:15px;fill:var(--ltt-muted)}
+.lead{stroke:var(--ltt-line-2);stroke-width:1.5;fill:none}
+.dia{fill:var(--ltt-card);stroke:var(--ltt-ink-2);stroke-width:2}
+.dia.on{fill:var(--ltt-accent);stroke:var(--ltt-accent)}
+.cl{font-size:15px;fill:var(--ltt-ink-2)}
+.cl.on{fill:var(--ltt-accent);font-weight:700}
+.cb{opacity:0}
+.cb.on{opacity:1}
+.cb circle{fill:var(--ltt-accent)}
+.cb text{font-size:13px;font-weight:700;fill:var(--ltt-bg);text-anchor:middle}
+</style>
+</head>
+<body>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const E = (p, tag, a = {}, txt) => {
+  const n = document.createElementNS(NS, tag);
+  for (const k in a) n.setAttribute(k, a[k]);
+  if (txt != null) n.textContent = txt;
+  if (p) p.appendChild(n);
+  return n;
+};
+const CX = 500, CY = 330, R = 225;
+const P = (a, r = R) => { const t = a * Math.PI / 180; return [CX + r * Math.sin(t), CY - r * Math.cos(t)]; };
+const f1 = (n) => n.toFixed(1);
+const arcD = (a0, a1, r) => { const p = P(a0, r), q = P(a1, r); return `M${f1(p[0])} ${f1(p[1])}A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${f1(q[0])} ${f1(q[1])}`; };
+const trailD = (a0, a1) => {
+  let d = "";
+  for (let a = a0; ; a = Math.min(a + 2, a1)) {
+    const [x, y] = P(a);
+    d += (d ? "L" : "M") + f1(x) + " " + f1(y);
+    if (a >= a1) break;
+  }
+  return d;
+};
+
+// 이벤트 루프 단계(각도는 시계 방향, 위쪽이 0°)
+const PHASES = [
+  { k: "timers", a0: 0, a1: 50, sub: "만기된 setTimeout 실행", x: 655, y: 44, an: "start" },
+  { k: "pending", a0: 50, a1: 90, sub: "미뤄진 시스템 콜백", x: 765, y: 240, an: "start" },
+  { k: "idle, prepare", a0: 90, a1: 130, sub: "Node 내부 작업", x: 765, y: 412, an: "start" },
+  { k: "poll", a0: 130, a1: 220, sub: "I/O 콜백 · I/O 대기", x: 548, y: 612, an: "start" },
+  { k: "check", a0: 220, a1: 290, sub: "setImmediate 실행", x: 232, y: 390, an: "end" },
+  { k: "close", a0: 290, a1: 360, sub: "close 이벤트 콜백", x: 330, y: 108, an: "end" },
+];
+// 점의 시간표: [초, 각도]. poll에서 시작해 한 바퀴를 돌아 poll로 돌아온다
+const KF = [[0, 175], [1.6, 175], [2.2, 190], [3.0, 190], [4.6, 255], [5.6, 255], [8.6, 385], [9.6, 385], [12.0, 535], [13.6, 535]];
+const LOOP_S = 14.4;
+const ang = (t) => {
+  for (let i = 0; i < KF.length - 1; i++) {
+    const [t0, a0] = KF[i], [t1, a1] = KF[i + 1];
+    if (t <= t1) { let u = Math.max(0, (t - t0) / (t1 - t0)); u = u * u * (3 - 2 * u); return a0 + (a1 - a0) * u; }
+  }
+  return KF[KF.length - 1][1];
+};
+
+const loopFigure = (el) => {
+  const svg = E(el, "svg", { viewBox: "0 0 1000 664", class: "loop-svg", role: "img",
+    "aria-label": "이벤트 루프 여섯 단계 위를 점이 돌며 nextTick, setImmediate, setTimeout이 차례로 실행되는 그림" });
+
+  // 단계 띠와 이름
+  const secs = [], names = [];
+  PHASES.forEach((p) => {
+    const path = E(svg, "path", { class: "sec", d: arcD(p.a0 + 0.6, p.a1 - 0.6, R) });
+    secs.push({ p, path });
+    const g = E(svg, "text", { x: p.x, y: p.y, "text-anchor": p.an, class: "pname mono" }, p.k);
+    E(svg, "text", { x: p.x, y: p.y + 20, "text-anchor": p.an, class: "psub" }, p.sub);
+    names.push({ p, g });
+  });
+  PHASES.forEach((p) => {
+    const a = P(p.a0, R - 20), b = P(p.a0, R + 20);
+    E(svg, "line", { class: "sep", x1: f1(a[0]), y1: f1(a[1]), x2: f1(b[0]), y2: f1(b[1]) });
+  });
+
+  // 시작 표시와 궤적, 점
+  const s0 = P(175);
+  E(svg, "circle", { class: "start", cx: f1(s0[0]), cy: f1(s0[1]), r: 6 });
+  const trail = E(svg, "path", { class: "trail", d: "" });
+
+  // 콜백이 끝나는 자리: nextTick 큐를 비우는 곳
+  const dp = P(190);
+  const dia = E(svg, "polygon", { class: "dia",
+    points: `${f1(dp[0])},${f1(dp[1] - 11)} ${f1(dp[0] + 11)},${f1(dp[1])} ${f1(dp[0])},${f1(dp[1] + 11)} ${f1(dp[0] - 11)},${f1(dp[1])}` });
+
+  // 가운데 터미널 로그
+  E(svg, "rect", { class: "panel", x: 330, y: 235, width: 340, height: 190, rx: 10 });
+  E(svg, "text", { x: 350, y: 266, class: "ph mono" }, "$ node loop.js");
+  const sp = " ";
+  const LN = [
+    { t: 0.3, tag: "poll" + sp.repeat(4), txt: "readFile 콜백", y: 298 },
+    { t: 2.2, tag: "tick" + sp.repeat(4), txt: "nextTick", y: 328 },
+    { t: 4.6, tag: "check" + sp.repeat(3), txt: "setImmediate", y: 358 },
+    { t: 8.6, tag: "timers" + sp.repeat(2), txt: "setTimeout 0", y: 388 },
+  ];
+  LN.forEach((l) => {
+    l.el = E(svg, "text", { x: 350, y: l.y, class: "lg mono" });
+    E(l.el, "tspan", { class: "tg" }, l.tag);
+    E(l.el, "tspan", {}, l.txt);
+  });
+
+  // 왼쪽 위: 콜백 안에서 예약한 코드(예약 순서와 실행 순서가 다르다)
+  E(svg, "text", { x: 24, y: 168, class: "note" }, "readFile 콜백 안에서 예약");
+  const CODE = [
+    { s: "fs.readFile(f, () => {", y: 196 },
+    { s: "  setTimeout(fn, 0)", y: 220, n: 3, t: 8.6 },
+    { s: "  setImmediate(fn)", y: 244, n: 2, t: 4.6 },
+    { s: "  process.nextTick(fn)", y: 268, n: 1, t: 2.2 },
+    { s: "})", y: 292 },
+  ];
+  CODE.forEach((c) => {
+    c.el = E(svg, "text", { x: 24, y: c.y, class: "cl mono", "xml:space": "preserve" }, c.s.replace(/ /g, " "));
+    if (c.n) {
+      c.bd = E(svg, "g", { class: "cb" });
+      E(c.bd, "circle", { cx: 252, cy: c.y - 5, r: 10 });
+      E(c.bd, "text", { x: 252, y: c.y }, String(c.n));
+    }
+  });
+
+  // 선택지 칩: 예약됨(점선→실선) → 실행됨(번호)
+  const mkChip = (o) => {
+    const w = Math.round(o.txt.length * 9 + 56);
+    const x = o.right != null ? o.right - w : o.x;
+    const g = E(svg, "g", { class: "chip off" });
+    E(g, "rect", { x, y: o.y, width: w, height: 28, rx: 8 });
+    const bd = E(g, "g", { class: "bd" });
+    E(bd, "circle", { cx: x + 17, cy: o.y + 14, r: 10 });
+    E(bd, "text", { x: x + 17, y: o.y + 19 }, String(o.n));
+    E(g, "text", { x: x + 34, y: o.y + 19, class: "tx mono" }, o.txt);
+    E(svg, "text", { x: o.right != null ? o.right : x, y: o.y + 50, "text-anchor": o.right != null ? "end" : "start", class: "note" }, o.note);
+    return { g, arm: o.arm, fire: o.t };
+  };
+  const chips = [
+    mkChip({ txt: "setTimeout(fn, 0)", x: 655, y: 74, n: 3, t: 8.6, arm: 0.8, note: "한 바퀴 돈 뒤, timers에서" }),
+    mkChip({ txt: "setImmediate(fn)", right: 232, y: 424, n: 2, t: 4.6, arm: 1.0, note: "같은 바퀴, poll 바로 뒤" }),
+    mkChip({ txt: "process.nextTick(fn)", x: 205, y: 598, n: 1, t: 2.2, arm: 1.2, note: "콜백이 끝나자마자, 단계 이동보다 먼저" }),
+  ];
+  E(svg, "path", { class: "lead", d: "M439 598L458 565" });
+
+  // 점과 실행 순간의 파문
+  const ripples = LN.slice(1).map((l) => E(svg, "circle", { class: "ripple", r: 0, opacity: 0 }));
+  const dot = E(svg, "circle", { class: "dot", r: 10, cx: f1(s0[0]), cy: f1(s0[1]) });
+
+  const FIRES = [2.2, 4.6, 8.6];
+  const render = (t) => {
+    const a = ang(t), [x, y] = P(a);
+    dot.setAttribute("cx", f1(x)); dot.setAttribute("cy", f1(y));
+    trail.setAttribute("d", trailD(175, a));
+    const m = ((a % 360) + 360) % 360;
+    secs.forEach((s) => s.path.classList.toggle("on", m >= s.p.a0 && m < s.p.a1));
+    names.forEach((s) => s.g.classList.toggle("on", m >= s.p.a0 && m < s.p.a1));
+    LN.forEach((l) => { l.el.style.opacity = t >= l.t ? 1 : 0; });
+    chips.forEach((c) => { c.g.setAttribute("class", "chip " + (t >= c.fire ? "fired" : t >= c.arm ? "armed" : "off")); });
+    CODE.forEach((c) => { if (c.n) { const on = t >= c.t; c.el.classList.toggle("on", on); c.bd.classList.toggle("on", on); } });
+    dia.classList.toggle("on", t >= 2.2);
+    FIRES.forEach((te, i) => {
+      const dt = t - te, r = ripples[i];
+      if (dt >= 0 && dt < 0.7) {
+        const [rx, ry] = P(ang(te));
+        r.setAttribute("cx", f1(rx)); r.setAttribute("cy", f1(ry));
+        r.setAttribute("r", f1(10 + dt / 0.7 * 26)); r.setAttribute("opacity", f1(1 - dt / 0.7));
+      } else r.setAttribute("opacity", 0);
+    });
+  };
+
+  let raf = 0, t0 = 0;
+  const tick = (now) => {
+    if (!svg.isConnected) { raf = 0; return; }
+    render(((now - t0) / 1000) % LOOP_S);
+    raf = requestAnimationFrame(tick);
+  };
+  const enter = () => {
+    if (raf) return;
+    if (!LTT.MOTION_MS) { render(13); return; }
+    t0 = performance.now();
+    raf = requestAnimationFrame(tick);
+  };
+  const leave = () => { if (raf) cancelAnimationFrame(raf); raf = 0; render(13); };
+  render(0);
+  requestAnimationFrame(enter);
+  return { el: svg, enter, leave };
+};
+
+LTT.deck({
+  title: "Node.js 이벤트 루프 단계",
+  theme: "terminal",
+  scenes: [{
+    type: "overview",
+    kicker: "런타임 · Node.js",
+    title: "미루는 순서는 예약한 순서가 아니라, 루프가 돌아오는 자리가 정한다",
+    en: "Event loop phases",
+    sub: "점이 이벤트 루프다. 세 가지를 예약한 코드와 실행된 순서를 견준다.",
+    figure: loopFigure,
+    caption: "바로 뒤는 nextTick, 같은 바퀴는 setImmediate, 다음 바퀴는 setTimeout.",
+    takeaway: "I/O 콜백 안에서 미루면 nextTick, setImmediate, setTimeout 0 순으로 실행된다.",
+    recall: "readFile 콜백 안에서 setTimeout(fn, 0)과 setImmediate(fn)을 예약하면 어느 쪽이 먼저 실행될까?",
+    basis: "Node.js 공식 문서의 Event Loop 가이드. 메인 모듈에서 부르면 setTimeout 0과 setImmediate의 순서는 프로세스 성능에 따라 달라질 수 있어 불확실하다.",
+  }],
+});
+</script>
+</body>
+</html>

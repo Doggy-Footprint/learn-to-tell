@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할</title>
+<script type="application/json" id="ltt-meta">{"topic": "B+tree 노드 분할", "audience": "백엔드 개발자", "theme": "blueprint", "medium": "DB 내부 구조 도해", "decision": "인덱스 설계와 페이지 크기 이해"}</script>
+<style>
+.bt { display: grid; }
+.bt-layer { grid-area: 1 / 1; opacity: 0; transition: opacity 0.45s ease; }
+.bt-layer.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .bt-layer { transition: none; } }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 잎과 내부 노드 한 칸. c는 열, r은 행(0 새 루트 층, 1 내부 노드 층, 2 잎 층)
+const leaf = (id, c, l, s, k) => ({ id, c, r: 2, l, s, k });
+// 부모에서 자식으로 내려가는 직각 선
+const kids = (p, ids, extra = {}) => ids.map((t) => ({ f: p, t, from: "bottom", to: "top", shape: "ortho", ...extra }));
+// 잎끼리 잇는 형제 포인터
+const chain = (ids) => ids.slice(1).map((t, i) => ({ f: ids[i], t, from: "right", to: "left", dash: true }));
+const grid = (nodes, edges) => ({ cols: 6, rows: 3, cell: [200, 130], node: [180, 60], nodes, edges });
+
+// 변하지 않는 잎 네 장 (왼쪽 두 장, 오른쪽 두 장)
+const fixedLeaves = () => [
+  leaf("L0", 0, "3 · 12 · 17", "잎 · 3/4"),
+  leaf("L1", 1, "22 · 28 · 35", "잎 · 3/4"),
+  leaf("L3", 4, "62 · 70 · 75", "잎 · 3/4"),
+  leaf("L4", 5, "82 · 88 · 95", "잎 · 3/4"),
+];
+const BEFORE = ["L0", "L1", "F", "L3", "L4"];
+const AFTER = ["L0", "L1", "A", "B", "L3", "L4"];
+
+// 장면 상태 다섯 장. 층마다 같은 격자에 그린 그림이고, 단계가 바뀌면 겹쳐서 전환한다
+const STATES = [
+  // 0 출발: 가득 찬 잎 F, 가득 찬 루트 R
+  () => grid(
+    [{ id: "gh", c: 2.5, r: 0, l: "위 층 없음", k: "muted" },
+     { id: "R", c: 2.5, r: 1, l: "20 · 40 · 60 · 80", s: "내부 · 4/4 가득" },
+     leaf("F", 2, "40 · 45 · 50 · 55", "잎 · 4/4 가득"), ...fixedLeaves()],
+    [...kids("R", ["L0", "L1", "F", "L3", "L4"]), ...chain(BEFORE)]),
+  // 1 52가 들어와 잎이 5칸째가 됨
+  () => grid(
+    [{ id: "gh", c: 2.5, r: 0, l: "위 층 없음", k: "muted" },
+     { id: "R", c: 2.5, r: 1, l: "20 · 40 · 60 · 80", s: "내부 · 4/4 가득" },
+     leaf("F", 2, "40 · 45 · 50 · 52 · 55", "52 들어옴 · 5/4 초과", "bad"), ...fixedLeaves()],
+    [...kids("R", ["L0", "L1", "F", "L3", "L4"]), ...chain(BEFORE)]),
+  // 2 잎 분할: 왼쪽 A, 새 오른쪽 B. 50이 복사되어 루트로 올라가 루트 초과
+  () => grid(
+    [{ id: "gh", c: 2.5, r: 0, l: "위 층 없음", k: "muted" },
+     { id: "RO", c: 2.5, r: 1, l: "20 · 40 · 50 · 60 · 80", s: "내부 · 5/4 초과", k: "bad" },
+     leaf("A", 2, "40 · 45", "잎 · 2/4"),
+     leaf("B", 3, "50 · 52 · 55", "잎 · 3/4 새 페이지", "accent"), ...fixedLeaves()],
+    [...kids("RO", AFTER).map((e) => (e.t === "B" ? { ...e, l: "50 복사", k: "accent" } : e)), ...chain(AFTER)]),
+  // 3 루트 분할: 가운데 50이 이동해 위로 떠오르고, 내부 노드가 둘로 갈라짐
+  () => grid(
+    [{ id: "I1", c: 1, r: 1, l: "20 · 40", s: "내부 · 2/4 (자식 3)" },
+     { id: "I2", c: 4, r: 1, l: "60 · 80", s: "내부 · 2/4 (자식 3)" },
+     { id: "MID", c: 2.5, r: 0, l: "50", s: "가운데 키 · 위로 이동", k: "warn" },
+     leaf("A", 2, "40 · 45", "잎 · 2/4"),
+     leaf("B", 3, "50 · 52 · 55", "잎 · 3/4 새 페이지", "accent"), ...fixedLeaves()],
+    [...kids("I1", ["L0", "L1", "A"]), ...kids("I2", ["B", "L3", "L4"]),
+     ...kids("MID", ["I1", "I2"], { dash: true }), ...chain(AFTER)]),
+  // 4 새 루트 [50]: 맨 위에 층이 하나 생김. 높이 2 → 3, 잎은 모두 같은 깊이
+  () => grid(
+    [{ id: "R2", c: 2.5, r: 0, l: "50", s: "새 루트 · 높이 +1", k: "accent" },
+     { id: "I1", c: 1, r: 1, l: "20 · 40", s: "내부 · 2/4 (자식 3)" },
+     { id: "I2", c: 4, r: 1, l: "60 · 80", s: "내부 · 2/4 (자식 3)" },
+     leaf("A", 2, "40 · 45", "잎 · 2/4"),
+     leaf("B", 3, "50 · 52 · 55", "잎 · 3/4 새 페이지", "accent"), ...fixedLeaves()],
+    [...kids("R2", ["I1", "I2"]), ...kids("I1", ["L0", "L1", "A"]), ...kids("I2", ["B", "L3", "L4"]), ...chain(AFTER)]),
+];
+
+// 그림 하나: 상태 다섯 장을 같은 칸에 겹쳐 두고 단계마다 한 장만 보인다
+const figure = (el) => {
+  const wrap = el.appendChild(document.createElement("div"));
+  wrap.className = "bt";
+  const layers = STATES.map((mk) => {
+    const d = wrap.appendChild(document.createElement("div"));
+    d.className = "bt-layer";
+    LTT.diagram(d.appendChild(document.createElementNS(SVG, "svg")), mk());
+    return d;
+  });
+  const show = (i) => layers.forEach((d, j) => d.classList.toggle("on", j === i));
+  return { el: wrap, show };
+};
+
+const scene = {
+  type: "figure",
+  kicker: "B+tree · 노드 분할",
+  title: "가득 찬 잎에 키를 넣으면 분할이 루트까지 올라가고, 그때 트리 높이가 늘어난다",
+  sub: "52를 넣는 순간을 따라간다. 잎 분할 → {{구분 키}}를 부모로 올림 → 내부 노드 분할 → 새 루트",
+  figure,
+  label: "52 삽입",
+  caption: "가득 찬 잎 하나와 가득 찬 루트. 52가 들어갈 자리는 여기다",
+  steps: [
+    { caption: "가득 찬 잎 하나와 가득 찬 루트. 52가 들어갈 자리는 여기다", enter: (k, f) => f.show(0) },
+    { caption: "52가 잎에 들어가 5칸째가 생긴다. 잎 용량 4를 넘었다", enter: (k, f) => f.show(1) },
+    { caption: "잎을 둘로 나누고 새 오른쪽 잎을 만든다. 오른쪽 첫 키 50을 복사해 부모로 올린다", enter: (k, f) => f.show(2) },
+    { caption: "루트에도 키 5개가 생겨 초과. 가운데 키 50이 이동해 올라가고 루트는 두 노드로 갈라진다", enter: (k, f) => f.show(3) },
+    { caption: "올라갈 곳이 없어 [50] 하나짜리 새 루트가 생긴다. 높이 2 → 3, 모든 잎은 같은 깊이다", enter: (k, f) => f.show(4) },
+  ],
+  basis: "페이지당 키 최대 4개, 내부 노드 자식 최대 5개로 가정한 예시 (모델로 계산한 예시)",
+  takeaway: "분할은 가득 찬 잎에서 루트까지 이어진 경로로만 전파되고, 높이는 맨 위에 층이 더해져 늘어난다.",
+  recall: "잎을 나눌 때 올린 키와 내부 노드를 나눌 때 올린 키는 왜 처리가 다른가?",
+};
+
+LTT.deck({
+  title: "B+tree 노드 분할",
+  theme: "blueprint",
+  glossary: {
+    "구분 키": "내부 노드에서 자식 구간을 가르는 키. 잎을 나눌 때는 오른쪽 잎의 첫 키를 복사해 올리고, 잎에는 그대로 남는다.",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

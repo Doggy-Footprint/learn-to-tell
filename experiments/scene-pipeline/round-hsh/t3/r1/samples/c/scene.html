@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의 — 리더 선출과 로그 복제 한 장 정리</title>
+<script type="application/json" id="ltt-meta">{"topic": "Raft 합의", "audience": "분산 시스템 입문 개발자", "theme": "sketch", "medium": "아키텍처 화이트보드", "decision": "합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.raft-board { margin-top: 12px; }
+.raft-board table { border-collapse: collapse; font-size: 14px; }
+.raft-board td { padding: 4px 12px; border-bottom: 1px solid var(--ltt-line); }
+.raft-board .ltt-mono { color: var(--ltt-ink-2); }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const NODES = [["a", "노드 A"], ["b", "노드 B"], ["c", "노드 C"], ["d", "노드 D"], ["e", "노드 E"]];
+const PAIRS = ["a>b", "a>c", "a>d", "a>e", "b>c", "b>d", "b>e", "c>d", "c>e", "d>e"];
+const BAD = '<span class="ltt-tag bad">장애</span>';
+
+// 단계별 상태: r = 역할(노드 A–E 순), g = 로그(항목 번호, 커밋 상태), n = 이 단계의 주석
+const S = [
+  { r: ["리더 · term 1", "팔로워 · term 1", "팔로워 · term 1", "팔로워 · term 1", "팔로워 · term 1"],
+    g: ["1 2", "1 2", "1 2", "1 2", "1 2"], n: "리더 A가 heartbeat를 보낸다" },
+  { r: [BAD, "팔로워 · timeout 대기", "팔로워 · term 1", "팔로워 · term 1", "팔로워 · term 1"],
+    g: ["1 2", "1 2", "1 2", "1 2", "1 2"], n: "A 응답 없음 · B의 timeout이 가장 먼저 끝남" },
+  { r: [BAD, "후보 · term 2 · 득표 1", "팔로워 · term 1", "팔로워 · term 1", "팔로워 · term 1"],
+    g: ["1 2", "1 2", "1 2", "1 2", "1 2"], n: "B 득표 1 · 과반 기준 3" },
+  { r: [BAD, "리더 · term 2 · 득표 3", "팔로워 · term 2 · 표 줌", "팔로워 · term 2 · 표 줌", "팔로워 · term 2"],
+    g: ["1 2", "1 2", "1 2", "1 2", "1 2"], n: "B 득표 3 ≥ 과반 3 → 당선" },
+  { r: [BAD, "리더 · term 2", "팔로워 · term 2", "팔로워 · term 2", "팔로워 · term 2"],
+    g: ["1 2", "1 2 | 3 미커밋", "1 2", "1 2", "1 2"], n: "x는 리더 로그에만 있다 (미커밋)" },
+  { r: [BAD, "리더 · term 2", "팔로워 · term 2", "팔로워 · term 2", "팔로워 · term 2"],
+    g: ["1 2", "1 2 | 3 미커밋", "1 2 | 3 수신", "1 2 | 3 수신", "1 2 | 3 수신"], n: "x 복제 중 · 저장 ack 대기" },
+  { r: [BAD, "리더 · term 2", "팔로워 · term 2", "팔로워 · term 2", "팔로워 · term 2"],
+    g: ["1 2", "1 2 | 3 커밋", "1 2 | 3 커밋", "1 2 | 3 커밋", "1 2 | 3 수신(미커밋)"], n: "저장 3대 ≥ 과반 3 → x 커밋" },
+  { r: [BAD, "리더 · term 2", "팔로워 · term 2", "팔로워 · term 2", "팔로워 · term 2"],
+    g: ["1 2", "1 2 | 3 커밋", "1 2 | 3 커밋", "1 2 | 3 커밋", "1 2 | 3 커밋"], n: "commitIndex를 전달받아 E도 x를 적용" },
+];
+
+const figure = (el) => {
+  const wrap = el.appendChild(document.createElement("div"));
+  const svg = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  const board = wrap.appendChild(document.createElement("div"));
+  board.className = "raft-board";
+  const dg = LTT.diagram(svg, {
+    cols: 3, rows: 2, cell: [280, 170], node: [150, 56],
+    nodes: [
+      { id: "a", c: 1.5, r: 0.2, l: "노드 A", s: "term 1" },
+      { id: "b", c: 2.36, r: 0.75, l: "노드 B", s: "term 1" },
+      { id: "c", c: 2.03, r: 1.65, l: "노드 C", s: "term 1" },
+      { id: "d", c: 0.97, r: 1.65, l: "노드 D", s: "term 1" },
+      { id: "e", c: 0.64, r: 0.75, l: "노드 E", s: "term 1" },
+    ],
+    edges: PAIRS.map((p) => { const [f, t] = p.split(">"); return { f, t, arrow: false }; }),
+  });
+  const set = (i) => {
+    board.innerHTML = `<table>${NODES.map(([, name], j) =>
+      `<tr><td>${name}</td><td>${S[i].r[j]}</td><td class="ltt-mono">${S[i].g[j]}</td></tr>`).join("")}</table>
+      <div class="ltt-basis">${S[i].n}</div>`;
+  };
+  set(0);
+  return { el: wrap, dg, set };
+};
+
+// 단계 하나: 상태 i를 그리고, 강조할 노드를 남기고, 보낼 메시지를 쏜다
+const step = (i, caption, hl, sends = []) => ({
+  caption,
+  enter: (k, f) => {
+    f.set(i);
+    f.dg.highlight(hl);
+    sends.forEach(([from, to]) => f.dg.send(from, to, { ms: 700 }));
+  },
+});
+
+LTT.deck({
+  title: "Raft 합의 — 리더 선출과 로그 복제",
+  theme: "sketch",
+  glossary: { 과반: "전체 노드의 절반을 넘는 수. 5노드면 3" },
+  scenes: [
+    {
+      type: "figure",
+      title: "선출도 커밋도 같은 과반 문턱을 넘어야 한다",
+      sub: "위는 노드와 메시지, 아래는 각 노드의 역할과 로그(항목 번호와 커밋 상태).",
+      label: "노드 5개 · 과반 3",
+      figure,
+      caption: "단계를 넘기며 리더 장애 뒤의 선출과 복제를 따라간다.",
+      steps: [
+        step(0, "평시: 리더 A가 heartbeat를 보내면 팔로워는 조용하다.", null,
+          [["a", "b"], ["a", "c"], ["a", "d"], ["a", "e"]]),
+        step(1, "A와 연결이 끊겼다. 팔로워 중 timeout이 가장 먼저 끝나는 B가 움직인다.", ["b", "c", "d", "e"]),
+        step(2, "B가 term을 2로 올리고 후보가 되어 자기 표를 찍은 뒤 RequestVote를 보낸다.", ["b"],
+          [["b", "c"], ["b", "d"], ["b", "e"]]),
+        step(3, "C·D가 표를 줘서 득표가 3이 된다. 과반을 넘은 B가 리더로 서고 heartbeat로 알린다.", ["b", "c", "d"],
+          [["b", "c"], ["b", "d"], ["b", "e"]]),
+        step(4, "새 리더 B가 쓰기 x를 자기 로그에 append한다. 아직 커밋이 아니다.", ["b"]),
+        step(5, "B가 x를 AppendEntries로 C·D·E에 복제한다.", ["b"],
+          [["b", "c"], ["b", "d"], ["b", "e"]]),
+        step(6, "B·C·D 세 대가 저장했다. 과반 3에 도달해 x가 커밋된다. E는 아직 도착 전이다.", ["b", "c", "d"]),
+        step(7, "커밋 위치는 다음 AppendEntries로 팔로워에 전해지고, E도 따라잡아 x를 적용한다.", null,
+          [["b", "c"], ["b", "d"], ["b", "e"]]),
+      ],
+      takeaway: "리더 선출도 커밋도 {{과반}}을 넘어야 한다. 5노드면 2대가 죽어도 합의된 값은 남는다.",
+      recall: "3노드 클러스터에서 과반은 몇 대이고, 몇 대 장애까지 견디나?",
+      basis: "과반 = floor(N/2)+1. N=5 → 3, 장애 허용 5−3 = 2. 메시지 지연과 timeout 값은 설명을 위해 단순화했다.",
+    },
+  ],
+});
+</script>
+</body>
+</html>

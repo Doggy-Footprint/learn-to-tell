@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>편향-분산 트레이드오프</title>
+<script type="application/json" id="ltt-meta">{"topic":"편향-분산 트레이드오프","audience":"ML 입문 개발자","theme":"lab","medium":"실험 플롯","decision":"모델 복잡도(다항식 차수) 고르기"}</script>
+<link rel="stylesheet" href="/kit/ltt.css">
+<style>
+  .bv { display:block; width:100%; height:auto; max-width:100%; }
+  .bv text { font-family: var(--ltt-mono, ui-monospace, monospace); fill: var(--ltt-muted); font-size: 13px; }
+  .bv .tick { fill: var(--ltt-muted); font-size: 13px; }
+  .bv .axis { stroke: var(--ltt-ink-2); stroke-width: 1.5; }
+  .bv .grid { stroke: var(--ltt-line); stroke-width: 1; }
+  .bv .zone { font-size: 13px; fill: var(--ltt-ink-2); }
+  .bv .tot { fill: var(--ltt-ink); font-size: 13px; font-weight: 600; text-anchor: middle; }
+  .bv .deg { fill: var(--ltt-ink-2); font-size: 14px; text-anchor: middle; }
+  .bv .lg { fill: var(--ltt-ink); font-size: 13px; }
+  .bv .col { transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(0);
+    transition: transform .6s cubic-bezier(.2,.8,.2,1), opacity .4s; transition-delay: var(--d, 0ms); }
+  .bv .col.on { transform: scaleY(1); }
+  .bv .col.dim, .bv .lab.dim { opacity: .28; }
+  .bv .lab { opacity: 0; transition: opacity .4s; transition-delay: calc(var(--d, 0ms) + 350ms); }
+  .bv .lab.on { opacity: 1; }
+  .bv .ph { fill: none; stroke: var(--ltt-line-2); stroke-width: 1.5; stroke-dasharray: 4 4; transition: opacity .3s; }
+  .bv .phq { font-size: 16px; text-anchor: middle; fill: var(--ltt-muted); transition: opacity .3s; }
+  .bv .ph.off, .bv .phq.off { opacity: 0; }
+  .bv .b1 { fill: var(--ltt-c1); }
+  .bv .b2 { fill: var(--ltt-c2); }
+  .bv .b3 { fill: var(--ltt-line-2); }
+  .bv .train { fill: none; stroke: var(--ltt-ink); stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.2s ease-out; }
+  .bv .train.on { stroke-dashoffset: 0; }
+  .bv .tdot { fill: var(--ltt-card); stroke: var(--ltt-ink); stroke-width: 2; opacity: 0; transition: opacity .3s; transition-delay: var(--d, 0ms); }
+  .bv .tdot.on { opacity: 1; }
+  .bv .fade { opacity: 0; transition: opacity .5s; }
+  .bv .fade.on { opacity: 1; }
+  .bv .pick { fill: none; stroke: var(--ltt-accent); stroke-width: 2.5; }
+  .bv .minline { stroke: var(--ltt-accent); stroke-width: 1.5; stroke-dasharray: 6 4; }
+  .bv .pickt { fill: var(--ltt-accent); font-size: 14px; font-weight: 700; }
+  @media (prefers-reduced-motion: reduce) { .bv * { transition: none !important; } }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+// 모델: 예상 테스트 오차 = 편향² + 분산 + 노이즈
+const DEG = 10, NOISE = 0.25, YMAX = 3;
+const bias2 = (d) => 1.8 * Math.pow(0.55, d - 1);
+const vari = (d) => 0.02 * Math.pow(1.7, d - 1);
+const total = (d) => bias2(d) + vari(d) + NOISE;
+const train = (d) => 0.9 * bias2(d) + NOISE * (1 - d / 12);
+const best = Array.from({ length: DEG }, (_, i) => i + 1).reduce((a, d) => (total(d) < total(a) ? d : a), 1);
+LTT.expect("검증 오차 최저 차수", best, 5, { tol: 0 });
+
+const SVGNS = "http://www.w3.org/2000/svg";
+const W = 800, H = 450, X0 = 76, XR = 786, YB = 372, YT = 36;
+const sx = (d) => X0 + ((XR - X0) / DEG) * (d - 0.5);
+const sy = (v) => YB - (v / YMAX) * (YB - YT);
+const BW = 46;
+const mk = (p, tag, attrs, txt) => {
+  const n = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (txt != null) n.textContent = txt;
+  p.appendChild(n); return n;
+};
+
+function biasVarFig(el) {
+  const svg = el.appendChild(document.createElementNS(SVGNS, "svg"));
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("class", "bv");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "다항식 차수 1~10별 예상 오차를 편향², 분산, 노이즈 층으로 쌓은 막대 그래프");
+  // 축과 눈금
+  [0, 1, 2, 3].forEach((v) => {
+    mk(svg, "line", { class: v ? "grid" : "axis", x1: X0, x2: XR, y1: sy(v), y2: sy(v) });
+    mk(svg, "text", { class: "tick", x: X0 - 10, y: sy(v) + 4, "text-anchor": "end" }, v);
+  });
+  mk(svg, "line", { class: "axis", x1: X0, x2: X0, y1: YT - 8, y2: YB });
+  mk(svg, "text", { x: X0, y: 16, "text-anchor": "start" }, "예상 오차 (MSE, 새 데이터 기준)");
+  // 범례
+  [["b1", "편향²"], ["b2", "분산"], ["b3", "노이즈(못 줄임)"]].forEach(([c, t], i) => {
+    const x = 250 + i * 118;
+    mk(svg, "rect", { class: c, x, y: 46, width: 14, height: 14 });
+    mk(svg, "text", { class: "lg", x: x + 20, y: 58 }, t);
+  });
+  mk(svg, "line", { x1: 604, x2: 628, y1: 53, y2: 53, stroke: "var(--ltt-ink)", "stroke-width": 2, "stroke-dasharray": "5 3", class: "fade", id: "lg-train-l" });
+  mk(svg, "text", { class: "lg fade", id: "lg-train", x: 634, y: 58 }, "훈련 오차");
+
+  const cols = [], labs = [], phs = [], phqs = [], dots = [];
+  for (let d = 1; d <= DEG; d++) {
+    const cx = sx(d), x = cx - BW / 2;
+    const yb = sy(bias2(d)), yv = sy(bias2(d) + vari(d)), yn = sy(total(d));
+    const dly = ((d - 1) % 4) * 140 + "ms";
+    const ph = mk(svg, "rect", { class: "ph", x, y: YB - 70, width: BW, height: 70 });
+    const phq = mk(svg, "text", { class: "phq", x: cx, y: YB - 28 }, "?");
+    const g = mk(svg, "g", { class: "col" }); g.style.setProperty("--d", dly);
+    mk(g, "rect", { class: "b1", x, y: yb, width: BW, height: YB - yb });
+    mk(g, "rect", { class: "b2", x, y: yv, width: BW, height: yb - yv });
+    mk(g, "rect", { class: "b3", x, y: yn, width: BW, height: yv - yn });
+    const lab = mk(svg, "text", { class: "tot lab", x: cx, y: yn - 8 }, total(d).toFixed(2));
+    lab.style.setProperty("--d", dly);
+    mk(svg, "text", { class: "deg", x: cx, y: YB + 22 }, d);
+    cols.push(g); labs.push(lab); phs.push(ph); phqs.push(phq);
+  }
+  // 훈련 오차 선
+  const pts = Array.from({ length: DEG }, (_, i) => [sx(i + 1), sy(train(i + 1))]);
+  const tl = mk(svg, "path", { class: "train", pathLength: 1, d: "M" + pts.map((p) => p.join(",")).join("L") });
+  pts.forEach((p, i) => {
+    const c = mk(svg, "circle", { class: "tdot", cx: p[0], cy: p[1], r: 5 });
+    c.style.setProperty("--d", (i * 110) + "ms"); dots.push(c);
+  });
+  // x축 이름과 영역 설명
+  mk(svg, "text", { class: "zone", x: X0, y: YB + 46, "text-anchor": "start" }, "← 단순한 곡선: 패턴을 놓친다");
+  mk(svg, "text", { class: "zone", x: XR, y: YB + 46, "text-anchor": "end" }, "복잡한 곡선: 잡음까지 따라간다 →");
+  mk(svg, "text", { class: "zone", x: (X0 + XR) / 2, y: YB + 46, "text-anchor": "middle" }, "다항식 차수");
+  // 고른 차수
+  const my = sy(total(best));
+  const ml = mk(svg, "line", { class: "minline fade", x1: X0, x2: XR, y1: my, y2: my });
+  const pk = mk(svg, "rect", { class: "pick fade", x: sx(best) - BW / 2 - 5, y: my - 5, width: BW + 10, height: YB - my + 5, rx: 3 });
+  const pt = mk(svg, "text", { class: "pickt fade", x: sx(best), y: my - 40, "text-anchor": "middle" }, "차수 " + best);
+  const pt2 = mk(svg, "text", { class: "pickt fade", x: sx(best), y: my - 24, "text-anchor": "middle" }, "검증 오차 최저");
+  const shown = [0, 3, 6, 10];
+  return {
+    el: svg,
+    show(k) {
+      const n = shown[Math.min(k, 3)];
+      for (let i = 0; i < DEG; i++) {
+        const on = i < n;
+        cols[i].classList.toggle("on", on); labs[i].classList.toggle("on", on);
+        phs[i].classList.toggle("off", on); phqs[i].classList.toggle("off", on);
+        const dim = k >= 5 && i + 1 !== best;
+        cols[i].classList.toggle("dim", dim); labs[i].classList.toggle("dim", dim);
+      }
+      const t = k >= 4;
+      tl.classList.toggle("on", t);
+      dots.forEach((c) => c.classList.toggle("on", t));
+      svg.querySelector("#lg-train").classList.toggle("on", t);
+      svg.querySelector("#lg-train-l").classList.toggle("on", t);
+      [ml, pk, pt, pt2].forEach((x) => x.classList.toggle("on", k >= 5));
+    },
+  };
+}
+
+LTT.deck({
+  title: "편향-분산 트레이드오프",
+  theme: "lab",
+  glossary: {
+    "편향": "모델이 너무 단순해서 생기는 체계적인 빗나감. 데이터를 아무리 많이 줘도 남는다.",
+    "분산": "학습 데이터가 바뀔 때마다 모델이 크게 달라지는 정도. 복잡한 모델일수록 크다.",
+    "다항식 차수": "곡선 식에 들어가는 x의 최고 거듭제곱. 높을수록 더 구불구불한 곡선을 그릴 수 있다.",
+  },
+  scenes: [{
+    type: "figure",
+    kicker: "모델 복잡도 고르기",
+    title: "차수를 올리면 편향은 줄고 분산이 쌓여, 오차의 바닥은 중간에 있다",
+    en: "Bias–variance trade-off",
+    sub: "다항식 회귀의 {{다항식 차수}}별 예상 오차를 {{편향}}², {{분산}}, 노이즈 층으로 쌓았다. 막대 전체 높이가 낮을수록 좋은 차수다.",
+    figure: biasVarFig,
+    steps: [
+      { caption: "차수 1~10 자리가 비어 있다. 막대 높이는 새 데이터에서의 예상 오차이고, 축은 처음부터 끝 범위로 고정했다.", enter: (k, f) => f.show(0) },
+      { caption: "차수 1~3: 편향² 층이 두껍다. 곡선이 너무 단순해서 패턴을 놓친다.", enter: (k, f) => f.show(1) },
+      { caption: "차수 4~6: 편향² 층은 얇아지고 분산 층이 자란다. 전체 높이가 바닥에 닿는다.", enter: (k, f) => f.show(2) },
+      { caption: "차수 7~10: 분산 층이 폭발한다. 훈련 데이터의 잡음까지 따라가서 데이터가 바뀔 때마다 곡선이 요동친다.", enter: (k, f) => f.show(3) },
+      { caption: "점선: 훈련 오차는 차수를 올릴수록 계속 내려간다. 훈련 오차로 고르면 차수 10을 고르게 된다.", enter: (k, f) => f.show(4) },
+      { caption: "새 데이터로 잰 오차가 가장 낮은 차수 5를 고른다. 편향²와 분산이 균형을 이루는 자리다.", enter: (k, f) => f.show(5) },
+    ],
+    takeaway: "복잡도를 올리면 편향²는 줄고 분산은 는다. 훈련 오차가 아니라 새 데이터 오차의 바닥에서 차수를 고른다.",
+    recall: "훈련 오차가 계속 줄어드는데도 차수 10을 고르지 않는 이유는?",
+    basis: "<span class=\"ltt-tag\">모델로 계산한 예시</span> 편향² = 1.8·0.55^(차수−1), 분산 = 0.02·1.7^(차수−1), 노이즈 0.25로 둔 값이다. 실제 곡선 모양은 표본 수와 노이즈에 따라 달라진다(불확실).",
+  }],
+});
+</script>
+</body>
+</html>

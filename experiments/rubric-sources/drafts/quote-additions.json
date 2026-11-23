@@ -1,0 +1,303 @@
+[
+ {
+  "id": "no-sustained-oscillation",
+  "layer": "animation",
+  "check": "Is the scene free of sustained periodic oscillation (bobbing, swaying, pulsing) of elements, other than an oscillation that is itself the mechanism being taught?",
+  "instruction": "Do not make elements oscillate continuously; if the mechanism itself oscillates, show it for a bounded time.",
+  "applies_when": "all",
+  "threshold": "no sustained periodic motion, especially near 0.2 Hz",
+  "threshold_status": "quoted",
+  "measure": "script",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "apple-hig-motion#36",
+   "apple-hig-motion#37"
+  ]
+ },
+ {
+  "id": "consistent-transition-semantics",
+  "layer": "animation",
+  "check": "Does the same kind of mechanism change (add, remove, move, update a value) use the same transition every time it occurs, and do different kinds of change use visibly different transitions?",
+  "instruction": "Give each kind of change one transition and use it every time; make different kinds of change look different.",
+  "applies_when": "all",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "data+llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "heer2007#20",
+   "heer2007#23",
+   "heer2007#24"
+  ]
+ },
+ {
+  "id": "fixed-axis-scale",
+  "layer": "animation",
+  "check": "Does each quantitative axis keep one scale across states, and where rescaling is unavoidable, is the rescale shown as its own step before values change?",
+  "instruction": "Keep axis scales fixed across states; if a rescale is unavoidable, animate it as a separate step before the values move.",
+  "applies_when": "scenes with a quantitative axis",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "data+llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "heer2007#91"
+  ]
+ },
+ {
+  "id": "no-text-displacement",
+  "layer": "format",
+  "check": "Do appearing or transitioning elements leave visible text in place instead of pushing or reflowing text the learner may still be reading?",
+  "instruction": "Reserve space for elements that appear later so visible text never moves.",
+  "applies_when": "all",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "script",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "nng-usability#17"
+  ]
+ },
+ {
+  "id": "pause-persists",
+  "layer": "format",
+  "check": "Does a pause stay in effect until the learner resumes, rather than lasting only while a control is hovered or focused?",
+  "instruction": "Make pause a toggle that holds until the learner resumes.",
+  "applies_when": "scenes with automatic motion and a pause control",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "script",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "wcag22-pause#22"
+  ]
+ },
+ {
+  "id": "line-breaks-at-phrase-boundaries",
+  "layer": "format",
+  "check": "Do multi-line texts break at phrase or clause boundaries and never inside a word?",
+  "instruction": "Break lines at punctuation or between phrases, never inside a word.",
+  "applies_when": "scenes with multi-line text",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "vision-llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "bbc-subtitles#87",
+   "bbc-subtitles#88",
+   "extra#170"
+  ]
+ },
+ {
+  "id": "sentence-within-one-beat",
+  "layer": "animation",
+  "check": "Is each sentence shown whole within one beat or step, not split across beats?",
+  "instruction": "Keep each sentence within one beat; split long explanations into complete sentences or clauses.",
+  "applies_when": "scenes whose text changes by beat or step",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "data+llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "extra#230"
+  ]
+ },
+ {
+  "id": "horizontal-text",
+  "layer": "format",
+  "check": "Are titles, annotations and data labels set horizontally (axis and line labels may deviate)?",
+  "instruction": "Set titles, annotations and data labels horizontally; rotate only axis or line labels if needed.",
+  "applies_when": "all",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "script",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "evergreen-checklist#17",
+   "evergreen-checklist#18"
+  ]
+ },
+ {
+  "id": "text-free-of-errors",
+  "layer": "format",
+  "check": "Is all on-screen text free of grammatical errors, typos and awkward phrasing?",
+  "instruction": "Write on-screen text with correct grammar and spelling and natural phrasing.",
+  "applies_when": "all",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "data+llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "ppteval2025#41",
+   "ppteval2025#42"
+  ]
+ },
+ {
+  "id": "appropriate-numeric-precision",
+  "layer": "format",
+  "check": "Are displayed numbers shown at the precision the learning target needs, without unneeded decimal places or digits?",
+  "instruction": "Round displayed numbers to the precision the point needs.",
+  "applies_when": "scenes that display numbers",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "data+llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "evergreen-checklist#59",
+   "evergreen-checklist#60"
+  ]
+ },
+ {
+  "id": "diagram-form-fits-relation",
+  "layer": "animation",
+  "check": "Does the diagram form fit the relation it shows (change over time, comparison, part-whole, structure, flow)?",
+  "instruction": "Choose the diagram form from the relation the scene must show.",
+  "applies_when": "all",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "vision-llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "evergreen-checklist#57",
+   "evergreen-checklist#58"
+  ]
+ },
+ {
+  "id": "logical-item-order",
+  "layer": "animation",
+  "check": "Are parallel items (bars, nodes, list entries, states) arranged in an order that helps the learner interpret them (size, time, sequence, grouping)?",
+  "instruction": "Order parallel items by a meaningful key such as size, time, sequence or group.",
+  "applies_when": "scenes with parallel items",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "vision-llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "evergreen-checklist#26",
+   "evergreen-checklist#27"
+  ]
+ },
+ {
+  "id": "single-value-axis",
+  "layer": "animation",
+  "check": "Does each chart use one horizontal and one vertical value axis, with no secondary value axis?",
+  "instruction": "Do not add a second value axis; use two charts side by side instead.",
+  "applies_when": "scenes with a chart",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "data+llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "evergreen-checklist#52",
+   "evergreen-checklist#53"
+  ]
+ },
+ {
+  "id": "categorical-distinctions",
+  "layer": "animation",
+  "check": "Are the differences the learner must tell apart shown as clearly perceptible categorical differences rather than fine differences of angle, length or size?",
+  "instruction": "Encode distinctions the learner must make with clearly different shapes, colors or positions, not fine differences of angle or length.",
+  "applies_when": "all",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "vision-llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "tversky2002#89"
+  ]
+ },
+ {
+  "id": "schematic-but-recognizable",
+  "layer": "animation",
+  "check": "Are diagram elements simple schematic shapes that still make clear which entity each represents (by label or distinctive form)?",
+  "instruction": "Draw entities as simple schematic shapes and make each one identifiable by a label or a distinctive form.",
+  "applies_when": "all",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "vision-llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "tversky2002#94",
+   "theoremexplain2025#49"
+  ]
+ },
+ {
+  "id": "domain-conventional-notation",
+  "layer": "pedagogy",
+  "check": "Does the diagram use the representations and notation of the domain that the intended learner will meet elsewhere, rather than idiosyncratic ones?",
+  "instruction": "Use the domain's standard notation and diagram conventions.",
+  "applies_when": "all",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "vision-llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "merlot-form#36"
+  ]
+ },
+ {
+  "id": "visible-learning-aim",
+  "layer": "pedagogy",
+  "check": "Does the scene state on screen, as a short question or sentence, what the learner should understand from this card?",
+  "instruction": "State on screen, in one short question or sentence, what this card is for.",
+  "applies_when": "all",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "data+llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "lori2007#29",
+   "merlot-form#13",
+   "learnlm2024#129",
+   "evergreen-checklist#12"
+  ]
+ },
+ {
+  "id": "no-unneeded-interaction-delay",
+  "layer": "pedagogy",
+  "check": "Does the scene avoid questions or required interactions that only delay information the learner needs?",
+  "instruction": "Ask the learner to act only where the action serves learning; do not gate needed information behind extra steps.",
+  "applies_when": "all",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "data+llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "learnlm2024#64",
+   "learnlm2024#137"
+  ]
+ },
+ {
+  "id": "position-in-structure-visible",
+  "layer": "pedagogy",
+  "check": "Does the scene show where the current step or phase sits in the whole sequence?",
+  "instruction": "Show the current step or phase within the whole sequence (e.g. a step indicator or highlighted stage).",
+  "applies_when": "scenes with steps or phases",
+  "threshold": null,
+  "threshold_status": "none",
+  "measure": "data+llm",
+  "weight": null,
+  "origin": "quote-classify",
+  "source_quotes": [
+   "dekoning2009#42"
+  ]
+ }
+]

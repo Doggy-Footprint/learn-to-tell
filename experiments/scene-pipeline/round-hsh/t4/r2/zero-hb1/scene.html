@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .dna-wrap { width: 100%; }
+  .dna-wrap svg { width: 100%; height: auto; max-height: 34vh; display: block; margin: 0 auto; }
+  .dna-wrap text { fill: var(--ltt-ink-2); font-family: inherit; }
+  .dna-wrap .end { font-size: 12px; fill: var(--ltt-muted); }
+  .dna-wrap .lab { font-size: 14px; fill: var(--ltt-ink); }
+  .dna-wrap .tpl { fill: none; stroke: var(--ltt-ink-2); stroke-width: 4; stroke-linecap: butt; }
+  .dna-wrap .rung { stroke: var(--ltt-line-2); stroke-width: 2; }
+  .dna-wrap .lead { fill: var(--ltt-accent); }
+  .dna-wrap .frag { fill: var(--ltt-c2); }
+  .dna-wrap .primer { fill: var(--ltt-warn); }
+  .dna-wrap .enz { fill: var(--ltt-card-2); stroke: var(--ltt-ink-2); stroke-width: 1.5; }
+  .dna-wrap .ring { fill: none; stroke: var(--ltt-ink); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .dna-wrap .box { fill: var(--ltt-card); stroke: var(--ltt-ink); stroke-width: 1.5; }
+  .dna-cap { margin: 4px 0 0; min-height: 2.6em; font-size: 14px; color: var(--ltt-ink); }
+</style>
+</head>
+<body>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const FR = [[70, 190], [200, 320], [330, 450], [460, 580]]; // 오카자키 절편의 [3' 쪽 끝, 5' 쪽 끝]
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const forkX = (T) => T <= 1 ? 230 + 100 * T : T <= 2 ? 330 + 150 * (T - 1) : T <= 3 ? 480 + 200 * (T - 2) : 680;
+
+const CAPS = [
+  "헬리케이스가 이중나선을 풀어 Y자 분기점이 오른쪽으로 열린다. 위아래 주형은 방향이 반대다(5'↔3').",
+  "위 주형: 프라이머가 놓인 뒤, 중합효소가 분기점과 같은 방향으로 끊김 없이 이어 붙인다 — 선도 가닥.",
+  "아래 주형: 합성 방향이 분기점에서 멀어진다. 분기점이 더 열려야 프라이머를 놓고 짧은 절편을 만든다. 나중 절편일수록 분기점에 가깝다.",
+  "두 새 가닥 모두 5'→3'로만 자란다. 규칙은 하나이고, 분기점 기준의 방향만 반대다.",
+  "프라이머를 지우고 틈을 메운 뒤 연결효소가 절편을 이어 한 가닥이 된다."
+];
+const PLAN = [
+  { a: 0, b: 0, d: 1200, c: 0 }, { a: 0, b: 1, d: 3400, c: 0 }, { a: 1, b: 2, d: 4400, c: 1 },
+  { a: 2, b: 3, d: 6800, c: 2 }, { a: 3, b: 3, d: 4200, c: 3, hl: 1 }, { a: 3, b: 4, d: 5400, c: 4 }, { a: 4, b: 4, d: 4200, c: 4 }
+];
+const TOTAL = PLAN.reduce((s, p) => s + p.d, 0);
+
+function build(svg) {
+  let h = "";
+  for (let x = 238; x < 880; x += 18) h += `<line class="rung" data-x="${x}" x1="${x}" x2="${x}" y1="228" y2="242"/>`;
+  h += `<path class="tpl" id="d-up"/><path class="tpl" id="d-lo"/>`;
+  h += `<text class="end" x="24" y="114">3'</text><text class="end" x="24" y="364">5'</text>`;
+  h += `<text class="end" x="892" y="232">5'</text><text class="end" x="892" y="250">3'</text>`;
+  h += `<text class="lab" x="40" y="96">주형 가닥</text>`;
+  h += `<g id="d-lead"><rect class="lead" id="d-lp-fill" x="60" y="125" width="20" height="6"/><rect class="primer" id="d-lp" x="60" y="125" width="20" height="6"/>
+    <rect class="lead" id="d-lb" x="80" y="125" height="6" width="0"/><polygon class="lead" id="d-lh"/>
+    <text class="end" id="d-l5" x="52" y="147">5'</text><text class="end" id="d-l3" y="147">3'</text></g>`;
+  FR.forEach((f, k) => {
+    h += `<g id="d-f${k}"><rect class="frag" id="d-f${k}-fill" x="${f[1] - 20}" y="339" width="20" height="6"/><rect class="primer" id="d-f${k}-p" x="${f[1] - 20}" y="339" width="20" height="6"/>
+      <rect class="frag" id="d-f${k}-b" y="339" height="6" width="0"/><polygon class="frag" id="d-f${k}-h"/>
+      <text class="end" x="${f[1] - 8}" y="331">5'</text><text class="end" id="d-f${k}-3" y="331">3'</text></g>`;
+    if (k < 3) h += `<g id="d-j${k}"><rect class="frag" x="${f[1]}" y="339" width="10" height="6"/><circle class="enz" cx="${f[1] + 5}" cy="342" r="9"/></g>`;
+  });
+  h += `<text class="lab" id="d-jl" x="${FR[0][1] + 5}" y="310" text-anchor="middle">연결효소</text>`;
+  h += `<text class="lab" id="d-tl" x="70" y="178">선도: 분기점 쪽으로 →</text>`;
+  h += `<text class="lab" id="d-tg" x="70" y="296">지연: 분기점 반대로 ←</text>`;
+  h += `<text class="end" id="d-old" x="70" y="392">먼저 만들어진 절편 (분기점에서 먼 쪽)</text><text class="end" id="d-new" y="392" text-anchor="end">나중 절편 (분기점 가까이)</text>`;
+  h += `<g id="d-hel"><ellipse class="enz" id="d-he" cy="235" rx="15" ry="22"/><text class="lab" id="d-ht" y="212">헬리케이스</text><text class="lab" id="d-hf" y="276">분기점 →</text></g>`;
+  h += `<rect class="ring" id="d-r1" height="24" rx="12" y="116" width="66"/><rect class="ring" id="d-r2" height="26" rx="13" y="329" width="62"/>`;
+  h += `<g id="d-call"><rect class="box" x="696" y="118" width="206" height="62" rx="6"/><text class="lab" x="708" y="142">새 가닥은 항상 5'→3'</text><text class="lab" x="708" y="164">규칙은 하나, 방향만 반대</text></g>`;
+  svg.innerHTML = h;
+  svg.dataset.built = "1";
+}
+
+function render(svg, T, hl) {
+  const $ = (id) => svg.querySelector("#" + id);
+  const set = (id, o) => { const e = $(id); for (const k in o) e.setAttribute(k, o[k]); };
+  const F = forkX(T);
+  svg.querySelectorAll(".rung").forEach((r) => { r.style.display = +r.dataset.x > F + 6 ? "" : "none"; });
+  set("d-up", { d: `M40 110 H${F - 70} C${F - 20} 110 ${F - 40} 228 ${F} 228 H880` });
+  set("d-lo", { d: `M40 360 H${F - 70} C${F - 20} 360 ${F - 40} 242 ${F} 242 H880` });
+  set("d-he", { cx: F + 12 }); set("d-ht", { x: F + 34 }); set("d-hf", { x: F + 34 });
+  $("d-ht").setAttribute("text-anchor", "start"); $("d-hf").setAttribute("text-anchor", "start");
+  const gone = clamp((T - 3) / 0.5), fill = clamp((T - 3.5) / 0.25), join = clamp((T - 3.75) / 0.25);
+  // 선도 가닥
+  const lp = clamp((T - 1) / 0.15), p = clamp(T - 1);
+  const tip = T <= 1 ? 80 : 80 + (T >= 2 ? 1 : p) * (F - 70 - 80);
+  $("d-lead").style.opacity = lp;
+  set("d-lb", { width: Math.max(0, tip - 80) });
+  set("d-lp", { opacity: 1 - gone }); set("d-lp-fill", { opacity: fill });
+  set("d-lh", { points: `${tip},120 ${tip + 12},128 ${tip},136`, opacity: T > 1.1 ? 1 : 0 });
+  set("d-l3", { x: tip + 14, opacity: T > 1.1 ? 1 : 0 });
+  // 지연 가닥
+  let tipD = 0;
+  FR.forEach((f, k) => {
+    const t0 = 2 + 0.3 * k, g = clamp((T - t0 - 0.05) / 0.25), tp = f[1] - 20 - g * (f[1] - 20 - f[0]);
+    if (k === 3) tipD = tp;
+    $("d-f" + k).style.opacity = clamp((T - t0) / 0.05);
+    set(`d-f${k}-b`, { x: tp, width: f[1] - 20 - tp });
+    set(`d-f${k}-p`, { opacity: 1 - gone }); set(`d-f${k}-fill`, { opacity: fill });
+    set(`d-f${k}-h`, { points: `${tp},335 ${tp - 12},342 ${tp},349`, opacity: g > 0 ? 1 - join : 0 });
+    set(`d-f${k}-3`, { x: tp - 6, opacity: g > 0 ? 1 : 0 });
+    if (k < 3) $("d-j" + k).style.opacity = join;
+  });
+  // 위의 조각들은 이은 뒤 머리 화살표를 지운다(1-join)
+  $("d-jl").style.opacity = join;
+  $("d-tl").style.opacity = clamp((T - 1.3) / 0.3) * (1 - clamp(T - 3.5));
+  $("d-tg").style.opacity = clamp((T - 2.2) / 0.3) * (1 - clamp(T - 3.5));
+  $("d-old").style.opacity = clamp((T - 2.9) / 0.2) * (1 - clamp(T - 3.5));
+  $("d-new").style.opacity = clamp((T - 2.9) / 0.2) * (1 - clamp(T - 3.5));
+  set("d-new", { x: 610 });
+  $("d-hf").style.opacity = T < 3.5 ? 1 : 0;
+  $("d-call").style.opacity = hl ? 1 : 0;
+  set("d-r1", { x: tip - 44, opacity: hl ? 1 : 0 });
+  set("d-r2", { x: tipD - 16, opacity: hl ? 1 : 0 });
+}
+
+function frame(now, t0) {
+  const svg = document.getElementById("dna"), cap = document.getElementById("dna-cap");
+  if (svg) {
+    if (!svg.dataset.built) build(svg);
+    if (LTT.MOTION_MS === 0) { render(svg, 4, false); cap.textContent = CAPS[4]; }
+    else {
+      let m = (now - t0) % TOTAL, seg = PLAN[0];
+      for (const s of PLAN) { if (m < s.d) { seg = s; break; } m -= s.d; }
+      render(svg, seg.a + (seg.b - seg.a) * (m / seg.d), !!seg.hl);
+      if (cap.dataset.c !== String(seg.c)) { cap.dataset.c = seg.c; cap.textContent = CAPS[seg.c]; }
+    }
+  }
+  if (!(LTT.MOTION_MS === 0 && svg && svg.dataset.built)) requestAnimationFrame((n) => frame(n, t0));
+}
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "프라이머": "중합효소가 이어 붙일 3'-OH 끝을 만들어 주는 짧은 RNA 조각. 복제의 출발점이 된다.",
+    "오카자키 절편": "지연 가닥에서 따로따로 만들어지는 짧은 DNA 조각. 나중에 연결효소가 이어 붙인다."
+  },
+  scenes: [{
+    type: "hook",
+    pre: "DNA 복제 분기점",
+    text: "새 가닥은 한 방향으로만 자라서, 한 가닥은 이어지고 한 가닥은 끊어진다",
+    sub: "위는 선도 가닥, 아래는 {{프라이머}}마다 시작하는 {{오카자키 절편}}.",
+    art: `<div class="dna-wrap"><svg id="dna" viewBox="0 0 920 410" role="img" aria-label="복제 분기점에서 선도 가닥은 연속으로, 지연 가닥은 오카자키 절편으로 합성되는 도해"></svg><p class="dna-cap" id="dna-cap"></p></div>`
+  }]
+});
+requestAnimationFrame((n) => frame(n, n));
+</script>
+</body>
+</html>

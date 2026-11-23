@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어</title>
+<script type="application/json" id="ltt-meta">{"topic":"TCP 혼잡 제어","audience":"백엔드·네트워크 개발자","theme":"lab","medium":"cwnd 시계열 플롯","decision":"전송 처리량 문제 진단"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const tp = (cwnd, mss = 1460, rtt = 0.1) => cwnd * mss * 8 / rtt / 1e6; // Mbps
+
+// 손 계산 곡선: slow start 1→32(5 RTT), 손실, 16에서 RTT당 +1
+const slow = [[0, 1], [1, 2], [2, 4], [3, 8], [4, 16], [5, 32]];
+const saw = [];
+(function () {
+  let t = 5, c = 16;
+  saw.push([5, 32], [5, 16]);
+  while (t < 38) {
+    t += 1; c += 1;
+    if (c >= 32) { saw.push([t, 32], [t, 16]); c = 16; } else saw.push([t, c]);
+  }
+})();
+
+function plotFig(full) {
+  return (el) => {
+    const s = el.appendChild(document.createElementNS(SVG, "svg"));
+    const p = LTT.axisPlot(s, {
+      width: 760, height: 300, x: [0, 38], y: [0, 36],
+      labels: { x: "시간 (RTT)", y: "cwnd (MSS)" },
+      series: [{ id: "slow", k: "c1" }, { id: "saw", k: "c2" }, { id: "ss", dash: true }, { id: "rto", dash: true }]
+    });
+    p.set("slow", slow);
+    if (full) {
+      p.set("saw", saw);
+      p.set("ss", [[5, 16], [38, 16]]);
+      p.set("rto", [[5, 32], [5, 1], [6, 2], [7, 4]]);
+      el.appendChild(LTT.h("div", "ltt-basis", "지수 증가(slow start)와 선형 증가(혼잡 회피)의 경계가 ssthresh 16이다(가로 점선, 손실 순간에 정해진다). 1로 떨어지는 점선은 타임아웃(RTO) 때뿐이다."));
+    } else {
+      p.set("saw", []); p.set("ss", []); p.set("rto", []);
+    }
+    return { el: s };
+  };
+}
+
+LTT.expect("cwnd 32 처리량(Mbps)", tp(32), 3.7376, { tol: 1e-3 });
+LTT.expect("cwnd 16 처리량(Mbps)", tp(16), 1.8688, { tol: 1e-3 });
+LTT.expect("평균 cwnd 24 처리량(Mbps)", tp(24), 2.8032, { tol: 1e-3 });
+
+const predictQ = "송신 윈도(cwnd, ACK 전에 보낼 수 있는 양)가 RTT마다 2배로 커져 32 MSS에 닿자 큐가 차서 패킷이 버려졌다. 중복 ACK 3개로 알아챈 직후 cwnd는?";
+
+LTT.deck({
+  title: "TCP 혼잡 제어",
+  theme: "lab",
+  glossary: {
+    "ssthresh": "slow start와 혼잡 회피를 가르는 문턱값. 손실이 나는 순간 cwnd/2로 정해진다."
+  },
+  scenes: [{
+    type: "predict",
+    title: "손실이 나면 전송 윈도는 어디로 떨어질까",
+    question: predictQ,
+    visual: () => {
+      const box = LTT.h("div", "", "");
+      box.appendChild(LTT.h("p", "", predictQ));
+      box.appendChild(LTT.facts([
+        { icon: "gauge", value: "32 MSS", label: "손실 직전 cwnd" },
+        { icon: "timer", value: "100 ms", label: "RTT" },
+        { icon: "cloud", value: tp(32).toFixed(2) + " Mbps", label: "그때 처리량 (MSS 1460 B)" }
+      ]));
+      const f = LTT.h("div", "", "");
+      plotFig(false)(f);
+      box.appendChild(f);
+      return box;
+    },
+    choices: [{ id: "1", text: "1 MSS로 초기화" }, { id: "16", text: "16 MSS로 반감" }, { id: "32", text: "32 MSS 유지" }],
+    answer: "16",
+    answerVisual: plotFig(true),
+    why: "중복 ACK 3개는 {{ssthresh}} = cwnd/2 = 16, cwnd = 16으로 이어진다. 이후 RTT당 +1 MSS로 16 RTT 걸려 다시 32에 닿고 톱니가 된다. 1 MSS로 돌아가는 것은 타임아웃(RTO) 때뿐이다(점선). 평균 cwnd ≈ 24, 처리량 ≈ " + tp(24).toFixed(1) + " Mbps로 최고점의 약 3/4이다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    takeaway: "cwnd는 손실 때 절반으로 줄고 RTT마다 +1씩 늘어 톱니가 되며, 평균 처리량은 최고점의 약 3/4이다. 손실이 잦으면 톱니가 낮아져 처리량이 떨어진다.",
+    recall: "3 중복 ACK 뒤 cwnd는 얼마로 가고, 평균 처리량은 최고점의 몇 배인가?",
+    basis: "Reno 기준, MSS 1460 B, RTT 100 ms, 초기 ssthresh 32로 둔 가정."
+  }]
+});
+</script>
+</body>
+</html>

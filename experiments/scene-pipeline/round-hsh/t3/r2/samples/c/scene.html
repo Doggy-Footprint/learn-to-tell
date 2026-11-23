@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의 · 리더 선출과 로그 복제</title>
+<script type="application/json" id="ltt-meta">{"topic": "Raft 합의", "audience": "분산 시스템 입문 개발자", "theme": "sketch", "medium": "아키텍처 화이트보드", "decision": "합의 기반 저장소 선택"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 다섯 서버를 오각형으로 놓는다. 모든 쌍이 직선으로 이어져도 어떤 노드도 지나지 않는다.
+const SERVERS = [
+  { id: "S1", c: 2, r: 0, l: "S1", s: "리더 · term 3", k: "accent" },
+  { id: "S2", c: 0, r: 1, l: "S2", s: "팔로워 · term 3" },
+  { id: "S3", c: 4, r: 1, l: "S3", s: "팔로워 · term 3" },
+  { id: "S4", c: 1, r: 2, l: "S4", s: "팔로워 · term 3" },
+  { id: "S5", c: 3, r: 2, l: "S5", s: "팔로워 · term 3" },
+];
+const PAIRS = [];
+for (let i = 0; i < SERVERS.length; i++)
+  for (let j = i + 1; j < SERVERS.length; j++)
+    PAIRS.push({ f: SERVERS[i].id, t: SERVERS[j].id });
+
+const SPEC = {
+  cols: 5, rows: 3, cell: [230, 150], node: [170, 66],
+  nodes: SERVERS,
+  edges: PAIRS.map((p) => ({ ...p, dash: true })),
+};
+
+const hub = (el) => {
+  const wrap = el.appendChild(document.createElement("div"));
+  const s = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  const dg = LTT.diagram(s, SPEC);
+  const send = (pairs, opts = {}) => pairs.map(([f, t]) => [f, t, { count: 1, ms: 900, ...opts }]);
+  const others = (id) => SERVERS.map((n) => n.id).filter((x) => x !== id);
+  dg.player(wrap, [
+    { caption: "S1이 리더다(term 3). 리더는 heartbeat를 보내 팔로워의 election timer를 되돌린다.",
+      hold: 2400, hot: ["S1"],
+      send: send(others("S1").map((t) => ["S1", t])) },
+    { caption: "S1 장애. heartbeat가 끊기고, timer가 가장 먼저 끝난 S4가 후보가 된다. term 4로 올리고 자기에게 표 1.",
+      hold: 2600, hot: ["S4"] },
+    { caption: "S4가 RequestVote를 나머지 서버에 보낸다. 서버는 term마다 한 표만 주고, 후보 로그가 자기 것 이상일 때만 준다.",
+      hold: 2600, hot: ["S4"],
+      send: send([["S4", "S2"], ["S4", "S3"], ["S4", "S5"]]) },
+    { caption: "S2, S3가 표를 준다. S4의 표는 자기 1 + 2 = 3/5. 과반수를 넘었으니 S4가 리더가 된다.",
+      hold: 2800, hot: ["S4"],
+      send: send([["S2", "S4"], ["S3", "S4"]], { color: "var(--ltt-good)" }) },
+    { caption: "리더 S4가 곧바로 heartbeat를 보내 다른 후보를 눌러 앉힌다. 한 term에 리더는 한 명뿐이다.",
+      hold: 2400, hot: ["S4"],
+      send: send([["S4", "S2"], ["S4", "S3"], ["S4", "S5"]]) },
+    { caption: "클라이언트 요청은 리더 S4만 받는다. S4가 자기 로그 끝에 index 7을 먼저 쓴다. 아직 미커밋이다.",
+      hold: 2600, hot: ["S4"] },
+    { caption: "S4가 AppendEntries로 index 7을 팔로워에 복제한다.",
+      hold: 2400, hot: ["S4"],
+      send: send([["S4", "S2"], ["S4", "S3"], ["S4", "S5"]], { color: "var(--ltt-accent)" }) },
+    { caption: "S2, S3 응답으로 S4 포함 3/5가 index 7을 저장했다. 과반수가 되는 순간 커밋. S5가 아직 없어도 커밋은 된다.",
+      hold: 3000, hot: ["S4", "S2", "S3"],
+      send: send([["S2", "S4"], ["S3", "S4"]], { color: "var(--ltt-good)" }) },
+    { caption: "리더가 commitIndex를 다음 AppendEntries에 실어 보낸다. 팔로워는 한 박자 늦게 커밋하고 상태 기계에 적용한다.",
+      hold: 3000, hot: ["S4"],
+      send: send([["S4", "S2"], ["S4", "S3"], ["S4", "S5"]], { color: "var(--ltt-good)" }) },
+  ]);
+  return { el: wrap, dg };
+};
+
+LTT.deck({
+  title: "Raft 합의",
+  theme: "sketch",
+  glossary: {
+    "term": "Raft의 선출 번호. 한 term에 리더는 최대 한 명이다.",
+  },
+  scenes: [
+    {
+      type: "overview",
+      kicker: "분산 시스템 · Raft",
+      title: "과반수 3/5가 리더 선출과 커밋을 함께 정한다",
+      en: "In Raft, a majority decides both who leads and what is committed",
+      sub: "같은 {{term|term}} 안에서 표는 한 번, 커밋은 과반수 저장 뒤에만",
+      figure: hub,
+      caption: "5대 서버. 리더만 쓰고, 과반수가 저장한 항목만 커밋된다.",
+      label: "Raft 한 번의 선출과 복제",
+      takeaway: "과반수(5대 중 3)를 모으면 리더가 되고, 과반수가 저장하면 커밋된다. 과반수가 없으면 멈춘다.",
+      recall: "5대 중 2대가 죽어도 되는 이유는? 3대가 죽으면 어떻게 되나?",
+      basis: "Raft 논문의 선출·복제 규칙. 시간값(election timeout 150–300ms)은 예시다.",
+    },
+  ],
+});
+</script>
+</body>
+</html>

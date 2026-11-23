@@ -1,0 +1,400 @@
+[
+ {
+  "id": "no-blank-redraw-frame",
+  "layer": "format",
+  "check": "When the diagram or explanation is redrawn or replaced, is there never a frame where it is empty or collapsed?",
+  "instruction": "Build the next state before swapping it in; never clear a container and refill it across an await, timer or fetch.",
+  "applies_when": "all",
+  "threshold": "0 samples between beats with diagram container height 0 or 0 visible characters (50ms sampling misses shorter gaps)",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "다시 그릴 때 순간 붕괴",
+   "텍스트 교체 깜빡임"
+  ],
+  "evidence_quotes": [
+   "chang-ungar1993#19"
+  ],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": "chang-ungar1993 is pre-2005 and not age-exempt, so it counts only as support."
+ },
+ {
+  "id": "control-position-stable",
+  "layer": "format",
+  "check": "Do learner and playback controls stay at the same position across beats on the same page?",
+  "instruction": "Reserve fixed space for controls and variable-length text; do not recreate controls inside redrawn HTML.",
+  "applies_when": "all",
+  "threshold": "Control bbox center shift ≤1px between beats on the same page",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "조작 요소 위치 이동"
+  ],
+  "evidence_quotes": [],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": ""
+ },
+ {
+  "id": "transform-about-own-center",
+  "layer": "animation",
+  "check": "Do scale and rotate animations on diagram elements pivot around the element's own center or an intended anchor?",
+  "instruction": "For CSS transforms on SVG elements set transform-box: fill-box and an explicit transform-origin.",
+  "applies_when": "all",
+  "threshold": "bbox center displacement during a scale/rotate-only animation ≤2% of SVG width",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "transform-origin 오류"
+  ],
+  "evidence_quotes": [],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": ""
+ },
+ {
+  "id": "responsive-reflow",
+  "layer": "format",
+  "check": "Does the scene keep all content and functions when the viewport narrows or text is enlarged?",
+  "instruction": "Size the diagram from its container (viewBox plus container-relative width, recompute scales on resize); avoid fixed pixel layouts.",
+  "applies_when": "all",
+  "threshold": "Text resizable to 200% without loss of content or function; at 320 CSS px width no two-dimensional scrolling except the diagram itself",
+  "threshold_status": "quoted",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "크기 변경에 반응 안 함",
+   "확대 시 깨짐"
+  ],
+  "evidence_quotes": [
+   "wcag22#3",
+   "wcag22#5",
+   "wcag22#6",
+   "wcag22#8"
+  ],
+  "evidence_level_manual": "strong",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": "wcag22#8 exempts content that needs two-dimensional layout for meaning, which applies to the diagram."
+ },
+ {
+  "id": "transition-boundary-continuity",
+  "layer": "animation",
+  "check": "At the start and end of each animation, is there no frame showing the previous state during a delay, the final state before the start, or a jump after the end?",
+  "instruction": "Use fill-mode both (or apply start values before inserting the element) and make the final style equal the last keyframe; do not redraw in end callbacks.",
+  "applies_when": "all",
+  "threshold": "0 position/opacity discontinuities (>8 units of SVG width 1000) within 100ms of an animation's start or end",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "시작 전 역행 깜빡임",
+   "시작 전 끝 상태 깜빡임",
+   "끝에서 튐"
+  ],
+  "evidence_quotes": [],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": ""
+ },
+ {
+  "id": "visible-exit",
+  "layer": "animation",
+  "check": "Do removed mechanism elements leave visibly (fade out or move to their destination) instead of vanishing in one frame?",
+  "instruction": "Give every exit a short exit transition (fade or move); remove the node only after it finishes.",
+  "applies_when": "all",
+  "threshold": "Exit transition ≥ the scene's shortest movement duration; 0 mechanism elements going from opacity 1 to 0 in one sample",
+  "threshold_status": "candidate",
+  "measure": "data+llm",
+  "origin": "glitch-list",
+  "glitches": [
+   "페이드 없는 등장·퇴장 (퇴장 쪽)"
+  ],
+  "evidence_quotes": [
+   "carbon-motion#8",
+   "heer2007#35",
+   "chang-ungar1993#36",
+   "chang-ungar1993#37"
+  ],
+  "evidence_level_manual": "moderate",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": "Entrance side is covered by entrance-from-origin. heer2007 is age-exempt (perception/cognition)."
+ },
+ {
+  "id": "no-stale-duplicates",
+  "layer": "format",
+  "check": "After moving between beats or repeating an action, are there no leftover elements from earlier states or accumulating copies?",
+  "instruction": "Render each state from data with keyed joins and explicit exit removal; never only append.",
+  "applies_when": "all",
+  "threshold": "Element count and visible text after repeating the same action 3 times equal those after doing it once",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "잔상·누적",
+   "타이머·애니메이션 누적"
+  ],
+  "evidence_quotes": [],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": ""
+ },
+ {
+  "id": "valid-intermediate-states",
+  "layer": "animation",
+  "check": "Do the intermediate frames of each transition remain valid graphics (no twisted paths, wrong-way rotation, or meaningless color passes)?",
+  "instruction": "Match point counts before morphing paths, interpolate angles along the shortest arc, and interpolate color in a perceptual space.",
+  "applies_when": "all",
+  "threshold": "None",
+  "threshold_status": "none",
+  "measure": "data+llm",
+  "origin": "glitch-list",
+  "glitches": [
+   "보간 경로 이상"
+  ],
+  "evidence_quotes": [
+   "heer2007#18"
+  ],
+  "evidence_level_manual": "strong",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": "heer2007#18: 'intermediate interpolation states remain valid data graphics'."
+ },
+ {
+  "id": "label-mark-sync",
+  "layer": "animation",
+  "check": "Do value labels attached to a mark change together with the mark rather than ahead of or behind it?",
+  "instruction": "Tween the label with its mark, or update it when the mark's transition ends; use one duration for axes and data.",
+  "applies_when": "all",
+  "threshold": "Label change time within the mark's transition window (start to end + 100ms)",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "글자와 그림 비동기"
+  ],
+  "evidence_quotes": [
+   "heer2007#35"
+  ],
+  "evidence_level_manual": "weak",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": "heer2007#35 is about axis labels moving with scale changes; partial support."
+ },
+ {
+  "id": "time-based-animation",
+  "layer": "format",
+  "check": "Is animation speed independent of frame rate and does playback stay correct after the page is hidden and shown again?",
+  "instruction": "Advance rAF animations by elapsed time, not a fixed per-frame increment; pause on visibilitychange and resume without catching up in one jump.",
+  "applies_when": "all",
+  "threshold": "Duration differs ≤10% between a normal run and a 4x CPU-throttled run; 0 jumps after a hidden/visible switch",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "프레임률 의존 속도",
+   "백그라운드 정지 후 몰아치기"
+  ],
+  "evidence_quotes": [],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": ""
+ },
+ {
+  "id": "input-response-latency",
+  "layer": "format",
+  "check": "Does every step or control action produce its first visible change almost immediately?",
+  "instruction": "Start the visible response in the same event handler; do not defer the next beat with timers.",
+  "applies_when": "all",
+  "threshold": "First visible change within 0.1s of the action",
+  "threshold_status": "quoted",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "입력 반응 지연"
+  ],
+  "evidence_quotes": [
+   "nng-usability#7",
+   "nng-usability#8"
+  ],
+  "evidence_level_manual": "strong",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": "Conflicts with control-change-reruns (200–300ms rerun start); 0.1s is the first-change bound, the rerun bound can stay separate."
+ },
+ {
+  "id": "one-action-one-effect",
+  "layer": "animation",
+  "check": "Under rapid repeated input, does each action advance exactly one step, continue from the current state, and never mix or stall beats?",
+  "instruction": "Register listeners once; on interrupt, start the new transition from current DOM values; queue or ignore input during transitions; never wait only for transitionend.",
+  "applies_when": "all",
+  "threshold": "Clicks n = step advances n; 0 position jumps on interrupt; 0 stalls >2s after an action; 0 opacity-0 samples during slider drag",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "중단 후 점프",
+   "빠른 연속 클릭 경합",
+   "리스너 중복 등록",
+   "transitionend 대기 교착",
+   "슬라이더 드래그 지연·깜빡임"
+  ],
+  "evidence_quotes": [],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": ""
+ },
+ {
+  "id": "focus-preserved-on-update",
+  "layer": "format",
+  "check": "After a control is activated and the scene updates, does keyboard focus stay on that control or its equivalent?",
+  "instruction": "Update controls in place instead of recreating them; if recreated, restore focus to the equivalent control.",
+  "applies_when": "all",
+  "threshold": "document.activeElement after activation is the same or equivalent control, never body",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "포커스 소실"
+  ],
+  "evidence_quotes": [],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": ""
+ },
+ {
+  "id": "controls-not-covered",
+  "layer": "format",
+  "check": "Are visible controls never covered by animated elements or overlays that block pointer input?",
+  "instruction": "Keep controls outside the animated layer or above it; set pointer-events: none on decorative overlays.",
+  "applies_when": "all",
+  "threshold": "elementFromPoint at every visible control's center returns the control or its descendant in all samples",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "조작 요소 가려짐",
+   "겹쳐 쌓임"
+  ],
+  "evidence_quotes": [],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": ""
+ },
+ {
+  "id": "inactive-page-stopped",
+  "layer": "format",
+  "check": "Do deck pages other than the active one run no animations or timers?",
+  "instruction": "Start a page's animations on page entry and stop its timers and rAF loops on page exit.",
+  "applies_when": "all",
+  "threshold": "0 running animations or bbox changes on non-active pages",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "쪽 전환 중 두 쪽 공존",
+   "숨은 쪽에서 미리 재생"
+  ],
+  "evidence_quotes": [],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": "'숨은 쪽에서 미리 재생' is also covered by animation-starts-when-visible from the outcome side."
+ },
+ {
+  "id": "smooth-frame-rate",
+  "layer": "animation",
+  "check": "Does motion render at a steady frame rate without visible stutter?",
+  "instruction": "Animate transform and opacity rather than layout properties; drive each property from one animation source; avoid heavy SVG filters on moving elements.",
+  "applies_when": "all",
+  "threshold": "rAF interval p95 ≤33ms (≥30fps) during motion; 0 long tasks >50ms during motion",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "프레임 드랍(jank)",
+   "레이아웃 속성 애니메이션",
+   "CSS transition과 d3의 이중 적용",
+   "무거운 SVG filter"
+  ],
+  "evidence_quotes": [
+   "apple-hig-motion#18",
+   "chang-ungar1993#17",
+   "chang-ungar1993#18"
+  ],
+  "evidence_level_manual": "weak",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": "apple-hig-motion#18 states 30–60fps for games; chang-ungar1993 is support only. The user's 'rough' (line-by-line drawing) is an aesthetic defect, not this item."
+ },
+ {
+  "id": "stable-numeral-width",
+  "layer": "format",
+  "check": "Do changing numbers stay in place without horizontal wobble?",
+  "instruction": "Use font-variant-numeric: tabular-nums and a fixed text anchor for counting numbers.",
+  "applies_when": "all",
+  "threshold": "Text bbox center drift ≤1px while only digits change",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "숫자 폭 떨림"
+  ],
+  "evidence_quotes": [],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": ""
+ },
+ {
+  "id": "no-raw-markup",
+  "layer": "format",
+  "check": "Is the visible text free of raw markup such as TeX source or HTML escapes?",
+  "instruction": "Render math before display or use plain Unicode; insert text with textContent.",
+  "applies_when": "all",
+  "threshold": "0 visible text matches of $…$, \\frac-style commands, or &lt;/&gt;/&amp;",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "수식·이스케이프 깨짐"
+  ],
+  "evidence_quotes": [],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": ""
+ },
+ {
+  "id": "state-change-announced",
+  "layer": "format",
+  "check": "Are beat and state changes exposed to assistive technology?",
+  "instruction": "Put the beat explanation in an aria-live=\"polite\" region or equivalent status element.",
+  "applies_when": "all",
+  "threshold": "Explanation text changes occur inside a live region",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "변화 미고지"
+  ],
+  "evidence_quotes": [],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": "10 of 264 round-hsh scene files already use aria-live."
+ },
+ {
+  "id": "no-unrequested-scroll",
+  "layer": "format",
+  "check": "Does the reading position never move unless the learner scrolls?",
+  "instruction": "Do not call focus() or scrollIntoView automatically; reserve space so content growth does not shift what is above the reading position.",
+  "applies_when": "all",
+  "threshold": "0 scrollTop changes of window or card scroll container without learner scroll input",
+  "threshold_status": "candidate",
+  "measure": "script",
+  "origin": "glitch-list",
+  "glitches": [
+   "스크롤 점프"
+  ],
+  "evidence_quotes": [],
+  "evidence_level_manual": "none",
+  "evidence_method": "main-agent grep of verified-quotes.md; not run through evidence.py",
+  "note": "stable-frame (CLS) covers layout shift but not scroll position."
+ }
+]

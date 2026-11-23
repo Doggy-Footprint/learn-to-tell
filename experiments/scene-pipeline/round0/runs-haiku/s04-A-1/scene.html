@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>키르히호프 전류 법칙</title>
+<script type="application/json" id="ltt-meta">{"topic": "키르히호프 전류 법칙", "audience": "회로 입문자", "theme": "blueprint", "medium": "회로 도면", "decision": "분기점에서 전류가 어떻게 나뉘나"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.kcl { max-width: 1040px; margin: 0 auto; }
+.kcl-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: center; }
+.kcl-grid > * { min-width: 0; }
+.kcl-art svg { display: block; width: 100%; height: auto; max-width: 100%; }
+.kcl-panel { border: 1px solid var(--ltt-line); background: var(--ltt-card); border-radius: 10px; padding: 16px 18px; }
+.kcl-head { color: var(--ltt-muted); }
+.kcl-row { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) 3em; gap: 10px; align-items: center; margin: 14px 0; transition: opacity .4s; }
+.kcl-row span { color: var(--ltt-muted); white-space: nowrap; }
+.kcl-row i { display: block; height: 12px; border-radius: 6px; background: var(--ltt-c1); transition: width .6s; }
+.kcl-row b { text-align: right; font-variant-numeric: tabular-nums; }
+.kcl-in i { background: var(--ltt-accent); }
+.kcl-c2 i { background: var(--ltt-c2); }
+.kcl-c3 i { background: var(--ltt-c3); }
+.kcl-sum { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--ltt-line); transition: opacity .4s; }
+.kcl[data-stage="0"] .kcl-br,
+.kcl[data-stage="0"] .kcl-sum,
+.kcl[data-stage="1"] .kcl-sum { opacity: 0; }
+@media (max-width: 760px) { .kcl-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .kcl-row, .kcl-row i, .kcl-sum { transition: none; } }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const volts = 6;                                 // 전원 전압 (V)
+const ohms = [2, 3, 6];                          // 갈래 저항 (Ω)
+const amps = ohms.map((r) => volts / r);         // 옴의 법칙 I = V / R. 세 갈래는 같은 전압을 받는다
+const total = amps.reduce((s, i) => s + i, 0);   // 합류점 B에서 다시 모인 전류
+const names = ["R₁", "R₂", "R₃"];
+
+const split = (el) => {
+  const wrap = el.appendChild(document.createElement("div"));
+  wrap.className = "kcl";
+  wrap.dataset.stage = "0";
+  const grid = wrap.appendChild(document.createElement("div"));
+  grid.className = "kcl-grid";
+  const art = grid.appendChild(document.createElement("div"));
+  art.className = "kcl-art";
+  const s = art.appendChild(document.createElementNS(SVG, "svg"));
+  const dg = LTT.diagram(s, {
+    cols: 4, rows: 4, cell: [176, 112], node: [128, 56],
+    nodes: [
+      { id: "bat", c: 0, r: 1, l: "전원", s: `${volts} V`, icon: "bolt" },
+      { id: "A", c: 1, r: 1, l: "분기점 A", w: 104 },
+      { id: "R1", c: 2, r: 0, l: names[0], s: `${ohms[0]} Ω` },
+      { id: "R2", c: 2, r: 1, l: names[1], s: `${ohms[1]} Ω` },
+      { id: "R3", c: 2, r: 2, l: names[2], s: `${ohms[2]} Ω` },
+      { id: "B", c: 3, r: 1, l: "합류점 B", w: 104 },
+    ],
+    edges: [
+      { f: "bat", t: "A", l: `${total} A` },
+      { f: "A", t: "R1", from: "top", to: "left", shape: "ortho", l: `${amps[0]} A` },
+      { f: "A", t: "R2", l: `${amps[1]} A` },
+      { f: "A", t: "R3", from: "bottom", to: "left", shape: "ortho", l: `${amps[2]} A` },
+      { f: "R1", t: "B", from: "right", to: "top", shape: "ortho" },
+      { f: "R2", t: "B" },
+      { f: "R3", t: "B", from: "right", to: "bottom", shape: "ortho" },
+      { f: "B", t: "bat", from: "right", to: "bottom", via: [[3.5, 1], [3.5, 3], [0, 3]], shape: "ortho", l: `${total} A 되돌아감` },
+    ],
+  });
+
+  const panel = grid.appendChild(document.createElement("div"));
+  panel.className = "kcl-panel";
+  panel.innerHTML = `
+    <div class="kcl-head">갈래별 전류</div>
+    <div class="kcl-row kcl-in"><span>전원에서</span><i style="width:100%"></i><b>${total} A</b></div>
+    ${ohms.map((r, k) => `<div class="kcl-row kcl-br kcl-c${k + 1}"><span>${names[k]} ${r} Ω</span><i style="width:${(amps[k] / total * 100).toFixed(1)}%"></i><b>${amps[k]} A</b></div>`).join("")}
+    <div class="kcl-sum"><span>${amps.join(" + ")} = ${total} A</span><span class="ltt-tag muted">모델로 계산한 예시</span></div>`;
+
+  const plan = [
+    { caption: "전원의 6 A가 분기점 A로 들어온다. 전하는 A에 머물지 않고 나갈 갈래를 고른다.", hot: ["bat>A"], send: [["bat", "A", 6]] },
+    { caption: "A에서 세 갈래로 나뉜다. 세 저항에는 같은 6 V가 걸리므로 저항이 작은 길일수록 더 많이 흐른다.", hot: ["A>R1", "A>R2", "A>R3"], send: [["A", "R1", 3], ["A", "R2", 2], ["A", "R3", 1]] },
+    { caption: "세 갈래는 합류점 B에서 다시 만난다. 3 + 2 + 1 = 6 A가 한 줄로 합쳐진다.", hot: ["R1>B", "R2>B", "R3>B"], send: [["R1", "B", 3], ["R2", "B", 2], ["R3", "B", 1]] },
+    { caption: "B에서 합쳐진 6 A가 전원으로 돌아간다. 들어온 전류의 합과 나간 전류의 합이 같다.", hot: ["B>bat"], send: [["B", "bat", 6]] },
+  ];
+  const steps = plan.map((p, i) => ({
+    caption: p.caption,
+    hold: 2800,
+    send: p.send.map(([f, t, n]) => [f, t, { count: n, ms: 1100, gap: 150, r: 4 }]),
+    enter: (dg) => { wrap.dataset.stage = String(i); dg.highlight(p.hot); },
+  }));
+  dg.player(wrap.appendChild(document.createElement("div")), steps);
+
+  return { el: wrap, dg };
+};
+
+LTT.deck({
+  title: "키르히호프 전류 법칙",
+  theme: "blueprint",
+  glossary: {
+    "전류": "도선의 한 단면을 1초 동안 지나는 전하의 양. 단위는 A(암페어)",
+    "저항": "전류의 흐름을 막는 정도. 단위는 Ω(옴)",
+  },
+  scenes: [{
+    type: "figure",
+    kicker: "키르히호프 전류 법칙",
+    title: "분기점에서 전류는 갈래로 나뉘어도, 합은 들어온 양과 같다",
+    sub: "전하는 분기점에서 사라지지도 쌓이지도 않는다. 얼마나 많이 갈지는 갈래마다 다른 {{저항}}이 정한다.",
+    figure: split,
+    takeaway: "분기점에 들어온 {{전류}}의 합은 나가는 전류의 합과 같다.",
+    recall: "R₁을 2 Ω에서 1 Ω으로 낮추면 전원에서 나오는 전체 전류는 늘까, 줄까?",
+    basis: "옴의 법칙 I = V ÷ R을 세 갈래에 같은 6 V를 걸어 계산했다. 6 V와 2·3·6 Ω은 셈을 쉽게 하려고 고른 값이다.",
+  }],
+});
+
+LTT.expect("분기 전류의 합 = 전원 전류", total, volts / (1 / ohms.reduce((s, r) => s + 1 / r, 0)), { tol: 1e-9 });
+</script>
+</body>
+</html>

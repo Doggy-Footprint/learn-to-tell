@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic": "신용 창조와 통화 승수", "audience": "경제 기사 독자", "theme": "ledger", "medium": "경제 신문 차트", "decision": "통화정책 기사 해석"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .cc { display: grid; gap: 10px; }
+  .cc-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cc-panel { background: var(--ltt-card); border: 1px solid var(--ltt-line); border-radius: 8px; padding: 8px 10px 4px; }
+  .cc-panel h4 { margin: 0 0 2px; font-size: 14px; color: var(--ltt-ink); }
+  .cc-panel svg { width: 100%; height: auto; display: block; }
+  .cc text { fill: var(--ltt-ink-2); font-size: 11px; }
+  .cc .ax { stroke: var(--ltt-line-2); stroke-width: 1; }
+  .cc .cap { stroke: var(--ltt-ink); stroke-width: 1.5; stroke-dasharray: 6 4; }
+  .cc .capt { fill: var(--ltt-ink); font-weight: 700; font-size: 12px; }
+  .cc .rsv { fill: var(--ltt-muted); }
+  .cc .loan { fill: var(--ltt-accent); }
+  .cc .cum { fill: var(--ltt-accent-soft); }
+  .cc .new { fill: var(--ltt-accent); }
+  .cc .tie { stroke: var(--ltt-accent); stroke-width: 1; stroke-dasharray: 3 2; fill: none; }
+  .cc .note { fill: var(--ltt-ink); font-size: 11px; font-weight: 600; }
+  .cc .col { transform-box: fill-box; transform-origin: 50% 100%; animation: cc-grow .35s ease-out both; }
+  .cc .fade { animation: cc-fade .3s ease-out both; }
+  @keyframes cc-grow { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+  @keyframes cc-fade { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .cc .col, .cc .fade { animation: none; } }
+  .cc-key { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ltt-ink-2); align-items: center; }
+  .cc-key i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; border-radius: 2px; vertical-align: -1px; }
+  .cc-stats { display: grid; grid-template-columns: 1fr 1fr 1fr 1.5fr; gap: 10px; }
+  .cc-stats .ltt-stat { text-align: left; }
+  .cc-stats b { white-space: nowrap; }
+  .cc-ctl { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .cc-ctl button { font: inherit; font-size: 13px; padding: 4px 12px; border: 1px solid var(--ltt-line-2); background: var(--ltt-card); color: var(--ltt-ink); border-radius: 6px; cursor: pointer; }
+  @media (max-width: 800px) { .cc-panels { grid-template-columns: 1fr; } .cc-stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<script>
+const D0 = 100, N = 24, STEP = 260; // 예금 100, 표시 라운드 수, 라운드 간격(ms)
+const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString("ko-KR", { maximumFractionDigits: 1 });
+const deposit = (r, n) => D0 * Math.pow(1 - r, n);                 // n+1번째 라운드의 새 예금
+const cumulative = (r, n) => (D0 / r) * (1 - Math.pow(1 - r, n)); // n라운드 누적 예금
+LTT.expect("5라운드 누적 예금", cumulative(0.1, 5), 409.51, { tol: 1e-6 });
+LTT.expect("3라운드 누적 예금", cumulative(0.1, 3), 271, { tol: 1e-6 });
+LTT.expect("r=20% 상한", D0 / 0.2, 500, { tol: 1e-9 });
+
+const SVGNS = "http://www.w3.org/2000/svg";
+const X0 = 36, W = 500, BASE = 250, TOP = 24, SLOT = W / N, BW = SLOT * 0.68;
+const ms = LTT.MOTION_MS === 0 ? 0 : 1;
+
+function left(r) {
+  const k = (BASE - TOP) / D0; let g = "";
+  g += `<line class="ax" x1="${X0}" y1="${BASE}" x2="${X0 + W}" y2="${BASE}"/>`;
+  [0, 50, 100].forEach((t) => { g += `<text x="${X0 - 6}" y="${BASE - t * k + 4}" text-anchor="end">${t}</text>`; });
+  for (let n = 0; n < N; n++) {
+    const d = deposit(r, n), rs = d * r, ln = d - rs, x = X0 + n * SLOT + (SLOT - BW) / 2, dl = n * STEP * ms;
+    g += `<g class="col" style="animation-delay:${dl}ms"><rect class="rsv" x="${x}" y="${BASE - rs * k}" width="${BW}" height="${rs * k}"/>` +
+         `<rect class="loan" x="${x}" y="${BASE - d * k}" width="${BW}" height="${ln * k}"/></g>`;
+    if (n < N - 1) {
+      const nx = x + SLOT, ny = BASE - deposit(r, n + 1) * k;
+      g += `<path class="tie fade" style="animation-delay:${dl + 200 * ms}ms" d="M${x + BW} ${ny} H${nx}"/>`;
+    }
+  }
+  const d1 = D0 * r, d2 = D0 * (1 - r);
+  g += `<text class="note fade" x="${X0 + SLOT * 2}" y="${TOP - 8}" style="animation-delay:${200 * ms}ms">① 예금 100 → 준비금 ${fmt(d1)} + 대출 ${fmt(d2)}</text>`;
+  g += `<text class="note fade" x="${X0 + SLOT * 2}" y="${TOP + 8}" style="animation-delay:${STEP * ms + 200 * ms}ms">② 그 대출 ${fmt(d2)}이 다음 은행의 새 예금 ${fmt(d2)}</text>`;
+  g += `<text x="${X0}" y="${BASE + 16}">1</text><text x="${X0 + W}" y="${BASE + 16}" text-anchor="end">${N} 라운드</text>`;
+  return g;
+}
+
+function right(r) {
+  const cap = D0 / r, k = (BASE - TOP) / 2000; let g = "";
+  g += `<line class="ax" x1="${X0 + 8}" y1="${BASE}" x2="${X0 + W}" y2="${BASE}"/>`;
+  [0, 1000, 2000].forEach((t) => { g += `<text x="${X0 + 2}" y="${BASE - t * k + 4}" text-anchor="end">${t.toLocaleString("ko-KR")}</text>`; });
+  for (let n = 1; n <= N; n++) {
+    const c = cumulative(r, n), p = cumulative(r, n - 1), x = X0 + (n - 1) * SLOT + (SLOT - BW) / 2 + 8, dl = (n - 1) * STEP * ms;
+    g += `<g class="col" style="animation-delay:${dl}ms"><rect class="cum" x="${x}" y="${BASE - p * k}" width="${BW}" height="${p * k}"/>` +
+         `<rect class="new" x="${x}" y="${BASE - c * k}" width="${BW}" height="${Math.max((c - p) * k, 1)}"/></g>`;
+  }
+  const cy = BASE - cap * k;
+  g += `<line class="cap" x1="${X0 + 8}" x2="${X0 + W}" y1="${cy}" y2="${cy}"/>`;
+  g += `<text class="capt" x="${X0 + W}" y="${cy - 6}" text-anchor="end">상한 100 ÷ ${Math.round(r * 100)}% = ${fmt(cap)}</text>`;
+  return g;
+}
+
+const scene = {
+  title: "예금 100은 대출과 재예금을 거치며 상한 100÷준비율까지 불어난다",
+  en: "Credit creation and the money multiplier",
+  kicker: "통화 · 신용 창조",
+  sub: "왼쪽은 라운드마다 새로 생기는 예금, 오른쪽은 예금 누적. 지급준비율을 바꿔 상한선이 움직이는 것을 본다.",
+  narration: "은행은 받은 예금에서 {{지급준비율}}만큼만 준비금으로 두고 나머지를 대출한다. 그 대출금이 다른 은행의 새 예금이 되므로 예금 합계는 늘어난다. 새 예금은 매 라운드 (1−r)배로 줄지만 누적은 상한선에 다가간다. 준비율을 올리면 상한선이 내려간다.",
+  mount(body) {
+    body.innerHTML = `<div class="cc">
+      <div class="cc-panels">
+        <div class="cc-panel"><h4>라운드별 새 예금 (단위: 같은 통화)</h4><svg id="cc-l" viewBox="0 0 560 276" role="img" aria-label="라운드별 새 예금 막대. 아래는 준비금, 위는 대출"></svg></div>
+        <div class="cc-panel"><h4>누적 예금과 상한선</h4><svg id="cc-r" viewBox="0 0 560 276" role="img" aria-label="누적 예금이 상한선에 다가가는 막대"></svg></div>
+      </div>
+      <div class="cc-key"><span><i style="background:var(--ltt-muted)"></i>준비금으로 남김</span><span><i style="background:var(--ltt-accent)"></i>대출로 나감 → 다음 라운드의 예금</span><span><i style="background:var(--ltt-accent-soft);border:1px solid var(--ltt-line-2)"></i>앞 라운드까지 누적</span></div>
+      <div class="ltt-param">지급준비율 r <b id="r-v"></b><div id="r"></div><button type="button" id="cc-replay">처음부터 다시</button></div>
+      <div class="cc-stats">
+        <div class="ltt-stat"><b id="s-mul"></b><small>승수 1/r (배)</small></div>
+        <div class="ltt-stat"><b id="s-cap"></b><small>예금 상한</small></div>
+        <div class="ltt-stat"><b id="s-cum"></b><small>${N}라운드 누적 예금</small></div>
+        <div class="ltt-stat"><b id="s-split"></b><small>상한일 때 대출 + 준비금</small></div>
+      </div></div>`;
+    const $ = (id) => body.querySelector("#" + id);
+    let cur = 0.1;
+    const draw = (r) => {
+      cur = r;
+      $("cc-l").innerHTML = left(r); $("cc-r").innerHTML = right(r);
+      const cap = D0 / r;
+      $("s-mul").textContent = fmt(1 / r) + "배"; $("s-cap").textContent = fmt(cap);
+      $("s-cum").textContent = fmt(cumulative(r, N)); $("s-split").textContent = fmt(cap - D0) + " + " + D0;
+    };
+    $("cc-replay").addEventListener("click", () => draw(cur));
+    LTT.sweep({
+      params: { r: { kind: "steps", stops: [5, 10, 20, 25], value: 10, fmt: (v) => v + "%" } },
+      render: ({ r }) => draw(r / 100),
+    });
+    return {};
+  },
+  takeaway: "준비금 비율 r이 낮을수록 새 예금이 천천히 줄어 누적 예금 상한 100÷r이 커진다. 기사 속 '승수 10배'는 이론적 상한이다.",
+  recall: "r이 10%에서 20%로 오르면 예금 상한은 얼마에서 얼마가 되나?",
+  basis: "모델로 계산한 예시: 최초 예금 100, 모든 대출이 예금으로 돌아온다고 가정. 현금 보유·초과 준비금·대출 수요 부족이 있으면 실제 승수는 더 작다."
+};
+
+LTT.deck({
+  title: "신용 창조와 통화 승수", theme: "ledger",
+  glossary: { "지급준비율": "예금 중 은행이 대출하지 않고 준비금으로 남겨야 하는 비율 r." },
+  scenes: [scene]
+});
+</script>
+</body>
+</html>

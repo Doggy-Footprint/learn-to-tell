@@ -8,3 +8,8 @@ tmp/
 dist/
 packages/ltt-kit/*
 !packages/ltt-kit/package.json
+node_modules
+measurements
+experiments/rubric-sources/
+.harness/sessions/progress-*.json
+.harness/sessions/progress-*.d/

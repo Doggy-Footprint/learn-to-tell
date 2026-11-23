@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic": "신용 창조와 통화 승수", "audience": "경제 기사 독자", "theme": "ledger", "medium": "경제 신문 차트", "decision": "통화정책 기사 해석"}</script>
+<style>
+.cc-wrap { display: grid; gap: 10px; }
+.cc-stats { display: flex; gap: 28px; align-items: baseline; flex-wrap: wrap; color: var(--ltt-muted); }
+.cc-stats b { color: var(--ltt-ink); }
+.cc-svg { width: 100%; height: auto; display: block; }
+.cc-tx { font-size: 13px; fill: var(--ltt-muted); }
+.cc-hide { opacity: 0; transition: opacity .3s; }
+.cc-line { margin: 0; min-height: 1.6em; color: var(--ltt-ink); }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const D0 = 100, ROUNDS = 15, STEP = 330, BW = 20;
+const L = { x0: 70, x1: 460, base: 360, top: 60 };   // 왼쪽: 라운드별 새 예금
+const R = { x0: 600, x1: 950, base: 360, top: 60 };  // 오른쪽: 누적 예금과 상한
+const slot = (L.x1 - L.x0) / ROUNDS;
+const bx = (n) => L.x0 + (n - 1) * slot + (slot - BW) / 2;
+const xr = (n) => R.x0 + (n - 1) * (R.x1 - R.x0) / (ROUNDS - 1);
+const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString("ko-KR");
+const dep = (r, n) => D0 * (1 - r) ** (n - 1);
+const cum = (r, n) => D0 * (1 - (1 - r) ** n) / r;
+const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const scene = {
+  title: "대출금이 다시 예금이 되면서, 처음 예금은 1/지급준비율 배까지 불어난다",
+  en: "Credit creation and the money multiplier",
+  kicker: "통화 · 지급준비율에 따라 예금이 불어나는 신용 창조",
+  sub: "은행은 {{지급준비율}}만 남기고 빌려준다. 빌려준 돈이 다른 은행의 예금이 된다. 준비율을 바꿔 상한이 어떻게 움직이는지 본다.",
+  layout: "full",
+  takeaway: "새 예금은 라운드마다 (1−r)배로 줄지만, 누적 예금은 D0/r 상한을 향해 자란다. 준비율을 올리면 상한이 내려간다.",
+  recall: "지급준비율을 10%에서 20%로 올리면 예금 100의 상한은 얼마로 바뀌나?",
+  basis: "이론적 상한이다. 모든 은행이 같은 비율을 남기고 대출금 전액이 다음 은행의 예금이 되며 현금 유출이 없다고 가정한다. 현금 보유·초과 준비금·대출 수요 부족이 있으면 실제 승수는 이보다 작다. 모델로 계산한 예시(D0=100).",
+  mount(body) {
+    body.innerHTML = `
+      <div class="cc-wrap">
+        <div class="ltt-param">지급준비율 r <b id="rr-v"></b><div id="rr"></div></div>
+        <div class="cc-stats">
+          <span>승수 1/r <b class="ltt-mono" id="cc-mult"></b></span>
+          <span>누적 예금 <b class="ltt-mono" id="cc-cum">0</b></span>
+          <span>대출 합 <b class="ltt-mono" id="cc-loan">0</b></span>
+          <span>준비금 합 <b class="ltt-mono" id="cc-res">0</b></span>
+          <span class="ltt-tag muted">모델로 계산한 예시</span>
+        </div>
+        <svg class="cc-svg" id="cc-svg" viewBox="0 0 1000 410" role="img" aria-label="라운드별 새 예금과 누적 예금, 상한"></svg>
+        <p class="cc-line" id="cc-line"></p>
+      </div>`;
+
+    const svg = body.querySelector("#cc-svg");
+    const line = body.querySelector("#cc-line");
+    const $ = (id) => body.querySelector("#" + id);
+    let r = 0.1, timer = null, steps = [];
+
+    const say = (s) => { line.textContent = s; };
+    const show = (id) => { const e = svg.querySelector("#" + id); if (e) e.classList.remove("cc-hide"); };
+    const stop = () => { clearTimeout(timer); timer = null; };
+
+    const draw = () => {
+      stop();
+      const cap = D0 / r, axMax = Math.ceil(cap / 500) * 500;
+      const yL = (v) => L.base - (v / 100) * (L.base - L.top);
+      const yR = (v) => R.base - (v / axMax) * (R.base - R.top);
+      $("cc-mult").textContent = Math.round(1 / r) + "배";
+      $("cc-cum").textContent = "0"; $("cc-loan").textContent = "0"; $("cc-res").textContent = "0";
+      say("");
+
+      let bars = "", dots = "";
+      for (let n = 1; n <= ROUNDS; n++) {
+        const d = dep(r, n), res = d * r, x = bx(n);
+        bars += `
+          <rect class="cc-hide" id="cc-dep${n}" x="${x}" y="${yL(d)}" width="${BW}" height="${L.base - yL(d)}" style="fill:var(--ltt-line-2)"/>
+          <rect class="cc-hide" id="cc-res${n}" x="${x}" y="${yL(res)}" width="${BW}" height="${L.base - yL(res)}" style="fill:var(--ltt-c1)"/>
+          <rect class="cc-hide" id="cc-loan${n}" x="${x}" y="${yL(d)}" width="${BW}" height="${yL(res) - yL(d)}" style="fill:var(--ltt-c2)"/>
+          <text class="cc-tx" x="${x + BW / 2}" y="${L.base + 18}" text-anchor="middle">${n}</text>`;
+        dots += `<circle class="cc-hide" id="cc-pt${n}" cx="${xr(n)}" cy="${yR(cum(r, n))}" r="4" style="fill:var(--ltt-accent)"/>`;
+      }
+      const axisL = [0, 50, 100].map((v) => `<text class="cc-tx" x="${L.x0 - 10}" y="${yL(v) + 4}" text-anchor="end">${v}</text>`).join("");
+      const axisR = [0, axMax / 2, axMax].map((v) => `<text class="cc-tx" x="${R.x0 - 10}" y="${yR(v) + 4}" text-anchor="end">${fmt(v)}</text>`).join("");
+      const roundsR = [1, 5, 10, 15].map((n) => `<text class="cc-tx" x="${xr(n)}" y="${R.base + 18}" text-anchor="middle">${n}</text>`).join("");
+
+      svg.innerHTML = `
+        <text x="${L.x0}" y="26" style="font-size:15px;fill:var(--ltt-ink)">라운드별 새 예금 (가로: 라운드)</text>
+        <rect x="${L.x0}" y="38" width="12" height="12" style="fill:var(--ltt-line-2)"/>
+        <text class="cc-tx" x="${L.x0 + 18}" y="49">새 예금</text>
+        <rect x="${L.x0 + 90}" y="38" width="12" height="12" style="fill:var(--ltt-c1)"/>
+        <text class="cc-tx" x="${L.x0 + 108}" y="49">준비금</text>
+        <rect x="${L.x0 + 180}" y="38" width="12" height="12" style="fill:var(--ltt-c2)"/>
+        <text class="cc-tx" x="${L.x0 + 198}" y="49">대출</text>
+        <line x1="${L.x0}" x2="${L.x1}" y1="${L.base}" y2="${L.base}" style="stroke:var(--ltt-line)"/>
+        ${axisL}${bars}
+        <text x="${R.x0}" y="26" style="font-size:15px;fill:var(--ltt-ink)">누적 예금과 상한</text>
+        <line x1="${R.x0}" x2="${R.x1}" y1="${R.base}" y2="${R.base}" style="stroke:var(--ltt-line)"/>
+        ${axisR}${roundsR}
+        <line x1="${R.x0}" x2="${R.x1}" y1="${yR(cap)}" y2="${yR(cap)}" style="stroke:var(--ltt-ink);stroke-dasharray:6 5;stroke-width:1.5"/>
+        <text class="cc-tx" x="${R.x0 + 6}" y="${yR(cap) - 8}" style="fill:var(--ltt-ink)">상한 ${fmt(cap)} = 100 ÷ ${Math.round(r * 100)}%</text>
+        <polyline id="cc-cum-line" points="" style="fill:none;stroke:var(--ltt-accent);stroke-width:2.5"/>
+        ${dots}
+        <text class="cc-tx" id="cc-cumlabel" style="fill:var(--ltt-ink)" x="0" y="0"></text>`;
+
+      const cumLine = svg.querySelector("#cc-cum-line");
+      const cumLabel = svg.querySelector("#cc-cumlabel");
+      const pts = [];
+      let loanSum = 0, resSum = 0;
+      steps = [];
+      for (let n = 1; n <= ROUNDS; n++) {
+        const d = dep(r, n), res = d * r, loan = d - res, c = cum(r, n);
+        steps.push(() => {
+          show("cc-dep" + n);
+          pts.push(xr(n) + "," + yR(c));
+          cumLine.setAttribute("points", pts.join(" "));
+          show("cc-pt" + n);
+          cumLabel.setAttribute("x", Math.min(xr(n) + 10, R.x1 - 30));
+          cumLabel.setAttribute("y", yR(c) + 22);
+          cumLabel.textContent = fmt(c);
+          $("cc-cum").textContent = fmt(c);
+          say(n === 1
+            ? "라운드 1 · 최초 예금 " + fmt(d) + "이 은행에 들어온다"
+            : "라운드 " + n + " · 앞 라운드의 대출금 " + fmt(d) + "이 다른 은행의 새 예금이 된다");
+        });
+        steps.push(() => {
+          show("cc-res" + n);
+          resSum += res;
+          $("cc-res").textContent = fmt(resSum);
+          say("예금 " + fmt(d) + " 중 " + Math.round(r * 100) + "%인 " + fmt(res) + "만 준비금으로 남긴다");
+        });
+        steps.push(() => {
+          show("cc-loan" + n);
+          loanSum += loan;
+          $("cc-loan").textContent = fmt(loanSum);
+          say("나머지 " + fmt(loan) + "을 대출한다. 이 돈이 다음 라운드의 예금이 된다");
+        });
+      }
+      steps.push(() => say(ROUNDS + "라운드 누적 " + fmt(cum(r, ROUNDS)) + ". 계속 이어지면 상한 " + fmt(cap) + "에 닿는다(예금 = 대출 + 준비금)"));
+    };
+
+    const play = () => {
+      stop();
+      if (reduced()) { steps.forEach((f) => f()); return; }
+      let i = 0;
+      const tick = () => {
+        if (i >= steps.length) return;
+        steps[i++]();
+        timer = setTimeout(tick, STEP);
+      };
+      tick();
+    };
+
+    LTT.sweep({
+      params: { rr: { kind: "steps", stops: [0.05, 0.1, 0.2], value: 0.1, fmt: (v) => Math.round(v * 100) + "%" } },
+      render: ({ rr }) => { r = rr; draw(); play(); },
+    });
+
+    return {
+      enter() { draw(); play(); },
+      leave() { stop(); },
+    };
+  },
+};
+
+LTT.expect("5라운드 누적 예금", cum(0.1, 5), 409.51, { tol: 0.01 });
+LTT.expect("r 20% 상한", D0 / 0.2, 500, { tol: 1e-9 });
+
+LTT.deck({
+  title: "신용 창조와 통화 승수",
+  theme: "ledger",
+  glossary: {
+    지급준비율: "은행이 예금 가운데 대출하지 않고 준비금으로 남겨 두는 비율",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

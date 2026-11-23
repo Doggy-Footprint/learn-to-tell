@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .fork-wrap { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+  .fork-wrap svg { width: 100%; height: auto; display: block; }
+  .fork-cap { font-size: var(--ltt-fs-md, 1rem); color: var(--ltt-ink); min-height: 3.2em; line-height: 1.55; }
+  .fork-ctl { display: flex; align-items: center; gap: 12px; }
+  .fork-ctl input[type=range] { flex: 1; accent-color: var(--ltt-accent); }
+  .fork-ctl button { border: 1px solid var(--ltt-line-2); background: var(--ltt-card); color: var(--ltt-ink); border-radius: 8px; padding: 6px 14px; cursor: pointer; font: inherit; }
+</style>
+</head>
+<body>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const P = [430, 540, 650, 760];           // 지연 가닥 프라이머 위치(오른쪽 5' 끝)
+const Y = { tt: 110, ln: 145, lg: 355, bt: 390, pt: 242, pb: 258 };
+const CAPS = [
+  "① 헬리케이스가 이중나선을 풀어 분기점이 오른쪽으로 나아간다. 위쪽 새 가닥(선도 가닥)은 프라이머(합성을 시작하는 짧은 RNA) 하나에서 출발해 분기점을 따라 끊김 없이 자란다.",
+  "② 아래쪽 새 가닥(지연 가닥)은 분기점이 더 열려야 프라이머를 놓고, 거기서 분기점 반대쪽인 왼쪽으로 짧게 자란다. 가장 오래된 절편이 왼쪽 끝, 가장 새 절편이 분기점 옆이다.",
+  "③ 절편 하나를 확대하면 중합효소는 여기서도 5'→3'으로만 잇는다. 그 방향이 분기점에서 멀어지는 쪽일 뿐이라 끊어서 만든다.",
+  "④ 프라이머를 떼어 내고 틈을 메워 연결효소가 절편을 잇는다. 두 새 가닥이 모두 완성된다."
+];
+
+function el(p, tag, attrs, txt) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (txt != null) n.textContent = txt;
+  p.appendChild(n); return n;
+}
+
+function build(body) {
+  body.innerHTML = `<div class="fork-wrap"><div id="fk"></div><div class="fork-cap" id="cap"></div>
+    <div class="fork-ctl"><button id="rp" type="button">다시 재생</button><input id="sc" type="range" min="0" max="1000" value="0" aria-label="복제 진행"></div></div>`;
+  const svg = el(body.querySelector("#fk"), "svg", { viewBox: "0 0 1000 500", role: "img", "aria-label": "복제 분기점에서 선도 가닥은 연속으로, 지연 가닥은 오카자키 절편으로 합성되는 도해" });
+  const defs = el(svg, "defs", {});
+  const pat = el(defs, "pattern", { id: "rung", width: 14, height: 16, patternUnits: "userSpaceOnUse" });
+  el(pat, "line", { x1: 7, y1: 0, x2: 7, y2: 16, stroke: "var(--ltt-line-2)", "stroke-width": 2 });
+  const T = (x, y, s, o = {}) => el(svg, "text", Object.assign({ x, y, "font-size": 17, fill: "var(--ltt-ink-2)" }, o), s);
+
+  const rungs = el(svg, "rect", { y: Y.pt, height: 16, fill: "url(#rung)" });
+  const tTop = el(svg, "path", { fill: "none", stroke: "var(--ltt-ink)", "stroke-width": 5, "stroke-linecap": "round" });
+  const tBot = el(svg, "path", { fill: "none", stroke: "var(--ltt-ink)", "stroke-width": 5, "stroke-linecap": "round" });
+  const hel = el(svg, "g", {});
+  el(hel, "circle", { r: 22, fill: "var(--ltt-card-2)", stroke: "var(--ltt-ink)", "stroke-width": 2 });
+  el(hel, "text", { y: 6, "text-anchor": "middle", "font-size": 15, fill: "var(--ltt-ink)" }, "헬");
+  const helL = T(0, 292, "헬리케이스: 이중나선을 푼다", { "text-anchor": "middle", "font-size": 16 });
+
+  T(40, 98, "주형 3'", { fill: "var(--ltt-ink)", "font-weight": 700 });
+  T(40, 420, "주형 5'", { fill: "var(--ltt-ink)", "font-weight": 700 });
+  T(962, 232, "5'", { fill: "var(--ltt-ink)", "font-weight": 700, "text-anchor": "end" });
+  T(962, 286, "3'", { fill: "var(--ltt-ink)", "font-weight": 700, "text-anchor": "end" });
+
+  // 선도 가닥
+  const lead = el(svg, "line", { y1: Y.ln, y2: Y.ln, stroke: "var(--ltt-c1)", "stroke-width": 7, "stroke-linecap": "butt" });
+  const leadP = el(svg, "rect", { x: 386, y: Y.ln - 6, width: 14, height: 12, fill: "var(--ltt-warn)" });
+  const leadPol = el(svg, "rect", { y: Y.ln - 14, width: 26, height: 28, rx: 8, fill: "var(--ltt-card)", stroke: "var(--ltt-c1)", "stroke-width": 2.5 });
+  const leadTip = T(0, Y.ln - 20, "3'", { fill: "var(--ltt-c1)", "font-weight": 700, "text-anchor": "middle" });
+  T(386, Y.ln + 32, "5'", { fill: "var(--ltt-c1)", "font-weight": 700, "text-anchor": "middle" });
+  T(40, 60, "선도 가닥: 분기점과 같은 방향 →  끊김 없이 한 줄", { fill: "var(--ltt-c1)", "font-size": 19, "font-weight": 700 });
+  T(40, 460, "지연 가닥: 분기점과 반대 방향 ←  절편마다 프라이머 하나", { fill: "var(--ltt-ink)", "font-size": 19, "font-weight": 700 });
+  const forkArrow = el(svg, "g", { opacity: 0 });
+  el(forkArrow, "line", { x1: 700, y1: 205, x2: 900, y2: 205, stroke: "var(--ltt-accent)", "stroke-width": 3 });
+  el(forkArrow, "polygon", { points: "900,197 916,205 900,213", fill: "var(--ltt-accent)" });
+  el(forkArrow, "text", { x: 800, y: 196, "text-anchor": "middle", "font-size": 16, fill: "var(--ltt-accent)" }, "분기점 진행");
+
+  // 지연 가닥 절편
+  const frags = P.map((p, k) => ({
+    g: el(svg, "g", { opacity: 0 }),
+    line: null, pr: null, p, k
+  }));
+  frags.forEach((f) => {
+    f.line = el(f.g, "line", { y1: Y.lg, y2: Y.lg, stroke: "var(--ltt-c2)", "stroke-width": 7 });
+    f.pr = el(f.g, "rect", { x: f.p - 14, y: Y.lg - 6, width: 14, height: 12, fill: "var(--ltt-warn)" });
+  });
+  const joined = el(svg, "line", { x1: P[0] - 100, x2: P[3], y1: Y.lg, y2: Y.lg, stroke: "var(--ltt-c2)", "stroke-width": 7, opacity: 0 });
+  const nameOld = T(P[0] - 100, Y.lg + 44, "가장 오래된 절편", { "font-size": 15, opacity: 0 });
+  const nameNew = T(P[3], Y.lg + 44, "가장 새 절편", { "font-size": 15, "text-anchor": "end", opacity: 0 });
+
+  // 확대 강조(두 번째 절편)
+  const zk = 1, zp = P[zk];
+  const zoom = el(svg, "g", { opacity: 0 });
+  el(zoom, "rect", { x: zp - 118, y: Y.lg - 30, width: 130, height: 60, rx: 12, fill: "none", stroke: "var(--ltt-accent)", "stroke-width": 2.5, "stroke-dasharray": "6 5" });
+  el(zoom, "line", { x1: zp - 14, y1: Y.lg - 44, x2: zp - 96, y2: Y.lg - 44, stroke: "var(--ltt-accent)", "stroke-width": 3.5 });
+  el(zoom, "polygon", { points: `${zp - 96},${Y.lg - 52} ${zp - 112},${Y.lg - 44} ${zp - 96},${Y.lg - 36}`, fill: "var(--ltt-accent)" });
+  el(zoom, "text", { x: zp - 56, y: Y.lg - 56, "text-anchor": "middle", "font-size": 16, fill: "var(--ltt-accent)" }, "5'→3' 합성");
+  el(zoom, "text", { x: zp - 6, y: Y.lg + 22, "text-anchor": "end", "font-size": 16, "font-weight": 700, fill: "var(--ltt-ink)" }, "5'");
+  el(zoom, "text", { x: zp - 100, y: Y.lg + 22, "text-anchor": "start", "font-size": 16, "font-weight": 700, fill: "var(--ltt-ink)" }, "3'");
+  el(zoom, "text", { x: zp - 56, y: Y.lg + 56, "text-anchor": "middle", "font-size": 15, fill: "var(--ltt-ink-2)" }, "분기점에서 멀어지는 쪽");
+
+  const cap = body.querySelector("#cap"), sc = body.querySelector("#sc");
+
+  function render(t) {
+    const u = clamp(t / 0.62);
+    const f = 450 + 410 * u;
+    rungs.setAttribute("x", f + 80); rungs.setAttribute("width", 960 - f - 80);
+    tTop.setAttribute("d", `M40,${Y.tt} L${f - 40},${Y.tt} C${f + 10},${Y.tt} ${f + 10},${Y.pt} ${f + 70},${Y.pt} L960,${Y.pt}`);
+    tBot.setAttribute("d", `M40,${Y.bt} L${f - 40},${Y.bt} C${f + 10},${Y.bt} ${f + 10},${Y.pb} ${f + 70},${Y.pb} L960,${Y.pb}`);
+    hel.setAttribute("transform", `translate(${f + 34},250)`);
+    helL.setAttribute("x", f + 34);
+    const tip = Math.max(400, f - 44);
+    lead.setAttribute("x1", 400); lead.setAttribute("x2", tip);
+    leadPol.setAttribute("x", tip - 6); leadTip.setAttribute("x", tip + 8);
+    forkArrow.setAttribute("opacity", t < 0.62 ? 1 : 0.35);
+    const zi = clamp((t - 0.62) / 0.06) * (1 - clamp((t - 0.8) / 0.04));
+    const m = clamp((t - 0.82) / 0.18);
+    frags.forEach((fr) => {
+      const g = clamp((f - (fr.p + 60)) / 60);
+      fr.g.setAttribute("opacity", g > 0 ? (1 - zi * 0.6 * (fr.k === zk ? 0 : 1)) : 0);
+      fr.line.setAttribute("x2", fr.p - 14); fr.line.setAttribute("x1", fr.p - 14 - 86 * g);
+      fr.pr.setAttribute("opacity", 1 - m);
+    });
+    leadP.setAttribute("opacity", 1 - m);
+    joined.setAttribute("opacity", m);
+    zoom.setAttribute("opacity", zi);
+    leadPol.setAttribute("opacity", 1 - m);
+    nameOld.setAttribute("opacity", f > 700 && t < 0.8 ? 1 : 0);
+    nameNew.setAttribute("opacity", f > 840 && t < 0.8 ? 1 : 0);
+    hel.setAttribute("opacity", 1 - m);
+    helL.setAttribute("opacity", t < 0.62 ? 1 : 0);
+    const ci = t < 0.28 ? 0 : t < 0.62 ? 1 : t < 0.8 ? 2 : 3;
+    cap.textContent = CAPS[ci];
+    sc.value = Math.round(t * 1000);
+  }
+  return { render, sc, rp: body.querySelector("#rp") };
+}
+
+const forkScene = {
+  type: "hook",
+  title: "지연 가닥은 느려서가 아니라, 방향 때문에 끊어서 만든다",
+  sub: "오른쪽으로 열리는 분기점에서 새 가닥 두 개가 어떻게 생기는지 순서대로 본다. 아래 막대로 앞뒤로 옮길 수 있다.",
+  mount(body) {
+    const v = build(body);
+    let raf = 0, t = 0;
+    const DUR = 16000;
+    const stop = () => { cancelAnimationFrame(raf); raf = 0; };
+    const play = (from) => {
+      stop(); t = from;
+      if (!LTT.MOTION_MS) { t = 1; v.render(1); return; }
+      let last = null;
+      const tick = (now) => {
+        if (last == null) last = now;
+        t = Math.min(1, t + (now - last) / DUR); last = now;
+        v.render(t);
+        if (t < 1) raf = requestAnimationFrame(tick); else raf = 0;
+      };
+      raf = requestAnimationFrame(tick);
+    };
+    v.rp.addEventListener("click", () => play(0));
+    v.sc.addEventListener("input", () => { stop(); t = v.sc.value / 1000; v.render(t); });
+    v.render(LTT.MOTION_MS ? 0 : 1);
+    return { enter() { play(0); }, leave() { stop(); } };
+  },
+  takeaway: "중합효소는 5'→3'으로만 잇기 때문에, 분기점과 반대로 자라는 지연 가닥은 짧은 오카자키 절편으로 끊어서 만든다.",
+  recall: "지연 가닥이 절편으로 끊기는 까닭은?"
+};
+
+LTT.deck({ title: "DNA 복제 분기점", theme: "paper", glossary: {}, scenes: [forkScene] });
+</script>
+</body>
+</html>

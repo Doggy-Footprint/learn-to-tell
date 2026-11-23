@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의 — 리더 선출과 로그 복제</title>
+<script type="application/json" id="ltt-meta">{"topic": "Raft 합의", "audience": "분산 시스템 입문 개발자", "theme": "sketch", "medium": "아키텍처 화이트보드", "decision": "합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 노드 5개: 리더 N0 1, 팔로워 4. 좌표는 오각형 중심 (380, 215)의 픽셀 위치.
+const NODES = [
+  { id: "N0", x: 380, y: 65, l: "N0 리더", s: "term 2 · 로그 1–2", k: "accent" },
+  { id: "N1", x: 523, y: 169, l: "N1 팔로워", s: "term 2 · 로그 1–2" },
+  { id: "N2", x: 468, y: 336, l: "N2 팔로워", s: "term 2 · 로그 1–2" },
+  { id: "N3", x: 292, y: 336, l: "N3 팔로워", s: "term 2 · 로그 1–2" },
+  { id: "N4", x: 237, y: 169, l: "N4 팔로워", s: "term 2 · 로그 1–2" },
+];
+
+// 노드 사이 연결(배경 선). 투표·복제가 오가는 길이다.
+const IDS = NODES.map((n) => n.id);
+const LINKS = [];
+for (let i = 0; i < IDS.length; i++)
+  for (let j = i + 1; j < IDS.length; j++)
+    LINKS.push({ f: IDS[i], t: IDS[j], k: "muted", dash: true });
+
+// 생성 순서대로 한 단계씩. 각 단계는 메커니즘이 실제로 일어나는 순서다.
+const STEPS = [
+  {
+    caption: "① 평소엔 리더 N0의 heartbeat가 팔로워에 닿는다. 쓰기는 리더 로그로만 들어온다.",
+    hold: 2400,
+    enter: (dg) => dg.highlight(null),
+    send: [["N0", "N1", { count: 1 }], ["N0", "N2", { count: 1 }], ["N0", "N3", { count: 1 }], ["N0", "N4", { count: 1 }]],
+  },
+  {
+    caption: "② heartbeat가 끊기면 팔로워 N3의 election timeout이 가장 먼저 끝난다.",
+    hold: 2400,
+    enter: (dg) => dg.highlight(["N3"]),
+  },
+  {
+    caption: "③ N3가 term을 2에서 3으로 올리고 자기 표를 찍은 뒤, 나머지 노드에 투표를 요청한다.",
+    hold: 2600,
+    enter: (dg) => dg.highlight(["N3", "N0>N3", "N1>N3", "N2>N3", "N3>N4"]),
+    send: [["N3", "N0", { count: 1 }], ["N3", "N1", { count: 1 }], ["N3", "N2", { count: 1 }], ["N3", "N4", { count: 1 }]],
+  },
+  {
+    caption: "④ 표 응답이 모인다. N3를 포함해 3표가 과반수이므로 N3가 term 3의 리더가 된다.",
+    hold: 2600,
+    enter: (dg) => dg.highlight(["N3", "N1>N3", "N2>N3"]),
+    send: [["N1", "N3", { count: 1 }], ["N2", "N3", { count: 1 }]],
+  },
+  {
+    caption: "⑤ 새 리더 N3가 쓰기를 받아 자기 로그 끝에 항목 3을 append한다. 이 시점엔 아직 미커밋이다.",
+    hold: 2400,
+    enter: (dg) => dg.highlight(["N3"]),
+  },
+  {
+    caption: "⑥ AppendEntries로 항목 3을 N1·N2·N4에 복제한다. 응답이 돌아오기 전까지는 미커밋이다.",
+    hold: 2600,
+    enter: (dg) => dg.highlight(["N3", "N3>N1", "N3>N2", "N3>N4"]),
+    send: [["N3", "N1", { count: 1, ms: 900 }], ["N3", "N2", { count: 1, ms: 900 }], ["N3", "N4", { count: 1, ms: 900 }]],
+  },
+  {
+    caption: "⑦ 복제 응답이 쌓여 N3를 포함한 3개가 저장하는 순간 커밋 경계가 넘어간다.",
+    hold: 2800,
+    enter: (dg) => dg.highlight(["N3", "N1", "N2", "N1>N3", "N2>N3"]),
+    send: [["N1", "N3", { count: 1 }], ["N2", "N3", { count: 1 }]],
+  },
+  {
+    caption: "⑧ 클라이언트 ack는 커밋 뒤에만 나간다. 뒤처진 N4의 commitIndex는 다음 heartbeat에서 따라 오른다.",
+    hold: 2600,
+    enter: (dg) => dg.highlight(["N4", "N3>N4"]),
+    send: [["N3", "N4", { count: 1 }]],
+  },
+  {
+    caption: "⑨ N3가 죽어도 항목 3을 가진 노드만 과반수 표를 얻을 수 있다. 커밋된 데이터는 남는다.",
+    hold: 3000,
+    enter: (dg) => dg.highlight(["N1", "N2", "N4"]),
+  },
+];
+
+const figure = (el) => {
+  const box = el.appendChild(document.createElement("div"));
+  const s = box.appendChild(document.createElementNS(SVG, "svg"));
+  const dg = LTT.diagram(s, {
+    width: 760,
+    height: 420,
+    node: [150, 56],
+    nodes: NODES,
+    edges: LINKS,
+  });
+  const ctl = box.appendChild(document.createElement("div"));
+  dg.player(ctl, STEPS);
+  return { el: s, dg };
+};
+
+const scene = {
+  type: "overview",
+  title: "리더 한 명과 과반수가 쓰기를 확정한다",
+  en: "Raft leader election and log replication",
+  kicker: "Raft 합의",
+  sub: "노드 5개 중 리더 1, 팔로워 4. 과반수 {{과반수}}가 저장해야 커밋된다.",
+  figure,
+  caption: "번호는 메커니즘이 실제로 일어나는 순서다. 자막이 지금 일어나는 일을 말한다.",
+  label: "과반수 = 5개 중 3개",
+  takeaway: "Raft는 과반수에 복제된 항목만 커밋하므로, 노드가 죽어도 커밋된 데이터는 사라지지 않는다.",
+  recall: "리더가 항목을 append한 직후, 팔로워에 닿기 전에 죽으면 그 항목은 살아남는가?",
+  basis: "과반수 = floor(N/2)+1. N=5면 3이라 2대까지 장애를 견딘다.",
+};
+
+LTT.expect("과반수(N=5)", Math.floor(5 / 2) + 1, 3);
+
+LTT.deck({
+  title: "Raft 합의 — 리더 선출과 로그 복제",
+  theme: "sketch",
+  glossary: {
+    "과반수": "전체 노드 수의 절반을 넘는 수. 5대면 3대다.",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

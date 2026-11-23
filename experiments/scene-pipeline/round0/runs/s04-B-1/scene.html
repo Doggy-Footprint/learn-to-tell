@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>키르히호프 전류 법칙</title>
+<script type="application/json" id="ltt-meta">{"topic":"키르히호프 전류 법칙","audience":"회로 입문자","theme":"blueprint","medium":"회로 도면","decision":"분기점에서 전류가 어떻게 나뉘나","domain":"전기 회로","pattern":["figure"],"mode":"카탈로그용: 장면 하나짜리. 연결 구조를 \"점이 궤적을 그림\" 움직임과 좌우 분할 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.kcl{width:1120px;max-width:100%;height:auto;display:block;margin:0 auto}
+.kcl text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent, text) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; parent && parent.appendChild(n); return n; };
+// 헤드리스 캡처의 virtual time은 setTimeout·Date.now를 따라가므로 rAF 대신 쓴다. draw에는 경과 초를 넘긴다
+function loop(draw, finalT) {
+  let id = 0, t0 = 0;
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return { enter() { clearTimeout(id); if (reduced) { draw(finalT); return; }
+      t0 = Date.now(); const f = () => { draw((Date.now() - t0) / 1000); id = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(id); } };
+}
+
+// 모델: 전지 12 V에 저항 2·3·6 Ω이 병렬. 가지 전류 I = V/R (옴의 법칙)
+const V = 12, R = [2, 3, 6];
+const I = R.map((r) => V / r);
+const ITOT = I.reduce((a, b) => a + b, 0);
+const REQ = 1 / R.reduce((a, r) => a + 1 / r, 0);
+// 알갱이 12개가 한 바퀴(T초) 동안 차례로 출발한다. 값은 가지 번호, 가지 i로 가는 알갱이 수 = I[i]
+const SEQ = [0, 1, 0, 2, 0, 1, 0, 0, 1, 2, 0, 1];
+const T = 9, TS = T / SEQ.length, SPEED = 130;
+LTT.expect("합성 저항", REQ, 1, { tol: 1e-9 });
+LTT.expect("들어오는 전류", ITOT, 12, { tol: 1e-9 });
+LTT.expect("가지 1 전류", I[0], 6, { tol: 1e-9 });
+LTT.expect("가지 2 알갱이 수", SEQ.filter((b) => b === 1).length, 4);
+LTT.expect("가지 3 알갱이 수", SEQ.filter((b) => b === 2).length, 2);
+
+function kirchhoff(host) {
+  const W = 1120, H = 590, XL = 70, Y0 = 150, Y1 = 470, XB = [270, 370, 470], COL = ["var(--ltt-c1)", "var(--ltt-c2)", "var(--ltt-c3)"];
+  const DL = XB.map((x) => x - XL), LEN = DL.map((d) => 2 * d + (Y1 - Y0)), TL = DL.map((d) => d / SPEED);
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "kcl", "data-annotate": "" }, host);
+  const hdr = (x, t) => el("text", { x, y: 36, style: "font-size:15px;font-weight:700;letter-spacing:.06em;fill:var(--ltt-muted)" }, s, t);
+  hdr(40, "① 회로 도면 — 점 하나가 전류 1 A 몫"); hdr(650, "② 장부 — 갈래마다 나뉜 전류");
+  el("line", { x1: 585, y1: 60, x2: 585, y2: 560, style: "stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:4 5" }, s);
+
+  // 전선: 굵기는 흐르는 전류에 비례
+  const wire = (x1, y1, x2, y2, amp, color) => el("line", { x1, y1, x2, y2, style: `stroke:${color || "var(--ltt-ink-2)"};stroke-width:${1.5 + 0.45 * amp};stroke-linecap:round` }, s);
+  const segA = [ITOT, I[1] + I[2], I[2]], xs = [XL, ...XB];
+  for (let k = 0; k < 3; k++) { wire(xs[k], Y0, xs[k + 1], Y0, segA[k]); wire(xs[k], Y1, xs[k + 1], Y1, segA[k]); }
+  XB.forEach((x, i) => wire(x, Y0, x, Y1, I[i], COL[i]));
+  wire(XL, Y0, XL, 290, ITOT); wire(XL, 310, XL, Y1, ITOT);
+  // 전지
+  el("line", { x1: 48, y1: 290, x2: 92, y2: 290, style: "stroke:var(--ltt-ink);stroke-width:3" }, s);
+  el("line", { x1: 58, y1: 310, x2: 82, y2: 310, style: "stroke:var(--ltt-ink);stroke-width:7" }, s);
+  el("text", { x: 100, y: 306, style: "font-size:16px;font-weight:800;fill:var(--ltt-ink)" }, s, "전지 12 V");
+  el("text", { x: 30, y: 285, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink-2)" }, s, "+");
+  el("text", { x: 30, y: 325, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink-2)" }, s, "−");
+  // 저항과 가지 전류 표지
+  XB.forEach((x, i) => {
+    el("rect", { x: x - 15, y: 274, width: 30, height: 72, rx: 3, style: `fill:var(--ltt-card);stroke:${COL[i]};stroke-width:2.5` }, s);
+    el("text", { x: x + 24, y: 316, style: "font-size:15px;fill:var(--ltt-ink-2)" }, s, `${R[i]} Ω`);
+    el("text", { x: x + 12, y: 236, style: "font-size:18px;font-weight:800;fill:var(--ltt-ink)" }, s, `${I[i]} A`);
+  });
+  // 전선 구간별 전류
+  [[170, ITOT], [320, segA[1]], [420, segA[2]]].forEach(([x, a]) => el("text", { x, y: 178, "text-anchor": "middle", style: "font-size:16px;font-weight:700;fill:var(--ltt-ink)" }, s, `${a} A`));
+  el("text", { x: XL, y: 506, style: "font-size:15px;fill:var(--ltt-ink-2)" }, s, "아래 전선은 거꾸로 합쳐진다: 2 → 6 → 12 A");
+  // 분기점
+  [XB[0], XB[1]].forEach((x) => { el("circle", { cx: x, cy: Y0, r: 10, style: "fill:var(--ltt-ink);stroke:var(--ltt-bg);stroke-width:2" }, s); el("circle", { cx: x, cy: Y1, r: 10, style: "fill:var(--ltt-ink);stroke:var(--ltt-bg);stroke-width:2" }, s); });
+  el("circle", { cx: XB[0], cy: Y0, r: 19, style: "fill:none;stroke:var(--ltt-accent);stroke-width:2.5" }, s);
+  el("circle", { cx: XB[1], cy: Y0, r: 19, style: "fill:none;stroke:var(--ltt-accent);stroke-width:2.5" }, s);
+  el("text", { x: 196, y: 90, style: "font-size:16px;font-weight:800;fill:var(--ltt-accent)" }, s, "분기점 A · 12 = 6 + 6");
+  el("text", { x: 330, y: 118, style: "font-size:16px;font-weight:800;fill:var(--ltt-accent)" }, s, "분기점 B · 6 = 4 + 2");
+
+  // 오른쪽 장부: 위 막대(들어오는 12 A)가 아래 막대 셋(6·4·2 A)으로 갈라진다
+  const U = 30, TX = 650, TY = 130, TH = 36, BY = 400;
+  const tx0 = [TX, TX + I[0] * U, TX + (I[0] + I[1]) * U], bx0 = [TX, TX + I[0] * U + 30, TX + (I[0] + I[1]) * U + 60];
+  const bc = (i) => bx0[i] + I[i] * U / 2, tc = (i) => tx0[i] + I[i] * U / 2;
+  el("text", { x: TX, y: 108, style: "font-size:20px;font-weight:800;fill:var(--ltt-ink)" }, s, `들어오는 전류 I = ${ITOT} A`);
+  const nIn = el("text", { x: 1070, y: 108, "text-anchor": "end", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink-2)" }, s);
+  I.forEach((a, i) => {
+    const xa = tx0[i], xb = bx0[i], w = a * U, m = (TY + TH + BY) / 2;
+    el("path", { d: `M${xa},${TY + TH} C${xa},${m} ${xb},${m} ${xb},${BY} L${xb + w},${BY} C${xb + w},${m} ${xa + w},${m} ${xa + w},${TY + TH} Z`, style: `fill:${COL[i]};opacity:.22` }, s);
+    el("rect", { x: xa, y: TY, width: w, height: TH, style: `fill:${COL[i]}` }, s);
+    el("rect", { x: xb, y: BY, width: w, height: TH, style: `fill:${COL[i]}` }, s);
+    el("text", { x: tc(i), y: TY + 24, "text-anchor": "middle", style: "font-size:15px;font-weight:800;fill:var(--ltt-bg)" }, s, `${a} A`);
+  });
+  const cnt = [];
+  I.forEach((a, i) => {
+    el("text", { x: bc(i), y: 470, "text-anchor": "middle", style: "font-size:20px;font-weight:800;fill:var(--ltt-ink)" }, s, `I${"₁₂₃"[i]} = ${a} A`);
+    el("text", { x: bc(i), y: 494, "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-ink-2)" }, s, `${V} V ÷ ${R[i]} Ω`);
+    cnt.push(el("text", { x: bc(i), y: 520, "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, s));
+  });
+  const eq = el("text", { x: 860, y: 562, "text-anchor": "middle", style: "font-size:17px;font-weight:800;fill:var(--ltt-accent)" }, s);
+
+  // 알갱이: 왼쪽은 회로 위 궤적, 오른쪽은 분기점을 떠나는 순간 장부 띠를 따라 내려간다
+  const ribbon = SEQ.map((b) => el("circle", { r: 7, style: `fill:${COL[b]};stroke:var(--ltt-bg);stroke-width:1.5` }, s));
+  const dots = SEQ.map((b) => el("circle", { r: 8, style: `fill:${COL[b]};stroke:var(--ltt-bg);stroke-width:2` }, s));
+  const bez = (p, a, b) => { const q = 1 - p, y0 = TY + TH, y1 = BY, m = (y0 + y1) / 2;
+    return [q * q * q * a + 3 * q * q * p * a + 3 * q * p * p * b + p * p * p * b, q * q * q * y0 + 3 * q * q * p * m + 3 * q * p * p * m + p * p * p * y1]; };
+  const place = (i, d) => { const dl = DL[i]; if (d < dl) return [XL + d, Y0]; if (d < dl + (Y1 - Y0)) return [XB[i], Y0 + d - dl]; return [XB[i] - (d - dl - (Y1 - Y0)), Y1]; };
+  function draw(t) {
+    const n = [0, 0, 0];
+    SEQ.forEach((b, j) => {
+      const e = t - j * TS, te = ((e % T) + T) % T, d = SPEED * te, on = e >= 0;
+      const [x, y] = place(b, Math.min(d, LEN[b]));
+      dots[j].setAttribute("cx", x); dots[j].setAttribute("cy", y);
+      dots[j].style.opacity = on && d <= LEN[b] ? Math.min(1, d / 20, (LEN[b] - d) / 20) : 0;
+      const p = (te - TL[b]) / 0.9, q = bez(Math.max(0, Math.min(1, p)), tc(b) + (j % 3 - 1) * 0, bc(b));
+      ribbon[j].setAttribute("cx", q[0]); ribbon[j].setAttribute("cy", q[1]);
+      ribbon[j].style.opacity = on && p >= 0 && p <= 1 ? Math.min(1, p * 8, (1 - p) * 8) : 0;
+      const k = t - j * TS - TL[b]; if (k >= 0) n[b] += Math.floor(k / T) + 1;
+    });
+    const tot = n[0] + n[1] + n[2];
+    nIn.textContent = `지나간 알갱이 ${tot}개`;
+    cnt.forEach((c, i) => c.textContent = `알갱이 ${n[i]}개`);
+    eq.textContent = `들어온 ${tot} = 나간 ${n[0]} + ${n[1]} + ${n[2]}`;
+  }
+  draw(0);
+  return { el: s, draw };
+}
+
+let F = null;
+LTT.deck({
+  title: "키르히호프 전류 법칙", theme: "blueprint",
+  glossary: { "분기점": "도선이 셋 이상 만나 전류가 갈라지거나 합쳐지는 점", "키르히호프 전류 법칙": "한 분기점으로 들어오는 전류의 합은 나가는 전류의 합과 같다는 법칙", "전류": "도선의 한 단면을 1초에 지나는 전하의 양. 단위는 A(암페어)" },
+  scenes: [{
+    type: "figure", kicker: "키르히호프 전류 법칙", title: "분기점에서 전류는 저항이 작은 길로 더 많이 나뉜다",
+    sub: "왼쪽 도면에서 알갱이가 {{분기점}}마다 갈라지고, 오른쪽 장부가 갈래마다 몇 개가 갔는지 센다.",
+    figure: (h) => (F = kirchhoff(h)),
+    caption: "{{키르히호프 전류 법칙}}: 분기점에 들어온 {{전류}}의 합은 나간 전류의 합과 같다. 12 A는 A에서 6 A와 6 A로, B에서 다시 4 A와 2 A로 나뉘고, 알갱이는 하나도 사라지지 않는다.",
+    basis: "전지 12 V와 저항 2·3·6 Ω은 가정한 값. 가지 전류는 옴의 법칙 I = V/R, 분기점 규칙은 키르히호프 제1법칙(전하 보존). 점 1개 = 1 A는 그림의 약속.",
+    mount() { return loop((t) => F.draw(t), 10.2); }
+  }]
+});
+</script>
+</body>
+</html>

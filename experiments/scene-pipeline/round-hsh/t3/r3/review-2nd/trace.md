@@ -1,0 +1,36 @@
+# stream.jsonl
+
+- 말: 먼저 텍스트 파일 여섯 개를 한 번에 읽고, 그다음 `shots/index.txt`에 적힌 스크린샷을 전부 읽겠습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/storyboard.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/direction.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/scene.html`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/index.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-audit.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/refs/API.md`
+- 말: 스크린샷 11장을 읽겠습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-t1s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-t4s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-t8s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-step1.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-step2.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-step3.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-step4.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-step5.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-step6.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-step7.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-step8.jpg`
+- 말: 스크린샷 중 `step8`이 응답에 보이지 않습니다. `index.txt`에는 있으니 다시 읽고, `shots/` 안의 파일 목록도 확인하겠습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-step8.jpg`
+- Bash `ls -la shots/`
+- 말: `step8`은 C가 저장하는 장면(2/5)이라 제가 앞서 읽은 순서와 맞지 않습니다. `step6`과 `step7`을 다시 확인하겠습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-step7.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/shots/scene-step6.jpg`
+- 말: 스크린샷 대응을 확인했습니다. `step N`은 비트 N−1이고, `step8`은 C가 저장하는 비트 7입니다. 비트 8~13은 스크린샷이 없어 코드로만 판정합니다. 먼저 `review.md`를 씁니다.
+- Write `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/review.md` (+2021자)
+- 말: 이제 잘림 항목을 고칩니다. 원인으로 추정되는 것은 `.raft` 폭이 카드 내용에 따라 달라지는 점입니다. 폭을 고정해 그림이 단계마다 커지지 않게 합니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/scene.html`
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- 말: 재검사에서 `고침 0건`이 나왔습니다. 제가 바꾼 것은 `.raft`의 `width` 한 줄뿐이고, `overview-order` 지적은 재검사 결과에 나타나지 않습니다. 그 이유는 확인하지 못했습니다. 마지막으로 `review.md`에 `## 고친 것`을 붙입니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t3/r3/review-2nd/review.md`
+- 말: 실패 2건, 고친 1건입니다. 잘림은 `.raft`에 `width: 100%`를 추가해 고쳤고, 렌더 확인은 못 했습니다. overview-order는 재audit에서 고침 목록에 나타나지 않았지만 제가 고친 것은 아닙니다. 결과는 `review.md`에 있습니다.
+- 결과: success $0.0925 26턴 249s

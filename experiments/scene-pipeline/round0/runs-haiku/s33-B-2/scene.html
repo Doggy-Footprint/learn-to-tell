@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>편향-분산 트레이드오프</title>
+<script type="application/json" id="ltt-meta">{"topic":"편향-분산 트레이드오프","audience":"ML 입문 개발자","theme":"lab","medium":"실험 플롯","decision":"모델 복잡도(다항식 차수) 고르기","domain":"ML","pattern":["figure"],"mode":"장면 하나짜리. 트레이드오프 구조를 \"값이 쌓임\" 움직임과 중앙 주인공 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.bv-wrap{display:flex;justify-content:center;width:100%}
+.bv{width:100%;max-width:980px;height:min(64vh,560px);display:block}
+.bv text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+// 다항식 차수 d의 테스트 오차 = 잡음 + 편향² + 분산. 교육용 가정 계수로 만든 모델이라 실측값이 아니다
+const NOISE = 0.10;                          // 가정: 데이터 잡음 분산 (차수와 무관)
+const BIAS = (d) => 0.8 * Math.pow(0.5, d);  // 가정: 차수가 한 칸 오르면 편향²이 절반
+const VAR = (d) => 0.015 * (d + 1);          // 가정: 표본 수 고정, 계수 하나당 분산 0.015
+const err = (d) => NOISE + BIAS(d) + VAR(d);
+const DEG = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+const BEST = DEG.reduce((a, d) => (err(d) < err(a) ? d : a), 0);
+
+function biasVarChart(host) {
+  const W = 960, H = 560, X0 = 150, X1 = 820, Y0 = 470, Y1 = 70, SPAN = Y0 - Y1;
+  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "bv", "data-annotate": "" }, host);
+  const cx = (d) => X0 + (d + 0.5) * (X1 - X0) / DEG.length;
+  const yv = (v) => Y0 - v * SPAN;
+  const bw = 46;
+  mk("path", { d: `M${X0 - 30},${Y1 - 20} L${X0 - 30},${Y0} L${X1 + 40},${Y0}`, style: "fill:none;stroke:var(--ltt-ink);stroke-width:2.5;stroke-linecap:round" }, s);
+  [0, 0.25, 0.5, 0.75, 1].forEach((v) => {
+    const t = mk("text", { x: X0 - 42, y: yv(v) + 6, "text-anchor": "end", style: "font-size:16px;fill:var(--ltt-muted)" }, s); t.textContent = v.toFixed(2);
+    if (v) mk("line", { x1: X0 - 30, x2: X1 + 40, y1: yv(v), y2: yv(v), style: "stroke:var(--ltt-line);stroke-dasharray:3 6" }, s);
+  });
+  const yl = mk("text", { x: 0, y: 0, "text-anchor": "middle", transform: `translate(40,${(Y0 + Y1) / 2}) rotate(-90)`, style: "font-size:16px;fill:var(--ltt-ink-2)" }, s); yl.textContent = "테스트 오차 (쌓은 합)";
+  DEG.forEach((d) => { const t = mk("text", { x: cx(d), y: Y0 + 28, "text-anchor": "middle", style: "font-size:16px;fill:var(--ltt-ink-2)" }, s); t.textContent = d; });
+  const xl = mk("text", { x: X1 + 40, y: Y0 + 60, "text-anchor": "end", style: "font-size:16px;fill:var(--ltt-ink-2)" }, s); xl.textContent = "다항식 차수 (복잡도 →)";
+
+  [["var(--ltt-muted)", 0.4, "잡음 0.10 (고정)", 150], ["var(--ltt-c1)", 1, "편향² (차수↑ 줄어듦)", 350], ["var(--ltt-c2)", 1, "분산 (차수↑ 늘어남)", 570]].forEach(([c, o, t, x]) => {
+    mk("rect", { x, y: 12, width: 14, height: 14, rx: 2, style: `fill:${c};opacity:${o}` }, s);
+    const tx = mk("text", { x: x + 22, y: 24, style: "font-size:15px;fill:var(--ltt-ink-2)" }, s); tx.textContent = t;
+  });
+
+  const bars = DEG.map((d) => {
+    const g = mk("g", {}, s);
+    const nz = mk("rect", { x: cx(d) - bw / 2, width: bw, y: Y0, height: 0, style: "fill:var(--ltt-muted);opacity:.4" }, g);
+    const bi = mk("rect", { x: cx(d) - bw / 2, width: bw, y: Y0, height: 0, style: "fill:var(--ltt-c1)" }, g);
+    const vr = mk("rect", { x: cx(d) - bw / 2, width: bw, y: Y0, height: 0, style: "fill:var(--ltt-c2)" }, g);
+    const tot = mk("text", { x: cx(d), y: Y0, "text-anchor": "middle", style: "font-size:16px;font-weight:700;fill:var(--ltt-ink);opacity:0" }, g);
+    tot.textContent = err(d).toFixed(3);
+    return { g, nz, bi, vr, tot };
+  });
+
+  const best = mk("g", { style: "opacity:0" }, s);
+  const bx = cx(BEST);
+  mk("line", { x1: bx, x2: bx, y1: 300, y2: yv(err(BEST)) - 26, style: "stroke:var(--ltt-good);stroke-width:2.5;stroke-dasharray:5 5" }, best);
+  const bt = mk("text", { x: bx, y: 284, "text-anchor": "middle", style: "font-size:18px;font-weight:800;fill:var(--ltt-good)" }, best);
+  bt.textContent = `최소: 차수 ${BEST}, 합계 ${err(BEST).toFixed(3)}`;
+
+  // 차수마다 막대가 아래에서 위로 쌓인다: 잡음 → 편향² → 분산. 합계 숫자는 다 쌓인 뒤 뜬다
+  function draw(u) {
+    const T = u * 9, out = clamp((T - 8.3) / .7);
+    DEG.forEach((d, i) => {
+      const p = clamp((T - (0.3 + i * 0.42)) / 0.7), b = bars[i];
+      const hn = NOISE * SPAN * ease(clamp(p / 0.4));
+      const hb = BIAS(d) * SPAN * ease(clamp((p - 0.3) / 0.4));
+      const hv = VAR(d) * SPAN * ease(clamp((p - 0.6) / 0.4));
+      b.nz.setAttribute("y", Y0 - hn); b.nz.setAttribute("height", hn);
+      b.bi.setAttribute("y", Y0 - hn - hb); b.bi.setAttribute("height", hb);
+      b.vr.setAttribute("y", Y0 - hn - hb - hv); b.vr.setAttribute("height", hv);
+      b.tot.setAttribute("y", Y0 - hn - hb - hv - 10);
+      b.tot.style.opacity = clamp((p - 0.9) * 10);
+      b.g.style.opacity = 1 - out;
+    });
+    best.style.opacity = clamp((T - 4.7) / .6) * (1 - out);
+  }
+  return { el: s, draw };
+}
+
+function loop(node, period, draw) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { draw(0.85); return { leave() {} }; }
+  let id = 0; const t0 = Date.now();
+  const f = () => { if (!node.isConnected) return; draw(((Date.now() - t0) / period) % 1); id = setTimeout(f, 16); };
+  f(); return { leave() { clearTimeout(id); } };
+}
+
+let run = null;
+LTT.deck({
+  title: "편향-분산 트레이드오프", theme: "lab",
+  glossary: {
+    "편향": "모델이 데이터의 참 패턴을 놓치는 체계적 오차. 단순한 모델일수록 크다",
+    "분산": "학습 데이터가 조금 바뀔 때 모델 곡선이 얼마나 출렁이는지. 복잡한 모델일수록 크다",
+    "차수": "다항식에서 가장 높은 거듭제곱. 차수가 높을수록 더 굽은 곡선을 맞출 수 있다"
+  },
+  scenes: [{
+    type: "figure", title: "모델을 어디까지 복잡하게 만들까",
+    sub: "{{차수}}를 올리면 {{편향}}은 줄고 {{분산}}은 늘어난다. 막대는 잡음 위에 두 값을 쌓은 테스트 오차다.",
+    figure: '<div class="bv-wrap"></div>',
+    enter: () => { const w = document.querySelector(".bv-wrap"); if (!w) return; w.innerHTML = "";
+      const f = biasVarChart(w); run && run.leave(); run = loop(f.el, 9000, f.draw); },
+    caption: "차수 5에서 테스트 오차가 0.215로 가장 낮다. 차수 6부터는 분산 증가(0.015)가 편향 감소(0.0125)보다 커진다.",
+    basis: "모델 가정(교육용 근삿값): 잡음 분산 0.10, 편향²은 차수가 한 칸 오르면 절반, 분산은 계수 하나당 0.015(표본 수 고정). 실제 데이터로 잰 값이 아니다 <span class=\"ltt-tag\">모델로 계산한 예시</span> <span class=\"ltt-tag warn\">가정</span>",
+    takeaway: "복잡도는 편향과 분산을 맞바꾸는 손잡이다. 합계가 가장 낮은 차수를 고른다.",
+    leave: () => run && run.leave()
+  }]
+});
+LTT.expect("차수 5 테스트 오차", err(5), 0.215, { tol: 1e-9 });
+LTT.expect("최적 차수", BEST, 5, { tol: 0 });
+</script>
+</body>
+</html>

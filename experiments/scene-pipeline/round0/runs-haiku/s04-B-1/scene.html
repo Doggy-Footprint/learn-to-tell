@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>키르히호프 전류 법칙</title>
+<script type="application/json" id="ltt-meta">{"topic":"키르히호프 전류 법칙","audience":"회로 입문자","theme":"blueprint","medium":"회로 도면","decision":"분기점에서 전류가 어떻게 나뉘나","domain":"전기 회로","pattern":["figure"],"mode":"연결 구조를 점이 궤적을 그리는 움직임과 좌우 분할 구도로 보인다. 그림이 주인공이고 계산은 오른쪽에 얹힌다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.cir{width:1120px;max-width:100%;height:auto;display:block;margin:0 auto}
+.cir text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent, text) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; parent && parent.appendChild(n); return n; };
+// 헤드리스 캡처의 virtual time은 setTimeout·Date.now를 따라가므로 rAF 대신 쓴다
+function loop(period, draw, finalU) {
+  let id = 0, t0 = 0;
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return { enter() { clearTimeout(id); if (reduced) { draw(finalU); return; }
+      t0 = Date.now(); const f = () => { draw(((Date.now() - t0) / period) % 1); id = setTimeout(f, 16); }; f(); },
+    leave() { clearTimeout(id); } };
+}
+
+// 모델: 12 V 전원, R1 = 6 Ω, R2 = 3 Ω (가정한 예시 값). 가지 전류 I = V/R, 점 개수 = 가지 전류(A)
+const V = 12, R1 = 6, R2 = 3;
+const I1 = V / R1, I2 = V / R2, ITOT = I1 + I2;
+LTT.expect("I₁ = V/R₁", I1, 2);
+LTT.expect("I₂ = V/R₂", I2, 4);
+LTT.expect("I₁ + I₂ = 들어온 전류 V/R_eq", ITOT, V / (R1 * R2 / (R1 + R2)));
+
+// 두 고리는 길이가 같다(1320). 점의 속도는 같고, 점 개수가 가지 전류를 나타낸다.
+const LOOPS = [
+  { pts: [[250, 150], [250, 200], [500, 200], [500, 420], [110, 420], [110, 150], [250, 150]], n: I1, c: "var(--ltt-c1)" },
+  { pts: [[250, 150], [250, 370], [500, 370], [500, 420], [110, 420], [110, 150], [250, 150]], n: I2, c: "var(--ltt-c2)" }
+];
+const perim = (pts) => pts.reduce((sum, p, i) => i ? sum + Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) : 0, 0);
+function pointAt(d, dist) {
+  let r = ((dist % d.len) + d.len) % d.len;
+  for (let i = 1; i < d.pts.length; i++) {
+    const [ax, ay] = d.pts[i - 1], [bx, by] = d.pts[i], L = Math.hypot(bx - ax, by - ay);
+    if (r <= L) return [ax + (bx - ax) * r / L, ay + (by - ay) * r / L];
+    r -= L;
+  }
+  return d.pts[0];
+}
+
+let F = null;
+function circuit(host) {
+  const s = el("svg", { viewBox: "0 0 1120 480", class: "cir", "data-annotate": "" }, host);
+  const label = (x, y, anchor, size, style, t) => el("text", { x, y, "text-anchor": anchor, style: `font-size:${size}px;${style}` }, s, t);
+  const WIRE = "stroke:var(--ltt-ink-2);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round";
+  const PLATE = "stroke:var(--ltt-ink);stroke-width:4;stroke-linecap:round";
+  const BOX = "fill:var(--ltt-card);stroke:var(--ltt-ink-2);stroke-width:2.5";
+
+  ["M110,150 H250", "M250,150 V370", "M250,200 H330", "M390,200 H500", "M250,370 H330", "M390,370 H500", "M500,200 V420", "M500,420 H110", "M110,420 V290", "M110,255 V150"]
+    .forEach((d) => el("path", { d, style: WIRE }, s));
+  el("path", { d: "M90,262 H130", style: PLATE }, s);
+  el("path", { d: "M100,282 H120", style: PLATE }, s);
+  label(140, 268, "start", 18, "font-weight:800;fill:var(--ltt-ink)", "+");
+  label(140, 292, "start", 18, "font-weight:800;fill:var(--ltt-ink)", "−");
+  label(74, 282, "end", 16, "fill:var(--ltt-ink-2)", `${V} V`);
+
+  [[250, 200], [250, 370], [500, 200], [500, 370]].forEach(([x, y]) => el("circle", { cx: x, cy: y, r: 5, style: "fill:var(--ltt-ink)" }, s));
+  el("rect", { x: 330, y: 186, width: 60, height: 28, rx: 3, style: BOX }, s);
+  el("rect", { x: 330, y: 356, width: 60, height: 28, rx: 3, style: BOX }, s);
+  label(360, 176, "middle", 17, "font-weight:700;fill:var(--ltt-c1)", `R₁ = ${R1} Ω`);
+  label(360, 346, "middle", 17, "font-weight:700;fill:var(--ltt-c2)", `R₂ = ${R2} Ω`);
+  label(360, 236, "middle", 17, "font-weight:700;fill:var(--ltt-c1)", `I₁ = ${I1} A`);
+  label(360, 406, "middle", 17, "font-weight:700;fill:var(--ltt-c2)", `I₂ = ${I2} A`);
+  label(236, 270, "end", 17, "font-weight:800;fill:var(--ltt-ink)", "분기점 A");
+  label(512, 270, "start", 17, "font-weight:800;fill:var(--ltt-ink)", "분기점 B");
+  label(180, 138, "middle", 17, "font-weight:800;fill:var(--ltt-accent)", `전체 ${ITOT} A`);
+  label(300, 446, "middle", 16, "fill:var(--ltt-ink-2)", `돌아오는 ${ITOT} A`);
+
+  const dots = LOOPS.flatMap((lp) => Array.from({ length: lp.n }, (_, k) => {
+    const d = { pts: lp.pts, len: perim(lp.pts), off: k / lp.n };
+    d.trail = el("polyline", { style: `fill:none;stroke:${lp.c};stroke-width:5;stroke-linecap:round;stroke-opacity:.4` }, s);
+    d.dot = el("circle", { r: 7, style: `fill:${lp.c};stroke:var(--ltt-card);stroke-width:2` }, s);
+    return d;
+  }));
+
+  el("path", { d: "M640,60 V440", style: "stroke:var(--ltt-line);stroke-width:1.5;stroke-dasharray:6 6" }, s);
+  label(660, 96, "start", 16, "font-weight:700;letter-spacing:.06em;fill:var(--ltt-muted)", "분기점 A에서");
+  label(660, 138, "start", 24, "font-weight:800;fill:var(--ltt-ink)", `들어온 전류 I = ${ITOT} A`);
+  label(660, 178, "start", 17, "fill:var(--ltt-ink-2)", `나가는 전류 I₁ + I₂ = ${I1} + ${I2} = ${ITOT} A`);
+  label(660, 240, "start", 18, "font-weight:700;fill:var(--ltt-c1)", `I₁ = V / R₁ = ${V} / ${R1} = ${I1} A`);
+  label(660, 274, "start", 18, "font-weight:700;fill:var(--ltt-c2)", `I₂ = V / R₂ = ${V} / ${R2} = ${I2} A`);
+  label(660, 328, "start", 17, "fill:var(--ltt-ink-2)", "두 갈래는 저항의 역수 비로 나뉜다");
+  label(660, 356, "start", 17, "fill:var(--ltt-ink-2)", `1/${R1} : 1/${R2} = 1 : ${I2 / I1}`);
+  label(660, 408, "start", 17, "font-weight:700;fill:var(--ltt-ink)", `분기점 B에서도 같다: ${I1} + ${I2} = ${ITOT} A`);
+  label(660, 434, "start", 16, "fill:var(--ltt-muted)", "갈라진 전류는 B에서 다시 합쳐진다");
+
+  function draw(u) {
+    for (const d of dots) {
+      const head = (u + d.off) * d.len;
+      const tail = [];
+      for (let i = 0; i <= 8; i++) tail.push(pointAt(d, head - 90 * (1 - i / 8)).join(","));
+      d.trail.setAttribute("points", tail.join(" "));
+      const [x, y] = pointAt(d, head);
+      d.dot.setAttribute("cx", x); d.dot.setAttribute("cy", y);
+    }
+  }
+  return { el: s, draw };
+}
+
+LTT.deck({
+  title: "키르히호프 전류 법칙", theme: "blueprint",
+  glossary: { "분기점": "전선이 두 갈래 이상으로 갈라지거나 모이는 점",
+    "키르히호프 전류 법칙": "회로의 한 점에 들어오는 전류의 합은 나가는 전류의 합과 같다. 전하는 쌓이지도 사라지지도 않는다" },
+  scenes: [{
+    type: "figure", kicker: "전기 회로", title: "분기점에서 전류는 나뉘어도 합은 들어온 만큼이다",
+    sub: "점 하나가 회로를 한 바퀴 돈다. 점의 수가 전류의 크기이고, 왼쪽 {{분기점}} A에서 두 갈래로 나뉘어 오른쪽 B에서 다시 만난다.",
+    figure: (h) => (F = circuit(h)),
+    caption: "{{키르히호프 전류 법칙}}에 따라 들어온 6 A는 2 A와 4 A로 나뉘고, 다시 합쳐져 6 A로 돌아온다. 나가는 합은 들어온 합과 같다.",
+    basis: "키르히호프 전류 법칙(KCL)과 옴 법칙 I = V/R로 계산했다. 12 V 전원, R₁ = 6 Ω, R₂ = 3 Ω은 가정한 예시 값이다. 점의 개수는 전류 크기에 비례하고, 점의 속도는 모두 같게 그렸다.",
+    mount() { return loop(9000, (u) => F.draw(u), 0.85); }
+  }]
+});
+</script>
+</body>
+</html>

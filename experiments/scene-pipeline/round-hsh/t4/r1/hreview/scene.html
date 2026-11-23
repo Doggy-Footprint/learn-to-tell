@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic": "DNA 복제 분기점", "audience": "생명과학 입문 학생", "theme": "paper", "medium": "교과서 도해", "decision": "복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// 분기점 기하: 주형 두 팔은 분기점(500, 210)에서 왼쪽으로 벌어진다. 새 가닥은 주형 바깥쪽에 평행하게 놓인다.
+// 위 주형은 왼쪽이 3', 분기점 쪽이 5'. 아래 주형은 왼쪽이 5', 분기점 쪽이 3'.
+const TOP = (x) => 200 - ((500 - x) * 50) / 440;
+const BOT = (x) => 220 + ((500 - x) * 50) / 440;
+const NEW_TOP = (x) => TOP(x) - 22; // 선도 가닥 쪽
+const NEW_BOT = (x) => BOT(x) + 22; // 지연 가닥 쪽
+
+function el(tag, attrs, parent) {
+  const n = document.createElementNS(SVG, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function seg(g, x1, y1, x2, y2, stroke, width, extra = {}) {
+  return el("line", { x1, y1, x2, y2, "stroke-width": width, "stroke-linecap": "round", style: `stroke:${stroke}`, ...extra }, g);
+}
+// 가닥은 x1에서 x2 방향으로 자란다. 점선 길이를 이용해 끝이 늘어나는 것처럼 그린다.
+function strand(g, x1, x2, f, stroke, width) {
+  const y1 = f(x1), y2 = f(x2), len = Math.hypot(x2 - x1, y2 - y1);
+  // 둥근 끝은 길이 0인 점선에서도 점으로 남으므로 butt 끝을 쓴다
+  const ln = seg(g, x1, y1, x2, y2, stroke, width, { "stroke-dasharray": `${len} ${len}`, "stroke-dashoffset": len, "stroke-linecap": "butt" });
+  return { ln, len };
+}
+// 화살촉: (x1, y1)에서 (x2, y2) 방향. 자라는 쪽 끝에 붙는다.
+function head(g, x1, y1, x2, y2, fill) {
+  const a = Math.atan2(y2 - y1, x2 - x1), L = 11, W = 5.5;
+  const bx = x2 - L * Math.cos(a), by = y2 - L * Math.sin(a);
+  const pts = [[x2, y2], [bx - W * Math.sin(a), by + W * Math.cos(a)], [bx + W * Math.sin(a), by - W * Math.cos(a)]];
+  return el("polygon", { points: pts.map((p) => p.join(",")).join(" "), style: `fill:${fill}`, opacity: 0 }, g);
+}
+function txt(g, x, y, s, { fill = "var(--ltt-ink)", anchor = "start" } = {}) {
+  const t = el("text", { x, y, "text-anchor": anchor, style: `fill:${fill}` }, g);
+  t.textContent = s;
+  return t;
+}
+
+const scene = {
+  type: "hook",
+  layout: "full",
+  title: "두 새 가닥은 왜 같은 방향으로 자라지 않을까?",
+  sub: "{{DNA 중합효소}}는 3' 끝에만 붙는다. {{헬리카아제}}가 연 분기점에서 {{프라이머}}와 {{오카자키 절편}}이 생기는 순서를 따라간다",
+  text: "두 새 가닥은 왜 같은 방향으로 자라지 않을까?",
+  mount(body) {
+    let anims = [];
+    const dots = [];
+    const svg = el("svg", {
+      viewBox: "0 0 960 400", width: "100%", role: "img",
+      "aria-label": "DNA 복제 분기점. 선도 가닥은 분기점을 따라 연속으로 자라고, 지연 가닥은 분기점 반대 방향으로 절편을 만든다.",
+    });
+    body.appendChild(svg);
+    const DUP = "var(--ltt-ink-2)", NEW = "var(--ltt-c1)", LAG = "var(--ltt-c2)", RNA = "var(--ltt-c3)", ACC = "var(--ltt-accent)";
+    const ink = "var(--ltt-ink)", muted = "var(--ltt-muted)";
+
+    // 닫힌 이중가닥과 열린 주형 두 팔
+    seg(svg, 500, 200, 920, 200, DUP, 3);
+    seg(svg, 500, 220, 920, 220, DUP, 3);
+    seg(svg, 60, TOP(60), 500, 200, DUP, 3);
+    seg(svg, 60, BOT(60), 500, 220, DUP, 3);
+    txt(svg, 710, 252, "닫힌 이중가닥", { anchor: "middle", fill: muted });
+    txt(svg, 36, 156, "3'");
+    txt(svg, 506, 192, "5'");
+    txt(svg, 36, 282, "5'");
+    txt(svg, 506, 240, "3'");
+
+    // 헬리카아제와 분기점 전진 방향
+    const heli = el("g", {}, svg);
+    el("rect", { x: 440, y: 92, width: 120, height: 34, rx: 6, style: `fill:var(--ltt-card);stroke:${ink}`, "stroke-width": 2 }, heli);
+    txt(heli, 500, 114, "헬리카아제", { anchor: "middle" });
+    seg(heli, 500, 126, 500, 196, muted, 2, { "stroke-dasharray": "4 4" });
+    const fork = el("g", {}, svg);
+    seg(fork, 580, 72, 800, 72, ink, 2.5);
+    const forkHead = head(svg, 580, 72, 800, 72, ink);
+    txt(fork, 690, 60, "분기점 전진 방향", { anchor: "middle" });
+
+    // 단일가닥결합단백질(SSB)이 열린 주형을 붙잡는다
+    const ssb = el("g", {}, svg);
+    el("circle", { cx: 200, cy: TOP(200), r: 7, style: `fill:var(--ltt-card);stroke:${DUP}`, "stroke-width": 2 }, ssb);
+    el("circle", { cx: 200, cy: BOT(200), r: 7, style: `fill:var(--ltt-card);stroke:${DUP}`, "stroke-width": 2 }, ssb);
+    txt(ssb, 200, 214, "SSB", { anchor: "middle", fill: muted });
+
+    // 중합효소 점: 가닥 끝을 따라 움직이는 표지. 가닥이 자라는 시간과 같다
+    const dot = (x1, y1, x2, y2, delay, dur) => {
+      const c = el("circle", { cx: x1, cy: y1, r: 6, style: `fill:${ink}`, opacity: 0 }, svg);
+      dots.push({ c, dx: x2 - x1, dy: y2 - y1, delay, dur });
+    };
+
+    // 선도 가닥: 프라이머 하나, 이후 분기점을 따라 연속 연장
+    const lead = strand(svg, 70, 470, NEW_TOP, NEW, 4);
+    const leadPrim = seg(svg, 70, NEW_TOP(70), 84, NEW_TOP(84), RNA, 7, { opacity: 0 });
+    const leadHead = head(svg, 462, NEW_TOP(462), 470, NEW_TOP(470), NEW);
+    const leadTxt = txt(svg, 300, 128, "선도 가닥 (연속 합성)", { anchor: "middle", fill: NEW });
+    const polyLead = txt(svg, 440, 156, "DNA 중합효소", { anchor: "middle" });
+    txt(svg, 52, 126, "5'");
+    txt(svg, 482, 172, "3'");
+    dot(70, NEW_TOP(70), 470, NEW_TOP(470), 1700, 1400);
+
+    // 지연 가닥: 분기점이 더 열린 뒤 프라이머, 절편은 분기점 반대(←)로 자란다
+    const f1 = strand(svg, 230, 90, NEW_BOT, LAG, 4);
+    const f2 = strand(svg, 370, 230, NEW_BOT, LAG, 4);
+    const f3 = strand(svg, 440, 370, NEW_BOT, LAG, 4);
+    const p1 = seg(svg, 230, NEW_BOT(230), 216, NEW_BOT(216), RNA, 7, { opacity: 0 });
+    const p2 = seg(svg, 370, NEW_BOT(370), 356, NEW_BOT(356), RNA, 7, { opacity: 0 });
+    const p3 = seg(svg, 440, NEW_BOT(440), 426, NEW_BOT(426), RNA, 7, { opacity: 0 });
+    const h1 = head(svg, 96, NEW_BOT(96), 90, NEW_BOT(90), ACC);
+    const h2 = head(svg, 236, NEW_BOT(236), 230, NEW_BOT(230), ACC);
+    const h3 = head(svg, 376, NEW_BOT(376), 370, NEW_BOT(370), ACC);
+    const lagTxt = txt(svg, 90, 346,"지연 가닥 절편은 분기점과 반대 방향(←)으로 자란다", { fill: ACC });
+    const okTxt = txt(svg, 340, 330, "오카자키 절편", { anchor: "middle" });
+    const polyLag = txt(svg, 405, 282, "DNA 중합효소", { anchor: "middle" });
+    txt(svg, 84, 306, "3'");
+    txt(svg, 446, 266, "5'");
+    dot(230, NEW_BOT(230), 90, NEW_BOT(90), 3900, 1000);
+    dot(370, NEW_BOT(370), 230, NEW_BOT(230), 5400, 900);
+    dot(440, NEW_BOT(440), 370, NEW_BOT(370), 6800, 600);
+
+    // 봉합: 분기점에서 먼 쪽(230)부터 프라이머가 DNA가 되고 연결효소가 틈을 잇는다
+    const nick1 = txt(svg, 230, 300, "연결효소", { anchor: "middle" });
+    const nick2 = txt(svg, 380, 300, "연결효소", { anchor: "middle" });
+
+    // 범례: 같은 표기가 반복되므로 한 번만 둔다
+    seg(svg, 620, 110, 650, 110, RNA, 7);
+    txt(svg, 660, 115, "RNA 프라이머 (나중에 DNA로 바뀜)", { fill: muted });
+    seg(svg, 620, 130, 650, 130, NEW, 4);
+    txt(svg, 660, 135, "선도 가닥", { fill: muted });
+    seg(svg, 620, 150, 650, 150, LAG, 4);
+    txt(svg, 660, 155, "지연 가닥 절편", { fill: muted });
+
+    const fade = (n, delay, dur = 400) =>
+      anims.push(n.animate([{ opacity: 0 }, { opacity: 1 }], { delay, duration: dur, fill: "both", easing: "ease-out" }));
+    const grow = (s, delay, dur) =>
+      anims.push(s.ln.animate([{ strokeDashoffset: s.len }, { strokeDashoffset: 0 }], { delay, duration: dur, fill: "both", easing: "linear" }));
+    const recolor = (n, from, to, delay) =>
+      anims.push(n.animate([{ stroke: from }, { stroke: to }], { delay, duration: 500, fill: "both" }));
+
+    return {
+      enter() {
+        anims = [];
+        fade(heli, 0, 500);
+        fade(fork, 300);
+        fade(forkHead, 300);
+        fade(ssb, 900);
+
+        // 선도 가닥
+        fade(leadPrim, 1400, 300);
+        grow(lead, 1700, 1400);
+        fade(leadTxt, 1700);
+        fade(leadHead, 3100, 200);
+        fade(polyLead, 3100);
+
+        // 지연 가닥 절편은 프라이머 뒤에 생기며, 가장 오래된 절편이 가장 멀다
+        fade(p1, 3600, 300);
+        fade(lagTxt, 3600);
+        grow(f1, 3900, 1000);
+        fade(h1, 4900, 200);
+        fade(okTxt, 4900);
+        fade(p2, 5100, 300);
+        grow(f2, 5400, 900);
+        fade(h2, 6300, 200);
+        fade(polyLag, 5400);
+        fade(p3, 6500, 300);
+        grow(f3, 6800, 600);
+        fade(h3, 7400, 200);
+
+        // 중합효소 점은 자라는 가닥의 끝을 따라간다
+        dots.forEach(({ c, dx, dy, delay, dur }) => anims.push(c.animate([
+          { opacity: 0, transform: "translate(0px, 0px)", offset: 0 },
+          { opacity: 1, transform: "translate(0px, 0px)", offset: 0.05 },
+          { opacity: 1, transform: `translate(${dx}px, ${dy}px)`, offset: 0.9 },
+          { opacity: 0, transform: `translate(${dx}px, ${dy}px)`, offset: 1 },
+        ], { delay, duration: dur, fill: "both", easing: "linear" })));
+
+        // 봉합: 먼 쪽부터
+        recolor(p1, RNA, LAG, 8000);
+        fade(nick1, 8500, 300);
+        recolor(p2, RNA, LAG, 9000);
+        fade(nick2, 9500, 300);
+        recolor(leadPrim, RNA, NEW, 10000);
+
+        if (reduced) anims.forEach((a) => a.finish());
+      },
+      leave() {
+        anims.forEach((a) => a.cancel());
+        anims = [];
+      },
+    };
+  },
+};
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "헬리카아제": "DNA 이중나선을 풀어 두 가닥으로 나누는 효소",
+    "SSB": "단일가닥결합단백질. 풀린 가닥이 다시 붙지 않게 잡아 둔다",
+    "프라이머": "DNA 중합효소가 새 DNA를 이어 붙일 짧은 RNA 시작점",
+    "오카자키 절편": "지연 가닥에서 따로 만들어지는 짧은 DNA 조각",
+    "DNA 중합효소": "새 DNA 가닥의 3' 끝에 뉴클레오티드를 하나씩 붙이는 효소. 5'→3' 방향으로만 자란다",
+    "연결효소": "떨어진 DNA 조각 사이의 틈을 이어 붙이는 효소",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

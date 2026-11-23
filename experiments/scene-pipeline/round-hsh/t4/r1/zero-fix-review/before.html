@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .rep { width: 100%; }
+  .rep svg { width: 100%; height: auto; display: block; }
+  .rep .cap { font-size: var(--ltt-fs-md, 1.05rem); color: var(--ltt-ink); min-height: 2.6em; margin-top: .4rem; }
+  .rep text { font-family: inherit; fill: var(--ltt-ink); }
+  .rep .sm { font-size: 15px; }
+  .rep .md { font-size: 18px; }
+  .rep .mu { fill: var(--ltt-muted); }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const F0 = 280, F1 = 740, SPEED = 40;      // 분기점 위치(px)와 속도(px/s)
+const XS = [200, 340, 480, 620];            // 절편 5' 시작점(오카자키 절편 4개)
+const LEN = 120, GROW = 3;                  // 절편 길이(px), 성장 시간(s)
+const CYCLE = 21;
+const tk = XS.map(x => (x + 105 - F0) / SPEED);
+
+const line = (x1, y1, x2, y2, c, w, extra = "") =>
+  `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w}" stroke-linecap="round" ${extra}/>`;
+const txt = (x, y, s, cls = "sm", anchor = "middle") => `<text x="${x}" y="${y}" class="${cls}" text-anchor="${anchor}">${s}</text>`;
+const arrow = (x1, y, x2, c, w = 4) =>
+  line(x1, y, x2, y, c, w) + `<path d="M${x2} ${y} l${x2 > x1 ? -12 : 12} -7 l0 14 z" fill="${c}" stroke="${c}"/>`;
+
+function frame(t) {
+  const F = Math.min(F0 + SPEED * t, F1);
+  const INK = "var(--ltt-ink-2)", NEW = "var(--ltt-accent)", RNA = "var(--ltt-warn)", BAD = "var(--ltt-bad)";
+  let s = "";
+  // 부모 이중가닥(아직 안 열린 부분)
+  for (let x = F + 14; x < 960; x += 20) s += line(x, 252, x, 278, "var(--ltt-line-2)", 2);
+  s += line(F, 250, 960, 250, INK, 5) + line(F, 280, 960, 280, INK, 5);
+  // 열린 두 주형
+  s += `<path d="M${F} 250 L${F - 90} 110 L40 110" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  s += `<path d="M${F} 280 L${F - 90} 420 L40 420" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  // 가닥 표기
+  s += txt(30, 100, "3′", "md", "end") + txt(30, 440, "5′", "md", "end") + txt(972, 244, "5′", "md", "start") + txt(972, 300, "3′", "md", "start");
+  s += txt(120, 90, "주형 가닥", "sm mu") + txt(120, 460, "주형 가닥", "sm mu");
+  // 선도 가닥: 분기점을 따라 끊김 없이
+  const le = F - 105;
+  s += line(60, 140, le, 140, NEW, 6);
+  s += txt(48, 146, "5′", "md", "end");
+  s += `<circle cx="${le}" cy="140" r="15" fill="var(--ltt-card)" stroke="${NEW}" stroke-width="3"/>` + txt(le, 145, "Pol", "sm");
+  s += arrow(le + 22, 140, le + 62, NEW, 4);
+  s += txt(le + 18, 176, "3′", "md", "start");
+  s += txt(150, 172, "선도 가닥 · 연속 합성", "sm mu", "start");
+  // 지연 가닥: 절편
+  XS.forEach((xs, k) => {
+    const p = t - tk[k];
+    if (p < 0) return;
+    const g = Math.min(p / GROW, 1), tail = xs - LEN * g;
+    const conv = t > tk[k] + GROW + 0.5;
+    const primerC = conv ? NEW : RNA;
+    s += line(tail, 390, xs, 390, NEW, 6);
+    s += `<rect x="${xs - 22}" y="383" width="22" height="14" rx="3" fill="${primerC}"/>`;
+    if (g < 1) {
+      s += `<circle cx="${tail}" cy="390" r="15" fill="var(--ltt-card)" stroke="${NEW}" stroke-width="3"/>` + txt(tail, 395, "Pol", "sm");
+      s += arrow(tail - 20, 390, tail - 56, NEW, 4);
+    }
+    if (g < 0.2) s += txt(xs, 366, "프라이머", "sm", "middle");
+    if (k > 0 && t > tk[k] + GROW + 1.5)
+      s += line(xs - LEN, 390, XS[k - 1] - 22, 390, NEW, 6) + `<circle cx="${xs - LEN - 10}" cy="390" r="6" fill="var(--ltt-good)"/>`;
+    else if (k > 0 && g >= 1)
+      s += `<path d="M${xs - LEN - 6} 372 l6 12 l6 -12" fill="none" stroke="${BAD}" stroke-width="3"/>`;
+  });
+  s += txt(40, 372, "지연 가닥 · 조각조각 합성 (오카자키 절편)", "sm mu", "start");
+  // 헬리카아제와 분기점 전진 방향
+  s += `<circle cx="${F + 4}" cy="265" r="26" fill="var(--ltt-card)" stroke="${INK}" stroke-width="3"/>` + txt(F + 4, 262, "헬리", "sm") + txt(F + 4, 279, "카아제", "sm");
+  s += arrow(F + 40, 265, F + 120, INK, 5);
+  s += txt(F + 80, 232, "분기점 전진", "sm");
+  // 강조: 지연 가닥 성장 방향은 전진과 반대
+  if (t > tk[0] && t < CYCLE - 2) {
+    const a = XS[Math.min(XS.filter((_, k) => t > tk[k]).length, XS.length) - 1];
+    s += txt(a - 60, 338, "← 성장 방향", "md");
+  }
+  return s;
+}
+
+function caption(t) {
+  if (t < 3) return "헬리카아제가 두 가닥을 풀며 분기점이 오른쪽으로 나아간다. 새 가닥의 3′ 끝에만 덧붙일 수 있으니 두 가닥 모두 5′→3′으로 자란다.";
+  if (t < 9) return "위쪽 선도 가닥은 자라는 방향이 분기점 전진 방향과 같아, 끊김 없이 이어서 만든다.";
+  if (t < 15) return "아래쪽 지연 가닥은 5′→3′ 방향이 분기점과 반대다. 분기점이 더 열려야 프라이머를 놓을 수 있어, 절편마다 분기점에서 멀어지는 쪽으로 자란다.";
+  return "프라이머(RNA)는 DNA로 바뀌고, 연결효소가 절편 사이 틈을 이어 지연 가닥도 하나의 가닥이 된다.";
+}
+
+const hookScene = {
+  type: "hook",
+  title: "새 가닥 둘 중 하나만 분기점을 따라간다",
+  sub: "DNA 중합효소는 3′ 끝에만 덧붙인다. 아래 가닥은 왜 조각으로 만들어질까?",
+  number: false,
+  mount(body) {
+    body.innerHTML = `<div class="rep"><svg viewBox="0 0 1000 480" role="img" aria-label="DNA 복제 분기점: 선도 가닥은 연속 합성, 지연 가닥은 오카자키 절편으로 합성"></svg><div class="cap"></div></div>`;
+    const svg = body.querySelector("svg"), cap = body.querySelector(".cap");
+    const reduce = LTT.MOTION_MS === 0;
+    let raf = 0, start = 0, alive = false;
+    const draw = (t) => { svg.innerHTML = frame(t); const c = caption(t); if (cap.textContent !== c) cap.textContent = c; };
+    const tick = (now) => {
+      if (!alive) return;
+      if (!start) start = now;
+      draw(((now - start) / 1000) % CYCLE);
+      raf = requestAnimationFrame(tick);
+    };
+    draw(reduce ? 18 : 0);
+    return {
+      enter() {
+        if (reduce) { draw(18); return; }
+        alive = true; start = 0;
+        requestAnimationFrame(() => { raf = requestAnimationFrame(tick); });
+      },
+      leave() { alive = false; cancelAnimationFrame(raf); },
+    };
+  },
+  takeaway: "중합효소는 3′ 끝에만 붙이므로, 분기점 반대 방향으로 자라는 지연 가닥은 절편으로 만들어 연결효소가 잇는다.",
+  recall: "지연 가닥은 왜 한 번에 이어서 만들 수 없을까?",
+};
+
+LTT.deck({ title: "DNA 복제 분기점", theme: "paper", glossary: {}, scenes: [hookScene] });
+</script>
+</body>
+</html>

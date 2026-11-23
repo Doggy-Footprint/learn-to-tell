@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>x = 3 + 4 * 2 의 네 모습</title>
+<script type="application/json" id="ltt-meta">{"topic": "소스→토큰→AST→바이트코드", "audience": "컴파일러 입문 개발자", "theme": "terminal", "medium": "터미널 출력", "decision": "컴파일 단계 구분"}</script>
+<style>
+  .pipe { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; width: 100%; }
+  .pipe .p { min-width: 0; border: 1px solid var(--ltt-line); background: var(--ltt-card); border-radius: 8px; padding: 10px 12px; opacity: .22; transition: opacity .4s, border-color .4s; display: flex; flex-direction: column; gap: 8px; }
+  .pipe .p.on { opacity: 1; }
+  .pipe .p.hot { border-color: var(--ltt-accent); }
+  .pipe .h { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; border-bottom: 1px dashed var(--ltt-line-2); padding-bottom: 6px; }
+  .pipe .h b { color: var(--ltt-ink); }
+  .pipe .h span { color: var(--ltt-muted); }
+  .pipe .rv { opacity: 0; transition: opacity .35s; }
+  .pipe .rv.on { opacity: 1; }
+  .src { display: flex; flex-wrap: wrap; gap: 2px; min-height: 2.2em; align-items: center; }
+  .src i { font-style: normal; display: inline-block; min-width: .7em; text-align: center; border-bottom: 2px solid transparent; transition: border-color .4s, opacity .4s; }
+  .src.cut i.ch { border-bottom-color: var(--ltt-ink-2); }
+  .src.cut i.sp { opacity: .0; }
+  .src i.sp::before { content: "␣"; color: var(--ltt-warn); }
+  .src i.sp { color: transparent; }
+  .src.cut i.sp { opacity: .15; }
+  .tks { display: flex; flex-direction: column; gap: 4px; }
+  .tk { display: flex; gap: 8px; align-items: center; }
+  .tk .ltt-tag { min-width: 4.4em; text-align: center; }
+  .amb { border-top: 1px dashed var(--ltt-line-2); padding-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+  .amb div { transition: opacity .4s; }
+  .amb.settled .no { opacity: .4; text-decoration: line-through; }
+  .amb.settled .yes { font-weight: 700; color: var(--ltt-accent); }
+  .tree { width: 100%; height: auto; max-height: 40vh; display: block; }
+  .tree .nd, .tree .ed, .tree .box { opacity: 0; transition: opacity .45s; }
+  .tree .nd.on, .tree .ed.on, .tree .box.on { opacity: 1; }
+  .tree .nd rect { fill: var(--ltt-card-2); stroke: var(--ltt-line-2); stroke-width: 1.5; transition: stroke .3s, fill .3s; }
+  .tree .nd text { fill: var(--ltt-ink); font-family: ui-monospace, monospace; font-size: 13px; text-anchor: middle; dominant-baseline: central; }
+  .tree .ed { stroke: var(--ltt-line-2); stroke-width: 1.5; fill: none; }
+  .tree .nd.hot rect { stroke: var(--ltt-accent); fill: var(--ltt-accent-soft); }
+  .tree .nd.cur rect { stroke: var(--ltt-ink); stroke-width: 3; }
+  .tree .box { fill: none; stroke: var(--ltt-accent); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  .tree .bt { fill: var(--ltt-accent); font-size: 11px; text-anchor: middle; font-family: ui-monospace, monospace; }
+  .bc { display: flex; flex-direction: column; gap: 3px; }
+  .bc .r { display: grid; grid-template-columns: 5.6em 1fr 1.6em; gap: 6px; align-items: center; padding: 1px 4px; border-radius: 4px; border: 1px solid transparent; opacity: 0; transition: opacity .3s, border-color .3s; }
+  .bc .r.on { opacity: 1; }
+  .bc .r.cur { border-color: var(--ltt-ink-2); background: var(--ltt-card-2); }
+  .bc .hd { grid-template-columns: 5.6em 1fr 1.6em; color: var(--ltt-muted); opacity: 1; }
+  .stk { display: flex; gap: 3px; min-height: 1.6em; align-items: center; }
+  .stk b { min-width: 1.6em; text-align: center; border: 1px solid var(--ltt-line-2); border-radius: 3px; background: var(--ltt-card-2); font-weight: 400; }
+  .stk b.new { border-color: var(--ltt-ink); font-weight: 700; }
+  .dp { text-align: right; color: var(--ltt-muted); }
+  .ft { color: var(--ltt-muted); }
+  .q { color: var(--ltt-ink); font-weight: 700; }
+  .stp { width: 100%; margin-top: 8px; }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SRC = "x = 3 + 4 * 2";
+const TOKENS = [["IDENT", "x"], ["EQ", "="], ["NUM", "3"], ["PLUS", "+"], ["NUM", "4"], ["STAR", "*"], ["NUM", "2"]];
+// 후위 순회로 편 결과. n: 대응하는 AST 노드, st: 실행 뒤 스택
+const CODE = [
+  { op: "PUSH 3", n: "n3", st: [3] },
+  { op: "PUSH 4", n: "n4", st: [3, 4] },
+  { op: "PUSH 2", n: "n2", st: [3, 4, 2] },
+  { op: "MUL", n: "mul", st: [3, 8], nw: 1 },
+  { op: "ADD", n: "add", st: [11], nw: 0 },
+  { op: "STORE x", n: "asg", st: [] },
+];
+// AST 노드: id, 라벨, 중심 좌표, 너비, 부모
+const NODES = [
+  ["asg", "Assign", 140, 26, 60, null], ["x", "x", 60, 90, 32, "asg"], ["add", "Add", 190, 90, 46, "asg"],
+  ["n3", "3", 130, 154, 32, "add"], ["mul", "Mul", 230, 154, 46, "add"], ["n4", "4", 190, 218, 32, "mul"], ["n2", "2", 270, 218, 32, "mul"],
+];
+const byId = Object.fromEntries(NODES.map((n) => [n[0], n]));
+
+LTT.expect("4*2", 4 * 2, 8);
+LTT.expect("3+4*2", 3 + 4 * 2, 11);
+LTT.expect("(3+4)*2", (3 + 4) * 2, 14);
+LTT.expect("토큰 수", TOKENS.length, 7);
+LTT.expect("글자 수", SRC.length, 13);
+LTT.expect("노드 수", NODES.length, 7);
+LTT.expect("명령 수", CODE.length, 6);
+LTT.expect("최대 스택 깊이", Math.max(...CODE.map((c) => c.st.length)), 3);
+
+function pipeline(el) {
+  const edges = NODES.filter((n) => n[5]).map((n, i) => {
+    const p = byId[n[5]];
+    return `<line class="ed" data-s="3" style="transition-delay:${i * 90}ms" x1="${p[2]}" y1="${p[3] + 13}" x2="${n[2]}" y2="${n[3] - 13}"/>`;
+  }).join("");
+  const nodes = NODES.map((n, i) => {
+    const hot = ["mul", "n4", "n2"].includes(n[0]) ? " hot" : "";
+    return `<g class="nd${hot}" data-s="3" data-n="${n[0]}" style="transition-delay:${200 + i * 90}ms"><rect x="${n[2] - n[4] / 2}" y="${n[3] - 13}" width="${n[4]}" height="26" rx="${n[5] && !["add", "mul"].includes(n[0]) ? 13 : 5}"/><text x="${n[2]}" y="${n[3]}">${n[1]}</text></g>`;
+  }).join("");
+  const tokens = TOKENS.map((t, i) => `<div class="tk rv" data-s="1" style="transition-delay:${i * 90}ms"><span class="ltt-tag muted ltt-mono">${t[0]}</span><span class="ltt-mono">${t[1]}</span></div>`).join("");
+  const chars = [...SRC].map((c) => (c === " " ? `<i class="sp">_</i>` : `<i class="ch ltt-mono">${c}</i>`)).join("");
+  const rows = CODE.map((c, i) => `<div class="r ltt-mono" data-row="${i}"><span>${c.op}</span><span class="stk">${c.st.map((v, j) => `<b${c.nw !== undefined && j === c.nw ? ' class="new"' : ""}>${v}</b>`).join("") || '<span class="ft">비어 있음</span>'}</span><span class="dp">${c.st.length}</span></div>`).join("");
+
+  el.innerHTML = `
+  <div class="pipe">
+    <div class="p" data-p="0"><div class="h"><b>① 소스</b><span class="ltt-mono">입력</span></div>
+      <div class="src ltt-mono" style="font-size:inherit">${chars}</div>
+      <div class="ft">글자 ${SRC.length}개, 공백 6개 <span class="rv" data-s="1">→ 공백은 버려진다</span></div>
+      <div class="q rv" data-s="5">무슨 글자?</div></div>
+    <div class="p" data-p="1"><div class="h"><b>② 토큰 열</b><span class="ltt-mono">$ lex</span></div>
+      <div class="tks">${tokens}</div>
+      <div class="amb rv ltt-mono" data-s="2"><div class="no">(3 + 4) * 2 = 14</div><div class="yes">3 + (4 * 2) = 11</div><div class="ft">같은 토큰 7개, 읽는 법 둘. 순서만 있고 '누가 먼저'는 없다</div></div>
+      <div class="ft rv" data-s="1">토큰 7개 · 종류 태그만 붙음</div>
+      <div class="q rv" data-s="5">무슨 단어?</div></div>
+    <div class="p" data-p="2"><div class="h"><b>③ AST</b><span class="ltt-mono">$ parse</span></div>
+      <svg class="tree" viewBox="0 0 300 256" role="img" aria-label="Assign(x, Add(3, Mul(4, 2))) 트리">
+        <rect class="box" data-s="3" style="transition-delay:700ms" x="164" y="134" width="132" height="98" rx="8"/>
+        <text class="bt box" data-s="3" style="transition-delay:700ms" x="230" y="248">* 가 4·2를 먼저 묶는다</text>
+        ${edges}${nodes}</svg>
+      <div class="ft rv" data-s="3">노드 7개 · 묶음은 여기서 한 번 정해진다</div>
+      <div class="q rv" data-s="5">어떻게 묶임?</div></div>
+    <div class="p" data-p="3"><div class="h"><b>④ 바이트코드</b><span class="ltt-mono">$ codegen</span></div>
+      <div class="bc"><div class="r hd ltt-mono on"><span>명령</span><span>스택</span><span class="dp">깊이</span></div>${rows}</div>
+      <div class="ft rv" data-s="5">명령 6줄 · 최대 깊이 3 · 끝나면 0</div>
+      <div class="q rv" data-s="5">무슨 순서?</div></div>
+  </div>
+  <div class="stp" id="stp"></div>
+  <div class="ltt-basis">명령 이름(PUSH·MUL·ADD·STORE)은 설명용 가상 스택 VM 표기다. 실제 VM마다 이름이 다르다.</div>`;
+
+  const panels = [...el.querySelectorAll(".p")];
+  const revs = [...el.querySelectorAll("[data-s]")];
+  const rowEls = [...el.querySelectorAll("[data-row]")];
+  const amb = el.querySelector(".amb");
+  const src = el.querySelector(".src");
+  const nodeEl = (id) => el.querySelector(`.nd[data-n="${id}"]`);
+  let timers = [];
+  const clear = () => { timers.forEach(clearTimeout); timers = []; };
+  const setCur = (n) => el.querySelectorAll(".nd.cur").forEach((e) => e.classList.remove("cur")) || (n && nodeEl(n).classList.add("cur"));
+
+  function render(i) {
+    clear();
+    revs.forEach((e) => e.classList.toggle("on", i >= +e.dataset.s));
+    panels.forEach((p, k) => p.classList.toggle("on", i >= [0, 1, 3, 4][k]));
+    panels[2].classList.toggle("hot", i >= 3);
+    src.classList.toggle("cut", i >= 1);
+    amb.classList.toggle("settled", i >= 3);
+    setCur(null);
+    rowEls.forEach((r) => { r.classList.remove("cur"); r.classList.toggle("on", i >= 5); });
+    if (i === 4) {
+      if (LTT.MOTION_MS === 0) { rowEls.forEach((r) => r.classList.add("on")); return; }
+      CODE.forEach((c, k) => timers.push(setTimeout(() => {
+        rowEls.forEach((r, j) => { r.classList.toggle("cur", j === k); if (j <= k) r.classList.add("on"); });
+        setCur(c.n);
+      }, 500 + k * 750)));
+      timers.push(setTimeout(() => { setCur(null); rowEls.forEach((r) => r.classList.remove("cur")); }, 500 + CODE.length * 750));
+    }
+  }
+
+  const steps = [
+    { caption: "소스는 13글자의 나열일 뿐이다. 11인지 14인지는 아직 어디에도 정해져 있지 않다.", hold: 3200, enter: () => render(0) },
+    { caption: "렉서(글자를 끊는 단계): 공백과 기호 경계로 끊고 조각마다 종류 태그를 붙인다. 공백은 사라진다.", hold: 3600, enter: () => render(1) },
+    { caption: "토큰 열은 평평한 줄이다. 같은 7개가 (3+4)*2로도 3+(4*2)로도 읽힌다. 먼저 읽힌다고 먼저 실행되지 않는다.", hold: 4500, enter: () => render(2) },
+    { caption: "파서(조각을 묶는 단계): 우선순위 규칙으로 * 가 4와 2를 먼저 묶는다. 14가 아니라 11이 되는 결정은 여기서 한 번 내려진다.", hold: 5000, enter: () => render(3) },
+    { caption: "코드 생성: 트리를 후위로 편다(자식 먼저, 연산자 나중). 8이 먼저 만들어지고 11이 나중에 만들어진다.", hold: 6800, enter: () => render(4) },
+    { caption: "단계마다 답하는 질문이 다르다. 단어는 토큰, 묶음은 AST, 순서는 바이트코드가 정한다.", hold: 4500, enter: () => render(5) },
+  ];
+  const st = LTT.stepper(el.querySelector("#stp"), steps, {});
+  return { el, enter() { st.go(0); st.play(); }, leave() { st.stop(); clear(); } };
+}
+
+LTT.deck({
+  title: "x = 3 + 4 * 2 의 네 모습",
+  theme: "terminal",
+  glossary: {
+    "AST": "추상 구문 트리. 토큰을 연산자 우선순위대로 묶어 만든 중첩 구조.",
+    "바이트코드": "VM이 위에서 아래로 한 줄씩 실행하는 낮은 수준의 명령 열.",
+  },
+  scenes: [{
+    type: "hook",
+    pre: "컴파일러 · 소스→토큰→AST→바이트코드",
+    text: "x = 3 + 4 * 2 의 결과는 11이다. 14가 아닌 이유는 컴파일의 어느 단계에서 정해질까?",
+    sub: "같은 식이 글자 → 토큰 → {{AST}} → {{바이트코드}}로 바뀌는 과정을 따라간다. 단계를 넘기거나 반복 재생을 누른다.",
+    art: pipeline,
+    mount: (body, ctx) => pipeline(body),
+    takeaway: "묶음(누가 먼저)은 AST 단계에서 한 번 정해지고, 바이트코드는 그 결정을 실행 순서로 옮길 뿐이다.",
+    recall: "x = 3 + 4 * 2 에서 4 * 2가 먼저라는 결정은 어느 단계에서 내려지는가?",
+  }],
+});
+</script>
+</body>
+</html>

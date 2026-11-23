@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어</title>
+<script type="application/json" id="ltt-meta">{"topic":"TCP 혼잡 제어","audience":"백엔드·네트워크 개발자","theme":"lab","medium":"cwnd 시계열 플롯","decision":"전송 처리량 문제 진단"}</script>
+<link rel="stylesheet" href="/kit/ltt.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const LIMIT = 40; // 병목이 감당하는 cwnd (MSS)
+const X = [0, 45];
+const slow = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map((t) => [t, 10 * Math.pow(2, t)]);
+const saw = [];
+let t0 = 2;
+saw.push([2, 40], [2, 20]);
+for (let k = 0; k < 2; k++) { saw.push([t0 + 20, 40], [t0 + 20, 20]); t0 += 20; }
+const timeout = [[2, 40], [2, 1], [3, 2], [4, 4], [5, 8], [6, 16], [7, 20], [27, 40]];
+const lines = [[X[0], LIMIT], [X[1], LIMIT]];
+const ss = [[2, 20], [X[1], 20]];
+
+function plot(el, full, withTimeout) {
+  const svg = el.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "svg"));
+  const series = [{ id: "limit", k: "bad", dash: true }, { id: "cwnd" }];
+  if (full) series.push({ id: "ss", dash: true, color: "var(--ltt-muted)" }, { id: "saw" });
+  if (withTimeout) series.push({ id: "to", dash: true, color: "var(--ltt-warn)" });
+  const p = LTT.axisPlot(svg, { width: 640, height: 260, x: X, y: [0, 48], ticks: { x: [0, 10, 20, 30, 40], y: [0, 10, 20, 30, 40] },
+    labels: { x: "시간 (RTT)", y: "cwnd (MSS)" }, series });
+  p.set("limit", lines);
+  p.set("cwnd", slow);
+  if (full) { p.set("ss", ss); p.set("saw", [[2, 40]].concat(saw)); }
+  if (withTimeout) p.set("to", timeout);
+  return { el: svg };
+}
+
+LTT.deck({
+  title: "TCP 혼잡 제어", theme: "lab",
+  glossary: { ssthresh: "slow start를 끝내고 선형 증가로 넘어가는 경계값. 손실 때 cwnd/2로 정해진다." },
+  scenes: [{
+    type: "predict",
+    title: "첫 손실이 나면 송신 윈도는 어디로 갈까?",
+    sub: "RTT 100 ms, 초기 10 MSS, 2 RTT 만에 40 MSS. 중복 ACK 3개로 손실을 알았다. 점선은 병목이 감당하는 한계(40 MSS)다.",
+    question: "RTT 100 ms, 초기 10 MSS에서 시작해 2 RTT 만에 40 MSS. 이 순간 병목 큐가 넘쳐 중복 ACK 3개로 손실을 알았다. 곡선은 이 뒤 어떻게 이어질까?",
+    visual: (el) => plot(el, false, false),
+    choices: [{ id: "one", text: "1 MSS로 떨어져 slow start를 다시 한다" }, { id: "half", text: "절반인 20 MSS로 내려와 거기서부터 오른다" }, { id: "keep", text: "40 MSS를 유지한다" }],
+    answer: "half",
+    answerVisual: (el) => { plot(el, true, true);
+      el.insertAdjacentHTML("beforeend", '<div class="ltt-key"><span>지수 구간 (2 RTT)</span><span>손실 (중복 ACK)</span><span>선형 구간 (RTT당 +1)</span><span>손실 → 반복</span><span>점선: 병목 한계 40 · ssthresh 20 · 타임아웃 경로</span></div>'); },
+    why: "중복 ACK 손실은 {{ssthresh}} = cwnd/2 = 20, cwnd = 20으로 내리고 RTT마다 +1 MSS로 오른다. 20 → 40 복구에 20 RTT(2 s)가 걸려 톱니가 된다. 1 MSS로 떨어지는 점선은 타임아웃일 때뿐이다. 진단은 모양으로 한다. 톱니는 손실, 1로 떨어지는 깊은 골은 타임아웃, 손실 없이 평평한 지붕은 수신 윈도(rwnd) 제한이다. 평균은 30 MSS ≈ 3.50 Mbit/s, 피크의 75%다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    basis: "Reno 기준. MSS 1460 B, 처리량 = cwnd×MSS×8 / RTT.",
+    takeaway: "손실이 나면 cwnd는 절반으로 줄고(타임아웃이면 1 MSS) 이후 RTT당 +1 MSS로 올라 톱니가 된다.",
+    recall: "중복 ACK 손실과 타임아웃 손실 뒤 cwnd는 각각 어디서 다시 시작하나?"
+  }]
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가비지 컬렉션 방식 · 같은 순환, 다른 회수 조건</title>
+<script type="application/json" id="ltt-meta">{"topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const GRID = { cols: 2, rows: 2, cell: [160, 120], node: [120, 56] };
+
+// 참조 카운트(들어오는 참조 수): 단계별 A, B
+const COUNT = [0, 1, 2, 1, 1, 1, 1];
+
+// 단계별 상태 줄
+const RC_TEXT = [
+  "카운트  A 0 · B 0",
+  "카운트  A 1 · B 1",
+  "카운트  A 2 · B 2",
+  "카운트  A 1 · B 1  (0 아님)",
+  "retainer  A←B · B←A  루트 경로 0개 → 회수 안 됨",
+  "카운트가 0이 되지 않는 한 힙에 남는다",
+  "루트 경로 없음 → 순환 retainer를 끊거나 약한 참조로",
+];
+const MS_TEXT = [
+  "GC 전 · 표시  —",
+  "GC 전 · 표시  —",
+  "GC 전 · 표시  —",
+  "루트 집합  비어 있음",
+  "mark  루트에서 도달 0개 → A, B 미표시",
+  "sweep  미표시 A, B 해제",
+  "루트→전역 캐시→C  경로 있음 → 첫 retainer(캐시 항목)를 끊는다",
+];
+
+const rcSpec = (i) => {
+  const n = COUNT[i];
+  const nodes = [
+    { id: "A", c: 1, r: 0, l: "객체 A", s: "카운트 " + n, icon: "memory", k: i >= 4 ? "bad" : undefined },
+    { id: "B", c: 1, r: 1, l: "객체 B", s: "카운트 " + n, icon: "memory", k: i >= 4 ? "bad" : undefined },
+  ];
+  const edges = [];
+  if (i >= 1) {
+    const off = i >= 3;
+    nodes.push({ id: "x", c: 0, r: 0, l: "변수 x", s: off ? "해제됨" : "루트", icon: "user", k: off ? "muted" : undefined });
+    nodes.push({ id: "y", c: 0, r: 1, l: "변수 y", s: off ? "해제됨" : "루트", icon: "user", k: off ? "muted" : undefined });
+    if (!off) edges.push({ f: "x", t: "A" }, { f: "y", t: "B" });
+  }
+  if (i >= 2) edges.push({ f: "A", t: "B", l: "peer", lo: [44, 0] }, { f: "B", t: "A", l: "peer", lo: [-44, 0] });
+  const hot = [
+    ["A", "B"],
+    ["x", "y", "A", "B", "x>A", "y>B"],
+    ["A", "B", "A>B", "B>A"],
+    ["x", "y"],
+    ["A", "B", "A>B", "B>A"],
+    ["A", "B"],
+    ["A", "B", "A>B", "B>A"],
+  ][i];
+  return { spec: { ...GRID, nodes, edges }, hot };
+};
+
+const msSpec = (i) => {
+  let nodes, edges = [], hot;
+  if (i <= 5) {
+    const mark = i === 4 ? "표시 안 됨" : i === 5 ? "해제됨" : "표시 —";
+    const kk = i >= 4 ? "muted" : undefined;
+    nodes = [
+      { id: "A", c: 1, r: 0, l: "객체 A", s: mark, icon: "memory", k: kk },
+      { id: "B", c: 1, r: 1, l: "객체 B", s: mark, icon: "memory", k: kk },
+    ];
+    if (i >= 1) {
+      const off = i >= 3;
+      nodes.push({ id: "x", c: 0, r: 0, l: "변수 x", s: off ? "해제됨" : "루트", icon: "user", k: off ? "muted" : undefined });
+      nodes.push({ id: "y", c: 0, r: 1, l: "변수 y", s: off ? "해제됨" : "루트", icon: "user", k: off ? "muted" : undefined });
+      if (!off) edges.push({ f: "x", t: "A" }, { f: "y", t: "B" });
+    }
+    if (i >= 2 && i <= 4) edges.push({ f: "A", t: "B", l: "peer", lo: [44, 0] }, { f: "B", t: "A", l: "peer", lo: [-44, 0] });
+    hot = [["A", "B"], ["x", "y", "A", "B", "x>A", "y>B"], ["A", "B", "A>B", "B>A"], ["x", "y"], ["A", "B", "A>B", "B>A"], ["A", "B"]][i];
+  } else {
+    nodes = [
+      { id: "root", c: 0, r: 0, l: "루트", s: "전역·스택", icon: "cpu" },
+      { id: "cache", c: 0, r: 1, l: "전역 캐시", s: "계속 자란다", icon: "database" },
+      { id: "C", c: 1, r: 1, l: "객체 C", s: "표시됨 · 순환 없음", icon: "memory", k: "warn" },
+    ];
+    edges = [{ f: "root", t: "cache", l: "mark" }, { f: "cache", t: "C", l: "붙잡음", lo: [0, -14] }];
+    hot = ["root", "cache", "C", "root>cache", "cache>C"];
+  }
+  return { spec: { ...GRID, nodes, edges }, hot };
+};
+
+const CAPTIONS = [
+  "① 같은 코드가 객체 A, B를 만든다. 아직 가리키는 것이 없다.",
+  "② 변수 x는 A를, y는 B를 가리킨다. 들어오는 참조 하나씩.",
+  "③ A.peer = B, B.peer = A. 순환이 완성되고 카운트는 둘 다 2다.",
+  "④ x, y를 해제한다. 바깥에서 들어오는 참조만 사라진다.",
+  "⑤ 이쪽은 retainer가 서로뿐이다. 저쪽은 mark가 루트에서 출발해 닿는 것만 표시한다.",
+  "⑥ 카운트는 1에서 멈춘다. 저쪽은 sweep이 표시 안 된 A, B를 치운다.",
+  "⑦ 진짜 tracing 누수는 순환이 아니라 루트에서 이어진 경로다.",
+];
+
+// 두 쪽이 한 stepper로 함께 넘어간다
+const sides = [];
+let cur = 0;
+const makeSide = (build, texts) => (el) => {
+  const wrap = el.appendChild(document.createElement("div"));
+  const svg = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  const state = wrap.appendChild(document.createElement("div"));
+  state.className = "ltt-mono";
+  const draw = (i) => {
+    svg.replaceChildren();
+    const { spec, hot } = build(i);
+    const dg = LTT.diagram(svg, spec);
+    dg.highlight(hot);
+    state.textContent = texts[i];
+  };
+  sides.push(draw);
+  draw(cur);
+  return { wrap, draw };
+};
+const rcSide = makeSide(rcSpec, RC_TEXT);
+const msSide = makeSide(msSpec, MS_TEXT);
+
+const rcVisual = (el) => {
+  rcSide(el);
+  const ctrl = el.appendChild(document.createElement("div"));
+  LTT.stepper(ctrl, CAPTIONS.map((caption, i) => ({
+    caption,
+    hold: i === 4 || i === 6 ? 3600 : 2600,
+    enter: () => { cur = i; sides.forEach((d) => d(i)); },
+  })));
+};
+
+LTT.deck({
+  title: "같은 순환이라도 카운트 방식은 남기고, 도달성 방식은 치운다",
+  theme: "terminal",
+  glossary: {
+    "참조 카운트": "이 객체를 가리키는 참조의 개수. 0이 되어야 참조 카운팅이 회수한다.",
+    "루트": "전역 변수와 실행 중인 스택처럼, 거기서 출발해 닿는 객체만 살아 있다고 보는 시작점",
+  },
+  scenes: [
+    {
+      type: "contrast",
+      title: "같은 순환이라도 카운트 방식은 남기고, 도달성 방식은 치운다",
+      kicker: "가비지 컬렉션 방식",
+      en: "Same cycle, different reclaim condition",
+      sub: "A↔B 순환을 두 런타임에 놓고 x, y를 해제한다. 아래 단계를 넘기면 양쪽이 함께 바뀐다",
+      before: {
+        label: "참조 카운팅",
+        tone: "bad",
+        visual: rcVisual,
+        foot: { label: "해제 직후", caption: "{{참조 카운트}} 1로 남아 회수 조건(0)이 오지 않는다" },
+      },
+      after: {
+        label: "mark-and-sweep",
+        tone: "good",
+        visual: msSide,
+        foot: { label: "해제 직후", caption: "{{루트}}에서 닿지 않아 sweep된다. 남는 것은 닿는 객체뿐" },
+      },
+      takeaway: "누수는 순환이 있느냐가 아니라 회수 조건이 충족됐느냐다. 진단은 이 객체가 루트에서 닿는지부터 묻는다.",
+      recall: "루트에서 닿는 경로가 있는데 남은 객체라면 어느 참조를 먼저 끊을까?",
+      basis: "손 계산 예시(모델로 계산한 예시). 순수 참조 카운팅 기준이며 CPython은 순환 탐지 GC를 더한다. V8·JVM·Go는 tracing 계열.",
+    },
+  ],
+});
+</script>
+</body>
+</html>

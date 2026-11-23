@@ -1,0 +1,32 @@
+s04-A-1 | 고침 0건 | 
+s04-A-2 | 고침 2건 | 고침 장면1 graph-overlap: 그래프에서 라벨·노드;
+s04-B-1 | 고침 0건 | 
+s04-B-2 | 고침 0건 | 
+s07-A-1 | 고침 0건 | 권고 장면1 shrunk: 화면에 맞추느라 78%로 줄었�;권고 장면1 shrunk: 화면에 맞추느라 79%로 줄었�;
+s07-A-2 | 고침 0건 | 권고 장면1 shrunk: 화면에 맞추느라 86%로 줄었�;
+s07-B-1 | 고침 0건 | 권고 장면1 shrunk: 화면에 맞추느라 78%로 줄었�;
+s07-B-2 | 고침 0건 | 권고 장면1 goal-narrow: 목표가 손잡이 한 자리�;권고 장면1 shrunk: 화면에 맞추느라 78%로 줄었�;권고 장면1 shrunk: 화면에 맞추느라 83%로 줄었�;
+s10-A-1 | 고침 0건 | 권고 lint no-signature: 그림이 주인공인 장면(figu;
+s10-A-2 | 고침 0건 | 권고 lint no-signature: 그림이 주인공인 장면(figu;
+s10-B-1 | 고침 0건 | 권고 lint no-signature: 그림이 주인공인 장면(figu;
+s10-B-2 | 고침 0건 | 권고 lint no-signature: 그림이 주인공인 장면(figu;권고 장면1 shrunk: 화면에 맞추느라 83%로 줄었�;
+s12-A-1 | 고침 2건 | 고침 lint overview-order: overview는 summary 뒤, keyword;권고 lint no-signature: 그림이 주인공인 장면(figu;권고 장면1 shrunk: 화면에 맞추느라 78%로 줄었�;권고 장면1 small-visual: 가장 큰 그림이 화면의 ;
+s12-A-2 | 고침 2건 | 고침 lint overview-order: overview는 summary 뒤, keyword;권고 lint no-signature: 그림이 주인공인 장면(figu;
+s12-B-1 | 고침 2건 | 고침 lint overview-order: overview는 summary 뒤, keyword;권고 lint no-signature: 그림이 주인공인 장면(figu;권고 장면1 shrunk: 화면에 맞추느라 82%로 줄었�;
+s12-B-2 | 고침 2건 | 고침 lint overview-order: overview는 summary 뒤, keyword;권고 lint no-signature: 그림이 주인공인 장면(figu;권고 lint unused-term: glossary의 '마이크로태스크';권고 장면1 shrunk: 화면에 맞추느라 85%로 줄었�;
+s13-A-1 | 고침 0건 | 
+s13-A-2 | 고침 0건 | 
+s13-B-1 | 고침 0건 | 권고 장면1 shrunk: 화면에 맞추느라 84%로 줄었�;
+s13-B-2 | 고침 0건 | 권고 장면1 shrunk: 화면에 맞추느라 85%로 줄었�;
+s16-A-1 | 고침 0건 | 
+s16-A-2 | 고침 0건 | 
+s16-B-1 | 고침 0건 | 
+s16-B-2 | 고침 0건 | 
+s33-A-1 | 고침 0건 | 
+s33-A-2 | 고침 0건 | 
+s33-B-1 | 고침 0건 | 
+s33-B-2 | 고침 0건 | 권고 장면1 shrunk: 화면에 맞추느라 84%로 줄었�;
+s47-A-1 | 고침 0건 | 
+s47-A-2 | 고침 4건 | 고침 load: page.waitForSelector: Timeout 15000ms exceeded.;고침 pageerror: Cannot read properties of null (reading 'a;
+s47-B-1 | 고침 0건 | 권고 lint no-signature: 그림이 주인공인 장면(figu;권고 장면1 shrunk: 화면에 맞추느라 78%로 줄었�;권고 장면1 shrunk: 화면에 맞추느라 83%로 줄었�;
+s47-B-2 | 고침 0건 | 권고 장면1 shrunk: 화면에 맞추느라 78%로 줄었�;권고 장면1 shrunk: 화면에 맞추느라 85%로 줄었�;

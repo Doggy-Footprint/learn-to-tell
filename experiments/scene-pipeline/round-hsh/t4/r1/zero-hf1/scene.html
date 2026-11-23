@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .fork-wrap { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+  .fork-wrap svg { width: 100%; height: auto; display: block; }
+  .fork-wrap text { font-family: inherit; fill: var(--ltt-ink); }
+  .fork-cap { min-height: 3.2em; font-size: 1.05rem; color: var(--ltt-ink); line-height: 1.5; }
+  .fork-ctl { display: flex; align-items: center; gap: 12px; }
+  .fork-ctl input[type=range] { flex: 1; }
+  .fork-ctl button { padding: 4px 14px; border: 1px solid var(--ltt-line-2); background: var(--ltt-card); color: var(--ltt-ink); border-radius: 6px; cursor: pointer; }
+</style>
+</head>
+<body>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const A = 16, B = 6, HOLD = 3, TOTAL = A + B;
+const Y = { tU: 150, nU: 190, pU: 248, pL: 272, nL: 330, tL: 370 };
+const XK = [200, 320, 440, 560];       // 지연 가닥 프라이머의 오른쪽 끝(5' 쪽)
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const T = (x, y, s, o = {}) => `<text x="${x}" y="${y}" font-size="${o.size || 17}" text-anchor="${o.anchor || "middle"}" ${o.bold ? 'font-weight="700"' : ""} ${o.fill ? `style="fill:${o.fill}"` : ""}>${s}</text>`;
+const arrow = (x1, x2, y, color, w = 3) => {
+  const d = x2 > x1 ? -1 : 1;
+  return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${color}" stroke-width="${w}"/>` +
+    `<path d="M${x2} ${y} l${d * 11} -7 v14 z" fill="${color}"/>`;
+};
+const rungs = (x1, x2, y1, y2) => {
+  let s = "";
+  for (let x = x1; x <= x2; x += 14) s += `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}"/>`;
+  return `<g stroke="var(--ltt-line-2)" stroke-width="1.5">${s}</g>`;
+};
+
+function frame(t) {
+  const pA = clamp(t / A), u = clamp((t - A) / B);
+  const fx = 160 + 540 * pA;
+  const INK = "var(--ltt-ink-2)", LEAD = "var(--ltt-c1)", LAG = "var(--ltt-c2)", RNA = "var(--ltt-warn)", ACC = "var(--ltt-accent)";
+  let s = "";
+  // 범례
+  s += `<g>
+    <line x1="60" y1="34" x2="92" y2="34" stroke="${INK}" stroke-width="5"/>${T(100, 40, "부모(주형) 가닥", { anchor: "start", size: 15 })}
+    <line x1="270" y1="34" x2="302" y2="34" stroke="${LEAD}" stroke-width="5"/>${T(310, 40, "새 DNA", { anchor: "start", size: 15 })}
+    <line x1="400" y1="34" x2="432" y2="34" stroke="${RNA}" stroke-width="9"/>${T(440, 40, "RNA 프라이머", { anchor: "start", size: 15 })}
+  </g>`;
+  // 부모 이중가닥 + 분기
+  s += rungs(Math.round(fx + 112), 950, Y.pU, Y.pL);
+  s += `<path d="M60 ${Y.tU} H${fx} C${fx + 55} ${Y.tU} ${fx + 45} ${Y.pU} ${fx + 100} ${Y.pU} H960" fill="none" stroke="${INK}" stroke-width="5"/>`;
+  s += `<path d="M60 ${Y.tL} H${fx} C${fx + 55} ${Y.tL} ${fx + 45} ${Y.pL} ${fx + 100} ${Y.pL} H960" fill="none" stroke="${INK}" stroke-width="5"/>`;
+  // 선도 가닥
+  const tip = fx - 14;
+  const leadDone = u >= 0.05;
+  s += rungs(66, Math.round(tip), Y.tU, Y.nU);
+  s += `<line x1="60" y1="${Y.nU}" x2="${tip}" y2="${Y.nU}" stroke="${LEAD}" stroke-width="5"/>`;
+  s += `<rect x="60" y="${Y.nU - 5}" width="24" height="10" rx="2" fill="${leadDone ? LEAD : RNA}"/>`;
+  if (pA < 1) {
+    s += `<rect x="${tip - 8}" y="${Y.nU - 15}" width="40" height="30" rx="9" fill="var(--ltt-ink)"/>${T(tip + 12, Y.nU + 5, "Pol", { size: 14, fill: "var(--ltt-card)", bold: true })}`;
+    s += arrow(tip + 36, tip + 76, Y.nU, LEAD, 4);
+  }
+  // 지연 가닥
+  let lastX = 60;
+  const frs = XK.map((xk, k) => {
+    const g = clamp((fx - xk - 60) / 70);
+    const placed = fx >= xk + 60;
+    if (placed) lastX = xk;
+    return { xk, k, g, placed, left: xk - 24 - 96 * g };
+  });
+  frs.forEach((f) => {
+    if (!f.placed) return;
+    s += rungs(Math.round(f.left) + 2, f.xk, Y.nL, Y.tL);
+    s += `<line x1="${f.left}" y1="${Y.nL}" x2="${f.xk}" y2="${Y.nL}" stroke="${LAG}" stroke-width="5"/>`;
+    const conv = f.k < 3 && u >= 0.1 + f.k * 0.25;
+    s += `<rect x="${f.xk - 24}" y="${Y.nL - 5}" width="24" height="10" rx="2" fill="${conv ? LAG : RNA}"/>`;
+    s += T((f.left + f.xk) / 2, Y.tL + 30, "절편 " + (f.k + 1), { size: 15 });
+    if (f.g > 0 && f.g < 1) {
+      s += `<rect x="${f.left - 8}" y="${Y.nL - 15}" width="40" height="30" rx="9" fill="var(--ltt-ink)"/>${T(f.left + 12, Y.nL + 5, "Pol", { size: 14, fill: "var(--ltt-card)", bold: true })}`;
+      s += arrow(f.left + 60, f.left + 18, Y.nL - 28, ACC, 4);
+    }
+  });
+  const newest = frs.filter((f) => f.placed).pop();
+  if (newest) {
+    s += T(newest.xk + 14, Y.nL - 12, "5'", { size: 16, bold: true });
+    if (newest.g < 1) s += T(newest.left - 16, Y.nL - 12, "3'", { size: 16, bold: true });
+  }
+  if (frs[0].g >= 1) s += T(68, Y.nL - 12, "3'", { size: 16, bold: true });
+  // SSB
+  let ssb = "";
+  for (let x = lastX + 16; x < fx - 10; x += 20) ssb += `<circle cx="${x}" cy="${Y.tL}" r="5.5"/>`;
+  s += `<g fill="var(--ltt-card)" stroke="var(--ltt-ink)" stroke-width="2">${ssb}</g>`;
+  if (fx - lastX > 70) s += T(Math.min(fx - 60, lastX + 100), Y.tL + 30, "SSB", { size: 14 });
+  // 헬리카아제
+  s += `<circle cx="${fx + 82}" cy="260" r="27" fill="var(--ltt-card-2)" stroke="var(--ltt-ink)" stroke-width="3"/>` +
+    T(fx + 82, 265, "헬", { size: 17, bold: true }) + T(fx + 130, 222, "헬리카아제", { anchor: "start", size: 16 });
+  // 분기점 전진 화살표
+  s += arrow(fx - 10, fx + 100, 100, "var(--ltt-ink)", 4) + T(fx + 45, 84, "분기점 전진", { size: 17, bold: true });
+  // 방향 표기
+  s += T(48, Y.tU + 5, "3'", { anchor: "end", size: 16, bold: true }) + T(48, Y.nU + 5, "5'", { anchor: "end", size: 16, bold: true }) +
+    T(48, Y.tL + 5, "5'", { anchor: "end", size: 16, bold: true }) + T(972, 252, "5'", { anchor: "start", size: 16, bold: true }) +
+    T(972, 282, "3'", { anchor: "start", size: 16, bold: true });
+  if (pA < 1 || u === 0) s += T(tip + 56, Y.nU - 22, "3'", { size: 16, bold: true }).replace(/x="[^"]+"/, `x="${tip + 36}"`);
+  // 이름표
+  s += T(120, Y.nU - 38, "선도 가닥 (연속 합성)", { anchor: "start", size: 16, bold: true });
+  if (frs[1].placed) s += T(120, Y.tL + 62, "지연 가닥 (오카자키 절편, 오래된 것이 왼쪽 = 분기점에서 먼 쪽)", { anchor: "start", size: 16, bold: true });
+  if (pA > 0.45) s += T(fx - 40, Y.nL - 52, "절편 성장 ←   /   분기점 전진 →  : 서로 반대", { size: 17, bold: true, fill: ACC }).replace(/text-anchor="middle"/, 'text-anchor="end"').replace(/x="[^"]+"/, `x="${Math.min(fx + 150, 960)}"`);
+  // 봉합
+  if (t > A) {
+    [0, 1, 2].forEach((j) => {
+      const s0 = 0.1 + j * 0.25, x = XK[j] - 24;
+      if (u >= s0 && u < s0 + 0.12) s += `<line x1="${x}" y1="${Y.nL - 14}" x2="${x}" y2="${Y.tL - 6}" stroke="var(--ltt-bad)" stroke-width="3" stroke-dasharray="4 3"/>` + T(x, Y.nL - 70, "DNA 중합효소 I: 프라이머 → DNA", { size: 15, bold: true });
+      else if (u >= s0 + 0.12 && u < s0 + 0.25) s += `<line x1="${x}" y1="${Y.nL - 14}" x2="${x}" y2="${Y.tL - 6}" stroke="var(--ltt-bad)" stroke-width="3" stroke-dasharray="4 3"/>` + T(x, Y.nL - 70, "연결효소가 틈을 잇는다", { size: 15, bold: true });
+    });
+  }
+  return s;
+}
+
+function caption(t) {
+  const pA = clamp(t / A);
+  if (t >= TOTAL) return "두 새 가닥 모두 5'→3'로만 자랐다. 선도 가닥은 한 번에, 지연 가닥은 조각을 이어 붙여 완성된다.";
+  if (t > A) return "프라이머(RNA)는 DNA로 바뀌고, 틈은 분기점에서 먼 쪽부터 연결효소가 잇는다.";
+  if (pA < 0.18) return "헬리카아제가 두 가닥을 풀고 분기점이 → 로 전진한다. 풀린 가닥은 SSB가 붙잡는다. 중합효소는 3' 끝에만 붙이므로 새 가닥은 5'→3'로만 자란다.";
+  if (pA < 0.45) return "선도 가닥: 성장 방향(→)이 분기점 전진 방향과 같아서 끊김 없이 이어서 자란다.";
+  return "지연 가닥: 성장 방향(←)이 분기점과 반대다. 분기점이 더 열려야 새 프라이머를 놓을 수 있어 절편이 조각조각 생기고, 가장 새 절편이 분기점에 가장 가깝다.";
+}
+
+const hookScene = {
+  type: "hook",
+  title: "새 DNA는 한 방향으로만 자라는데, 한 가닥은 왜 조각조각 만들어질까",
+  sub: "분기점은 계속 → 로 열린다. 위 새 가닥은 따라가고, 아래 새 가닥은 거꾸로 {{오카자키 절편}}을 만든다. 각 조각은 {{프라이머}}에서 시작한다.",
+  takeaway: "중합효소는 3' 끝에만 덧붙이므로, 분기점과 같은 방향으로 자라는 선도 가닥은 연속, 반대 방향인 지연 가닥은 절편으로 합성된다.",
+  recall: "지연 가닥 절편이 분기점 반대 방향으로 자라는 까닭은?",
+  mount(body) {
+    body.innerHTML = `<div class="fork-wrap"><svg viewBox="0 0 1000 470" role="img" aria-label="DNA 복제 분기점: 선도 가닥은 분기점 방향으로 연속 합성, 지연 가닥은 반대 방향 절편으로 합성"></svg><div class="fork-cap"></div><div class="fork-ctl"><button type="button">일시정지</button><input type="range" min="0" max="${TOTAL}" step="0.02" value="0" aria-label="재생 위치"></div></div>`;
+    const svg = body.querySelector("svg"), cap = body.querySelector(".fork-cap"), btn = body.querySelector("button"), rng = body.querySelector("input");
+    let t = 0, playing = false, raf = 0, last = 0;
+    const draw = () => { svg.innerHTML = frame(t); cap.textContent = caption(t); rng.value = Math.min(t, TOTAL); };
+    const tick = (now) => {
+      if (!playing) return;
+      t += (now - last) / 1000; last = now;
+      if (t > TOTAL + HOLD) t = 0;
+      draw(); raf = requestAnimationFrame(tick);
+    };
+    const play = () => { if (playing) return; playing = true; btn.textContent = "일시정지"; last = performance.now(); raf = requestAnimationFrame(tick); };
+    const pause = () => { playing = false; cancelAnimationFrame(raf); btn.textContent = "재생"; };
+    btn.onclick = () => (playing ? pause() : play());
+    rng.oninput = () => { pause(); t = +rng.value; draw(); };
+    const still = LTT.MOTION_MS === 0;
+    t = still ? TOTAL : 0; draw();
+    return {
+      enter() { if (still) { t = TOTAL; draw(); btn.textContent = "재생"; } else { t = 0; play(); } },
+      leave() { pause(); },
+    };
+  },
+};
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "오카자키 절편": "지연 가닥에서 조각조각 만들어지는 짧은 새 DNA. 나중에 연결효소가 이어 붙인다.",
+    "프라이머": "중합효소가 덧붙이기 시작할 3' 끝을 만들어 주는 짧은 RNA 조각. 나중에 DNA로 바뀐다.",
+  },
+  scenes: [hookScene],
+});
+</script>
+</body>
+</html>

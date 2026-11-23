@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fan-out과 p99 꼬리 지연</title>
+<script type="application/json" id="ltt-meta">{"topic":"fan-out과 p99 꼬리 지연","audience":"백엔드 개발자","theme":"terminal","medium":"터미널·대시보드","decision":"한 요청이 부르는 백엔드 수","domain":"백엔드","pattern":["mount"],"mode":"sweep 장면 c3: 요청 100칸 와플. 칸 하나 = 요청 하나"}</script>
+<script type="application/json" id="ltt-checks">
+[
+{"id": "k1", "expect": "N=1: 빨간 칸 1개, 느린 요청 1.0%, 요청 p99 = 백엔드 p99 = 100 ms.", "reach": [{"wait": 300}]},
+{"id": "k2", "expect": "N=10: 느린 요청 9.6%(0.0956 ± 0.001), 빨간 칸 10개, 요청 p50 ≈ 44 ms, p99 ≈ 213 ms.", "reach": [{"knob": "n", "stop": 1}]},
+{"id": "k3", "expect": "N=50: 느린 요청 39.5%, 빨간 칸 약 40개. 값은 N과 함께 단조 증가하고 100%를 넘지 않는다.", "reach": [{"knob": "n", "stop": 2}]},
+{"id": "k3b", "expect": "N=100: 느린 요청 63.4%, 빨간 칸 약 63개가 좌상단부터 채워져 있다.", "reach": [{"knob": "n", "stop": 3}]},
+{"id": "k4", "expect": "칸을 펼친 요청에서 요청 완료 = 가장 긴 호출 막대. 완료 행이 굵게 보인다.", "reach": [{"knob": "n", "stop": 1}, {"click": ".wf-cell[data-i='0']"}]},
+{"id": "k5", "expect": "N=100: 요청 p50 ≈ 114 ms(백엔드 p99.3 근처), 요청 p99 ≈ 397 ms, 주석에 '백엔드 p99.99 필요'.", "reach": [{"knob": "n", "stop": 3}]},
+{"id": "k6", "expect": "N을 바꾸는 전 구간에서 백엔드 1개 고정 표식(p50 10 ms · p99 100 ms)이 움직이지 않는다.", "reach": [{"knob": "n", "stop": 2}]},
+{"id": "k7", "expect": "넓은 폭과 400px 폭 모두에서 칸·수치·펼침 패널이 칸 안에 들어오고 가로 스크롤이 생기지 않는다.", "reach": [{"wait": 300}]},
+{"id": "k8", "expect": "정지 상태(재생 정지·reduced-motion)에서도 빨간 칸, 펼친 꼬리 막대, 비율 수치가 한 장으로 읽힌다.", "reach": [{"knob": "n", "stop": 3}, {"click": ".wf-cell[data-i='0']"}]}
+]
+</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.fo{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:start;width:100%}
+@media (max-width:640px){.fo{grid-template-columns:minmax(0,1fr)}}
+.fo-wf-box,.fo-side{min-width:0}
+.fo-cap{font-size:14px;color:var(--ltt-muted);margin-bottom:8px}
+.fo-wf{width:100%;max-width:420px;height:auto;display:block}
+.wf-cell{cursor:pointer;fill:var(--ltt-card-2);stroke:var(--ltt-line);stroke-width:1.5;transition:fill .35s ease}
+.wf-cell.bad{fill:var(--ltt-bad)}
+.wf-cell.sel{stroke:var(--ltt-ink);stroke-width:3}
+@media (prefers-reduced-motion: reduce){.wf-cell{transition:none}}
+.fo-legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-size:14px;color:var(--ltt-ink-2)}
+.fo-sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:var(--ltt-card-2);border:1px solid var(--ltt-line)}
+.fo-sw.bad{background:var(--ltt-bad);border-color:var(--ltt-bad)}
+.fo-sum{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 16px;margin:0;font-size:14px}
+.fo-sum dt{color:var(--ltt-muted)}
+.fo-sum dd{margin:0;font-variant-numeric:tabular-nums;color:var(--ltt-ink)}
+.fo-hint{font-size:14px;color:var(--ltt-muted);margin:0}
+.fo-pick-h{font-size:14px;font-weight:700;color:var(--ltt-ink);margin-bottom:4px}
+.fo-sub{font-size:14px;color:var(--ltt-muted);margin-bottom:8px}
+.fo-row{display:grid;grid-template-columns:4.5em minmax(0,1fr) 5.5em;gap:8px;align-items:center;font-size:14px;margin:5px 0;color:var(--ltt-ink-2)}
+.fo-track{position:relative;height:14px;border-radius:3px;background:var(--ltt-card-2)}
+.fo-track i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--ltt-accent)}
+.fo-track i.bad{background:var(--ltt-bad)}
+.fo-track::after{content:"";position:absolute;left:20%;top:-3px;bottom:-3px;border-left:1px dashed var(--ltt-muted)}
+.fo-val{text-align:right;font-variant-numeric:tabular-nums}
+.fo-row.done .fo-lab,.fo-row.done .fo-val{font-weight:700;color:var(--ltt-ink)}
+.fo-foot{font-size:14px;color:var(--ltt-ink-2);margin-top:8px}
+.fo-note{font-size:14px;line-height:1.6;color:var(--ltt-ink-2);margin:14px 0 0}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const LN10 = Math.log(10), SIG = LN10 / 2.326; // 백엔드 호출 지연: 로그정규, p50 10 ms · p99 100 ms (가정)
+const slowShare = (n) => 1 - Math.pow(0.99, n); // 호출 n개 중 하나라도 100 ms를 넘길 확률
+const slowCells = (n) => Math.round(slowShare(n) * 100);
+const Phi = (z) => { const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp(-z * z / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; };
+const backendCdf = (t) => Phi((Math.log(t) - LN10) / SIG);
+// 요청 지연의 분위수: 호출 n개의 최댓값이 q 이하일 확률 = F(t)ⁿ = q 인 t
+const reqPct = (n, q) => { let lo = 0.1, hi = 5000;
+  for (let k = 0; k < 60; k++) { const mid = (lo + hi) / 2; if (Math.pow(backendCdf(mid), n) < q) lo = mid; else hi = mid; }
+  return (lo + hi) / 2; };
+// 설명용 표본: 빠른 요청은 호출 모두 100 ms 이하, 느린 요청은 호출 하나 이상이 꼬리(100 ms 초과)
+const sample = (n, slow, seed) => { let s = seed;
+  const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const g = () => Math.sqrt(-2 * Math.log(r())) * Math.cos(2 * Math.PI * r());
+  const ms = [];
+  for (let j = 0; j < n; j++) { let x; do { x = Math.exp(LN10 + SIG * g()); } while (!slow && x > 100); ms.push(x); }
+  if (slow && !ms.some((x) => x > 100)) ms[Math.floor(r() * n)] = Math.exp(LN10 + SIG * (2.326 - Math.log(r()) / 2.326));
+  return ms; };
+const SVGNS = "http://www.w3.org/2000/svg";
+const el = (tag, a, p) => { const n = document.createElementNS(SVGNS, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+let N = 1, sel = -1;
+const noteText = (n) => {
+  const p = (q) => Math.round(reqPct(n, q));
+  if (n === 1) return "호출이 하나뿐이라 요청 지연 = 백엔드 지연이다. 느린 요청도 1%뿐이다.";
+  if (n === 10) return `호출 10개 중 하나만 100 ms를 넘겨도 요청이 느려진다. 백엔드는 그대로인데 요청 p99가 100 ms에서 ${p(0.99)} ms로 뛴다.`;
+  if (n === 50) return "백엔드 한 대에서 1%이던 꼬리가 요청의 약 40%를 차지한다. 요청은 가장 느린 호출을 기다린다.";
+  return `요청 p50(${p(0.5)} ms)이 백엔드 p99.3 근처다. 요청 p99(${p(0.99)} ms)를 지키려면 백엔드 p99.99가 필요하다.`;
+};
+
+function mount(body) {
+  body.innerHTML = `
+  <div class="fo">
+    <div class="fo-wf-box">
+      <div class="fo-cap">요청 100개 · 칸 하나 = 요청 하나</div>
+      <svg class="fo-wf" id="wf" viewBox="0 0 414 414" role="img" aria-label="요청 100칸 와플"></svg>
+      <div class="fo-legend"><span><i class="fo-sw bad"></i>꼬리에 걸린 요청</span><span><i class="fo-sw"></i>모두 빠른 요청</span></div>
+    </div>
+    <div class="fo-side">
+      <div class="ltt-param">한 요청이 부르는 백엔드 수 N <div id="n"></div></div>
+      <div class="ltt-stat"><span class="ltt-hero" id="hero"></span> <small>요청이 느린 비율</small></div>
+      <dl class="fo-sum">
+        <dt>요청 p50</dt><dd id="p50"></dd>
+        <dt>요청 p99</dt><dd id="p99"></dd>
+        <dt>백엔드 1개</dt><dd>고정 · p50 10 ms · p99 100 ms</dd>
+      </dl>
+      <div id="goal"></div>
+      <div class="fo-pick" id="pick"></div>
+    </div>
+  </div>
+  <p class="fo-note" id="note"></p>
+  <span class="ltt-tag muted">모델로 계산한 예시</span>`;
+
+  const wf = body.querySelector("#wf"), pick = body.querySelector("#pick");
+  const cellEls = [];
+  for (let i = 0; i < 100; i++) {
+    const rect = el("rect", { x: (i % 10) * 42, y: Math.floor(i / 10) * 42, width: 36, height: 36, rx: 5, class: "wf-cell", "data-i": i }, wf);
+    rect.style.transitionDelay = i * 10 + "ms"; // 칸이 좌상단부터 차례로 바뀐다
+    rect.addEventListener("click", () => { sel = sel === i ? -1 : i; paint(); });
+    cellEls.push(rect);
+  }
+
+  function drawPick() {
+    const i = sel, slow = i < slowCells(N);
+    const ms = sample(N, slow, 7919 * (i + 1) + 101 * N);
+    const top = ms.indexOf(Math.max(...ms));
+    const idx = N > 12 ? [...new Set([...Array(11).keys(), top])].sort((a, b) => a - b) : ms.map((_, j) => j);
+    const rows = idx.map((j) => `<div class="fo-row${j === top ? " done" : ""}"><span class="fo-lab">호출 ${j + 1}</span><span class="fo-track"><i class="${ms[j] > 100 ? "bad" : ""}" style="width:${Math.min(ms[j], 500) / 5}%"></i></span><span class="fo-val">${Math.round(ms[j])} ms</span></div>`).join("");
+    pick.innerHTML = `<div class="fo-pick-h">요청 ${i + 1}번 · ${slow ? "느린 요청" : "빠른 요청"}</div>`
+      + (N > 12 ? `<div class="fo-sub">호출 ${N}개 중 ${idx.length}개만 그림 · 가장 늦은 호출은 항상 포함</div>` : `<div class="fo-sub">호출 ${N}개를 병렬로 부름</div>`)
+      + `<div class="fo-rows">${rows}</div>`
+      + `<div class="fo-foot">요청 완료 = 가장 늦은 호출 <b>${Math.round(ms[top])} ms</b> · 점선 = 100 ms</div>`;
+  }
+
+  function paint() {
+    const k = slowCells(N);
+    cellEls.forEach((c, i) => c.setAttribute("class", "wf-cell" + (i < k ? " bad" : "") + (i === sel ? " sel" : "")));
+    body.querySelector("#hero").textContent = (slowShare(N) * 100).toFixed(1) + "%";
+    body.querySelector("#p50").textContent = Math.round(reqPct(N, 0.5)) + " ms";
+    body.querySelector("#p99").textContent = Math.round(reqPct(N, 0.99)) + " ms";
+    body.querySelector("#note").textContent = noteText(N);
+    if (sel < 0) pick.innerHTML = `<p class="fo-hint">칸을 누르면 그 요청이 부른 백엔드 호출이 펼쳐진다.</p>`;
+    else drawPick();
+  }
+
+  LTT.sweep({ params: { n: { kind: "steps", stops: [1, 10, 50, 100], value: 1, fmt: (v) => v + "개" } },
+    render: ({ n }) => { N = n; paint(); },
+    goal: { el: "goal", text: "느린 요청이 절반을 넘는 N을 찾는다", check: ({ n }) => slowShare(n) > 0.5 } });
+  return { enter: paint, leave() {} };
+}
+
+LTT.deck({
+  title: "fan-out과 p99 꼬리 지연", theme: "terminal",
+  glossary: {
+    "팬아웃": "요청 하나가 백엔드 여러 개를 동시에 불러 놓고, 응답이 모두 와야 끝나는 구조",
+    "p99": "지연을 빠른 순으로 세울 때 99%가 들어오는 값. 100번 중 1번꼴로 이보다 느리다"
+  },
+  scenes: [{
+    title: "백엔드를 100개 병렬로 부르면, 1%짜리 꼬리가 요청의 63%를 느리게 한다",
+    sub: "요청 100개를 칸 하나씩 그렸다. 빨간 칸은 {{팬아웃}}한 호출 중 하나라도 100 ms를 넘긴 요청이다. 백엔드 한 대의 {{p99}}는 100 ms라서 호출 한 번이 느릴 확률은 1%다.",
+    layout: "full",
+    basis: "가정: 백엔드 호출 지연은 서로 독립, 로그정규 분포(p50 10 ms, p99 100 ms, σ = ln10 / 2.326). 느린 요청 = 호출 중 하나라도 100 ms 초과, 비율 = 1 − 0.99ᴺ. 칸 수는 비율의 반올림 근사이고, 펼친 호출은 설명용 표본이다. 모델로 계산한 예시.",
+    mount
+  }]
+});
+LTT.expect("N=1 느린 비율", slowShare(1), 0.01, { tol: 0.0005 });
+LTT.expect("N=10 느린 비율", slowShare(10), 0.0956, { tol: 0.001 });
+LTT.expect("N=50 느린 비율", slowShare(50), 0.395, { tol: 0.001 });
+LTT.expect("N=100 느린 비율", slowShare(100), 0.634, { tol: 0.001 });
+LTT.expect("N=10 요청 p50 (ms)", reqPct(10, 0.5), 44, { tol: 1.5 });
+LTT.expect("N=10 요청 p99 (ms)", reqPct(10, 0.99), 213, { tol: 3 });
+LTT.expect("N=100 요청 p50 (ms)", reqPct(100, 0.5), 114, { tol: 1.5 });
+LTT.expect("N=100 요청 p99 (ms)", reqPct(100, 0.99), 397, { tol: 3 });
+</script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic": "신용 창조와 통화 승수", "audience": "경제 기사 독자", "theme": "ledger", "medium": "경제 신문 차트", "decision": "통화정책 기사 해석"}</script>
+<style>
+  .ch-top { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 8px; }
+  .chain { width: 100%; height: 190px; }
+  .ch-bottom { display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px; margin-top: 12px; align-items: start; }
+  .rounds { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .rounds th, .rounds td { padding: 6px 8px; border-bottom: 1px solid var(--ltt-line); text-align: right; }
+  .rounds th:first-child, .rounds td:first-child { text-align: left; }
+  .stats { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 12px; }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const ROUNDS = 10;
+const D0 = 100;
+const LET = "ABCDEFGHIJ";
+const state = { k: 1, r: 10 };
+
+const ratio = (r) => r / 100;
+const dep = (r, i) => D0 * Math.pow(1 - ratio(r), i);            // i번째 라운드(0부터)의 새 예금
+const cum = (r, n) => D0 * (1 - Math.pow(1 - ratio(r), n)) / ratio(r); // n라운드까지 누적 예금
+const reserve = (r, n) => D0 * (1 - Math.pow(1 - ratio(r), n));  // n라운드까지 누적 준비금
+const cap = (r) => D0 / ratio(r);                                  // 누적 예금 상한 = 최초 예금 ÷ r
+const f1 = (v) => v.toFixed(1).replace(/\.0$/, "");
+
+LTT.expect("10라운드 누적 예금 (r=10%)", cum(10, 10), 651.3, { tol: 0.1 });
+LTT.expect("극한 상한 (r=10%)", cap(10), 1000, { tol: 1e-9 });
+
+LTT.deck({
+  title: "신용 창조와 통화 승수",
+  theme: "ledger",
+  glossary: {
+    "지급준비율": "은행이 예금 가운데 대출하지 않고 남겨 두는 비율. 10%면 예금 100 중 10을 남긴다."
+  },
+  scenes: [{
+    title: "예금은 되풀이 대출되며 최초 예금 ÷ 지급준비율까지 불어난다",
+    en: "Credit creation: deposits grow to initial ÷ reserve ratio",
+    kicker: "통화 · 신용 창조",
+    sub: "은행이 빌려준 돈은 다른 은행의 새 예금이 된다. 준비금은 그대로인데 예금 총액만 커진다.",
+    narration: "단계를 따라가면 은행이 예금의 {{지급준비율}}만 남기고 대출하고, 그 대출금이 다음 은행의 예금이 된다. 지급준비율을 바꾸면 같은 연쇄가 처음부터 다시 펼쳐지고, 누적 예금의 상한이 함께 움직인다.",
+    takeaway: "예금 총액의 상한은 최초 예금 ÷ 지급준비율이다(승수 = 1/r). 준비율이 낮을수록 상한이 높다.",
+    recall: "지급준비율 10%, 최초 예금 100이면 예금 총액의 상한은 얼마인가?",
+    basis: "가정: 받은 예금의 r를 남기고 나머지는 전부 대출, 현금 보유·초과 준비금 없음. 실제 승수는 이보다 작을 수 있다.",
+    mount(body) {
+      body.innerHTML = `
+        <div class="ch-top">
+          <div class="ltt-param">지급준비율 <b id="r-v"></b><div id="r"></div></div>
+          <div id="step"></div>
+        </div>
+        <svg id="chain" class="chain"></svg>
+        <div class="ch-bottom">
+          <table class="rounds">
+            <thead><tr><th>라운드</th><th>새 예금</th><th>남긴 준비금</th><th>대출</th><th>누적 예금</th><th>누적 준비금</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <div>
+            <div class="stats">
+              <div class="ltt-hero"><span id="h-sum"></span><small>누적 예금</small></div>
+              <div class="ltt-hero"><span id="h-lim"></span><small>상한 = 100 ÷ r</small></div>
+              <div class="ltt-hero"><span id="h-res"></span><small>누적 준비금 (→ 100)</small></div>
+            </div>
+            <div id="plot"></div>
+            <span class="ltt-tag muted">모델로 계산한 예시</span>
+          </div>
+        </div>`;
+
+      const $ = (id) => body.querySelector("#" + id);
+
+      const dg = LTT.diagram($("chain"), {
+        cols: ROUNDS, rows: 1, cell: [92, 110], node: [84, 56],
+        nodes: Array.from({ length: ROUNDS }, (_, i) => ({ id: "b" + i, c: i, r: 0, l: "은행 " + LET[i], s: (i + 1) + "라운드" })),
+        edges: Array.from({ length: ROUNDS - 1 }, (_, i) => ({ f: "b" + i, t: "b" + (i + 1) }))
+      });
+
+      const plot = LTT.axisPlot($("plot"), {
+        width: 520, height: 260, x: [0, ROUNDS], y: [0, 2100],
+        labels: { x: "라운드", y: "예금 총액" },
+        series: [{ id: "sum", color: "var(--ltt-c1)" }, { id: "limit", color: "var(--ltt-muted)", dash: true }]
+      });
+
+      const draw = () => {
+        const { k, r } = state;
+        const lit = Array.from({ length: k }, (_, i) => "b" + i);
+        const links = Array.from({ length: Math.max(k - 1, 0) }, (_, i) => "b" + i + ">b" + (i + 1));
+        dg.highlight([...lit, ...links]);
+        $("rows").innerHTML = Array.from({ length: k }, (_, i) => {
+          const d = dep(r, i), kept = d * ratio(r);
+          return `<tr><td>${i + 1}</td><td>${f1(d)}</td><td>${f1(kept)}</td><td>${f1(d - kept)}</td><td>${f1(cum(r, i + 1))}</td><td>${f1(reserve(r, i + 1))}</td></tr>`;
+        }).join("");
+        plot.set("sum", Array.from({ length: k + 1 }, (_, n) => [n, cum(r, n)]));
+        plot.set("limit", [[0, cap(r)], [ROUNDS, cap(r)]]);
+        $("h-sum").textContent = f1(cum(r, k));
+        $("h-lim").textContent = f1(cap(r));
+        $("h-res").textContent = f1(reserve(r, k));
+      };
+
+      LTT.sweep({
+        params: { r: { kind: "steps", stops: [5, 8, 10, 20], value: 10, fmt: (v) => v + "%" } },
+        render: ({ r }) => { state.r = r; draw(); }
+      });
+
+      const stepper = LTT.stepper($("step"), Array.from({ length: ROUNDS }, (_, i) => ({
+        caption: `${i + 1}라운드: ${LET[i]} 은행이 새 예금의 일부만 남기고 나머지를 다음 은행에 대출한다`,
+        hold: 1100,
+        enter: () => { state.k = i + 1; draw(); }
+      })));
+
+      return {
+        enter() {
+          if (LTT.MOTION_MS === 0) stepper.go(ROUNDS - 1);
+          else { stepper.go(0); stepper.play(); }
+        },
+        leave() { stepper.stop(); }
+      };
+    }
+  }]
+});
+</script>
+</body>
+</html>

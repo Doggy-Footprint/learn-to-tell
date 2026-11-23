@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할이 루트까지 전파</title>
+<script type="application/json" id="ltt-meta">{"topic": "B+tree 노드 분할", "audience": "백엔드 개발자", "theme": "blueprint", "medium": "DB 내부 구조 도해", "decision": "인덱스 설계와 페이지 크기 이해"}</script>
+<style>
+  .bt-svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .bt-node { transition: transform .7s ease, opacity .4s ease; }
+  .bt-node rect { fill: var(--ltt-card); stroke: var(--ltt-line-2); stroke-width: 1.5; }
+  .bt-node text { fill: var(--ltt-ink); font-size: 15px; font-family: var(--ltt-mono, monospace); }
+  .bt-over rect { fill: var(--ltt-bad-soft); stroke: var(--ltt-bad); }
+  .bt-new rect, .bt-up rect { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); }
+  .bt-ghost rect { fill: none; stroke: var(--ltt-line); stroke-dasharray: 4 4; }
+  .bt-ghost text { fill: var(--ltt-muted); }
+  .bt-edge { stroke: var(--ltt-muted); stroke-width: 1.5; }
+  .bt-link { stroke: var(--ltt-ink-2); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  .bt-legend { fill: var(--ltt-muted); font-size: 13px; }
+  @media (prefers-reduced-motion: reduce) { .bt-node { transition: none; } }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const NS = (tag, attrs, parent) => {
+  const e = document.createElementNS(SVG, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const H = 40, CELL = 36;
+const wOf = (k) => Math.max(4, k) * CELL + 12;   // 키 칸 4개 이상이면 칸 폭을 키 수에 맞춘다
+const n = (x, y, keys = [], t = "full", w) => ({ x, y, keys, t, w });  // x는 중심, y는 위쪽
+const IDS = ["root", "g1", "I2", "g3", "P", "L", "Q", "N", "I2a", "I2b", "R1", "R2", "up", "newRoot"];
+
+// 단계 0: 경로의 세 노드가 모두 꽉 찼다. 키 86이 잎 L로 들어온다.
+const S0 = {
+  nodes: {
+    root: n(460, 40, [50, 100, 150, 200]),
+    g1: n(90, 160, [], "ghost", 80),
+    I2: n(420, 160, [60, 70, 80, 90]),
+    g3: n(760, 160, [], "ghost", 80),
+    P: n(150, 280, [71, 74, 77, 79]),
+    L: n(420, 280, [81, 83, 85, 88]),
+    Q: n(760, 280, [91, 94, 97, 99]),
+  },
+  edges: [["root", "g1"], ["root", "I2"], ["root", "g3"], ["I2", "P"], ["I2", "L"], ["I2", "Q"]],
+  links: [["P", "L"], ["L", "Q"]],
+};
+// 단계 1: 잎 L에 86이 들어와 5개가 되어 넘친다.
+const S1 = { ...S0, nodes: { ...S0.nodes, L: n(420, 280, [81, 83, 85, 86, 88], "over") } };
+// 단계 2: L이 3+2로 갈라지고 N이 L 뒤에 끼어든다. 86이 I2에 복사되어 I2가 넘친다.
+const S2 = {
+  nodes: {
+    root: n(460, 40, [50, 100, 150, 200]),
+    g1: n(90, 160, [], "ghost", 80),
+    I2: n(420, 160, [60, 70, 80, 86, 90], "over"),
+    g3: n(760, 160, [], "ghost", 80),
+    P: n(150, 280, [71, 74, 77, 79]),
+    L: n(340, 280, [81, 83, 85]),
+    N: n(560, 280, [86, 88], "new"),
+    Q: n(760, 280, [91, 94, 97, 99]),
+  },
+  edges: [["root", "g1"], ["root", "I2"], ["root", "g3"], ["I2", "P"], ["I2", "L"], ["I2", "N"], ["I2", "Q"]],
+  links: [["P", "L"], ["L", "N"], ["N", "Q"]],
+};
+// 단계 3: I2가 쪼개지고 가운데 80이 위로 올라가 루트가 5개로 넘친다.
+const S3 = {
+  nodes: {
+    root: n(460, 40, [50, 80, 100, 150, 200], "over"),
+    g1: n(90, 160, [], "ghost", 80),
+    I2a: n(270, 160, [60, 70]),
+    I2b: n(560, 160, [86, 90], "new"),
+    g3: n(760, 160, [], "ghost", 80),
+    P: n(150, 280, [71, 74, 77, 79]),
+    L: n(340, 280, [81, 83, 85]),
+    N: n(560, 280, [86, 88]),
+    Q: n(760, 280, [91, 94, 97, 99]),
+  },
+  edges: [["root", "g1"], ["root", "I2a"], ["root", "I2b"], ["root", "g3"], ["I2a", "P"], ["I2b", "L"], ["I2b", "N"], ["I2b", "Q"]],
+  links: [["P", "L"], ["L", "N"], ["N", "Q"]],
+};
+// 단계 4: 루트가 쪼개지고 가운데 100이 위로 올라간다.
+const S4 = {
+  nodes: {
+    R1: n(300, 40, [50, 80], "new"),
+    R2: n(620, 40, [150, 200], "new"),
+    up: n(460, 100, [100], "up", 60),
+    g1: n(90, 160, [], "ghost", 80),
+    I2a: n(270, 160, [60, 70]),
+    I2b: n(560, 160, [86, 90]),
+    g3: n(760, 160, [], "ghost", 80),
+    P: n(150, 280, [71, 74, 77, 79]),
+    L: n(340, 280, [81, 83, 85]),
+    N: n(560, 280, [86, 88]),
+    Q: n(760, 280, [91, 94, 97, 99]),
+  },
+  edges: [["R1", "g1"], ["R1", "I2a"], ["R1", "I2b"], ["R2", "g3"], ["I2a", "P"], ["I2b", "L"], ["I2b", "N"], ["I2b", "Q"]],
+  links: [["P", "L"], ["L", "N"], ["N", "Q"]],
+};
+// 단계 5: 새 루트 [100]이 생기고 모든 잎이 한 층 내려간다. 높이 3 → 4.
+const S5 = {
+  nodes: {
+    newRoot: n(460, 40, [100], "new", 60),
+    R1: n(300, 160, [50, 80]),
+    R2: n(620, 160, [150, 200]),
+    g1: n(90, 280, [], "ghost", 80),
+    I2a: n(270, 280, [60, 70]),
+    I2b: n(560, 280, [86, 90]),
+    g3: n(760, 280, [], "ghost", 80),
+    P: n(150, 400, [71, 74, 77, 79]),
+    L: n(340, 400, [81, 83, 85]),
+    N: n(560, 400, [86, 88]),
+    Q: n(760, 400, [91, 94, 97, 99]),
+  },
+  edges: [["newRoot", "R1"], ["newRoot", "R2"], ["R1", "g1"], ["R1", "I2a"], ["R1", "I2b"], ["R2", "g3"], ["I2a", "P"], ["I2b", "L"], ["I2b", "N"], ["I2b", "Q"]],
+  links: [["P", "L"], ["L", "N"], ["N", "Q"]],
+};
+const STAGES = [S0, S1, S2, S3, S4, S5];
+const CAPTIONS = [
+  "높이 3 트리다. 키 86이 들어갈 경로의 잎·내부 노드·루트가 모두 꽉 찼다.",
+  "잎 L에 86이 들어와 5개가 되었다. 용량 4를 넘었다.",
+  "잎이 3+2로 갈라진다. 86은 오른쪽 잎 N에 남은 채 부모 I2에 복사된다. I2도 5개가 되어 넘친다.",
+  "I2가 쪼개진다. 가운데 80은 위로 이동해 I2에서 사라지고, 루트가 5개가 되어 넘친다.",
+  "루트가 쪼개진다. 가운데 100이 위로 올라가 [50 80]과 [150 200]으로 갈라진다.",
+  "새 루트 [100]이 생기고 모든 잎이 한 층 내려간다. 높이 3 → 4. 높이는 루트가 쪼개질 때만 늘어난다.",
+];
+
+const figure = (el) => {
+  const svg = NS("svg", { class: "bt-svg", viewBox: "0 0 960 470" });
+  el.appendChild(svg);
+  const defs = NS("defs", {}, svg);
+  const mk = NS("marker", { id: "bt-arrow", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto" }, defs);
+  NS("path", { d: "M0,0 L10,5 L0,10 z", fill: "var(--ltt-ink-2)" }, mk);
+  NS("text", { x: 10, y: 22, class: "bt-legend" }, svg).textContent = "노드당 키 최대 4개 · 자식 최대 5개 (모델로 계산한 예시)";
+  const edgeLayer = NS("g", {}, svg);
+  const nodes = {};
+  for (const id of IDS) {
+    const g = NS("g", { class: "bt-node" }, svg);
+    nodes[id] = { g, rect: NS("rect", { height: H, rx: 6 }, g), txt: NS("text", { y: H / 2, "text-anchor": "middle", "dominant-baseline": "central" }, g) };
+  }
+  const show = (i) => {
+    const { nodes: st, edges, links } = STAGES[i];
+    for (const id of IDS) {
+      const d = st[id], el = nodes[id];
+      el.g.style.opacity = d ? 1 : 0;
+      if (!d) continue;
+      const w = d.w || wOf(d.keys.length);
+      el.g.setAttribute("class", `bt-node bt-${d.t}`);
+      el.g.style.transform = `translate(${d.x - w / 2}px, ${d.y}px)`;
+      el.rect.setAttribute("width", w);
+      el.txt.setAttribute("x", w / 2);
+      el.txt.textContent = d.keys.length ? d.keys.join("  ") : "…";
+    }
+    edgeLayer.replaceChildren();
+    for (const [a, b] of edges) {
+      const p = st[a], c = st[b];
+      NS("line", { x1: p.x, y1: p.y + H, x2: c.x, y2: c.y, class: "bt-edge" }, edgeLayer);
+    }
+    for (const [a, b] of links) {
+      const p = st[a], c = st[b];
+      const pw = p.w || wOf(p.keys.length), cw = c.w || wOf(c.keys.length);
+      NS("line", { x1: p.x + pw / 2, y1: p.y + H / 2, x2: c.x - cw / 2, y2: c.y + H / 2, class: "bt-link", "marker-end": "url(#bt-arrow)" }, edgeLayer);
+    }
+  };
+  show(0);
+  return { el: svg, show };
+};
+
+const scene = {
+  type: "figure",
+  kicker: "B+tree 삽입",
+  title: "넘침은 꽉 찬 조상만큼만 위로 번지고, 높이는 루트가 쪼개질 때만 는다",
+  sub: "키 86 삽입. 잎 분할은 구분 키를 복사하고, 내부 노드 분할은 가운데 키를 옮긴다.",
+  figure,
+  steps: CAPTIONS.map((c, i) => ({ caption: c, enter: (k, f) => f.show(i) })),
+  basis: "그림의 키 값과 용량 4·5는 설명용 예시다. 실제 용량은 페이지 크기와 키 크기로 정해진다.",
+  takeaway: "잎 분할은 구분 키를 복사하고, 내부 노드 분할은 가운데 키를 이동한다. 높이는 루트가 쪼개질 때만 늘어난다.",
+  recall: "같은 삽입이 꽉 차지 않은 부모에서 일어나면 트리 높이는 어떻게 될까?",
+};
+
+LTT.deck({ title: "B+tree 노드 분할이 루트까지 전파", theme: "blueprint", glossary: {}, scenes: [scene] });
+</script>
+</body>
+</html>

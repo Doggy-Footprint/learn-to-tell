@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Node.js 이벤트 루프 단계</title>
+<script type="application/json" id="ltt-meta">{"topic":"Node.js 이벤트 루프 단계","audience":"Node.js 백엔드 입문자","theme":"terminal","medium":"터미널 로그","decision":"setTimeout·setImmediate·nextTick 중 무엇으로 미룰지"}</script>
+<style>
+  .loop-wrap { position: relative; width: 100%; max-width: 960px; margin: 0 auto; aspect-ratio: 1000 / 620; }
+  .loop-wrap svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .loop-term { position: absolute; left: 50%; top: 51.6%; width: 35%; transform: translate(-50%, -50%); }
+  .loop-wrap text { font-family: inherit; }
+  .lp-ring { fill: none; stroke: var(--ltt-line-2); stroke-width: 2; }
+  .lp-trail { fill: none; stroke: var(--ltt-accent); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+  .lp-node { fill: var(--ltt-bg); stroke: var(--ltt-ink-2); stroke-width: 2.5; }
+  .lp-node.dim { stroke: var(--ltt-muted); }
+  .lp-node.on { fill: var(--ltt-ink); }
+  .lp-name { fill: var(--ltt-ink); font-size: 18px; font-weight: 700; }
+  .lp-name.dim { fill: var(--ltt-muted); font-weight: 500; font-size: 16px; }
+  .lp-sub { fill: var(--ltt-muted); font-size: 13px; }
+  .lp-gate { fill: var(--ltt-bg); stroke: var(--ltt-muted); stroke-width: 2; }
+  .lp-gate.on { fill: var(--ltt-ink); stroke: var(--ltt-ink); }
+  .lp-chip rect { fill: var(--ltt-bg); stroke: var(--ltt-line-2); stroke-width: 1.5; }
+  .lp-chip text { fill: var(--ltt-muted); font-size: 14px; font-weight: 600; }
+  .lp-chip.queued rect { stroke: var(--ltt-ink); stroke-dasharray: 5 4; }
+  .lp-chip.queued text { fill: var(--ltt-ink); }
+  .lp-chip.ran rect { fill: var(--ltt-ink); stroke: var(--ltt-ink); }
+  .lp-chip.ran text { fill: var(--ltt-bg); }
+  .lp-dot { fill: var(--ltt-accent); }
+  .lp-halo { fill: var(--ltt-accent); opacity: .22; }
+  .lp-lapn { fill: var(--ltt-ink); font-size: 68px; font-weight: 700; }
+  .lp-lapl { fill: var(--ltt-muted); font-size: 14px; }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-mock.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const CX = 500, CY = 320, R = 235, LOOP_S = 16;
+const pos = (deg) => { const a = (deg - 90) * Math.PI / 180; return [CX + R * Math.cos(a), CY + R * Math.sin(a)]; };
+
+// 단계 i는 θ=60i, 단계 사이 문(nextTick 큐를 비우는 자리)은 θ=60i+30
+const PHASES = [
+  { name: "timers", sub: "", dim: false },
+  { name: "pending callbacks", sub: "지연된 시스템 콜백", dim: true },
+  { name: "idle · prepare", sub: "내부용", dim: true },
+  { name: "poll", sub: "", dim: false },
+  { name: "check", sub: "", dim: false },
+  { name: "close callbacks", sub: "소켓·핸들 정리", dim: true },
+];
+// 점 궤적: 단계에서 머물고(0.8s), 문까지 가서 큐를 비우고(0.4s), 다음 단계로
+const KEYS = [];
+for (let i = 0; i < 6; i++) KEYS.push([2 * i, 60 * i], [2 * i + 0.8, 60 * i], [2 * i + 1.2, 60 * i + 30], [2 * i + 1.6, 60 * i + 30]);
+KEYS.push([12, 360], [15, 360]);
+const ease = (u) => u * u * (3 - 2 * u);
+const thetaAt = (t) => {
+  if (t <= 0) return 0;
+  for (let k = 1; k < KEYS.length; k++) {
+    if (t <= KEYS[k][0]) { const [t0, a0] = KEYS[k - 1], [t1, a1] = KEYS[k]; return a0 + (a1 - a0) * ease((t - t0) / (t1 - t0)); }
+  }
+  return 360;
+};
+
+const CHIPS = {
+  readfile: { x: 528, y: 542, w: 112, text: "readFile cb", queue: 0.6, ran: 6.0 },
+  timeout: { x: 528, y: 72, w: 118, text: "setTimeout", queue: 6.35, ran: 12.1 },
+  immediate: { x: 140, y: 444, w: 132, text: "setImmediate", queue: 6.35, ran: 8.1 },
+  nexttick: { x: 214, y: 511, w: 150, text: "process.nextTick", queue: 6.35, ran: 7.3 },
+};
+const LOG = [
+  [0.1, { t: "cmd", text: "$ node loop.js" }],
+  [0.6, { t: "dim", text: "readFile('a.txt', cb)  // 스레드풀" }],
+  [6.0, { t: "out", text: "[poll] readFile 콜백 실행" }],
+  [6.35, { t: "dim", text: "→ timeout·immediate·nextTick 예약" }],
+  [7.3, { t: "ok", text: "[문] nextTick 실행" }],
+  [8.1, { t: "ok", text: "[check] setImmediate 실행" }],
+  [12.1, { t: "warn", text: "[timers] setTimeout 실행 · 바퀴 2" }],
+  [13.0, { t: "out", text: "순서: nextTick → immediate → timeout" }],
+];
+
+function loopFigure(el) {
+  const wrap = el.appendChild(document.createElement("div"));
+  wrap.className = "loop-wrap";
+  const svg = wrap.appendChild(document.createElementNS(SVGNS, "svg"));
+  svg.setAttribute("viewBox", "0 0 1000 620");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "이벤트 루프 여섯 단계를 시계 방향으로 도는 점과, 그 위에 겹친 터미널 로그");
+
+  const nodeAt = [], gateAt = [];
+  let h = `<circle class="lp-ring" cx="${CX}" cy="${CY}" r="${R}"/><path class="lp-trail" id="lp-trail" d=""/>`;
+  PHASES.forEach((p, i) => {
+    const [x, y] = pos(60 * i), [gx, gy] = pos(60 * i + 30);
+    h += `<circle class="lp-node${p.dim ? " dim" : ""}" id="lp-n${i}" cx="${x}" cy="${y}" r="13"/>`;
+    h += `<polygon class="lp-gate" id="lp-g${i}" points="${gx},${gy - 9} ${gx + 9},${gy} ${gx},${gy + 9} ${gx - 9},${gy}"/>`;
+    nodeAt.push([x, y]); gateAt.push([gx, gy]);
+  });
+  // 단계 이름
+  const t = (cls, x, y, anchor, s) => `<text class="${cls}" x="${x}" y="${y}" text-anchor="${anchor}">${s}</text>`;
+  h += t("lp-name", 500, 56, "middle", "timers");
+  h += t("lp-name dim", 725, 198, "start", "pending callbacks") + t("lp-sub", 725, 218, "start", "지연된 시스템 콜백");
+  h += t("lp-name dim", 725, 433, "start", "idle · prepare") + t("lp-sub", 725, 453, "start", "내부용");
+  h += t("lp-name", 500, 596, "middle", "poll");
+  h += t("lp-name", 272, 432, "end", "check");
+  h += t("lp-name dim", 272, 198, "end", "close callbacks") + t("lp-sub", 272, 218, "end", "소켓·핸들 정리");
+  // 문 설명
+  h += t("lp-sub", 756, 316, "start", "◇ 단계 사이마다") + t("lp-sub", 756, 336, "start", "nextTick 큐부터 비운다");
+  // 바퀴 수
+  h += t("lp-lapl", 40, 292, "start", "바퀴") + `<text class="lp-lapn" id="lp-lap" x="40" y="352">1</text>`;
+  // 예약 칩
+  for (const [id, c] of Object.entries(CHIPS))
+    h += `<g class="lp-chip" id="lp-c-${id}"><rect x="${c.x}" y="${c.y}" width="${c.w}" height="26" rx="5"/><text x="${c.x + c.w / 2}" y="${c.y + 18}" text-anchor="middle">${c.text}</text></g>`;
+  h += `<circle class="lp-halo" id="lp-halo" r="20" cx="${nodeAt[0][0]}" cy="${nodeAt[0][1]}"/><circle class="lp-dot" id="lp-dot" r="9" cx="${nodeAt[0][0]}" cy="${nodeAt[0][1]}"/>`;
+  svg.innerHTML = h;
+  const $ = (id) => svg.querySelector("#" + id);
+
+  const holder = wrap.appendChild(document.createElement("div"));
+  holder.className = "loop-term";
+  let term = null, logIdx = 0, lastT = -1;
+  const resetTerm = () => {
+    holder.innerHTML = "";
+    term = LTT.mock.terminal({ title: "node loop.js", lines: [] });
+    holder.appendChild(term.el);
+    logIdx = 0;
+  };
+  resetTerm();
+
+  const render = (T) => {
+    if (T < lastT) resetTerm();
+    lastT = T;
+    const th = thetaAt(T);
+    const [dx, dy] = pos(th);
+    $("lp-dot").setAttribute("cx", dx); $("lp-dot").setAttribute("cy", dy);
+    $("lp-halo").setAttribute("cx", dx); $("lp-halo").setAttribute("cy", dy);
+    let d = "";
+    const end = Math.min(th, 360);
+    for (let a = 0; a < end; a += 3) { const [x, y] = pos(a); d += (a ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1); }
+    if (end > 0) { const [x, y] = pos(end); d += "L" + x.toFixed(1) + " " + y.toFixed(1); }
+    $("lp-trail").setAttribute("d", d);
+    $("lp-lap").textContent = th >= 359.5 ? "2" : "1";
+    for (let i = 0; i < 6; i++) {
+      $("lp-n" + i).classList.toggle("on", Math.abs(th - 60 * i) < 2 || (i === 0 && th > 358));
+      $("lp-g" + i).classList.toggle("on", Math.abs(th - (60 * i + 30)) < 2);
+    }
+    for (const [id, c] of Object.entries(CHIPS)) {
+      const g = $("lp-c-" + id);
+      g.classList.toggle("ran", T >= c.ran);
+      g.classList.toggle("queued", T >= c.queue && T < c.ran);
+    }
+    while (logIdx < LOG.length && LOG[logIdx][0] <= T) term.add(LOG[logIdx++][1]);
+  };
+
+  let raf = 0, t0 = 0, seen = false;
+  const frame = (now) => {
+    if (wrap.isConnected) seen = true; else if (seen) return;
+    if (!t0) t0 = now;
+    render(((now - t0) / 1000) % LOOP_S);
+    raf = requestAnimationFrame(frame);
+  };
+  const play = () => { cancelAnimationFrame(raf); t0 = 0; if (LTT.MOTION_MS === 0) render(14); else raf = requestAnimationFrame(frame); };
+  const stop = () => { cancelAnimationFrame(raf); render(14); };
+  play();
+  return { el: wrap, enter: play, leave: stop };
+}
+
+LTT.deck({
+  title: "Node.js 이벤트 루프 단계",
+  theme: "terminal",
+  glossary: {
+    "이벤트 루프": "Node.js가 콜백을 실행할 차례를 정하는 반복 구조. 여섯 단계를 정해진 순서로 돌고 처음으로 돌아온다.",
+    "콜백": "작업이 끝났을 때 나중에 불러 달라고 넘겨 두는 함수.",
+  },
+  scenes: [{
+    type: "overview",
+    kicker: "런타임 · 이벤트 루프",
+    title: "미루는 함수는 이벤트 루프의 어느 자리에서 실행되느냐로 갈린다",
+    en: "Event loop phases",
+    sub: "점이 {{이벤트 루프}} 한 바퀴를 돈다. 가운데 로그는 점이 지나는 자리에서 한 줄씩 찍힌다.",
+    figure: loopFigure,
+    label: "readFile {{콜백}} 안에서 세 가지를 한꺼번에 예약했을 때",
+    caption: "지금 하던 일 직후면 nextTick, 이번 바퀴의 check면 setImmediate, 다음 바퀴의 timers 이후면 setTimeout.",
+    takeaway: "nextTick은 단계 사이에, setImmediate는 이번 바퀴의 check에, setTimeout은 다음 바퀴의 timers에서 실행된다.",
+    recall: "I/O 콜백 안에서 setTimeout(fn, 0)과 setImmediate(fn)을 같이 걸면 무엇이 먼저 실행될까?",
+    basis: "Node.js 공식 문서의 이벤트 루프 단계 순서. nextTick을 재귀로 걸면 큐가 비지 않아 루프가 다음 단계로 못 간다.",
+  }],
+});
+</script>
+</body>
+</html>

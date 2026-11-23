@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어: 손실 뒤 cwnd</title>
+<script type="application/json" id="ltt-meta">{"topic": "TCP 혼잡 제어", "audience": "백엔드·네트워크 개발자", "theme": "lab", "medium": "cwnd 시계열 플롯", "decision": "전송 처리량 문제 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+// 가정: Reno, MSS 1,460 B, RTT 100 ms, 3 중복 ACK 손실. slow start는 RTT마다 ×2, 32에서 손실.
+const MSS = 1460, RTT = 0.1;
+const mbps = (cwnd) => cwnd * MSS * 8 / RTT / 1e6;
+const PRE = [[0, 1], [1, 2], [2, 4], [3, 8], [4, 16], [5, 32]];
+
+// 시간순 점 목록. 손실 순간 같은 t에서 32 → 16으로 수직 하락하고, 그 뒤 RTT마다 +1이다.
+const PTS = [...PRE, [5, 16]];
+for (let t = 6; t <= 21; t++) PTS.push([t, 11 + t]);   // 17 … 32
+PTS.push([21, 16]);                                     // 두 번째 손실, 다시 절반
+for (let t = 22; t <= 30; t++) PTS.push([t, 16 + (t - 21)]);
+const LOSS_AT = [6, PTS.findIndex((p, i) => i > 6 && p[0] === 21 && p[1] === 16)]; // 하락 점의 인덱스
+
+function curve(el) {
+  return LTT.axisPlot(el, {
+    width: 640, height: 320, x: [0, 30], y: [0, 40],
+    ticks: { x: [0, 5, 10, 15, 20, 25, 30], y: [0, 8, 16, 24, 32, 40] },
+    labels: { x: "시간 (RTT)", y: "cwnd (MSS)" },
+    series: [{ id: "cwnd" }, { id: "avg", k: "good", dash: true }, { id: "ssthresh", k: "warn", dash: true }, { id: "loss", k: "bad", dot: true }]
+  });
+}
+
+function visual(el) {
+  const box = document.createElement("div");
+  el.append(LTT.facts([
+    { icon: "ruler", value: "1,460 B", label: "MSS (패킷 하나)" },
+    { icon: "timer", value: "100 ms", label: "RTT" },
+    { icon: "alert", value: "중복 ACK 3개", label: "손실 신호" }
+  ]), box);
+  const p = curve(box);
+  p.set("cwnd", PRE);
+  p.set("loss", [[5, 32]]);
+}
+
+let timer = null;
+function answerVisual(el) {
+  clearInterval(timer);
+  const box = document.createElement("div");
+  el.append(box, LTT.facts([
+    { icon: "arrow-down", value: mbps(32).toFixed(2) + " → " + mbps(16).toFixed(2) + " Mbps", label: "손실 직후 처리량 (정확히 절반)", tone: "bad" },
+    { icon: "gauge", value: "≈ " + mbps(24).toFixed(1) + " Mbps", label: "톱니 평균 (cwnd 24 = 최고점 32의 3/4)" }
+  ]));
+  const p = curve(box);
+  const draw = (n) => {
+    p.set("cwnd", PTS.slice(0, n));
+    // 손실은 곡선이 32에 닿은 결과로 찍히고, ssthresh는 그 순간에야 생긴다.
+    p.set("loss", LOSS_AT.filter((i) => n > i).map((i) => [PTS[i][0], 32]));
+    p.set("ssthresh", n > LOSS_AT[0] ? [[5, 16], [PTS[n - 1][0], 16]] : []);
+    p.set("avg", n >= PTS.length ? [[5, 24], [30, 24]] : []);
+  };
+  if (!LTT.MOTION_MS) { draw(PTS.length); return; }
+  let n = PRE.length;
+  draw(n);
+  timer = setInterval(() => {
+    n++;
+    draw(n);
+    if (n >= PTS.length) clearInterval(timer);
+  }, 130);
+}
+
+LTT.deck({
+  title: "TCP 혼잡 제어: 손실 뒤 cwnd",
+  theme: "lab",
+  glossary: {
+    "ssthresh": "slow start를 끝내고 RTT당 +1 MSS의 선형 증가로 넘어가는 임계값. 손실 순간에 cwnd ÷ 2로 정해진다."
+  },
+  scenes: [{
+    type: "predict",
+    kicker: "네트워크 · TCP 혼잡 제어",
+    title: "손실이 나면 보내는 양은 어디까지 떨어질까",
+    sub: "가로는 시간(RTT), 세로는 한 번에 보낼 수 있는 양 cwnd(MSS 개수). 연결 직후 RTT마다 2배로 늘다가 32 MSS에서 패킷이 버려졌다.",
+    question: "송신자가 중복 ACK 3개로 손실을 알아챘다. 바로 다음 RTT에 한 번에 보내는 양은?",
+    choices: [
+      { id: "1", text: "1 MSS (처음부터)" },
+      { id: "16", text: "16 MSS (절반)" },
+      { id: "32", text: "32 MSS (그대로)" }
+    ],
+    answer: "16",
+    visual,
+    answerVisual,
+    why: "손실 순간 {{ssthresh}} = 32 ÷ 2 = 16이고 cwnd도 16으로 내려와 RTT마다 +1씩 오른다. 1로 돌아가는 것은 타임아웃(RTO)일 때뿐이다. <span class='ltt-tag'>모델로 계산한 예시</span>",
+    basis: "가정: Reno, MSS 1,460 B, RTT 100 ms, 초기 ssthresh 32. 처리량 = cwnd × MSS ÷ RTT. 실제 값은 망과 구현에 따라 다르다.",
+    takeaway: "손실이 나면 cwnd는 절반으로 줄고 RTT마다 1 MSS씩 되찾는다. 그래서 평균 처리량은 최고점의 약 3/4이다.",
+    recall: "3 중복 ACK 손실 뒤 cwnd가 1이 아니라 절반인 이유는?"
+  }]
+});
+
+LTT.expect("톱니 평균 cwnd ÷ 최고점", 24 / 32, 0.75, { tol: 1e-9 });
+LTT.expect("cwnd 32 처리량(Mbps)", mbps(32), 3.7376, { tol: 1e-6 });
+</script>
+</body>
+</html>

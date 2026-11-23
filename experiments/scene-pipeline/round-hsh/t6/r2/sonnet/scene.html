@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가비지 컬렉션 방식 · 같은 순환, 다른 회수 조건</title>
+<script type="application/json" id="ltt-meta">{"topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단"}</script>
+<style>
+  .gc { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .gc .pane { border: 1px solid var(--ltt-line); border-radius: 8px; background: var(--ltt-card); padding: 8px 10px; min-width: 0; }
+  .gc h4 { margin: 0 0 2px; font-size: 14px; color: var(--ltt-ink); display: flex; justify-content: space-between; align-items: baseline; }
+  .gc h4 span { font-weight: 400; color: var(--ltt-muted); font-size: 12px; }
+  .gc svg { width: 100%; height: auto; max-height: 38vh; display: block; }
+  .gc .st { min-height: 3.2em; font-size: 13px; color: var(--ltt-ink-2); }
+  .gc .st div + div { margin-top: 2px; color: var(--ltt-muted); }
+  .gc .fx { transition: opacity .45s ease; }
+  .gc .box { fill: var(--ltt-card-2); stroke: var(--ltt-line-2); stroke-width: 1.5; transition: stroke .3s, fill .3s; }
+  .gc .box.var { stroke-dasharray: 4 3; }
+  .gc .box.bad { stroke: var(--ltt-bad); fill: var(--ltt-bad-soft); }
+  .gc .box.good { stroke: var(--ltt-good); fill: var(--ltt-good-soft); }
+  .gc .box.warn { stroke: var(--ltt-warn); fill: var(--ltt-warn-soft); }
+  .gc text { fill: var(--ltt-ink); font-size: 14px; font-family: inherit; }
+  .gc text.sub { fill: var(--ltt-muted); font-size: 12px; }
+  .gc text.badge { font-size: 13px; font-weight: 700; }
+  .gc .frame { fill: none; stroke: var(--ltt-line-2); stroke-dasharray: 5 4; transition: stroke .3s, stroke-width .3s; }
+  .gc .frame.pulse { stroke: var(--ltt-accent); stroke-width: 3; animation: gcpulse 1s ease-in-out infinite; }
+  .gc .ln { stroke: var(--ltt-ink-2); stroke-width: 1.8; fill: none; }
+  .gc .ln.flow { stroke: var(--ltt-accent); stroke-dasharray: 6 5; animation: gcflow .8s linear infinite; }
+  @keyframes gcflow { to { stroke-dashoffset: -11; } }
+  @keyframes gcpulse { 50% { stroke-opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .gc .ln.flow, .gc .frame.pulse { animation: none; } }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+// 간선: [from, to]. 카운트 = 들어오는 참조 수.
+const incoming = (es, id) => es.filter((e) => e[1] === id).length;
+const BOTH = [["x", "A"], ["y", "B"], ["A", "B"], ["B", "A"]];
+const RELEASED = [["A", "B"], ["B", "A"]];
+const reach = (roots, es) => {
+  const seen = new Set(roots), st = [...roots];
+  while (st.length) { const c = st.pop(); es.filter((e) => e[0] === c).forEach((e) => { if (!seen.has(e[1])) { seen.add(e[1]); st.push(e[1]); } }); }
+  return [...seen].filter((n) => n === "A" || n === "B");
+};
+LTT.expect("연결 직후 A 카운트", incoming(BOTH, "A"), 2);
+LTT.expect("해제 직후 A 카운트", incoming(RELEASED, "A"), 1);
+LTT.expect("해제 직후 B 카운트", incoming(RELEASED, "B"), 1);
+LTT.expect("해제 후 루트에서 닿는 객체 수", reach([], RELEASED).length, 0);
+
+// 단계마다 켜지는 것. 생성 순서: 객체 → 변수 → A.peer → B.peer → 해제 → GC
+const T = {
+  vars: (i) => i >= 1,
+  varLive: (i) => i >= 1 && i < 4,
+  xy: (i) => i >= 1 && i < 4,
+  AB: (i) => i >= 2,
+  BA: (i) => i >= 3,
+};
+const edgesAt = (i) => [].concat(T.xy(i) ? [["x", "A"], ["y", "B"]] : [], T.AB(i) ? [["A", "B"]] : [], T.BA(i) ? [["B", "A"]] : []);
+
+const RC_LINES = [
+  ["카운트 A 0 · B 0", "객체만 있고 가리키는 것이 없다"],
+  ["카운트 A 1 · B 1", "A의 retainer: x · B의 retainer: y"],
+  ["카운트 A 1 · B 2", "B의 retainer: y, A.peer"],
+  ["카운트 A 2 · B 2", "순환 완성. A의 retainer: x, B / B의 retainer: y, A"],
+  ["카운트 A 1 · B 1", "retainer는 서로뿐, 루트 경로 0개"],
+  ["GC 사이클: 카운트 0인 객체가 없다", "회수 트리거가 오지 않는다"],
+  ["A, B는 힙에 남는다 → 누수", "카운트 방식의 누수 모양: 루트 경로 없이 서로만 붙잡는 순환"],
+  ["A, B는 계속 남는다", "순환이 있는 쪽만 남고, x→A 하나였다면 1→0에서 즉시 회수됐다"],
+];
+const MS_LINES = [
+  ["표시 — (GC 전)", "객체만 있다"],
+  ["루트 → x → A · 루트 → y → B", "루트 경로가 있다"],
+  ["루트 → x → A → B", "B도 A를 거쳐 닿는다"],
+  ["루트 → x → A ⇄ B ← y", "순환 완성. 개수는 보지 않는다"],
+  ["루트에서 닿는 경로 0개", "x, y 해제. 순환은 그대로지만 입구가 없다"],
+  ["mark: 루트에서 출발 → 표시 0개", "A, B는 표시되지 않았다"],
+  ["sweep: 표시 안 된 A, B를 해제", "표시가 먼저, 해제가 나중"],
+  ["다음 mark: 루트 → 전역 캐시 → C 표시됨", "순환이 없어도 루트 경로가 있어 C는 남는다 → 누수"],
+];
+
+const STEPS = [
+  "① 같은 코드가 객체 A, B를 만든다. 아직 아무것도 가리키지 않는다.",
+  "② 변수 x가 A를, y가 B를 가리킨다. 왼쪽 카운트가 1씩 오른다.",
+  "③ A.peer = B. 들어오는 참조가 늘어나는 쪽은 B다(B = 2).",
+  "④ B.peer = A. A도 2가 된다. 순환은 변수를 해제하기 전에 이미 완성돼 있다.",
+  "⑤ x, y를 해제한다. 카운트는 1로 내려가지만 0은 아니다. 루트에서 닿는 경로는 0개다.",
+  "⑥ GC가 돈다. 왼쪽은 0인 객체가 없어 할 일이 없고, 오른쪽은 루트에서 mark를 시작하지만 A, B에 닿지 않는다.",
+  "⑦ 왼쪽 A, B는 남아 누수가 되고, 오른쪽 sweep은 표시 안 된 A, B를 치운다.",
+  "⑧ 반대 모양의 누수: 순환 없는 C가 전역 캐시에 붙어 남는다. 진단은 먼저 '루트에서 경로가 있나'를 묻는다.",
+];
+
+const NS = "http://www.w3.org/2000/svg";
+const obj = (id, y, extra = "") =>
+  `<g id="@-${id}" class="fx" style="opacity:0"><rect class="box" x="215" y="${y}" width="120" height="52" rx="8"/>
+   <text x="275" y="${y + 21}" text-anchor="middle">객체 ${id}</text>
+   <text id="@-${id}b" class="sub badge" x="275" y="${y + 41}" text-anchor="middle"></text>${extra}</g>`;
+const vr = (id, y) =>
+  `<g id="@-v${id}" class="fx" style="opacity:0"><rect class="box var" x="15" y="${y}" width="90" height="40" rx="8"/>
+   <text x="60" y="${y + 25}" text-anchor="middle">${id === "c" ? "전역 캐시" : "변수 " + id}</text></g>`;
+const line = (id, d) => `<path id="@-${id}" class="ln fx" d="${d}" marker-end="url(#@-ar)" style="opacity:0"/>`;
+
+const svgFor = (k) => `
+<svg viewBox="0 0 400 300" role="img" aria-label="힙 그림">
+  <defs><marker id="@-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" style="fill:var(--ltt-ink-2)"/></marker></defs>
+  <rect id="@-frame" class="frame" x="5" y="4" width="110" height="292" rx="10"/>
+  <text class="sub" x="12" y="20">루트(전역·스택)</text>
+  ${vr("x", 32)}${vr("y", 152)}${k === "ms" ? vr("c", 242) : ""}
+  ${line("xA", "M105 52H213")}${line("yB", "M105 172H213")}
+  ${line("AB", "M255 78V144")}${line("BA", "M295 146V80")}
+  <text class="sub fx" id="@-lAB" x="247" y="116" text-anchor="end" style="opacity:0">A.peer</text>
+  <text class="sub fx" id="@-lBA" x="303" y="116" style="opacity:0">B.peer</text>
+  ${obj("A", 26)}${obj("B", 146)}
+  ${k === "ms" ? line("cC", "M105 262H213") + obj("C", 236) : ""}
+</svg>`;
+
+function pane(host, kind) {
+  const pf = kind;
+  const box = document.createElement("div");
+  box.className = "pane";
+  box.innerHTML = `<h4>${kind === "rc" ? "참조 카운팅" : "mark-and-sweep"}<span>${kind === "rc" ? "회수 조건: 카운트 0" : "회수 조건: mark에 표시 안 됨"}</span></h4>${svgFor(kind).replace(/@-/g, pf + "-")}<div class="st"></div>`;
+  host.appendChild(box);
+  const $ = (id) => box.querySelector("#" + pf + "-" + id);
+  const show = (id, on) => { const e = $(id); if (e) e.style.opacity = on ? 1 : 0; };
+  const lines = kind === "rc" ? RC_LINES : MS_LINES;
+  return (i) => {
+    const E = edgesAt(i);
+    const has = (f, t) => E.some((e) => e[0] === f && e[1] === t);
+    show("vx", T.vars(i)); show("vy", T.vars(i));
+    ["vx", "vy"].forEach((v) => { const e = $(v); if (e) e.style.opacity = T.vars(i) ? (T.varLive(i) ? 1 : 0.25) : 0; });
+    show("xA", has("x", "A")); show("yB", has("y", "B"));
+    const gone = kind === "ms" && i >= 6;
+    show("AB", has("A", "B") && !gone); show("BA", has("B", "A") && !gone);
+    show("lAB", T.AB(i) && !gone); show("lBA", T.BA(i) && !gone);
+    show("A", !gone); show("B", !gone);
+    const inc = (id) => incoming(edgesAt(i), id);
+    let a = $("Ab"), b = $("Bb");
+    if (kind === "rc") {
+      a.textContent = "카운트 " + inc("A"); b.textContent = "카운트 " + inc("B");
+      const leak = i >= 6;
+      ["A", "B"].forEach((n) => $(n).querySelector(".box").setAttribute("class", "box" + (leak ? " bad" : "")));
+    } else {
+      const lab = i < 5 ? "표시 —" : "표시 ✗";
+      a.textContent = lab; b.textContent = lab;
+      ["A", "B"].forEach((n) => $(n).querySelector(".box").setAttribute("class", "box" + (i >= 5 ? " warn" : "")));
+      $("frame").setAttribute("class", "frame" + (i === 5 ? " pulse" : i === 7 ? " pulse" : ""));
+      show("vc", i >= 7); show("cC", i >= 7); show("C", i >= 7);
+      $("cC").setAttribute("class", "ln fx" + (i === 7 ? " flow" : ""));
+      $("Cb").textContent = "표시 ✓";
+      $("C").querySelector(".box").setAttribute("class", "box good");
+      $("vc").style.opacity = i >= 7 ? 1 : 0;
+    }
+    $("frame").parentNode.parentNode.querySelector(".st").innerHTML = `<div>${lines[Math.min(i, lines.length - 1)][0]}</div><div>${lines[i][1]}</div>`;
+  };
+}
+
+LTT.deck({
+  title: "같은 순환이라도 카운트 방식은 남기고, 도달성 방식은 치운다",
+  theme: "terminal",
+  glossary: {
+    "루트": "전역 변수와 실행 중인 스택처럼, 거기서 출발해 닿는 객체만 살아 있다고 보는 시작점",
+    "retainer": "힙 스냅샷에서 어떤 객체를 붙잡고 있는 쪽. 루트까지 이어지면 그 객체는 회수되지 않는다",
+  },
+  scenes: [
+    {
+      kicker: "런타임 · 가비지 컬렉션",
+      title: "같은 순환이라도 카운트 방식은 남기고, 도달성 방식은 치운다",
+      en: "Same cycle, different reclaim condition",
+      sub: "같은 코드가 A↔B 순환을 만들고 x, y를 해제한다. 단계를 넘기면 두 런타임이 같은 순간을 함께 밟는다.",
+      narration: "참조 카운팅은 '나를 가리키는 수'가 0이어야 치운다. mark-and-sweep은 {{루트}}에서 닿는지만 본다. 누수 진단은 힙 스냅샷에서 {{retainer}}가 루트까지 이어지는지부터 묻는다.",
+      takeaway: "순환은 카운트는 올려도 루트 도달성은 올리지 못한다. 누수 진단은 '루트에서 닿는가'를 먼저 묻는다.",
+      recall: "루트에서 경로가 있는데 남은 객체라면 어느 참조를 먼저 끊어야 할까?",
+      basis: "모델로 계산한 예시. 순수 참조 카운팅 기준이며 CPython은 순환 탐지 GC를 더하고, JVM·V8·Go는 tracing 계열이다.",
+      mount(body) {
+        body.innerHTML = '<div class="gc"></div><div class="ctl"></div>';
+        const host = body.querySelector(".gc");
+        const paints = [pane(host, "rc"), pane(host, "ms")];
+        const go = (i) => paints.forEach((p) => p(i));
+        go(0);
+        LTT.stepper(body.querySelector(".ctl"), STEPS.map((caption, i) => ({
+          caption, hold: i === 4 || i === 7 ? 3200 : 2400, enter: () => go(i),
+        })));
+        return {};
+      },
+    },
+  ],
+});
+</script>
+</body>
+</html>

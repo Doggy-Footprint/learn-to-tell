@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할</title>
+<script type="application/json" id="ltt-meta">{"topic":"B+tree 노드 분할","audience":"백엔드 개발자","theme":"blueprint","medium":"DB 내부 구조 도해","decision":"인덱스 설계와 페이지 크기 이해"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .bt-svg { width: 100%; max-width: 980px; height: auto; display: block; margin: 0 auto; }
+  .bt-svg text { font-family: inherit; fill: var(--ltt-ink); }
+  .bt-svg .cell { fill: var(--ltt-card); stroke: var(--ltt-line-2); stroke-width: 1.5; }
+  .bt-svg .cell.empty { fill: none; stroke-dasharray: 3 4; stroke: var(--ltt-line); }
+  .bt-svg .cell.over { fill: var(--ltt-bad-soft); stroke: var(--ltt-bad); stroke-width: 2; }
+  .bt-svg .cell.hot { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); stroke-width: 2; }
+  .bt-svg .edge { stroke: var(--ltt-line-2); stroke-width: 1.6; fill: none; }
+  .bt-svg .link { stroke: var(--ltt-muted); stroke-width: 1.6; fill: none; }
+  .bt-svg .link-new { stroke: var(--ltt-accent); stroke-width: 2.4; }
+  .bt-svg .note { font-size: 15px; fill: var(--ltt-ink-2); }
+  .bt-svg .note.bad { fill: var(--ltt-bad); font-weight: 700; }
+  .bt-svg .note.acc { fill: var(--ltt-accent); font-weight: 700; }
+  .bt-svg .key { font-size: 16px; text-anchor: middle; dominant-baseline: central; font-weight: 600; }
+  .bt-svg .tag { font-size: 14px; fill: var(--ltt-muted); }
+  .bt-svg .tag, .bt-svg .note { paint-order: stroke; stroke: var(--ltt-bg); stroke-width: 5px; stroke-linejoin: round; }
+  .bt-svg .depth { font-size: 17px; font-weight: 700; text-anchor: end; }
+  .bt-svg .ghost { fill: none; stroke: var(--ltt-accent); stroke-width: 2; stroke-dasharray: 5 4; }
+  .bt-svg .pop { animation: bt-pop .7s ease-out both; }
+  .bt-svg .drop { animation: bt-drop .7s ease-out both; }
+  @keyframes bt-pop { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes bt-drop { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .bt-svg .pop, .bt-svg .drop { animation: none; } }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const CW = 32, CH = 36, GAP = 26, W = 940, H = 470;
+const YOF = (lv) => 370 - lv * 150 - (lv === 0 ? 0 : 0);
+
+const N = (keys, kids, level, o = {}) => Object.assign({ keys, kids: kids || [], level }, o);
+const leaf = (keys, o) => N(keys, null, 0, o);
+
+// 단계별 트리: 잎은 항상 같은 y, 층은 위로만 늘어난다.
+function treeFor(step) {
+  const L0 = leaf([5, 10, 15]), L1 = leaf([20, 25, 30]), L3 = leaf([60, 65, 70]), L4 = leaf([80, 90]);
+  if (step === 0) {
+    const L2 = leaf([40, 45, 50, 55], { tag: "가득 4/4", full: true });
+    return { top: [N([20, 40, 60, 80], [L0, L1, L2, L3, L4], 1, { tag: "루트 · 가득 4/4", full: true })] };
+  }
+  if (step === 1) {
+    const L2 = leaf([40, 45, 50, 52, 55], { over: 3, hot: [3], note: "용량 4 초과", noteCls: "bad" });
+    return { top: [N([20, 40, 60, 80], [L0, L1, L2, L3, L4], 1, { tag: "루트 · 가득 4/4", full: true })] };
+  }
+  if (step === 2) {
+    const L2a = leaf([40, 45], { tag: "남은 쪽 2" });
+    const L2b = leaf([50, 52, 55], { isNew: true, hot: [0], tag: "새 페이지 3", note: "50은 잎에도 남는다(복사)", noteCls: "acc" });
+    return { top: [N([20, 40, 50, 60, 80], [L0, L1, L2a, L2b, L3, L4], 1, { over: 4, hot: [2], tag: "루트 · 키 5개 초과", noteCls: "bad" })], newLink: true };
+  }
+  const L2a = leaf([40, 45]), L2b = leaf([50, 52, 55], { hot: [0] });
+  const A = N([20, 40], [L0, L1, L2a], 1, { isNew: false, tag: "왼쪽 키 2" });
+  const B = N([60, 80], [L2b, L3, L4], 1, { isNew: true, tag: "오른쪽 키 2" });
+  if (step === 3) {
+    const mid = N([50], [], 2, { ghost: true, hot: [0], note: "50은 위로 이동(복사 아님)", noteCls: "acc" });
+    return { top: [A, B], floater: mid, A, B };
+  }
+  const root = N([50], [A, B], 2, { isNew: true, hot: [0], tag: "새 루트" });
+  return { top: [root], scale: step === 5 };
+}
+
+function layout(tr) {
+  const leaves = [];
+  (function walk(n) { if (!n.kids.length) { if (n.level === 0) leaves.push(n); } else n.kids.forEach(walk); })(
+    { kids: tr.top, level: 9 });
+  const wOf = (n) => Math.max(4, n.keys.length) * CW;
+  let total = leaves.reduce((s, n) => s + wOf(n), 0) + GAP * (leaves.length - 1);
+  let x = (W - total) / 2;
+  leaves.forEach((n) => { n.x = x; n.w = wOf(n); n.y = YOF(0); x += n.w + GAP; });
+  (function pos(n) {
+    if (n.kids.length) {
+      n.kids.forEach(pos);
+      const a = n.kids[0], b = n.kids[n.kids.length - 1];
+      n.w = wOf(n);
+      n.x = ((a.x + a.w / 2) + (b.x + b.w / 2)) / 2 - n.w / 2;
+      n.y = YOF(n.level);
+    }
+  })({ kids: tr.top, level: 9, keys: [] });
+  tr.top.forEach((n) => { if (n.kids.length) { /* positioned */ } });
+  if (tr.floater) {
+    const f = tr.floater; f.w = CW; f.x = (tr.A.x + tr.A.w + tr.B.x) / 2 - f.w / 2; f.y = YOF(2);
+  }
+  return leaves;
+}
+
+function el(parent, tag, attrs, text) {
+  const e = document.createElementNS(SVG, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  parent.appendChild(e); return e;
+}
+
+function drawNode(g, n) {
+  const slots = Math.max(4, n.keys.length);
+  const grp = el(g, "g", { class: n.isNew ? "pop" : "" });
+  for (let i = 0; i < slots; i++) {
+    const has = i < n.keys.length;
+    let cls = "cell" + (has ? "" : " empty");
+    if (has && n.over != null && i === n.over) cls = "cell over";
+    else if (has && n.hot && n.hot.includes(i)) cls = "cell hot";
+    const r = el(grp, "rect", { x: n.x + i * CW, y: n.y, width: CW, height: CH, rx: 3, class: cls });
+    if (has) {
+      const t = el(grp, "text", { x: n.x + i * CW + CW / 2, y: n.y + CH / 2 + 1, class: "key" }, n.keys[i]);
+      if (n.over != null && n.keys[i] === 52 && n.level === 0) t.setAttribute("class", "key drop");
+    }
+  }
+  if (n.ghost) {
+    el(grp, "rect", { x: n.x - 5, y: n.y - 5, width: n.w + 10, height: CH + 10, rx: 6, class: "ghost" });
+  }
+  if (n.tag) el(grp, "text", { x: n.x + n.w / 2, y: n.y + CH + 19, class: "tag", "text-anchor": "middle" }, n.tag);
+  if (n.note) el(grp, "text", { x: n.x + n.w / 2, y: n.y - 12, class: "note " + (n.noteCls || ""), "text-anchor": "middle" }, n.note);
+}
+
+function render(svg, step) {
+  svg.textContent = "";
+  const tr = treeFor(step);
+  const leaves = layout(tr);
+  const edges = el(svg, "g", {}), links = el(svg, "g", {}), nodes = el(svg, "g", {});
+  // 부모 키 경계 → 자식
+  (function walk(n) {
+    n.kids.forEach((c, j) => {
+      el(edges, "line", { x1: n.x + j * CW, y1: n.y + CH, x2: c.x + c.w / 2, y2: c.y, class: "edge" });
+      walk(c);
+    });
+  })({ kids: [], ...{} });
+  const allInternal = [];
+  (function collect(list) { list.forEach((n) => { if (n.kids.length) { allInternal.push(n); collect(n.kids); } }); })(tr.top);
+  allInternal.forEach((n) => n.kids.forEach((c, j) => {
+    el(edges, "line", { x1: n.x + j * CW, y1: n.y + CH, x2: c.x + c.w / 2, y2: c.y, class: "edge" });
+  }));
+  // 잎 연결 리스트
+  for (let i = 0; i < leaves.length - 1; i++) {
+    const a = leaves[i], b = leaves[i + 1], y = a.y + CH / 2;
+    const isNewLink = tr.newLink && (b.isNew || a.isNew);
+    const cls = "link" + (isNewLink ? " link-new pop" : "");
+    const g = el(links, "g", { class: isNewLink ? "pop" : "" });
+    el(g, "line", { x1: a.x + a.w, y1: y, x2: b.x - 5, y2: y, class: cls.replace(" pop", "") });
+    el(g, "path", { d: `M${b.x - 1} ${y} l-7 -4 v8 z`, fill: isNewLink ? "var(--ltt-accent)" : "var(--ltt-muted)" });
+  }
+  tr.top.forEach(function d(n) { n.kids.forEach(d); drawNode(nodes, n); });
+  if (tr.floater) drawNode(nodes, tr.floater);
+  // 잎 깊이
+  const lv = step <= 3 ? 2 : 3;
+  const dep = el(svg, "text", { x: W - 10, y: 28, class: "depth" }, "모든 잎의 깊이 = " + lv + "층");
+  dep.setAttribute("fill", step >= 4 ? "var(--ltt-accent)" : "var(--ltt-ink)");
+  el(svg, "text", { x: 10, y: H - 8, class: "tag" }, "페이지당 키 최대 4개 · 내부 노드 자식 최대 5개로 단순화");
+  if (tr.scale) {
+    el(svg, "text", { x: W - 10, y: H - 8, class: "note acc", "text-anchor": "end" }, "8KB 페이지 ≈ 팬아웃 500 → 3층 ≈ 1.25×10⁸ 키 (근사)");
+  }
+  // 용량 칸 설명
+  if (step === 0) el(svg, "text", { x: 10, y: 28, class: "note" }, "점선 칸 = 빈 슬롯, 회색 화살표 = 잎 연결 리스트");
+}
+
+const figureFn = (host) => {
+  const svg = host.appendChild(document.createElementNS(SVG, "svg"));
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("class", "bt-svg");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "B+tree에 52를 넣어 잎, 내부 노드, 루트가 차례로 분할되고 새 루트가 생기는 과정");
+  render(svg, 0);
+  return { el: svg, show: (i) => render(svg, i) };
+};
+
+LTT.deck({
+  title: "B+tree 노드 분할",
+  theme: "blueprint",
+  glossary: {
+    "팬아웃": "한 내부 노드가 가리키는 자식 수. 클수록 트리가 낮고 넓어진다.",
+    "구분 키": "부모 노드에 올라가 어느 자식으로 내려갈지 가르는 키."
+  },
+  scenes: [{
+    type: "figure",
+    kicker: "DB · 인덱스",
+    title: "분할은 잎에서 시작해 루트까지 올라가고, 트리는 위로 한 층 자란다",
+    sub: "가득 찬 잎에 52를 넣는 한 번의 삽입을 따라간다. 단계를 넘기며 위 노드가 아래 분할의 결과를 받아 바뀌는 순서를 본다.",
+    figure: figureFn,
+    steps: [
+      { caption: "① 시작: 루트와 세 번째 잎 [40,45,50,55]가 모두 가득 찼다. 슬롯이 4칸뿐이다.", enter: (k, f) => f.show(0) },
+      { caption: "② 52가 이 잎 범위(40~59)에 들어가 5번째 칸이 모자란다. 초과가 분할의 원인이다.", enter: (k, f) => f.show(1) },
+      { caption: "③ 잎이 [40,45] / [50,52,55]로 갈라진다. 새 오른쪽 페이지가 먼저 생기고, 첫 키 50이 {{구분 키}}로 부모에 복사된다. 부모도 5키가 되어 초과한다.", enter: (k, f) => f.show(2) },
+      { caption: "④ 부모는 구분 키를 받은 뒤에야 분할된다. 가운데 50은 어느 쪽에도 남지 않고 위로 이동한다.", enter: (k, f) => f.show(3) },
+      { caption: "⑤ 올려 줄 부모가 없으니 [50] 하나짜리 새 루트가 맨 위에 생긴다. 잎은 그대로, 위에 층이 얹혀 모든 잎이 같은 깊이 3이 된다.", enter: (k, f) => f.show(4) },
+      { caption: "⑥ 실제 8KB 페이지는 {{팬아웃}}이 약 500이라 3층이면 약 1.25억 키. 루트 분할은 거의 일어나지 않고, 키가 길수록 팬아웃이 줄어 높이가 빨리 늘어난다.", enter: (k, f) => f.show(5) }
+    ],
+    takeaway: "분할은 가득 참이 이어진 경로를 따라 위로 번지고, 루트가 갈라질 때만 높이가 1 늘어난다. 잎은 복사 올림, 내부 노드는 이동 올림이다.",
+    recall: "잎 분할과 내부 노드 분할에서 올라가는 키는 각각 어떻게 다른가?",
+    basis: "페이지당 키 4개는 설명용 가정. 8KB·키 8B·포인터 8B ≈ 16B로 512, 헤더를 빼 약 500(근사). 모델로 계산한 예시."
+  }]
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>국가별 전력 믹스</title>
+<script type="application/json" id="ltt-meta">{"topic":"국가별 전력 믹스","audience":"에너지 정책 입문자","theme":"atlas","medium":"에너지 통계 차트","decision":"전원 구성 비교"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .mix { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .mix > section { min-width: 0; }
+  .mix-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+  .mix-year { font: 700 40px/1 var(--ltt-mono, ui-monospace, monospace); color: var(--ltt-ink); letter-spacing: -0.02em; }
+  .mix-year small { font-size: 14px; font-weight: 500; color: var(--ltt-muted); margin-left: 4px; }
+  .mix-key { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 13px; color: var(--ltt-ink-2); }
+  .mix-key span { display: inline-flex; align-items: center; gap: 5px; }
+  .mix-rows { position: relative; display: grid; gap: 12px; padding-left: 64px; }
+  .mix-row { position: relative; height: 46px; }
+  .mix-nm { position: absolute; left: -64px; top: 0; width: 56px; height: 100%; display: flex; align-items: center; font-weight: 700; font-size: 15px; color: var(--ltt-ink); }
+  .mix-stack { display: flex; height: 100%; border-radius: 4px; overflow: hidden; background: var(--ltt-card-2); }
+  .mix-seg { height: 100%; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap; font: 600 13px var(--ltt-mono, ui-monospace, monospace); color: var(--ltt-on-dark); text-shadow: 0 0 3px var(--ltt-dark), 0 0 3px var(--ltt-dark); transition: width .8s cubic-bezier(.3, .7, .2, 1); }
+  .mix-seg.cut { border-left: 3px solid var(--ltt-bg); }
+  .mix-half { position: absolute; top: -6px; bottom: 22px; left: calc(64px + (100% - 64px) / 2); border-left: 2px dashed var(--ltt-ink); pointer-events: none; }
+  .mix-axis { display: flex; justify-content: space-between; margin: 6px 0 0 64px; font-size: 12px; color: var(--ltt-muted); }
+  .mix-axis b { color: var(--ltt-ink); font-weight: 600; }
+  .mix-brace { margin: 8px 0 0 64px; font-size: 13px; color: var(--ltt-ink-2); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .mix-r h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--ltt-ink-2); }
+  .mix-hero { display: flex; align-items: baseline; gap: 8px; margin-bottom: 14px; }
+  .mix-hero b { font: 700 56px/1 var(--ltt-mono, ui-monospace, monospace); color: var(--ltt-ink); }
+  .mix-hero span { font-size: 14px; color: var(--ltt-ink-2); }
+  .mix-agg { display: grid; gap: 12px; position: relative; }
+  .mix-ar { display: grid; grid-template-columns: 52px minmax(0, 1fr) 92px; align-items: center; gap: 10px; }
+  .mix-ar .nm { font-weight: 700; font-size: 15px; color: var(--ltt-ink); }
+  .mix-track { position: relative; height: 22px; background: var(--ltt-card-2); border-radius: 3px; }
+  .mix-fill { height: 100%; border-radius: 3px; background: var(--ltt-ink-2); transition: width .8s cubic-bezier(.3, .7, .2, 1), background .4s; }
+  .mix-fill.on { background: var(--ltt-good); }
+  .mix-track::after { content: ""; position: absolute; left: 50%; top: -4px; bottom: -4px; border-left: 2px dashed var(--ltt-ink); }
+  .mix-num { font: 700 17px var(--ltt-mono, ui-monospace, monospace); color: var(--ltt-ink); text-align: right; }
+  .mix-num small { display: block; font: 500 12px var(--ltt-mono, ui-monospace, monospace); color: var(--ltt-muted); }
+  .mix-foot { margin-top: 14px; display: grid; gap: 8px; }
+  @media (max-width: 900px) { .mix { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<script>
+const YEARS = [2000, 2005, 2010, 2015, 2020, 2023];
+const CATS = [
+  { id: "coal", l: "석탄", m: "square" },
+  { id: "gas", l: "가스·석유", m: "diamond" },
+  { id: "nuc", l: "원자력", m: "ring" },
+  { id: "hyd", l: "수력", m: "dot" },
+  { id: "ren", l: "풍력·태양·바이오", m: "cross" },
+];
+// 발전량 비중(%) 개략 근사치. 순서: 석탄, 가스·석유, 원자력, 수력, 풍력·태양·바이오
+const MIX = {
+  "한국": [[38,20,40,1,1],[36,22,40,1,1],[43,24,31,1,1],[41,25,30,1,3],[35,29,29,1,6],[34,27,31,1,7]],
+  "독일": [[51,11,30,4,4],[49,13,26,4,8],[43,15,22,3,17],[44,10,14,3,29],[24,16,12,3,45],[26,16,2,3,53]],
+  "프랑스": [[5,4,77,12,2],[4,5,78,11,2],[4,6,75,12,3],[2,6,77,11,4],[1,7,67,13,12],[1,6,65,12,16]],
+  "미국": [[52,19,20,7,2],[50,22,19,7,2],[45,25,20,6,4],[33,33,20,6,8],[20,40,20,7,13],[16,43,18,6,17]],
+  "중국": [[78,4,1,16,1],[79,3,2,15,1],[79,2,2,16,1],[71,3,3,19,4],[60 + 1,3,5,17,14],[60,3,5,13,19]],
+};
+const low = (c, i) => MIX[c][i][2] + MIX[c][i][3] + MIX[c][i][4];
+const countAbove = (i) => Object.keys(MIX).filter((c) => low(c, i) >= 50).length;
+Object.keys(MIX).forEach((c) => MIX[c].forEach((r, i) => LTT.expect(c + " " + YEARS[i] + " 합계", r.reduce((a, b) => a + b, 0), 100, { tol: 0 })));
+LTT.expect("독일 2023 저탄소", low("독일", 5), 58, { tol: 0 });
+LTT.expect("2020 저탄소 50% 이상 국가 수", countAbove(4), 2, { tol: 0 });
+
+const markHTML = (kind, color) => { const m = LTT.mark(kind, { size: 12, color, fill: true, inline: true }); return typeof m === "string" ? m : m.outerHTML; };
+const names = Object.keys(MIX);
+
+const scene = {
+  title: "20년 사이 독일의 막대는 오른쪽으로 크게 밀렸고, 프랑스는 거의 그대로다",
+  en: "Electricity mix by country",
+  sub: "막대 하나가 한 나라의 발전량 100%다. 점선은 절반이고, 그 오른쪽 끝(원자력·수력·풍력·태양·바이오)이 저탄소 전원이다. 연도를 바꿔 모양이 어떻게 달라지는지 본다.",
+  mount(body) {
+    body.innerHTML = `
+      <div class="mix">
+        <section>
+          <div class="mix-head">
+            <div class="mix-year" id="yr">2000<small>년</small></div>
+            <div class="mix-key">${CATS.map((c, i) => `<span>${markHTML(c.m, `var(--ltt-c${i + 1})`)}${c.l}</span>`).join("")}</div>
+          </div>
+          <div class="mix-rows" id="rows">
+            ${names.map((n) => `<div class="mix-row"><div class="mix-nm">${n}</div><div class="mix-stack" data-c="${n}">${CATS.map((c, i) => `<div class="mix-seg${i === 2 ? " cut" : ""}" style="background:var(--ltt-c${i + 1});width:0"></div>`).join("")}</div></div>`).join("")}
+            <div class="mix-half" aria-hidden="true"></div>
+          </div>
+          <div class="mix-axis"><span>0%</span><b>발전량의 절반</b><span>100%</span></div>
+          <div class="mix-brace"><span>◀ 화석연료(석탄·가스·석유)</span><span>저탄소(원자력·수력·신재생) ▶</span></div>
+        </section>
+        <section class="mix-r">
+          <h3>저탄소 비중 (오른쪽 세 칸의 합)</h3>
+          <div class="mix-hero"><b id="cnt">1</b><span>/ 5개국이 절반 이상</span></div>
+          <div class="mix-agg" id="agg">
+            ${names.map((n) => `<div class="mix-ar" data-c="${n}"><span class="nm">${n}</span><div class="mix-track"><div class="mix-fill" style="width:0"></div></div><div class="mix-num"><span>0%</span><small></small></div></div>`).join("")}
+          </div>
+          <div class="mix-foot">
+            <div id="g"></div>
+            <div class="ltt-basis">값은 발전량 비중의 개략 근사치(정수 반올림)이고 5개 연도만 둔다. 확정 수치는 IEA·Ember 원자료로 확인한다. 불확실. <span class="ltt-tag muted">모델로 계산한 예시</span></div>
+          </div>
+        </section>
+      </div>
+      <div class="ltt-param">연도 <b id="year-v"></b><div id="year"></div></div>`;
+
+    const yr = body.querySelector("#yr"), cnt = body.querySelector("#cnt");
+    const stacks = Object.fromEntries([...body.querySelectorAll(".mix-stack")].map((s) => [s.dataset.c, [...s.children]]));
+    const aggs = Object.fromEntries([...body.querySelectorAll(".mix-ar")].map((r) => [r.dataset.c, { fill: r.querySelector(".mix-fill"), num: r.querySelector(".mix-num span"), d: r.querySelector("small") }]));
+
+    const draw = (year) => {
+      const i = YEARS.indexOf(year);
+      yr.innerHTML = `${year}<small>년</small>`;
+      names.forEach((n) => {
+        MIX[n][i].forEach((v, k) => { const s = stacks[n][k]; s.style.width = v + "%"; s.textContent = v >= 7 ? v : ""; });
+        const L = low(n, i), d = L - low(n, 0), a = aggs[n];
+        a.fill.style.width = L + "%"; a.fill.classList.toggle("on", L >= 50);
+        a.num.textContent = L + "%";
+        a.d.textContent = i === 0 ? "기준 연도" : `2000년 ${d >= 0 ? "+" : "−"}${Math.abs(d)}%p`;
+      });
+      cnt.textContent = countAbove(i);
+    };
+
+    LTT.sweep({
+      params: { year: { kind: "steps", stops: YEARS, value: 2000, fmt: (v) => v + "년" } },
+      render: ({ year }) => draw(year),
+      goal: { el: "g", text: "저탄소 50% 이상인 나라가 둘이 되는 해를 찾는다", check: ({ year }) => countAbove(YEARS.indexOf(year)) >= 2 },
+    });
+
+    let timers = [];
+    const stop = () => { timers.forEach(clearTimeout); timers = []; };
+    const press = (y) => { const b = [...body.querySelectorAll("#year button")][YEARS.indexOf(y)]; if (b) b.click(); };
+    ["pointerdown", "keydown"].forEach((ev) => body.querySelector(".ltt-param").addEventListener(ev, stop));
+    return {
+      enter() {
+        if (!LTT.MOTION_MS) return;
+        stop();
+        [[2005, 1400], [2010, 2800], [2000, 4600]].forEach(([y, t]) => timers.push(setTimeout(() => press(y), t)));
+      },
+      leave: stop,
+    };
+  },
+  takeaway: "전원 구성은 100%를 나눈 막대이고, 저탄소 비중은 막대의 오른쪽 끝이 절반을 넘는지로 읽는다.",
+  recall: "2000년에 절반을 넘던 나라는 어디였고, 2020년에는 어디가 더해졌나?",
+};
+
+LTT.deck({ title: "국가별 전력 믹스", theme: "atlas", scenes: [scene] });
+</script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어</title>
+<script type="application/json" id="ltt-meta">{"topic":"TCP 혼잡 제어","audience":"백엔드·네트워크 개발자","theme":"lab","medium":"cwnd 시계열 플롯","decision":"전송 처리량 문제 진단"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.cw { width: 100%; max-width: 760px; display: block; margin: 0 auto; }
+.cw text { fill: var(--ltt-ink-2); font-size: 13px; }
+.cw .ax { stroke: var(--ltt-line-2); stroke-width: 1; }
+.cw .gr { stroke: var(--ltt-line); stroke-width: 1; }
+.cw .ln { fill: none; stroke: var(--ltt-accent); stroke-width: 2.5; stroke-linejoin: round; }
+.cw .ln.alt { stroke: var(--ltt-ink-2); stroke-dasharray: 5 4; }
+.cw .ref { stroke: var(--ltt-muted); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.cw .bad { fill: var(--ltt-bad); }
+.cw .badt { fill: var(--ltt-bad); font-weight: 600; }
+.cw .mut { fill: var(--ltt-muted); }
+.cw .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: cwdraw 2.2s ease-out forwards; }
+.cw .draw2 { stroke-dasharray: 1; stroke-dashoffset: 1; animation: cwdraw 2.4s linear 0.2s forwards; }
+.cw .pop { opacity: 0; animation: cwpop .5s ease-out 2.2s forwards; }
+.cw .pop2 { opacity: 0; animation: cwpop .5s ease-out .2s forwards; }
+@keyframes cwdraw { to { stroke-dashoffset: 0; } }
+@keyframes cwpop { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cw .draw, .cw .draw2, .cw .pop, .cw .pop2 { animation: none; stroke-dashoffset: 0; opacity: 1; } }
+</style>
+</head>
+<body>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const X0 = 56, X1 = 730, Y0 = 280, Y1 = 24, TMAX = 40, CMAX = 36;
+const sx = (t) => X0 + (X1 - X0) * t / TMAX;
+const sy = (c) => Y0 - (Y0 - Y1) * c / CMAX;
+const path = (pts) => "M" + pts.map(([t, c]) => sx(t).toFixed(1) + " " + sy(c).toFixed(1)).join("L");
+const slow = [[0, 1], [1, 2], [2, 4], [3, 8], [4, 16], [5, 32]];
+const thrMbps = (cwnd) => cwnd * 1460 * 8 / 0.1 / 1e6; // MSS 1460 B, RTT 100 ms
+
+// mode: q(문제: 손실까지) · half(3 dup ACK, 반감) · rto(타임아웃, 1로 초기화)
+function cwndPlot(mode) {
+  let g = "";
+  for (const c of [0, 8, 16, 24, 32]) g += `<line class="gr" x1="${X0}" x2="${X1}" y1="${sy(c)}" y2="${sy(c)}"/><text x="${X0 - 8}" y="${sy(c) + 4}" text-anchor="end">${c}</text>`;
+  for (const t of [0, 5, 10, 15, 20, 25, 30, 35, 40]) g += `<text x="${sx(t)}" y="${Y0 + 20}" text-anchor="middle">${t}</text>`;
+  g += `<line class="ax" x1="${X0}" x2="${X1}" y1="${Y0}" y2="${Y0}"/><line class="ax" x1="${X0}" x2="${X0}" y1="${Y0}" y2="${Y1}"/>`;
+  g += `<text x="${X1}" y="${Y0 + 38}" text-anchor="end" class="mut">시간 (RTT, 100 ms)</text>`;
+  g += `<text x="${X0}" y="${Y1 - 8}" class="mut">cwnd (MSS)</text>`;
+  g += `<path class="ln draw" pathLength="1" d="${path(slow)}"/>`;
+  g += `<text x="${sx(0.5)}" y="${sy(34)}">slow start: RTT마다 ×2</text>`;
+  const lossDelay = ' class="pop"';
+  g += `<g${lossDelay}><circle class="bad" cx="${sx(5)}" cy="${sy(32)}" r="6"/><text class="badt" x="${sx(5) + 12}" y="${sy(32) + 4}">cwnd 32에서 패킷 손실 (dup ACK 3개)</text></g>`;
+  if (mode === "q") {
+    g += `<path class="ln alt pop" d="${path([[5, 32], [8, 32]])}" style="display:none"/>`;
+    g += `<g class="pop"><text x="${sx(15)}" y="${sy(14)}" style="font-size:22px;font-weight:600;fill:var(--ltt-ink)">손실 직후 cwnd는 어디로?</text>`;
+    g += `<text x="${sx(15)}" y="${sy(10)}" class="mut">1 · 16 · 32 중에서 고른다</text></g>`;
+  } else if (mode === "half") {
+    const pts = [[5, 32], [5, 16], [21, 32], [21, 16], [37, 32], [37, 16], [40, 19]];
+    g += `<path class="ln draw2" pathLength="1" d="${path(pts)}"/>`;
+    g += `<g class="pop2"><line class="ref" x1="${sx(5)}" x2="${X1}" y1="${sy(16)}" y2="${sy(16)}"/><text x="${X1}" y="${sy(16) + 17}" text-anchor="end">ssthresh = 16 (손실 순간에 정해짐)</text></g>`;
+    g += `<g class="pop2"><line class="ref" x1="${sx(5)}" x2="${X1}" y1="${sy(24)}" y2="${sy(24)}" style="stroke:var(--ltt-good)"/><text x="${X1}" y="${sy(24) - 6}" text-anchor="end">평균 cwnd ≈ 24 → ${thrMbps(24).toFixed(1)} Mbps (최고점의 3/4)</text></g>`;
+    g += `<text x="${sx(11)}" y="${sy(26)}" text-anchor="middle">+1 MSS / RTT</text>`;
+    g += `<text x="${sx(5) + 6}" y="${sy(24)}" class="badt" style="fill:var(--ltt-ink)">×1/2</text>`;
+  } else {
+    const pts = [[5, 32], [5, 1], [6, 2], [7, 4], [8, 8], [9, 16], [25, 32]];
+    g += `<path class="ln draw2 alt" pathLength="1" d="${path(pts)}"/>`;
+    g += `<g class="pop2"><line class="ref" x1="${sx(5)}" x2="${X1}" y1="${sy(16)}" y2="${sy(16)}"/><text x="${X1}" y="${sy(16) + 17}" text-anchor="end">ssthresh = 16</text></g>`;
+    g += `<text x="${sx(13)}" y="${sy(6)}">타임아웃(RTO)일 때만 1로 돌아간다</text>`;
+  }
+  const s = document.createElementNS(SVGNS, "svg");
+  s.setAttribute("class", "cw");
+  s.setAttribute("viewBox", "0 0 760 340");
+  s.setAttribute("role", "img");
+  s.setAttribute("aria-label", "cwnd 시계열 플롯");
+  s.innerHTML = g;
+  return s;
+}
+
+const predict = {
+  type: "predict",
+  title: "손실이 나면 cwnd는 어디로 갈까",
+  question: "cwnd가 RTT마다 2배로 커져 32 MSS에 닿자 병목 큐가 차서 패킷이 버려졌다. 송신자는 duplicate ACK 3개로 손실을 알아챈다. 바로 다음 RTT의 cwnd는?",
+  visual: () => cwndPlot("q"),
+  choices: [
+    { id: "1", text: "1 MSS로 초기화" },
+    { id: "16", text: "16 MSS (절반)" },
+    { id: "32", text: "32 MSS 유지" }
+  ],
+  answer: "16",
+  answerVisual: (node, id) => { node.appendChild(cwndPlot(id === "1" ? "rto" : "half")); },
+  why: "3 dup ACK는 ACK가 계속 오는 중이라 길이 막힌 게 아니라 일부만 샌 것이다. ssthresh = cwnd/2 = 16으로 정하고 cwnd도 16에서 다시 RTT당 +1씩 늘린다. 1로 떨어지는 것은 타임아웃일 때뿐이다. 그래서 톱니는 16~32를 오가고 평균 처리량은 최고점 3.74 Mbps의 약 3/4, 2.8 Mbps다. <span class=\"ltt-tag\">모델로 계산한 예시: MSS 1460 B, RTT 100 ms</span>",
+  takeaway: "손실이 나면 cwnd는 절반으로 줄고 RTT마다 1 MSS씩 늘어 톱니가 되며, 평균 처리량은 최고점의 약 3/4이다.",
+  recall: "3 dup ACK 뒤의 cwnd는 어디로 가고, 그 뒤 어떻게 늘어나나?",
+  basis: "Reno 기준(RFC 5681). 타임아웃이면 cwnd = 1 MSS로 slow start부터 다시 시작한다."
+};
+
+LTT.deck({ title: "TCP 혼잡 제어", theme: "lab", scenes: [predict] });
+</script>
+</body>
+</html>

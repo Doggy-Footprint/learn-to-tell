@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fan-out과 p99 꼬리 지연</title>
+<script type="application/json" id="ltt-meta">{"topic": "fan-out과 p99 꼬리 지연", "audience": "백엔드 개발자", "theme": "terminal", "medium": "터미널·대시보드", "decision": "한 요청이 부르는 백엔드 수"}</script>
+<style>
+  .fo { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .fo > * { min-width: 0; }
+  .fo-key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 8px; align-items: center; }
+  .fo-key span { display: inline-flex; align-items: center; gap: 6px; }
+  .fo-key i { display: inline-block; box-sizing: border-box; }
+  .fo-key .k-wait { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ltt-ink-2); }
+  .fo-key .k-got { width: 9px; height: 9px; border-radius: 50%; background: var(--ltt-ink-2); }
+  .fo-key .k-last { width: 11px; height: 11px; border-radius: 50%; background: var(--ltt-accent); }
+  .fo-key .k-slo { width: 0; height: 12px; border-left: 2px dashed var(--ltt-muted); }
+  .fo-key .k-bar { width: 18px; height: 6px; border-radius: 2px; background: var(--ltt-accent); }
+  .fo-cells { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .fo-cell { background: var(--ltt-card); border: 1px solid var(--ltt-line); border-radius: 6px; padding: 5px 7px 3px; min-width: 0; }
+  .fo-h { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+  .fo-h .ltt-mono { color: var(--ltt-ink); }
+  .fo-h .ltt-mono.over { color: var(--ltt-warn); }
+  .fo-cell svg { display: block; width: 100%; height: 72px; }
+  .fo .dt { fill: var(--ltt-card); stroke: var(--ltt-ink-2); stroke-width: 1.2; }
+  .fo .dt.got { fill: var(--ltt-ink-2); }
+  .fo .dt.last { fill: var(--ltt-accent); stroke: var(--ltt-accent); }
+  .fo .tr { stroke: var(--ltt-ink-2); stroke-width: 1; }
+  .fo .spine { stroke: var(--ltt-muted); stroke-width: 1.5; }
+  .fo .src { fill: var(--ltt-accent); }
+  .fo .slo { stroke: var(--ltt-muted); stroke-width: 1; stroke-dasharray: 3 3; }
+  .fo .res { fill: var(--ltt-accent); }
+  .fo .res.over { fill: var(--ltt-warn); }
+  .fo .clk { stroke: var(--ltt-line-2); stroke-width: 1; }
+  .fo-side { display: grid; gap: 10px; }
+  .fo-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .fo-stats > div { min-width: 0; }
+  .fo-dist { display: block; width: 100%; height: 190px; }
+  .fo-dist text { fill: var(--ltt-muted); }
+  .fo-dist .axis { stroke: var(--ltt-line-2); stroke-width: 1; }
+  .fo-dist .base { fill: none; stroke: var(--ltt-muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .fo-dist .cur { fill: none; stroke: var(--ltt-accent); stroke-width: 2; }
+  .fo-dist .a-in { fill: var(--ltt-accent-soft); }
+  .fo-dist .a-out { fill: var(--ltt-warn-soft); }
+  .fo-dist .slo { stroke: var(--ltt-muted); stroke-width: 1; stroke-dasharray: 3 3; }
+  .fo-dist .p99 { stroke: var(--ltt-warn); stroke-width: 1.5; }
+  .fo-dist .tk { stroke: var(--ltt-accent); stroke-width: 2; }
+  .fo-dist .tk.over { stroke: var(--ltt-warn); }
+  .fo-foot { display: grid; gap: 8px; margin-top: 10px; }
+  @media (max-width: 900px) { .fo { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+// 백엔드 하나의 응답 시간: 로그정규 분포, 중앙값 20ms, p99 100ms (가정). 호출은 서로 독립이라고 둔다.
+const MU = Math.log(20), SIG = Math.log(100 / 20) / 2.3263478740408408;
+const LMAX = 400, SLO = 100, NCELL = 12, STOPS = [1, 2, 5, 10, 30, 100];
+
+const A = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+const B = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+const C = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+const D = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137908113e+00, 3.754408661907416e+00];
+const phiInv = (p) => {
+  if (p < 0.02425) { const q = Math.sqrt(-2 * Math.log(p)); return (((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5]) / ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1); }
+  if (p > 1 - 0.02425) { const q = Math.sqrt(-2 * Math.log(1 - p)); return -(((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5]) / ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1); }
+  const q = p - 0.5, r = q * q;
+  return (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q / (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1);
+};
+const erf = (x) => { const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x);
+  return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x)); };
+const Phi = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
+const lat = (u) => Math.min(LMAX - 10, Math.exp(MU + SIG * phiInv(u)));            // u → 호출 하나의 ms
+const qMax = (p, n) => Math.exp(MU + SIG * phiInv(Math.pow(p, 1 / n)));            // n개 중 가장 늦은 것의 분위수
+const pdfMax = (x, n) => { const z = (Math.log(x) - MU) / SIG;
+  return n * Math.exp(-z * z / 2) / (x * SIG * Math.sqrt(2 * Math.PI)) * Math.pow(Phi(z), n - 1); };
+const exceed = (n) => 1 - Math.pow(0.99, n);                                       // 100ms를 넘는 요청 비율
+
+LTT.expect("백엔드 하나 p50", qMax(0.5, 1), 20, { tol: 0.01 });
+LTT.expect("백엔드 하나 p99", qMax(0.99, 1), 100, { tol: 0.01 });
+LTT.expect("fan-out 100 초과 비율", exceed(100), 0.634, { tol: 0.001 });
+
+// 12개 요청 x 백엔드 100개의 고정 표본. N을 올리면 같은 요청에 호출이 더해지기만 한다.
+const mulberry = (s) => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const rnd = mulberry(3);
+const SAMPLE = Array.from({ length: NCELL }, () => Array.from({ length: 100 }, () => lat(Math.min(0.99998, Math.max(1e-4, rnd())))));
+
+const fanScene = {
+  title: "백엔드를 많이 부를수록 요청은 가장 느린 호출 하나를 기다린다",
+  en: "Fan-out and tail latency",
+  kicker: "백엔드 · tail latency",
+  sub: "칸 하나가 요청 하나다. 요청이 {{fan-out}}만큼 갈라졌다가 가장 늦은 응답에 맞춰 한 막대로 합쳐진다. 백엔드 하나의 {{p99}}는 늘 100ms다.",
+  basis: "가정: 백엔드 응답은 로그정규 분포(중앙값 20ms, p99 100ms), 호출은 서로 독립. 요청 지연 = 호출 N개 중 최댓값. 실제 서비스 값이 아니라 가정에서 계산한 값이라 불확실하다.",
+  takeaway: "요청이 100ms를 넘길 확률은 1 − 0.99ᴺ이다. 백엔드 하나가 99%만 빨라도 100개를 부르면 63%가 느리다.",
+  recall: "백엔드 하나의 p99가 100ms일 때, 호출 30개를 합치는 요청이 100ms를 넘길 확률은?",
+  mount(body) {
+    body.innerHTML = `
+      <div class="fo">
+        <div>
+          <div class="fo-key ltt-basis">
+            <span><i class="k-wait"></i>응답 기다리는 호출</span><span><i class="k-got"></i>응답 도착</span>
+            <span><i class="k-last"></i>가장 늦은 호출</span><span><i class="k-slo"></i>100ms</span><span><i class="k-bar"></i>합쳐진 요청 시간</span>
+          </div>
+          <div class="fo-cells" id="fo-cells"></div>
+        </div>
+        <div class="fo-side">
+          <div class="fo-stats">
+            <div><div class="ltt-hero"><span id="fo-p99">100</span><small>ms</small></div><div class="ltt-basis">요청의 p99</div></div>
+            <div><div class="ltt-hero"><span id="fo-ex">1</span><small>%</small></div><div class="ltt-basis">100ms 넘는 요청</div></div>
+          </div>
+          <svg class="fo-dist" id="fo-dist" role="img" aria-label="요청 지연 분포. 백엔드 수가 늘면 분포가 오른쪽으로 밀리고 100ms를 넘는 면적이 커진다."></svg>
+        </div>
+      </div>
+      <div class="fo-foot">
+        <div id="g"></div>
+        <div class="ltt-param">백엔드 수 N <b id="n-v"></b><div id="n"></div></div>
+      </div>`;
+
+    const NS = "http://www.w3.org/2000/svg";
+    const el = (tag, cls, parent) => { const e = document.createElementNS(NS, tag); if (cls) e.setAttribute("class", cls); if (parent) parent.appendChild(e); return e; };
+    const H = 72, X0 = 12, TOP = 8, LANE = H - 16, CY = H / 2;
+    const T_SPLIT = 0.8, T_RUN = 0.8, RUN = 2.0, T_MERGE = 3.1, MERGE = 0.8, CYCLE = 5.2;
+    const clamp = (v) => Math.max(0, Math.min(1, v));
+    const ease = (v) => v * v * (3 - 2 * v);
+    const still = LTT.MOTION_MS === 0;
+
+    const grid = body.querySelector("#fo-cells");
+    const cells = [];
+    for (let c = 0; c < NCELL; c++) {
+      const div = document.createElement("div");
+      div.className = "fo-cell";
+      div.innerHTML = `<div class="fo-h"><span class="ltt-basis">요청 ${c + 1}</span><b class="ltt-mono">0ms</b></div>`;
+      const svg = el("svg", "", div);
+      grid.appendChild(div);
+      cells.push({ c, div, svg, out: div.querySelector("b"), w: 200, dots: [], N: 1 });
+    }
+
+    // 오른쪽 분포 판
+    const dist = body.querySelector("#fo-dist");
+    const DL = 6, DR = 8, DT = 22, DB = 28;
+    let dw = 300, dh = 190, YMAX = 0.01;
+    STOPS.forEach((n) => { for (let x = 2; x < LMAX; x += 2) YMAX = Math.max(YMAX, pdfMax(x, n)); });
+    YMAX *= 1.08;
+    const dg = { axis: el("line", "axis", dist), a1: el("path", "a-in", dist), a2: el("path", "a-out", dist), base: el("path", "base", dist),
+      cur: el("path", "cur", dist), slo: el("line", "slo", dist), p99: el("line", "p99", dist), ticks: [] };
+    const dtext = (anchor) => { const t = el("text", "ltt-basis", dist); t.setAttribute("text-anchor", anchor); return t; };
+    const tSlo = dtext("end"), tP99 = dtext("start"), tAxis = [0, 100, 200, 300, 400].map((v) => { const t = dtext(v === 0 ? "start" : v === 400 ? "end" : "middle"); t.textContent = v + (v === 400 ? "ms" : ""); return t; });
+    const tCap = dtext("end");
+    tSlo.textContent = "백엔드 p99"; tP99.textContent = "";
+    for (let c = 0; c < NCELL; c++) dg.ticks.push(el("line", "tk", dist));
+    const dx = (ms) => DL + ms / LMAX * (dw - DL - DR);
+    const dy = (p) => dh - DB - p / YMAX * (dh - DB - DT);
+
+    let N = 30, running = false, raf = 0, t0 = 0;
+
+    const layoutDist = () => {
+      dw = dist.clientWidth || 300; dh = dist.clientHeight || 190;
+      dist.setAttribute("viewBox", `0 0 ${dw} ${dh}`);
+      dg.axis.setAttribute("x1", DL); dg.axis.setAttribute("x2", dw - DR); dg.axis.setAttribute("y1", dh - DB); dg.axis.setAttribute("y2", dh - DB);
+      tAxis.forEach((t, i) => { t.setAttribute("x", dx(i * 100) + (i === 0 ? 0 : i === 4 ? 0 : 0)); t.setAttribute("y", dh - 8); });
+      dg.slo.setAttribute("x1", dx(SLO)); dg.slo.setAttribute("x2", dx(SLO)); dg.slo.setAttribute("y1", 14); dg.slo.setAttribute("y2", dh - DB);
+      tSlo.setAttribute("x", dx(SLO) - 5); tSlo.setAttribute("y", 12);
+      const pts = (n, from, to) => { let d = ""; for (let x = from; x <= to; x += 2) d += (d ? "L" : "M") + dx(x).toFixed(1) + " " + dy(pdfMax(x, n)).toFixed(1); return d; };
+      dg.base.setAttribute("d", pts(1, 2, LMAX));
+      dg.pts = pts;
+    };
+
+    const drawDist = () => {
+      const p99 = qMax(0.99, N);
+      const area = (from, to) => dg.pts(N, from, to) + `L${dx(to).toFixed(1)} ${dh - DB}L${dx(from).toFixed(1)} ${dh - DB}Z`;
+      dg.a1.setAttribute("d", area(2, SLO));
+      dg.a2.setAttribute("d", area(SLO, LMAX));
+      dg.cur.setAttribute("d", dg.pts(N, 2, LMAX));
+      const xp = dx(Math.min(p99, LMAX - 4));
+      dg.p99.setAttribute("x1", xp); dg.p99.setAttribute("x2", xp); dg.p99.setAttribute("y1", 24); dg.p99.setAttribute("y2", dh - DB);
+      tP99.setAttribute("x", xp + 5); tP99.setAttribute("y", 34);
+      tP99.textContent = N === 1 ? "" : "요청 p99 " + Math.round(p99) + "ms";
+      body.querySelector("#fo-p99").textContent = Math.round(p99);
+      body.querySelector("#fo-ex").textContent = Math.round(exceed(N) * 100);
+    };
+
+    const build = () => {
+      cells.forEach((cell) => {
+        cell.w = cell.svg.clientWidth || 200;
+        cell.svg.setAttribute("viewBox", `0 0 ${cell.w} ${H}`);
+        cell.svg.textContent = "";
+        const fx = (ms) => X0 + ms / LMAX * (cell.w - 2 * X0);
+        cell.fx = fx;
+        const L = SAMPLE[cell.c].slice(0, N);
+        cell.lat = L;
+        cell.max = Math.max(...L);
+        cell.last = L.indexOf(cell.max);
+        el("line", "slo", cell.svg).setAttributeNS(null, "x1", fx(SLO));
+        const slo = cell.svg.lastChild; slo.setAttribute("x2", fx(SLO)); slo.setAttribute("y1", 2); slo.setAttribute("y2", H - 2);
+        cell.clk = el("line", "clk", cell.svg);
+        cell.res = el("rect", "res" + (cell.max > SLO ? " over" : ""), cell.svg);
+        cell.res.setAttribute("x", X0); cell.res.setAttribute("width", Math.max(1, fx(cell.max) - X0)); cell.res.setAttribute("y", CY - 3); cell.res.setAttribute("height", 6); cell.res.setAttribute("rx", 2);
+        cell.spine = el("line", "spine", cell.svg);
+        cell.src = el("circle", "src", cell.svg); cell.src.setAttribute("cx", X0); cell.src.setAttribute("cy", CY); cell.src.setAttribute("r", 4);
+        const r = N <= 10 ? 3.6 : N <= 30 ? 2.8 : 2.2;
+        const trOp = N <= 10 ? 0.5 : N <= 30 ? 0.22 : 0.1;
+        cell.trOp = trOp;
+        cell.dots = L.map((l, k) => {
+          const y = N <= 10 ? TOP + (k + 0.5) / N * LANE : TOP + ((k * 0.6180339887 + cell.c * 0.211) % 1) * LANE;
+          const tr = el("line", "tr", cell.svg);
+          const dot = el("circle", "dt", cell.svg);
+          dot.setAttribute("r", k === cell.last ? r + 1 : r);
+          return { y: N === 1 ? CY : y, l, tr, dot, st: "" };
+        });
+        cell.dots[cell.last].dot.parentNode.appendChild(cell.dots[cell.last].dot);   // 가장 늦은 호출을 맨 위에
+        cell.tick = dg.ticks[cell.c];
+        const tx = dx(cell.max);
+        cell.tick.setAttribute("x1", tx); cell.tick.setAttribute("x2", tx);
+        cell.tick.setAttribute("y1", dh - DB - 9); cell.tick.setAttribute("y2", dh - DB + 1);
+        cell.tick.setAttribute("class", "tk" + (cell.max > SLO ? " over" : ""));
+        cell.over = cell.max > SLO;
+      });
+    };
+
+    const frame = (t) => {
+      const s = ease(clamp(t / T_SPLIT));
+      const clock = clamp((t - T_RUN) / RUN) * LMAX;
+      const m = ease(clamp((t - T_MERGE) / MERGE));
+      cells.forEach((cell) => {
+        const half = (N === 1 ? 0 : LANE / 2) * s * (1 - m);
+        cell.spine.setAttribute("x1", X0); cell.spine.setAttribute("x2", X0);
+        cell.spine.setAttribute("y1", CY - half); cell.spine.setAttribute("y2", CY + half);
+        const cx = cell.fx(Math.min(clock, cell.max));
+        cell.clk.setAttribute("x1", cx); cell.clk.setAttribute("x2", cx);
+        cell.clk.setAttribute("y1", 2); cell.clk.setAttribute("y2", H - 2);
+        cell.clk.style.opacity = t < T_RUN ? 0 : (1 - m);
+        cell.res.style.opacity = m;
+        cell.dots.forEach((d, k) => {
+          const y = CY + (d.y - CY) * s * (1 - m);
+          const xe = cell.fx(Math.min(d.l, clock));
+          const st = k === cell.last && clock >= cell.max ? "dt last" : d.l <= clock && t >= T_RUN ? "dt got" : "dt";
+          if (st !== d.st) { d.dot.setAttribute("class", st); d.st = st; }
+          d.dot.setAttribute("cx", xe); d.dot.setAttribute("cy", y);
+          d.tr.setAttribute("x1", X0); d.tr.setAttribute("x2", xe); d.tr.setAttribute("y1", y); d.tr.setAttribute("y2", y);
+          const keep = k === cell.last;
+          d.tr.style.opacity = keep ? 0 : cell.trOp * (1 - m);
+          d.dot.style.opacity = keep ? 1 : 1 - m;
+        });
+        const shown = t < T_RUN ? 0 : Math.min(clock, cell.max);
+        cell.out.textContent = Math.round(shown) + "ms";
+        cell.out.classList.toggle("over", cell.over && clock >= SLO);
+        cell.tick.style.opacity = m > 0.5 ? 1 : 0;
+      });
+    };
+
+    const loop = (ts) => {
+      if (!t0) t0 = ts;
+      frame(((ts - t0) / 1000) % CYCLE);
+      raf = requestAnimationFrame(loop);
+    };
+    const refresh = () => {
+      layoutDist(); build(); drawDist();
+      t0 = 0;
+      if (!running || still) frame(T_MERGE + MERGE + 0.4);
+    };
+    const onResize = () => refresh();
+
+    LTT.sweep({
+      params: { n: { kind: "steps", stops: STOPS, value: 30, fmt: (v) => v + "개" } },
+      render: ({ n }) => { N = n; refresh(); },
+      goal: { el: "g", text: "요청 p99를 150ms 이하로 막는 백엔드 수를 모두 찾는다 (백엔드 하나는 100ms)", check: ({ n }) => qMax(0.99, n) <= 150 },
+    });
+
+    return {
+      enter() {
+        window.addEventListener("resize", onResize);
+        refresh();
+        if (still) return;
+        running = true; t0 = 0; raf = requestAnimationFrame(loop);
+      },
+      leave() {
+        running = false; cancelAnimationFrame(raf);
+        window.removeEventListener("resize", onResize);
+      },
+    };
+  },
+};
+
+LTT.deck({
+  title: "fan-out과 p99 꼬리 지연",
+  theme: "terminal",
+  glossary: {
+    "fan-out": "요청 하나를 처리하려고 백엔드 여러 곳에 동시에 호출을 보내는 것, 또는 그 호출 수.",
+    "p99": "응답을 빠른 순으로 줄 세웠을 때 99번째 값. 100번 중 99번은 이 시간 안에 끝난다.",
+  },
+  scenes: [fanScene],
+});
+</script>
+</body>
+</html>

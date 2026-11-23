@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결제 퍼널 이탈 지점</title>
+<script type="application/json" id="ltt-meta">{"topic":"결제 퍼널 이탈 지점","audience":"UX 입문자","theme":"studio","medium":"제품 분석 대시보드","decision":"어느 결제 단계를 먼저 고칠까","domain":"UX","pattern":["figure"],"mode":"카탈로그용: 장면 하나짜리. 순서 구조를 \"확대·축소\" 움직임과 좌우 분할 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.fz{position:relative;width:1000px;max-width:100%;margin:0 auto}
+.fz svg{display:block;width:100%;height:auto;overflow:hidden}
+.fz text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p, text) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); if (text != null) n.textContent = text; p && p.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+const W = 1000, H = 520;
+
+// 예시 퍼널(가정치): 각 단계에 도달한 사람 수. 장바구니 진입 10,000명을 기준으로 둔다.
+const STEPS = [
+  { n: "① 장바구니", s: "장바구니", users: 10000 },
+  { n: "② 배송지 입력", s: "배송지 입력", users: 7600 },
+  { n: "③ 결제수단 선택", s: "결제수단 선택", users: 6600 },
+  { n: "④ 카드 인증", s: "카드 인증", users: 3500 },
+  { n: "⑤ 결제 완료", s: "결제 완료", users: 3100 }];
+const HYP = ["가설: 회원가입 요구, 배송비를 뒤늦게 보여 줌", "가설: 긴 주소 입력 폼, 자동완성 없음", "가설: 앱 전환 인증, 실패 뒤 재시도 어려움", "가설: 최종 금액·약관 확인에서 망설임"];
+// 모델: 구간 i는 단계 i → i+1. 손실 = 앞 단계 인원 − 뒤 단계 인원, 이탈률 = 손실 / 앞 단계 인원
+const drops = STEPS.slice(0, -1).map((s, i) => s.users - STEPS[i + 1].users);
+const rates = drops.map((d, i) => d / STEPS[i].users);
+const worst = drops.indexOf(Math.max(...drops));
+const rank = drops.map((d) => 1 + drops.filter((e) => e > d).length);
+LTT.expect("가장 많이 새는 구간 번호", worst, 2, { tol: 0 });
+LTT.expect("그 구간의 손실(명)", drops[worst], 3100, { tol: 0 });
+LTT.expect("그 구간의 이탈률", rates[worst], 0.47, { tol: 0.005 });
+LTT.expect("최종 전환율", STEPS[4].users / STEPS[0].users, 0.31, { tol: 0.0001 });
+
+// 기하: 왼쪽 깔때기 + 돋보기 틀, 오른쪽 확대 창
+const CX = 298, MAXW = 260, BH = 34, PITCH = 98, T0 = 24;
+const LX = 158, LW = 280, LH = 148, PX = 532, PY = 66, ZS = 1.6;
+const rowTop = (i) => T0 + i * PITCH, wd = (u) => u / STEPS[0].users * MAXW;
+const SLOT = 3.4, PERIOD = SLOT * 5;
+
+function funnel(host) {
+  const wrap = host.appendChild(document.createElement("div")); wrap.className = "fz live"; wrap.setAttribute("data-annotate", "");
+  const svg = mk("svg", { viewBox: `0 0 ${W} ${H}` }, wrap);
+  const R = { k: -1 };
+  mk("rect", { x: 516, y: 14, width: 480, height: 492, rx: 10, style: "fill:var(--ltt-card);stroke:var(--ltt-line)" }, svg);
+  R.l1 = mk("path", { style: "fill:none;stroke:var(--ltt-accent);stroke-width:1.5;stroke-dasharray:5 4" }, svg);
+  R.l2 = mk("path", { style: "fill:none;stroke:var(--ltt-accent);stroke-width:1.5;stroke-dasharray:5 4" }, svg);
+  // 깔때기: 구간마다 새는 면(빨강)과 이어지는 면
+  R.leak = []; R.pill = []; R.pt = []; R.name = [];
+  for (let i = 0; i < 4; i++) {
+    const wa = wd(STEPS[i].users), wb = wd(STEPS[i + 1].users), ya = rowTop(i) + BH, yb = rowTop(i + 1);
+    mk("path", { d: `M${CX - wa / 2},${ya}L${CX + wa / 2},${ya}L${CX + wb / 2},${yb}L${CX - wb / 2},${yb}Z`, style: "fill:var(--ltt-accent-soft);opacity:.55" }, svg);
+    R.leak.push(mk("path", { d: `M${CX - wa / 2},${ya}L${CX - wb / 2},${yb}L${CX - wa / 2},${yb}ZM${CX + wa / 2},${ya}L${CX + wb / 2},${yb}L${CX + wa / 2},${yb}Z`,
+      style: "fill:var(--ltt-bad-soft);stroke:var(--ltt-bad);stroke-width:1.2;vector-effect:non-scaling-stroke" }, svg));
+  }
+  STEPS.forEach((s, i) => {
+    const w = wd(s.users);
+    mk("rect", { x: CX - w / 2, y: rowTop(i), width: w, height: BH, rx: 4, style: "fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:2" }, svg);
+    mk("text", { x: CX, y: rowTop(i) + 23, "text-anchor": "middle", style: "font-size:16px;font-weight:700;fill:var(--ltt-ink)" }, svg, fmt(s.users));
+    R.name.push(mk("text", { x: 22, y: rowTop(i) + 23, style: "font-size:15px;font-weight:600" }, svg, s.n));
+  });
+  for (let i = 0; i < 4; i++) {
+    const y = rowTop(i) + BH + 19, g = mk("g", {}, svg);
+    R.pill.push(mk("rect", { x: 438, y, width: 56, height: 26, rx: 13 }, g));
+    R.pt.push(mk("text", { x: 466, y: y + 18, "text-anchor": "middle", style: "font-size:15px;font-weight:700" }, g, `−${Math.round(rates[i] * 100)}%`));
+  }
+  mk("text", { x: 22, y: 494, style: "font-size:14px;fill:var(--ltt-muted)" }, svg, "예시 수치(가정) · 장바구니 진입 10,000명 기준");
+  R.lens = mk("rect", { x: LX, y: 0, width: LW, height: LH, rx: 6, style: "fill:none;stroke:var(--ltt-accent);stroke-width:2.5;stroke-dasharray:6 4" }, svg);
+  // 확대 복사본: 돋보기 안쪽 그림이 그 자리에서 1.6배로 커지며 오른쪽 창으로 날아간다
+  R.copy = mk("g", {}, svg);
+  // 오른쪽 창의 글: 한 구간의 숫자
+  R.pn = mk("g", {}, svg);
+  R.head = mk("text", { x: PX, y: 44, style: "font-size:18px;font-weight:700;fill:var(--ltt-ink)" }, R.pn);
+  R.big = mk("text", { x: PX, y: 354, style: "font-size:42px;font-weight:700;fill:var(--ltt-bad)" }, R.pn);
+  R.rate = mk("text", { x: PX, y: 388, style: "font-size:18px;fill:var(--ltt-ink)" }, R.pn);
+  R.hyp = mk("text", { x: PX, y: 420, style: "font-size:15px;fill:var(--ltt-muted)" }, R.pn);
+  R.tagr = mk("rect", { x: PX, y: 440, height: 34, rx: 17 }, R.pn);
+  R.tagt = mk("text", { x: PX + 16, y: 463, style: "font-size:16px;font-weight:700" }, R.pn);
+  // 축소 뒤 요약: 구간별 손실 순위
+  R.sm = mk("g", {}, svg);
+  mk("text", { x: PX, y: 46, style: "font-size:18px;font-weight:700;fill:var(--ltt-ink)" }, R.sm, "구간별 이탈 규모 (명)");
+  const mx = Math.max(...drops);
+  for (let i = 0; i < 4; i++) {
+    const y0 = 90 + i * 92, w = drops[i] / mx * 290, bad = i === worst;
+    mk("text", { x: PX, y: y0, style: "font-size:16px;font-weight:600;fill:var(--ltt-ink-2)" }, R.sm, `${STEPS[i].s} → ${STEPS[i + 1].s}`);
+    mk("rect", { x: PX, y: y0 + 10, width: w, height: 26, rx: 4, style: `fill:${bad ? "var(--ltt-bad)" : "var(--ltt-bad-soft)"};stroke:var(--ltt-bad);stroke-width:1.5` }, R.sm);
+    mk("text", { x: PX + w + 10, y: y0 + 29, style: `font-size:16px;font-weight:700;fill:${bad ? "var(--ltt-bad)" : "var(--ltt-ink)"}` }, R.sm, `${fmt(drops[i])}명 (${Math.round(rates[i] * 100)}%)`);
+  }
+  mk("text", { x: PX, y: 452, style: "font-size:18px;font-weight:700;fill:var(--ltt-accent)" }, R.sm, `가장 크게 새는 ${STEPS[worst].s} → ${STEPS[worst + 1].s}부터`);
+  mk("text", { x: PX, y: 478, style: "font-size:18px;font-weight:700;fill:var(--ltt-accent)" }, R.sm, "고친다.");
+  wrap._r = R;
+  return wrap;
+}
+
+function buildCopy(R, k) {
+  while (R.copy.firstChild) R.copy.removeChild(R.copy.firstChild);
+  const g = R.copy, a = STEPS[k].users, b = STEPS[k + 1].users, wa = wd(a), wb = wd(b), cx = LW / 2, ya = 8, yb = 106;
+  mk("rect", { x: 0, y: 0, width: LW, height: LH, rx: 6, style: "fill:var(--ltt-card);stroke:var(--ltt-accent);stroke-width:2;vector-effect:non-scaling-stroke" }, g);
+  mk("path", { d: `M${cx - wa / 2},${ya + BH}L${cx + wa / 2},${ya + BH}L${cx + wb / 2},${yb}L${cx - wb / 2},${yb}Z`, style: "fill:var(--ltt-accent-soft);opacity:.55" }, g);
+  mk("path", { d: `M${cx - wa / 2},${ya + BH}L${cx - wb / 2},${yb}L${cx - wa / 2},${yb}ZM${cx + wa / 2},${ya + BH}L${cx + wb / 2},${yb}L${cx + wa / 2},${yb}Z`,
+    style: "fill:var(--ltt-bad-soft);stroke:var(--ltt-bad);stroke-width:1.5;vector-effect:non-scaling-stroke" }, g);
+  [[a, wa, ya], [b, wb, yb]].forEach(([u, w, y]) => {
+    mk("rect", { x: cx - w / 2, y, width: w, height: BH, rx: 4, style: "fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:2;vector-effect:non-scaling-stroke" }, g);
+    mk("text", { x: cx, y: y + 23, "text-anchor": "middle", style: "font-size:16px;font-weight:700;fill:var(--ltt-ink)" }, g, fmt(u));
+  });
+  R.k = k;
+}
+
+// 한 주기: 구간 4개(돋보기 이동 → 확대 → 머묾 → 축소) 뒤에 요약 한 칸
+function stateAt(u) {
+  const k = Math.min(4, Math.floor(u / SLOT)), l = u - k * SLOT;
+  if (k < 4) {
+    const prev = k === 0 ? worst : k - 1, m = ease(clamp(l / 0.5));
+    const p = l < 1.4 ? ease(clamp((l - 0.5) / 0.9)) : l < 2.8 ? 1 : 1 - ease(clamp((l - 2.8) / 0.6));
+    return { k, idx: prev + (k - prev) * m, p, sm: 0 };
+  }
+  const m = ease(clamp(l / 0.6));
+  return { k, idx: 3 + (worst - 3) * m, p: 0, sm: Math.min(clamp((l - 0.7) / 0.5), 1 - clamp((l - 3.0) / 0.4)) };
+}
+
+function draw(wrap, S) {
+  const R = wrap._r, cur = Math.round(S.idx), seg = S.k < 4 ? S.k : worst;
+  const ly = rowTop(0) - 8 + S.idx * PITCH, p = S.p, sc = 1 + (ZS - 1) * p;
+  R.lens.setAttribute("y", ly);
+  if (S.p > 0.001 && R.k !== seg) buildCopy(R, seg);
+  const tx = LX + (PX - LX) * p, ty = ly + (PY - ly) * p;
+  R.copy.setAttribute("transform", `translate(${tx} ${ty}) scale(${sc})`);
+  R.copy.style.opacity = S.p > 0.001 ? 1 : 0;
+  const ex = tx, eh = LH * sc;
+  R.l1.setAttribute("d", `M${LX + LW},${ly}L${ex},${ty}`); R.l2.setAttribute("d", `M${LX + LW},${ly + LH}L${ex},${ty + eh}`);
+  R.l1.style.opacity = R.l2.style.opacity = p * 0.7;
+  STEPS.forEach((s, i) => { const on = i === cur || i === cur + 1, el = R.name[i];
+    el.style.fill = on ? "var(--ltt-accent)" : "var(--ltt-muted)"; el.style.fontWeight = on ? 700 : 600; });
+  for (let i = 0; i < 4; i++) {
+    const on = i === cur, hot = i === worst;
+    R.leak[i].style.opacity = on ? 1 : 0.5;
+    R.pill[i].style.fill = hot ? "var(--ltt-bad)" : "var(--ltt-bad-soft)";
+    R.pill[i].style.stroke = "var(--ltt-bad)"; R.pill[i].style.strokeWidth = on ? 3.5 : 1.5;
+    R.pt[i].style.fill = hot ? "var(--ltt-bg)" : "var(--ltt-ink)";
+  }
+  const a = clamp(p * 2), b = clamp((p - 0.6) / 0.4), hasP = S.p > 0.001;
+  R.pn.style.opacity = hasP ? 1 : 0; R.head.style.opacity = a;
+  [R.big, R.rate, R.hyp, R.tagr, R.tagt].forEach((e) => { e.style.opacity = b; });
+  R.sm.style.opacity = S.sm;
+  if (hasP) {
+    R.head.textContent = `${STEPS[seg].n} → ${STEPS[seg + 1].n}`;
+    R.big.textContent = `−${fmt(drops[seg])}명`;
+    R.rate.textContent = `${fmt(STEPS[seg].users)}명 중 ${Math.round(rates[seg] * 100)}%가 다음 단계로 못 갔다`;
+    R.hyp.textContent = HYP[seg];
+    const hot = seg === worst, txt = hot ? "가장 많이 새는 곳 · 먼저 고칠 후보" : `이탈 규모 ${rank[seg]}위`;
+    R.tagt.textContent = txt; R.tagr.setAttribute("width", txt.length * 16 + 32);
+    R.tagr.style.fill = hot ? "var(--ltt-bad)" : "var(--ltt-card-2)"; R.tagr.style.stroke = hot ? "var(--ltt-bad)" : "var(--ltt-line-2)";
+    R.tagt.style.fill = hot ? "var(--ltt-bg)" : "var(--ltt-ink-2)";
+  }
+}
+
+let ticker = 0;
+function play() {
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches, t0 = Date.now();
+  if (ticker) return;
+  const f = () => { const live = document.querySelectorAll(".fz.live"); if (!live.length) { ticker = 0; return; }
+    live.forEach((w) => draw(w, reduced ? { k: worst, idx: worst, p: 1, sm: 0 } : stateAt(((Date.now() - t0) / 1000) % PERIOD)));
+    ticker = setTimeout(f, reduced ? 200 : 16); };
+  ticker = setTimeout(f, 16);
+}
+
+LTT.deck({
+  title: "결제 퍼널 이탈 지점", theme: "studio",
+  glossary: {
+    "퍼널": "사람이 단계를 차례로 지나며 점점 줄어드는 깔때기 모양 경로",
+    "이탈": "다음 단계로 가지 않고 그 화면에서 떠나는 것" },
+  scenes: [{
+    type: "figure", label: "이탈 지점",
+    title: "결제 퍼널에서 가장 많이 새는 곳은 결제수단 선택 → 카드 인증 구간이다",
+    sub: "왼쪽 깔때기를 돋보기가 한 구간씩 잡아 오른쪽으로 확대한다. 빨간 면이 그 구간에서 떠난 사람이다.",
+    figure: (el) => { const w = funnel(el); play(); return { el: w }; },
+    caption: "{{퍼널}}은 단계가 늘수록 좁아지는 게 정상이다. 고칠 곳은 가장 크게 좁아지는 구간이다. {{이탈}} 이유는 화면 로그만으로는 가설이고, 사용자 관찰로 확인한다.",
+    basis: "단계별 인원은 설명용 가정치(장바구니 10,000명 기준). 이탈 규모 = 앞 단계 − 뒤 단계 인원, 이탈률 = 이탈 규모 ÷ 앞 단계 인원. 이탈 이유는 일반적인 결제 UX 가설이며 측정값이 아니다.",
+    takeaway: "먼저 고칠 곳은 이탈이 가장 큰 결제수단 선택 → 카드 인증: 6,600명 중 3,100명(47%)이 여기서 떠난다."
+  }]
+});
+</script>
+</body>
+</html>

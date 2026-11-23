@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.rep { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.rep .cap { display: flex; align-items: center; gap: 12px; min-height: 2.6em; font-size: 1.05rem; color: var(--ltt-ink); }
+.rep .cap b { color: var(--ltt-accent); }
+.rep .cap button { margin-left: auto; flex: none; border: 1px solid var(--ltt-line-2); background: var(--ltt-card); color: var(--ltt-ink-2); border-radius: 6px; padding: 4px 12px; cursor: pointer; font: inherit; font-size: .85rem; }
+.rep svg { width: 100%; height: auto; display: block; }
+.rep svg text { font-family: inherit; fill: var(--ltt-ink); }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const W = 980, H = 570;
+const YT = 150, YB = 370, LY = 178, GY = 342;       // 위·아래 주형, 선도·지연 새 가닥 높이
+const SEG = [770, 630, 490, 350];                    // 절편 5' 끝(왼쪽) x
+const PR = 22, SL = 130;                             // 프라이머 길이, 절편 길이
+const T_END = 24;
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+
+const CAPS = [
+  "<b>① 열림</b> 헬리케이스가 이중나선을 풀어 한 점에서 두 주형이 갈라진다",
+  "<b>② 시작</b> 중합효소는 새 가닥의 3' 끝에만 붙인다. 먼저 {{RNA}} 프라이머가 놓인다",
+  "<b>③ 선도 가닥</b> 분기점과 같은 방향으로 자라서 끊김 없이 이어진다",
+  "<b>④ 지연 가닥</b> 분기점에서 멀어지는 쪽으로만 자란다. 열릴 때마다 프라이머와 짧은 절편이 하나씩 생긴다",
+  "<b>⑤ 확대</b> 절편 하나도 똑같이 5'→3'으로 자란다. 그 방향이 분기점 반대일 뿐이라 끊어진다",
+  "<b>⑥ 연결</b> 프라이머를 DNA로 바꾸고 연결효소가 틈을 이어 두 가닥이 완성된다"
+].map(s => s.replace("{{RNA}}", "RNA"));
+
+function stageOf(t) { return t < 2 ? 0 : t < 3.5 ? 1 : t < 8 ? 2 : t < 16 ? 3 : t < 19.5 ? 4 : 5; }
+
+function build(body) {
+  body.innerHTML = `<div class="rep"><div class="cap"><span class="ct"></span><button type="button">다시 보기</button></div></div>`;
+  const root = body.querySelector(".rep");
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "DNA 복제 분기점: 선도 가닥은 연속, 지연 가닥은 오카자키 절편");
+  root.appendChild(svg);
+  const mk = (tag, attrs, parent = svg) => { const e = document.createElementNS(SVG, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+  const txt = (x, y, s, attrs = {}) => { const e = mk("text", Object.assign({ x, y, "font-size": 15 }, attrs)); e.textContent = s; return e; };
+
+  mk("defs", {}).innerHTML = `
+    <marker id="ah-ink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ltt-ink-2)"/></marker>
+    <marker id="ah-c1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ltt-c1)"/></marker>
+    <marker id="ah-ac" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ltt-accent)"/></marker>`;
+
+  // 고정 요소: 분기점 진행 화살표
+  mk("line", { x1: 230, y1: 212, x2: 70, y2: 212, stroke: "var(--ltt-ink-2)", "stroke-width": 2.5, "marker-end": "url(#ah-ink)" });
+  txt(150, 196, "분기점 진행", { "text-anchor": "middle", "font-size": 14, style: "fill:var(--ltt-ink-2)" });
+
+  // 주형 가닥
+  const rungs = mk("path", { stroke: "var(--ltt-line-2)", "stroke-width": 2, fill: "none" });
+  const tTop = mk("path", { stroke: "var(--ltt-ink-2)", "stroke-width": 5, fill: "none", "stroke-linejoin": "round" });
+  const tBot = mk("path", { stroke: "var(--ltt-ink-2)", "stroke-width": 5, fill: "none", "stroke-linejoin": "round" });
+  txt(26, 249, "5'", { "text-anchor": "end", "font-size": 15 });
+  txt(26, 289, "3'", { "text-anchor": "end", "font-size": 15 });
+  txt(942, YT + 5, "3'", {}); txt(942, YB + 5, "5'", {});
+  txt(520, YT - 14, "주형 가닥", { "font-size": 13, style: "fill:var(--ltt-muted)" });
+  txt(520, YB + 26, "주형 가닥", { "font-size": 13, style: "fill:var(--ltt-muted)" });
+
+  // 새 가닥
+  const rL = mk("path", { stroke: "var(--ltt-line-2)", "stroke-width": 1.5, fill: "none" });
+  const rG = mk("path", { stroke: "var(--ltt-line-2)", "stroke-width": 1.5, fill: "none" });
+  const lead = mk("line", { y1: LY, y2: LY, stroke: "var(--ltt-c1)", "stroke-width": 6, "stroke-linecap": "butt" });
+  const leadP = mk("line", { y1: LY, y2: LY, stroke: "var(--ltt-warn)", "stroke-width": 6 });
+  const leadPol = mk("rect", { y: LY - 15, width: 26, height: 30, rx: 8, fill: "var(--ltt-c1)", opacity: .85 });
+  const leadT = txt(0, LY - 16, "3'", { "text-anchor": "middle", style: "fill:var(--ltt-c1)", "font-weight": 700 });
+  const lead5 = txt(776, LY + 28, "5'", { "text-anchor": "start" });
+  const segs = SEG.map((x, i) => {
+    const g = mk("g", {});
+    const body = mk("line", { y1: GY, y2: GY, stroke: "var(--ltt-c2)", "stroke-width": 6 }, g);
+    const pr = mk("line", { y1: GY, y2: GY, stroke: "var(--ltt-warn)", "stroke-width": 6 }, g);
+    const pol = mk("rect", { y: GY - 15, width: 26, height: 30, rx: 8, fill: "var(--ltt-c2)", opacity: .85 }, g);
+    const num = txt(x + 65, GY + 62, "①②③④"[i], { "text-anchor": "middle", "font-size": 16, "font-weight": 700, style: "fill:var(--ltt-c2)" }, g);
+    const lig = mk("circle", { cx: x + SL + 5, cy: GY, r: 7, fill: "var(--ltt-good)" }, g);
+    return { x, g, body, pr, pol, num, lig };
+  });
+  const lagLbl = txt(0, 0, "", {});
+
+  // 라벨·화살표
+  const aL = mk("g", {});
+  mk("line", { x1: 700, y1: YT - 42, x2: 420, y2: YT - 42, stroke: "var(--ltt-c1)", "stroke-width": 3, "marker-end": "url(#ah-c1)" }, aL);
+  txt(560, YT - 54, "선도 가닥 신장 5'→3' : 분기점과 같은 방향", { "text-anchor": "middle", style: "fill:var(--ltt-c1)", "font-weight": 700 }, aL).setAttribute("font-size", 15);
+  const aG = mk("g", {});
+  mk("line", { x1: 480, y1: GY + 96, x2: 860, y2: GY + 96, stroke: "var(--ltt-accent)", "stroke-width": 4, "marker-end": "url(#ah-ac)" }, aG);
+  txt(670, GY + 124, "지연 가닥 신장 5'→3' : 분기점과 반대 방향", { "text-anchor": "middle", style: "fill:var(--ltt-accent)", "font-weight": 700 }, aG);
+  txt(670, GY + 144, "① → ④ 만든 순서 (④가 분기점에 가장 가깝다)", { "text-anchor": "middle", "font-size": 13, style: "fill:var(--ltt-muted)" }, aG);
+
+  // 헬리케이스
+  const hel = mk("g", {});
+  const helC = mk("circle", { r: 16, fill: "var(--ltt-card)", stroke: "var(--ltt-ink)", "stroke-width": 2.5 }, hel);
+  mk("path", { d: "M-7 6 L0 -8 L7 6", fill: "none", stroke: "var(--ltt-ink)", "stroke-width": 2.5 }, hel);
+  const helT = txt(0, 0, "헬리케이스", { "text-anchor": "end", "font-size": 14 });
+
+  // 확대 상자
+  const zoom = mk("g", {});
+  mk("rect", { x: 14, y: 440, width: 340, height: 122, rx: 10, fill: "var(--ltt-card)", stroke: "var(--ltt-accent)", "stroke-width": 2 }, zoom);
+  txt(28, 464, "④번 절편 확대", { "font-size": 14, "font-weight": 700 }, zoom);
+  mk("line", { x1: 50, y1: 530, x2: 320, y2: 530, stroke: "var(--ltt-ink-2)", "stroke-width": 4 }, zoom);
+  txt(40, 535, "3'", { "text-anchor": "end", "font-size": 13 }, zoom); txt(328, 535, "5'", { "font-size": 13 }, zoom);
+  mk("line", { x1: 90, y1: 505, x2: 270, y2: 505, stroke: "var(--ltt-c2)", "stroke-width": 6 }, zoom);
+  mk("line", { x1: 90, y1: 505, x2: 112, y2: 505, stroke: "var(--ltt-warn)", "stroke-width": 6 }, zoom);
+  mk("line", { x1: 150, y1: 488, x2: 250, y2: 488, stroke: "var(--ltt-accent)", "stroke-width": 3, "marker-end": "url(#ah-ac)" }, zoom);
+  txt(82, 509, "5'", { "text-anchor": "end", "font-size": 13 }, zoom); txt(278, 509, "3'", { "font-size": 13 }, zoom);
+  txt(200, 480, "5'→3'", { "text-anchor": "middle", "font-size": 13, "font-weight": 700, style: "fill:var(--ltt-accent)" }, zoom);
+  txt(28, 551, "뒤집힌 것이 아니라 방향이 분기점 반대일 뿐", { "font-size": 12, style: "fill:var(--ltt-muted)" }, zoom);
+
+  // 범례
+  const lg = mk("g", {});
+  mk("rect", { x: 760, y: 24, width: 26, height: 7, fill: "var(--ltt-warn)" }, lg); txt(794, 33, "RNA 프라이머", { "font-size": 13 }, lg);
+  mk("rect", { x: 760, y: 46, width: 26, height: 7, fill: "var(--ltt-c1)" }, lg); txt(794, 55, "선도 가닥(새 DNA)", { "font-size": 13 }, lg);
+  mk("rect", { x: 760, y: 68, width: 26, height: 7, fill: "var(--ltt-c2)" }, lg); txt(794, 77, "지연 가닥(새 DNA)", { "font-size": 13 }, lg);
+
+  const ct = root.querySelector(".ct");
+  const btn = root.querySelector("button");
+
+  function frame(t) {
+    const st = stageOf(t);
+    const p = clamp((t - 3.5) / 12.5);
+    const f = 680 - 420 * p;
+    const lig = clamp((t - 20) / 3);
+    // 주형
+    tTop.setAttribute("d", `M40 245 L${f} 245 L${f + 70} ${YT} L930 ${YT}`);
+    tBot.setAttribute("d", `M40 275 L${f} 275 L${f + 70} ${YB} L930 ${YB}`);
+    let d = "";
+    for (let x = 52; x < f - 6; x += 14) d += `M${x} 245V275`;
+    rungs.setAttribute("d", d);
+    hel.setAttribute("transform", `translate(${f} 260)`);
+    helC.setAttribute("opacity", 1);
+    helT.setAttribute("x", -22); helT.setAttribute("y", -22);
+    // 선도 가닥
+    const showP = st >= 1;
+    const lEnd = Math.min(748, f + 90);
+    leadP.setAttribute("x1", 770); leadP.setAttribute("x2", 748); leadP.setAttribute("opacity", showP ? 1 : 0);
+    lead.setAttribute("x1", 748); lead.setAttribute("x2", lEnd); lead.setAttribute("opacity", showP ? 1 : 0);
+    leadPol.setAttribute("x", lEnd - 22); leadPol.setAttribute("opacity", showP && lig < 1 ? .85 : 0);
+    leadT.setAttribute("x", lEnd - 9); leadT.setAttribute("opacity", showP && lig < 1 ? 1 : 0);
+    lead5.setAttribute("opacity", showP ? 1 : 0);
+    let rl = "";
+    for (let x = 758; x > lEnd; x -= 14) rl += `M${x} ${YT + 3}V${LY - 3}`;
+    rL.setAttribute("d", showP ? rl : "");
+    leadP.setAttribute("stroke", lig > 0 ? "var(--ltt-c1)" : "var(--ltt-warn)");
+    // 지연 가닥 절편
+    let rg = "";
+    segs.forEach((s, i) => {
+      const d0 = (s.x - 90) - f;
+      const vis = st >= 1 && d0 >= 0;
+      const g = clamp(d0 / 110);
+      const end = s.x + PR + (SL - PR) * g + 10 * lig * (g >= 1 ? 1 : 0);
+      s.g.setAttribute("opacity", vis ? 1 : 0);
+      s.pr.setAttribute("x1", s.x); s.pr.setAttribute("x2", s.x + PR);
+      s.pr.setAttribute("opacity", 1 - lig);
+      s.body.setAttribute("x1", s.x + PR - 1); s.body.setAttribute("x2", end);
+      s.pol.setAttribute("x", end - 4);
+      s.pol.setAttribute("opacity", vis && g > 0 && g < 1 ? .85 : st >= 1 && g === 0 && vis ? .85 : 0);
+      s.lig.setAttribute("opacity", i > 0 && lig > 0 ? clamp(lig * 2) * (1 - clamp((lig - .8) * 5)) : 0);
+      s.num.setAttribute("opacity", vis ? 1 : 0);
+      if (vis) for (let x = s.x + 10; x < end - 6; x += 14) rg += `M${x} ${GY + 3}V${YB - 3}`;
+    });
+    rG.setAttribute("d", rg);
+    // 안내
+    aL.setAttribute("opacity", st >= 2 ? 1 : 0);
+    aG.setAttribute("opacity", st >= 3 ? 1 : 0);
+    zoom.setAttribute("opacity", st >= 4 && st < 5 ? 1 : st === 5 ? .35 : 0);
+    lg.setAttribute("opacity", st >= 1 ? 1 : 0);
+    ct.innerHTML = CAPS[st];
+  }
+
+  let raf = 0, t0 = 0, t = 0, run = false;
+  const reduced = () => LTT.MOTION_MS === 0;
+  function tick(now) {
+    t = (now - t0) / 1000;
+    if (t >= T_END) { t = T_END; frame(t); run = false; return; }
+    frame(t); raf = requestAnimationFrame(tick);
+  }
+  function play() { cancelAnimationFrame(raf); if (reduced()) { frame(T_END); return; } run = true; t0 = performance.now(); raf = requestAnimationFrame(tick); }
+  btn.addEventListener("click", play);
+  frame(0);
+  return { enter: play, leave() { cancelAnimationFrame(raf); run = false; } };
+}
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "오카자키 절편": "지연 가닥에서 분기점이 열릴 때마다 만들어지는 짧은 DNA 조각. 나중에 연결효소가 이어 붙인다.",
+    "프라이머": "중합효소가 새 가닥을 시작할 수 있게 먼저 놓이는 짧은 RNA 조각."
+  },
+  scenes: [{
+    type: "hook",
+    kicker: "생물 · DNA 복제",
+    title: "새 가닥은 한 방향으로만 자라서, 한쪽은 끊어서 만든다",
+    sub: "중합효소는 5'→3'으로만 잇는다. 같은 분기점에서 한쪽은 이어지고 한쪽은 {{오카자키 절편}}이 되며, 각 절편은 {{프라이머}}에서 시작한다.",
+    mount: build
+  }]
+});
+</script>
+</body>
+</html>

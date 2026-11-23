@@ -1,0 +1,162 @@
+{
+ "10": {
+  "brief": {
+   "topic_line": "제어 · 온도조절기 되먹임 루프와 오버슈트",
+   "topic": "온도조절기 되먹임 루프와 오버슈트",
+   "audience": "제어 입문자",
+   "theme": "lab",
+   "medium": "실험 노트 플롯",
+   "decision": "히스테리시스 폭과 난방 지연",
+   "domain": "제어",
+   "role": "hook",
+   "structure": "되먹임",
+   "motion": "입자가 흐름",
+   "composition": "겹쳐 놓기"
+  },
+  "neighbors_B": [
+   "21",
+   "48"
+  ],
+  "orig": "s10-thermostat-overshoot.html"
+ },
+ "33": {
+  "brief": {
+   "topic_line": "ML · 편향-분산, 모델 복잡도별 오차",
+   "topic": "편향-분산 트레이드오프",
+   "audience": "ML 입문 개발자",
+   "theme": "lab",
+   "medium": "실험 플롯",
+   "decision": "모델 복잡도(다항식 차수) 고르기",
+   "domain": "ML",
+   "role": "figure",
+   "structure": "트레이드오프",
+   "motion": "값이 쌓임",
+   "composition": "중앙 주인공"
+  },
+  "neighbors_B": [
+   "11",
+   "44"
+  ],
+  "orig": "s33-bias-variance-error.html"
+ },
+ "07": {
+  "brief": {
+   "topic_line": "백엔드 · fan-out 수에 따라 p99 지연이 커지는 tail latency",
+   "topic": "fan-out과 p99 꼬리 지연",
+   "audience": "백엔드 개발자",
+   "theme": "terminal",
+   "medium": "터미널·대시보드",
+   "decision": "한 요청이 부르는 백엔드 수",
+   "domain": "백엔드",
+   "role": "sweep",
+   "structure": "분포",
+   "motion": "쪼개지고 합쳐짐",
+   "composition": "작은 여러 칸"
+  },
+  "neighbors_B": [
+   "18",
+   "29"
+  ],
+  "orig": "s07-fanout-tail-latency.html"
+ },
+ "12": {
+  "brief": {
+   "topic_line": "런타임 · Node.js 이벤트 루프 단계 한 장 정리",
+   "topic": "Node.js 이벤트 루프 단계",
+   "audience": "Node.js 백엔드 입문자",
+   "theme": "terminal",
+   "medium": "터미널 로그",
+   "decision": "setTimeout·setImmediate·nextTick 중 무엇으로 미룰지",
+   "domain": "런타임",
+   "role": "overview",
+   "structure": "순환",
+   "motion": "점이 궤적을 그림",
+   "composition": "겹쳐 놓기"
+  },
+  "neighbors_B": [
+   "23",
+   "34"
+  ],
+  "orig": "s12-node-event-loop.html"
+ },
+ "13": {
+  "brief": {
+   "topic_line": "UX · 결제 퍼널 단계, 이탈 지점으로 확대",
+   "topic": "결제 퍼널 이탈 지점",
+   "audience": "UX 입문자",
+   "theme": "studio",
+   "medium": "제품 분석 대시보드",
+   "decision": "어느 결제 단계를 먼저 고칠까",
+   "domain": "UX",
+   "role": "figure",
+   "structure": "순서",
+   "motion": "확대·축소",
+   "composition": "좌우 분할"
+  },
+  "neighbors_B": [
+   "24",
+   "35"
+  ],
+  "orig": "s13-checkout-funnel-zoom.html"
+ },
+ "16": {
+  "brief": {
+   "topic_line": "건축 · 남향 vs 북향 방의 하루 채광",
+   "topic": "남향 vs 북향 방의 하루 채광",
+   "audience": "집을 고르는 비전문가",
+   "theme": "sketch",
+   "medium": "화이트보드 단면 스케치",
+   "decision": "방의 향 선택",
+   "domain": "건축",
+   "role": "contrast",
+   "structure": "공간",
+   "motion": "강조가 훑음",
+   "composition": "작은 여러 칸"
+  },
+  "neighbors_B": [
+   "27",
+   "05"
+  ],
+  "orig": "s16-room-daylight.html"
+ },
+ "04": {
+  "brief": {
+   "topic_line": "전기 회로 · 키르히호프 전류 법칙, 분기점에서 전하가 나뉘는 경로",
+   "topic": "키르히호프 전류 법칙",
+   "audience": "회로 입문자",
+   "theme": "blueprint",
+   "medium": "회로 도면",
+   "decision": "분기점에서 전류가 어떻게 나뉘나",
+   "domain": "전기 회로",
+   "role": "figure",
+   "structure": "연결",
+   "motion": "점이 궤적을 그림",
+   "composition": "좌우 분할"
+  },
+  "neighbors_B": [
+   "15",
+   "26"
+  ],
+  "orig": "s04-kirchhoff-junction.html"
+ },
+ "47": {
+  "brief": {
+   "topic_line": "에너지 · 연도별 지역 전력 믹스",
+   "topic": "국가별 전력 믹스",
+   "audience": "에너지 정책 입문자",
+   "theme": "atlas",
+   "medium": "에너지 통계 차트",
+   "decision": "전원 구성 비교",
+   "domain": "에너지",
+   "role": "sweep",
+   "structure": "부분-전체",
+   "motion": "모양이 바뀜",
+   "composition": "좌우 분할"
+  },
+  "neighbors_B": [
+   "03",
+   "09"
+  ],
+  "orig": "s47-power-mix-sweep.html"
+ }
+}

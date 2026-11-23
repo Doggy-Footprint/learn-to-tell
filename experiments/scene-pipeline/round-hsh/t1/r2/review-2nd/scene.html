@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할이 루트까지 전파</title>
+<script type="application/json" id="ltt-meta">{"topic": "B+tree 노드 분할", "audience": "백엔드 개발자", "theme": "blueprint", "medium": "DB 내부 구조 도해", "decision": "인덱스 설계와 페이지 크기 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const CAP = 4, CELL = 28, H = 44, FAINT_W = 56;   // 페이지 용량(키 칸 수), 칸 너비, 노드 높이
+const ROW = [60, 190, 320, 428];                   // 층별 y
+const IDS = ["ROOT", "NR", "RR", "I1", "I2", "I2b", "I3", "Lp", "L", "R", "Ln"];
+const LEAVES = ["Lp", "L", "R", "Ln"];             // 잎은 왼쪽에서 오른쪽 순서로 연결 리스트를 이룬다
+const BORN = { R: "L", I2b: "I2", RR: "ROOT" };    // 새 오른쪽 형제는 쪼개지는 노드에서 태어난다
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// [x 중심, 층, 키 배열(null이면 생략된 노드), 부모 id, 상태 class]
+const N = (x, r, keys, p, cls) => [x, r, keys, p, cls || (keys ? "full" : "faint")];
+
+const S0 = {
+  ROOT: N(450, 0, [50, 100, 150, 200]),
+  I1: N(230, 1, null, "ROOT"),
+  I2: N(440, 1, [60, 70, 80, 90], "ROOT"),
+  I3: N(680, 1, null, "ROOT"),
+  Lp: N(290, 2, null, "I2"),
+  L: N(440, 2, [81, 83, 85, 88], "I2"),
+  Ln: N(590, 2, null, "I2"),
+};
+// 86 도착: L이 5칸이 되어 넘친다
+const S1 = { ...S0, L: N(440, 2, [81, 83, 85, 86, 88], "I2"), chip: [86, 656, 342, "삽입"] };
+// 새 오른쪽 잎 R이 먼저 생기고, 86이 복사되어 올라간다
+const S2 = {
+  ROOT: N(450, 0, [50, 100, 150, 200]),
+  I1: N(230, 1, null, "ROOT"),
+  I2: N(440, 1, [60, 70, 80, 90], "ROOT"),
+  I3: N(680, 1, null, "ROOT"),
+  Lp: N(230, 2, null, "I2"),
+  L: N(380, 2, [81, 83, 85], "I2"),
+  R: N(530, 2, [86, 88], "I2", "new"),
+  Ln: N(680, 2, null, "I2"),
+  chip: [86, 530, 270, "복사"],
+};
+// 부모 I2가 구분 키를 받아 5칸이 된다
+const S3 = { ...S2, I2: N(440, 1, [60, 70, 80, 86, 90], "ROOT"), R: N(530, 2, [86, 88], "I2"), chip: null };
+// I2를 가른다: 새 오른쪽 I2b가 생기고 가운데 80이 위로 이동한다
+const S4 = {
+  ROOT: N(450, 0, [50, 100, 150, 200]),
+  I1: N(200, 1, null, "ROOT"),
+  I2: N(340, 1, [60, 70], "ROOT"),
+  I2b: N(560, 1, [86, 90], "ROOT", "new"),
+  I3: N(740, 1, null, "ROOT"),
+  Lp: N(230, 2, null, "I2"),
+  L: N(400, 2, [81, 83, 85], "I2b"),
+  R: N(560, 2, [86, 88], "I2b"),
+  Ln: N(720, 2, null, "I2b"),
+  chip: [80, 450, 150, "이동"],
+};
+// 80이 루트에 들어가 루트가 5칸이 된다
+const S5 = { ...S4, ROOT: N(450, 0, [50, 80, 100, 150, 200]), I2b: N(560, 1, [86, 90], "ROOT"), chip: null };
+// 루트를 가른다: 새 오른쪽 RR이 생기고 가운데 100이 위로 이동한다
+const S6 = {
+  ...S4,
+  ROOT: N(340, 0, [50, 80]),
+  RR: N(660, 0, [150, 200], null, "new"),
+  I2b: N(560, 1, [86, 90], "ROOT"),
+  I3: N(760, 1, null, "RR"),
+  chip: [100, 500, 82, "이동"],
+};
+// 새 루트가 맨 마지막에 생기고, 모든 노드가 한 층 내려간다
+const S7 = {
+  NR: N(500, 0, [100], null, "new"),
+  ROOT: N(340, 1, [50, 80], "NR"),
+  RR: N(660, 1, [150, 200], "NR"),
+  I1: N(200, 2, null, "ROOT"),
+  I2: N(340, 2, [60, 70], "ROOT"),
+  I2b: N(560, 2, [86, 90], "ROOT"),
+  I3: N(760, 2, null, "RR"),
+  Lp: N(230, 3, null, "I2"),
+  L: N(400, 3, [81, 83, 85], "I2b"),
+  R: N(560, 3, [86, 88], "I2b"),
+  Ln: N(720, 3, null, "I2b"),
+  h: 4,
+};
+// 대비: 부모 I2가 꽉 차지 않았다면 한 번의 잎 분할로 끝난다
+const S8 = {
+  ROOT: N(450, 0, [50, 100, 150, 200]),
+  I1: N(230, 1, null, "ROOT"),
+  I2: N(440, 1, [60, 70, 80, 86], "ROOT", "stop"),
+  I3: N(680, 1, null, "ROOT"),
+  Lp: N(230, 2, null, "I2"),
+  L: N(380, 2, [81, 83, 85], "I2"),
+  R: N(530, 2, [86, 88], "I2"),
+  Ln: N(680, 2, null, "I2"),
+  note: ["I2는 3칸 → 4칸, 넘치지 않아 여기서 멈춘다", 515, 214],
+};
+const STATES = [S0, S1, S2, S3, S4, S5, S6, S7, S8, { panel: true }];
+const CAPTIONS = [
+  "높이 3 트리. 삽입 경로의 잎·내부 노드·루트가 모두 꽉 찼다. 페이지 하나가 키 칸 4개다",
+  "키 86이 꽉 찬 잎 L에 들어와 5칸이 된다. 용량 4를 넘었다",
+  "L이 3+2로 갈라진다. 새 오른쪽 잎 R이 L과 다음 잎 사이에 끼고, 86은 R에 남은 채 복사되어 부모로 올라간다",
+  "부모 I2가 86을 받아 5칸이 된다. 꽉 차 있었으므로 넘침이 한 층 올라온다",
+  "I2가 갈라진다. 새 오른쪽 I2b가 먼저 생기고, 가운데 키 80은 위로 이동한다. 잎과 달리 I2 쪽에는 남지 않는다",
+  "80을 받은 루트도 5칸이 되어 넘친다. 루트 위에는 올라갈 곳이 없다",
+  "루트가 갈라진다. 새 오른쪽 노드가 먼저 생기고, 가운데 키 100이 위로 이동한다",
+  "100을 담은 새 루트가 맨 마지막에 생기고, 모든 잎이 한 층 함께 내려간다. 높이 3 → 4",
+  "대비: I2에 빈 칸이 하나 있었다면 같은 삽입이 잎 분할 한 번으로 끝난다. 높이는 그대로 3이다",
+  "페이지가 클수록 팬아웃이 커서, 같은 높이 3에 담기는 키 수가 크게 다르다",
+];
+
+const wOf = (s) => (s[2] ? Math.max(CAP, s[2].length) * CELL + 8 : FAINT_W);
+
+const nodeHTML = (s, w) => {
+  const [, , keys, , cls] = s;
+  if (!keys) {
+    return `<rect width="${w}" height="${H}" rx="6" style="fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-dasharray:4 4"/>`
+      + `<text x="${w / 2}" y="27" text-anchor="middle" style="fill:var(--ltt-muted);font-size:16px">…</text>`;
+  }
+  const bad = keys.length > CAP;
+  const edge = bad ? "var(--ltt-bad)" : cls === "stop" ? "var(--ltt-good)" : cls === "new" ? "var(--ltt-accent)" : "var(--ltt-ink-2)";
+  let out = `<rect width="${w}" height="${H}" rx="6" style="fill:var(--ltt-card);stroke:${edge};stroke-width:${bad || cls === "new" || cls === "stop" ? 2 : 1.5}"/>`;
+  // 칸은 항상 용량만큼 그린다. 빈 칸은 점선, 넘친 칸은 bad 색
+  for (let i = 0; i < Math.max(CAP, keys.length); i++) {
+    const over = i >= CAP, has = i < keys.length, x = 4 + i * CELL;
+    const fill = over ? "var(--ltt-bad-soft)" : has ? "var(--ltt-card-2)" : "var(--ltt-card)";
+    const line = over ? "var(--ltt-bad)" : "var(--ltt-line-2)";
+    out += `<rect x="${x + 2}" y="9" width="${CELL - 4}" height="26" rx="3" style="fill:${fill};stroke:${line};stroke-dasharray:${has ? "none" : "3 3"}"/>`;
+    if (has) out += `<text x="${x + CELL / 2}" y="27" text-anchor="middle" class="ltt-mono" style="fill:var(--ltt-ink);font-size:13px">${keys[i]}</text>`;
+  }
+  return out;
+};
+
+const chipHTML = (v, label) => `<rect x="-22" y="-12" width="44" height="24" rx="12" style="fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:1.5"/>`
+  + `<text y="5" text-anchor="middle" class="ltt-mono" style="fill:var(--ltt-ink);font-size:13px">${v}</text>`
+  + `<text x="28" y="5" style="fill:var(--ltt-ink-2);font-size:13px;font-weight:600">${label}</text>`;
+
+// 페이지 크기별 팬아웃과 높이 3에 담기는 키 수 (모델로 계산한 예시)
+const panelHTML = () => {
+  const row = (y, name, calc, w, val, fill) =>
+    `<text x="60" y="${y}" style="fill:var(--ltt-ink);font-size:18px;font-weight:600">${name}</text>`
+    + `<text x="200" y="${y}" style="fill:var(--ltt-ink-2);font-size:15px">${calc}</text>`
+    + `<rect x="60" y="${y + 14}" width="${w}" height="34" rx="4" style="fill:${fill};stroke:var(--ltt-ink-2);stroke-width:1.5"/>`
+    + `<text x="${60 + w + 12}" y="${y + 38}" class="ltt-mono" style="fill:var(--ltt-ink);font-size:16px">${val}</text>`;
+  return `<text x="60" y="110" style="fill:var(--ltt-ink);font-size:18px">높이 3일 때 담기는 키 수 ≈ 팬아웃³</text>`
+    + row(190, "8 KB 페이지", "8192 B ÷ 16 B ≈ 팬아웃 500", 760, "500³ ≈ 1.25억 키", "var(--ltt-accent-soft)")
+    + row(310, "4 KB 페이지", "4096 B ÷ 16 B ≈ 팬아웃 250", 95, "250³ ≈ 1,560만 키", "var(--ltt-card-2)")
+    + `<text x="60" y="430" style="fill:var(--ltt-muted);font-size:13px">막대 길이 = 키 수. 모델로 계산한 예시(헤더 제외). 팬아웃이 약 500이면 부모가 꽉 찰 일이 드물어 분할은 대개 한 층에서 멈춘다.</text>`;
+};
+
+const figure = (el) => {
+  const svg = el.appendChild(document.createElementNS(SVG, "svg"));
+  svg.setAttribute("viewBox", "0 0 1000 540");
+  svg.style.cssText = "display:block;width:100%;height:auto";
+  const mk = (tag, attrs = {}) => {
+    const n = document.createElementNS(SVG, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  };
+  const move = reduce ? "none" : "transform .7s ease, opacity .5s ease";
+  const layer = svg.appendChild(mk("g"));                 // 선은 노드가 자리 잡은 뒤에 나타난다
+  const G = {};
+  IDS.forEach((id) => { G[id] = svg.appendChild(mk("g", { style: `transition:${move}` })); });
+  const panel = svg.appendChild(mk("g", { style: `opacity:0;transition:${move}` }));
+  panel.innerHTML = panelHTML();
+  const note = svg.appendChild(mk("text", { style: "fill:var(--ltt-good);font-size:14px;font-weight:600;opacity:0" }));
+  const chip = svg.appendChild(mk("g", { style: `transition:${move}` }));
+  const height = svg.appendChild(mk("text", { x: 30, y: 40, style: "fill:var(--ltt-ink);font-size:22px;font-weight:600" }));
+  const legend = svg.appendChild(mk("g"));
+  legend.appendChild(mk("text", { x: 30, y: 505, style: "fill:var(--ltt-muted);font-size:16px" })).textContent = "칸 하나 = 키 하나. 칸 4개짜리 페이지가 노드 하나다.";
+  legend.appendChild(mk("path", { d: "M30 528 H70", style: "stroke:var(--ltt-line-2);stroke-width:2;stroke-dasharray:6 5" }));
+  legend.appendChild(mk("text", { x: 80, y: 532, style: "fill:var(--ltt-muted);font-size:16px" })).textContent = "잎끼리 이어진 연결 리스트";
+
+  const path = (d, dash) => layer.appendChild(mk("path", {
+    d, style: `fill:none;stroke:var(--ltt-line-2);stroke-width:2${dash ? ";stroke-dasharray:6 5" : ""}`,
+  }));
+  const pos = (s) => `translate(${s[0] - wOf(s) / 2}px, ${ROW[s[1]]}px)`;
+
+  let prev = {}, tok = 0;
+  const set = (st, first) => {
+    const my = ++tok;
+    IDS.forEach((id) => {
+      const s = st[id], g = G[id];
+      if (!s) { g.style.opacity = 0; return; }
+      const w = wOf(s);
+      if (!prev[id]) {                                    // 새로 생기는 노드는 쪼개진 노드 자리에서 벌어져 나온다
+        const from = BORN[id] && prev[BORN[id]];
+        g.style.transition = "none";
+        g.style.transform = pos(from || s);
+        g.style.opacity = 0;
+        g.innerHTML = nodeHTML(s, w);
+        g.getBoundingClientRect();
+        g.style.transition = move;
+      }
+      g.style.opacity = 1;
+      g.style.transform = pos(s);
+      g.innerHTML = nodeHTML(s, w);
+    });
+    layer.style.transition = "none";
+    layer.style.opacity = 0;
+    layer.innerHTML = "";
+    IDS.forEach((id) => {
+      const s = st[id];
+      if (!s || !s[3] || !st[s[3]]) return;
+      const p = st[s[3]];
+      path(`M${p[0]} ${ROW[p[1]] + H} L${s[0]} ${ROW[s[1]]}`);
+    });
+    const vis = LEAVES.filter((id) => st[id]);
+    vis.slice(1).forEach((id, i) => {
+      const a = st[vis[i]], b = st[id];
+      path(`M${a[0] + wOf(a) / 2} ${ROW[a[1]] + H / 2} L${b[0] - wOf(b) / 2} ${ROW[b[1]] + H / 2}`, true);
+    });
+    layer.getBoundingClientRect();
+    const show = () => { if (my !== tok) return; layer.style.transition = reduce ? "none" : "opacity .4s ease"; layer.style.opacity = st.panel ? 0 : 1; };
+    if (first || reduce) show(); else setTimeout(show, 700);
+
+    if (st.chip) {
+      const [v, x, y, label] = st.chip;
+      const wasHidden = chip.style.opacity !== "1";
+      if (wasHidden) { chip.style.transition = "none"; chip.style.transform = `translate(${x}px, ${y}px)`; chip.getBoundingClientRect(); chip.style.transition = move; }
+      chip.innerHTML = chipHTML(v, label);
+      chip.style.transform = `translate(${x}px, ${y}px)`;
+      chip.style.opacity = 1;
+    } else {
+      chip.style.opacity = 0;
+    }
+    if (st.note) { note.textContent = st.note[0]; note.setAttribute("x", st.note[1]); note.setAttribute("y", st.note[2]); note.style.opacity = 1; }
+    else note.style.opacity = 0;
+    panel.style.opacity = st.panel ? 1 : 0;
+    legend.style.opacity = st.panel ? 0 : 1;
+    height.textContent = st.panel ? "페이지 크기와 높이" : st.h === 4 ? "높이 4" : "높이 3";
+    prev = st;
+  };
+  set(S0, true);
+  return { el: svg, set };
+};
+
+LTT.deck({
+  title: "B+tree 노드 분할이 루트까지 전파",
+  theme: "blueprint",
+  glossary: {
+    "구분 키": "부모 노드에서 자식들의 키 범위를 나누는 키. 잎에서 올라올 때는 복사, 내부 노드에서 올라올 때는 이동한다.",
+    "팬아웃": "노드 하나가 가리키는 자식 수. 페이지 크기를 항목 크기로 나눈 값에 가깝다.",
+  },
+  scenes: [{
+    type: "figure",
+    title: "넘침은 꽉 찬 조상만큼만 올라가고, 루트가 쪼개질 때만 트리가 한 층 높아진다",
+    en: "Splits climb only through full ancestors; the root split alone adds a level",
+    kicker: "B+tree · 삽입과 분할",
+    sub: "노드 하나 = 페이지 하나. 칸 4개 = 키 최대 4개, 자식 최대 5개. 키 86을 넣는다",
+    figure,
+    steps: STATES.map((st, i) => ({ caption: CAPTIONS[i], enter: (k, f) => f.set(st) })),
+    takeaway: "잎 분할은 {{구분 키}}를 복사하고, 내부 노드 분할은 가운데 키를 옮긴다. 페이지가 클수록 {{팬아웃}}이 커서 같은 키 수에서 트리가 낮다.",
+    recall: "부모가 꽉 차 있지 않았다면 분할은 어디서 멈추는가?",
+    basis: "칸 수(4·5)는 설명용 모델이다. 실제 팬아웃은 페이지 크기 ÷ 항목 크기이며 8 KB ÷ 16 B ≈ 500, 4 KB ÷ 16 B ≈ 250(헤더 제외, 모델로 계산한 예시).",
+  }],
+});
+</script>
+</body>
+</html>

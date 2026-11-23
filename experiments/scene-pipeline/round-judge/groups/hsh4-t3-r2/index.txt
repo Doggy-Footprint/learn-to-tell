@@ -1,0 +1,27 @@
+장면 | 상태 | 파일 | 메모
+가 | t1s | 가-t1s.jpg | 
+가 | t4s | 가-t4s.jpg | 
+가 | t8s | 가-t8s.jpg | 
+가 | step1 | 가-step1.jpg | 
+가 | step2 | 가-step2.jpg | 
+가 | step3 | 가-step3.jpg | 
+가 | step4 | 가-step4.jpg | 
+가 | step5 | 가-step5.jpg | 
+가 | step6 | 가-step6.jpg | 
+가 | step7 | 가-step7.jpg | 
+가 | checks | - | #ltt-checks 없음 또는 JSON 오류
+나 | t1s | 나-t1s.jpg | 
+나 | t4s | 나-t4s.jpg | 
+나 | t8s | 나-t8s.jpg | 
+나 | step1 | 나-step1.jpg | 
+나 | step2 | 나-step2.jpg | 
+나 | step3 | 나-step3.jpg | 
+나 | step4 | 나-step4.jpg | 
+나 | step5 | 나-step5.jpg | 
+나 | step6 | 나-step6.jpg | 
+나 | step7 | 나-step7.jpg | 
+나 | checks | - | #ltt-checks 없음 또는 JSON 오류
+다 | t1s | 다-t1s.jpg | 
+다 | t4s | 다-t4s.jpg | 
+다 | t8s | 다-t8s.jpg | 
+다 | checks | - | #ltt-checks 없음 또는 JSON 오류

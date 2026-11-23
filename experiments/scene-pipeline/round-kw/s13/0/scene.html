@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결제 퍼널 이탈 지점</title>
+<script type="application/json" id="ltt-meta">{"topic":"결제 퍼널 이탈 지점","audience":"UX 입문자","theme":"studio","medium":"제품 분석 대시보드","decision":"어느 결제 단계를 먼저 고칠까"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .fn-wrap { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+  .fn-svg { width: 100%; height: auto; display: block; }
+  .fn-svg text { font-family: inherit; }
+  .fn-name { font-size: 14px; fill: var(--ltt-ink); text-anchor: middle; }
+  .fn-count { font-size: 16px; font-weight: 700; fill: var(--ltt-ink); text-anchor: middle; font-variant-numeric: tabular-nums; }
+  .fn-loss { font-size: 14px; font-weight: 700; fill: var(--ltt-ink-2); text-anchor: middle; font-variant-numeric: tabular-nums; }
+  .fn-rate { font-size: 16px; font-weight: 700; fill: var(--ltt-ink); text-anchor: middle; }
+  .fn-rate.hot { fill: var(--ltt-accent); }
+  .fn-small { font-size: 12px; fill: var(--ltt-muted); text-anchor: middle; }
+  .fn-gap { font-size: 12px; font-weight: 700; fill: var(--ltt-muted); text-anchor: middle; }
+  .fn-gap.bad { fill: var(--ltt-bad); font-size: 14px; }
+  .fn-tag { font-size: 12px; font-weight: 700; fill: var(--ltt-ink); text-anchor: middle; }
+  .fn-exc { font-size: 13px; font-weight: 700; fill: var(--ltt-bad); text-anchor: middle; }
+  .fn-box-h { font-size: 16px; font-weight: 700; fill: var(--ltt-ink); }
+  .fn-box-t { font-size: 13px; fill: var(--ltt-ink-2); }
+  .fn-badge { font-size: 13px; font-weight: 700; fill: var(--ltt-bg); text-anchor: middle; }
+  .fn-fade { transition: opacity .35s ease; }
+  .fn-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--ltt-ink-2); }
+  .fn-legend span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+  .fn-sw { width: 16px; height: 12px; border-radius: 2px; flex: none; }
+  .fn-sw.reach { background: var(--ltt-ink-2); }
+  .fn-sw.norm { background: repeating-linear-gradient(45deg, var(--ltt-muted) 0 1.5px, var(--ltt-card-2) 1.5px 5px); border: 1px dashed var(--ltt-muted); }
+  .fn-sw.exc { background: repeating-linear-gradient(45deg, var(--ltt-bad) 0 1.5px, var(--ltt-bad-soft) 1.5px 5px); border: 1px dashed var(--ltt-bad); }
+  .fn-sw.fix { background: var(--ltt-good); }
+  .fn-sw.tick { height: 0; border-top: 2px dashed var(--ltt-ink); border-radius: 0; }
+  @media (prefers-reduced-motion: reduce) { .fn-fade { transition: none; } }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const START = 10000;
+const RATE = [0.7, 0.9, 0.6, 0.9];   // 직전 단계 대비 실제 전환율
+const BASE = [0.7, 0.9, 0.85, 0.9];  // 기준선(가정)
+const NAMES = ["장바구니", "배송 정보", "결제 수단", "카드 입력·인증", "주문 완료"];
+const r1 = (v) => Math.round(v * 10) / 10;
+const A = [START]; RATE.forEach((r, i) => A.push(r1(A[i] * r)));          // 실제 도달
+const FX = [START]; BASE.forEach((r, i) => FX.push(r1(FX[i] * (i < 2 ? RATE[i] : r)))); // 인증을 기준만큼 고친 도달
+const EXC = Math.round(A[2] * (BASE[2] - RATE[2]));                        // 기준보다 더 떠난 몫
+const fmt = (v) => Math.round(v).toLocaleString("en-US");
+
+LTT.expect("카드 인증 도달", A[3], 3780, { tol: 1e-6 });
+LTT.expect("주문 완료 도달", A[4], 3402, { tol: 1e-6 });
+LTT.expect("기준 인증 시 완료", FX[4], 4819.5, { tol: 1e-6 });
+LTT.expect("기준보다 더 떠난 몫", EXC, 1575, { tol: 1e-6 });
+LTT.expect("누적 전환율", A[4] / START, 0.3402, { tol: 1e-9 });
+
+const W = 920, H = 410, B = 330, S = 270 / START, BW = 80, PITCH = 176, X0 = 96;
+const cx = (i) => X0 + PITCH * i;
+const yv = (v) => B - v * S;
+
+// 단계 k(0–5)에서 열마다 쌓이는 조각: r 도달, f 고쳐서 회수, e 기준보다 더 떠난 몫, n 정상 이탈
+function colsAt(k) {
+  return A.map((a, i) => {
+    if (i === 0) return { r: a, f: 0, e: 0, n: 0 };
+    if (k >= 4) { const prev = FX[i - 1]; return { r: a, f: FX[i] - a, e: 0, n: prev - FX[i] }; }
+    const loss = A[i - 1] - a, ex = i === 3 ? EXC : 0;
+    if (k === 0) return { r: a, f: 0, e: 0, n: 0 };
+    if (k === 3) return { r: a, f: 0, e: ex, n: loss - ex };
+    return { r: a, f: 0, e: 0, n: loss };
+  });
+}
+
+function funnel(el) {
+  const wrap = el.appendChild(document.createElement("div")); wrap.className = "fn-wrap";
+  const s = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.setAttribute("class", "fn-svg");
+  s.setAttribute("role", "img");
+  s.setAttribute("aria-label", "결제 퍼널 5단계 막대. 단계마다 도달 세션이 줄고, 카드 입력·인증 단계만 기준선보다 크게 아래다.");
+  const ms = () => (LTT.MOTION_MS == null ? 450 : LTT.MOTION_MS);
+  const mk = (tag, attrs, parent) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); (parent || s).appendChild(n); return n; };
+  const tx = (x, y, str, cls, parent) => { const n = mk("text", { x, y, class: cls }, parent); n.textContent = str; return n; };
+
+  s.insertAdjacentHTML("beforeend", `<defs>
+    <pattern id="fn-hn" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--ltt-card-2)"/><line x1="0" y1="0" x2="0" y2="6" stroke-width="2" style="stroke:var(--ltt-muted)"/></pattern>
+    <pattern id="fn-he" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--ltt-bad-soft)"/><line x1="0" y1="0" x2="0" y2="6" stroke-width="2" style="stroke:var(--ltt-bad)"/></pattern>
+    <marker id="fn-ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" style="fill:var(--ltt-muted)"/></marker>
+  </defs>`);
+  mk("line", { x1: 30, x2: 890, y1: B, y2: B, style: "stroke:var(--ltt-line-2);stroke-width:1.5" });
+
+  // 포커스 틀 + 배지 + 정보 상자
+  const frame = mk("rect", { x: cx(3) - 54, y: 104, width: 108, height: 292, rx: 10, class: "fn-fade", style: "fill:none;stroke:var(--ltt-accent);stroke-width:2;stroke-dasharray:6 4;opacity:0" });
+  const badgeG = mk("g", { class: "fn-fade", style: "opacity:0" });
+  mk("rect", { x: cx(3) - 52, y: 112, width: 104, height: 24, rx: 12, style: "fill:var(--ltt-accent)" }, badgeG);
+  tx(cx(3), 129, "먼저 고칠 곳", "fn-badge", badgeG);
+  const box = mk("g", { class: "fn-fade", style: "opacity:0" });
+  mk("rect", { x: 696, y: 18, width: 216, height: 94, rx: 8, style: "fill:var(--ltt-card);stroke:var(--ltt-line-2)" }, box);
+  const bh = tx(710, 44, "", "fn-box-h", box), b1 = tx(710, 68, "", "fn-box-t", box), b2 = tx(710, 88, "", "fn-box-t", box), b3 = tx(710, 106, "", "fn-box-t", box);
+  const tagTop = tx(cx(1), 36, "가장 많이 떠남", "fn-tag fn-fade", s); tagTop.style.opacity = 0;
+
+  const cols = NAMES.map((name, i) => {
+    const o = {};
+    const x = cx(i) - BW / 2;
+    const rect = (fill, extra) => mk("rect", Object.assign({ x, width: BW, rx: 2, style: `fill:${fill};${extra || ""}` }, {}));
+    o.n = rect("url(#fn-hn)", "stroke:var(--ltt-muted);stroke-dasharray:4 3;stroke-width:1");
+    o.e = rect("url(#fn-he)", "stroke:var(--ltt-bad);stroke-width:1");
+    o.f = rect("var(--ltt-good)");
+    o.r = rect("var(--ltt-ink-2)");
+    o.loss = tx(cx(i), 0, "", "fn-loss fn-fade", s);
+    o.exc = tx(cx(i), 0, "", "fn-exc fn-fade", s);
+    tx(cx(i), 352, name, "fn-name");
+    o.count = tx(cx(i), 374, fmt(A[i]), "fn-count"); o.cv = A[i];
+    if (i > 0) {
+      o.tick = mk("line", { x1: x - 8, x2: x + BW + 8, class: "fn-fade", style: "stroke:var(--ltt-ink);stroke-width:2;stroke-dasharray:5 3;opacity:0" });
+    }
+    if (i < 4) {
+      const gx = cx(i) + PITCH / 2;
+      mk("line", { x1: cx(i) + BW / 2 + 8, x2: cx(i + 1) - BW / 2 - 8, y1: 296, y2: 296, "marker-end": "url(#fn-ar)", style: "stroke:var(--ltt-muted);stroke-width:1.5" });
+      o.rate = tx(gx, 286, Math.round(RATE[i] * 100) + "%", "fn-rate fn-fade" + (i === 2 ? " hot" : ""), s); o.rate.style.opacity = 0;
+      o.base = tx(gx, 316, "기준 " + Math.round(BASE[i] * 100) + "%", "fn-small fn-fade", s); o.base.style.opacity = 0;
+      o.gap = tx(gx, 262, i === 2 ? "−25%p" : "기준과 같음", "fn-gap fn-fade" + (i === 2 ? " bad" : ""), s); o.gap.style.opacity = 0;
+    }
+    return o;
+  });
+  tx(40, 296, "", "fn-small", s);
+
+  const setRect = (n, base, h) => {
+    n.style.transition = ms() ? `y ${ms()}ms ease, height ${ms()}ms ease` : "none";
+    n.style.y = (yv(base + h)) + "px"; n.style.height = Math.max(0, h * S) + "px";
+    n.style.opacity = h > 0.5 ? 1 : 0;
+  };
+  const show = (n, on) => { n.style.opacity = on ? 1 : 0; };
+  const countTo = (o, to) => {
+    if (o.cv === to) return;
+    const from = o.cv; o.cv = to; const dur = ms();
+    if (!dur) { o.count.textContent = fmt(to); return; }
+    const t0 = performance.now();
+    const tick = (t) => { const p = Math.min(1, (t - t0) / dur); o.count.textContent = fmt(from + (to - from) * p); if (p < 1 && o.cv === to) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  };
+
+  function render(k) {
+    const st = colsAt(k);
+    st.forEach((c, i) => {
+      const o = cols[i];
+      setRect(o.r, 0, c.r); setRect(o.f, c.r, c.f); setRect(o.e, c.r + c.f, c.e); setRect(o.n, c.r + c.f + c.e, c.n);
+      const top = c.r + c.f + c.e + c.n, lossV = c.e + c.n;
+      o.loss.textContent = lossV > 0.5 ? "−" + fmt(lossV) : "";
+      o.loss.setAttribute("y", yv(top) - 8);
+      show(o.loss, k >= 1 && lossV > 0.5);
+      if (i === 1) o.loss.style.fontSize = k === 1 ? "18px" : "14px";
+      if (i === 3) {
+        o.exc.textContent = "−" + fmt(EXC); o.exc.setAttribute("y", yv(c.r) - (EXC * S) / 2 + 5);
+        show(o.exc, k === 3);
+        o.loss.style.fill = k === 3 ? "var(--ltt-ink-2)" : "";
+      }
+      countTo(o, c.r + c.f);
+      if (o.tick) {
+        const lv = (k >= 4 ? FX[i - 1] : A[i - 1]) * BASE[i - 1];
+        o.tick.setAttribute("y1", yv(lv)); o.tick.setAttribute("y2", yv(lv)); show(o.tick, k >= 3);
+      }
+      if (o.rate) { show(o.rate, k >= 2); show(o.base, k >= 3); show(o.gap, k >= 3); }
+    });
+    show(tagTop, k === 1 || k === 2);
+    show(frame, k >= 3); show(badgeG, k >= 5);
+    if (k === 3) { bh.textContent = "인증 이탈 2,520 중"; b1.textContent = "1,575는 기준보다"; b2.textContent = "더 떠난 몫이다"; b3.textContent = "장바구니 3,000은 기준과 같다"; }
+    if (k >= 4) { bh.textContent = "완료 3,402 → 4,820"; b1.textContent = "+1,418건 (+41.7%)"; b2.textContent = "누적 전환 34.0% → 48.2%"; b3.textContent = "인증 이후 단계가 같은 비율로 커진다"; }
+    show(box, k >= 3);
+  }
+
+  wrap.insertAdjacentHTML("beforeend", `<div class="fn-legend">
+    <span><i class="fn-sw reach"></i>그 단계에 도달한 세션</span>
+    <span><i class="fn-sw norm"></i>직전 단계에서 떠난 세션</span>
+    <span><i class="fn-sw exc"></i>기준보다 더 떠난 세션</span>
+    <span><i class="fn-sw tick"></i>기준 전환율로 기대한 높이</span>
+    <span><i class="fn-sw fix"></i>고치면 남는 세션</span></div>`);
+  render(0);
+  return { el: wrap, render };
+}
+
+const scene = {
+  type: "figure", number: false,
+  kicker: "UX · 결제 퍼널",
+  title: "가장 많이 떠난 곳이 아니라 기준보다 더 떠난 곳부터 고친다",
+  en: "Fix the step that loses more than expected, not the one that loses most",
+  sub: "세션 10,000건으로 본 5단계 결제 퍼널. 막대는 그 단계에 도달한 세션, 빗금은 직전 단계에서 떠난 세션이다. 화살표 위 숫자는 {{전환율}}, 아래는 {{기준선}}이다.",
+  chips: ["결제 퍼널", "이탈", "기준선 대비 부족분"],
+  figure: funnel,
+  steps: [
+    { caption: "① 장바구니 10,000세션에서 시작해 단계마다 도달한 세션이 줄어든다", enter: (k, f) => f.render(0) },
+    { caption: "② 빗금이 떠난 세션이다. 장바구니→배송 정보의 3,000이 가장 커서 여기부터 고치고 싶어진다", enter: (k, f) => f.render(1) },
+    { caption: "③ 직전 단계 대비 전환율로 보면 가장 낮은 곳은 카드 입력·인증의 60%다", enter: (k, f) => f.render(2) },
+    { caption: "④ 기준선을 겹치면 장바구니는 기준과 같고(구경하다 떠나는 몫), 인증만 25%p 아래다. 붉은 빗금이 화면을 고쳐 되찾을 수 있는 몫", enter: (k, f) => f.render(3) },
+    { caption: "⑤ 인증을 기준 85%로 고치면 도달이 3,780 → 5,355로 늘고, 뒤 단계 완료도 3,402 → 약 4,820으로 같이 늘어난다", enter: (k, f) => f.render(4) },
+    { caption: "⑥ 결정: 카드 입력·인증부터 고친 뒤, 남은 단계를 기준선과 다시 비교한다", enter: (k, f) => f.render(5) }
+  ],
+  takeaway: "고칠 순서는 떠난 사람 수가 아니라 기준 대비 부족분이 정한다. 인증은 25%p 아래라 먼저 고친다.",
+  recall: "이탈 인원이 가장 많은 장바구니를 먼저 고치지 않는 까닭은?",
+  basis: "가상 데이터(세션 10,000건)이며 기준선은 설명을 위한 가정 참고치다. 전환율은 직전 단계 도달 대비, 누적 전환율은 첫 단계 대비. 모델로 계산한 예시.",
+  sources: ["실제 서비스의 기준선은 같은 제품의 지난 분기 전환율이나 업계 벤치마크로 정한다"]
+};
+
+LTT.deck({
+  title: "결제 퍼널 이탈 지점",
+  theme: "studio",
+  glossary: {
+    "전환율": "직전 단계에 도달한 세션 중 다음 단계로 넘어간 비율. 이탈률은 1에서 뺀 값이다.",
+    "기준선": "이 단계는 이 정도는 넘겨야 한다고 잡아 둔 참고 전환율. 이 글의 값은 가정이다."
+  },
+  scenes: [scene]
+});
+</script>
+</body>
+</html>

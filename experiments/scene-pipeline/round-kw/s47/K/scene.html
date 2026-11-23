@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>국가별 전력 믹스</title>
+<script type="application/json" id="ltt-meta">{"topic":"국가별 전력 믹스","audience":"에너지 정책 입문자","theme":"atlas","medium":"에너지 통계 차트","decision":"전원 구성 비교","domain":"에너지","role":"sweep"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.en-ctl{display:flex;flex-wrap:wrap;gap:8px 28px;align-items:center;margin-bottom:6px}
+.en-ctl .ltt-param{margin:0}
+.en-ctl input[type=range]{width:220px;max-width:100%}
+.en-play{font:inherit;font-size:15px;padding:4px 12px;border:1px solid var(--ltt-line-2);border-radius:999px;background:var(--ltt-card);color:var(--ltt-ink);cursor:pointer}
+.en-fig{width:100%;height:auto;display:block;min-width:0}
+.en-fig text{font-family:inherit}
+.en-say{margin:6px 0 0;font-size:17px;color:var(--ltt-ink);min-height:1.5em}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// 전원: 이름, 색, 수명주기 배출계수(g CO2eq/kWh, IPCC 중앙값 근사)
+const SRC = [
+  { k: "석탄", c: "--ltt-c1", ef: 820 }, { k: "가스", c: "--ltt-c2", ef: 490 }, { k: "원자력", c: "--ltt-c3", ef: 12 },
+  { k: "수력", c: "--ltt-c4", ef: 24 }, { k: "풍력+태양광", c: "--ltt-c5", ef: 30 }, { k: "기타", c: "--ltt-c6", ef: 230 }
+];
+const Y0 = 2015, N = 20; // 2015~2035, 시작·끝 값을 직선으로 잇는 모델
+// 가상 국가의 시작(a)·끝(b) 발전량, TWh. 순서는 SRC와 같다.
+const CTRY = {
+  A: { name: "가상 국가 A · 석탄형", a: [200, 80, 60, 30, 10, 20], b: [200, 110, 60, 35, 165, 30] },
+  B: { name: "가상 국가 B · 원전·수력형", a: [40, 60, 220, 150, 20, 10], b: [10, 50, 220, 155, 190, 15] },
+  C: { name: "가상 국가 C · 가스형", a: [60, 250, 30, 20, 25, 15], b: [20, 280, 30, 20, 180, 20] }
+};
+const twh = (cc, t) => cc.a.map((v, i) => v + (cc.b[i] - v) * t / N);
+const sum = (a) => a.reduce((p, v) => p + v, 0);
+const intensity = (v) => v.reduce((p, x, i) => p + x * SRC[i].ef, 0) / sum(v); // g/kWh
+LTT.expect("예시 국가 배출강도(500 TWh)", intensity([200, 100, 100, 50, 50, 0]), 433.8, { tol: 1e-9 });
+LTT.expect("A국 2015 석탄 비중", twh(CTRY.A, 0)[0] / sum(twh(CTRY.A, 0)) * 100, 50, { tol: 1e-9 });
+LTT.expect("A국 2035 석탄 비중", twh(CTRY.A, N)[0] / sum(twh(CTRY.A, N)) * 100, 100 / 3, { tol: 1e-9 });
+LTT.expect("A국 석탄 발전량 변화", twh(CTRY.A, N)[0] - twh(CTRY.A, 0)[0], 0, { tol: 1e-9 });
+[CTRY.A, CTRY.B, CTRY.C].forEach((c, i) => { LTT.expect("국가 " + "ABC"[i] + " 시작 비중 합", twh(c, 0).reduce((p, v) => p + v / sum(twh(c, 0)) * 100, 0), 100, { tol: 1e-9 }); });
+
+function energyFigure(host) {
+  const W = 1060, H = 500, L = 64, R = 640, T1 = 44, B1 = 232, T2 = 284, B2 = 440, YM = 700, X0 = 770;
+  const x = (i) => L + (R - L) * i / N;
+  const yT = (v) => B1 - (B1 - T1) * v / YM, yS = (p) => B2 - (B2 - T2) * p / 100;
+  const s = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "en-fig", "data-annotate": "" }, host);
+  const t = (a, txt, st, p) => { const n = mk("text", a, p || s); n.setAttribute("style", st); if (txt != null) n.textContent = txt; return n; };
+  const MUT = "font-size:15px;fill:var(--ltt-muted)";
+  // 축·격자
+  for (let i = 0; i <= N; i += 5) { [[T1, B1], [T2, B2]].forEach(([a, b]) => mk("line", { x1: x(i), x2: x(i), y1: a, y2: b, style: "stroke:var(--ltt-line);stroke-width:1" }, s));
+    t({ x: x(i), y: B2 + 22, "text-anchor": "middle" }, Y0 + i, MUT); }
+  [0, 200, 400, 600].forEach((v) => { mk("line", { x1: L, x2: R, y1: yT(v), y2: yT(v), style: "stroke:var(--ltt-line);stroke-width:1" }, s);
+    t({ x: L - 8, y: yT(v) + 5, "text-anchor": "end" }, v, MUT); });
+  [0, 25, 50, 75, 100].forEach((p) => { mk("line", { x1: L, x2: R, y1: yS(p), y2: yS(p), style: "stroke:var(--ltt-line);stroke-width:1" }, s);
+    t({ x: L - 8, y: yS(p) + 5, "text-anchor": "end" }, p, MUT); });
+  t({ x: L, y: 28 }, "전원별 발전량 (TWh)", "font-size:17px;font-weight:700;fill:var(--ltt-ink)");
+  t({ x: L, y: 268 }, "같은 발전량의 비중 (%, 합 100)", "font-size:17px;font-weight:700;fill:var(--ltt-ink)");
+  // 층: 흐린 전체 + 커서까지 밝은 부분
+  const defs = mk("defs", {}, s), cp = mk("clipPath", { id: "en-clip" }, defs), cr = mk("rect", { x: 0, y: 0, height: H }, cp);
+  const gDim = mk("g", {}, s), gOn = mk("g", { "clip-path": "url(#en-clip)" }, s);
+  const dimP = SRC.map((o) => mk("path", { style: `fill:var(${o.c});fill-opacity:.28` }, gDim));
+  const onP = SRC.map((o) => mk("path", { style: `fill:var(${o.c});fill-opacity:.95;stroke:var(--ltt-card);stroke-width:1` }, gOn));
+  const fl1 = t({ "text-anchor": "start" }, "", "font-size:15px;font-weight:700;fill:var(--ltt-on-dark)");
+  const fl2 = t({ "text-anchor": "start" }, "", "font-size:15px;font-weight:700;fill:var(--ltt-on-dark)");
+  // 시작 연도 기준선
+  const g1 = mk("line", { x1: L, x2: R, style: "stroke:var(--ltt-ink);stroke-width:1.5;stroke-dasharray:6 5" }, s);
+  const g2 = mk("line", { x1: L, x2: R, style: "stroke:var(--ltt-ink);stroke-width:1.5;stroke-dasharray:6 5" }, s);
+  const gl1 = t({ x: R - 4, "text-anchor": "end" }, "", "font-size:15px;fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-card);stroke-width:4px");
+  const gl2 = t({ x: R - 4, "text-anchor": "end" }, "", "font-size:15px;fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-card);stroke-width:4px");
+  // 커서
+  const cur = mk("line", { y1: T1, y2: B2, style: "stroke:var(--ltt-accent);stroke-width:2" }, s);
+  const br1 = mk("line", { style: "stroke:var(--ltt-accent);stroke-width:5;stroke-linecap:round" }, s);
+  const br2 = mk("line", { style: "stroke:var(--ltt-accent);stroke-width:5;stroke-linecap:round" }, s);
+  const d1 = mk("line", { style: "stroke:var(--ltt-ink);stroke-width:3" }, s);
+  const d2 = mk("line", { style: "stroke:var(--ltt-ink);stroke-width:3" }, s);
+  const dl1 = t({}, "", "font-size:15px;font-weight:700;fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-card);stroke-width:4px");
+  const dl2 = t({}, "", "font-size:15px;font-weight:700;fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-card);stroke-width:4px");
+  const dot = mk("circle", { r: 5, style: "fill:var(--ltt-ink)" }, s);
+  const totL = t({}, "", "font-size:15px;font-weight:700;fill:var(--ltt-ink)");
+  t({ x: R, y: B2 + 46, "text-anchor": "end" }, "연도 (가상 모델)", MUT);
+  // 오른쪽 판독
+  const title = t({ x: X0, y: 34 }, "", "font-size:18px;font-weight:700;fill:var(--ltt-ink)");
+  const yearT = t({ x: X0, y: 84 }, "", "font-size:40px;font-weight:800;fill:var(--ltt-accent)");
+  const focT = t({ x: X0, y: 118 }, "", "font-size:15px;fill:var(--ltt-muted)");
+  const BIG = "font-size:26px;font-weight:800;fill:var(--ltt-ink)";
+  const cols = [X0, X0 + 150];
+  const lab = (c, y, txt) => t({ x: cols[c], y }, txt, MUT);
+  lab(0, 146, "주목 전원 비중"); lab(1, 146, "주목 전원 발전량");
+  const vShare = t({ x: cols[0], y: 176 }, "", BIG), vTwh = t({ x: cols[1], y: 176 }, "", BIG);
+  const sShare = t({ x: cols[0], y: 198 }, "", MUT), sTwh = t({ x: cols[1], y: 198 }, "", MUT);
+  lab(0, 232, "총 발전량"); lab(1, 232, "배출강도 (g CO2eq/kWh)");
+  const vTot = t({ x: cols[0], y: 262 }, "", BIG), vInt = t({ x: cols[1], y: 262 }, "", BIG);
+  const sTot = t({ x: cols[0], y: 284 }, "", MUT), sInt = t({ x: cols[1], y: 284 }, "", MUT);
+  t({ x: X0 + 20, y: 318 }, "전원", MUT); t({ x: 940, y: 318, "text-anchor": "end" }, "TWh", MUT); t({ x: 1040, y: 318, "text-anchor": "end" }, "비중", MUT);
+  const rows = SRC.map((o, i) => { const y = 340 + 19 * i;
+    const hl = mk("rect", { x: X0 - 4, y: y - 15, width: 280, height: 19, rx: 3, style: "fill:var(--ltt-accent-soft);display:none" }, s);
+    mk("rect", { x: X0, y: y - 11, width: 12, height: 12, style: `fill:var(${o.c})` }, s);
+    return { hl, n: t({ x: X0 + 20, y }, o.k, "font-size:15px;fill:var(--ltt-ink)"), a: t({ x: 940, y, "text-anchor": "end" }, "", "font-size:15px;fill:var(--ltt-ink)"),
+      b: t({ x: 1040, y, "text-anchor": "end" }, "", "font-size:15px;fill:var(--ltt-ink)") }; });
+  mk("line", { x1: X0, x2: 1040, y1: 448, y2: 448, style: "stroke:var(--ltt-line-2);stroke-width:1" }, s);
+  t({ x: X0 + 20, y: 468 }, "합계", "font-size:15px;font-weight:700;fill:var(--ltt-ink)");
+  const sumA = t({ x: 940, y: 468, "text-anchor": "end" }, "", "font-size:15px;font-weight:700;fill:var(--ltt-ink)");
+  const sumB = t({ x: 1040, y: 468, "text-anchor": "end" }, "", "font-size:15px;font-weight:700;fill:var(--ltt-ink)");
+
+  const f0 = (v) => Math.round(v), f1 = (v) => v.toFixed(1);
+  const sg = (v, u, d) => (Math.abs(v) < 0.05 ? "±0" : (v > 0 ? "+" : "−") + Math.abs(v).toFixed(d)) + u;
+  function draw(st) {
+    const cc = CTRY[st.country], fi = st.focus, i0 = st.year - Y0;
+    const yrs = []; for (let i = 0; i <= N; i++) yrs.push(twh(cc, i));
+    const tots = yrs.map(sum);
+    const order = [fi, ...SRC.map((_, k) => k).filter((k) => k !== fi)];
+    const cumT = {}, cumS = {};
+    order.forEach((k, j) => { cumT[k] = [[], []]; cumS[k] = [[], []]; });
+    for (let i = 0; i <= N; i++) { let c = 0; order.forEach((k) => { cumT[k][0].push(c); c += yrs[i][k]; cumT[k][1].push(c);
+      cumS[k][0].push(cumT[k][0][i] / tots[i] * 100); cumS[k][1].push(c / tots[i] * 100); }); }
+    const path = (lo, hi, y) => { let d = ""; for (let i = 0; i <= N; i++) d += (i ? "L" : "M") + x(i).toFixed(1) + "," + y(hi[i]).toFixed(1);
+      for (let i = N; i >= 0; i--) d += "L" + x(i).toFixed(1) + "," + y(lo[i]).toFixed(1); return d + "Z"; };
+    // 위·아래 두 그림을 한 path로 이어 같은 clip을 받게 한다
+    SRC.forEach((o, k) => { const d = path(cumT[k][0], cumT[k][1], yT) + path(cumS[k][0], cumS[k][1], yS); dimP[k].setAttribute("d", d); onP[k].setAttribute("d", d); });
+    const X = x(i0); cr.setAttribute("width", X);
+    const v = yrs[i0], tot = tots[i0], v0 = yrs[0], tot0 = tots[0];
+    const T = v[fi], T0 = v0[fi], S = T / tot * 100, S0 = T0 / tot0 * 100, nm = SRC[fi].k;
+    // 주목 전원 라벨
+    const lbl = (el, lo, hi, y) => { const a = y(lo[1]), b = y(hi[1]); el.textContent = (b - a) > 18 ? nm : ""; el.setAttribute("x", x(1)); el.setAttribute("y", (a + b) / 2 + 5); };
+    lbl(fl1, cumT[fi][0], cumT[fi][1], yT); lbl(fl2, cumS[fi][0], cumS[fi][1], yS);
+    // 기준선
+    [[g1, gl1, yT(T0), Y0 + "년 " + nm + " " + f0(T0) + " TWh"], [g2, gl2, yS(S0), Y0 + "년 " + nm + " " + f1(S0) + "%"]].forEach(([g, gl, y, txt]) => {
+      g.setAttribute("y1", y); g.setAttribute("y2", y); gl.setAttribute("y", y - 6); gl.textContent = txt; });
+    // 커서·괄호
+    cur.setAttribute("x1", X); cur.setAttribute("x2", X);
+    const bk = (br, d, yb, yv, yg, dl, txt) => { br.setAttribute("x1", X); br.setAttribute("x2", X); br.setAttribute("y1", yb); br.setAttribute("y2", yv);
+      d.setAttribute("x1", X + 7); d.setAttribute("x2", X + 7); d.setAttribute("y1", yg); d.setAttribute("y2", yv);
+      const right = X < R - 170; dl.textContent = txt; dl.setAttribute("text-anchor", right ? "start" : "end");
+      dl.setAttribute("x", right ? X + 16 : X - 12); dl.setAttribute("y", Math.min(yg, yv) - 8); };
+    bk(br1, d1, yT(0), yT(T), yT(T0), dl1, "시작 대비 " + sg(T - T0, " TWh", 0));
+    bk(br2, d2, yS(0), yS(S), yS(S0), dl2, "시작 대비 " + sg(S - S0, "%p", 1));
+    dot.setAttribute("cx", X); dot.setAttribute("cy", yT(tot));
+    totL.textContent = "총 " + f0(tot) + " TWh"; const rt = X < R - 120;
+    totL.setAttribute("text-anchor", rt ? "start" : "end"); totL.setAttribute("x", rt ? X + 10 : X - 10); totL.setAttribute("y", yT(tot) - 10);
+    // 판독
+    title.textContent = cc.name; yearT.textContent = st.year + "년"; focT.textContent = "주목 전원: " + nm;
+    vShare.textContent = f1(S) + "%"; vTwh.textContent = f0(T) + " TWh";
+    sShare.textContent = Y0 + "년 " + f1(S0) + "%"; sTwh.textContent = Y0 + "년 " + f0(T0) + " TWh";
+    vTot.textContent = f0(tot) + " TWh"; sTot.textContent = Y0 + "년 " + f0(tot0) + " TWh";
+    vInt.textContent = f0(intensity(v)); sInt.textContent = Y0 + "년 " + f0(intensity(v0));
+    rows.forEach((r, k) => { r.a.textContent = f0(v[k]); r.b.textContent = f1(v[k] / tot * 100) + "%"; r.hl.style.display = k === fi ? "" : "none"; });
+    sumA.textContent = f0(tot); sumB.textContent = "100%";
+    return { T, T0, S, S0, tot, tot0, nm, i0 };
+  }
+  return { el: s, draw };
+}
+
+function verdict(r) {
+  if (r.i0 === 0) return `시작 연도: ${r.nm}는 총 ${Math.round(r.tot0)} TWh 중 ${Math.round(r.T0)} TWh, 비중 ${r.S0.toFixed(1)}%다. ▶로 연도를 훑거나 손잡이를 움직여 본다.`;
+  const dS = r.S - r.S0, same = r.T >= r.T0 * 0.98 ? (r.T > r.T0 * 1.02 ? "늘었다" : "그대로다") : "줄었다";
+  if (dS < -0.5 && same !== "줄었다") return `${r.nm} 비중은 ${r.S0.toFixed(1)}→${r.S.toFixed(1)}%로 줄었지만 발전량은 ${Math.round(r.T0)}→${Math.round(r.T)} TWh로 ${same}. 총 발전량이 ${Math.round(r.tot0)}→${Math.round(r.tot)} TWh로 커져 분모가 달라졌다.`;
+  if (dS < -0.5) return `${r.nm}는 비중(${r.S0.toFixed(1)}→${r.S.toFixed(1)}%)도 발전량(${Math.round(r.T0)}→${Math.round(r.T)} TWh)도 줄었다. 이때는 실제로 덜 쓴 것이다.`;
+  if (dS > 0.5) return `${r.nm} 비중은 ${r.S0.toFixed(1)}→${r.S.toFixed(1)}%로 커졌다. 합이 100%라서 그만큼 다른 전원의 비중이 밀려난다.`;
+  return `${r.nm} 비중은 ${r.S0.toFixed(1)}→${r.S.toFixed(1)}%로 거의 그대로다. 발전량은 ${Math.round(r.T0)}→${Math.round(r.T)} TWh.`;
+}
+
+LTT.deck({
+  title: "국가별 전력 믹스", theme: "atlas",
+  glossary: {
+    "전원 믹스": "전기를 만드는 방식(석탄·가스·원자력·수력·풍력+태양광 등)이 발전량에서 각각 차지하는 구성",
+    "배출강도": "전기 1kWh를 만들 때 나오는 온실가스를 수명주기 기준 CO2eq 그램으로 나타낸 값"
+  },
+  scenes: [{
+    layout: "full",
+    title: "전원 비중(%)이 줄어도 발전량(TWh)은 줄지 않았을 수 있다",
+    sub: "위는 전원별 발전량(TWh), 아래는 같은 값을 총량으로 나눈 비중(%)이다. 주목 전원이 맨 아래에 쌓여 두 그림에서 높이를 바로 읽는다. 연도를 훑으며 {{전원 믹스}}와 {{배출강도}}가 어떻게 달라지는지 본다.",
+    mount(body) {
+      body.innerHTML = `<div class="en-ctl">
+        <div class="ltt-param">국가 <b id="country-v"></b><div id="country"></div></div>
+        <div class="ltt-param">주목 전원 <b id="focus-v"></b><div id="focus"></div></div>
+        <div class="ltt-param">연도 <b id="year-v"></b><input type="range" id="year" min="0" max="${N}" step="1" value="0" aria-label="연도"> <button type="button" class="en-play" id="play">▶ 재생</button></div>
+      </div><div id="fig"></div><p class="en-say" id="say" aria-live="polite"></p>`;
+      const fig = energyFigure(body.querySelector("#fig")), say = body.querySelector("#say"), btn = body.querySelector("#play"), inp = body.querySelector("#year");
+      const show = (v) => { const r = fig.draw({ country: v.country[0], focus: Math.max(0, SRC.findIndex((o) => o.k === v.focus)), year: v.year }); say.textContent = verdict(r); };
+      show({ country: "A", focus: "석탄", year: Y0 });
+      LTT.sweep({
+        params: {
+          country: { kind: "steps", stops: ["A 석탄형", "B 원전·수력형", "C 가스형"], value: "A 석탄형", fmt: () => "" },
+          focus: { kind: "steps", stops: ["석탄", "가스", "원자력", "수력", "풍력+태양광"], value: "석탄", fmt: () => "" },
+          year: { kind: "range", map: (v) => Y0 + Number(v), fmt: (v) => v + "년" }
+        },
+        render: show
+      });
+      let timer = 0, playing = false;
+      const poke = (v) => { inp.value = v; inp.dispatchEvent(new Event("input", { bubbles: true })); };
+      const tick = () => { const v = Number(inp.value) + 1;
+        if (v > N) { timer = setTimeout(() => { poke(0); timer = setTimeout(tick, 1000); }, 2200); return; }
+        poke(v); timer = setTimeout(tick, 450); };
+      const setPlay = (on) => { playing = on; clearTimeout(timer); btn.textContent = on ? "❚❚ 멈춤" : "▶ 재생"; if (on) timer = setTimeout(tick, 900); };
+      btn.addEventListener("click", () => setPlay(!playing));
+      body.querySelector(".en-ctl").addEventListener("pointerdown", (e) => { if (e.target !== btn) setPlay(false); });
+      body.querySelector(".en-ctl").addEventListener("keydown", () => setPlay(false));
+      return {
+        enter() { if (reduced) { poke(N); return; } poke(0); setPlay(true); },
+        leave() { setPlay(false); }
+      };
+    },
+    takeaway: "전원 비중은 총 발전량으로 나눈 값이라, 총량이 커지면 발전량이 그대로여도 비중은 내려간다. 구성을 비교할 때는 비중·총량·단위를 함께 본다.",
+    recall: "A국에서 석탄 비중이 50%에서 33%로 내려가는 동안 석탄 발전량은 어떻게 변했나?",
+    basis: "가상 국가 A·B·C의 모델 수치로 실제 통계가 아니며, 2015~2035는 시작·끝 값을 직선으로 이은 모델. 발전(생산) 기준이고 수출입·소비 기준이 아님. 배출계수(g CO2eq/kWh, IPCC 수명주기 중앙값): 석탄 820, 가스 490, 원자력 12, 수력 24, 풍력+태양광 30(태양광 48·육상풍력 11을 섞은 근사), 기타는 바이오매스 230 가정(불확실). 비중은 소수 첫째 자리 반올림이라 합이 99.9~100.1로 보일 수 있다. 모델로 계산한 예시."
+  }]
+});
+</script>
+</body>
+</html>

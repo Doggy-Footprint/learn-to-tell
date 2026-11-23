@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic": "신용 창조와 통화 승수", "audience": "경제 기사 독자", "theme": "ledger", "medium": "경제 신문 차트", "decision": "통화정책 기사 해석"}</script>
+<style>
+.rv-row { display: flex; gap: 32px; align-items: baseline; flex-wrap: wrap; margin: 8px 0; }
+.rv-row small { color: var(--ltt-muted); }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+// 최초 예금 100억, 지급준비율 r, n라운드까지의 모델 값(억 원). 이론상 상한 계산이다.
+const RATES = [0.05, 0.10, 0.20];
+const COLORS = ["var(--ltt-c1)", "var(--ltt-c2)", "var(--ltt-c3)"];
+const LABELS = ["지급준비율 5%", "지급준비율 10%", "지급준비율 20%"];
+const ROUNDS = 30;
+const DEPOSIT0 = 100;
+const deposit = (r, n) => DEPOSIT0 * (1 - Math.pow(1 - r, n)) / r; // 누적 총예금
+const reserve = (r, n) => DEPOSIT0 * (1 - Math.pow(1 - r, n));     // 준비금 합계 = 누적 예금 × r
+const ceiling = (r) => DEPOSIT0 / r;                               // 극한 총예금 = 최초 예금 ÷ r
+const fmt = (v) => v.toLocaleString("ko-KR", { maximumFractionDigits: 1 });
+
+// 라운드 체크포인트는 생성 순서대로 본다. 10% 기준 수치는 모델로 계산한 예시다.
+const CHECK = [1, 2, 3, 5, 10, 30];
+const CAPTION = {
+  1: "① 최초 예금 100억이 들어온다. 지급준비율 10%면 준비금 10억을 쌓고 대출 90억을 낸다.",
+  2: "② 대출 90억을 받은 쪽이 다른 은행에 쓰고 예금한다. 새 예금 90억이 생기고 누적 예금은 190억이다.",
+  3: "③ 새 예금 90억에서 같은 일이 반복된다. 라운드 3 예금은 81억, 누적 예금은 271억이다.",
+  5: "④ 5라운드 누적 예금은 409.5억이다. 라운드마다 폭은 0.9배로 줄어도 합계는 계속 쌓인다.",
+  10: "⑤ 10라운드 누적 예금은 651억이다. 천장 1,000억에 가까워지지만 넘지 못한다.",
+  30: "⑥ 30라운드 누적 예금은 958억, 준비금 합계는 약 96억이다. 극한에서 준비금은 최초 예금 100억과 같아진다.",
+};
+
+const rateFigure = (el) => {
+  const frame = LTT.chartFrame({
+    title: "지급준비율이 낮을수록 같은 예금에서 천장이 높다",
+    dek: "누적 총예금(억 원), 라운드별 · 점선은 극한 천장(최초 예금 ÷ 지급준비율)",
+    source: "가정: 현금 보유·초과 준비금 없음 · 모델로 계산한 예시, 이론상 상한",
+  });
+  const plot = LTT.axisPlot(frame.el, {
+    width: 880, height: 300,
+    x: [0, ROUNDS], y: [0, 2100],
+    labels: { x: "라운드", y: "억 원" },
+    series: [
+      ...RATES.map((r, i) => ({ id: "c" + i, color: COLORS[i] })),
+      ...RATES.map((r, i) => ({ id: "t" + i, color: COLORS[i], dash: true })),
+    ],
+  });
+  RATES.forEach((r, i) => plot.set("t" + i, [[0, ceiling(r)], [ROUNDS, ceiling(r)]]));
+
+  const row = document.createElement("div");
+  row.className = "rv-row";
+  row.innerHTML = `<div class="ltt-hero"><span id="dep">100</span><small>억 원 · 누적 총예금</small></div>`
+    + `<div class="ltt-hero"><span id="res">10</span><small>억 원 · 준비금 합계(지급준비율 10%)</small></div>`;
+  frame.el.appendChild(row);
+
+  const key = document.createElement("div");
+  key.className = "ltt-key";
+  key.innerHTML = RATES.map((r, i) => `<span>${LTT.mark("square", { color: COLORS[i], inline: true })} ${LABELS[i]} · 천장 ${fmt(ceiling(r))}억</span>`).join("");
+  frame.el.appendChild(key);
+  frame.foot();
+
+  const draw = (n) => {
+    RATES.forEach((r, i) => {
+      const pts = [[0, 0]];
+      for (let k = 1; k <= n; k++) pts.push([k, deposit(r, k)]);
+      plot.set("c" + i, pts);
+    });
+    row.querySelector("#dep").textContent = fmt(deposit(0.1, n));
+    row.querySelector("#res").textContent = fmt(reserve(0.1, n));
+  };
+  draw(1);
+  return { el: frame.el, draw };
+};
+
+const scene = {
+  type: "figure",
+  kicker: "통화 · 신용 창조",
+  title: "대출이 새 예금을 만들어 총예금은 최초 예금 ÷ 지급준비율에 가까워진다",
+  en: "Loans create new deposits, so total deposits approach initial deposit ÷ reserve ratio",
+  sub: "{{지급준비율}} 10%, 최초 예금 100억. 대출이 라운드마다 다시 예금으로 돌아온다",
+  figure: rateFigure,
+  steps: CHECK.map((n) => ({ caption: CAPTION[n], enter: (k, f) => f.draw(n) })),
+  takeaway: "총예금의 상한은 최초 예금 ÷ 지급준비율이다. 이 배수를 {{통화 승수}}라 한다.",
+  recall: "지급준비율을 낮추면 곧바로 승수만큼 통화가 늘어날까?",
+  basis: "지급준비율이 낮아지면 상한이 올라갈 뿐이다. 실제 증가는 대출 수요와 은행 행동에 달려 있다.",
+};
+
+LTT.deck({
+  title: "신용 창조와 통화 승수",
+  theme: "ledger",
+  glossary: {
+    "지급준비율": "은행이 받은 예금 중 대출하지 않고 쌓아 두는 비율",
+    "통화 승수": "최초 예금 한 단위가 총예금을 몇 배로 만드는지. 이론상 1 ÷ 지급준비율",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

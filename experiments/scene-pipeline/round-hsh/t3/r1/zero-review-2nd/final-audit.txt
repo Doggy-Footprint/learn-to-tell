@@ -1,0 +1,6 @@
+## 1440x900
+  권고 장면1 small-visual: 가장 큰 그림이 화면의 18%뿐이다. 그림을 키우거나 layout: "full"
+  권고 lint unused-term: glossary의 'term'가 어디에도 표시되지 않았다
+## 1280x800
+  권고 lint unused-term: glossary의 'term'가 어디에도 표시되지 않았다
+고침 0건

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>가비지 컬렉션 방식</title>
+<script type="application/json" id="ltt-meta">{"topic":"가비지 컬렉션 방식","audience":"애플리케이션 개발자","theme":"terminal","medium":"힙 스냅샷·메모리 프로파일러","decision":"메모리 누수 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.gc{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%}
+.gc .side{border:1px solid var(--ltt-line);border-radius:8px;padding:8px 10px;background:var(--ltt-card);min-width:0}
+.gc h4{margin:0 0 2px;font-size:15px;color:var(--ltt-ink)}
+.gc h4 small{color:var(--ltt-muted);font-weight:400;margin-left:6px}
+.gc svg{width:100%;height:auto;display:block}
+.gc text{fill:var(--ltt-ink);font-family:inherit;font-size:13px}
+.gc .mu{fill:var(--ltt-muted)}
+.gc .box{fill:var(--ltt-card-2);stroke:var(--ltt-line-2);stroke-width:1.5;transition:all .5s}
+.gc .edge{stroke:var(--ltt-ink-2);stroke-width:1.8;fill:none;transition:opacity .5s}
+.gc .gone{opacity:0}
+.gc .dim .box{stroke-dasharray:4 3;stroke:var(--ltt-muted)}
+.gc .dim text{fill:var(--ltt-muted)}
+.gc .stuck .box{stroke:var(--ltt-bad);fill:var(--ltt-bad-soft)}
+.gc .rc{font-weight:700;fill:var(--ltt-accent)}
+.gc .note{font-size:13px;color:var(--ltt-ink-2);min-height:20px;margin:2px 0 4px}
+.gc .snap{font-size:12.5px;color:var(--ltt-ink-2);border-top:1px solid var(--ltt-line);padding-top:4px;opacity:0;transition:opacity .6s;min-height:36px}
+.gc .snap b{color:var(--ltt-ink)}
+.gc .ln{fill:none;stroke-width:2.2;stroke-dasharray:1;stroke-dashoffset:1}
+.gc .axis{stroke:var(--ltt-line-2);stroke-width:1}
+</style>
+</head>
+<body>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const PT = 100, X0 = 34, X1 = 392, Y0 = 92, Y1 = 8;
+const px = (i) => X0 + (X1 - X0) * i / PT, py = (mb) => Y0 - (Y0 - Y1) * mb / 110;
+// 쌍 1 MB씩 쌓임(512 KB × 2). 카운팅은 계속 오르고, mark는 약 20 MB에서 GC → 4 MB
+const cntPts = Array.from({length: PT + 1}, (_, i) => [px(i), py(4 + i)]);
+const mkPts = []; { let heap = 4; for (let i = 0; i <= PT; i++) { if (i && heap >= 20) { mkPts.push([px(i), py(heap)]); heap = 4; } else if (i) heap += 1; mkPts.push([px(i), py(heap)]); } }
+const path = (p) => "M" + p.map((q) => q[0].toFixed(1) + "," + q[1].toFixed(1)).join("L");
+
+function sideHTML(id, title, sub, color) {
+  return `<div class="side" id="${id}"><h4>${title}<small>${sub}</small></h4>
+  <svg viewBox="0 0 400 170" aria-label="${title} 객체 그래프">
+    <defs><marker id="${id}-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:var(--ltt-ink-2)"/></marker></defs>
+    <g id="${id}-root"><rect class="box" x="14" y="62" width="70" height="40" rx="6"/><text x="49" y="80" text-anchor="middle">루트</text><text class="mu" x="49" y="95" text-anchor="middle" style="font-size:11px">a, b</text></g>
+    <path class="edge gone" id="${id}-ra" d="M84,74 L186,40" marker-end="url(#${id}-ah)"/>
+    <path class="edge gone" id="${id}-rb" d="M84,90 L186,126" marker-end="url(#${id}-ah)"/>
+    <g id="${id}-A"><rect class="box" x="190" y="20" width="90" height="42" rx="6"/><text x="235" y="45" text-anchor="middle">객체 A</text></g>
+    <g id="${id}-B"><rect class="box" x="190" y="108" width="90" height="42" rx="6"/><text x="235" y="133" text-anchor="middle">객체 B</text></g>
+    <path class="edge gone" id="${id}-ab" d="M222,62 C212,80 212,90 222,108" marker-end="url(#${id}-ah)"/>
+    <path class="edge gone" id="${id}-ba" d="M250,108 C260,90 260,80 250,62" marker-end="url(#${id}-ah)"/>
+    <text class="mu" id="${id}-lab" x="270" y="90" style="font-size:11px;opacity:0">A.peer=B · B.peer=A</text>
+    <text class="rc" id="${id}-rcA" x="290" y="45" style="opacity:0"></text>
+    <text class="rc" id="${id}-rcB" x="290" y="133" style="opacity:0"></text>
+  </svg>
+  <div class="note" id="${id}-note"></div>
+  <svg viewBox="0 0 400 106" aria-label="${title} 힙 타임라인">
+    <line class="axis" x1="${X0}" y1="${Y0}" x2="${X1}" y2="${Y0}"/><line class="axis" x1="${X0}" y1="${Y1}" x2="${X0}" y2="${Y0}"/>
+    <text class="mu" x="${X0-4}" y="${py(100)+4}" text-anchor="end" style="font-size:10px">100MB</text>
+    <text class="mu" x="${X0-4}" y="${py(4)+4}" text-anchor="end" style="font-size:10px">4</text>
+    <text class="mu" x="${X1}" y="102" text-anchor="end" style="font-size:10px">반복 1 → 100회</text>
+    <path class="ln" id="${id}-ln" pathLength="1" style="stroke:${color}" d="${path(id === "rc" ? cntPts : mkPts)}"/>
+    <text id="${id}-tl" x="${id === "rc" ? X1 - 4 : px(52)}" y="${id === "rc" ? py(30) : py(20) - 6}" text-anchor="${id === "rc" ? "end" : "middle"}" style="opacity:0;font-size:12px;font-weight:700">${id === "rc" ? "100 MB 증가, 계속 오름" : "4~20 MB 톱니"}</text>
+  </svg>
+  <div class="snap" id="${id}-snap"></div></div>`;
+}
+
+function figure(host) {
+  const el = host.appendChild(document.createElement("div")); el.style.width = "100%";
+  el.innerHTML = `<div class="gc">${sideHTML("rc", "참조 카운팅", "들어오는 화살표 수", "var(--ltt-bad)")}${sideHTML("ms", "mark-and-sweep", "루트에서 닿는가", "var(--ltt-good)")}</div>`;
+  const $ = (s) => el.querySelector("#" + s), show = (id, on) => $(id).classList.toggle("gone", !on);
+  const rc = (id, v) => { const t = $(id); t.textContent = v; t.style.opacity = v ? 1 : 0; };
+  const note = (s, t) => { $(s + "-note").textContent = t; };
+  function set(n) {
+    ["rc", "ms"].forEach((s) => {
+      show(s + "-ra", n === 1 || n === 2); show(s + "-rb", n === 1 || n === 2);
+      show(s + "-ab", n >= 2); show(s + "-ba", n >= 2);
+      $(s + "-lab").style.opacity = n >= 2 ? 1 : 0;
+      $(s + "-A").classList.remove("dim", "stuck"); $(s + "-B").classList.remove("dim", "stuck");
+      $(s + "-ln").style.transition = "stroke-dashoffset " + (n >= 5 ? 2.2 : 0) + "s ease";
+      $(s + "-ln").style.strokeDashoffset = n >= 5 ? 0 : 1;
+      $(s + "-tl").style.opacity = n >= 5 ? 1 : 0;
+      $(s + "-snap").style.opacity = n >= 5 ? 1 : 0;
+    });
+    $("rc-A").style.opacity = $("rc-B").style.opacity = 1; $("ms-A").style.opacity = $("ms-B").style.opacity = n >= 4 ? 0.25 : 1;
+    // 카운팅: 참조를 만든 뒤에야 카운트가 오르고, 루트를 놓으면 즉시 2→1
+    const c = [["", ""], ["1", "1"], ["2", "2"], ["1", "1"], ["1", "1"], ["1", "1"]][n];
+    rc("rc-rcA", c[0] && "rc " + c[0]); rc("rc-rcB", c[1] && "rc " + c[1]);
+    rc("ms-rcA", ""); rc("ms-rcB", "");
+    if (n >= 3) { $("rc-A").classList.add("stuck"); $("rc-B").classList.add("stuck"); }
+    if (n >= 4) { $("ms-A").classList.add("dim"); $("ms-B").classList.add("dim"); }
+    const N = {
+      1: ["A, B 생성: 루트 변수만 가리키므로 rc 1, 1", "A, B 생성: 루트만 쥔다. 아직 카운트도 mark도 없다"],
+      2: ["A→B 연결로 B가 2, B→A 연결로 A가 2. 순환 완성", "같은 순환. mark는 개수를 세지 않는다"],
+      3: ["루트가 놓자 즉시 2→1. 0이 아니라 해제 안 됨", "해제 직후엔 변화 없음. GC 시점까지 힙에 그대로"],
+      4: ["도달 불가인데 rc 1, 1로 영원히 남음", "GC: 루트에서 따라가도 A, B는 표시 없음 → sweep 회수"],
+      5: ["쌍이 100번 쌓이면 +1 MB씩 계단식 누수", "임계(약 20 MB)마다 GC로 4 MB 복귀. 기준선은 안 오름"],
+    }[n];
+    note("rc", N[0]); note("ms", N[1]);
+    $("rc-snap").innerHTML = "<b>스냅샷 비교</b> A·B 200개, retained 약 100 MB 증가<br>retainers: 서로뿐, 루트로 가는 경로 없음";
+    $("ms-snap").innerHTML = "<b>스냅샷 비교</b> A·B 증가 없음 (GC 후)<br>전역 캐시가 A를 쥐면 retainers가 루트까지 이어져 누수";
+  }
+  set(1);
+  return { el, set };
+}
+
+const scene = {
+  type: "figure", title: "같은 순환 쌍도 세는 쪽은 남기고, 닿는지 보는 쪽은 회수한다",
+  en: "Reference counting vs mark-and-sweep", kicker: "가비지 컬렉션 방식",
+  sub: "왼쪽 참조 카운팅, 오른쪽 mark-and-sweep. 같은 코드 a=A(); b=B(); A.peer=B; B.peer=A를 넣고 힙 프로파일러로 본다",
+  figure,
+  steps: [
+    { caption: "① 객체가 먼저 생긴다: A, B 모두 루트만 가리켜 rc 1", enter: (k, f) => f.set(1) },
+    { caption: "② 서로 연결하면 그제야 카운트가 오른다: A=2, B=2", enter: (k, f) => f.set(2) },
+    { caption: "③ 루트가 손을 뗀다: 카운팅은 즉시 1, 1에서 멈추고 mark 쪽은 아직 그대로", enter: (k, f) => f.set(3) },
+    { caption: "④ GC 시점: 루트에서 닿는 것만 표시한다. A, B는 도달 불가라 회수", enter: (k, f) => f.set(4) },
+    { caption: "⑤ 100번 반복하면 타임라인이 갈린다. 스냅샷 retainers가 \"누가 붙잡나\"를 알려 준다", enter: (k, f) => f.set(5) },
+  ],
+  basis: "객체 512 KB, 쌍 1 MB, GC 임계 약 20 MB는 모델로 계산한 예시. 순수 카운팅 누수는 순환 감지기가 없을 때의 모델이다. 실제 CPython은 카운팅에 순환 감지기를 덧붙여 순환을 회수한다. 카운팅은 해제가 즉시라 정지 시간이 짧고, mark-and-sweep은 GC 정지가 생기는 대가가 있다.",
+  takeaway: "누수는 순환인지가 아니라 루트에서 닿는지로 정해진다. 스냅샷에서 retainers를 따라가 누가 붙잡는지 본다.",
+  recall: "mark-and-sweep 쪽에서도 순환 쌍이 회수되지 않는 경우는?"
+};
+LTT.deck({ title: "가비지 컬렉션 방식", theme: "terminal", glossary: {}, scenes: [scene] });
+</script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic": "DNA 복제 분기점", "audience": "생명과학 입문 학생", "theme": "paper", "medium": "교과서 도해", "decision": "복제 과정 이해"}</script>
+<style>
+.dna-ctl { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.dna-ctl input[type=range] { flex: 1; }
+.dna-ctl button { font: inherit; padding: 4px 14px; border: 1px solid var(--ltt-line-2); border-radius: 6px; background: var(--ltt-card); color: var(--ltt-ink); cursor: pointer; }
+.dna-cap { margin: 8px 0 0; min-height: 3em; color: var(--ltt-ink-2); }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+// 분기점은 오른쪽으로 전진하고, 왼쪽은 이미 복제된 구간이다.
+const O = 96, XA = 130, XB = 240, XE = 720;          // 복제 시작점, 분기점 처음·열린 뒤·끝 위치
+const XS = [260, 360, 460, 560, 660];                // 절편 i의 프라이머가 놓이는 분기점 위치
+const R = XS.map(x => x - 14);                       // 절편 i의 5' 끝(프라이머 오른쪽 가장자리)
+const T1 = 1400, V = (XE - XB) / 6000, G = 1000;     // 열림 끝 시각, 분기점 속도(px/ms), 절편 하나가 자라는 시간
+const S = XS.map(x => T1 + (x - XB) / V);            // 각 절편이 시작되는 시각
+const TR = S[4] + G + 200, JOIN = TR + 2800, JOIN_MS = 1000, END = JOIN + JOIN_MS + 1000;
+const clamp = v => Math.min(1, Math.max(0, v));
+const ease = p => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
+const forkX = t => (t < T1 ? XA + (XB - XA) * ease(t / T1) : Math.min(XE, XB + V * (t - T1)));
+const leadEnd = t => Math.min(forkX(t) - 32, O + (t - T1) * 0.25);   // 선도 가닥은 분기점을 따라잡은 뒤 함께 간다
+const frontier = (k, t) => {
+  const from = R[k] - 10, to = k ? R[k - 1] : O;
+  return from - (from - to) * clamp((t - S[k]) / G);
+};
+const CAPS = [
+  [0, "① 헬리케이스가 이중나선을 풀어 Y자 분기점이 열린다. 두 주형 가닥은 방향이 서로 반대다."],
+  [T1, "② 선도 가닥: 프라이머 하나가 놓이고, 분기점을 따라 끊김 없이 자란다."],
+  [S[0], "③ 지연 가닥: 분기점이 더 열린 뒤에야 프라이머가 놓이고, 절편이 분기점에서 멀어지는 쪽으로 자란다. 나중 절편일수록 분기점에 가깝다."],
+  [TR, "④ 두 가닥 모두 5'→3'로 자란다. 규칙은 하나이고, 분기점 기준 방향만 반대다."],
+  [JOIN, "⑤ 프라이머가 지워지고 틈이 메워진 뒤, 연결효소가 절편을 이어 한 가닥이 된다."],
+];
+
+const scene = {
+  type: "hook",
+  pre: "생물 · DNA 복제",
+  text: "DNA는 한 방향으로만 이어 붙는데, 한 가닥은 왜 조각으로 만들어질까",
+  sub: "분기점이 열리는 순서를 따라가면 {{오카자키 절편}}이 생기는 자리가 보인다.",
+  mount(body) {
+    const fig = body.appendChild(document.createElement("div"));
+    const svg = document.createElementNS(SVG, "svg");
+    svg.setAttribute("viewBox", "0 96 960 232");
+    svg.setAttribute("width", "100%");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "DNA 복제 분기점이 전진하며 선도 가닥은 연속으로, 지연 가닥은 오카자키 절편 5개로 합성되고 이어지는 과정");
+    fig.appendChild(svg);
+    const ctl = body.appendChild(document.createElement("div"));
+    ctl.className = "dna-ctl";
+    ctl.innerHTML = `<button type="button">일시정지</button><input type="range" min="0" max="${END}" step="10" value="0" aria-label="복제 진행 시각"><span class="ltt-basis">모델로 그린 도식(절편 5개)</span>`;
+    const cap = body.appendChild(document.createElement("p"));
+    cap.className = "dna-cap";
+    const btn = ctl.querySelector("button"), rng = ctl.querySelector("input");
+
+    const el = (tag, at, parent = svg) => {
+      const e = document.createElementNS(SVG, tag);
+      for (const k in at) e.setAttribute(k, at[k]);
+      parent.appendChild(e);
+      return e;
+    };
+    const txt = (s, at) => { const e = el("text", { "font-size": 14, style: "fill: var(--ltt-ink-2)", ...at }); e.textContent = s; return e; };
+    const ink = "stroke: var(--ltt-ink-2)", acc = "stroke: var(--ltt-accent)", pri = "fill: var(--ltt-c2)";
+
+    const mk = el("marker", { id: "dna-ah", viewBox: "0 0 10 10", refX: "8", refY: "5", markerWidth: "5", markerHeight: "5", orient: "auto" }, el("defs", {}));
+    el("path", { d: "M0 0 L10 5 L0 10 z", style: "fill: var(--ltt-accent)" }, mk);
+
+    // 주형 두 가닥(역평행): 위는 3' 왼쪽·5' 오른쪽, 아래는 그 반대다.
+    const top = el("path", { fill: "none", "stroke-width": 3, "stroke-linecap": "round", style: ink });
+    const bot = el("path", { fill: "none", "stroke-width": 3, "stroke-linecap": "round", style: ink });
+    txt("3'", { x: O - 12, y: 155, "text-anchor": "end" });
+    txt("5'", { x: O - 12, y: 255, "text-anchor": "end" });
+    txt("5'", { x: 912, y: 196 });
+    txt("3'", { x: 912, y: 213 });
+    txt("아직 풀리지 않은 이중나선", { x: 830, y: 182, "text-anchor": "middle" });
+    const hel = el("ellipse", { cy: 200, rx: 10, ry: 15, style: "fill: var(--ltt-card-2); stroke: var(--ltt-ink-2)", "stroke-width": 2 });
+    const helLabel = txt("헬리케이스 · 분기점 전진 →", { y: 236 });
+
+    // 선도 가닥: 프라이머 하나에서 분기점을 향해 연속으로 자란다.
+    const lead = el("path", { fill: "none", "stroke-width": 3, style: acc, "marker-end": "url(#dna-ah)", opacity: 0 });
+    const primerLead = el("rect", { x: O - 10, y: 125, width: 10, height: 10, rx: 2, style: pri, opacity: 0 });
+    const leadLabel = txt("선도 가닥", { x: O + 4, y: 116, opacity: 0 });
+    const lead5 = txt("5'", { x: O - 16, y: 134, "text-anchor": "end", opacity: 0 });
+    const lead3 = txt("3'", { y: 134, opacity: 0 });
+    const leadRule = txt("5'→3' · 분기점을 향해", { x: 300, y: 116, "font-weight": 700, style: "fill: var(--ltt-accent)", opacity: 0 });
+
+    // 지연 가닥: 절편마다 프라이머 하나, 분기점에서 멀어지며 자란다.
+    const frags = R.map(() => el("path", { fill: "none", "stroke-width": 3, style: acc, "marker-end": "url(#dna-ah)", opacity: 0 }));
+    const primers = R.map(r => el("rect", { x: r - 10, y: 265, width: 10, height: 10, rx: 2, style: pri, opacity: 0 }));
+    const gaps = R.slice(0, 4).map(r => el("rect", { x: r - 10, y: 268.5, width: 10, height: 3, style: "fill: var(--ltt-accent)", opacity: 0 }));
+    const lagLabel = txt("지연 가닥 · 오카자키 절편", { x: O + 4, y: 300, opacity: 0 });
+    const lag5 = txt("5'", { x: R[4] + 6, y: 289, opacity: 0 });
+    const lag3 = txt("3'", { x: R[3] - 6, y: 289, "text-anchor": "end", opacity: 0 });
+    const lagRule = txt("5'→3' · 분기점에서 멀어짐", { x: (R[3] + R[4]) / 2 - 5, y: 311, "text-anchor": "middle", "font-weight": 700, style: "fill: var(--ltt-accent)", opacity: 0 });
+    const ligLabel = txt("연결효소가 이음", { x: 330, y: 311, "text-anchor": "middle", opacity: 0 });
+    const legend = txt("", { x: 940, y: 324, "text-anchor": "end", "font-size": 12 });
+    el("tspan", { style: pri }, legend).textContent = "■";
+    legend.appendChild(document.createTextNode(" RNA 프라이머"));
+
+    const render = t => {
+      const x = forkX(t), j = clamp((t - JOIN) / JOIN_MS);
+      top.setAttribute("d", `M ${O} 150 L ${x - 28} 150 L ${x} 197 L 900 197`);
+      bot.setAttribute("d", `M ${O} 250 L ${x - 28} 250 L ${x} 203 L 900 203`);
+      hel.setAttribute("cx", x);
+      helLabel.setAttribute("x", x + 16);
+
+      const on1 = t >= T1 ? 1 : 0;
+      lead.setAttribute("opacity", on1);
+      if (on1) lead.setAttribute("d", `M ${O} 130 L ${leadEnd(t)} 130`);
+      primerLead.setAttribute("opacity", on1 * (1 - j));
+      [leadLabel, lead5, lead3].forEach(n => n.setAttribute("opacity", on1));
+      lead3.setAttribute("x", leadEnd(t) + 8);
+
+      frags.forEach((f, k) => {
+        const on = t >= S[k];
+        f.setAttribute("opacity", on ? 1 : 0);
+        if (on) f.setAttribute("d", `M ${R[k] - 10} 270 L ${frontier(k, t)} 270`);
+        primers[k].setAttribute("opacity", on ? (k < 4 ? 1 - j : 1) : 0);
+      });
+      gaps.forEach(g => g.setAttribute("opacity", j));
+      lagLabel.setAttribute("opacity", t >= S[0] ? 1 : 0);
+
+      const rule = t >= TR && t < JOIN ? 1 : 0;
+      [leadRule, lagRule, lag5, lag3].forEach(n => n.setAttribute("opacity", rule));
+      ligLabel.setAttribute("opacity", j);
+
+      cap.textContent = CAPS.filter(c => t >= c[0]).pop()[1];
+    };
+
+    // 재생 상태: 슬라이더를 만지면 멈추고 그 시각부터 이어 본다.
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0, last = null, t = 0, playing = false;
+    const show = () => { render(t); rng.value = t; };
+    const stop = () => { playing = false; cancelAnimationFrame(raf); last = null; btn.textContent = t >= END ? "다시 재생" : "재생"; };
+    const tick = now => {
+      if (last === null) last = now;
+      t = Math.min(END, t + now - last);
+      last = now;
+      show();
+      if (t < END) raf = requestAnimationFrame(tick); else stop();
+    };
+    const play = () => {
+      if (t >= END) t = 0;
+      playing = true; last = null; btn.textContent = "일시정지";
+      raf = requestAnimationFrame(tick);
+    };
+    btn.onclick = () => (playing ? stop() : play());
+    rng.oninput = () => { stop(); t = +rng.value; show(); };
+    t = still ? END : 0;
+    show();
+    if (still) stop();
+    return {
+      enter() { stop(); t = still ? END : 0; show(); if (still) stop(); else play(); },
+      leave() { stop(); },
+    };
+  },
+  takeaway: "두 새 가닥은 같은 5'→3' 규칙으로 자라고, 주형의 방향이 달라서 분기점 쪽은 연속으로, 반대쪽은 조각으로 합성된다.",
+  recall: "지연 가닥은 왜 조각으로 만들어질까?",
+};
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "오카자키 절편": "지연 가닥에서 프라이머마다 짧게 합성되는 DNA 조각",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

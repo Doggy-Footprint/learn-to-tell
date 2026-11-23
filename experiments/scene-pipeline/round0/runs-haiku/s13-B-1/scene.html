@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결제 퍼널 이탈 지점</title>
+<script type="application/json" id="ltt-meta">{"topic":"결제 퍼널 이탈 지점","audience":"UX 입문자","theme":"studio","medium":"제품 분석 대시보드","decision":"어느 결제 단계를 먼저 고칠까","domain":"UX","pattern":["figure"],"mode":"구조 순서, 움직임 확대·축소, 구도 좌우 분할. 왼쪽 깔때기가 주인공이고 오른쪽 카드는 글을 얹는다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.cz{position:relative;overflow:hidden;width:1000px;max-width:100%;margin:0 auto}
+.cz>svg{display:block;width:100%;height:auto}
+.cz text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p, text) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); if (text != null) n.textContent = text; p && p.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const pct = (r) => Math.round(r * 100) + "%";
+const ppl = (n) => n.toLocaleString("ko-KR") + "명";
+
+// 가상의 결제 퍼널. 단계에 도달한 사람 수는 설명을 위해 정한 임의 수치다.
+const ROWS = [{ n: "장바구니", v: 1000 }, { n: "배송지 입력", v: 800 }, { n: "결제 수단", v: 720 }, { n: "카드 입력", v: 360 }, { n: "결제 완료", v: 330 }];
+const W = 1000, H = 520, FW = 600;
+const X0 = 200, BW = 240, TOP = 60, PITCH = 90, BH = 46;
+const Z = 1.6, VX = X0 - 120 / Z;   // 확대 때 막대 왼쪽 끝이 화면 x 120에 오도록
+const SEG = 3.6, PERIOD = SEG * 4;   // 구간 하나: 확대 0.5 · 머묾 1.7 · 축소 0.5 · 전체 보기 0.9
+
+const rowTop = (i) => TOP + i * PITCH;
+const gapY = (k) => rowTop(k) + (PITCH + BH) / 2;   // 두 막대 사이 빈 줄의 가운데
+const barW = (i) => ROWS[i].v / ROWS[0].v * BW;
+
+const loss = ROWS.slice(1).map((r, k) => ROWS[k].v - r.v);   // 구간별 이탈 명수
+const rate = loss.map((l, k) => l / ROWS[k].v);               // 앞 단계 대비 이탈률
+const lostAll = ROWS[0].v - ROWS[ROWS.length - 1].v;
+const share = loss.map((l) => l / lostAll);                    // 전체 이탈 중 비중
+const big = loss.indexOf(Math.max(...loss));
+LTT.expect("단계 수", ROWS.length, 5, { tol: 0 });
+LTT.expect("가장 큰 이탈 구간 번호", big + 1, 3, { tol: 0 });
+LTT.expect("카드 입력 앞 이탈률", rate[2], 0.5, { tol: 0.001 });
+LTT.expect("카드 입력 앞 이탈의 전체 비중", share[2], 0.537, { tol: 0.001 });
+LTT.expect("결제 완료율", ROWS[4].v / ROWS[0].v, 0.33, { tol: 0.0005 });
+
+const CIRC = ["①", "②", "③", "④"];
+const TR = ["장바구니 → 배송지 입력", "배송지 입력 → 결제 수단", "결제 수단 → 카드 입력", "카드 입력 → 결제 완료"];
+const WHY = [
+  ["배송지 입력 칸이 부담인지 본다.", "주소 입력 오류 기록을 확인한다."],
+  ["손실이 작아 지금은 뒤로 미룬다.", "나머지를 고친 뒤 다시 잰다."],
+  ["전체 이탈의 절반 넘게를 차지한다.", "카드 입력 화면부터 본다."],
+  ["손실이 가장 작다.", "결제 승인 오류 기록만 확인한다."]];
+const CARD = loss.map((l, k) => ({ label: "지금 보는 구간", head: `${CIRC[k]} ${TR[k]}`, big: `−${ppl(l)}`, line: `이탈률 ${pct(rate[k])} · 전체 이탈의 ${pct(share[k])}`, q: WHY[k] }));
+const OVER = { label: "먼저 고칠 곳", head: `${CIRC[big]} ${TR[big]}`, big: `−${ppl(loss[big])}`, line: `이탈률 ${pct(rate[big])} · 전체 이탈의 ${pct(share[big])}`, q: ["이 구간의 화면을 먼저 고친다.", "고친 뒤 같은 구간을 다시 잰다."] };
+
+function funnel(host) {
+  const wrap = host.appendChild(document.createElement("div"));
+  wrap.className = "cz live"; wrap.setAttribute("data-annotate", "");
+  const svg = mk("svg", { viewBox: `0 0 ${W} ${H}` }, wrap);
+  mk("rect", { x: 0, y: 0, width: FW, height: H }, mk("clipPath", { id: "fclip" }, mk("defs", {}, svg)));
+  // 깔때기 층만 카메라(확대·축소)를 따라 움직인다. 글자는 화면 좌표에 그대로 둔다.
+  const cam = mk("g", { "clip-path": "url(#fclip)" }, svg), geo = mk("g", {}, cam);
+  const bars = ROWS.map((r, i) => mk("rect", { x: X0, y: rowTop(i), width: barW(i), height: BH, rx: 5, style: "fill:var(--ltt-card-2);stroke:var(--ltt-line-2);stroke-width:1.5" }, geo));
+  // 빨간 칸: 막대 k에서 다음 막대 길이를 뺀 나머지 = 그 구간에서 떠난 사람
+  const ghosts = loss.map((l, k) => mk("rect", { x: X0 + barW(k + 1), y: rowTop(k), width: barW(k) - barW(k + 1), height: BH, rx: 3, style: "fill:var(--ltt-bad-soft);stroke:var(--ltt-bad);stroke-width:1.5;stroke-dasharray:5 4" }, geo));
+  const names = ROWS.map((r) => mk("text", { "text-anchor": "end", style: "font-size:15px;font-weight:600;fill:var(--ltt-ink)" }, svg, r.n));
+  const vals = ROWS.map((r) => mk("text", { style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, svg, ppl(r.v)));
+  const gaps = loss.map((l, k) => mk("text", { style: "font-size:14px;font-weight:600;fill:var(--ltt-bad)" }, svg, `−${ppl(l)} (−${pct(rate[k])})`));
+  // 오른쪽 카드: 지금 보는 구간의 글
+  const card = mk("g", {}, svg);
+  mk("rect", { x: 640, y: 60, width: 336, height: 280, rx: 10, style: "fill:var(--ltt-card);stroke:var(--ltt-line)" }, card);
+  const E = { wrap, geo, bars, ghosts, names, vals, gaps, key: "",
+    cl: mk("text", { x: 664, y: 92, style: "font-size:14px;fill:var(--ltt-muted)" }, card),
+    ch: mk("text", { x: 664, y: 130, style: "font-size:18px;font-weight:700;fill:var(--ltt-ink)" }, card),
+    cb: mk("text", { x: 664, y: 192, style: "font-size:40px;font-weight:700;fill:var(--ltt-bad)" }, card),
+    cn: mk("text", { x: 664, y: 226, style: "font-size:16px;fill:var(--ltt-ink-2)" }, card),
+    cq: [272, 298].map((y) => mk("text", { x: 664, y, style: "font-size:15px;fill:var(--ltt-muted)" }, card)) };
+  mk("text", { x: 640, y: 372, style: "font-size:15px;fill:var(--ltt-muted)" }, svg, `시작 ${ppl(ROWS[0].v)} → 완료 ${ppl(ROWS[4].v)} (${pct(ROWS[4].v / ROWS[0].v)})`);
+  // 범례
+  mk("rect", { x: 24, y: 484, width: 16, height: 16, rx: 3, style: "fill:var(--ltt-card-2);stroke:var(--ltt-line-2);stroke-width:1.5" }, svg);
+  mk("rect", { x: 48, y: 484, width: 16, height: 16, rx: 3, style: "fill:var(--ltt-bad-soft);stroke:var(--ltt-bad);stroke-width:1.5;stroke-dasharray:5 4" }, svg);
+  mk("text", { x: 72, y: 497, style: "font-size:14px;fill:var(--ltt-muted)" }, svg, "회색 막대 = 단계에 도달한 사람 · 빨간 칸 = 그 구간에서 떠난 사람");
+  wrap._el = E;
+  draw(wrap, 0);
+  return wrap;
+}
+
+// 한 주기: 구간마다 [확대 → 머묾 → 축소 → 전체 보기]
+function draw(wrap, t) {
+  const E = wrap._el, u = t % PERIOD, k = Math.floor(u / SEG), l = u - k * SEG;
+  const s = l < .5 ? ease(l / .5) : l < 2.2 ? 1 : l < 2.7 ? 1 - ease((l - 2.2) / .5) : 0;
+  const on = l >= .5 && l < 2.7 ? k : -1;   // 지금 확대해 보는 구간 (-1: 전체 보기)
+  const z = 1 + (Z - 1) * s, vx = VX * s, vy = (rowTop(k) + (PITCH + BH) / 2 - H / Z / 2) * s;
+  const P = (gx, gy) => [(gx - vx) * z, (gy - vy) * z];
+  E.geo.setAttribute("transform", `scale(${z}) translate(${-vx} ${-vy})`);
+  E.bars.forEach((b, i) => {
+    const hot = on >= 0 && (i === on || i === on + 1);
+    b.style.fill = hot ? "var(--ltt-accent-soft)" : "var(--ltt-card-2)";
+    b.style.stroke = hot ? "var(--ltt-accent)" : "var(--ltt-line-2)";
+  });
+  E.ghosts.forEach((g, j) => { g.style.opacity = on < 0 ? .6 : j === on ? 1 : .2; });
+  const shown = (y) => y > -12 && y < H + 12;
+  const xl = P(X0, 0)[0];
+  ROWS.forEach((r, i) => {
+    const y = P(0, rowTop(i) + BH / 2)[1] + 5, vx2 = P(X0 + barW(i), 0)[0] + 8;
+    E.names[i].setAttribute("x", xl - 10); E.names[i].setAttribute("y", y);
+    E.names[i].style.opacity = shown(y) ? 1 : 0;
+    E.vals[i].setAttribute("x", vx2); E.vals[i].setAttribute("y", y);
+    E.vals[i].style.opacity = shown(y) && vx2 < 520 ? 1 : 0;
+  });
+  loss.forEach((_, j) => {
+    const y = P(0, gapY(j))[1] + 5;
+    E.gaps[j].setAttribute("x", xl + 8); E.gaps[j].setAttribute("y", y);
+    E.gaps[j].style.opacity = shown(y) ? (on < 0 || on === j ? 1 : .3) : 0;
+  });
+  const C = on >= 0 ? CARD[on] : OVER, key = on >= 0 ? "c" + on : "over";
+  if (E.key !== key) {
+    E.key = key;
+    E.cl.textContent = C.label; E.ch.textContent = C.head; E.cb.textContent = C.big; E.cn.textContent = C.line;
+    E.cq.forEach((q, j) => { q.textContent = C.q[j]; });
+  }
+}
+
+let ticker = 0;
+function play() {
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches, t0 = Date.now();
+  if (ticker) return;
+  const f = () => { const live = document.querySelectorAll(".cz.live"); if (!live.length) { ticker = 0; return; }
+    live.forEach((w) => draw(w, reduced ? 2 * SEG + 1.2 : (Date.now() - t0) / 1000)); ticker = setTimeout(f, reduced ? 200 : 16); };
+  ticker = setTimeout(f, 16);
+}
+
+LTT.deck({
+  title: "결제 퍼널 이탈 지점", theme: "studio",
+  glossary: {
+    "퍼널": "단계마다 사람이 줄어드는 전환 경로. 여기서는 장바구니부터 결제 완료까지",
+    "이탈": "다음 단계로 가지 않고 떠나는 것" },
+  scenes: [{
+    type: "figure", label: "퍼널",
+    title: "사람이 가장 많이 떠나는 구간은 카드 입력 앞이다",
+    sub: "막대는 그 단계에 도달한 사람 수다. 구간이 확대되면 빨간 칸이 그 구간에서 떠난 사람이다.",
+    figure: (el) => { const w = funnel(el); play(); return { el: w }; },
+    caption: "{{퍼널}}에서는 {{이탈}}률과 떠난 사람 수를 함께 본다. 이 예시는 두 기준이 같은 구간을 가리킨다.",
+    basis: "가상의 예시 수치이며 실제 서비스 데이터가 아니다. 단계별 도달 인원 1,000 → 800 → 720 → 360 → 330은 설명을 위해 정한 값이다. 이탈률은 앞 단계 인원 대비로 계산했다.",
+    takeaway: "먼저 고칠 곳은 떠난 사람이 가장 많은 구간이고, 원인은 그 구간의 화면에서 확인한다."
+  }]
+});
+</script>
+</body>
+</html>

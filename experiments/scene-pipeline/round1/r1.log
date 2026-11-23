@@ -1,0 +1,37 @@
+08:56:28 s04/sb2 opus rc=0 33s $0.3938 success
+08:56:28 s04/sb1 opus rc=0 34s $0.3913 success
+08:56:31 s07/sb1 opus rc=0 36s $0.3914 success
+08:56:39 s07/sb2 opus rc=0 44s $0.4224 success
+08:57:28 s04/L1 sonnet rc=0 60s $0.3043 success
+08:57:32 s07/L1 sonnet rc=0 61s $0.163 success
+08:57:35 s04/L2 sonnet rc=0 67s $0.316 success
+08:57:46 s07/L2 sonnet rc=0 67s $0.1699 success
+08:59:57 s04/H1/samples/c1 haiku rc=0 149s $0.0357 success
+09:00:23 s04/H1/samples/c2 haiku rc=0 175s $0.0403 success
+09:00:52 s04/H1/samples/c3 haiku rc=0 204s $0.04 success
+09:01:18 s04/P1 sonnet rc=0 230s $0.5026 success
+09:01:21 s07/H1/samples/c4 haiku rc=0 230s $0.0907 success
+09:01:33 s07/H1/samples/c3 haiku rc=0 241s $0.0988 success
+09:01:37 s04/H1/samples/c4 haiku rc=0 248s $0.1025 success
+09:01:44 s07/P1 sonnet rc=0 252s $0.5787 success
+09:03:41 s07/H1/samples/c1 haiku rc=0 369s $0.0923 success
+09:04:16 s07/H1/samples/c5 haiku rc=0 404s $0.1006 success
+09:04:31 s07/H1/samples/c2 haiku rc=0 420s $0.1005 success
+09:04:56 s04/H2/samples/c1 haiku rc=0 441s $0.082 success
+09:05:21 s04/H2/samples/c3 haiku rc=0 465s $0.0844 success
+09:05:49 s07/H2/samples/c2 haiku rc=0 483s $0.0259 success
+09:06:06 s04/H2/samples/c2 haiku rc=0 511s $0.1018 success
+09:06:21 s04/H2/samples/c4 haiku rc=0 526s $0.108 success
+09:06:43 s07/P2 sonnet rc=0 537s $0.3605 success
+09:06:56 s07/H1/refine sonnet rc=0 116s $0.3886 success
+09:07:07 s04/H1/refine sonnet rc=0 309s $0.3701 success
+09:07:32 s07 rep1 끝
+09:07:38 s04 rep1 끝
+09:07:46 s07/H2/samples/c4 haiku rc=0 600s $0.0808 success
+09:08:06 s07/H2/samples/c3 haiku rc=0 620s $0.0326 success
+09:08:10 s07/H2/samples/c1 haiku rc=0 624s $0.0367 success
+09:08:38 s04/H2/refine sonnet rc=0 110s $0.4779 success
+09:09:33 s07/H2/refine sonnet rc=0 53s $0.3309 success
+09:10:05 s07 rep2 끝
+09:11:08 s04/P2 sonnet rc=0 813s $1.1637 success
+09:11:45 s04 rep2 끝

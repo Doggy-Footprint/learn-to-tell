@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신용 창조와 통화 승수</title>
+<script type="application/json" id="ltt-meta">{"topic":"신용 창조와 통화 승수","audience":"경제 기사 독자","theme":"ledger","medium":"경제 신문 차트","decision":"통화정책 기사 해석"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .cc-wrap { display: grid; gap: 10px; }
+  .cc-svg { width: 100%; height: auto; display: block; }
+  .cc-svg text { fill: var(--ltt-muted); font-family: inherit; }
+  .cc-svg .cc-ink { fill: var(--ltt-ink); }
+  .cc-stats { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-end; }
+  .cc-stats .ltt-stat { min-width: 90px; }
+  .cc-stats .ltt-hero { font-size: 28px; }
+  .cc-new { animation: cc-rise .55s ease-out both; transform-box: fill-box; transform-origin: bottom; }
+  .cc-new.cc-l { animation-delay: .45s; }
+  @keyframes cc-rise { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .cc-new { animation: none; } }
+  .cc-ctl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+</style>
+</head>
+<body>
+<script>
+const D0 = 100, N = 20;
+const dep = (r, k) => D0 * Math.pow(1 - r, k - 1);          // 라운드 k의 새 예금
+const cum = (r, n) => D0 * (1 - Math.pow(1 - r, n)) / r;     // n라운드 누적 예금
+const f1 = (v) => (Math.round(v * 10) / 10).toLocaleString("ko-KR");
+
+LTT.expect("5라운드 누적 예금(r=10%)", cum(0.1, 5), 409.51, { tol: 0.01 });
+LTT.expect("상한(r=20%)", D0 / 0.2, 500, { tol: 1e-9 });
+
+const X0 = 62, CW = 33, BW = 22;
+let prevN = 0, prevR = 0;
+function draw(svgHost, r, n) {
+  const cap = D0 / r, YMAX = 2000;
+  const yc = (v) => 150 - (v / YMAX) * 120;      // 위 패널: 누적
+  const yb = (v) => 290 - (v / 100) * 80;        // 아래 패널: 라운드별
+  let s = `<svg class="cc-svg" viewBox="0 0 740 316" role="img" aria-label="라운드별 새 예금과 누적 예금">`;
+  s += `<text x="0" y="16" class="cc-ink" font-size="13" font-weight="700">누적 예금 (최초 예금 100 기준)</text>`;
+  [0, 500, 1000, 1500, 2000].forEach((t) => {
+    s += `<line x1="${X0 - 6}" x2="730" y1="${yc(t)}" y2="${yc(t)}" stroke="var(--ltt-line)" stroke-width="1"/><text x="${X0 - 10}" y="${yc(t) + 4}" text-anchor="end" font-size="11">${t.toLocaleString("ko-KR")}</text>`;
+  });
+  s += `<line x1="${X0 - 6}" x2="730" y1="${yc(cap)}" y2="${yc(cap)}" stroke="var(--ltt-ink)" stroke-width="2" stroke-dasharray="6 4"/>`;
+  s += `<text x="730" y="${yc(cap) - 6}" text-anchor="end" font-size="12" class="cc-ink" font-weight="700">상한 ${cap.toLocaleString("ko-KR")} = 100 ÷ ${Math.round(r * 100)}%</text>`;
+  for (let k = 1; k <= n; k++) {
+    const c = cum(r, k), x = X0 + (k - 1) * CW;
+    const isNew = k === n && (n > prevN || r !== prevR) && prevN !== 0 ? true : (k === n && prevN === 0);
+    s += `<rect x="${x}" y="${yc(c)}" width="${BW}" height="${150 - yc(c)}" fill="var(--ltt-card-2)" stroke="var(--ltt-ink-2)" stroke-width="1.5"${isNew ? ' class="cc-new"' : ""}/>`;
+  }
+  s += `<line x1="${X0 - 6}" x2="730" y1="150" y2="150" stroke="var(--ltt-ink-2)" stroke-width="1.5"/>`;
+  s += `<text x="0" y="186" class="cc-ink" font-size="13" font-weight="700">라운드별 새 예금 = 준비금 + 대출</text>`;
+  [0, 50, 100].forEach((t) => {
+    s += `<line x1="${X0 - 6}" x2="730" y1="${yb(t)}" y2="${yb(t)}" stroke="var(--ltt-line)" stroke-width="1"/><text x="${X0 - 10}" y="${yb(t) + 4}" text-anchor="end" font-size="11">${t}</text>`;
+  });
+  for (let k = 1; k <= N; k++) {
+    const x = X0 + (k - 1) * CW;
+    s += `<text x="${x + BW / 2}" y="306" text-anchor="middle" font-size="11">${k}</text>`;
+    if (k > n) continue;
+    const d = dep(r, k), res = d * r, loan = d - res;
+    const isNew = k === n && n > prevN || (k === n && r !== prevR);
+    s += `<rect x="${x}" y="${yb(res)}" width="${BW}" height="${290 - yb(res)}" fill="var(--ltt-ink-2)"${isNew ? ' class="cc-new"' : ""}/>`;
+    s += `<rect x="${x}" y="${yb(d)}" width="${BW}" height="${yb(res) - yb(d)}" fill="var(--ltt-accent)"${isNew ? ' class="cc-new cc-l"' : ""}/>`;
+    if (k <= 3 || k === n) {
+      s += `<text x="${x + BW / 2}" y="${yb(d) - 5}" text-anchor="middle" font-size="11" class="cc-ink">${f1(d)}</text>`;
+    }
+  }
+  s += `<text x="${X0 - 10}" y="306" text-anchor="end" font-size="11">라운드</text>`;
+  s += `</svg>`;
+  svgHost.innerHTML = s;
+  prevN = n; prevR = r;
+}
+
+const scene = {
+  title: "지급준비율이 낮을수록 예금 100이 더 크게 불어난다",
+  en: "Credit creation and the money multiplier",
+  kicker: "통화",
+  sub: "아래쪽 막대는 준비금, 위쪽은 다음 라운드의 예금이 되는 대출이다.",
+  narration: "은행은 받은 예금에서 {{지급준비율}}만큼만 남기고 나머지를 대출한다. 그 대출금은 다른 은행의 새 예금이 되어 같은 일을 되풀이한다. 새 예금은 매번 (1−r)배로 줄지만 누적 예금은 100÷r에 다가간다.",
+  basis: "모델로 계산한 이론적 상한. 현금 보유 성향·초과 준비금·대출 수요 부족이 있으면 실제 승수는 더 작다.",
+  mount(body, ctx) {
+    body.innerHTML = `<div class="cc-wrap">
+      <div id="g"></div>
+      <div class="cc-ctl">
+        <div class="ltt-param">지급준비율 <b id="r-v"></b><div id="r"></div><small>승수 1÷r = <b id="s-mul"></b></small></div>
+        <div class="ltt-param">진행 라운드 <b id="n-v"></b><input type="range" id="n" min="1" max="${N}" step="1" value="1"></div>
+      </div>
+      <div id="fig"></div>
+      <div class="cc-stats">
+        <div class="ltt-stat"><span id="s-new" class="ltt-hero"></span><small>이번 라운드 새 예금</small></div>
+        <div class="ltt-stat"><span id="s-cum" class="ltt-hero"></span><small>누적 예금</small></div>
+        <div class="ltt-stat"><span id="s-loan" class="ltt-hero"></span><small>대출 합</small></div>
+        <div class="ltt-stat"><span id="s-res" class="ltt-hero"></span><small>준비금 합</small></div>
+      </div>
+      <div class="ltt-key"><span>${LTT.mark("square", { color: "var(--ltt-ink-2)", fill: true, inline: true })} 준비금</span> · <span>${LTT.mark("square", { color: "var(--ltt-accent)", fill: true, inline: true })} 대출 → 다음 예금</span> · <span>${LTT.mark("square", { color: "var(--ltt-ink-2)", inline: true })} 누적 예금</span> · 점선 = 상한</div>
+    </div>`;
+    const host = body.querySelector("#fig"), q = (id) => body.querySelector(id);
+    const slider = q("#n");
+    let timer = null;
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+    const play = () => {
+      stop();
+      timer = setInterval(() => {
+        const v = +slider.value;
+        if (v >= N) { stop(); return; }
+        slider.value = v + 1;
+        slider.dispatchEvent(new Event("input", { bubbles: true }));
+      }, 1100);
+    };
+    slider.addEventListener("pointerdown", stop);
+    LTT.sweep({
+      params: {
+        r: { kind: "steps", stops: [5, 10, 15, 20, 25], value: 10, fmt: (v) => v + "%", stopLabel: (v) => v + "%" },
+        n: { kind: "range", map: (v) => +v, fmt: (v) => v + "라운드" },
+      },
+      render: ({ r, n }) => {
+        const rr = r / 100, d = dep(rr, n), c = cum(rr, n);
+        draw(host, rr, n);
+        q("#s-new").textContent = f1(d);
+        q("#s-cum").textContent = f1(c);
+        q("#s-loan").textContent = f1(c - c * rr);
+        q("#s-res").textContent = f1(c * rr);
+        q("#s-mul").textContent = "×" + f1(100 / r);
+      },
+      goal: { el: "g", text: "상한이 700 이하가 되는 지급준비율을 찾는다", check: ({ r }) => D0 / (r / 100) <= 700 },
+    });
+    ctx.__play = play; ctx.__stop = stop;
+    return {
+      enter() { prevN = 0; slider.value = 1; slider.dispatchEvent(new Event("input", { bubbles: true })); if (!LTT.MOTION_MS) { slider.value = N; slider.dispatchEvent(new Event("input", { bubbles: true })); return; } play(); },
+      leave() { stop(); },
+    };
+  },
+  takeaway: "새 예금은 (1−r)배씩 줄지만 대출이 다시 예금이 되므로, 누적 예금은 최초 예금의 1÷r배(상한)까지 불어난다.",
+  recall: "지급준비율을 10%에서 20%로 올리면 예금 100의 상한은 얼마가 되는가?",
+};
+
+LTT.deck({
+  title: "신용 창조와 통화 승수",
+  theme: "ledger",
+  glossary: { "지급준비율": "은행이 받은 예금 중 대출하지 않고 준비금으로 남겨 두어야 하는 비율." },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

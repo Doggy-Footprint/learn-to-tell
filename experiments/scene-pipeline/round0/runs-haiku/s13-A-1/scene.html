@@ -1,0 +1,140 @@
+<meta charset="utf-8">
+<body>
+<title>결제 퍼널 이탈 지점</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<script type="application/json" id="ltt-meta">{"topic": "결제 퍼널 이탈 지점", "audience": "UX 입문자", "theme": "studio", "medium": "제품 분석 대시보드", "decision": "어느 결제 단계를 먼저 고칠까"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-mock.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.pair { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: center; }
+.pair > * { min-width: 0; }
+.funnel { display: block; width: 100%; height: auto; max-width: 100%; }
+.side { max-width: 100%; }
+.side > * { max-width: 100%; }
+.pdp { display: grid; grid-template-columns: minmax(0, 40%) minmax(0, 1fr); gap: 16px; padding: 18px; color: #1d2330; font-size: 13px; text-align: left; }
+.pdp p, .pdp h3 { margin: 0 0 6px; }
+.pdp h3 { font-size: 16px; }
+.pdp-img { aspect-ratio: 1; background: #e6eaf0; border-radius: 8px; }
+.pdp-cat { color: #6b7385; font-size: 12px; }
+.pdp-price { font-size: 18px; font-weight: 700; }
+.pdp-btn { margin-top: 14px; width: 100%; padding: 11px 0; border: 0; border-radius: 6px; background: #2f6fed; color: #fff; font-family: inherit; font-size: 14px; font-weight: 600; }
+@media (max-width: 720px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const STAGES = [
+  { l: "상품 보기", n: 10000 },
+  { l: "장바구니 담기", n: 4200 },
+  { l: "배송지 입력", n: 2900 },
+  { l: "결제 정보 입력", n: 1900 },
+  { l: "결제 완료", n: 1300 },
+];
+const fmt = (v) => v.toLocaleString("ko-KR");
+const loss = (i) => STAGES[i].n - STAGES[i + 1].n; // 단계 사이에서 떠난 사람 수
+const lossRate = (i) => Math.round((loss(i) / STAGES[i].n) * 100); // 떠난 비율(%)
+const doneRate = Math.round((STAGES[4].n / STAGES[0].n) * 100); // 처음부터 끝까지 간 비율(%)
+
+const funnel = (el) => {
+  const wrap = el.appendChild(document.createElement("div"));
+  wrap.className = "pair";
+  const s = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  s.setAttribute("viewBox", "0 0 420 356");
+  s.setAttribute("class", "funnel");
+  const add = (tag, attrs, text) => {
+    const n = s.appendChild(document.createElementNS(SVG, tag));
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === "fill" || k === "stroke") n.style[k] = v;
+      else n.setAttribute(k, v);
+    }
+    if (text) n.textContent = text;
+    return n;
+  };
+
+  const C = 236, MAX = 250, BH = 44, GAP = 32; // 중심 x, 첫 막대 너비, 막대 높이, 막대 사이 틈
+  const rowY = (i) => i * (BH + GAP);
+  const bars = STAGES.map((st, i) => {
+    const w = (st.n / STAGES[0].n) * MAX;
+    const r = add("rect", { x: C - w / 2, y: rowY(i), width: w, height: BH, rx: 6, fill: "var(--ltt-c1)" });
+    r.style.transformBox = "fill-box";
+    r.style.transformOrigin = "center";
+    add("text", { x: 0, y: rowY(i) + 18, "font-size": 14, fill: "var(--ltt-ink)", "font-weight": 600 }, st.l);
+    add("text", { x: 0, y: rowY(i) + 36, "font-size": 12, fill: "var(--ltt-muted)" }, `${fmt(st.n)}명`);
+    return r;
+  });
+  const hl = add("rect", { x: 40, y: rowY(0) + BH + 2, width: 392, height: GAP - 4, rx: 8, fill: "none", stroke: "var(--ltt-accent)", "stroke-width": 2, "stroke-dasharray": "4 4" });
+  hl.style.opacity = 0;
+  const pills = STAGES.slice(0, -1).map((_, i) =>
+    add("text", { x: C, y: rowY(i) + BH + 21, "text-anchor": "middle", "font-size": 13, fill: "var(--ltt-muted)" }, `−${fmt(loss(i))}명 · ${lossRate(i)}%`));
+  const total = add("text", { x: C + (STAGES[4].n / STAGES[0].n) * MAX / 2 + 12, y: rowY(4) + BH / 2 + 5, "font-size": 13, "font-weight": 700, fill: "var(--ltt-ink)" }, `전체 ${doneRate}%`);
+  total.style.opacity = 0;
+
+  const m = LTT.mock.browser({
+    url: "shop.example/product/k2", width: 400, height: 270, bg: "#ffffff",
+    content: `<div class="pdp">
+      <div class="pdp-img"></div>
+      <div>
+        <p class="pdp-cat">주변기기 · 키보드</p>
+        <h3>무선 키보드 K2</h3>
+        <p class="pdp-price">38,000원</p>
+        <p>배송 2–3일</p>
+        <button class="pdp-btn">장바구니 담기</button>
+      </div>
+    </div>`,
+  });
+  m.el.style.width = "100%";
+  const side = wrap.appendChild(document.createElement("div"));
+  side.className = "side";
+  side.appendChild(m.el);
+  const btn = m.screen.querySelector(".pdp-btn");
+
+  const tag = el.appendChild(document.createElement("div"));
+  tag.style.marginTop = "12px";
+  tag.innerHTML = `<span class="ltt-tag">모델로 계산한 예시</span>`;
+
+  const show = (step) => {
+    const ms = LTT.MOTION_MS;
+    if (step === 0) {
+      bars.forEach((r) => { r.style.transition = "none"; r.style.transform = "scaleX(0)"; });
+      s.getBoundingClientRect();
+      bars.forEach((r, i) => { r.style.transition = `transform ${ms}ms ease ${ms ? i * 120 : 0}ms`; r.style.transform = "scaleX(1)"; });
+    }
+    const on = step === 1;
+    hl.style.opacity = on ? 1 : 0;
+    pills[0].style.fill = on ? "var(--ltt-accent)" : "var(--ltt-muted)";
+    pills[0].setAttribute("font-weight", on ? 700 : 400);
+    total.style.opacity = step === 2 ? 1 : 0;
+    side.style.transition = `transform ${ms}ms ease, opacity ${ms}ms ease`;
+    side.style.transform = `scale(${on ? 1 : 0.7})`;
+    side.style.opacity = step === 0 ? 0.4 : 1;
+    btn.style.outline = on ? "3px solid var(--ltt-accent)" : "none";
+    btn.style.outlineOffset = "3px";
+  };
+  return { el: wrap, show };
+};
+
+LTT.deck({
+  title: "결제 퍼널 이탈 지점",
+  theme: "studio",
+  glossary: { "퍼널": "방문자가 목표 행동까지 거치는 단계를 순서대로 세어 놓은 흐름" },
+  scenes: [{
+    type: "figure",
+    kicker: "UX · 결제 퍼널",
+    en: "Where checkout leaks first",
+    title: "먼저 고칠 단계는 가장 큰 구멍 자리에서 찾는다",
+    sub: "방문자 10,000명이 상품 보기에서 결제 완료까지 가는 {{퍼널}}. 숫자는 어디서 떠나는지만 알려 준다",
+    figure: funnel,
+    steps: [
+      { caption: `① 방문자 ${fmt(STAGES[0].n)}명이 상품 보기에서 결제 완료까지 다섯 단계를 거친다`, enter: (k, f) => f.show(0) },
+      { caption: `② 가장 큰 구멍은 상품 보기와 장바구니 사이다. ${fmt(loss(0))}명, ${lossRate(0)}%가 담지 않고 떠난다`, enter: (k, f) => f.show(1) },
+      { caption: `③ 결제 완료는 ${fmt(STAGES[4].n)}명, 전체의 ${doneRate}%다. 먼저 고칠 곳은 떠난 이유를 본 뒤에 정한다`, enter: (k, f) => f.show(2) },
+    ],
+    takeaway: "단계 사이에서 가장 많이 떠나는 자리를 먼저 보고, 떠난 이유는 그 화면과 행동 기록으로 확인한다.",
+    recall: "방문자 10,000명 중 4,200명이 장바구니에 담았다면, 담지 않고 떠난 사람은 몇 명인가?",
+    basis: "단계별 숫자는 설명을 위해 만든 가상 값이다. 실제 제품 데이터가 아니다.",
+  }],
+});
+</script>

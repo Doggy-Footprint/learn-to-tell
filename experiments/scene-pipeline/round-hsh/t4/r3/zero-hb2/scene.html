@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.rep-wrap { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.rep-svg { width: 100%; height: auto; display: block; }
+.rep-svg text { font-family: inherit; fill: var(--ltt-ink); font-size: 15px; }
+.rep-svg .end { font-weight: 700; font-size: 16px; }
+.rep-svg .lbl { fill: var(--ltt-ink-2); font-size: 14px; }
+.rep-svg .tpl { fill: none; stroke: var(--ltt-ink-2); stroke-width: 5; stroke-linecap: round; }
+.rep-svg .lead { fill: var(--ltt-c1); }
+.rep-svg .frag { fill: var(--ltt-c2); }
+.rep-svg .prim { fill: var(--ltt-warn); }
+.rep-svg .gr { opacity: 0; transition: opacity .5s; }
+.rep-svg .gr.on { opacity: 1; }
+.rep-svg .sx { opacity: 0; transform: scaleX(0); transform-box: fill-box; transition: transform .9s ease-out, opacity .3s; }
+.rep-svg .sx.on { opacity: 1; transform: scaleX(1); }
+.rep-svg .sx.from-left { transform-origin: left center; }
+.rep-svg .sx.from-right { transform-origin: right center; }
+.rep-svg .gr.off, .rep-svg .sx.off { opacity: 0; }
+.rep-svg .hot { fill: none; stroke: var(--ltt-accent); stroke-width: 3; }
+.rep-svg .hotfill { fill: var(--ltt-accent); }
+.rep-svg .hottext { fill: var(--ltt-accent); font-weight: 700; }
+.rep-cap { min-height: 3.2em; font-size: 1.05rem; color: var(--ltt-ink); }
+.rep-dots { display: flex; gap: 8px; align-items: center; }
+.rep-dots button { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--ltt-ink-2); background: transparent; padding: 0; cursor: pointer; }
+.rep-dots button.on { background: var(--ltt-ink); }
+</style>
+</head>
+<body>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const CAPS = [
+  "이중나선이 열려 Y자 분기점이 생긴다. 한 점에서 두 주형 가닥이 갈라진다.",
+  "헬리케이스가 분기점을 오른쪽으로 전진시킨다. 열린 주형이 계속 노출된다.",
+  "중합효소는 새 가닥의 3' 끝에만 뉴클레오타이드를 붙인다. 새 가닥은 5'→3' 한 방향으로만 자란다.",
+  "위쪽 주형은 3' 쪽이 열려 있어, 새 가닥이 분기점을 따라 끊김 없이 자란다. 선도 가닥: 프라이머 1개.",
+  "아래쪽 주형은 새 가닥이 분기점에서 멀어지는 쪽으로만 자란다. 열릴 때마다 프라이머와 짧은 절편이 하나씩 생긴다. 가장 오래된 절편이 가장 멀다.",
+  "절편 하나를 확대해도 방향은 똑같이 5'→3'이다. 그 방향이 분기점 반대일 뿐이라 끊어진다.",
+  "프라이머가 제거되고 연결효소가 틈을 이어 지연 가닥도 하나로 완성된다."
+];
+function build(body) {
+  body.innerHTML = `<div class="rep-wrap"><svg class="rep-svg" viewBox="0 0 900 450" role="img" aria-label="DNA 복제 분기점: 위쪽 선도 가닥은 연속, 아래쪽 지연 가닥은 오카자키 절편"></svg><div class="rep-cap" aria-live="polite"></div><div class="rep-dots"></div></div>`;
+  const svg = body.querySelector("svg"), cap = body.querySelector(".rep-cap"), dots = body.querySelector(".rep-dots");
+  const T = (x, y, s, c = "", a = "start") => `<text x="${x}" y="${y}" class="${c}" text-anchor="${a}">${s}</text>`;
+  // from: 이 단계 이상에서 보임, until: 이 단계 이상에서 사라짐
+  const G = (from, inner, until = 99) => `<g class="gr" data-from="${from}" data-until="${until}">${inner}</g>`;
+  const SX = (from, cls, x, y, w, h, delay = 0, until = 99) =>
+    `<rect class="sx ${cls}" data-from="${from}" data-until="${until}" x="${x}" y="${y}" width="${w}" height="${h}" rx="3" style="transition-delay:${delay}s"/>`;
+  // 지연 가닥 절편: 5'(프라이머) 오른쪽, 3' 왼쪽. 오래된 것이 왼쪽.
+  const frags = [[90, 235], [245, 390], [400, 545]];
+  let fr = "";
+  frags.forEach(([a, b], i) => {
+    const d = i * 1.0;
+    fr += SX(4, "frag from-right", a, 262, b - a - 16, 12, d);
+    fr += SX(4, "prim from-right", b - 16, 262, 16, 12, d, 6);
+  });
+  svg.innerHTML = `
+  <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>
+  <path class="tpl" d="M860 212 H730 C650 212 650 140 570 140 H60"/>
+  <path class="tpl" d="M860 228 H730 C650 228 650 300 570 300 H60"/>
+  ${T(48, 144, "3'", "end", "end")}${T(872, 216, "5'", "end")}
+  ${T(48, 304, "5'", "end", "end")}${T(872, 238, "3'", "end")}
+  ${T(100, 112, "위쪽 주형 (3'→5'로 읽힘)", "lbl")}${T(100, 336, "아래쪽 주형 (5'→3'이 분기점 쪽으로 열림)", "lbl")}
+  ${T(790, 190, "부모 이중나선", "lbl", "middle")}
+  ${G(1, `<line x1="560" y1="40" x2="780" y2="40" stroke="var(--ltt-accent)" stroke-width="4" marker-end="url(#ah)"/>${T(560, 30, "분기점 진행 방향", "hottext")}<circle cx="655" cy="220" r="15" fill="var(--ltt-card)" stroke="var(--ltt-accent)" stroke-width="3"/>${T(655, 225, "H", "end hottext", "middle")}${T(655, 252, "헬리케이스", "lbl", "middle")}`)}
+  ${G(1, `<path d="M790 205 l-8 -8 M790 235 l-8 8" stroke="none"/>`)}
+  <!-- 선도 가닥 -->
+  ${SX(3, "lead from-left", 100, 160, 470, 12, 0)}
+  ${SX(2, "prim from-left", 82, 160, 18, 12, 0, 99)}
+  ${G(3, `${T(95, 188, "5'", "end", "end")}${T(576, 176, "3'", "end")}<line x1="300" y1="198" x2="500" y2="198" stroke="var(--ltt-c1)" stroke-width="3" marker-end="url(#ah)"/>${T(400, 218, "선도 가닥 5'→3', 연속", "lbl", "middle")}`)}
+  ${G(2, `<circle cx="573" cy="166" r="13" fill="var(--ltt-card)" stroke="var(--ltt-ink)" stroke-width="2"/>${T(573, 171, "P", "end", "middle")}`)}
+  ${G(2, `${T(450, 252, "", "")}`)}
+  <!-- 지연 가닥 -->
+  ${fr}
+  ${G(4, `${T(86, 292, "3'", "end", "end")}${T(550, 292, "5'", "end")}`)}
+  ${G(4, `<line x1="470" y1="244" x2="330" y2="244" stroke="var(--ltt-accent)" stroke-width="4" marker-end="url(#ah)" style="opacity:1"/>${T(400, 238, "절편은 분기점 반대로 자람", "hottext", "middle")}`)}
+  ${G(4, `${T(168, 258, "①", "lbl", "middle")}${T(318, 258, "②", "lbl", "middle")}${T(472, 258, "③", "lbl", "middle")}`)}
+  ${G(4, `<rect x="400" y="262" width="145" height="12" fill="none" class="hot" style="display:none"/>`)}
+  <!-- 확대 -->
+  ${G(5, `<rect x="400" y="258" width="145" height="20" rx="4" class="hot" fill="none"/>
+    <path d="M472 281 L330 350" stroke="var(--ltt-accent)" stroke-width="2" stroke-dasharray="4 4" fill="none"/>
+    <rect x="130" y="350" width="440" height="84" rx="8" fill="var(--ltt-card)" stroke="var(--ltt-accent)" stroke-width="2"/>
+    <rect x="165" y="368" width="320" height="14" rx="3" class="frag" style="fill:var(--ltt-c2)"/><rect x="469" y="368" width="16" height="14" class="prim" style="fill:var(--ltt-warn)"/>
+    ${T(155, 380, "3'", "end", "end")}${T(495, 380, "5'", "end")}
+    <line x1="400" y1="400" x2="230" y2="400" stroke="var(--ltt-accent)" stroke-width="3.5" marker-end="url(#ah)"/>
+    ${T(350, 424, "확대: 이 절편도 5'→3'으로 자란다", "hottext", "middle")}${T(580, 380, "프라이머", "lbl")}`)}
+  ${G(6, `<rect x="90" y="262" width="455" height="12" rx="3" style="fill:var(--ltt-c2)"/>${T(317, 300, "", "")}${T(560, 262, "", "")}${T(317, 258, "", "")}`)}
+  ${G(6, `<rect x="600" y="262" width="270" height="52" rx="6" fill="var(--ltt-card)" stroke="var(--ltt-line-2)" style="display:none"/>`)}
+  ${G(6, `${T(317, 236, "연결효소가 틈을 잇는다", "lbl", "middle")}`)}
+  `;
+  // 5·6단계: 확대 상자는 6에서 닫는다
+  svg.querySelectorAll('[data-from="5"]').forEach((g) => g.dataset.until = "6");
+  // 프라이머 사각형: 6에서 사라지고, 6에서 이어진 줄이 덮는다
+  const els = [...svg.querySelectorAll("[data-from]")];
+  let cur = -1, timer = null, paused = false;
+  const btns = CAPS.map((_, i) => { const b = document.createElement("button"); b.setAttribute("aria-label", "단계 " + (i + 1)); b.onclick = () => { paused = true; stopTimer(); go(i); }; dots.appendChild(b); return b; });
+  function go(n) {
+    cur = n;
+    els.forEach((e) => { const on = n >= +e.dataset.from && n < +e.dataset.until; e.classList.toggle("on", on); });
+    cap.textContent = (n + 1) + "/" + CAPS.length + "  " + CAPS[n];
+    btns.forEach((b, i) => b.classList.toggle("on", i === n));
+  }
+  function stopTimer() { clearInterval(timer); timer = null; }
+  function play() {
+    stopTimer();
+    if (LTT.MOTION_MS === 0) { go(CAPS.length - 1); return; }
+    go(0);
+    timer = setInterval(() => { go((cur + 1) % CAPS.length); }, 4200);
+  }
+  go(0);
+  return { enter() { if (!paused) play(); }, leave() { stopTimer(); } };
+}
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "선도 가닥": "분기점이 나아가는 방향과 같은 쪽으로 새 가닥이 끊김 없이 합성되는 가닥",
+    "오카자키 절편": "지연 가닥에서 프라이머마다 짧게 합성되는 DNA 조각. 세균은 약 1000~2000, 진핵생물은 약 100~200 뉴클레오타이드"
+  },
+  scenes: [{
+    type: "hook",
+    kicker: "DNA 복제",
+    title: "새 가닥은 한쪽은 이어 붙이고, 반대쪽은 끊어서 만든다",
+    en: "Leading strand and Okazaki fragments",
+    sub: "같은 분기점에서 두 새 가닥 모두 5'→3'으로 자란다. 달라지는 쪽은 주형이다. 단계 점을 눌러 멈추고 볼 수 있다.",
+    mount: build,
+    takeaway: "중합효소는 5'→3'으로만 잇는다. 그래서 분기점과 같은 방향의 {{선도 가닥}}은 연속으로, 반대 방향 가닥은 {{오카자키 절편}}으로 만든다.",
+    recall: "지연 가닥의 절편 하나는 어느 방향으로 자라며, 분기점에 대해 어느 쪽인가?"
+  }]
+});
+</script>
+</body>
+</html>

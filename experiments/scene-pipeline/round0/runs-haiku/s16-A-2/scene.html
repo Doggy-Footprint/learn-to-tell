@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>남향과 북향 방의 채광</title>
+<script type="application/json" id="ltt-meta">{"topic":"남향 vs 북향 방의 하루 채광","audience":"집을 고르는 비전문가","theme":"sketch","medium":"화이트보드 단면 스케치","decision":"방의 향 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.ba-plan { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--ltt-line); border-radius: 10px; background: var(--ltt-card); overflow: hidden }
+.ba-plan .cell { padding: 10px 6px 8px; text-align: center; font-size: 12px; color: var(--ltt-muted) }
+.ba-plan .cell + .cell { border-left: 1px solid var(--ltt-line) }
+.ba-plan svg { display: block; width: 100%; height: auto }
+.ba-plan text { font-size: 8px; fill: var(--ltt-muted) }
+.ba-plan .hl { position: absolute; top: 0; bottom: 0; left: 0; width: 33.3333%; box-sizing: border-box; border: 2px solid var(--ltt-accent); background: var(--ltt-accent-soft); opacity: .35; pointer-events: none; animation: ltt-sweep 6s linear infinite }
+@keyframes ltt-sweep {
+  0%, 15% { transform: translateX(0) }
+  30%, 48% { transform: translateX(100%) }
+  63%, 81% { transform: translateX(200%) }
+  96%, 100% { transform: translateX(200%) }
+}
+@media (prefers-reduced-motion: reduce) { .ba-plan .hl { display: none } }
+</style>
+</head>
+<body>
+<script>
+// 같은 방(4m × 4m 평면)을 창 방향만 바꿔 그린다. 위가 북쪽.
+// s는 해가 옮겨 가며 햇빛 자리가 창에서 좌우로 밀리는 거리(오전은 서쪽, 오후는 동쪽).
+const TIMES = [["오전 9시", -20], ["낮 12시", 0], ["오후 3시", 20]];
+const room = (south, s) => {
+  const wy = south ? 88 : 16; // 창이 있는 벽
+  const lit = south
+    ? `<polygon points="42,88 78,88 ${78 + s},44 ${42 + s},44" fill="var(--ltt-accent-soft)" stroke="var(--ltt-accent)" stroke-dasharray="3 2"/>`
+    : "";
+  return `<rect x="16" y="16" width="88" height="72" fill="var(--ltt-card-2)" stroke="var(--ltt-ink-2)" stroke-width="1.6"/>`
+    + lit
+    + `<line x1="42" x2="78" y1="${wy}" y2="${wy}" stroke="var(--ltt-ink)" stroke-width="4"/>`
+    + `<text x="60" y="${south ? 104 : 10}" text-anchor="middle">${south ? "남쪽 창" : "북쪽 창"}</text>`
+    + (south ? "" : `<text x="60" y="56" text-anchor="middle">직사광 없음</text>`);
+};
+const plan = (south) => `<div class="ba-plan">${TIMES.map(([t, s]) => `<div class="cell"><svg viewBox="0 0 120 112" role="img" aria-label="${south ? "남향" : "북향"} 방, ${t}">${room(south, s)}</svg><span>${t}</span></div>`).join("")}<i class="hl"></i></div>`;
+
+LTT.deck({
+  title: "남향과 북향 방의 채광",
+  theme: "sketch",
+  glossary: {},
+  scenes: [{
+    type: "contrast",
+    kicker: "건축 · 방의 향",
+    title: "남향 방은 낮에 햇빛이 들고, 북향 방은 거의 들지 않는다",
+    sub: "같은 방을 향만 바꿔 그렸다. 평면에서 위가 북쪽이고, 강조가 세 시각을 차례로 훑는다.",
+    narration: "해는 동쪽에서 떠 남쪽 하늘을 지나 서쪽으로 진다. 남쪽 창은 그 하늘을 향하고, 북쪽 창은 반대편을 본다.",
+    before: {
+      label: "북향 방",
+      tone: "bad",
+      visual: plan(false),
+      foot: { label: "낮 햇빛", caption: "창이 해 반대편을 봐서 직사광이 거의 없다. 낮에도 조명에 기대기 쉽다" }
+    },
+    after: {
+      label: "남향 방",
+      tone: "good",
+      visual: plan(true),
+      foot: { label: "낮 햇빛", caption: "창으로 든 햇빛 자리가 방 안쪽 바닥을 시각마다 옮겨 다닌다" }
+    },
+    basis: "위도 약 37°N, 춘분 무렵 햇빛 방위를 개략으로 그렸다. 햇빛 자리의 크기와 계절에 따른 차이는 줄였다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    takeaway: "방을 고를 때는 창이 어느 쪽을 보는지부터 확인한다.",
+    recall: "낮에 햇빛이 드는 방을 원하면 어느 쪽 창을 찾아야 하나?"
+  }]
+});
+</script>
+</body>
+</html>

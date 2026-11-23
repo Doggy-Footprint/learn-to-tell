@@ -94,7 +94,7 @@ Learn to Tell은 함께 작업하는 AI agent가 skill로 제공하는 짧은 �
 - **예제 모음(gallery)**: 조합 예시 수업 9편(cache-ttl, uiux/color-contrast, gpu/single-gpu-dataflow, physics/projectile-drag, cognition/anchoring, finance/diversification, pedagogy/retrieval-practice, linear-algebra/matrix-as-transform, knowledge-graph/ontology-triples), 장면 타입 데모(`scenes.html`), 부품 카탈로그(`catalog.html`), 시나리오 목록(`index.html`). 움직이는 장면 본보기 51개(`shots/`, 2026-10-19)는 개념 구조·테마·움직임·장면 역할·구도를 겹치지 않게 조합해 kit으로 만든 장면 하나짜리 페이지이고, `shots/index.html`이 움직이는 채로 모아 보인다. 수업이 아니라서 gallery audit 대상에서 뺀다(덱 순서 lint가 늘 뜬다). 옛 kit으로 만든 나머지 14편은 `gallery/stale/`에 있고 새 kit에서는 동작하지 않는다.
 - **퀴즈·평가·map 갱신은 대화에서** 처리한다.
 - **경량 로컬 서버**: 수업 HTML과 kit를 제공하고, 브라우저에서 생긴 결과(예측 등)를 받아 agent가 읽을 수 있게 한다. Node.js 표준 라이브러리만 쓰고 127.0.0.1에만 bind한다(`server/server.mjs`). agent가 백그라운드로 시작하고, 같은 포트에서 이미 실행 중이면 재사용하며, 요청 없이 40분이 지나면 스스로 종료한다. 결과는 `lessons/<id>/events.jsonl`에 쌓이고 agent가 직접 읽는다.
-- **배포**: harness 확장으로 배포한다(`agent-docs/adr/190db09929e4196e-distribute-as-harness-extension.md`). 원본은 `skills/learn-to-tell/`이다.
+- **배포**: harness 확장으로 배포한다. 원본은 `skills/learn-to-tell/`이다.
 - **데이터 위치(기본값, 실사용 후 재검토)**: `~/.learn-to-tell/map.md`, `~/.learn-to-tell/lessons/<YYYYMMDD-slug>/{lesson.html, events.jsonl, result.md}`. `LTT_HOME`으로 바꿀 수 있다.
 - **학습 세션**: 작업 세션을 fork해 학습하고, 끝나면 원래 세션으로 돌아온다. 원래 세션의 prefix가 바뀌지 않아 prompt cache를 그대로 쓴다. 사용자가 `/fork`로 실행하고, 학습이 끝나면 학습 세션이 cross-session messaging으로 결과를 원래 세션에 보낸다. `/fork`의 세션 복사는 v2.1.212, cross-session messaging은 v2.1.224부터 지원되며, agent view가 꺼져 있으면 `/fork`는 forked subagent로 동작한다. 작업 세션의 context가 100k tokens 이상이면 fork한 세션이 큰 context를 그대로 안고 가지 않도록 새 세션에서 학습하길 권하고, 작업 맥락은 문서로 넘긴다.
 - **map은 단순 파일 하나**로 둔다. 검증·복구 장치는 실제 문제가 확인된 곳에만 추가한다.

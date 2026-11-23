@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic":"DNA 복제 분기점","audience":"생명과학 입문 학생","theme":"paper","medium":"교과서 도해","decision":"복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.fork-art{width:100%;max-width:1100px;margin:0 auto}
+.fork-art svg{width:100%;height:auto;display:block}
+.fork-art text{font-family:inherit;fill:var(--ltt-ink)}
+.fork-art .m{fill:var(--ltt-muted)}
+.fork-art .a{transform-box:fill-box;opacity:0}
+.fork-art .gr{transform-origin:0% 50%}
+.fork-art .gl{transform-origin:100% 50%}
+@media (prefers-reduced-motion:reduce){.fork-art .a{animation:none!important;opacity:1;transform:none!important}.fork-art .out{opacity:0!important}}
+</style>
+<script>
+// 장면 시간표(초): 한 바퀴 18초. 생성 순서 = 프라이머 → 연장 → 프라이머 제거·봉합
+(function(){
+  const T=18, p=s=>(s/T*100).toFixed(2);
+  const L=[
+    ["lp",1,1.4],["lrect",1.4,13,"gr"],["lpol",1.4,13,"mv",420,1],["lA",1.2,1.6],
+    ["pA",2,2.4],["rA",2.4,5,"gl"],["polA",2.4,5,"mv",-138,1],
+    ["pB",6,6.4],["rB",6.4,9,"gl"],["polB",6.4,9,"mv",-138,1],
+    ["pC",10,10.4],["rC",10.4,13,"gl"],["polC",10.4,13,"mv",-118,1],
+    ["dna",14,14.6],["lig1",15,15.5],["lig2",16,16.5],["done",16.5,17],
+    ["lar",1.4,1.8],["l3",13,13.4],["lag",2.4,2.8],["ar1",2.4,2.8],["ar2",6.4,6.8],["ar3",10.4,10.8]
+  ];
+  let css="";
+  L.forEach(([id,s,e,k,tx,out],i)=>{
+    const t0=k==="mv"?"translateX(0)":(k?"scaleX(0)":"none");
+    const t1=k==="mv"?`translateX(${tx}px)`:(k?"scaleX(1)":"none");
+    const outk=out?`${p(e+0.4)}%{opacity:0;transform:${t1}}`:"";
+    css+=`@keyframes k${i}{0%,${p(s)}%{opacity:0;transform:${t0}}${(+p(s)+0.01).toFixed(2)}%{opacity:1;transform:${t0}}${p(e)}%{opacity:1;transform:${t1}}${outk}${out?"":"94%{opacity:1;transform:"+t1+"}"}97%,100%{opacity:0;transform:${t1}}}`;
+    css+=`#${id}{animation:k${i} ${T}s linear infinite}`;
+  });
+  const st=document.createElement("style");st.textContent=css;document.head.appendChild(st);
+})();
+</script>
+</head>
+<body>
+<script>
+const ART=`<div class="fork-art"><svg viewBox="0 0 960 490" role="img" aria-label="DNA 복제 분기점: 선도 가닥은 연속, 지연 가닥은 오카자키 절편으로 합성">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--ltt-ink)"/></marker></defs>
+
+<!-- 부모 가닥 -->
+<g fill="none" stroke="var(--ltt-ink-2)" stroke-width="4" stroke-linecap="round">
+<path d="M860,215 L600,215 C550,215 540,60 480,60 L80,60"/>
+<path d="M860,245 L600,245 C550,245 540,420 480,420 L80,420"/>
+</g>
+<g stroke="var(--ltt-line-2)" stroke-width="2"><path d="M640,218v24M680,218v24M720,218v24M760,218v24M800,218v24M840,218v24"/></g>
+<text x="72" y="65" text-anchor="end" font-size="15">3′</text>
+<text x="72" y="425" text-anchor="end" font-size="15">5′</text>
+<text x="868" y="220" font-size="15">5′</text>
+<text x="868" y="250" font-size="15">3′</text>
+<text x="80" y="40" class="m" font-size="14">부모 가닥(주형)</text>
+
+<!-- 헬리카아제, SSB -->
+<circle cx="588" cy="230" r="20" fill="var(--ltt-card-2)" stroke="var(--ltt-ink)" stroke-width="2.5"/>
+<path d="M578,244 L588,214 L598,244" fill="none" stroke="var(--ltt-ink)" stroke-width="2.5"/>
+<text x="628" y="192" font-size="14">헬리카아제: 두 가닥을 푼다</text>
+<g fill="var(--ltt-muted)"><circle cx="455" cy="415" r="6"/><circle cx="485" cy="418" r="6"/><circle cx="510" cy="400" r="6"/><circle cx="520" cy="95" r="0"/></g>
+<text x="430" y="445" class="m" font-size="13">SSB: 열린 가닥을 붙잡는다</text>
+
+<!-- 분기점 전진 -->
+<path d="M640,290 L860,290" stroke="var(--ltt-ink)" stroke-width="3" marker-end="url(#ah)"/>
+<text x="640" y="316" font-size="15" font-weight="700">분기점 전진 방향</text>
+
+<!-- 선도 가닥 -->
+<rect id="lp"class="a" x="80" y="146" width="12" height="8" fill="var(--ltt-warn)"/>
+<rect id="lrect" class="a gr" x="92" y="146" width="428" height="8" fill="var(--ltt-accent)"/>
+<g id="lpol" class="a"><ellipse cx="100" cy="150" rx="34" ry="19" fill="var(--ltt-card)" stroke="var(--ltt-ink)" stroke-width="2"/><text x="100" y="155" text-anchor="middle" font-size="12">중합효소</text></g>
+<g id="lar" class="a"><text x="56" y="155" text-anchor="end" font-size="15">5′</text>
+<path d="M130,112 L500,112" stroke="var(--ltt-ink)" stroke-width="3" marker-end="url(#ah)"/>
+<text x="130" y="100" font-size="14" font-weight="700">선도 가닥: 5′→3′ 성장 = 분기점 방향, 끊김 없이 연속</text></g>
+<text id="l3" class="a" x="520" y="184" font-size="15">3′</text>
+<g id="lA" class="a"><text x="80" y="176" class="m" font-size="12">첫 프라이머는 한 번뿐</text></g>
+
+<!-- 지연 가닥 절편 -->
+<g id="pA" class="a"><rect x="218" y="326" width="12" height="8" fill="var(--ltt-warn)"/><text x="42" y="340" text-anchor="end" font-size="15">3′</text><text x="150" y="312" text-anchor="middle" class="m" font-size="12">절편 1(가장 오래됨)</text></g>
+<rect id="rA" class="a gl" x="80" y="326" width="138" height="8" fill="var(--ltt-accent)"/>
+<g id="polA" class="a"><ellipse cx="218" cy="330" rx="34" ry="19" fill="var(--ltt-card)" stroke="var(--ltt-ink)" stroke-width="2"/><text x="218" y="335" text-anchor="middle" font-size="12">중합효소</text></g>
+
+<g id="pB" class="a"><rect x="378" y="326" width="12" height="8" fill="var(--ltt-warn)"/><text x="310" y="312" text-anchor="middle" class="m" font-size="12">절편 2</text></g>
+<rect id="rB" class="a gl" x="240" y="326" width="138" height="8" fill="var(--ltt-accent)"/>
+<g id="polB" class="a"><ellipse cx="378" cy="330" rx="34" ry="19" fill="var(--ltt-card)" stroke="var(--ltt-ink)" stroke-width="2"/><text x="378" y="335" text-anchor="middle" font-size="12">중합효소</text></g>
+
+<g id="pC" class="a"><rect x="518" y="326" width="12" height="8" fill="var(--ltt-warn)"/><text x="536" y="340" font-size="15">5′</text><text x="460" y="312" text-anchor="middle" class="m" font-size="12">절편 3(가장 새로움)</text></g>
+<rect id="rC" class="a gl" x="400" y="326" width="118" height="8" fill="var(--ltt-accent)"/>
+<g id="polC" class="a"><ellipse cx="518" cy="330" rx="34" ry="19" fill="var(--ltt-card)" stroke="var(--ltt-ink)" stroke-width="2"/><text x="518" y="335" text-anchor="middle" font-size="12">중합효소</text></g>
+
+<!-- 지연 가닥 화살표 -->
+<g stroke="var(--ltt-ink)" stroke-width="3" fill="none">
+<path id="ar1" class="a" d="M222,362 L90,362" marker-end="url(#ah)"/><path id="ar2" class="a" d="M382,362 L250,362" marker-end="url(#ah)"/><path id="ar3" class="a" d="M522,362 L410,362" marker-end="url(#ah)"/></g>
+<text id="lag" class="a" x="80" y="388" font-size="14" font-weight="700">지연 가닥: 오카자키 절편마다 분기점의 반대 방향으로 성장</text>
+
+<!-- 프라이머 제거, 봉합 -->
+<g id="dna" class="a"><rect x="218" y="326" width="12" height="8" fill="var(--ltt-accent)"/><rect x="378" y="326" width="12" height="8" fill="var(--ltt-accent)"/><rect x="518" y="326" width="12" height="8" fill="var(--ltt-accent)"/><text x="600" y="345" font-size="13">DNA 중합효소 I: 프라이머 → DNA</text></g>
+<g id="lig1" class="a"><rect x="230" y="326" width="10" height="8" fill="var(--ltt-accent)"/><path d="M235,310 l7,9 l-7,9 l-7,-9z" fill="var(--ltt-ink)"/></g>
+<g id="lig2" class="a"><rect x="390" y="326" width="10" height="8" fill="var(--ltt-accent)"/><path d="M395,310 l7,9 l-7,9 l-7,-9z" fill="var(--ltt-ink)"/><text x="600" y="368" font-size="13">연결효소(◆): 틈을 잇는다 — 먼 쪽부터</text></g>
+
+<!-- 범례 -->
+<g font-size="13"><rect x="80" y="466" width="14" height="8" fill="var(--ltt-accent)"/><text x="100" y="474">새 DNA</text>
+<rect x="190" y="466" width="14" height="8" fill="var(--ltt-warn)"/><text x="210" y="474">RNA 프라이머(프라이머가아제가 놓음)</text>
+<ellipse cx="500" cy="470" rx="14" ry="8" fill="var(--ltt-card)" stroke="var(--ltt-ink)" stroke-width="2"/><text x="522" y="474">DNA 중합효소: 3′ 끝에만 덧붙임</text></g>
+</svg></div>`;
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  scenes: [{
+    type: "hook",
+    pre: "DNA 복제 분기점",
+    text: "한 가닥은 이어서, 다른 가닥은 거꾸로 조각조각",
+    sub: "새 가닥은 언제나 5′→3′으로만 자란다. 분기점은 한 방향으로 열리는데, 두 주형은 서로 반대 방향이라 한쪽 새 가닥만 분기점을 따라갈 수 있다.",
+    art: ART
+  }]
+});
+</script>
+</body>
+</html>

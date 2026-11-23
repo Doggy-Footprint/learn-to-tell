@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>가비지 컬렉션 방식</title>
+<script type="application/json" id="ltt-meta">{"topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 같은 코드가 만든 힙. 변수 x, y는 루트(전역·스택)가 쥔 시작점이다.
+// 참조 방향은 f -> t. 두 런타임에 같은 그래프를 쓴다.
+const ALL = [["x", "A"], ["y", "B"], ["A", "B"], ["B", "A"]];
+const AFTER_RELEASE = [["A", "B"], ["B", "A"]];
+const incoming = (es, id) => es.filter((e) => e[1] === id).length;
+const reach = (roots, es) => {
+  const seen = new Set(roots);
+  const stack = [...roots];
+  while (stack.length) {
+    const cur = stack.pop();
+    es.filter((e) => e[0] === cur).forEach((e) => { if (!seen.has(e[1])) { seen.add(e[1]); stack.push(e[1]); } });
+  }
+  return [...seen];
+};
+LTT.expect("연결 직후 A 카운트", incoming(ALL, "A"), 2);
+LTT.expect("해제 직후 A 카운트", incoming(AFTER_RELEASE, "A"), 1);
+LTT.expect("해제 직후 루트에서 닿는 객체 수", reach([], AFTER_RELEASE).length, 0);
+
+// 생성 순서대로 화면에 나타나는 객체와 연결. 해제는 변수를 지우는 단계다.
+const NODES = [
+  { id: "x", c: 0, r: 0, l: "x", s: "변수", k: "muted" },
+  { id: "A", c: 1, r: 0, l: "A" },
+  { id: "R", c: 0, r: 1, l: "루트", s: "전역·스택", k: "dark" },
+  { id: "y", c: 0, r: 2, l: "y", s: "변수", k: "muted" },
+  { id: "B", c: 1, r: 2, l: "B" },
+];
+const EDGES = [
+  { id: "Rx", f: "R", t: "x" },
+  { id: "Ry", f: "R", t: "y" },
+  { id: "xA", f: "x", t: "A" },
+  { id: "yB", f: "y", t: "B" },
+  { id: "AB", f: "A", t: "B", l: "A.peer", lo: [28, 0], from: "bottom", to: "top" },
+  { id: "BA", f: "B", t: "A", l: "B.peer", lo: [-28, 0], from: "top", to: "bottom" },
+];
+const SPEC = { cols: 2, rows: 3, cell: [170, 110], node: [110, 50], nodes: NODES, edges: EDGES };
+
+const ALL_N = ["A", "B", "x", "y", "R"];
+const ALL_E = ["xA", "Rx", "yB", "Ry", "AB", "BA"];
+const LINKED = ["A", "B", "x", "y", "R"];
+
+const put = (el, on) => {
+  if (el && el.style) { el.style.transition = "opacity .45s"; el.style.opacity = on ? "1" : "0"; }
+};
+const show = (dg, nodes, edges) => {
+  ALL_N.forEach((id) => put(dg.node(id), nodes.includes(id)));
+  ALL_E.forEach((id) => put(dg.edge(id), edges.includes(id)));
+};
+
+// 두 런타임이 같은 단계 목록을 쓰고, 마지막 단계만 갈린다.
+const LINK_STEPS = [
+  { n: ["A", "B"], e: [], cap: "① 객체 A, B를 만든다. 아직 가리키는 것이 없어 카운트는 0이다." },
+  { n: ["A", "B", "x", "R"], e: ["xA", "Rx"], cap: "② 변수 x가 A를 가리킨다. A 카운트 1." },
+  { n: ["A", "B", "x", "y", "R"], e: ["xA", "Rx", "yB", "Ry"], cap: "③ 변수 y가 B를 가리킨다. B 카운트 1." },
+  { n: LINKED, e: ["xA", "Rx", "yB", "Ry", "AB"], cap: "④ A.peer = B. B 카운트 2(y, A.peer)." },
+  { n: LINKED, e: ["xA", "Rx", "yB", "Ry", "AB", "BA"], cap: "⑤ B.peer = A. A 카운트 2(x, B.peer). 연결이 끝났다." },
+  { n: ["A", "B", "R"], e: ["AB", "BA"], cap: "⑥ x, y를 해제한다. 루트에서 A, B로 가는 길이 끊긴다." },
+];
+const RC_LAST = { n: ["A", "B", "R"], e: ["AB", "BA"], cap: "⑦ 해제 뒤 A·B 카운트는 각각 1. 0이 아니라 회수되지 않는다. retainer는 서로뿐, 루트 경로 0개. 영영 남는다." };
+const MS_STEPS = [
+  { n: ["A", "B", "R"], e: ["AB", "BA"], cap: "⑦ mark: 루트 R에서 출발해 닿는 객체를 표시한다. 닿는 객체가 0개라 표시도 0개다." },
+  { n: ["R"], e: [], cap: "⑧ sweep: 표시 안 된 A, B를 회수한다. 실제 회수는 다음 GC 사이클에 일어난다." },
+];
+
+const buildSide = (el, mode) => {
+  const box = el.appendChild(document.createElement("div"));
+  const svg = box.appendChild(document.createElementNS(SVG, "svg"));
+  const dg = LTT.diagram(svg, SPEC);
+  const tail = mode === "rc" ? [RC_LAST] : MS_STEPS;
+  const steps = [...LINK_STEPS, ...tail].map((s) => ({
+    caption: s.cap,
+    enter: (d) => show(d, s.n, s.e),
+  }));
+  const ctl = box.appendChild(document.createElement("div"));
+  dg.player(ctl, steps);
+  return box;
+};
+
+LTT.deck({
+  title: "가비지 컬렉션 방식",
+  theme: "terminal",
+  glossary: {
+    "참조 카운팅": "객체를 가리키는 참조의 수를 세고, 0이 되는 순간 회수하는 방식",
+    "mark-and-sweep": "루트에서 닿는 객체를 표시한 뒤, 표시되지 않은 객체를 회수하는 방식",
+  },
+  scenes: [
+    {
+      type: "contrast",
+      kicker: "런타임 · 순환 참조",
+      title: "같은 순환이라도 회수 여부는 '루트에서 닿는가'로 갈린다",
+      en: "Same cycle, different fate",
+      sub: "같은 코드를 두 런타임에 돌리고 변수 x, y를 해제했다. 왼쪽은 {{참조 카운팅}}, 오른쪽은 {{mark-and-sweep}}.",
+      before: {
+        label: "참조 카운팅",
+        visual: (el) => buildSide(el, "rc"),
+        note: "회수 조건은 카운트 0. A, B는 카운트 1로 남아 회수 트리거가 오지 않는다.",
+      },
+      after: {
+        label: "mark-and-sweep",
+        visual: (el) => buildSide(el, "ms"),
+        note: "회수 조건은 mark에서 표시되지 않음. 루트에서 닿지 않으니 sweep이 A, B를 치운다.",
+      },
+      takeaway: "누수는 순환이 아니라 회수 조건이 충족되지 않는 것이다. 진단은 이 객체가 루트에서 닿는지부터 묻는다.",
+      recall: "참조 카운팅에서 해제 뒤 A의 카운트가 1로 남는 이유는?",
+      basis: "모델로 계산한 예시. 교재용 최소 모델이며 실제 런타임의 수치가 아니다.",
+    },
+  ],
+});
+</script>
+</body>
+</html>

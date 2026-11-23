@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할</title>
+<script type="application/json" id="ltt-meta">{"topic":"B+tree 노드 분할","audience":"백엔드 개발자","theme":"blueprint","medium":"DB 내부 구조 도해","decision":"인덱스 설계와 페이지 크기 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.bt { width: 100%; max-width: 1000px; height: auto; display: block; margin: 0 auto; }
+.bt .kc { fill: var(--ltt-card); stroke: var(--ltt-ink-2); stroke-width: 1.5; }
+.bt .kc.new { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); stroke-width: 2.5; }
+.bt .kc.copy { fill: var(--ltt-accent-soft); stroke: var(--ltt-accent); stroke-width: 2.5; }
+.bt .kc.move { fill: var(--ltt-warn-soft); stroke: var(--ltt-warn); stroke-width: 2.5; }
+.bt .kt { fill: var(--ltt-ink); font-size: 16px; font-family: var(--ltt-mono, monospace); }
+.bt .fr { fill: none; stroke: var(--ltt-line-2); stroke-width: 1.5; }
+.bt .full .fr { stroke: var(--ltt-warn); stroke-width: 2.5; }
+.bt .over .fr { stroke: var(--ltt-bad); stroke-width: 3; }
+.bt .fresh .fr { stroke: var(--ltt-accent); stroke-width: 3; }
+.bt .dim { opacity: .45; }
+.bt .gh { fill: none; stroke: var(--ltt-line-2); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.bt .gt { fill: var(--ltt-muted); font-size: 14px; }
+.bt .tg { fill: var(--ltt-ink-2); font-size: 14px; }
+.bt .tg.full { fill: var(--ltt-warn); }
+.bt .tg.over { fill: var(--ltt-bad); }
+.bt .tg.fresh { fill: var(--ltt-accent); }
+.bt .tg.ok { fill: var(--ltt-good); }
+.bt .eg { stroke: var(--ltt-ink-2); stroke-width: 1.5; fill: none; }
+.bt .lk { stroke: var(--ltt-accent); stroke-width: 2; fill: none; marker-end: url(#bt-arr); }
+.bt .nt { fill: var(--ltt-ink); font-size: 15px; }
+.bt .nt.big { font-size: 20px; font-weight: 700; }
+.bt .nt.sm { fill: var(--ltt-ink-2); font-size: 14px; }
+.bt .nt.acc { fill: var(--ltt-accent); }
+.bt .nt.wrn { fill: var(--ltt-warn); }
+.bt .pg { fill: var(--ltt-card-2); stroke: var(--ltt-ink-2); stroke-width: 2; }
+.bt .bar { fill: var(--ltt-accent); }
+.bt .pop { transform-box: fill-box; transform-origin: center; animation: bt-pop .6s ease-out both; }
+.bt .drop { animation: bt-drop .9s ease-out both; }
+@keyframes bt-pop { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: scale(1); } }
+@keyframes bt-drop { from { transform: translateY(-126px); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .bt .pop, .bt .drop { animation: none; } }
+</style>
+</head>
+<body>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const W = 38, H = 32, ROW = [40, 166, 292, 418];
+
+const nd = (cx, row, keys, o = {}) => {
+  const w = o.w || Math.max(keys.length, 1) * W;
+  return { cx, row, keys, w, x: cx - w / 2, y: ROW[row], ...o };
+};
+const ghost = (cx, row, label, w, o = {}) => nd(cx, row, [], { ghost: true, label, w, ...o });
+
+const keyCells = (n) => n.keys.map((k, i) => {
+  const o = typeof k === "object" ? k : { t: String(k) };
+  const x = n.x + i * W;
+  return `<rect class="kc ${o.c || ""}" x="${x}" y="${n.y}" width="${W}" height="${H}"/>` +
+    `<text class="kt" x="${x + W / 2}" y="${n.y + H / 2 + 5}" text-anchor="middle">${o.t}</text>`;
+}).join("");
+
+const drawNode = (n) => {
+  const body = n.ghost
+    ? `<rect class="gh" x="${n.x}" y="${n.y}" width="${n.w}" height="${H}" rx="4"/>` +
+      `<text class="gt" x="${n.cx}" y="${n.y + H / 2 + 5}" text-anchor="middle">${n.label}</text>`
+    : `<rect class="fr" x="${n.x - 4}" y="${n.y - 4}" width="${n.w + 8}" height="${H + 8}" rx="5"/>${keyCells(n)}`;
+  const tag = n.tag ? `<text class="tg ${n.tone || ""}" x="${n.cx + 10}" y="${n.y - 10}">${n.tag}</text>` : "";
+  return `<g class="${n.tone || ""} ${n.dim ? "dim" : ""} ${n.anim || ""}" style="animation-delay:${n.delay || 0}ms">${body}${tag}</g>`;
+};
+const drawEdge = ([p, b, c, anim, delay]) =>
+  `<line class="eg ${anim || ""}" style="animation-delay:${delay || 0}ms" x1="${p.x + b * W}" y1="${p.y + H + 4}" x2="${c.cx}" y2="${c.y - 4}"/>`;
+const drawLink = ([a, b, anim, delay]) =>
+  `<line class="lk ${anim || ""}" style="animation-delay:${delay || 0}ms" x1="${a.x + a.w + 5}" y1="${a.y + H / 2}" x2="${b.x - 7}" y2="${b.y + H / 2}"/>`;
+const drawNote = (t) => `<text class="nt ${t.cls || ""}" x="${t.x}" y="${t.y}" ${t.mid ? 'text-anchor="middle"' : ""}>${t.t}</text>`;
+
+// 장면 상태: 단계 번호 → 그릴 노드·엣지·잎 연결·글
+const treeState = (k) => {
+  const s = { n: [], e: [], l: [], notes: [] };
+  const lvl = k === 4 ? "높이 3 → 4" : "높이 3";
+  s.notes.push({ x: 24, y: 40, t: lvl, cls: "big" });
+
+  if (k <= 1) {
+    const root = nd(500, 0, [50, 100, 150, 200], { tag: "꽉 참 4/4", tone: "full" });
+    const i1 = ghost(90, 1, "I1 …", 100), g3 = ghost(800, 1, "나머지 자식 3개", 150);
+    const i2 = nd(400, 1, [60, 70, 80, 90], { tag: "꽉 참 4/4", tone: "full" });
+    const p = ghost(120, 2, "앞 잎들 …", 120), nx = ghost(660, 2, "다음 잎", 100);
+    const lk = k === 0
+      ? nd(400, 2, [81, 83, 85, 88], { tag: "꽉 참 4/4", tone: "full" })
+      : nd(400, 2, [81, 83, 85, { t: 86, c: "new" }, 88], { tag: "86 삽입 → 5/4 넘침", tone: "over" });
+    s.n.push(root, i1, i2, g3, p, lk, nx);
+    s.e.push([root, 0, i1], [root, 1, i2], [root, 2, g3], [i2, 0, p], [i2, 3, lk], [i2, 4, nx]);
+    s.l.push([p, lk], [lk, nx]);
+    s.notes.push({ x: 24, y: 78, t: "페이지 하나 = 키 칸 4개", cls: "sm" });
+    if (k === 1) s.notes.push({ x: 24, y: 100, t: "잎에서 시작해 위로 확인", cls: "sm" });
+  } else if (k === 2) {
+    const root = nd(500, 0, [50, 100, 150, 200], { tag: "꽉 참 4/4", tone: "full" });
+    const i1 = ghost(90, 1, "I1 …", 100), g3 = ghost(800, 1, "나머지 자식 3개", 150);
+    const i2 = nd(400, 1, [60, 70, 80, { t: 86, c: "copy" }, 90], { tag: "5/4 넘침", tone: "over" });
+    const p = ghost(110, 2, "앞 잎들 …", 110), nx = ghost(690, 2, "다음 잎", 100);
+    const l = nd(300, 2, [81, 83, 85], { tag: "3개" });
+    const l2 = nd(480, 2, [{ t: 86, c: "copy" }, 88], { tag: "새 오른쪽 잎", tone: "fresh", anim: "pop" });
+    s.n.push(root, i1, i2, g3, p, l, l2, nx);
+    s.e.push([root, 0, i1], [root, 1, i2], [root, 2, g3], [i2, 1, p], [i2, 3, l], [i2, 4, l2, "pop"], [i2, 5, nx]);
+    s.l.push([p, l], [l, l2, "pop"], [l2, nx, "pop"]);
+    s.notes.push({ x: 390, y: 358, t: "복사: 86은 잎에도 남는다", cls: "acc", mid: false });
+  } else if (k === 3) {
+    const root = nd(520, 0, [50, { t: 80, c: "move" }, 100, 150, 200], { tag: "5/4 넘침", tone: "over" });
+    const i1 = ghost(75, 1, "I1 …", 100), g3 = ghost(890, 1, "나머지 자식 3개", 150);
+    const a = nd(230, 1, [60, 70], { tag: "2키 · 자식 3", tone: "fresh" });
+    const b = nd(470, 1, [86, 90], { tag: "2키 · 자식 3", tone: "fresh", anim: "pop" });
+    const p = ghost(130, 2, "앞 잎들 …", 110), nx = ghost(640, 2, "다음 잎", 100);
+    const l = nd(310, 2, [81, 83, 85]), l2 = nd(470, 2, [86, 88]);
+    s.n.push(root, i1, a, b, g3, p, l, l2, nx);
+    s.e.push([root, 0, i1], [root, 1, a], [root, 2, b], [root, 3, g3], [a, 1, p], [b, 0, l], [b, 1, l2], [b, 2, nx]);
+    s.l.push([p, l], [l, l2], [l2, nx]);
+    s.notes.push({ x: 590, y: 188, t: "80 이동: 아래엔 없다", cls: "wrn" });
+  } else if (k === 4) {
+    const root = nd(500, 0, [{ t: 100, c: "move" }], { tag: "새 루트", tone: "fresh", anim: "pop" });
+    const r1 = nd(260, 1, [50, 80], { anim: "drop" }), r2 = nd(740, 1, [150, 200], { anim: "drop" });
+    const i1 = ghost(70, 2, "I1 …", 100, { anim: "drop" }), g3 = ghost(880, 2, "나머지 자식 3개", 150, { anim: "drop" });
+    const a = nd(230, 2, [60, 70], { anim: "drop" }), b = nd(470, 2, [86, 90], { anim: "drop" });
+    const p = ghost(130, 3, "앞 잎들 …", 110, { anim: "drop" }), nx = ghost(640, 3, "다음 잎", 100, { anim: "drop" });
+    const l = nd(310, 3, [81, 83, 85], { anim: "drop" }), l2 = nd(470, 3, [86, 88], { anim: "drop" });
+    s.n.push(root, r1, r2, i1, a, b, g3, p, l, l2, nx);
+    s.e.push([root, 0, r1, "pop", 500], [root, 1, r2, "pop", 500], [r1, 0, i1, "drop"], [r1, 1, a, "drop"], [r1, 2, b, "drop"],
+      [r2, 0, g3, "drop"], [a, 1, p, "drop"], [b, 0, l, "drop"], [b, 1, l2, "drop"], [b, 2, nx, "drop"]);
+    s.l.push([p, l, "drop"], [l, l2, "drop"], [l2, nx, "drop"]);
+    s.notes.push({ x: 24, y: 78, t: "모든 잎이 한 층씩 내려감", cls: "sm" });
+    root.delay = 600;
+  } else if (k === 5) {
+    s.notes[0].t = "높이 3 그대로";
+    const root = nd(500, 0, [50, 100, 150, 200], { tag: "변화 없음", dim: true });
+    const i1 = ghost(90, 1, "I1 …", 100), g3 = ghost(800, 1, "나머지 자식 3개", 150);
+    const i2 = nd(380, 1, [60, 70, 80, { t: 86, c: "copy" }], { tag: "4/4: 빈 칸이 있어 멈춤", tone: "ok" });
+    const p = ghost(110, 2, "앞 잎들 …", 110), nx = ghost(640, 2, "다음 잎", 100);
+    const l = nd(290, 2, [81, 83, 85]);
+    const l2 = nd(450, 2, [{ t: 86, c: "copy" }, 88], { tag: "새 오른쪽 잎", tone: "fresh", anim: "pop" });
+    s.n.push(root, i1, i2, g3, p, l, l2, nx);
+    s.e.push([root, 0, i1], [root, 1, i2], [root, 2, g3], [i2, 1, p], [i2, 3, l], [i2, 4, l2, "pop"]);
+    s.l.push([p, l], [l, l2, "pop"], [l2, nx, "pop"]);
+    s.notes.push({ x: 24, y: 78, t: "I2가 3키였다면", cls: "sm" });
+  }
+  return s;
+};
+
+const sizeRow = (y0, kb, w, fan, calc, keys, barW, lab) => `
+  <rect class="pg" x="40" y="${y0}" width="${w}" height="70" rx="6"/>
+  <text class="nt big" x="${40 + w / 2}" y="${y0 + 42}" text-anchor="middle">${kb}</text>
+  <text class="nt big" x="250" y="${y0 + 22}">팬아웃 ≈ ${fan}</text>
+  <text class="nt sm" x="250" y="${y0 + 48}">${calc}</text>
+  <rect class="bar" x="250" y="${y0 + 66}" width="${barW}" height="26" rx="3"/>
+  <text class="nt" x="${250 + barW + 10}" y="${y0 + 85}">${lab}</text>`;
+
+const sizeState = () => `
+  <text class="nt big" x="24" y="40">같은 높이 3, 담기는 키 수</text>
+  ${sizeRow(90, "8 KB", 180, "500", "8192 B ÷ 항목 16 B = 512, 헤더 몫을 빼 약 500", 0, 440, "500³ ≈ 1.25억 키")}
+  ${sizeRow(270, "4 KB", 90, "250", "4096 B ÷ 항목 16 B = 256, 헤더 몫을 빼 약 250", 0, 55, "250³ ≈ 1,560만 키")}
+  <text class="nt sm" x="24" y="430">항목 16 B는 가정이다. 모델로 계산한 예시.</text>`;
+
+const figure = (el) => {
+  const svg = el.appendChild(document.createElementNS(SVGNS, "svg"));
+  svg.setAttribute("viewBox", "0 0 1000 470");
+  svg.setAttribute("class", "bt");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "B+tree에서 잎 분할이 루트까지 전파되어 높이가 늘어나는 과정");
+  const defs = `<defs><marker id="bt-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ltt-accent)"/></marker></defs>`;
+  const render = (k) => {
+    if (k === 6) { svg.innerHTML = defs + sizeState(); return; }
+    const s = treeState(k);
+    svg.innerHTML = defs + s.e.map(drawEdge).join("") + s.l.map(drawLink).join("") + s.n.map(drawNode).join("") + s.notes.map(drawNote).join("");
+  };
+  render(0);
+  return { el: svg, render };
+};
+
+const step = (k, caption) => ({ caption, enter: (_, fig) => fig.render(k) });
+
+LTT.deck({
+  title: "B+tree 노드 분할",
+  theme: "blueprint",
+  scenes: [{
+    type: "figure",
+    title: "쪼개짐은 꽉 찬 조상만큼 올라가고, 루트가 쪼개질 때만 트리가 한 층 높아진다",
+    en: "B+tree split propagation",
+    sub: "페이지(노드)당 키 칸 4개, 자식 5개인 예. 꽉 찬 잎에 키 86을 넣는다.",
+    figure,
+    steps: [
+      step(0, "① 높이 3 트리. 루트, 내부 노드 I2, 잎 L이 모두 4칸이 꽉 찼다. 잎끼리는 옆으로 이어져 있다."),
+      step(1, "② 키 86이 잎 L로 내려가 5번째 칸을 요구한다. 칸은 4개뿐이라 잎이 넘친다."),
+      step(2, "③ 잎이 3+2로 갈라진다. 새 오른쪽 잎이 먼저 생기고 L → 새 잎 → 다음 잎으로 이어진다. 86은 복사되어 I2로 올라가고 오른쪽 잎에도 남는다. I2도 5개가 되어 넘친다."),
+      step(3, "④ I2가 2+2로 갈라지고 가운데 80은 이동해 루트로 올라간다. 80은 I2 쪽 어디에도 남지 않는다. 루트가 5개로 넘친다."),
+      step(4, "⑤ 루트가 쪼개지고 가운데 100이 올라가 새 루트가 맨 마지막에 생긴다. 모든 잎이 같이 한 층 내려가 높이가 3 → 4다. 잎의 깊이는 여전히 모두 같다."),
+      step(5, "⑥ 대비: I2에 빈 칸이 있었다면 잎 분할 한 번에 멈추고 높이는 그대로다. 팬아웃이 약 500이면 부모가 꽉 찰 확률이 낮아 보통 여기서 멈춘다."),
+      step(6, "⑦ 페이지가 클수록 팬아웃이 커서 같은 높이에 더 많은 키가 든다. 8 KB는 4 KB보다 약 8배다."),
+    ],
+    takeaway: "분할은 꽉 찬 조상만큼만 위로 이어지고, 루트가 쪼개질 때만 높이가 +1이다. 페이지가 클수록 팬아웃이 커서 트리가 낮다.",
+    recall: "키 하나를 넣었을 때 높이가 늘어나는 건 정확히 언제인가?",
+    basis: "구체 예는 노드당 키 최대 4개 가정. 팬아웃 약 500은 8 KB ÷ 16 B에서 헤더를 뺀 추정이며 엔진마다 다르다.",
+  }],
+});
+</script>
+</body>
+</html>

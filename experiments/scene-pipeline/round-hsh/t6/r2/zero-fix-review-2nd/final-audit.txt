@@ -1,0 +1,5 @@
+## 1440x900
+  권고 lint unused-term: glossary의 'retainer'가 어디에도 표시되지 않았다
+## 1280x800
+  권고 lint unused-term: glossary의 'retainer'가 어디에도 표시되지 않았다
+고침 0건

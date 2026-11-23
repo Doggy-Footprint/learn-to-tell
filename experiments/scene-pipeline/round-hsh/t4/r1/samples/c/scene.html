@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic": "DNA 복제 분기점", "audience": "생명과학 입문 학생", "theme": "paper", "medium": "교과서 도해", "decision": "복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 분기점은 오른쪽으로 전진한다. 열린 쪽(왼쪽)에 지연 가닥 절편이 남는다.
+const hub = (el) => {
+  const s = el.appendChild(document.createElementNS(SVG, "svg"));
+  return { el: s, dg: LTT.diagram(s, {
+    cols: 5, rows: 3, cell: [240, 140], node: [168, 60],
+    nodes: [
+      { id: "ligase", c: 0, r: 0, l: "연결효소", s: "틈을 잇는다", k: "good", icon: "link" },
+      { id: "hel", c: 2, r: 0, l: "헬리카아제", s: "두 가닥을 푼다", icon: "bolt" },
+      { id: "lead", c: 4, r: 0, l: "선도 가닥", s: "3'→5' 주형, 연속 합성", k: "good" },
+      { id: "prim", c: 2, r: 1, l: "프라이머 (RNA)", s: "지연 가닥에만", k: "warn" },
+      { id: "fork", c: 3, r: 1, l: "분기점", s: "전진 →", k: "accent" },
+      { id: "frag_old", c: 0, r: 2, l: "절편 (가장 오래됨)", k: "warn" },
+      { id: "frag_mid", c: 1, r: 2, l: "절편", k: "warn" },
+      { id: "frag_new", c: 2, r: 2, l: "절편 (최신)", k: "warn" },
+      { id: "ssb", c: 3, r: 2, l: "SSB", s: "열린 가닥 붙잡기", icon: "lock" },
+    ],
+    edges: [
+      { f: "hel", t: "fork", l: "풀기" },
+      { f: "fork", t: "lead", l: "따라 연장" },
+      { f: "ssb", t: "fork", dash: true, l: "가닥 유지" },
+      { f: "fork", t: "prim", l: "프라이머 놓기" },
+      { f: "prim", t: "frag_new", l: "합성 시작" },
+      { f: "frag_new", t: "frag_mid", l: "← 자람" },
+      { f: "frag_mid", t: "frag_old", l: "← 자람" },
+      { f: "ligase", t: "frag_old", dash: true, l: "틈 봉합" },
+    ],
+  }) };
+};
+
+const scene = {
+  kicker: "생물 · DNA 복제",
+  title: "두 새 가닥은 같은 방향으로 자라지 않는다",
+  sub: "분기점이 한 방향으로 전진하는 동안, 한 가닥은 이어서 만들어지고 다른 가닥은 조각으로 만들어진다",
+  narration: "{{DNA 중합효소}}는 3' 끝에만 새 뉴클레오티드를 붙인다. 그래서 새 가닥은 모두 5'→3'으로 자란다. 주형의 방향에 따라 한 가닥은 분기점을 따라가고, 다른 가닥은 뒤로 물러서며 조각을 만든다.",
+  figure: hub,
+  caption: "분기점은 오른쪽으로 전진한다. 화살표는 새 가닥이 자라는 방향이다.",
+  steps: [
+    { caption: "① {{헬리카아제}}가 두 가닥을 풀어 분기점이 오른쪽으로 전진한다",
+      enter: (k, f) => f.dg.highlight(["hel", "fork", "hel>fork"]) },
+    { caption: "② {{SSB}}가 풀린 주형 가닥을 붙잡아 다시 붙지 않게 한다",
+      enter: (k, f) => f.dg.highlight(["ssb", "fork", "ssb>fork"]) },
+    { caption: "③ 선도 가닥은 분기점을 따라 끊김 없이 자란다. 방향이 일치한다",
+      enter: (k, f) => { f.dg.highlight(["lead", "fork>lead"]); return f.dg.send("fork", "lead", { count: 3, ms: 900, gap: 300 }); } },
+    { caption: "④ 지연 가닥은 분기점이 더 열린 뒤에야 {{프라이머}}를 놓는다",
+      enter: (k, f) => f.dg.highlight(["prim", "fork>prim", "prim>frag_new"]) },
+    { caption: "⑤ 절편은 분기점에서 멀어지는 쪽으로 자란다. 자라는 방향이 분기점 전진과 반대다",
+      enter: (k, f) => { f.dg.highlight(["frag_new", "frag_mid", "frag_old", "frag_new>frag_mid", "frag_mid>frag_old"]); return f.dg.send("frag_new", "frag_mid", { count: 2, ms: 900, gap: 400 }); } },
+    { caption: "⑥ 프라이머가 {{DNA}}로 바뀌고 {{연결효소}}가 틈을 잇는다. 두 가닥 모두 완성된다",
+      enter: (k, f) => f.dg.highlight(["ligase", "ligase>frag_old", "frag_old", "frag_mid", "frag_new"]) },
+  ],
+  takeaway: "DNA 중합효소는 3' 끝에만 붙이므로, 분기점과 같은 방향으로 자라는 가닥은 이어지고 반대로 자라는 가닥은 조각으로 만들어진 뒤 이어진다.",
+  recall: "지연 가닥 절편은 분기점 기준으로 어느 쪽으로 자라는가?",
+};
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "헬리카아제": "이중가닥을 풀어 복제 분기점을 만드는 효소",
+    "SSB": "단일가닥결합단백질. 풀린 가닥이 다시 붙지 않게 잡아 둔다",
+    "프라이머": "중합효소가 시작점으로 쓰는 짧은 RNA 조각",
+    "DNA 중합효소": "3'-OH에 뉴클레오티드를 붙여 새 가닥을 5'→3'으로 만드는 효소",
+    "연결효소": "두 DNA 조각 사이의 틈을 이어 붙이는 효소",
+    "DNA": "새 가닥이 최종적으로 되는 물질. 프라이머가 DNA로 바뀐다",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

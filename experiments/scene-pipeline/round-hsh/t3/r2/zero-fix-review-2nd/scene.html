@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의 한 장 정리</title>
+<script type="application/json" id="ltt-meta">{"topic": "Raft 합의", "audience": "분산 시스템 입문 개발자", "theme": "sketch", "medium": "아키텍처 화이트보드", "decision": "합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.raft { width: 100%; }
+.raft svg { width: 100%; height: auto; display: block; }
+.raft text { fill: var(--ltt-ink); font-family: inherit; }
+.raft .mut { fill: var(--ltt-muted); }
+.raft .card { fill: var(--ltt-card); stroke: var(--ltt-line-2); stroke-width: 2; transition: stroke .3s; }
+.raft .card.leader { stroke: var(--ltt-accent); stroke-width: 4; }
+.raft .card.cand { stroke: var(--ltt-warn); stroke-width: 3; }
+.raft .card.dead { stroke-dasharray: 6 6; opacity: .45; }
+.raft .cell { fill: var(--ltt-card-2); stroke: var(--ltt-line-2); stroke-width: 2; transition: fill .3s, stroke .3s; }
+.raft .cell.empty { fill: none; stroke-dasharray: 4 5; stroke: var(--ltt-line); }
+.raft .cell.pend { fill: var(--ltt-card); stroke: var(--ltt-muted); stroke-dasharray: 5 4; }
+.raft .cell.done { fill: var(--ltt-good-soft); stroke: var(--ltt-good); }
+.raft .role-leader { fill: var(--ltt-accent); font-weight: 700; }
+.raft .role-cand { fill: var(--ltt-warn); font-weight: 700; }
+.raft .tbar { fill: var(--ltt-line); }
+.raft .tfill { fill: var(--ltt-warn); transition: width 1.6s ease-out; }
+.raft .arc { fill: none; stroke: var(--ltt-line-2); stroke-width: 2; stroke-dasharray: 3 6; }
+.raft .arc.bad { stroke: var(--ltt-bad); }
+.raft .pkt { fill: var(--ltt-accent); }
+.raft .dot { fill: none; stroke: var(--ltt-ink-2); stroke-width: 2.5; transition: fill .3s; }
+.raft .dot.on { fill: var(--ltt-good); stroke: var(--ltt-good); }
+.raft .vote { fill: var(--ltt-good); font-weight: 700; }
+.raft .badx { fill: var(--ltt-bad); font-weight: 700; }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const X0 = (i) => 20 + i * 196, W = 172, CY = 140, CH = 220;
+const mid = (i) => X0(i) + W / 2;
+const NAMES = ["S1", "S2", "S3", "S4", "S5"];
+const ROLE = { F: "팔로워", C: "후보", L: "리더", D: "장애" };
+// 각 단계의 화면 상태. 항목 index 7은 term 3의 SET x=7.
+// c: 0 없음, 1 미커밋, 2 커밋 / t: 타이머 길이 / pk: 패킷 [보낸 곳, 받는 곳, 닿지 못함]
+const BEATS = [
+  { r: "FFFFD", t: [2, 2, 2, 2, 2], c: [0, 0, 0, 0, 0], timer: [1, .62, .7, .5, 0], tally: [0, "표"], note: "S5 리더 장애",
+    caption: "① 리더 S5가 죽어 heartbeat가 끊긴다. 서버마다 무작위 election timeout이 줄어들고, S1이 제일 먼저 끝난다." },
+  { r: "CFFFD", t: [3, 2, 2, 2, 2], c: [0, 0, 0, 0, 0], tally: [1, "표"], badge: { 0: "자기 1표" },
+    caption: "② S1이 먼저 term을 2에서 3으로 올리고 후보가 되어 자기에게 투표한다. 메시지는 그다음에 보낸다." },
+  { r: "CFFFD", t: [3, 3, 3, 2, 2], c: [0, 0, 0, 0, 0], tally: [3, "표"], badge: { 0: "자기 1표", 1: "S1에 투표", 2: "S1에 투표", 3: "응답 늦음" },
+    pk: [[0, 1], [0, 2], [0, 3], [0, 4, 1]], msg: "RequestVote",
+    caption: "③ 서버는 term마다 한 표만 주고, 후보 로그가 자기 것 이상일 때만 준다. S2, S3의 표로 3/5가 된다." },
+  { r: "LFFFD", t: [3, 3, 3, 3, 2], c: [0, 0, 0, 0, 0], tally: [3, "표"],
+    pk: [[0, 1], [0, 2], [0, 3]], msg: "heartbeat (빈 AppendEntries)",
+    caption: "④ 과반수를 센 뒤에야 S1이 리더가 된다. 곧바로 heartbeat를 보내 나머지를 조용한 팔로워로 눌러 앉힌다." },
+  { r: "LFFFD", t: [3, 3, 3, 3, 2], c: [1, 0, 0, 0, 0], tally: [1, "저장"], client: true,
+    caption: "⑤ 클라이언트 요청 SET x=7은 리더만 받는다. S1 로그 끝에 index 7이 먼저 생기지만 아직 미커밋(점선)이다." },
+  { r: "LFFFD", t: [3, 3, 3, 3, 2], c: [1, 1, 1, 0, 0], tally: [3, "저장"], badge: { 3: "복제 지연" },
+    pk: [[0, 1], [0, 2], [0, 3, 1]], msg: "AppendEntries (index 7)",
+    caption: "⑥ AppendEntries로 복제한다. S2, S3가 저장했다고 응답해 리더 포함 3/5가 됐다. S4가 느려도 상관없다." },
+  { r: "LFFFD", t: [3, 3, 3, 3, 2], c: [2, 1, 1, 0, 0], tally: [3, "저장"], badge: { 3: "복제 지연" },
+    caption: "⑦ 과반수 저장을 확인한 뒤에야 리더가 index 7을 커밋한다. 복제 전이 아니라 복제 후다." },
+  { r: "LFFFD", t: [3, 3, 3, 3, 2], c: [2, 2, 2, 0, 0], tally: [3, "저장"], badge: { 3: "복제 지연" },
+    pk: [[0, 1], [0, 2]], msg: "다음 AppendEntries에 commitIndex=7",
+    caption: "⑧ commitIndex를 다음 메시지로 받은 팔로워가 한 박자 늦게 커밋한다. 3대가 죽으면 선출도 커밋도 멈춘다." },
+];
+
+function raft(host) {
+  const box = host.appendChild(document.createElement("div"));
+  box.className = "raft";
+  const svg = box.appendChild(document.createElementNS(SVG, "svg"));
+  svg.setAttribute("viewBox", "0 0 1000 520");
+  const mk = (tag, attrs, parent = svg, text) => {
+    const e = document.createElementNS(SVG, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    parent.appendChild(e);
+    return e;
+  };
+  // 화살머리: 투표·복제 방향. 막힌 호는 빨강
+  const defs = mk("defs", {});
+  [["raft-arr", "var(--ltt-muted)"], ["raft-arr-bad", "var(--ltt-bad)"]].forEach(([id, fill]) => {
+    const m = mk("marker", { id, viewBox: "0 0 10 10", refX: 10, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto" }, defs);
+    mk("path", { d: "M0,0 L10,5 L0,10 z", style: `fill:${fill}` }, m);
+  });
+  // 서버 카드
+  const S =NAMES.map((n, i) => {
+    const x = X0(i);
+    const g = {};
+    g.card = mk("rect", { class: "card", x, y: CY, width: W, height: CH, rx: 14 });
+    mk("text", { x: x + 14, y: CY + 32, "font-size": 22, "font-weight": 700 }, svg, n);
+    g.role = mk("text", { x: x + W - 14, y: CY + 32, "font-size": 17, "text-anchor": "end" });
+    g.term = mk("text", { x: x + 14, y: CY + 62, "font-size": 17 });
+    g.badge = mk("text", { x: x + 14, y: CY + 88, "font-size": 15 });
+    g.cells = [5, 6, 7].map((idx, k) => {
+      const cx = x + 13 + k * 52;
+      const c = mk("rect", { class: "cell", x: cx, y: CY + 104, width: 46, height: 46, rx: 6 });
+      const tt = mk("text", { x: cx + 23, y: CY + 134, "font-size": 17, "text-anchor": "middle" });
+      mk("text", { class: "mut", x: cx + 23, y: CY + 168, "font-size": 14, "text-anchor": "middle" }, svg, idx);
+      return { c, tt };
+    });
+    g.status = mk("text", { x: x + 14, y: CY + 192, "font-size": 15 });
+    g.tbar = mk("rect", { class: "tbar", x: x + 14, y: CY + 200, width: W - 28, height: 10, rx: 5 });
+    g.tfill = mk("rect", { class: "tfill", x: x + 14, y: CY + 200, width: 0, height: 10, rx: 5 });
+    return g;
+  });
+  mk("text", { class: "mut", x: 110, y: CY + CH + 24, "font-size": 14 }, svg, "로그 칸: 위 숫자는 기록된 term, 아래 숫자는 index");
+  S[4].x = mk("text", { x: mid(4), y: CY + 204, "font-size": 40, "text-anchor": "middle", style: "fill:var(--ltt-bad);opacity:0" }, svg, "✕");
+  // 호: S1에서 각 서버로
+  const arcs = [1, 2, 3, 4].map((j) => {
+    const a = mid(0) + 8 * j, b = mid(j), d = j, cy = 120 - 22 * d;
+    const p = mk("path", { class: "arc", d: `M${a},${CY} C${a},${cy} ${b},${cy} ${b},${CY}`, style: "opacity:0" });
+    return p;
+  });
+  const msg = mk("text", { x: 20, y: 50, "font-size": 20, "font-weight": 700, style: "fill:var(--ltt-accent)" });
+  // 클라이언트
+  const cli = mk("g", { style: "opacity:0" });
+  mk("rect", { x: 20, y: 410, width: 150, height: 56, rx: 10, style: "fill:var(--ltt-card-2);stroke:var(--ltt-line-2);stroke-width:2" }, cli);
+  mk("text", { x: 95, y: 445, "font-size": 18, "text-anchor": "middle" }, cli, "SET x=7");
+  mk("path", { d: "M95,408 L95,366", style: "stroke:var(--ltt-accent);stroke-width:3;fill:none" }, cli);
+  mk("path", { d: "M88,376 L95,364 L102,376", style: "stroke:var(--ltt-accent);stroke-width:3;fill:none" }, cli);
+  // 과반수 미터: 표와 저장이 같은 5칸·3 기준을 쓴다
+  const mx = 420;
+  const mtitle = mk("text", { x: mx, y: 424, "font-size": 18, "font-weight": 700 });
+  const dots = [0, 1, 2, 3, 4].map((k) => mk("circle", { class: "dot", cx: mx + 24 + k * 56, cy: 456, r: 20 }));
+  mk("path", { d: `M${mx + 24 + 2 * 56 - 28},432 L${mx + 24 + 2 * 56 - 28},482`, style: "stroke:var(--ltt-bad);stroke-width:2.5;stroke-dasharray:4 4" });
+  const mlab = mk("text", { x: mx + 24 + 5 * 56 - 12, y: 464, "font-size": 20, "font-weight": 700 });
+  mk("text", { class: "mut", x: mx + 24 + 2 * 56 - 28, y: 504, "font-size": 14, "text-anchor": "middle" }, svg, "여기부터 과반수");
+  mk("text", { class: "mut", x: 740, y: 424, "font-size": 15 }, svg, "선출과 커밋이 같은 눈금을 쓴다");
+
+  let token = 0;
+  const reduce = !LTT.MOTION_MS;
+  function packets(list, tk) {
+    if (!list || reduce) return;
+    const run = () => {
+      if (tk !== token) return;
+      list.forEach(([f, t, lost], n) => {
+        const path = arcs[t - 1];
+        const len = path.getTotalLength();
+        const dot = mk("circle", { class: "pkt", r: 8 });
+        const t0 = performance.now() + n * 160, dur = 1100;
+        const tick = (now) => {
+          if (tk !== token) { dot.remove(); return; }
+          let u = (now - t0) / dur;
+          if (u < 0) { requestAnimationFrame(tick); return; }
+          if (lost) u = Math.min(u, 1) * 0.55;
+          if (u >= 1 || (lost && now - t0 > dur)) { dot.remove(); return; }
+          const pt = path.getPointAtLength(u * len);
+          dot.setAttribute("cx", pt.x); dot.setAttribute("cy", pt.y);
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+      setTimeout(run, 2600);
+    };
+    run();
+  }
+
+  function render(i) {
+    const b = BEATS[i];
+    token++;
+    S.forEach((g, k) => {
+      const role = b.r[k];
+      g.card.setAttribute("class", "card" + (role === "L" ? " leader" : role === "C" ? " cand" : role === "D" ? " dead" : ""));
+      g.role.textContent = ROLE[role];
+      g.role.setAttribute("class", role === "L" ? "role-leader" : role === "C" ? "role-cand" : role === "D" ? "badx" : "mut");
+      g.term.textContent = "term " + b.t[k];
+      const bd = b.badge && b.badge[k];
+      g.badge.textContent = bd || "";
+      g.badge.setAttribute("class", bd && /투표|1표/.test(bd) ? "vote" : bd ? "role-cand" : "");
+      g.cells.forEach((cell, m) => {
+        let cls = "cell", txt = "t2";
+        if (m === 2) {
+          const s = b.c[k];
+          cls += s === 0 ? " empty" : s === 1 ? " pend" : " done";
+          txt = s === 0 ? "" : "t3";
+        } else if (k === 4 && false) cls += "";
+        cell.c.setAttribute("class", cls);
+        cell.tt.textContent = txt;
+      });
+      const st = b.c[k];
+      g.status.textContent = role === "D" ? "" : k === 3 && b.badge && b.badge[3] === "복제 지연" ? "index 7 없음" : st === 1 ? "7 미커밋" : st === 2 ? "7 커밋·적용" : "";
+      g.status.setAttribute("class", st === 2 ? "vote" : "mut");
+      g.tbar.style.opacity = b.timer && role !== "D" ? 1 : 0;
+      g.tfill.style.opacity = b.timer && role !== "D" ? 1 : 0;
+      g.tfill.style.transition = "none";
+      g.tfill.setAttribute("width", 0);
+      if (b.timer) requestAnimationFrame(() => requestAnimationFrame(() => {
+        g.tfill.style.transition = "";
+        g.tfill.setAttribute("width", (b.timer[k] || 0) * (W - 28));
+      }));
+    });
+    S[4].x.style.opacity = 1;
+    arcs.forEach((p, j) => {
+      const used = b.pk && b.pk.some((q) => q[1] === j + 1);
+      const bad = b.pk && b.pk.some((q) => q[1] === j + 1 && q[2]);
+      p.style.opacity = used ? 1 : 0;
+      p.setAttribute("class", "arc" + (bad ? " bad" : ""));
+      p.setAttribute("marker-end", `url(#raft-arr${bad ? "-bad" : ""})`);
+    });
+    msg.textContent = b.msg || (b.timer ? "election timeout 진행 중" : "");
+    cli.style.opacity = b.client ? 1 : 0;
+    const n = b.tally[0];
+    mtitle.textContent = b.tally[1] === "표" ? "받은 표" : "저장한 서버";
+    dots.forEach((d, k) => d.setAttribute("class", "dot" + (k < n ? " on" : "")));
+    mlab.textContent = n + "/5" + (n >= 3 ? " 과반수" : "");
+    packets(b.pk, token);
+  }
+
+  const stepper = LTT.stepper(box, BEATS.map((b, i) => ({ caption: b.caption, hold: 4200, enter: () => render(i) })));
+  render(0);
+  return { el: box, stepper, leave() { token++; } };
+}
+
+LTT.deck({
+  title: "Raft 합의",
+  theme: "sketch",
+  scenes: [{
+    type: "overview",
+    kicker: "Raft 합의",
+    title: "Raft는 과반수 표로 리더를 뽑고, 과반수가 저장한 항목만 커밋한다",
+    en: "Raft: majority elects, majority commits",
+    sub: "서버 5대, 가운데 칸이 로그. 아래 단계를 넘기며 선출에서 커밋까지 순서대로 본다.",
+    label: "서버 5대 · S5는 장애 · 항목 SET x=7",
+    figure: raft,
+    caption: "과반수 3/5가 선출과 커밋에서 같은 역할을 한다. S4가 느려도 커밋은 진행된다.",
+    takeaway: "표도 저장도 과반수(5대 중 3)를 모아야 앞으로 간다. 그래서 2대까지 죽어도 모두가 같은 기록을 갖는다.",
+    recall: "5대 중 3대가 죽으면 무엇이 멈추고, 왜 일관성은 지켜지나?",
+    basis: "과반수 = floor(N/2)+1. N=5면 3, 2대 장애까지 견딘다. 저장소 선택: 과반수를 못 모으면 가용성을 양보하고 일관성을 지킨다.",
+  }],
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의 — 리더 선출과 로그 복제 한 장 정리</title>
+<script type="application/json" id="ltt-meta">{"topic": "Raft 합의", "audience": "분산 시스템 입문 개발자", "theme": "sketch", "medium": "아키텍처 화이트보드", "decision": "합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.rf-wrap { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.rf-wrap svg { flex: 0 0 auto; }
+.rf-pn { flex: 1 1 320px; min-width: 300px; display: grid; gap: 10px; }
+.rf-row { display: grid; grid-template-columns: 96px 64px 1fr; align-items: center; gap: 8px; }
+.rf-cells { display: flex; gap: 4px; }
+.rf-cell { min-width: 40px; height: 28px; line-height: 28px; text-align: center; border-radius: 6px; font-size: 13px; }
+.rf-cell.c { background: var(--ltt-dark); color: var(--ltt-on-dark); }
+.rf-cell.u { border: 1.5px dashed var(--ltt-muted); color: var(--ltt-muted); }
+.rf-cell.e { border: 1px solid var(--ltt-line); color: var(--ltt-line-2); }
+.rf-q { display: grid; grid-template-columns: 64px 1fr 48px; align-items: center; gap: 8px; }
+.rf-qb { display: flex; gap: 3px; }
+.rf-qb i { flex: 1; height: 14px; border: 1px solid var(--ltt-line-2); border-radius: 3px; }
+.rf-qb i.on { background: var(--ltt-accent); }
+.rf-qb i:nth-child(3) { margin-right: 8px; }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const NODES = ["S1", "S2", "S3", "S4", "S5"];
+const QUORUM = Math.floor(NODES.length / 2) + 1; // 5노드 → 3
+const tok = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+// 상태는 단계 번호만큼 처음부터 다시 계산한다(앞뒤로 넘겨도 같은 칸이 나오도록)
+const initState = () => ({
+  role: { S1: "리더", S2: "팔로워", S3: "팔로워", S4: "팔로워", S5: "팔로워" },
+  term: { S1: 3, S2: 3, S3: 3, S4: 3, S5: 3 },
+  log: Object.fromEntries(NODES.map((n) => [n, [{ t: 2, c: true }, { t: 3, c: true }]])),
+  votes: 0,
+  acks: 0,
+});
+
+const OPS = [
+  () => {},
+  (s) => { s.role.S1 = "장애"; },
+  (s) => { s.role.S2 = "후보"; s.term.S2 = 4; s.votes = 1; },
+  (s) => { for (const n of ["S3", "S4", "S5"]) s.term[n] = 4; },
+  (s) => { s.votes = 3; },
+  (s) => { s.role.S2 = "리더"; },
+  (s) => { s.log.S2.push({ t: 4, c: false }); s.acks = 1; },
+  (s) => { for (const n of ["S3", "S4"]) s.log[n].push({ t: 4, c: false }); },
+  (s) => { s.acks = 3; },
+  (s) => { s.log.S2.at(-1).c = true; },
+  (s) => {
+    for (const n of ["S3", "S4"]) s.log[n].at(-1).c = true;
+    s.log.S5.push({ t: 4, c: true });
+  },
+];
+
+const stateAt = (i) => {
+  const s = initState();
+  for (let k = 0; k <= i; k++) OPS[k](s);
+  return s;
+};
+
+const ROLE_TAG = { 장애: "bad", 후보: "warn", 리더: "", 팔로워: "muted" };
+
+const panelHTML = (s) => {
+  const rows = NODES.map((n) => {
+    const cells = s.log[n].map((e) => `<span class="rf-cell ${e.c ? "c" : "u"}">t${e.t}</span>`);
+    while (cells.length < 3) cells.push(`<span class="rf-cell e">·</span>`);
+    return `<div class="rf-row"><span class="ltt-mono">${n} · term ${s.term[n]}</span>`
+      + `<span class="ltt-tag ${ROLE_TAG[s.role[n]]}">${s.role[n]}</span><div class="rf-cells">${cells.join("")}</div></div>`;
+  }).join("");
+  const qbar = (label, n) => `<div class="rf-q"><span class="ltt-basis">${label}</span>`
+    + `<div class="rf-qb">${[1, 2, 3, 4, 5].map((k) => `<i class="${k <= n ? "on" : ""}"></i>`).join("")}</div>`
+    + `<span class="ltt-mono">${n} / ${QUORUM}</span></div>`;
+  return rows + qbar("득표", s.votes) + qbar("저장 확인", s.acks);
+};
+
+const figure = (el) => {
+  const wrap = el.appendChild(document.createElement("div"));
+  wrap.className = "rf-wrap";
+  const svg = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  const pn = wrap.appendChild(document.createElement("div"));
+  pn.className = "rf-pn";
+
+  const dg = LTT.diagram(svg, {
+    cols: 3, rows: 3, cell: [240, 120], node: [130, 52],
+    nodes: [
+      { id: "S1", c: 1, r: 0, l: "S1", s: "기존 리더", icon: "server" },
+      { id: "S2", c: 0, r: 1, l: "S2", icon: "server" },
+      { id: "S3", c: 2, r: 1, l: "S3", icon: "server" },
+      { id: "S4", c: 0, r: 2, l: "S4", icon: "server" },
+      { id: "S5", c: 2, r: 2, l: "S5", icon: "server" },
+    ],
+    edges: [
+      { f: "S1", t: "S2", dash: true, k: "muted" },
+      { f: "S1", t: "S3", dash: true, k: "muted" },
+      { f: "S1", t: "S4", dash: true, k: "muted" },
+      { f: "S1", t: "S5", dash: true, k: "muted" },
+      { f: "S2", t: "S3", k: "accent" }, { f: "S3", t: "S2", k: "good" },
+      { f: "S2", t: "S4", k: "accent" }, { f: "S4", t: "S2", k: "good" },
+      { f: "S2", t: "S5", k: "accent" },
+    ],
+  });
+
+  const HI = [
+    ["S1", "S1>S2", "S1>S3", "S1>S4", "S1>S5"],
+    ["S2"],
+    ["S2"],
+    ["S2>S3", "S2>S4", "S2>S5"],
+    ["S3>S2", "S4>S2", "S2"],
+    ["S2", "S2>S3", "S2>S4", "S2>S5"],
+    ["S2"],
+    ["S2>S3", "S2>S4"],
+    ["S3>S2", "S4>S2", "S2"],
+    ["S2"],
+    ["S2>S3", "S2>S4", "S2>S5"],
+  ];
+  const pk = (pairs, color) => pairs.map(([f, t]) => [f, t, { count: 1, color, ms: 700 }]);
+  const acc = () => tok("--ltt-accent"), good = () => tok("--ltt-good");
+  const SEND = [
+    () => pk([["S1", "S2"], ["S1", "S3"], ["S1", "S4"], ["S1", "S5"]], tok("--ltt-muted")),
+    () => [],
+    () => [],
+    () => pk([["S2", "S3"], ["S2", "S4"], ["S2", "S5"]], acc()),
+    () => pk([["S3", "S2"], ["S4", "S2"]], good()),
+    () => pk([["S2", "S3"], ["S2", "S4"], ["S2", "S5"]], acc()),
+    () => [],
+    () => pk([["S2", "S3"], ["S2", "S4"]], acc()),
+    () => pk([["S3", "S2"], ["S4", "S2"]], good()),
+    () => [],
+    () => pk([["S2", "S3"], ["S2", "S4"], ["S2", "S5"]], acc()),
+  ];
+  const stepTo = (k) => {
+    dg.highlight(HI[k]);
+    pn.innerHTML = panelHTML(stateAt(k));
+    SEND[k]().forEach(([a, b, o]) => dg.send(a, b, o));
+  };
+  pn.innerHTML = panelHTML(stateAt(0));
+  return { el: wrap, dg, stepTo };
+};
+
+LTT.deck({
+  title: "Raft 합의 — 리더 선출과 로그 복제 한 장 정리",
+  theme: "sketch",
+  glossary: {
+    "과반": "전체 노드의 절반을 넘는 수. 5노드면 3대, 4노드도 3대다. 선출과 커밋이 같은 문턱을 쓴다.",
+  },
+  scenes: [{
+    type: "figure",
+    kicker: "분산 시스템 · Raft 합의",
+    title: "리더는 과반 표로 뽑히고, 과반이 저장한 항목만 커밋된다",
+    en: "Raft leader election and log replication",
+    sub: "5노드, {{과반}} 3대. 단계를 넘기며 리더 장애 뒤의 선출과 복제를 따라간다.",
+    label: "왼쪽은 메시지, 오른쪽은 노드별 로그와 과반 막대",
+    figure,
+    steps: [
+      "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "⑪",
+    ].map((_, k) => ({
+      caption: [
+        "① 평시: 리더 S1이 heartbeat를 보내고 팔로워는 조용하다. 모두 term 3이다.",
+        "② S1이 멈춘다. heartbeat가 끊기고 S2의 election timeout이 먼저 끝난다.",
+        "③ S2가 term을 3에서 4로 올리고 후보가 되어 자기에게 한 표를 준다.",
+        "④ RequestVote를 나머지 노드에 보낸다. 노드는 term당 한 표, 후보 로그가 최신일 때만 준다.",
+        "⑤ S3과 S4가 표를 줘서 자기 표 포함 득표 3. 과반선에 닿았다.",
+        "⑥ S2가 리더가 되어 빈 AppendEntries(heartbeat)로 권위를 알린다.",
+        "⑦ 클라이언트 쓰기가 리더 로그에 먼저 붙는다. 아직 미커밋(점선 칸)이다.",
+        "⑧ AppendEntries로 항목을 S3과 S4에 복제한다. S5는 아직 받지 못했다.",
+        "⑨ S3과 S4의 저장 ack가 돌아와 저장 확인 3. 리더 포함 과반이다.",
+        "⑩ 과반이 저장했으므로 S2가 커밋한다(진한 칸). 상태 기계에 적용하고 클라이언트에 응답한다.",
+        "⑪ 다음 AppendEntries로 commitIndex가 팔로워에 전해진다. S3·S4가 적용하고, 늦은 S5도 따라잡는다.",
+      ][k],
+      enter: (_, f) => f.stepTo(k),
+    })),
+    caption: "진한 칸은 커밋, 점선 칸은 미커밋. 막대의 세 번째 칸 뒤가 과반선이다.",
+    takeaway: "{{과반}}이 선출과 커밋을 함께 정하므로 5노드는 2대가 죽어도 합의된 값이 남는다.",
+    recall: "노드 4대와 5대는 과반이 둘 다 3대다. 어느 쪽이 장애를 더 견디나?",
+    basis: "과반 = floor(N/2)+1. N=5 → 3, N=4 → 3. 장애 허용 수 = N − 과반. 메시지 지연과 timeout 값은 단순화했다.",
+  }],
+});
+</script>
+</body>
+</html>

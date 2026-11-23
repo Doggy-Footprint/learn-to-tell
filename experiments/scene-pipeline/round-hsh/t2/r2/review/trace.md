@@ -1,0 +1,22 @@
+# stream.jsonl
+
+- Read `storyboard.md`
+- Read `direction.md`
+- Read `scene.html`
+- Read `shots/index.txt`
+- Read `shots/scene-audit.txt`
+- Read `refs/API.md`
+- Bash `ls -1 shots`
+- Read `shots/scene-t1s.jpg`
+- Read `shots/scene-t4s.jpg`
+- Read `shots/scene-t8s.jpg`
+- Write `review.md` (+1735자)
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- Edit `scene.html`
+- Edit `scene.html`
+- Edit `scene.html`
+- Edit `scene.html`
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- Edit `review.md`
+- 말: 실패 6건 중 5건을 고쳤다. 비트 5는 방향과 충돌해 보류했고, 빈 프레임 수정은 실행 화면으로 확인하지 않았다.
+- 결과: success $0.0247 19턴 116s

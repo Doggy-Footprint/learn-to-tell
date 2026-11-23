@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>런타임 · mark-and-sweep GC vs 참조 카운팅</title>
+<script type="application/json" id="ltt-meta">{"topic":"가비지 컬렉션 방식","audience":"애플리케이션 개발자","theme":"terminal","medium":"힙 스냅샷·메모리 프로파일러","decision":"메모리 누수 진단"}</script>
+<style>
+.gc-side { display: grid; gap: 10px; }
+.gc-diag { min-height: 300px; }
+.gc-cap { margin: 0; font-weight: 600; }
+.gc-snap { width: 100%; border-collapse: collapse; }
+.gc-snap th, .gc-snap td { border-top: 1px solid var(--ltt-line); padding: 4px 6px; text-align: left; }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const PAIRS = 100;     // 반복 횟수(쌍). 쌍 하나 = 객체 2개 × 512 KB = 1 MB
+const BASE_MB = 4;     // 힙 기준선
+const GC_EVERY = 16;   // GC 임계 16 MB = 16쌍마다 GC
+const STEP_MS = 1400;  // 생성 순서 한 단계
+const HOLD_MS = 2000;  // 한 바퀴 끝난 뒤 머무는 시간
+const TICK_MS = 100;
+
+// 생성 순서: 객체 생성 → A.peer=B → B.peer=A → 루트 해제 → GC(mark) → sweep → 회수 끝
+const FRAMES = [
+  { rootA: 1, rootB: 1, ab: 0, ba: 0 },
+  { rootA: 1, rootB: 1, ab: 1, ba: 0 },
+  { rootA: 1, rootB: 1, ab: 1, ba: 1 },
+  { rootA: 0, rootB: 0, ab: 1, ba: 1 },
+  { rootA: 0, rootB: 0, ab: 1, ba: 1, gc: "mark" },
+  { rootA: 0, rootB: 0, ab: 1, ba: 1, gc: "sweep" },
+  { rootA: 0, rootB: 0, ab: 1, ba: 1, gc: "gone" }
+];
+const PLAY_MS = FRAMES.length * STEP_MS;
+
+const CAP_COUNT = [
+  "A, B를 만든다. 루트가 둘 다 쥔다. 카운트 1, 1",
+  "A.peer = B. B를 가리키는 화살표가 늘어 B는 2",
+  "B.peer = A. A도 2. 이제 서로가 서로를 붙든다",
+  "루트가 A, B를 놓는다. 카운트는 2에서 1로만 줄고 멈춘다",
+  "GC가 와도 카운트가 0이 아니므로 해제하지 않는다",
+  "여전히 1, 1. 아무도 가리키지 않는 쌍이 메모리에 남는다",
+  "1, 1 그대로. 이 쌍이 반복되면 힙이 계속 오른다"
+];
+const CAP_MARK = [
+  "A, B를 만든다. 루트에서 닿는 상태",
+  "A.peer = B. 카운트를 세지 않고 도달만 본다",
+  "B.peer = A. 순환이 있어도 루트에서 닿으니 살아 있다",
+  "루트가 A, B를 놓는다. 아직 GC가 오지 않아 그대로 남는다",
+  "GC 시점. 루트에서 출발해 닿는 것만 mark한다. A, B는 mark되지 않는다",
+  "mark되지 않은 A, B를 sweep으로 회수한다",
+  "회수 끝. 순환 쌍은 루트가 끊기면 사라진다"
+];
+
+function objNode(id, r, root, inRefs, F, count) {
+  const node = { id, c: 1, r, l: `객체 ${id}` };
+  if (count) {
+    node.s = `rc ${root + inRefs}`;
+    if (!root && inRefs) node.k = "warn";
+    return node;
+  }
+  node.s = root ? "루트에서 닿음" : F.gc === "mark" ? "mark 안 됨" : F.gc === "sweep" ? "회수 대상" : "GC 전";
+  node.k = F.gc === "sweep" ? "bad" : root ? undefined : "muted";
+  return node;
+}
+
+function drawGraph(el, f, side) {
+  const F = FRAMES[f];
+  const count = side === "count";
+  const gone = !count && F.gc === "gone";
+  const nodes = [{ id: "root", c: 0, r: 0.5, l: "루트", s: "지역 변수", icon: "anchor" }];
+  const edges = [];
+  if (F.rootA) edges.push({ f: "root", t: "A", l: "a" });
+  if (F.rootB) edges.push({ f: "root", t: "B", l: "b" });
+  if (!gone) {
+    nodes.push(objNode("A", 0, F.rootA, F.ba, F, count), objNode("B", 1, F.rootB, F.ab, F, count));
+    if (F.ab) edges.push({ f: "A", t: "B", l: "peer" });
+    if (F.ba) edges.push({ f: "B", t: "A", l: "peer" });
+  }
+  el.innerHTML = "";
+  const svg = document.createElementNS(SVG, "svg");
+  el.appendChild(svg);
+  LTT.diagram(svg, { cols: 2, rows: 2, cell: [230, 150], node: [150, 62], nodes, edges });
+}
+
+// 힙 시계열: 카운팅은 쌍마다 1 MB씩 쌓이고, mark는 임계에 닿을 때 기준선으로 떨어진다
+function series(side, n) {
+  return Array.from({ length: n + 1 }, (_, i) => [i, BASE_MB + (side === "count" ? i : i % GC_EVERY)]);
+}
+
+function build(el, side) {
+  const count = side === "count";
+  el.innerHTML = `<div class="gc-side">
+    <div class="gc-diag"></div>
+    <p class="gc-cap"></p>
+    <div class="gc-chart"></div>
+    <table class="gc-snap ltt-mono"><thead><tr><th>클래스</th><th>개수</th><th>retained</th><th>보유 경로</th></tr></thead>
+    <tbody><tr><td>Pair (A, B)</td><td class="c-n"></td><td class="c-m"></td><td class="c-p"></td></tr></tbody></table>
+    <span class="ltt-tag muted">모델로 계산한 예시</span>
+  </div>`;
+  const diag = el.querySelector(".gc-diag");
+  const cap = el.querySelector(".gc-cap");
+  const cells = { n: el.querySelector(".c-n"), m: el.querySelector(".c-m"), p: el.querySelector(".c-p") };
+  const plot = LTT.axisPlot(el.querySelector(".gc-chart"), {
+    width: 420, height: 150, x: [0, PAIRS], y: [0, 110],
+    series: [{ id: side, k: count ? "bad" : "good" }],
+    labels: { x: "반복 실행(쌍)", y: "힙 MB" }
+  });
+
+  const drawFrame = (f) => {
+    drawGraph(diag, f, side);
+    cap.textContent = (count ? CAP_COUNT : CAP_MARK)[f];
+  };
+  const drawSeries = (n) => {
+    const live = count ? n : n % GC_EVERY;
+    plot.set(side, series(side, n));
+    cells.n.textContent = `${2 * live}개`;
+    cells.m.textContent = `약 ${live} MB`;
+    cells.p.textContent = count ? "A·B끼리만 가리킴, 루트 경로 없음" : "루트 경로 없음, 다음 GC에서 회수";
+  };
+
+  drawFrame(0);
+  drawSeries(0);
+  if (!LTT.MOTION_MS) { drawFrame(FRAMES.length - 1); drawSeries(PAIRS); return; }
+
+  let t = 0, last = -1;
+  const timer = setInterval(() => {
+    if (!diag.isConnected) return clearInterval(timer);
+    if (t >= PLAY_MS + HOLD_MS) { t = 0; last = -1; }
+    const f = Math.min(FRAMES.length - 1, Math.floor(t / STEP_MS));
+    if (f !== last) { last = f; drawFrame(f); }
+    drawSeries(Math.round(PAIRS * Math.min(t, PLAY_MS) / PLAY_MS));
+    t += TICK_MS;
+  }, TICK_MS);
+}
+
+LTT.deck({
+  title: "런타임 · mark-and-sweep GC vs 참조 카운팅, 순환 참조",
+  theme: "terminal",
+  glossary: {
+    "참조 카운팅": "객체를 가리키는 화살표(참조)의 수를 세어, 0이 되는 순간 회수하는 방식",
+    "도달 불가": "루트에서 화살표를 따라가도 닿을 수 없는 객체"
+  },
+  scenes: [{
+    type: "contrast",
+    kicker: "런타임 · 가비지 컬렉션",
+    title: "순환 쌍은 카운트로는 0이 안 되고, mark는 루트가 끊기면 회수한다",
+    en: "A cycle keeps its counts above zero, but mark-and-sweep only asks whether a root reaches it",
+    sub: "같은 코드, 같은 입력. 루트를 놓은 뒤 A와 B에 무슨 일이 생기나",
+    before: {
+      label: "{{참조 카운팅}}",
+      visual: (el) => build(el, "count"),
+      pointsOn: ".gc-diag",
+      points: [
+        { at: [78, 22], text: "들어오는 화살표 수가 카운트" },
+        { at: [78, 80], text: "루트를 놓아도 1이 남는다" }
+      ]
+    },
+    after: {
+      label: "mark-and-sweep",
+      visual: (el) => build(el, "mark"),
+      pointsOn: ".gc-diag",
+      points: [
+        { at: [78, 22], text: "루트에서 닿는 것만 mark" },
+        { at: [78, 80], text: "닿지 않으면 sweep으로 회수" }
+      ]
+    },
+    takeaway: "{{참조 카운팅}}은 나를 가리키는 화살표를 세고, mark-and-sweep은 루트에서 닿는지 본다. 같은 순환이라도 누수 여부는 {{도달 불가}}인가, 즉 루트에서 닿는가로 정해진다.",
+    recall: "루트를 놓은 뒤 카운트가 1, 1로 남는 이유는?",
+    basis: "CPython은 순환 감지기를 더해 순환도 회수한다. 여기 카운팅 쪽은 감지기가 없을 때의 모델이다. 객체 512 KB, GC 임계 16 MB는 모델로 계산한 예시다."
+  }]
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+장면 | 상태 | 파일 | 메모
+가 | t1s | 가-t1s.jpg | 
+가 | t4s | 가-t4s.jpg | 
+가 | t8s | 가-t8s.jpg | 
+가 | step1 | 가-step1.jpg | 
+가 | step2 | 가-step2.jpg | 
+가 | step3 | 가-step3.jpg | 
+가 | step4 | 가-step4.jpg | 
+가 | step5 | 가-step5.jpg | 
+가 | checks | - | #ltt-checks 없음 또는 JSON 오류
+나 | t1s | 나-t1s.jpg | 
+나 | t4s | 나-t4s.jpg | 
+나 | t8s | 나-t8s.jpg | 
+나 | step1 | 나-step1.jpg | 
+나 | step2 | 나-step2.jpg | 
+나 | step3 | 나-step3.jpg | 
+나 | step4 | 나-step4.jpg | 
+나 | step5 | 나-step5.jpg | 
+나 | checks | - | #ltt-checks 없음 또는 JSON 오류
+다 | t1s | 다-t1s.jpg | 
+다 | t4s | 다-t4s.jpg | 
+다 | t8s | 다-t8s.jpg | 
+다 | step1 | 다-step1.jpg | 
+다 | step2 | 다-step2.jpg | 
+다 | step3 | 다-step3.jpg | 
+다 | step4 | 다-step4.jpg | 
+다 | step5 | 다-step5.jpg | 
+다 | step6 | 다-step6.jpg | 
+다 | step7 | 다-step7.jpg | 
+다 | checks | - | #ltt-checks 없음 또는 JSON 오류
+라 | t1s | 라-t1s.jpg | 
+라 | t4s | 라-t4s.jpg | 
+라 | t8s | 라-t8s.jpg | 
+라 | step1 | 라-step1.jpg | 
+라 | step2 | 라-step2.jpg | 
+라 | step3 | 라-step3.jpg | 
+라 | step4 | 라-step4.jpg | 
+라 | step5 | 라-step5.jpg | 
+라 | checks | - | #ltt-checks 없음 또는 JSON 오류
+마 | t1s | 마-t1s.jpg | 
+마 | t4s | 마-t4s.jpg | 
+마 | t8s | 마-t8s.jpg | 
+마 | step1 | 마-step1.jpg | 
+마 | step2 | 마-step2.jpg | 
+마 | step3 | 마-step3.jpg | 
+마 | step4 | 마-step4.jpg | 
+마 | step5 | 마-step5.jpg | 
+마 | step6 | 마-step6.jpg | 
+마 | step7 | 마-step7.jpg | 
+마 | checks | - | #ltt-checks 없음 또는 JSON 오류
+바 | t1s | 바-t1s.jpg | 
+바 | t4s | 바-t4s.jpg | 
+바 | t8s | 바-t8s.jpg | 
+바 | step1 | 바-step1.jpg | 
+바 | step2 | 바-step2.jpg | 
+바 | step3 | 바-step3.jpg | 
+바 | step4 | 바-step4.jpg | 
+바 | step5 | 바-step5.jpg | 
+바 | step6 | 바-step6.jpg | 
+바 | checks | - | #ltt-checks 없음 또는 JSON 오류

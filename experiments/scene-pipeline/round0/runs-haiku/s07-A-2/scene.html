@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fan-out과 p99 꼬리 지연</title>
+<script type="application/json" id="ltt-meta">{"topic": "fan-out과 p99 꼬리 지연", "audience": "백엔드 개발자", "theme": "terminal", "medium": "터미널·대시보드", "decision": "한 요청이 부르는 백엔드 수"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.fan{display:grid;gap:14px;min-width:0}
+.fan-top{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;justify-content:space-between}
+.fan-read{display:grid;gap:4px;min-width:0}
+.fan-lane{position:relative;height:40px}
+.fan-tick{position:absolute;top:0;width:6px;height:26px;margin-left:-3px;border-radius:2px;background:var(--ltt-c1);transition:left .6s ease}
+.fan-merge{position:absolute;left:0;right:0;bottom:0;height:6px;border-radius:3px;background:var(--ltt-accent);transform:scaleX(0);transform-origin:left center;transition:transform .6s ease .5s}
+.fan-merge.on{transform:scaleX(1)}
+.fan-panels{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.fan-panel{min-width:0;padding:8px 8px 4px;border:1px solid var(--ltt-line);border-radius:8px;background:var(--ltt-card);opacity:.45;transition:opacity .3s,border-color .3s}
+.fan-panel.on{opacity:1;border-color:var(--ltt-accent)}
+.fan-panel svg{display:block;width:100%;height:auto}
+@media (max-width:760px){.fan-panels{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (prefers-reduced-motion:reduce){.fan-tick,.fan-merge,.fan-panel{transition:none}}
+</style>
+</head>
+<body>
+<script>
+const SLOW_SHARE = 0.005; // 백엔드 하나가 느리게 답하는 비율 (가정)
+const STOPS = [1, 2, 5, 10, 20, 50, 100];
+const W = 160, H = 112, X0 = 6, X1 = 154, Y0 = 96, Y1 = 12;
+const xs = (t) => X0 + (t / 150) * (X1 - X0); // 응답 시간(ms) → x
+const ys = (s) => Y0 - s * (Y0 - Y1);         // 확률 → y
+
+// 표준 정규분포 CDF (Abramowitz–Stegun 근사)
+const erf = (x) => {
+  const s = x < 0 ? -1 : 1, a = Math.abs(x), t = 1 / (1 + 0.3275911 * a);
+  const y = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-a * a);
+  return s * y;
+};
+const Phi = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
+const cdf = (t) => (1 - SLOW_SHARE) * Phi((t - 10) / 3) + SLOW_SHARE * Phi((t - 100) / 8); // 백엔드 하나가 t ms 안에 답할 확률
+const slowShare = (n) => 1 - Math.pow(1 - SLOW_SHARE, n); // 부른 n개 중 하나라도 느릴 확률
+const p99 = (n) => {                                      // 요청 전체의 99% 응답 시간
+  for (let t = 0; t <= 200; t += 0.5) if (Math.pow(cdf(t), n) >= 0.99) return t;
+  return 200;
+};
+const curve = (n) => {                                    // 요청이 t보다 늦을 확률
+  let d = "";
+  for (let t = 0; t <= 150; t++) d += (t ? "L" : "M") + xs(t).toFixed(1) + " " + ys(1 - Math.pow(cdf(t), n)).toFixed(1);
+  return d;
+};
+
+const fanScene = {
+  title: "백엔드를 백 개 부르면, 하나의 느린 0.5%가 요청 약 40%를 느리게 만든다",
+  kicker: "백엔드 · 꼬리 지연",
+  sub: "한 요청이 백엔드 N개를 동시에 부르는 {{fan-out}}이면, 응답은 가장 늦은 한 곳을 기다린다. 손잡이로 N을 바꿔 본다.",
+  mount(body) {
+    body.innerHTML = `
+      <div class="fan">
+        <div class="fan-top">
+          <div class="ltt-param">백엔드 수 <b id="n-v"></b><div id="n"></div></div>
+          <div class="fan-read">
+            <div class="ltt-basis">느린 요청 비율, 1−0.995^N</div>
+            <div class="ltt-hero" id="fan-slow"></div>
+            <div class="ltt-basis" id="fan-p99"></div>
+            <span class="ltt-tag muted">모델로 계산한 예시</span>
+          </div>
+        </div>
+        <div class="ltt-basis">위: 요청 1건이 백엔드로 쪼개져 나간다. 아래: 모든 응답이 모여야 끝나므로, 가장 늦은 응답이 요청의 끝이 된다.</div>
+        <div class="fan-lane" id="fan-lane"><div class="fan-merge" id="fan-merge"></div></div>
+        <div class="fan-panels" id="fan-panels"></div>
+        <div class="ltt-basis">가로축은 응답 시간 0–150ms, 세로축은 요청이 그 시간보다 늦을 확률이다. 점선은 1%, 점은 p99다.</div>
+      </div>`;
+
+    const $ = (id) => body.querySelector("#" + id);
+    const lane = $("fan-lane"), merge = $("fan-merge"), panels = $("fan-panels");
+
+    STOPS.forEach((n) => {
+      const p = document.createElement("div");
+      p.className = "fan-panel";
+      p.id = "fan-p" + n;
+      p.innerHTML = `<div class="ltt-mono">N=${n}</div><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="N=${n}일 때 요청 응답 시간 분포"></svg><div class="ltt-basis">p99 ≈ ${Math.round(p99(n))}ms</div>`;
+      p.querySelector("svg").innerHTML = `
+        <line x1="${X0}" y1="${Y0}" x2="${X1}" y2="${Y0}" style="stroke:var(--ltt-line-2)"/>
+        <line x1="${X0}" y1="${ys(0.01)}" x2="${X1}" y2="${ys(0.01)}" stroke-dasharray="2 2" style="stroke:var(--ltt-muted)"/>
+        <path d="${curve(n)}" fill="none" stroke-width="2" style="stroke:var(--ltt-ink)"/>
+        <circle cx="${xs(p99(n))}" cy="${ys(0.01)}" r="3.5" style="fill:var(--ltt-accent)"/>`;
+      panels.appendChild(p);
+    });
+
+    const split = (n) => {
+      lane.querySelectorAll(".fan-tick").forEach((t) => t.remove());
+      const ticks = Array.from({ length: n }, () => {
+        const t = document.createElement("i");
+        t.className = "fan-tick";
+        t.style.left = "50%";
+        lane.insertBefore(t, merge);
+        return t;
+      });
+      void lane.offsetWidth;
+      ticks.forEach((t, i) => { t.style.left = ((i + 0.5) / n) * 100 + "%"; });
+      merge.classList.remove("on");
+      void merge.offsetWidth;
+      merge.classList.add("on");
+    };
+
+    const show = (n) => {
+      panels.querySelectorAll(".fan-panel").forEach((p) => p.classList.toggle("on", p.id === "fan-p" + n));
+      $("fan-slow").innerHTML = (slowShare(n) * 100).toFixed(1) + "<small>%</small>";
+      $("fan-p99").textContent = "요청 p99 ≈ " + Math.round(p99(n)) + "ms";
+      split(n);
+    };
+
+    LTT.sweep({
+      params: { n: { kind: "steps", stops: STOPS, value: 10, fmt: (v) => v + "개" } },
+      render: ({ n }) => show(n),
+    });
+    return {};
+  },
+  takeaway: "N개를 부르면 느린 요청 비율은 1−0.995^N으로 커지고, 그 비율이 1%를 넘는 순간 {{p99}}가 빠른 몸통을 벗어난다.",
+  recall: "백엔드를 열 개 부르면 느린 요청 비율은 약 몇 %일까?",
+  basis: "가정: 백엔드 하나는 99.5%가 10ms 안팎(표준편차 3ms), 0.5%가 100ms 안팎(표준편차 8ms)에 답하고, 백엔드끼리 독립이다. 서비스 실측이 아니라 구조를 보이는 모델이다.",
+  sources: "Jeffrey Dean·Luiz André Barroso, “The Tail at Scale”, Communications of the ACM, 2013",
+  layout: "full"
+};
+
+LTT.deck({
+  title: "fan-out과 p99 꼬리 지연",
+  theme: "terminal",
+  glossary: {
+    "fan-out": "한 요청을 여러 백엔드에 동시에 보내고, 모든 응답을 모아 답하는 구조",
+    "p99": "100번 요청 중 99번이 이 시간 안에 끝나는 응답 시간",
+  },
+  scenes: [fanScene],
+});
+</script>
+</body>
+</html>

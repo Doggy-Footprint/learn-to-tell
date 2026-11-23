@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할이 루트까지 전파</title>
+<script type="application/json" id="ltt-meta">{"topic": "B+tree 노드 분할", "audience": "백엔드 개발자", "theme": "blueprint", "medium": "DB 내부 구조 도해", "decision": "인덱스 설계와 페이지 크기 이해"}</script>
+<style>
+  .split-tree > svg { animation: split-tree-in 360ms ease-out; }
+  @keyframes split-tree-in { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .split-tree > svg { animation: none; } }
+</style>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 단계 i의 그림을 처음부터 다시 그린다. 같은 i면 같은 그림이라 단계를 넘기거나 되돌려도 어긋나지 않는다.
+function treeAt(i) {
+  const top = i >= 6;              // 새 루트가 생긴 뒤: 루트 절반과 아래 줄이 한 칸씩 내려간다
+  const rootRow = top ? 1 : 0;
+  const innerRow = top ? 2 : 1;
+  const leafRow = top ? 3 : 2;
+  const split = i >= 3;            // I2가 I2a·I2b로 갈라진 뒤
+  const nodes = [];
+  const edges = [];
+  const add = (id, c, r, l, s, k) => nodes.push({ id, c, r, l, s, k });
+  const link = (f, t, dash) => edges.push(dash ? { f, t, dash: true } : { f, t });
+  const chain = (a, b) => edges.push({ f: a, t: b, dash: true, from: "right", to: "left" });
+
+  // 루트: 넘치면 두 절반으로 쪼개지고, 가운데 키 100이 올라가 새 루트가 된다
+  if (i < 5) {
+    const over = i === 4;
+    add("R", split ? 2.5 : 2, 0, over ? "50 80 100 150 200" : "50 100 150 200",
+      over ? "루트 · 5/4 넘침" : "루트 · 4/4", over ? "warn" : undefined);
+  } else {
+    add("RL", 1, rootRow, "50 80", "루트 · 2/4");
+    add("RR", 4, rootRow, "150 200", "새 오른쪽 · 2/4", "accent");
+    if (i === 5) add("G", 2.5, 0, "100", "올라갈 키", "accent");
+    if (top) add("NR", 2.5, 0, "100", "새 루트 · 1/4", "accent");
+  }
+
+  // 내부 노드: I2가 갈라지면 새 오른쪽 I2b가 생기고, 나머지 형제는 한 칸씩 밀린다
+  add("I1", 0, innerRow, "I1", "< 50");
+  if (split) {
+    add("I2a", 1, innerRow, "60 70", "내부 · 2/4");
+    add("I2b", 2, innerRow, "86 90", "새 내부 · 2/4", "accent");
+  } else {
+    const over = i === 2;
+    add("I2", 1, innerRow, over ? "60 70 80 86 90" : "60 70 80 90",
+      over ? "내부 · 5/4 넘침" : "내부 · 4/4", over ? "warn" : undefined);
+  }
+  add("I3", split ? 3 : 2, innerRow, "I3", "100~150");
+  add("I4", split ? 4 : 3, innerRow, "I4", "150~200");
+  add("I5", split ? 5 : 4, innerRow, "I5", "≥ 200");
+
+  // 잎: 연결 리스트 앞 잎 → L → 다음 잎. 새 잎은 L 바로 뒤에 끼어든다
+  const pId = split ? "I2a" : "I2";
+  const nId = split ? "I2b" : "I2";
+  add("P", 0, leafRow, "앞 잎", "70~80");
+  if (i === 0) {
+    add("L", 1, leafRow, "81 83 85 86 88", "잎 · 5/4 넘침", "warn");
+    add("N", 2, leafRow, "다음 잎", "90 이상");
+    link("I2", "P");
+    link("I2", "L");
+    link("I2", "N");
+    chain("P", "L");
+    chain("L", "N");
+  } else {
+    add("L1", 1, leafRow, "81 83 85", "잎 · 3/4");
+    add("L2", 2, leafRow, "86 88", "새 잎 · 2/4", "accent");
+    add("N", split ? 3 : 3, leafRow, "다음 잎", "90 이상");
+    link(pId, "P");
+    link(nId, "L1");
+    link(nId, "L2", i === 1);      // 1단계: 새 잎은 부모가 아직 넘치기 전이라 대기 중
+    link(nId, "N");
+    chain("P", "L1");
+    chain("L1", "L2");
+    chain("L2", "N");
+  }
+
+  // 간선: 루트 → 내부 노드 → 잎. 아직 붙지 않은 간선은 점선
+  const inner = split ? ["I1", "I2a", "I2b", "I3", "I4", "I5"] : ["I1", "I2", "I3", "I4", "I5"];
+  if (i < 5) {
+    inner.forEach((t) => link("R", t, i === 3 && t.startsWith("I2")));
+  } else {
+    if (top) { link("NR", "RL"); link("NR", "RR"); }
+    ["I1", "I2a", "I2b"].forEach((t) => link("RL", t));
+    ["I3", "I4", "I5"].forEach((t) => link("RR", t));
+  }
+
+  return {
+    cols: 6, rows: 4, cell: [160, 112], node: [132, 56],
+    label: "노드 1개 = 페이지 1개 · 키 최대 4 · 자식 최대 5",
+    nodes, edges,
+  };
+}
+
+const draw = (i, fig) => {
+  fig.el.replaceChildren();
+  const s = fig.el.appendChild(document.createElementNS(SVG, "svg"));
+  LTT.diagram(s, treeAt(i));
+};
+
+const CAPTIONS = [
+  "① 꽉 찬 경로(루트·I2·잎)에 키 86이 들어온다. 잎이 키 5개가 되어 넘친다.",
+  "② 잎이 3+2로 갈라진다. 새 오른쪽 잎 L2가 L 바로 뒤에 끼어들어 L → L2 → 다음 잎 순서가 된다.",
+  "③ {{구분 키}} 86은 L2에 남은 채 복사되어 I2에 들어간다. I2는 키 5개, 자식 6개로 넘친다.",
+  "④ I2가 둘로 갈라진다. 새 오른쪽 노드 I2b가 먼저 생기고, 가운데 80은 위로 이동해 두 노드 어디에도 남지 않는다.",
+  "⑤ 80이 루트에 들어가 루트가 넘친다. 키 5개, 자식 6개.",
+  "⑥ 루트가 둘로 갈라진다. 오른쪽 절반이 먼저 생기고, 가운데 100은 올라갈 키로 남는다.",
+  "⑦ 맨 마지막에 새 루트 100이 생기고 모든 잎이 한 층 내려간다. 높이 3 → 4.",
+];
+
+LTT.deck({
+  title: "B+tree 노드 분할이 루트까지 전파",
+  theme: "blueprint",
+  glossary: {
+    "팬아웃": "노드 하나가 가리키는 자식 수. 페이지가 클수록 커진다.",
+    "구분 키": "부모 노드에서 자식들의 범위를 나누는 키. 잎에서 올라온 키는 복사되고, 내부 노드에서 올라온 키는 이동한다.",
+  },
+  scenes: [{
+    type: "figure",
+    kicker: "DB · B+tree 삽입 시 노드 분할이 루트까지 전파",
+    title: "넘침은 꽉 찬 조상까지만 올라가고, 트리는 루트가 쪼개질 때만 한 층 높아진다",
+    en: "A B+tree split propagates upward only through full ancestors",
+    sub: "키 86을 넣는 과정. 노드당 키 최대 4개, 자식 최대 5개.",
+    figure: (el) => {
+      const wrap = el.appendChild(document.createElement("div"));
+      wrap.className = "split-tree";
+      return { el: wrap };
+    },
+    steps: CAPTIONS.map((caption, i) => ({ caption, enter: (_, fig) => draw(i, fig) })),
+    takeaway: "넘침은 꽉 찬 조상이 있는 만큼만 올라가고, 트리 높이는 루트가 쪼개질 때만 1 늘어난다. 페이지가 클수록 {{팬아웃}}이 커서 같은 키 수에서 트리가 낮다.",
+    recall: "꽉 차지 않은 부모를 만나면 분할은 어디서 멈추는가?",
+    basis: "팬아웃 ≈ 페이지 크기 ÷ 항목 크기. 8 KB ÷ 16 B ≈ 500(헤더 감안). 모델로 계산한 예시.",
+  }],
+});
+</script>
+</body>
+</html>

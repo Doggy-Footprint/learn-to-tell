@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>남향 북향 하루 채광</title>
+<script type="application/json" id="ltt-meta">{"topic":"남향 vs 북향 방의 하루 채광","audience":"집을 고르는 비전문가","theme":"sketch","medium":"화이트보드 단면 스케치","decision":"방의 향 선택","domain":"건축","pattern":["contrast"],"mode":"카탈로그용: 장면 하나짜리 본보기. 공간 구조를 \"강조가 훑음\" 움직임과 작은 여러 칸 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.sc-grid{margin-top:12px;display:grid;grid-template-columns:repeat(2,170px);gap:10px;width:max-content;max-width:100%}
+.cl{border:2px dashed var(--ltt-line);border-radius:6px;padding:4px 4px 6px;background:var(--ltt-card);transition:opacity .25s,border-color .25s}
+.cl.on{border:2px solid var(--ltt-accent)}
+.cl .h{display:flex;flex-direction:column;gap:0;line-height:1.25;min-height:42px}
+.cl .h b{font-size:18px}
+.cl .h span{font-size:14px;color:var(--ltt-ink-2)}
+.cl svg{width:170px;max-width:100%;height:auto;aspect-ratio:170/130;display:block}
+.cl svg text{font-family:inherit}
+.sc-sum{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700}
+</style>
+<style>/* 장면 하나짜리 본보기라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// 태양 위치: 위도 37.5°, 동지(적위 -23.44°), 태양시. 방위는 정남 기준.
+const LAT = 37.5 * Math.PI / 180, DEC = -23.44 * Math.PI / 180, R2D = 180 / Math.PI;
+function sun(hour) {
+  const H = (hour - 12) * 15 / R2D;
+  const alt = Math.asin(Math.sin(LAT) * Math.sin(DEC) + Math.cos(LAT) * Math.cos(DEC) * Math.cos(H));
+  const az = Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(LAT) - Math.tan(DEC) * Math.cos(LAT));
+  // 남북 단면에 비친 고도: tan h' = tan h / |cos 방위|
+  const tanP = Math.tan(alt) / Math.max(1e-6, Math.abs(Math.cos(az)));
+  return { alt, az, tanP, front: Math.abs(az) < Math.PI / 2 };
+}
+// 방 단면(m): 깊이 5, 천장 2.4, 창턱 0.9, 창 머리 2.1
+const D = 5, CEIL = 2.4, SILL = 0.9, HEAD = 2.1;
+function lit(hour) { // 남향 방 바닥·뒷벽에 닿는 햇빛 구간
+  const t = sun(hour).tanP, fs = SILL / t, fh = HEAD / t;
+  return { t, floor: fs < D ? [fs, Math.min(fh, D)] : null,
+    wall: fh > D ? [Math.max(0, SILL - D * t), HEAD - D * t] : null, reach: Math.min(fh, D) };
+}
+function directHours(side) { let h = 0;
+  for (let x = 0; x < 24; x += 0.01) { const s = sun(x); if (s.alt > 0 && (side === "S" ? s.front : !s.front)) h += 0.01; }
+  return h; }
+LTT.expect("동지 정오 햇빛이 바닥에 닿는 깊이(m)", lit(12).reach, 3.78, { tol: 0.02 });
+LTT.expect("남향 방 하루 직사광(시간)", directHours("S"), 9.41, { tol: 0.05 });
+LTT.expect("북향 방 하루 직사광(시간)", directHours("N"), 0, { tol: 0.001 });
+
+// 손으로 그린 듯한 선
+let seed = 11; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 - 0.5; };
+const sk = (p, x1, y1, x2, y2, style) => mk("path", { d: `M${x1 + rnd()},${y1 + rnd()} Q${(x1 + x2) / 2 + rnd() * 2.4},${(y1 + y2) / 2 + rnd() * 2.4} ${x2 + rnd()},${y2 + rnd()}`,
+  style: style || "fill:none;stroke:var(--ltt-ink);stroke-width:3;stroke-linecap:round" }, p);
+
+const HOURS = [9, 11, 14, 16];
+const REG = []; let timer = 0, t0 = 0;
+const tick = () => { const now = Date.now(); const i = Math.floor((now - t0) / 1700) % HOURS.length, ph = ((now - t0) / 45) % 11;
+  REG.forEach((c) => { if (c.root.isConnected) c.set(c.i === i, ph); });
+  timer = setTimeout(tick, 45); };
+
+function cell(host, side, i) {
+  const hour = HOURS[i], s = sun(hour), north = side === "N";
+  const k = 24, ox = 26, fy = 112, X = (m) => ox + m * k, Y = (m) => fy - m * k, ex = X(D);
+  const root = LTT.h("div", "cl"); host.appendChild(root);
+  const L = lit(hour);
+  const note = north ? "직사광 0 · 하늘빛만"
+    : L.reach >= D ? "방 끝까지 햇빛" : `바닥 ${L.reach.toFixed(1)}m까지 햇빛`;
+  root.innerHTML = `<div class="h"><b>${hour}시</b><span>${note}</span></div>`;
+  const g = mk("svg", { viewBox: "0 0 170 130" }, root);
+  // 바닥·땅 해칭
+  sk(g, 6, fy, 166, fy, "fill:none;stroke:var(--ltt-ink);stroke-width:3;stroke-linecap:round");
+  for (let x = 14; x < 160; x += 14) sk(g, x, fy + 2, x - 6, fy + 9, "fill:none;stroke:var(--ltt-muted);stroke-width:1.5;stroke-linecap:round");
+  // 방 윤곽 (창 쪽 벽은 창 구간을 비운다)
+  sk(g, ox, Y(CEIL), ex, Y(CEIL));
+  const wx = north ? ex : ox, ox2 = north ? ox : ex;
+  sk(g, wx, fy, wx, Y(SILL)); sk(g, wx, Y(HEAD), wx, Y(CEIL)); sk(g, ox2, fy, ox2, Y(CEIL));
+  mk("line", { x1: wx, y1: Y(SILL), x2: wx, y2: Y(HEAD), style: "stroke:var(--ltt-c1);stroke-width:4;opacity:.85" }, g);
+  // 하늘빛(북향): 창에서 부채꼴로 얇게 퍼진다
+  if (north) {
+    mk("path", { d: `M${ex},${Y(HEAD)} L${X(1.6)},${fy - 1} L${X(3.4)},${fy - 1} L${ex},${Y(SILL)} Z`, style: "fill:var(--ltt-c1);opacity:.14" }, g);
+    [1.1, 1.7].forEach((h) => mk("line", { x1: ex + 14, y1: Y(h) - 6, x2: ex - 9, y2: Y(h) + 3, style: "stroke:var(--ltt-c1);stroke-width:2;stroke-dasharray:3 4;opacity:.8" }, g));
+  }
+  // 태양과 광선 (남쪽 = 왼쪽)
+  const tp = s.tanP, ycen = Y((SILL + HEAD) / 2), sunY = Math.max(16, ycen - (ox - 12) * tp), sx = 12;
+  const sg = mk("g", {}, g);
+  for (let a = 0; a < 6; a++) { const r = a * Math.PI / 3 + .3; mk("line", { x1: sx + 9 * Math.cos(r), y1: sunY + 9 * Math.sin(r), x2: sx + 13 * Math.cos(r), y2: sunY + 13 * Math.sin(r), style: "stroke:var(--ltt-warn);stroke-width:2" }, sg); }
+  mk("circle", { cx: sx, cy: sunY, r: 6, style: "fill:var(--ltt-warn);stroke:var(--ltt-ink);stroke-width:1.5" }, sg);
+  const rays = [];
+  [SILL, (SILL + HEAD) / 2, HEAD].forEach((hE) => {
+    const y0 = Y(hE) - (ox - 22) * tp; let x2 = ox, y2 = Y(hE);
+    if (!north) { const dist = hE / tp; if (dist <= D) { x2 = X(dist); y2 = fy; } else { x2 = ex; y2 = Y(hE - D * tp); } }
+    rays.push(mk("line", { x1: 22, y1: y0, x2, y2, style: "stroke:var(--ltt-warn);stroke-width:2.5;stroke-dasharray:6 5" }, g));
+  });
+  // 햇빛이 닿은 자리(남향): 바닥은 굵게, 뒷벽은 세로로
+  if (!north) {
+    if (L.floor) mk("line", { x1: X(L.floor[0]), y1: fy - 2, x2: X(L.floor[1]), y2: fy - 2, style: "stroke:var(--ltt-warn);stroke-width:6;stroke-linecap:round" }, g);
+    if (L.wall) mk("line", { x1: ex - 2, y1: Y(L.wall[0]), x2: ex - 2, y2: Y(L.wall[1]), style: "stroke:var(--ltt-warn);stroke-width:6;stroke-linecap:round" }, g);
+  } else {
+    mk("text", { x: ox + 6, y: Y(1.2), style: "font-size:14px;fill:var(--ltt-muted)" }, g).textContent = "그늘";
+  }
+  mk("text", { x: ox, y: 127, "text-anchor": "middle", style: "font-size:14px;font-weight:700;fill:var(--ltt-ink)" }, g).textContent = "남";
+  mk("text", { x: ex, y: 127, "text-anchor": "middle", style: "font-size:14px;font-weight:700;fill:var(--ltt-ink)" }, g).textContent = "북";
+  const c = { root, i, set(on, ph) { root.classList.toggle("on", on); root.style.opacity = on ? 1 : .55;
+    rays.forEach((r) => r.style.strokeDashoffset = on ? -ph : 0); } };
+  REG.push(c);
+  if (reduced) c.set(true, 0);
+  return c;
+}
+
+function side(sd) {
+  return (node) => {
+    const grid = LTT.h("div", "sc-grid"); node.appendChild(grid);
+    HOURS.forEach((_, i) => cell(grid, sd, i));
+    const hrs = directHours(sd), sum = LTT.h("div", "sc-sum"); node.appendChild(sum);
+    sum.appendChild(LTT.h("span", `ltt-tag ${sd === "S" ? "good" : "bad"}`, sd === "S" ? "남향" : "북향"));
+    sum.appendChild(LTT.h("span", "", sd === "S" ? `하루 직사광 약 ${hrs.toFixed(1)}시간` : "하루 직사광 0시간"));
+    if (!reduced && !timer) { t0 = Date.now(); tick(); }
+    return grid;
+  };
+}
+
+LTT.deck({
+  title: "남향 북향 하루 채광", theme: "sketch",
+  glossary: { "직사광": "햇빛이 구름·벽 없이 곧장 들어오는 빛. 바닥에 밝은 자리를 만든다",
+    "하늘빛": "하늘 전체에서 퍼져 들어오는 빛. 밝지만 그림자가 흐리고 따뜻하지 않다" },
+  scenes: [{
+    type: "contrast",
+    title: "겨울 낮에 방 깊이 햇빛이 드는 건 남향뿐, 북향은 하늘빛만 든다",
+    sub: "같은 시각의 두 방을 남북으로 자른 단면이다. 노란 선은 {{직사광}}이 창을 지나 바닥에 닿는 길, 하이라이트가 9시부터 16시까지 훑는다. 북향 창에는 {{하늘빛}}만 들어온다.",
+    before: { label: "북향 방 · 창이 북쪽 벽", tone: "bad", visual: side("N") },
+    after: { label: "남향 방 · 창이 남쪽 벽", tone: "good", visual: side("S") },
+    basis: "동지(적위 -23.44°), 위도 37.5° 기준 태양 위치를 천문 공식으로 계산하고, 단면에는 tan h' = tan h / |cos 방위|로 투영. 방 깊이 5m·천장 2.4m·창턱 0.9m·창 머리 2.1m는 가정. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    takeaway: "겨울에 햇빛을 방 깊이 들이는 건 남향 창이고, 북향 창은 직사광이 하루 종일 0이다.", recall: "동지에 북향 방 바닥에 햇빛이 드는 시간은 얼마인가?"
+  }]
+});
+</script>
+</body>
+</html>

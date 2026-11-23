@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic": "DNA 복제 분기점", "audience": "생명과학 입문 학생", "theme": "paper", "medium": "교과서 도해", "decision": "복제 과정 이해"}</script>
+<style>
+.d-fork { display: block; width: 100%; max-width: 760px; height: auto; margin: 0 auto; }
+.d-line { stroke-dasharray: 1; }
+.d-prim { opacity: 0; }
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes out { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .d-fork * { animation: none !important; } }
+</style>
+</head>
+<body>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script>
+const forkArt = `<svg class="d-fork" viewBox="0 0 760 350" role="img" aria-label="DNA 복제 분기점. 선도 가닥은 한 줄로 이어지고 지연 가닥은 조각으로 합성된다">
+  <path d="M500 176 H740 M500 192 H740" fill="none" stroke="var(--ltt-ink)" stroke-width="2.5"/>
+  <text x="620" y="162" text-anchor="middle" font-size="14" fill="var(--ltt-muted)">아직 풀리지 않은 이중나선</text>
+  <path class="d-line" pathLength="1" style="animation: draw 1.4s 0.4s both" d="M500 176 L470 110 L80 110" fill="none" stroke="var(--ltt-muted)" stroke-width="2"/>
+  <path class="d-line" pathLength="1" style="animation: draw 1.4s 0.4s both" d="M500 192 L470 250 L80 250" fill="none" stroke="var(--ltt-muted)" stroke-width="2"/>
+  <text x="66" y="104" text-anchor="end" font-size="14" fill="var(--ltt-ink-2)">3'</text>
+  <text x="478" y="100" font-size="14" fill="var(--ltt-ink-2)">5'</text>
+  <text x="66" y="254" text-anchor="end" font-size="14" fill="var(--ltt-ink-2)">5'</text>
+  <text x="476" y="264" font-size="14" fill="var(--ltt-ink-2)">3'</text>
+  <rect x="462" y="150" width="44" height="84" rx="10" fill="var(--ltt-card-2)" stroke="var(--ltt-ink)" stroke-width="1.5" style="animation: fade 0.6s both"/>
+  <path d="M484 236 V310" stroke="var(--ltt-muted)" stroke-width="1" style="animation: fade 0.6s 0.6s both"/>
+  <text x="484" y="328" text-anchor="middle" font-size="14" fill="var(--ltt-ink)" style="animation: fade 0.6s 0.6s both">헬리케이스</text>
+  <path class="d-line" pathLength="1" style="animation: draw 2.4s 2.2s both" d="M80 130 H452" fill="none" stroke="var(--ltt-accent)" stroke-width="3"/>
+  <polygon points="452,130 441,124 441,136" fill="var(--ltt-accent)" style="animation: fade 0.3s 4.6s both"/>
+  <rect class="d-prim" x="70" y="126" width="10" height="8" rx="2" fill="var(--ltt-warn)" style="animation: fade 0.4s 1.8s both, out 0.4s 9s forwards"/>
+  <text x="72" y="150" text-anchor="middle" font-size="14" fill="var(--ltt-ink-2)">5'</text>
+  <text x="452" y="150" text-anchor="middle" font-size="14" fill="var(--ltt-ink-2)">3'</text>
+  <text x="250" y="98" text-anchor="middle" font-size="15" font-weight="700" fill="var(--ltt-ink)" style="animation: fade 0.5s 2.2s both">선도 가닥: 연속 합성</text>
+  <path class="d-line" pathLength="1" style="animation: draw 0.9s 5s both" d="M200 270 H70" fill="none" stroke="var(--ltt-accent)" stroke-width="3"/>
+  <polygon points="70,270 81,264 81,276" fill="var(--ltt-accent)" style="animation: fade 0.3s 5.9s both"/>
+  <rect class="d-prim" x="194" y="266" width="10" height="8" rx="2" fill="var(--ltt-warn)" style="animation: fade 0.4s 4.8s both, out 0.4s 9s forwards"/>
+  <path class="d-line" pathLength="1" style="animation: draw 0.9s 6.4s both" d="M334 270 H214" fill="none" stroke="var(--ltt-accent)" stroke-width="3"/>
+  <polygon points="214,270 225,264 225,276" fill="var(--ltt-accent)" style="animation: fade 0.3s 7.3s both"/>
+  <rect class="d-prim" x="328" y="266" width="10" height="8" rx="2" fill="var(--ltt-warn)" style="animation: fade 0.4s 6.2s both, out 0.4s 9s forwards"/>
+  <path class="d-line" pathLength="1" style="animation: draw 0.8s 7.8s both" d="M430 270 H348" fill="none" stroke="var(--ltt-accent)" stroke-width="3"/>
+  <polygon points="348,270 359,264 359,276" fill="var(--ltt-accent)" style="animation: fade 0.3s 8.6s both"/>
+  <rect class="d-prim" x="424" y="266" width="10" height="8" rx="2" fill="var(--ltt-warn)" style="animation: fade 0.4s 7.6s both, out 0.4s 9s forwards"/>
+  <path d="M200 270 H214 M334 270 H348" fill="none" stroke="var(--ltt-accent)" stroke-width="3" style="animation: fade 0.6s 9.6s both"/>
+  <text x="250" y="306" text-anchor="middle" font-size="15" font-weight="700" fill="var(--ltt-ink)" style="animation: fade 0.5s 5s both">지연 가닥: 조각(오카자키 절편)으로 합성</text>
+  <rect x="60" y="328" width="12" height="10" rx="2" fill="var(--ltt-warn)"/>
+  <text x="80" y="338" font-size="13" fill="var(--ltt-muted)">프라이머: 합성이 시작되는 짧은 RNA (제거 후 연결효소가 잇는다)</text>
+</svg>`;
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "선도 가닥": "분기점이 열리는 방향으로 끊김 없이 합성되는 새 DNA 가닥",
+    "지연 가닥": "분기점에서 멀어지는 방향으로 짧은 조각을 여러 개 만들고 나중에 이어지는 새 DNA 가닥"
+  },
+  scenes: [
+    {
+      type: "hook",
+      pre: "생물 · DNA 복제",
+      title: "같은 5'→3' 규칙인데, 한 가닥은 이어 붙고 다른 가닥은 조각난다",
+      art: forkArt,
+      sub: "분기점은 한쪽으로 전진한다. 주형의 방향이 달라서 {{선도 가닥}}은 연속으로, {{지연 가닥}}은 조각으로 만들어진다."
+    }
+  ]
+});
+</script>
+</body>
+</html>

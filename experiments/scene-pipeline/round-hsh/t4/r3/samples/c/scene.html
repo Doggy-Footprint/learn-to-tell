@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNA 복제 분기점</title>
+<script type="application/json" id="ltt-meta">{"topic": "DNA 복제 분기점", "audience": "생명과학 입문 학생", "theme": "paper", "medium": "교과서 도해", "decision": "복제 과정 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const art = `<style>
+.a-draw{stroke-dasharray:100;animation:a-draw var(--d) ease-out var(--t) both}
+.a-fade{animation:a-fade .4s ease var(--t) both}
+.a-out{animation:a-out .4s ease var(--t) both}
+@keyframes a-draw{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
+@keyframes a-fade{from{opacity:0}to{opacity:1}}
+@keyframes a-out{from{opacity:1}to{opacity:0}}
+@media (prefers-reduced-motion: reduce){.a-draw,.a-fade,.a-out{animation:none}.a-out{opacity:0}}
+</style>
+<svg viewBox="0 0 720 300" width="100%" role="img" aria-label="DNA 복제 분기점: 선도 가닥은 연속으로, 지연 가닥은 짧은 절편으로 자란다">
+  <path d="M520 172H700" stroke="var(--ltt-ink-2)" stroke-width="3" fill="none"/>
+  <path d="M520 188H700" stroke="var(--ltt-ink-2)" stroke-width="3" fill="none"/>
+  <path d="M540 172V188M560 172V188M580 172V188M600 172V188M620 172V188M640 172V188M660 172V188M680 172V188" stroke="var(--ltt-line-2)" stroke-width="2" fill="none"/>
+  <circle cx="520" cy="180" r="4" fill="var(--ltt-ink)"/>
+  <text x="560" y="120" font-size="13" fill="var(--ltt-muted)">분기점 진행 →</text>
+  <text class="a-fade" style="--t:0s" x="706" y="176" font-size="13" fill="var(--ltt-muted)">5'</text>
+  <text class="a-fade" style="--t:0s" x="706" y="192" font-size="13" fill="var(--ltt-muted)">3'</text>
+
+  <path class="a-draw" pathLength="100" style="--t:.3s;--d:1.2s" d="M520 172L490 150H60" stroke="var(--ltt-ink-2)" stroke-width="3" fill="none"/>
+  <path class="a-draw" pathLength="100" style="--t:.3s;--d:1.2s" d="M520 188L490 210H60" stroke="var(--ltt-ink-2)" stroke-width="3" fill="none"/>
+  <text class="a-fade" style="--t:1.2s" x="34" y="154" text-anchor="end" font-size="13" fill="var(--ltt-muted)">3'</text>
+  <text class="a-fade" style="--t:1.2s" x="34" y="214" text-anchor="end" font-size="13" fill="var(--ltt-muted)">5'</text>
+
+  <path class="a-draw" pathLength="100" style="--t:1.8s;--d:1.6s" d="M60 134H490" stroke="var(--ltt-c1)" stroke-width="4" fill="none"/>
+  <rect class="a-fade" style="--t:1.6s" x="52" y="129" width="10" height="10" fill="var(--ltt-ink)"/>
+  <text class="a-fade" style="--t:1.6s" x="46" y="138" text-anchor="end" font-size="13" fill="var(--ltt-muted)">5'</text>
+  <text class="a-fade" style="--t:3.4s" x="496" y="128" font-size="13" fill="var(--ltt-muted)">3'</text>
+  <text class="a-fade" style="--t:1.8s" x="60" y="118" font-size="14" fill="var(--ltt-c1)">선도 가닥: → 분기점을 따라 연속으로 자란다</text>
+
+  <g class="a-out" style="--t:8.6s">
+    <rect class="a-fade" style="--t:3.6s" x="182" y="221" width="8" height="10" fill="var(--ltt-ink)"/>
+  </g>
+  <path class="a-draw" pathLength="100" style="--t:3.8s;--d:1s" d="M190 226H110" stroke="var(--ltt-c2)" stroke-width="4" fill="none"/>
+  <text class="a-fade" style="--t:4.8s" x="104" y="244" text-anchor="end" font-size="13" fill="var(--ltt-muted)">3'</text>
+
+  <g class="a-out" style="--t:8.6s">
+    <rect class="a-fade" style="--t:4.8s" x="282" y="221" width="8" height="10" fill="var(--ltt-ink)"/>
+  </g>
+  <path class="a-draw" pathLength="100" style="--t:5s;--d:1s" d="M290 226H210" stroke="var(--ltt-c2)" stroke-width="4" fill="none"/>
+  <text class="a-fade" style="--t:6s" x="204" y="244" text-anchor="end" font-size="13" fill="var(--ltt-muted)">3'</text>
+
+  <g class="a-out" style="--t:8.6s">
+    <rect class="a-fade" style="--t:6s" x="382" y="221" width="8" height="10" fill="var(--ltt-ink)"/>
+  </g>
+  <path class="a-draw" pathLength="100" style="--t:6.2s;--d:1s" d="M390 226H310" stroke="var(--ltt-c2)" stroke-width="4" fill="none"/>
+  <text class="a-fade" style="--t:7.2s" x="304" y="244" text-anchor="end" font-size="13" fill="var(--ltt-muted)">3'</text>
+
+  <g class="a-out" style="--t:8.6s">
+    <rect class="a-fade" style="--t:7.2s" x="482" y="221" width="8" height="10" fill="var(--ltt-ink)"/>
+  </g>
+  <path class="a-draw" pathLength="100" style="--t:7.4s;--d:1s" d="M490 226H410" stroke="var(--ltt-c2)" stroke-width="4" fill="none"/>
+  <text class="a-fade" style="--t:8.4s" x="404" y="244" text-anchor="end" font-size="13" fill="var(--ltt-muted)">3'</text>
+
+  <path class="a-fade" style="--t:9s" d="M190 226H210M290 226H310M390 226H410" stroke="var(--ltt-c2)" stroke-width="4" fill="none"/>
+  <text class="a-fade" style="--t:9s" x="300" y="268" text-anchor="middle" font-size="13" fill="var(--ltt-muted)">프라이머 제거 → 틈 메우기 → 연결효소</text>
+  <text class="a-fade" style="--t:3.6s" x="60" y="292" font-size="14" fill="var(--ltt-accent)">지연 가닥: ← 분기점에서 멀어지며 짧은 절편으로 자란다</text>
+</svg>`;
+
+LTT.deck({
+  title: "DNA 복제 분기점",
+  theme: "paper",
+  glossary: {
+    "오카자키 절편": "지연 가닥에서 분기점이 열릴 때마다 생기는 짧은 DNA 조각. 조각마다 RNA 프라이머가 있다."
+  },
+  scenes: [
+    {
+      type: "hook",
+      pre: "생물 · DNA 복제",
+      text: "DNA 중합효소는 한 방향으로만 이어서, 한쪽 가닥은 끊어서 만든다",
+      sub: "분기점이 열리는 쪽과 같은 가닥은 끊김 없이 자라고, 반대 가닥은 분기점에서 멀어지며 {{오카자키 절편}}으로 자란다.",
+      art: art
+    }
+  ]
+});
+</script>
+</body>
+</html>

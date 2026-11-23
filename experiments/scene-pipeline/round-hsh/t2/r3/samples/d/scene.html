@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어: 손실 뒤 cwnd</title>
+<script type="application/json" id="ltt-meta">{"topic": "TCP 혼잡 제어", "audience": "백엔드·네트워크 개발자", "theme": "lab", "medium": "cwnd 시계열 플롯", "decision": "전송 처리량 문제 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+// 송신 흐름 한 줄: slow start(RTT마다 ×2) → cwnd 32에서 손실 → 16으로 반감 → RTT마다 +1 MSS(선형) → 다시 32에서 손실.
+// 0.1 RTT 간격으로 계산한다. ss는 slow start 구간, ca는 손실 직후부터의 구간(혼잡 회피 + 반감 수직선).
+function trace(end = 40) {
+  const ss = [[0, 1]], ca = [];
+  let c = 1, inSS = true;
+  for (let i = 1; i <= end * 10; i++) {
+    const t = i / 10;
+    c = inSS ? c * 2 ** 0.1 : c + 0.1;
+    if (c >= 31.99) {
+      if (inSS) ss.push([t, 32]);
+      ca.push([t, 32], [t, 16]);
+      c = 16; inSS = false;
+    } else (inSS ? ss : ca).push([t, c]);
+  }
+  return { ss, ca };
+}
+const { ss, ca } = trace();
+const SSTH = [[0, 16], [40, 16]]; // ssthresh = 16, 손실 순간에 정해진다
+
+const plotOpts = {
+  width: 640, height: 340, x: [0, 40], y: [0, 36],
+  labels: { x: "시간 (RTT)", y: "보낸 양 (MSS)" },
+  series: [
+    { id: "ss", color: "var(--ltt-c1)" },
+    { id: "ca", color: "var(--ltt-accent)" },
+    { id: "ssth", color: "var(--ltt-muted)", dash: true },
+  ],
+};
+
+// 선을 시간순으로 한 점씩 그린다. 모션이 꺼져 있으면 최종 상태를 바로 보인다.
+function reveal(plot, id, pts, ms) {
+  if (!ms) { plot.set(id, pts); return; }
+  const t0 = performance.now();
+  const step = (now) => {
+    const k = Math.min(pts.length, Math.max(1, Math.ceil(((now - t0) / ms) * pts.length)));
+    plot.set(id, pts.slice(0, k));
+    if (k < pts.length) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+LTT.expect("cwnd 32 처리량(bps)", 32 * 1460 * 8 / 0.1, 3737600, { tol: 1 });
+LTT.expect("평균 처리량(bps), cwnd 16~32", 24 * 1460 * 8 / 0.1, 2803200, { tol: 1 });
+
+LTT.deck({
+  title: "TCP 혼잡 제어: 손실 뒤 cwnd",
+  theme: "lab",
+  glossary: {
+    cwnd: "혼잡 윈도. 확인 응답을 기다리지 않고 보낼 수 있는 세그먼트 수(MSS 단위)",
+    ssthresh: "slow start를 끝내고 선형 증가로 바꾸는 임계값. 손실이 나는 순간 정해진다",
+  },
+  scenes: [{
+    type: "predict",
+    kicker: "네트워크 · TCP 혼잡 제어",
+    title: "손실 뒤 cwnd는 어디로 떨어질까",
+    sub: "가로축은 RTT, 세로축은 한 번에 보낼 수 있는 세그먼트 수(MSS 단위). 연결 직후 1 MSS에서 시작한다.",
+    question: "보내는 양이 32 MSS에 닿을 때 큐가 차서 패킷이 버려졌다(3 dup ACK). 이때 보낼 수 있는 양은 어디로 갈까?",
+    hint: "3 dup ACK는 뒤따르는 패킷이 아직 도착하고 있다는 신호다. 타임아웃과 무엇이 다를까?",
+    choices: [{ id: "1", text: "1 MSS" }, { id: "16", text: "16 MSS" }, { id: "32", text: "32 MSS" }],
+    answer: "16",
+    visual: () => {
+      const host = document.createElement("div");
+      const plot = LTT.axisPlot(host, plotOpts);
+      reveal(plot, "ss", ss, LTT.MOTION_MS ? 1600 : 0);
+      const cap = document.createElement("p");
+      cap.className = "ltt-basis";
+      cap.textContent = "조건: MSS 1460 B, RTT 100 ms. 첫 구간은 RTT마다 ×2(지수 증가)다.";
+      host.appendChild(cap);
+      return host;
+    },
+    answerVisual: () => {
+      const host = document.createElement("div");
+      const plot = LTT.axisPlot(host, plotOpts);
+      reveal(plot, "ss", ss, 0);
+      reveal(plot, "ssth", SSTH, 0);
+      reveal(plot, "ca", ca, LTT.MOTION_MS ? 2600 : 0);
+      const cap = document.createElement("p");
+      cap.className = "ltt-basis";
+      cap.textContent = "손실 순간 32 → 16(절반). 점선 ssthresh = 16이 정해진 뒤, 선형 증가가 RTT마다 +1 MSS로 이어진다. 1로 떨어지는 것은 타임아웃(RTO)일 때뿐이다.";
+      host.appendChild(cap);
+      return host;
+    },
+    why: "3 dup ACK는 패킷이 계속 도착한다는 뜻이라 {{cwnd}}를 1로 되돌리지 않는다. Reno는 {{ssthresh}}를 cwnd/2 = 16으로 두고 cwnd도 16으로 맞춘다. 이후 RTT마다 +1 MSS다. 처리량 ≈ cwnd × MSS ÷ RTT이므로 32 MSS에서 약 3.74 Mbps이던 것이 16 MSS에서 약 1.87 Mbps로 절반이 된다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    basis: "Reno 기준(3 dup ACK로 손실 감지). MSS 1460 B, RTT 100 ms, 초기 ssthresh 32로 둔 손 계산.",
+    takeaway: "손실 뒤 cwnd는 1이 아니라 절반으로 떨어지고, 평균 처리량은 최고점의 약 3/4이다.",
+    recall: "3 dup ACK 손실 뒤 cwnd는 어디로 떨어지고, 타임아웃이면 어디로 떨어지는가?",
+  }],
+});
+</script>
+</body>
+</html>

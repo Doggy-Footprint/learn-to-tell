@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결제 퍼널 이탈 지점</title>
+<script type="application/json" id="ltt-meta">{"topic":"결제 퍼널 이탈 지점","audience":"UX 입문자","theme":"studio","medium":"제품 분석 대시보드","decision":"어느 결제 단계를 먼저 고칠까","domain":"UX","pattern":["figure"],"mode":"카탈로그용: 장면 하나짜리. 순서 구조를 \"확대·축소\" 움직임과 좌우 분할 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.fz{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;width:1000px;max-width:100%;margin:0 auto}
+.fz .pane{min-width:0;background:var(--ltt-card);border:1px solid var(--ltt-line);border-radius:var(--ltt-r-lg,12px);padding:12px}
+.fz .pt{font-size:14px;font-weight:700;color:var(--ltt-ink-2);margin:0 4px 8px}
+.fz svg{display:block;width:100%;height:auto}
+.fz text{font-family:inherit}
+@media (max-width:720px){.fz{grid-template-columns:minmax(0,1fr)}}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p, text) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); if (text != null) n.textContent = text; p && p.appendChild(n); return n; };
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const fmt = (n) => n.toLocaleString("en-US");
+
+// ── 모델: 5개 화면, 화면마다 다음 화면으로 넘어가는 비율(가정치)
+const NAMES = ["① 장바구니", "② 배송 정보", "③ 결제 수단", "④ 주문 확인", "⑤ 결제 완료"];
+const START = 10000, PASS = [0.80, 0.64, 0.75, 0.92];
+const N = [START]; PASS.forEach((p, i) => N.push(Math.round(N[i] * p)));
+const LOSS = PASS.map((_, i) => N[i] - N[i + 1]);                 // 화면 i에서 떠난 사람
+const RATE = LOSS.map((v, i) => v / N[i]);                         // 이탈률
+const argmax = (a) => a.indexOf(Math.max(...a));
+const WIN = argmax(LOSS), SAME = argmax(RATE) === WIN;
+// 화면별 이탈 사유 비중(수업용 가정치)
+const REASONS = [
+  [["예상 밖 배송비·총액", .45], ["가격 비교하러 이탈", .35], ["쿠폰 입력이 막힘", .20]],
+  [["주소 입력 오류·자동완성 없음", .40], ["회원가입 강요", .35], ["입력 항목이 너무 많음", .25]],
+  [["카드 인증 실패", .40], ["원하는 결제 수단 없음", .35], ["보안이 불안함", .25]],
+  [["총액이 앞 화면과 다름", .50], ["약관 동의가 막힘", .30], ["주문 수정이 안 됨", .20]]];
+LTT.expect("② 화면 이탈 인원", LOSS[1], 2880, { tol: 0 });            // 손계산: 8,000 × (1 − 0.64)
+LTT.expect("결제 완료 인원", N[4], 3533, { tol: 0 });                 // 손계산: 10,000 × .8 × .64 × .75 × .92 = 3,532.8
+LTT.expect("먼저 고칠 화면(0부터)", WIN, 1, { tol: 0 });
+LTT.expect("이탈 사유 비중 합", REASONS.every((r) => Math.abs(r.reduce((s, x) => s + x[1], 0) - 1) < 1e-9) ? 1 : 0, 1, { tol: 0 });
+
+// ── 도형 좌표
+const W = 480, FH = 250, X0 = 16, BW = 380, RH = 36, GAP = 16, ZOOM = 2.2, PH = 460;
+const rowY = (i) => 4 + i * (RH + GAP);
+const BWID = N.map((n) => BW * n / START);
+const BAR = "fill:var(--ltt-card-2);stroke:var(--ltt-line-2);stroke-width:1.5";
+const BAR_ON = "fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:2.5";
+
+function funnel(p) {
+  const f = { rows: [], bars: [], gaps: [], wedges: [] };
+  for (let i = 0; i < 4; i++) {
+    const g = mk("g", {}, p), yb = rowY(i) + RH, x1 = X0 + BWID[i + 1], x0 = X0 + BWID[i];
+    mk("rect", { x: X0, y: yb, width: BWID[i + 1], height: GAP, style: "fill:var(--ltt-accent-soft);opacity:.7" }, g);
+    f.wedges.push(mk("polygon", { points: `${x1},${yb} ${x0},${yb} ${x1},${yb + GAP}`, style: "fill:var(--ltt-bad-soft)" }, g));
+    mk("text", { x: x0 + 8, y: yb + GAP / 2 + 5, style: "font-size:15px;font-weight:700;fill:var(--ltt-bad)" }, g, "−" + fmt(LOSS[i]));
+    f.gaps.push(g);
+  }
+  for (let i = 0; i < 5; i++) {
+    const g = mk("g", {}, p), y = rowY(i);
+    f.bars.push(mk("rect", { x: X0, y, width: BWID[i], height: RH, rx: 4, style: BAR }, g));
+    mk("text", { x: X0 + 10, y: y + 24, style: "font-size:15px;font-weight:600;fill:var(--ltt-ink)" }, g, NAMES[i]);
+    mk("text", { x: X0 + BWID[i] + 8, y: y + 24, style: "font-size:15px;fill:var(--ltt-ink-2)" }, g, fmt(N[i]) + "명");
+    f.rows.push(g);
+  }
+  return f;
+}
+function paint(f, k, dim, win) {
+  f.bars.forEach((b, i) => b.setAttribute("style", k >= 0 && (i === k || i === k + 1) ? BAR_ON : BAR));
+  f.wedges.forEach((w, i) => w.style.fill = i === k || i === win ? "var(--ltt-bad)" : "var(--ltt-bad-soft)");
+  f.rows.forEach((g, i) => g.style.opacity = dim && !(i === k || i === k + 1) ? .3 : 1);
+  f.gaps.forEach((g, i) => g.style.opacity = dim && i !== k ? .3 : 1);
+}
+
+function build(host) {
+  const wrap = host.appendChild(document.createElement("div")); wrap.className = "fz"; wrap.setAttribute("data-annotate", "");
+  const pane = (t) => { const d = wrap.appendChild(document.createElement("div")); d.className = "pane";
+    const h = d.appendChild(document.createElement("div")); h.className = "pt"; h.textContent = t;
+    return mk("svg", { viewBox: `0 0 ${W} ${PH}` }, d); };
+  const L = pane("전체 퍼널 · 10,000명 진입"), R = pane("돋보기 · 이탈 구간 확대");
+  const fl = funnel(L);
+  const lens = mk("rect", { rx: 4, style: "fill:none;stroke:var(--ltt-accent);stroke-width:3" }, L);
+  // 왼쪽 아래: 화면별 이탈 인원 순위(방문한 화면부터 채워진다)
+  const rt = mk("text", { x: X0, y: 284, style: "font-size:15px;font-weight:700;fill:var(--ltt-ink-2)" }, L);
+  const rk = LOSS.map((v, i) => { const y = 298 + i * 40, g = mk("g", {}, L);
+    mk("text", { x: X0, y: y + 18, style: "font-size:15px;font-weight:600;fill:var(--ltt-ink)" }, g, NAMES[i]);
+    const bar = mk("rect", { x: 124, y: y + 2, height: 20, rx: 3 }, g);
+    const t = mk("text", { y: y + 18, style: "font-size:15px;font-weight:700" }, g);
+    return { g, bar, t, y }; });
+  // 오른쪽 위: 확대 창(같은 퍼널을 한 번 더 그리고 viewBox만 움직인다)
+  mk("rect", { x: 0, y: 0, width: W, height: FH, rx: 6, style: "fill:var(--ltt-card-2)" }, R);
+  const zs = mk("svg", { x: 0, y: 0, width: W, height: FH, viewBox: `0 0 ${W} ${FH}` }, R), fr = funnel(zs);
+  mk("rect", { x: 0, y: 0, width: W, height: FH, rx: 6, style: "fill:none;stroke:var(--ltt-line-2);stroke-width:1.5" }, R);
+  mk("rect", { x: 10, y: 10, width: 92, height: 28, rx: 6, style: "fill:var(--ltt-card);stroke:var(--ltt-accent);stroke-width:1.5" }, R);
+  const zt = mk("text", { x: 20, y: 30, style: "font-size:15px;font-weight:700;fill:var(--ltt-accent)" }, R);
+  // 오른쪽 아래: 그 화면의 이탈 사유
+  mk("rect", { x: 0, y: 262, width: W, height: 188, rx: 8, style: "fill:var(--ltt-card-2);stroke:var(--ltt-line)" }, R);
+  const ch = mk("text", { x: 16, y: 288, style: "font-size:17px;font-weight:700;fill:var(--ltt-ink)" }, R);
+  const cs = mk("text", { x: 16, y: 310, style: "font-size:14px;fill:var(--ltt-muted)" }, R);
+  mk("text", { x: W - 14, y: 288, "text-anchor": "end", style: "font-size:14px;fill:var(--ltt-muted)" }, R, "사유 비중은 가정치");
+  const rs = [0, 1, 2].map((j) => { const y = 342 + j * 36;
+    return { l: mk("text", { x: 16, y, style: "font-size:14px;fill:var(--ltt-ink-2)" }, R),
+      b: mk("rect", { x: 16, y: y + 6, height: 11, rx: 3, style: "fill:var(--ltt-accent)" }, R),
+      p: mk("text", { y: y + 16, style: "font-size:14px;font-weight:700;fill:var(--ltt-ink)" }, R) }; });
+  wrap._s = { fl, fr, lens, zs, zt, rt, rk, ch, cs, rs };
+  return wrap;
+}
+
+// 확대 창이 보는 사각형: 화면 k의 두 막대와 이탈 쐐기가 한 창에 들어오게
+function lensOf(k) {
+  if (k >= 4) return { cx: W / 2, cy: FH / 2, z: 1 };
+  const w = W / ZOOM, h = FH / ZOOM;
+  return { cx: Math.max(w / 2, Math.min(W - w / 2, X0 + (BWID[k] + BWID[k + 1]) / 2)), cy: rowY(k) + RH + GAP / 2, z: ZOOM };
+}
+// 슬롯 5개(화면 4개 + 결론). 슬롯마다 [확대·이동 0.28 → 사유 막대 0.28~0.6 → 머묾]
+function draw(wrap, u) {
+  const s = wrap._s, slot = Math.min(4, Math.floor(u * 5)), l = u * 5 - slot;
+  const a = lensOf((slot + 4) % 5), b = lensOf(slot), t = ease(clamp(l / 0.28));
+  const dip = a.z > 1 && b.z > 1 ? 0.45 * Math.sin(Math.PI * t) : 0;   // 옆 화면으로 갈 때 한 번 축소했다가 다시 확대
+  const z = Math.exp(Math.log(a.z) + (Math.log(b.z) - Math.log(a.z)) * t - dip);
+  const w = W / z, h = FH / z;
+  const cx = Math.max(w / 2, Math.min(W - w / 2, a.cx + (b.cx - a.cx) * t));
+  const cy = Math.max(h / 2, Math.min(FH - h / 2, a.cy + (b.cy - a.cy) * t));
+  s.zs.setAttribute("viewBox", [cx - w / 2, cy - h / 2, w, h].join(" "));
+  s.lens.setAttribute("x", cx - w / 2); s.lens.setAttribute("y", cy - h / 2); s.lens.setAttribute("width", w); s.lens.setAttribute("height", h);
+  s.zt.textContent = "확대 ×" + z.toFixed(1);
+  const k = slot < 4 ? slot : -1, kk = slot < 4 ? slot : WIN;
+  paint(s.fl, k, false, slot === 4 ? WIN : -1); paint(s.fr, k, k >= 0, slot === 4 ? WIN : -1);
+  // 순위
+  s.rt.textContent = slot < 4 ? "화면별 이탈 인원" : `이탈 인원 1위: ${NAMES[WIN]}`;
+  const max = Math.max(...LOSS);
+  s.rk.forEach((r, i) => {
+    const seen = slot === 4 || i < slot ? 1 : i === slot ? ease(clamp((l - 0.28) / 0.3)) : 0;
+    const bw = 250 * LOSS[i] / max * seen, win = slot === 4 && i === WIN;
+    r.bar.setAttribute("width", Math.max(0, bw));
+    r.bar.setAttribute("style", `fill:${win ? "var(--ltt-bad)" : i === slot ? "var(--ltt-accent)" : "var(--ltt-line-2)"}`);
+    r.t.setAttribute("x", 124 + bw + 8); r.t.textContent = seen > 0.02 ? fmt(Math.round(LOSS[i] * seen)) + "명" : "";
+    r.t.style.fill = win ? "var(--ltt-bad)" : "var(--ltt-ink)";
+    r.g.style.opacity = seen > 0 ? 1 : 0.35;
+  });
+  // 이탈 사유 카드
+  const rr = slot < 4 ? ease(clamp((l - 0.3) / 0.4)) : 1;
+  s.ch.textContent = slot < 4 ? `${NAMES[kk]} 화면에서 ${fmt(LOSS[kk])}명 이탈` : `먼저 고칠 곳 → ${NAMES[kk]}`;
+  s.cs.textContent = slot < 4 ? `${fmt(N[kk])}명 중 ${Math.round(RATE[kk] * 100)}%가 다음 화면으로 못 넘어감`
+    : (SAME ? "이탈 인원·이탈률 모두 1위" : "이탈 인원 1위") + ` · ${fmt(LOSS[kk])}명, ${Math.round(RATE[kk] * 100)}%`;
+  s.rs.forEach((r, j) => { const [lab, sh] = REASONS[kk][j], bw = 360 * sh * 1.0 * rr;
+    r.l.textContent = lab; r.b.setAttribute("width", Math.max(0, bw)); r.p.setAttribute("x", 16 + bw + 8); r.p.textContent = Math.round(sh * 100) + "%"; });
+}
+let ticker = 0;
+function play(wrap) {
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches, t0 = Date.now(), period = 18000;
+  if (reduced) { draw(wrap, 0.999); return; }
+  const f = () => { if (!wrap.isConnected) { ticker = 0; return; } draw(wrap, ((Date.now() - t0) / period) % 1); ticker = setTimeout(f, 16); };
+  clearTimeout(ticker); f();
+}
+
+LTT.deck({
+  title: "결제 퍼널 이탈 지점", theme: "studio",
+  glossary: {
+    "퍼널": "장바구니에서 결제 완료까지 화면을 차례로 지나며 사람이 줄어드는 길. 깔때기처럼 아래로 좁아진다",
+    "이탈률": "그 화면에 들어온 사람 중 다음 화면으로 못 넘어간 사람의 비율" },
+  scenes: [{
+    type: "figure", label: "이탈 지점",
+    title: "결제 퍼널은 배송 정보 화면에서 가장 많이 샌다",
+    sub: "오른쪽 돋보기가 왼쪽 {{퍼널}}을 화면 하나씩 확대한다. 붉은 쐐기가 그 화면에서 떠난 사람이다.",
+    figure: (el) => { const w = build(el); play(w); return { el: w }; },
+    caption: "{{이탈률}}은 비율이고 순위는 사람 수로도 본다. 여기서는 ② 화면이 둘 다 1위다.",
+    basis: "전환율 80·64·75·92%와 화면별 이탈 사유 비중은 수업용 가정치이며, 실제 분석 도구의 값으로 바꿔 읽어야 한다. 사유의 종류(예상 밖 비용, 회원가입 강요, 복잡한 입력)는 Baymard Institute 결제 이탈 조사에서 흔히 보고되는 범주를 따랐다.",
+    takeaway: "배송 정보 화면(이탈 36%, 2,880명)을 먼저 고친다. 주소 입력 오류와 회원가입 강요가 이탈 사유의 75%다(가정치)."
+  }]
+});
+</script>
+</body>
+</html>

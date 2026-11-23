@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>분기점의 전류 보존</title>
+<script type="application/json" id="ltt-meta">{"topic":"키르히호프 전류 법칙","audience":"회로 입문자","theme":"blueprint","medium":"회로 도면","decision":"분기점에서 전류가 어떻게 나뉘나","domain":"전기 회로","pattern":["figure"],"mode":"카탈로그용: 장면 하나짜리. 갈라지고 합쳐지는 흐름을 \"전하 입자가 경로를 따라 흐름\" 움직임과 전면 도면 구도로 보인다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.ksvg{width:100%;max-height:54vh;height:auto;display:block;margin:0 auto}
+.ksvg text{font-family:inherit}
+.f{transition:opacity .35s}
+.kc{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:8px 0 4px}
+.kc button{font:inherit;font-size:14px;padding:6px 12px;border:1px solid var(--ltt-line-2);background:var(--ltt-card);color:var(--ltt-ink-2);border-radius:999px;cursor:pointer}
+.kc button[aria-pressed=true]{background:var(--ltt-accent-soft);border-color:var(--ltt-accent);color:var(--ltt-ink)}
+.kc .auto{border-style:dashed}
+.kcap{text-align:center;font-size:16px;line-height:1.5;color:var(--ltt-ink);min-height:3em;margin:4px auto 0;max-width:860px}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, attrs, parent, text) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; parent && parent.appendChild(n); return n; };
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// 모델: 전원 12 V, R1 = 6 Ω, R2 = 3 Ω 병렬. 이상적인 도선, 직류 정상 상태, 관례 전류 방향
+const V = 12, R1 = 6, R2 = 3;
+const I1 = V / R1, I2 = V / R2, I = I1 + I2;
+LTT.expect("R1 가지 전류", I1, 2, { tol: 1e-9 });
+LTT.expect("R2 가지 전류", I2, 4, { tol: 1e-9 });
+LTT.expect("분기점 A 들어온 전류", I, 6, { tol: 1e-9 });
+LTT.expect("합성 저항으로 확인한 본선 전류", V / ((R1 * R2) / (R1 + R2)), 6, { tol: 1e-9 });
+
+// 전하 입자: 입자 간격은 어디서나 같고, 속도가 전류에 비례한다(본선 6, 가지 2·4).
+// 속도 단위 k는 두 가지 입자가 합류점에서 겹치지 않도록(도착 간격이 반 칸 어긋나게) 정한다.
+const RATE = 6; // 초당 출발 입자 수 = 6 C/s
+const poly = (pts) => { const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); return { pts, cum, len: cum[cum.length - 1] }; };
+const at = (pl, s) => { s = Math.max(0, Math.min(pl.len, s)); let j = 1; while (j < pl.cum.length - 1 && pl.cum[j] < s) j++;
+  const u = (s - pl.cum[j - 1]) / (pl.cum[j] - pl.cum[j - 1]), a = pl.pts[j - 1], b = pl.pts[j]; return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]; };
+const IN = poly([[90, 312], [90, 260], [300, 260]]);
+const OUT = poly([[700, 260], [870, 260], [870, 480], [90, 480], [90, 348]]);
+const BR = [poly([[300, 260], [300, 130], [700, 130], [700, 260]]), poly([[300, 260], [300, 390], [700, 390], [700, 260]])];
+const LB = BR[0].len;
+const K = RATE * (LB / I1 - LB / I2) / 26.5 / 1; // (LB/2k − LB/4k)·6 = 26.5
+const spd = [I1 * K / 1, I2 * K / 1].map((v) => v), v6 = I * K;
+const tin = IN.len / v6, tout = OUT.len / v6, tb = [LB / spd[0], LB / spd[1]];
+const TMAX = tin + tb[0] + tout;
+const NP = Math.ceil(TMAX * RATE) + 2;
+const branchOf = (i) => (i % 3 === 0 ? 0 : 1); // 6개 중 2개는 R1 가지, 4개는 R2 가지
+const place = (i, t) => { const a = t - i / RATE; if (a < 0) return null; const b = branchOf(i);
+  if (a < tin) return { seg: 0, p: at(IN, a * v6) };
+  if (a < tin + tb[b]) return { seg: 1, p: at(BR[b], (a - tin) * spd[b]) };
+  if (a < tin + tb[b] + tout) return { seg: 2, p: at(OUT, (a - tin - tb[b]) * v6) };
+  return null; };
+// 문(gate): 입자가 지나가는 순간을 센다
+const gates = {
+  inn: { x: 235, y: 260, v: false, w: 16, ok: () => true, time: (i) => i / RATE + 197 / v6 },
+  a1: { x: 300, y: 205, v: true, w: 16, ok: (i) => branchOf(i) === 0, time: (i) => i / RATE + tin + 55 / spd[0] },
+  a2: { x: 300, y: 315, v: true, w: 16, ok: (i) => branchOf(i) === 1, time: (i) => i / RATE + tin + 55 / spd[1] },
+  b1: { x: 700, y: 205, v: true, w: 16, ok: (i) => branchOf(i) === 0, time: (i) => i / RATE + tin + 605 / spd[0] },
+  b2: { x: 700, y: 315, v: true, w: 16, ok: (i) => branchOf(i) === 1, time: (i) => i / RATE + tin + 605 / spd[1] },
+  out: { x: 770, y: 260, v: false, w: 16, ok: () => true, time: (i) => i / RATE + tin + tb[branchOf(i)] + 70 / v6 } };
+function gateRead(g, t) { let n = 0, last = -1e9;
+  for (let i = Math.floor((t - 30) * RATE); i <= Math.floor(t * RATE); i++) { if (!g.ok(i)) continue; const c = g.time(i);
+    if (c > t - 1 && c <= t) n++; if (c <= t && c > last) last = c; }
+  return { n, flash: Math.exp(-(t - last) * 7) }; }
+
+const BEATS = [
+  { chip: "① 들어온다", cap: "전원이 <b>12 V</b>를 걸면 본선에 <b>6 A</b>가 흐른다. 1 A는 1초에 전하 1 C이 지나가는 양이다. 전하는 분기점 A로 들어간다.",
+    mid: [["분기점 A 앞", 15, 400, "--ltt-muted"], ["6 A", 38, 700, "--ltt-accent"], ["= 1초에 전하 6 C", 18, 400, "--ltt-ink"], ["1 A는 1초에 1 C", 15, 400, "--ltt-muted"]] },
+  { chip: "② 반반일까", cap: "A에서 두 길로 갈라진다. 저항이 6 Ω과 3 Ω으로 다른데도 <b>3 A씩 똑같이</b> 나뉠까?",
+    mid: [["예상", 15, 400, "--ltt-muted"], ["3 A + 3 A ?", 30, 700, "--ltt-ink"], ["저항이 서로 다른데도", 18, 400, "--ltt-ink"], ["정말 똑같이 나뉠까?", 15, 400, "--ltt-muted"]] },
+  { chip: "③ 실제 값", cap: "두 가지는 양 끝이 같은 A와 B에 붙어 <b>같은 12 V</b>가 걸린다. I = V ÷ R이므로 6 Ω에는 2 A, 3 Ω에는 4 A. 저항이 작은 쪽으로 더 많이 간다.",
+    mid: [["두 가지의 양 끝은 같은 A, B", 15, 400, "--ltt-muted"], ["둘 다 12 V", 30, 700, "--ltt-ink"], ["12 V ÷ 6 Ω = 2 A", 20, 600, "--ltt-accent"], ["12 V ÷ 3 Ω = 4 A", 20, 600, "--ltt-accent"]] },
+  { chip: "④ 분기점 A", cap: "A로 들어온 6 A는 나간 2 A + 4 A와 같다. 문마다 1초에 지나가는 전하를 세어 보면 6 C = 2 C + 4 C. 전하는 마디에 쌓이지도 사라지지도 않는다.",
+    mid: [["분기점 A", 15, 400, "--ltt-muted"], ["6 A = 2 A + 4 A", 30, 700, "--ltt-accent"], ["들어온 합 = 나간 합", 18, 400, "--ltt-ink"], ["합 → 전하 보존 · 비율 → 저항", 15, 400, "--ltt-muted"]] },
+  { chip: "⑤ 합류점 B", cap: "B에서 2 A와 4 A가 다시 만나 본선 <b>6 A</b>로 돌아온다. 갈라졌다 합쳐져도 전류는 처음 그대로다.",
+    mid: [["합류점 B", 15, 400, "--ltt-muted"], ["2 A + 4 A = 6 A", 30, 700, "--ltt-accent"], ["합치면 다시 본선 6 A", 18, 400, "--ltt-ink"], ["전하는 사라지지 않는다", 15, 400, "--ltt-muted"]] }];
+
+function circuit(host) {
+  const root = document.createElement("div"); root.style.cssText = "width:100%"; host.appendChild(root);
+  const s = mk("svg", { viewBox: "0 0 960 520", class: "ksvg", "data-annotate": "", role: "img",
+    "aria-label": "전원에서 나온 6 A가 분기점 A에서 R1 가지 2 A와 R2 가지 4 A로 나뉘고 합류점 B에서 다시 6 A가 되는 회로 도면" }, root);
+  const WIRE = "fill:none;stroke:var(--ltt-ink-2);stroke-width:2.5;stroke-linejoin:round";
+  const BAND = (w) => `fill:none;stroke:var(--ltt-accent);stroke-width:${w};opacity:.16;stroke-linejoin:round`;
+  // 전류 띠: 굵기가 전류에 비례(5 px/A)
+  const bandIn = mk("path", { d: "M90,312V260H300", style: BAND(I * 5) }, s);
+  const bands = [mk("path", { d: "M300,260V130H700V260", class: "f", style: BAND(I1 * 5) }, s), mk("path", { d: "M300,260V390H700V260", class: "f", style: BAND(I2 * 5) }, s),
+    mk("path", { d: "M700,260H870V480H90V348", class: "f", style: BAND(I * 5) }, s)];
+  mk("path", { d: "M90,315V260H300", style: WIRE }, s);
+  mk("path", { d: "M300,260V130H460M540,130H700V260", style: WIRE }, s);
+  mk("path", { d: "M300,260V390H460M540,390H700V260", style: WIRE }, s);
+  mk("path", { d: "M700,260H870V480H90V345", style: WIRE }, s);
+  const zig = (cy) => "M460," + cy + [[470, -18], [486, 18], [502, -18], [518, 18], [534, -18], [540, 0]].map(([x, dy]) => `L${x},${cy + dy}`).join("");
+  [130, 390].forEach((cy) => mk("path", { d: zig(cy), style: "fill:none;stroke:var(--ltt-ink);stroke-width:3;stroke-linejoin:round" }, s));
+  // 전원
+  mk("line", { x1: 74, x2: 106, y1: 315, y2: 315, style: "stroke:var(--ltt-ink);stroke-width:3" }, s);
+  mk("line", { x1: 82, x2: 98, y1: 345, y2: 345, style: "stroke:var(--ltt-ink);stroke-width:6" }, s);
+  mk("text", { x: 64, y: 322, "text-anchor": "end", style: "font-size:18px;fill:var(--ltt-ink-2)" }, s, "+");
+  mk("text", { x: 64, y: 354, "text-anchor": "end", style: "font-size:18px;fill:var(--ltt-ink-2)" }, s, "−");
+  mk("text", { x: 120, y: 336, style: "font-size:16px;fill:var(--ltt-ink)" }, s, "전원 12 V");
+  // 방향 화살표(관례 전류)
+  [[180, 260, 0], [380, 130, 0], [380, 390, 0], [870, 370, 90]].forEach(([x, y, r]) =>
+    mk("polygon", { points: "-8,-6 8,0 -8,6", transform: `translate(${x},${y}) rotate(${r})`, style: "fill:var(--ltt-ink-2)" }, s));
+  // 저항 이름
+  mk("text", { x: 500, y: 98, "text-anchor": "middle", style: "font-size:18px;font-weight:600;fill:var(--ltt-ink)" }, s, "R₁ = 6 Ω");
+  mk("text", { x: 500, y: 438, "text-anchor": "middle", style: "font-size:18px;font-weight:600;fill:var(--ltt-ink)" }, s, "R₂ = 3 Ω");
+  const hints = [mk("text", { x: 500, y: 74, "text-anchor": "middle", class: "f", style: "font-size:15px;fill:var(--ltt-ink-2);opacity:0" }, s, "저항이 크다 → 전류가 작다"),
+    mk("text", { x: 500, y: 462, "text-anchor": "middle", class: "f", style: "font-size:15px;fill:var(--ltt-ink-2);opacity:0" }, s, "저항이 작다 → 전류가 크다")];
+  // 마디
+  const nodeA = mk("circle", { cx: 300, cy: 260, r: 7, style: "fill:var(--ltt-ink);stroke:var(--ltt-bg);stroke-width:2" }, s);
+  const nodeB = mk("circle", { cx: 700, cy: 260, r: 7, style: "fill:var(--ltt-ink);stroke:var(--ltt-bg);stroke-width:2" }, s);
+  const ring = mk("circle", { cx: 300, cy: 260, r: 0, style: "fill:none;stroke:var(--ltt-accent);stroke-width:3;opacity:0" }, s);
+  mk("text", { x: 280, y: 288, "text-anchor": "end", style: "font-size:22px;font-weight:700;fill:var(--ltt-ink)" }, s, "A");
+  mk("text", { x: 720, y: 288, style: "font-size:22px;font-weight:700;fill:var(--ltt-ink)" }, s, "B");
+  // 가운데 판독 상자
+  mk("rect", { x: 360, y: 170, width: 280, height: 180, rx: 10, style: "fill:var(--ltt-card);stroke:var(--ltt-line-2)" }, s);
+  const midY = [198, 248, 288, 322];
+  const mid = midY.map((y) => mk("text", { x: 500, y, "text-anchor": "middle" }, s, ""));
+  // 전류 값 라벨
+  const LBL = "font-size:22px;font-weight:700;fill:var(--ltt-accent);paint-order:stroke;stroke:var(--ltt-bg);stroke-width:5px";
+  const lab = (x, y, str, anchor, cls) => mk("text", { x, y, "text-anchor": anchor || "start", class: cls || "f", style: LBL }, s, str);
+  const lblIn = lab(190, 242, "6 A", "middle", "");
+  const lblA = [lab(314, 200, "2 A"), lab(314, 330, "4 A")];
+  const lblB = [lab(686, 200, "2 A", "end"), lab(686, 330, "4 A", "end")];
+  const lblOut = lab(886, 380, "6 A");
+  const GHOST = "font-size:20px;font-weight:600;fill:var(--ltt-muted);paint-order:stroke;stroke:var(--ltt-bg);stroke-width:5px";
+  const ghost = [mk("text", { x: 286, y: 200, "text-anchor": "end", class: "f", style: GHOST }, s, "3 A ?"), mk("text", { x: 286, y: 330, "text-anchor": "end", class: "f", style: GHOST }, s, "3 A ?")];
+  // 문과 판독
+  const gEl = {};
+  const RD = "font-size:15px;fill:var(--ltt-ink);paint-order:stroke;stroke:var(--ltt-bg);stroke-width:5px";
+  const rdPos = { inn: [235, 292, "middle"], a1: [284, 209, "end"], a2: [284, 319, "end"], b1: [716, 209, "start"], b2: [716, 319, "start"], out: [770, 292, "middle"] };
+  for (const k in gates) { const g = gates[k];
+    const ln = mk("line", g.v ? { x1: g.x - g.w, x2: g.x + g.w, y1: g.y, y2: g.y } : { x1: g.x, x2: g.x, y1: g.y - g.w, y2: g.y + g.w }, s);
+    ln.setAttribute("class", "f"); ln.style.cssText = "stroke:var(--ltt-ink-2);stroke-width:2;opacity:0";
+    const p = rdPos[k], rd = mk("text", { x: p[0], y: p[1], "text-anchor": p[2], class: "f", style: RD + ";opacity:0" }, s, "");
+    gEl[k] = { ln, rd }; }
+  // 전하 입자
+  const dots = Array.from({ length: NP }, () => mk("circle", { r: 4.5, style: "fill:var(--ltt-accent);stroke:var(--ltt-bg);stroke-width:1.5;display:none" }, s));
+
+  // 조작: 단계 칩, 자동 재생
+  const kc = document.createElement("div"); kc.className = "kc"; root.appendChild(kc);
+  const chips = BEATS.map((b, i) => { const n = document.createElement("button"); n.type = "button"; n.textContent = b.chip; n.setAttribute("aria-pressed", "false");
+    n.onclick = () => { setAuto(false); go(i); }; kc.appendChild(n); return n; });
+  const autoBtn = document.createElement("button"); autoBtn.type = "button"; autoBtn.className = "auto"; autoBtn.textContent = "자동 재생";
+  autoBtn.onclick = () => setAuto(!auto); kc.appendChild(autoBtn);
+  const cap = document.createElement("p"); cap.className = "kcap"; cap.setAttribute("aria-live", "polite"); root.appendChild(cap);
+
+  let beat = 0, auto = !reduced, autoId = 0, t0 = Date.now(), loopId = 0, seen = false, tries = 0;
+  const op = (e, v) => { e.style.opacity = v; };
+  function go(b) {
+    beat = b; chips.forEach((c, i) => c.setAttribute("aria-pressed", String(i === b)));
+    cap.innerHTML = BEATS[b].cap;
+    BEATS[b].mid.forEach(([str, size, w, col], i) => { const n = mid[i]; n.textContent = str; n.style.cssText = `font-size:${size}px;font-weight:${w};fill:var(${col})`; });
+    op(bandIn, 1); bands.forEach((e) => op(e, b >= 2 ? 1 : 0));
+    lblA.forEach((e) => op(e, b >= 2 ? 1 : 0)); lblB.forEach((e) => op(e, b === 4 ? 1 : 0)); op(lblOut, b >= 2 ? 1 : 0);
+    ghost.forEach((e) => { op(e, b === 1 ? 1 : b === 2 ? .7 : 0); e.setAttribute("text-decoration", b === 2 ? "line-through" : "none"); e.style.fill = b === 2 ? "var(--ltt-bad)" : "var(--ltt-muted)"; });
+    hints.forEach((e) => op(e, b === 2 ? 1 : 0));
+    const on = { inn: b === 3, a1: b === 3, a2: b === 3, b1: b === 4, b2: b === 4, out: b === 4 };
+    for (const k in gEl) { op(gEl[k].ln, on[k] ? 1 : 0); op(gEl[k].rd, on[k] ? 1 : 0); }
+    const gA = b === 3, gB = b === 4;
+    nodeA.setAttribute("r", gA ? 10 : 7); nodeB.setAttribute("r", gB ? 10 : 7);
+    nodeA.style.fill = gA ? "var(--ltt-accent)" : "var(--ltt-ink)"; nodeB.style.fill = gB ? "var(--ltt-accent)" : "var(--ltt-ink)";
+    ring.setAttribute("cx", gB ? 700 : 300);
+    clearTimeout(autoId); if (auto) autoId = setTimeout(() => { if (root.isConnected && auto) go((beat + 1) % BEATS.length); }, 7000);
+    draw(tNow());
+  }
+  function setAuto(v) { auto = v; autoBtn.setAttribute("aria-pressed", String(v)); clearTimeout(autoId); if (v) go(beat); }
+  const tNow = () => TMAX + (reduced ? 1.3 : (Date.now() - t0) / 1000);
+  function draw(t) {
+    dots.forEach((c, n) => { const i = Math.floor(t * RATE) - n, r = place(i, t);
+      if (!r || (beat < 2 && r.seg > 0)) { c.style.display = "none"; return; }
+      c.style.display = ""; c.setAttribute("cx", r.p[0]); c.setAttribute("cy", r.p[1]); });
+    const act = beat === 3 ? ["inn", "a1", "a2"] : beat === 4 ? ["b1", "b2", "out"] : [];
+    act.forEach((k) => { const r = gateRead(gates[k], t); gEl[k].rd.textContent = "1초에 " + r.n + " C";
+      gEl[k].ln.style.stroke = r.flash > .35 ? "var(--ltt-accent)" : "var(--ltt-ink-2)"; gEl[k].ln.style.strokeWidth = 2 + 4 * r.flash; });
+    const pulse = (beat === 3 || beat === 4) ? (reduced ? .5 : (t * .8) % 1) : -1;
+    if (pulse >= 0) { ring.setAttribute("r", 12 + 22 * pulse); ring.style.opacity = 1 - pulse; } else ring.style.opacity = 0;
+  }
+  function frame() { if (!root.isConnected) { if (seen || ++tries > 200) return; loopId = setTimeout(frame, 50); return; }
+    seen = true; draw(tNow()); if (!reduced) loopId = setTimeout(frame, 16); }
+  autoBtn.setAttribute("aria-pressed", String(auto));
+  go(0);
+  setTimeout(frame, 0);
+  return { el: root };
+}
+
+LTT.deck({ title: "분기점의 전류 보존", theme: "blueprint",
+  glossary: {
+    "키르히호프 전류 법칙": "회로의 한 마디에 들어오는 전류의 합은 나가는 전류의 합과 같다는 법칙. 전하가 마디에 쌓이지 않기 때문이다",
+    "분기점": "도선이 둘 이상으로 갈라지는 지점. 다시 모이는 지점은 합류점이라 부른다" },
+  scenes: [{ type: "figure", kicker: "전기 회로", title: "분기점에서 6 A는 2 A와 4 A로 갈라져도 합이 그대로다",
+    en: "Kirchhoff's current law at a junction",
+    sub: "{{키르히호프 전류 법칙}}: {{분기점}}에 들어온 전류의 합 = 나간 전류의 합. 점 하나는 전하 1 C, 빠를수록 큰 전류.",
+    figure: circuit, label: "병렬 회로의 전류 흐름 도면",
+    takeaway: "분기점에서 들어온 전류의 합은 나간 전류의 합과 같고, 어느 가지가 더 받는지는 그 가지의 저항이 정한다.",
+    recall: "6 Ω 저항 두 개를 병렬로 두고 12 V를 걸면 본선 전류는 몇 A이고 어떻게 나뉠까?",
+    basis: "전원 12 V, R₁ = 6 Ω, R₂ = 3 Ω은 모델로 계산한 예시. 이상적인 도선(저항 0)과 직류 정상 상태를 가정하고, 화살표는 관례 전류 방향(전원 + 단자 → 회로 → − 단자)이다. 합성 저항 2 Ω으로 확인해도 12 V ÷ 2 Ω = 6 A." }] });
+</script>
+</body>
+</html>

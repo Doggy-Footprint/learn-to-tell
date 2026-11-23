@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의 — 리더 선출과 로그 복제</title>
+<script type="application/json" id="ltt-meta">{"topic": "Raft 합의", "audience": "분산 시스템 입문 개발자", "theme": "sketch", "medium": "아키텍처 화이트보드", "decision": "합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/rough.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.raft { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: center; }
+.raft .left { min-width: 0; }
+.board { display: flex; flex-direction: column; gap: 6px; }
+.quorum { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px dashed var(--ltt-line-2); border-radius: 10px; }
+.quorum .pip { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ltt-line-2); }
+.quorum .pip.on { background: var(--ltt-warn); border-color: var(--ltt-warn); }
+.quorum.ok .pip.on { background: var(--ltt-good); border-color: var(--ltt-good); }
+.row { display: grid; grid-template-columns: 34px 62px 52px 1fr; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--ltt-line); border-radius: 8px; background: var(--ltt-card); }
+.row.dead { opacity: .45; text-decoration: line-through; }
+.cells { display: flex; gap: 4px; }
+.cell { flex: 1 1 0; min-width: 0; text-align: center; padding: 2px 0; border-radius: 4px; border: 1px dashed var(--ltt-line); color: transparent; }
+.cell.u { color: inherit; border-color: var(--ltt-warn); }
+.cell.c { color: inherit; border: 1px solid var(--ltt-good); background: var(--ltt-good-soft); }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const NAMES = ["N0", "N1", "N2", "N3", "N4"];
+const TAG = { "리더": "good", "후보": "warn", "팔로워": "muted", "죽음": "bad" };
+const MUTED = "var(--ltt-muted)", WARN = "var(--ltt-warn)", GOOD = "var(--ltt-good)", ACCENT = "var(--ltt-accent)";
+const POS = { N0: [260, 50], N1: [440, 170], N2: [370, 335], N3: [150, 335], N4: [80, 170] };
+
+const pairs = [];
+for (let i = 0; i < 5; i++) for (let j = i + 1; j < 5; j++) pairs.push({ f: NAMES[i], t: NAMES[j], dash: true, k: "muted" });
+const spec = {
+  width: 520, height: 390, node: [96, 46],
+  nodes: NAMES.map((id) => ({ id, x: POS[id][0], y: POS[id][1], l: id, icon: "server" })),
+  edges: pairs,
+};
+
+const out = (from, tos, color, ms = 800) => tos.map((t) => [from, t, { color, count: 1, ms }]);
+const back = (froms, to, color) => froms.map((f) => [f, to, { color, count: 1, ms: 800 }]);
+
+// log는 항목 index 개수(1부터), commit은 커밋 경계. 생성 순서대로 set이 누적된다.
+const BASE = {};
+for (const id of NAMES) BASE[id] = { role: id === "N0" ? "리더" : "팔로워", term: 2, log: 2, commit: 2 };
+
+const BEATS = [
+  { cap: "평소: 리더 N0의 heartbeat가 팔로워의 타이머를 되돌린다. 모든 로그는 index 2까지 같다.", hl: ["N0"], send: out("N0", ["N1", "N2", "N3", "N4"], MUTED) },
+  { cap: "N0가 끊겨 heartbeat가 멈춘다. 팔로워 중 무작위 election timeout이 가장 짧은 N3가 먼저 만료된다.", hl: ["N3"], set: { N0: { role: "죽음" } } },
+  { cap: "N3는 후보가 되어 term을 2에서 3으로 올리고 자기 표를 찍은 뒤, 나머지에게 투표를 요청한다.", hl: ["N3"], set: { N3: { role: "후보", term: 3 } }, send: out("N3", ["N1", "N2", "N4"], WARN) },
+  { cap: "N1·N2·N4가 term 3에서 한 표씩 N3에게 준다. 자기 표를 합해 5개 중 3표 이상이라 N3가 리더가 된다.", hl: ["N3", "N1", "N2", "N4"], set: { N1: { term: 3 }, N2: { term: 3 }, N4: { term: 3 }, N3: { role: "리더" } }, send: back(["N1", "N2", "N4"], "N3", GOOD) },
+  { cap: "클라이언트 쓰기가 N3 로그 index 3에 먼저 들어간다. 저장은 1/5뿐이라 미커밋이다. 여기서 N3가 죽으면 이 항목은 사라진다.", hl: ["N3"], set: { N3: { log: 3 } } },
+  { cap: "N3가 AppendEntries로 index 3을 N1·N2·N4에 복제한다.", hl: ["N3"], send: out("N3", ["N1", "N2", "N4"], ACCENT) },
+  { cap: "N1이 저장하고 응답한다. N3와 N1, 2/5라 과반수에 못 미쳐 아직 미커밋이다.", hl: ["N3", "N1"], set: { N1: { log: 3 } }, send: back(["N1"], "N3", GOOD) },
+  { cap: "N2까지 저장해 3/5가 되는 순간 N3의 commitIndex가 3이 되고 칸이 커밋으로 바뀐다. 클라이언트 ack는 이제 나간다.", hl: ["N3", "N1", "N2"], set: { N2: { log: 3 }, N3: { commit: 3 } }, send: back(["N2"], "N3", GOOD) },
+  { cap: "다음 heartbeat에서 팔로워의 commitIndex가 한 박자 늦게 3으로 오르고, 늦던 N4도 index 3을 받는다.", hl: ["N3"], set: { N1: { commit: 3 }, N2: { commit: 3 }, N4: { log: 3, commit: 3 } }, send: out("N3", ["N1", "N2", "N4"], MUTED) },
+  { cap: "N3마저 죽어 2대가 빠져도, 커밋 항목을 가진 N1이 term 4로 N2·N4의 표를 받아 리더가 된다. 커밋된 index 3은 남는다. 대가는 쓰기마다 과반수 왕복을 기다리는 지연이다.", hl: ["N1", "N2", "N4"], set: { N3: { role: "죽음" }, N1: { role: "리더", term: 4 }, N2: { term: 4 }, N4: { term: 4 } }, send: out("N1", ["N2", "N4"], WARN).concat(back(["N2", "N4"], "N1", GOOD)) },
+];
+
+const states = [];
+BEATS.reduce((prev, b) => {
+  const s = {};
+  for (const id of NAMES) s[id] = { ...prev[id], ...((b.set || {})[id] || {}) };
+  states.push(s);
+  return s;
+}, BASE);
+
+let board;
+const render = (st) => {
+  const have = NAMES.filter((id) => st[id].log >= 3).length;
+  const ok = st.N3.commit >= 3;
+  const pips = NAMES.map((_, i) => `<span class="pip ${i < have ? "on" : ""}"></span>`).join("");
+  const rows = NAMES.map((id) => {
+    const n = st[id];
+    const cells = [1, 2, 3].map((i) => `<span class="cell ltt-mono ${i > n.log ? "" : i <= n.commit ? "c" : "u"}">${i}</span>`).join("");
+    return `<div class="row ${n.role === "죽음" ? "dead" : ""}"><b>${id}</b><span class="ltt-tag ${TAG[n.role]}">${n.role}</span><span class="ltt-mono">term ${n.term}</span><div class="cells">${cells}</div></div>`;
+  }).join("");
+  board.innerHTML = `<div class="quorum ${ok ? "ok" : ""}">${pips}<b class="ltt-mono">index 3 저장 ${have}/5</b><span class="ltt-tag ${ok ? "good" : "warn"}">${ok ? "커밋 · 클라이언트 ack" : "미커밋"}</span></div>` + rows;
+};
+
+const steps = BEATS.map((b, i) => ({
+  caption: b.cap,
+  hold: 2800,
+  send: b.send || [],
+  enter: (dg) => { dg.highlight(b.hl || null); render(states[i]); },
+}));
+
+const figure = (el) => {
+  const wrap = el.appendChild(document.createElement("div"));
+  wrap.className = "raft";
+  const left = wrap.appendChild(document.createElement("div"));
+  left.className = "left";
+  const svg = left.appendChild(document.createElementNS(SVG, "svg"));
+  board = wrap.appendChild(document.createElement("div"));
+  board.className = "board";
+  const ctl = left.appendChild(document.createElement("div"));
+  const dg = LTT.diagram(svg, spec);
+  dg.player(ctl, steps);
+  render(states[0]);
+  return { el: wrap, dg };
+};
+
+LTT.expect("5노드 과반수", Math.floor(5 / 2) + 1, 3);
+
+LTT.deck({
+  title: "Raft 합의 — 리더 선출과 로그 복제",
+  theme: "sketch",
+  glossary: {
+    "과반수": "전체 노드의 절반을 넘는 수. 5대면 3대다.",
+    "commitIndex": "과반수가 저장한 로그의 마지막 index. 이 아래 항목만 확정된다.",
+  },
+  scenes: [{
+    type: "overview",
+    kicker: "분산 시스템 · Raft 합의",
+    title: "과반수에 복제된 항목만 커밋된다",
+    en: "Raft: leader election and log replication",
+    sub: "오른쪽 칸은 노드별 로그다. 점선은 미커밋, 초록은 커밋. 5노드는 2대까지 죽어도 견딘다.",
+    figure,
+    caption: "번호 순서가 실제로 일어나는 순서다. <span class=\"ltt-tag muted\">모델로 계산한 예시</span>",
+    label: "5개 중 3개 저장 = 커밋",
+    takeaway: "{{과반수}}(5개 중 3개)에 복제된 항목만 {{commitIndex}}가 넘어가 커밋되고, 노드가 죽어도 사라지지 않는다.",
+    recall: "리더와 팔로워 1대, 2개만 저장했다면 그 항목은 커밋인가?",
+    basis: "과반수 = floor(N/2)+1, 노드는 term마다 한 표 (Raft 논문의 규칙)",
+  }],
+});
+</script>
+</body>
+</html>

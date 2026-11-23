@@ -1,0 +1,5 @@
+{"shot": "s04", "rep": 1, "S": 0.391, "L": 0.304, "P": 0.503, "H_samples": 0.219, "n_samples": 4, "H_refine": 0.37, "P_total": 1.198, "H_total": 1.284, "P_wall_s": 317, "H_wall_s": 412}
+{"shot": "s04", "rep": 2, "S": 0.394, "L": 0.316, "P": 1.164, "H_samples": 0.376, "n_samples": 4, "H_refine": 0.478, "P_total": 1.874, "H_total": 1.564, "P_wall_s": 686, "H_wall_s": 488}
+{"shot": "s07", "rep": 1, "S": 0.391, "L": 0.163, "P": 0.579, "H_samples": 0.483, "n_samples": 5, "H_refine": 0.389, "P_total": 1.133, "H_total": 1.426, "P_wall_s": 344, "H_wall_s": 373}
+{"shot": "s07", "rep": 2, "S": 0.422, "L": 0.17, "P": 0.36, "H_samples": 0.176, "n_samples": 4, "H_refine": 0.331, "P_total": 0.953, "H_total": 1.099, "P_wall_s": 254, "H_wall_s": 352}
+{"n": 4, "avg_S": 0.4, "avg_L": 0.238, "avg_P": 0.651, "avg_H_samples": 0.314, "avg_H_refine": 0.392, "avg_P_total": 1.29, "avg_H_total": 1.343, "avg_P_wall_s": 400.25, "avg_H_wall_s": 406.25}

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의 한 장</title>
+<script type="application/json" id="ltt-meta">{"topic":"Raft 합의","audience":"분산 시스템 입문 개발자","theme":"sketch","medium":"아키텍처 화이트보드","decision":"합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.raft-fig { display: grid; gap: 10px; }
+.raft-fig svg { width: 100%; height: auto; display: block; }
+.raft-step { margin: 0; min-height: 2.8em; color: var(--ltt-ink-2); font-size: 15px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const ORDER = ["S1", "S2", "S3", "S4", "S5"];
+// 서버 중심 좌표 (S1이 위, 나머지는 바깥에 둘러선다)
+const POS = { S1: [480, 120], S2: [200, 280], S3: [760, 280], S4: [240, 460], S5: [720, 460] };
+const BW = 200, BH = 110;
+const ACC = "var(--ltt-accent)", GOOD = "var(--ltt-good)", WARN = "var(--ltt-warn)", MUTE = "var(--ltt-muted)";
+
+// 장면마다 새 상태: 모두 팔로워, term 2, 로그 index 6 (커밋됨). S4는 죽어 있다.
+const fresh = () => ({
+  msg: "리더 없음",
+  ...Object.fromEntries(ORDER.map((id) => [id, {
+    term: 2, role: id === "S4" ? "응답 없음" : "팔로워", dead: id === "S4", mark: false,
+    log: [{ i: 6, t: 2, c: true }],
+  }])),
+});
+
+const mk = (tag, attrs = {}, parent) => {
+  const n = document.createElementNS(SVG, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+};
+const txt = (g, x, y, s, attrs = {}) => { const t = mk("text", { x, y, ...attrs }, g); t.textContent = s; return t; };
+
+const figure = (el) => {
+  const motion = LTT.MOTION_MS !== 0;
+  const svg = mk("svg", { viewBox: "0 0 960 560" });
+  const lines = mk("g", {}, svg), packets = mk("g", {}, svg), center = mk("g", {}, svg), boxes = mk("g", {}, svg);
+  const capEl = document.createElement("p");
+  capEl.className = "raft-step";
+  el.classList.add("raft-fig");
+  el.append(svg, capEl);
+
+  // 선: 리더(S1)가 모두와 이어진다. 죽은 S4 선은 점선
+  for (const id of ORDER.slice(1)) {
+    const [x1, y1] = POS.S1, [x2, y2] = POS[id];
+    mk("line", { x1, y1, x2, y2, style: `stroke:var(--ltt-line-2);stroke-width:2${id === "S4" ? ";stroke-dasharray:6 6" : ""}` }, lines);
+  }
+  txt(svg, 480, 550, "칸: 실선 = 커밋, 점선 = 미커밋 · 원: 채움 = 표 또는 저장", { "text-anchor": "middle", style: "font-size:13px;fill:var(--ltt-muted)" });
+
+  const draw = (g) => {
+    center.innerHTML = ""; boxes.innerHTML = "";
+    // 과반수 표시: 5대 중 3. 가운데 원 다섯 개는 S1~S5의 표·저장 여부
+    txt(center, 480, 262, "과반수 = 3 / 5", { "text-anchor": "middle", style: "font-size:22px;font-weight:700;fill:var(--ltt-ink)" });
+    txt(center, 480, 290, g.msg, { "text-anchor": "middle", style: "font-size:15px;fill:var(--ltt-ink-2)" });
+    ORDER.forEach((id, k) => {
+      const s = g[id], cx = 480 + (k - 2) * 26;
+      mk("circle", { cx, cy: 318, r: 8, style: s.dead ? "fill:none;stroke:var(--ltt-muted);stroke-dasharray:3 3" : s.mark ? `fill:${ACC};stroke:${ACC}` : "fill:var(--ltt-card);stroke:var(--ltt-muted)" }, center);
+    });
+    ORDER.forEach((id) => {
+      const s = g[id], [cx, cy] = POS[id], x = cx - BW / 2, y = cy - BH / 2;
+      const lead = s.role === "리더", cand = s.role === "후보";
+      const roleClr = lead ? ACC : cand ? WARN : MUTE;
+      const grp = mk("g", { opacity: s.dead ? 0.5 : 1 }, boxes);
+      mk("rect", { x, y, width: BW, height: BH, rx: 12, style: `fill:var(--ltt-card);stroke:${lead ? ACC : cand ? WARN : "var(--ltt-line-2)"};stroke-width:${lead || cand ? 3 : 1.5}${s.dead ? ";stroke-dasharray:6 5" : ""}` }, grp);
+      txt(grp, x + 16, y + 30, id, { style: "font-size:20px;font-weight:700;fill:var(--ltt-ink)" });
+      txt(grp, x + BW - 16, y + 30, s.role, { "text-anchor": "end", style: `font-size:14px;font-weight:600;fill:${roleClr}` });
+      txt(grp, x + 16, y + 52, `term ${s.term}`, { style: "font-size:14px;fill:var(--ltt-muted)" });
+      // 로그 칸: 점선 = 미커밋, 실선 = 커밋
+      s.log.forEach((e, k) => {
+        const lx = x + 16 + k * 90, ly = y + 64;
+        mk("rect", { x: lx, y: ly, width: 82, height: 30, rx: 6, style: e.c ? "fill:var(--ltt-good-soft);stroke:var(--ltt-good);stroke-width:2" : "fill:var(--ltt-card-2);stroke:var(--ltt-muted);stroke-width:1.5;stroke-dasharray:4 3" }, grp);
+        txt(grp, lx + 41, ly + 20, `${e.i} · t${e.t}`, { "text-anchor": "middle", style: "font-size:13px;fill:var(--ltt-ink)" });
+      });
+    });
+  };
+
+  // 메시지 한 통: 보낸 서버에서 받는 서버까지 원이 움직인다 (상자 밑에서 나와 상자 사이를 지난다)
+  const pk = (from, to, clr, ms) => new Promise((done) => {
+    if (!motion) return done();
+    const [x1, y1] = POS[from], [x2, y2] = POS[to];
+    const c = mk("circle", { r: 8, style: `fill:${clr}` }, packets);
+    const t0 = performance.now();
+    const tick = (now) => {
+      const p = Math.min(1, (now - t0) / ms);
+      c.setAttribute("cx", x1 + (x2 - x1) * p);
+      c.setAttribute("cy", y1 + (y2 - y1) * p);
+      if (p < 1) requestAnimationFrame(tick);
+      else { c.remove(); done(); }
+    };
+    requestAnimationFrame(tick);
+  });
+  const wait = (ms) => (motion ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve());
+  const cap = (t) => { capEl.textContent = t; };
+
+  // 생성 순서: term·자기 표 → RequestVote → 과반수 표 → heartbeat → 미커밋 기록 → 복제 → 과반수 응답 → 커밋 → 팔로워 커밋
+  const plan = [
+    { cap: "리더의 heartbeat(살아 있다는 신호)가 끊겼다. 팔로워마다 무작위 election timeout을 세고 있다.", run: async () => {} },
+    { cap: "가장 먼저 끝난 S1이 선거 회차(term)를 2에서 3으로 올리고 후보가 된다. 자기에게 한 표를 준다.",
+      run: async (g) => { g.S1.term = 3; g.S1.role = "후보"; g.S1.mark = true; g.msg = "표 1 / 3 필요"; } },
+    { cap: "S1이 RequestVote(표 달라는 요청)를 보낸다. 각 서버는 한 term에 한 표만 준다.",
+      run: async (g) => {
+        await Promise.all(["S2", "S3", "S5"].map((t) => pk("S1", t, ACC, 800)));
+        ["S2", "S3", "S5"].forEach((t) => { g[t].term = 3; });
+      } },
+    { cap: "S2와 S3가 표를 준다. 3표면 5대 중 과반수이므로 S1이 리더가 된다. S5의 답은 아직 없어도 된다.",
+      run: async (g) => {
+        await Promise.all(["S2", "S3"].map((t) => pk(t, "S1", WARN, 800)));
+        g.S2.mark = true; g.S3.mark = true; g.S1.role = "리더"; g.msg = "표 3 / 3 → 리더";
+      } },
+    { cap: "리더는 곧바로 빈 AppendEntries(heartbeat)를 보내 다른 후보가 나서지 못하게 한다.",
+      run: async () => { await Promise.all(["S2", "S3", "S5"].map((t) => pk("S1", t, MUTE, 600))); } },
+    { cap: "클라이언트 요청은 리더만 받는다. 리더가 자기 로그 끝에 index 7을 먼저 쓴다. 아직 미커밋(점선)이다.",
+      run: async (g) => {
+        g.S1.log.push({ i: 7, t: 3, c: false });
+        ["S2", "S3", "S5"].forEach((t) => { g[t].mark = false; });
+        g.msg = "저장 1 / 3 · 미커밋";
+      } },
+    { cap: "리더가 AppendEntries로 S2와 S3에 같은 항목을 복제한다. 저장만 되었을 뿐 아직 점선이다.",
+      run: async (g) => {
+        await Promise.all(["S2", "S3"].map((t) => pk("S1", t, ACC, 800)));
+        ["S2", "S3"].forEach((t) => { g[t].log.push({ i: 7, t: 3, c: false }); g[t].mark = true; });
+        g.msg = "저장 3 / 5 · 미커밋";
+      } },
+    { cap: "S2와 S3가 저장했다고 응답하면 리더 포함 3대가 저장한 것이다. 과반수이므로 리더가 index 7을 커밋한다. S4가 죽어 있어도 이미 커밋이다.",
+      run: async (g) => {
+        await Promise.all(["S2", "S3"].map((t) => pk(t, "S1", GOOD, 800)));
+        g.S1.log[1].c = true; g.msg = "3 / 5 저장 → 커밋";
+      } },
+    { cap: "다음 AppendEntries에 commitIndex(커밋 위치)를 실어 보내면 팔로워도 커밋하고 상태 기계에 적용한다. 팔로워는 한 박자 늦다.",
+      run: async (g) => {
+        await Promise.all(["S2", "S3"].map((t) => pk("S1", t, GOOD, 800)));
+        ["S2", "S3"].forEach((t) => { g[t].log[1].c = true; });
+        g.msg = "커밋 3 / 5 · 적용";
+      } },
+  ];
+
+  // 장면이 화면에서 사라지면 멈춘다. 반복 재생은 최종 상태 뒤에 다시 처음부터 간다.
+  const play = async () => {
+    do {
+      const g = fresh();
+      draw(g);
+      for (const step of plan) {
+        if (!el.isConnected) return;
+        cap(step.cap);
+        await step.run(g);
+        draw(g);
+        await wait(900);
+      }
+      await wait(2600);
+    } while (motion && el.isConnected);
+  };
+
+  draw(fresh());
+  play();
+  return { el: svg };
+};
+
+LTT.deck({
+  title: "Raft 합의: 과반수가 리더를 뽑고 커밋을 정한다",
+  theme: "sketch",
+  glossary: {
+    "과반수": "전체 서버의 절반을 넘는 수. 5대 중 3",
+    "커밋": "과반수가 저장해, 되돌리지 않기로 확정된 항목",
+  },
+  scenes: [{
+    type: "overview",
+    kicker: "분산 시스템 · Raft 리더 선출과 로그 복제",
+    title: "리더도 커밋도 과반수 표로 정해진다",
+    en: "One majority rule decides both the leader and the commit",
+    sub: "5대 서버에서 {{과반수}}은 3대다. 3대가 살아 있으면 리더가 뽑히고 항목이 {{커밋}}된다.",
+    figure,
+    caption: "같은 과반수 규칙이 리더 선출과 커밋 두 곳에서 쓰인다. 3대가 죽으면 둘 다 멈춘다.",
+    label: "Raft · 5대 서버 · 과반수 = 3",
+    basis: "선출·복제 규칙은 Raft 논문 기준이다. 150~300ms timer와 5대 구성은 설명을 위한 예시다.",
+  }],
+});
+</script>
+</body>
+</html>

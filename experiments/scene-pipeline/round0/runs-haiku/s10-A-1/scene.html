@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>온도조절기 되먹임과 오버슈트</title>
+<script type="application/json" id="ltt-meta">{"topic": "온도조절기 되먹임 루프와 오버슈트", "audience": "제어 입문자", "theme": "lab", "medium": "실험 노트 플롯", "decision": "히스테리시스 폭과 난방 지연"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .fig { display: grid; gap: 8px; width: 100%; max-width: 680px; margin: 0 auto; }
+  .fig .ltt-basis { margin: 0; }
+  .key { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--ltt-muted); }
+  .sw { display: inline-block; width: 20px; border-top: 2px solid; vertical-align: middle; margin-right: 6px; }
+  .sw-temp { border-color: var(--ltt-accent); }
+  .sw-sp { border-top-style: dashed; border-color: var(--ltt-ink-2); }
+  .sw-band { border-top-style: dotted; border-color: var(--ltt-muted); }
+  .sw-cmd { border-top-style: dashed; border-color: var(--ltt-muted); }
+  .sw-on { border-color: var(--ltt-c2); }
+  #tp svg, #hp svg { display: block; width: 100%; height: auto; max-width: 100%; }
+</style>
+</head>
+<body>
+<script>
+const SP = 20, BAND = 1, DELAY = 1, LOSS = 0.05, HEAT = 1.5, OUT = 10; // 목표(°C), 히스테리시스 폭(°C), 난방 지연(분), 열손실(1/분), 난방 세기(°C/분), 바깥 온도(°C)
+const HI = SP + BAND / 2, LO = SP - BAND / 2;
+
+function simulate() {
+  const dt = 0.05, n = Math.round(60 / dt), out = [], pending = [];
+  let T = 17, cmd = true, on = true;
+  for (let i = 0; i <= n; i++) {
+    const t = i * dt;
+    if (T < LO) cmd = true;
+    else if (T > HI) cmd = false;
+    pending.push({ at: t + DELAY, on: cmd });
+    while (pending.length && pending[0].at <= t + 1e-9) on = pending.shift().on;
+    out.push({ t, T, cmd, on });
+    T += dt * (LOSS * (OUT - T) + (on ? HEAT : 0));
+  }
+  return out;
+}
+
+const FULL = simulate();
+const S = FULL.filter((_, i) => i % 5 === 0);
+const PEAK = Math.max(...FULL.map((s) => s.T));
+const DUTY = FULL.slice(-400).filter((s) => s.on).length / 400;
+LTT.expect("후반 20분 난방 비율(목표 20°C 유지)", DUTY, 1 / 3, { tol: 0.1 });
+
+const loopScene = {
+  type: "hook",
+  pre: "제어 · 온도조절기 되먹임 루프와 오버슈트",
+  text: "난방은 늦게 듣고, 그래서 온도는 목표를 넘는다",
+  sub: "방 온도를 재서 켜고 끄는 고리가 계속 돈다. 판단과 실제 난방 사이의 시차가 온도를 목표 너머로 민다.",
+  mount(body) {
+    body.innerHTML = `
+      <div class="fig">
+        <div class="key">
+          <span><i class="sw sw-temp"></i>방 온도</span>
+          <span><i class="sw sw-sp"></i>목표 ${SP}°C</span>
+          <span><i class="sw sw-band"></i>끄는 기준 ${HI}°C · 켜는 기준 ${LO}°C</span>
+        </div>
+        <div id="tp"></div>
+        <div class="key">
+          <span><i class="sw sw-cmd"></i>판단(온도를 잰 뒤 내린 명령)</span>
+          <span><i class="sw sw-on"></i>실제 난방</span>
+        </div>
+        <div id="hp"></div>
+        <p class="ltt-basis">최고 ${PEAK.toFixed(1)}°C, 목표보다 ${(PEAK - SP).toFixed(1)}°C 높다. <span class="ltt-tag">모델로 계산한 예시</span> 열손실 ${LOSS}/분, 난방 ${HEAT}°C/분, 지연 ${DELAY}분으로 가정한 값이라 실제 방과는 다르다.</p>
+      </div>`;
+
+    const tp = LTT.axisPlot(body.querySelector("#tp"), {
+      width: 640, height: 240, x: [0, 60], y: [16, 23],
+      labels: { x: "시간(분)", y: "방 온도(°C)" },
+      series: [
+        { id: "temp", color: "var(--ltt-accent)" },
+        { id: "head", color: "var(--ltt-ink)" },
+        { id: "sp", color: "var(--ltt-ink-2)", dash: true },
+        { id: "hi", color: "var(--ltt-muted)", dot: true },
+        { id: "lo", color: "var(--ltt-muted)", dot: true },
+      ],
+    });
+    const hp = LTT.axisPlot(body.querySelector("#hp"), {
+      width: 640, height: 120, x: [0, 60], y: [-0.3, 1.3],
+      labels: { x: "시간(분)", y: "난방" },
+      series: [
+        { id: "cmd", color: "var(--ltt-muted)", dash: true },
+        { id: "on", color: "var(--ltt-c2)" },
+      ],
+    });
+
+    tp.set("sp", [[0, SP], [60, SP]]);
+    tp.set("hi", [[0, HI], [60, HI]]);
+    tp.set("lo", [[0, LO], [60, LO]]);
+
+    const steps = (key, n) => {
+      const pts = [];
+      let prev = null;
+      for (let i = 0; i < n; i++) {
+        const v = S[i][key] ? 1 : 0;
+        if (prev !== null && v !== prev) pts.push([S[i].t, prev]);
+        pts.push([S[i].t, v]);
+        prev = v;
+      }
+      return pts;
+    };
+    const draw = (n) => {
+      const temp = S.slice(0, n).map((s) => [s.t, s.T]);
+      tp.set("temp", temp);
+      tp.set("head", temp.slice(-3));
+      hp.set("cmd", steps("cmd", n));
+      hp.set("on", steps("on", n));
+    };
+
+    let i = 0, timer = 0;
+    const step = () => {
+      i = Math.min(S.length, i + 2);
+      draw(i);
+      timer = setTimeout(i < S.length ? step : play, i < S.length ? 40 : 2000);
+    };
+    const play = () => { clearTimeout(timer); i = 0; step(); };
+
+    draw(0);
+    return {
+      enter() {
+        if (LTT.MOTION_MS === 0) { draw(S.length); return; }
+        play();
+      },
+      leave() { clearTimeout(timer); },
+    };
+  },
+};
+
+LTT.deck({
+  title: "온도조절기 되먹임과 오버슈트",
+  theme: "lab",
+  glossary: {},
+  scenes: [loopScene],
+});
+</script>
+</body>
+</html>

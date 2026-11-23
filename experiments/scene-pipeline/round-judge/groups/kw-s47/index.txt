@@ -1,0 +1,25 @@
+장면 | 상태 | 파일 | 메모
+가 | t1s | 가-t1s.jpg | 
+가 | t4s | 가-t4s.jpg | 
+가 | t8s | 가-t8s.jpg | 
+가 | knob-country-min | 가-knob-country-min.jpg | 
+가 | knob-country-max | 가-knob-country-max.jpg | 
+가 | knob-year-min | 가-knob-year-min.jpg | 
+가 | knob-year-max | 가-knob-year-max.jpg | 
+가 | checks | - | #ltt-checks 없음 또는 JSON 오류
+나 | t1s | 나-t1s.jpg | 
+나 | t4s | 나-t4s.jpg | 
+나 | t8s | 나-t8s.jpg | 
+나 | knob-country-min | 나-knob-country-min.jpg | 
+나 | knob-country-max | 나-knob-country-max.jpg | 
+나 | knob-focus-min | 나-knob-focus-min.jpg | 
+나 | knob-focus-max | 나-knob-focus-max.jpg | 
+나 | knob-year-min | 나-knob-year-min.jpg | 
+나 | knob-year-max | 나-knob-year-max.jpg | 
+나 | checks | - | #ltt-checks 없음 또는 JSON 오류
+다 | t1s | 다-t1s.jpg | 
+다 | t4s | 다-t4s.jpg | 
+다 | t8s | 다-t8s.jpg | 
+다 | knob-year-min | 다-knob-year-min.jpg | 
+다 | knob-year-max | 다-knob-year-max.jpg | 
+다 | checks | - | #ltt-checks 없음 또는 JSON 오류

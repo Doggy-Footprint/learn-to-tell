@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>같은 순환, 다른 회수</title>
+<script type="application/json" id="ltt-meta">{"topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단"}</script>
+
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+
+// 참조 카운팅 쪽: 바깥 변수 x, y가 해제되어도 A↔B 연결이 남아 카운트가 0이 되지 않는다.
+const rcSpec = {
+  cols: 2, rows: 2, cell: [220, 140], node: [150, 60],
+  nodes: [
+    { id: "x", c: 0, r: 0, l: "x", s: "바깥 변수", icon: "key-round" },
+    { id: "A", c: 1, r: 0, l: "A", s: "참조 카운트" },
+    { id: "B", c: 1, r: 1, l: "B", s: "참조 카운트" },
+    { id: "y", c: 0, r: 1, l: "y", s: "바깥 변수", icon: "key-round" }
+  ],
+  edges: [
+    { f: "x", t: "A", l: "x" },
+    { f: "y", t: "B", l: "y" },
+    { f: "A", t: "B", l: "peer", lo: [40, 0] },
+    { f: "B", t: "A", l: "peer", lo: [-40, 0] }
+  ]
+};
+
+const rcVisual = () => {
+  const wrap = document.createElement("div");
+  const s = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  const dg = LTT.diagram(s, rcSpec);
+  dg.player(wrap, [
+    { caption: "① 객체 A, B를 만든다. 아직 아무도 가리키지 않아 카운트는 0이다.", hold: 2, enter: (d) => d.highlight(["A", "B"]) },
+    { caption: "② x는 A를, y는 B를 가리킨다. A=1, B=1.", hold: 2, enter: (d) => d.highlight(["x>A", "y>B"]) },
+    { caption: "③ A.peer = B, B.peer = A로 서로 잇는다. A=2, B=2.", hold: 2, enter: (d) => d.highlight(["A>B", "B>A"]) },
+    { caption: "④ x, y를 해제한다. A=1, B=1. 0이 아니라 회수 트리거가 오지 않는다.", hold: 3, enter: (d) => d.highlight(["A", "B"]) }
+  ]);
+  return wrap;
+};
+
+// mark-and-sweep 쪽: 루트에서 닿지 않는 A, B는 mark에서 표시되지 않아 sweep된다.
+const msSpec = {
+  cols: 2, rows: 2, cell: [220, 140], node: [150, 60],
+  nodes: [
+    { id: "root", c: 0, r: 0, l: "루트", s: "전역·스택", icon: "cpu" },
+    { id: "A", c: 1, r: 0, l: "A", s: "표시 안 됨" },
+    { id: "B", c: 1, r: 1, l: "B", s: "표시 안 됨" }
+  ],
+  edges: [
+    { f: "A", t: "B", l: "peer", lo: [40, 0] },
+    { f: "B", t: "A", l: "peer", lo: [-40, 0] }
+  ]
+};
+
+const msVisual = () => {
+  const wrap = document.createElement("div");
+  const s = wrap.appendChild(document.createElementNS(SVG, "svg"));
+  const dg = LTT.diagram(s, msSpec);
+  dg.player(wrap, [
+    { caption: "① mark: 루트에서 출발해 닿는 객체에 표시한다. 루트가 가리키는 객체가 없다.", hold: 2, enter: (d) => d.highlight(["root"]) },
+    { caption: "② mark 결과: A, B는 루트에서 닿지 않아 표시되지 않았다.", hold: 2, enter: (d) => d.highlight(["A", "B"]) },
+    { caption: "③ sweep: 표시되지 않은 A, B를 해제한다.", hold: 3, enter: (d) => d.highlight(["A", "B"]) }
+  ]);
+  return wrap;
+};
+
+LTT.deck({
+  title: "같은 순환, 다른 회수",
+  theme: "terminal",
+  glossary: {
+    "참조 카운트": "이 객체를 가리키는 참조의 개수. 0이 되면 참조 카운팅은 즉시 회수한다.",
+    "루트": "전역 변수와 스택처럼 실행 중에 항상 살아 있는 출발점. mark는 여기서 출발한다."
+  },
+  scenes: [
+    {
+      type: "contrast",
+      title: "순환은 카운트를 남기지만, 루트에서 닿지 않으면 mark-and-sweep은 회수한다",
+      en: "Same cycle, different reclaim",
+      kicker: "가비지 컬렉션",
+      sub: "A↔B 순환을 두 런타임에 놓고 바깥 변수 x, y를 해제한다",
+      narration: "같은 A↔B 순환을 두 런타임에 놓았다. 참조 카운팅은 {{참조 카운트}}가 0이어야 회수하고, mark-and-sweep은 {{루트}}에서 닿는 객체만 남긴다. 누수를 찾을 때는 순환부터 의심하지 말고 이 객체가 루트에서 닿는지 먼저 묻는다.",
+      before: {
+        label: "참조 카운팅",
+        tone: "bad",
+        visual: rcVisual,
+        foot: { label: "해제 후", caption: "A=1, B=1. 서로뿐인 retainer라 회수되지 않는다." }
+      },
+      after: {
+        label: "mark-and-sweep",
+        tone: "good",
+        visual: msVisual,
+        foot: { label: "해제 후", caption: "A, B는 표시되지 않아 다음 GC 사이클에 회수된다." }
+      },
+      takeaway: "순환은 국소 카운트는 올리지만 루트 도달성은 올리지 못한다. 누수 진단은 '루트에서 닿는가'를 먼저 묻는다.",
+      recall: "참조 카운팅에서 순환이 남는 이유는?",
+      basis: "V8·JVM·Go는 tracing 계열이다. CPython은 참조 카운팅에 순환 탐지를 더한다."
+    }
+  ]
+});
+</script>
+</body>
+</html>

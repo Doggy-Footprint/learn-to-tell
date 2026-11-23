@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Node.js 이벤트 루프 단계</title>
+<script type="application/json" id="ltt-meta">{"topic":"Node.js 이벤트 루프 단계","audience":"Node.js 백엔드 입문자","theme":"terminal","medium":"터미널 로그","decision":"setTimeout·setImmediate·nextTick 중 무엇으로 미룰지","domain":"런타임","pattern":["overview"],"mode":"순환 구조를 \"점이 궤적을 그림\" 움직임과 겹쳐 놓기 구도로 보인다. 단계 고리 위에 nextTick 층을 겹치고, 터미널 로그가 점의 통과 순서를 받아 적는다"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.el{width:1040px;max-width:100%;display:block;margin:0 auto}
+.el text{font-family:inherit}
+.el .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p, text) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); if (text != null) n.textContent = text; p && p.appendChild(n); return n; };
+const clamp = (x) => Math.max(0, Math.min(1, x));
+
+// 모델: 단계 6개가 고리를 이루고, 점은 poll 단계의 I/O 콜백 안에서 출발해 한 바퀴를 돈다.
+// 단계 크기는 시간 비례가 아니라 같은 호(60°)로 그린다. 단계 사이마다 nextTick 층으로 파고들어 큐를 비운다.
+const PH = [
+  { k: "timers", sub: "setTimeout · setInterval" },
+  { k: "pending", sub: "미뤄진 시스템 콜백" },
+  { k: "idle, prepare", sub: "내부용" },
+  { k: "poll", sub: "I/O 콜백 · 새 I/O 대기" },
+  { k: "check", sub: "setImmediate" },
+  { k: "close", sub: "close 콜백" }];
+const POLL = 3, CHECK = 4, TIMERS = 0;
+const hop = (from, to) => (to - from + 6) % 6;              // 단계를 몇 칸 넘어 도착하나
+const DRAIN = 0.85, CB = 0.55, ARR = 0.35;                   // 단계 안 위치(0–1): 큐 비움 / 콜백 실행 / 콜백 도착
+const EV = [
+  { id: "tick", name: "nextTick", hops: 0, at: (0 + DRAIN) / 6, c: "--ltt-c1", note: "이 콜백 직후, 다음 단계 전에" },
+  { id: "imm", name: "setImmediate", hops: hop(POLL, CHECK), c: "--ltt-c2", note: "이번 바퀴의 check 단계" },
+  { id: "tmo", name: "setTimeout", hops: hop(POLL, TIMERS), c: "--ltt-c3", note: "다음 바퀴의 timers 단계" }];
+EV[1].at = (EV[1].hops + ARR) / 6; EV[2].at = (EV[2].hops + ARR) / 6;
+const ORDER = EV.slice().sort((a, b) => a.at - b.at);
+LTT.expect("poll → check 단계 이동", EV[1].hops, 1, { tol: 0 });          // 인접한 다음 단계
+LTT.expect("poll → timers 단계 이동", EV[2].hops, 3, { tol: 0 });         // check, close를 지나 timers
+LTT.expect("출력 첫 줄이 nextTick", ORDER.findIndex((e) => e.id === "tick"), 0, { tol: 0 });
+LTT.expect("출력 끝 줄이 setTimeout", ORDER.findIndex((e) => e.id === "tmo"), 2, { tol: 0 });
+
+const CX = 350, CY = 280, R = 160, RI = 100, DISC = 118, BW = 40, DW = 0.03;
+const rad = (f) => { let d = 0; for (let j = 0; j < 6; j++) { const x = (f - (j + DRAIN) / 6) / DW; if (Math.abs(x) < 1) d = Math.max(d, Math.pow(Math.cos(x * Math.PI / 2), 2)); } return R - (R - RI) * d; };
+const PT = (f) => { const a = (90 + 360 * f) * Math.PI / 180, r = rad(f); return [CX + r * Math.cos(a), CY + r * Math.sin(a)]; };
+const pathOf = (f0, f1, n) => { let d = ""; for (let k = 0; k <= n; k++) { const [x, y] = PT(f0 + (f1 - f0) * k / n); d += (k ? "L" : "M") + x.toFixed(1) + "," + y.toFixed(1); } return d; };
+const arcOf = (i) => { const a0 = (-90 + 60 * i + 1.5) * Math.PI / 180, a1 = (-90 + 60 * i + 58.5) * Math.PI / 180;
+  return `M${CX + R * Math.cos(a0)},${CY + R * Math.sin(a0)}A${R},${R} 0 0 1 ${CX + R * Math.cos(a1)},${CY + R * Math.sin(a1)}`; };
+
+function loop(host) {
+  const s = mk("svg", { viewBox: "0 0 1040 540", class: "el", "data-annotate": "" }, host);
+  // 층 1: 단계 고리
+  PH.forEach((p, i) => {
+    mk("path", { class: `arc${i}`, d: arcOf(i), style: `fill:none;stroke:var(--ltt-card-2);stroke-width:${BW};` }, s);
+    const am = (-60 + 60 * i) * Math.PI / 180;
+    mk("text", { class: `num${i}`, x: CX + R * Math.cos(am), y: CY + R * Math.sin(am) + 6, "text-anchor": "middle", style: "font-size:17px;font-weight:700;fill:var(--ltt-muted)" }, s, String(i + 1));
+    const lx = CX + 208 * Math.cos(am), ly = CY + 208 * Math.sin(am), cs = Math.cos(am), sn = Math.sin(am);
+    const anc = cs > 0.2 ? "start" : cs < -0.2 ? "end" : "middle", top = sn < -0.3 ? ly - 50 : sn > 0.3 ? ly - 10 : ly - 22;
+    mk("text", { x: lx, y: top + 16, "text-anchor": anc, style: "font-size:17px;font-weight:700;fill:var(--ltt-ink)" }, s, p.k);
+    mk("text", { x: lx, y: top + 36, "text-anchor": anc, style: "font-size:14px;fill:var(--ltt-muted)" }, s, p.sub);
+    if (i === CHECK || i === TIMERS) mk("text", { class: `lb${i}`, x: lx, y: top + 56, "text-anchor": anc, style: `font-size:14px;font-weight:700;fill:var(${i === CHECK ? EV[1].c : EV[2].c});opacity:0` }, s, "");
+  });
+  // 층 2: nextTick 층을 고리 위에 겹쳐 놓는다
+  mk("circle", { cx: CX, cy: CY, r: DISC, style: "fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:4 4" }, s);
+  mk("text", { x: CX, y: CY - 14, "text-anchor": "middle", style: "font-size:17px;font-weight:700;fill:var(--ltt-ink)" }, s, "nextTick 층");
+  mk("text", { x: CX, y: CY + 7, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, s, "단계가 바뀌기 전마다");
+  mk("text", { x: CX, y: CY + 26, "text-anchor": "middle", style: "font-size:14px;fill:var(--ltt-muted)" }, s, "큐를 먼저 비운다");
+  mk("text", { class: "lbtick", x: CX, y: CY + 52, "text-anchor": "middle", style: `font-size:14px;font-weight:700;fill:var(${EV[0].c});opacity:0` }, s, "");
+  // 궤적과 점
+  mk("path", { d: pathOf(0, 1, 360), style: "fill:none;stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:3 4" }, s);
+  EV.forEach((e) => { const [x, y] = PT(e.at);
+    mk("circle", { class: `tok_${e.id}`, cx: x, cy: y, r: 10, style: `fill:var(${e.c});stroke:var(--ltt-bg);stroke-width:2.5;opacity:0` }, s);
+    mk("circle", { class: `pl_${e.id}`, cx: x, cy: y, r: 10, style: `fill:none;stroke:var(${e.c});stroke-width:3;opacity:0` }, s); });
+  mk("path", { class: "trail", style: "fill:none;stroke:var(--ltt-accent);stroke-width:4;stroke-linecap:round;stroke-linejoin:round" }, s);
+  mk("circle", { class: "dot", r: 8, style: "fill:var(--ltt-accent);stroke:var(--ltt-bg);stroke-width:2.5" }, s);
+
+  // 터미널 로그
+  const X0 = 716;
+  mk("rect", { x: X0, y: 24, width: 314, height: 492, rx: 6, style: "fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:1.5" }, s);
+  mk("text", { class: "mono", x: X0 + 18, y: 56, style: "font-size:15px;fill:var(--ltt-muted)" }, s, "$ node app.js");
+  const code = [["fs.readFile(f, () => {", "--ltt-ink"], ["  setTimeout(log, 0)", EV[2].c], ["  setImmediate(log)", EV[1].c], ["  process.nextTick(log)", EV[0].c], ["})", "--ltt-ink"]];
+  code.forEach(([t, c], i) => mk("text", { class: `mono code${i}`, x: X0 + 18, y: 88 + 22 * i, style: `font-size:15px;fill:var(${c});opacity:.35` }, s, t));
+  mk("line", { x1: X0 + 18, x2: X0 + 296, y1: 204, y2: 204, style: "stroke:var(--ltt-line);stroke-width:1" }, s);
+  mk("text", { x: X0 + 18, y: 232, style: "font-size:14px;fill:var(--ltt-muted)" }, s, "출력 순서 (poll 단계에서 출발)");
+  ORDER.forEach((e, i) => { const y = 268 + 54 * i, g = mk("g", { class: `row_${e.id}`, style: "opacity:.25" }, s);
+    mk("circle", { cx: X0 + 26, cy: y - 5, r: 6, style: `fill:var(${e.c})` }, g);
+    mk("text", { class: "mono", x: X0 + 42, y, style: "font-size:17px;font-weight:700;fill:var(--ltt-ink)" }, g, e.name);
+    mk("text", { x: X0 + 296, y, "text-anchor": "end", style: "font-size:15px;font-weight:700;fill:var(--ltt-ink)" }, g, `+${e.hops} 단계`);
+    mk("text", { x: X0 + 42, y: y + 21, style: "font-size:14px;fill:var(--ltt-muted)" }, g, e.note); });
+  mk("line", { x1: X0 + 18, x2: X0 + 296, y1: 430, y2: 430, style: "stroke:var(--ltt-line);stroke-width:1" }, s);
+  mk("text", { x: X0 + 18, y: 460, style: "font-size:14px;font-weight:700;fill:var(--ltt-warn)" }, s, "⚠ nextTick을 계속 이으면");
+  mk("text", { x: X0 + 18, y: 482, style: "font-size:14px;fill:var(--ltt-warn)" }, s, "점이 단계를 못 넘어가 루프가 굶는다");
+  s.classList.add("live");
+
+  function draw(u, svg) { svg = svg || s;
+    const q = (c) => svg.querySelector("." + c), f = u < 0.9 ? u / 0.9 : 1;
+    const cur = (POLL + Math.min(5, Math.floor(f * 6))) % 6;
+    PH.forEach((p, i) => { q(`arc${i}`).style.stroke = i === cur ? "var(--ltt-accent-soft)" : "var(--ltt-card-2)"; q(`num${i}`).style.fill = i === cur ? "var(--ltt-ink)" : "var(--ltt-muted)"; });
+    q("trail").setAttribute("d", pathOf(Math.max(0, f - 0.14), f, 48));
+    const [x, y] = PT(f); q("dot").setAttribute("cx", x); q("dot").setAttribute("cy", y);
+    const sched = f >= CB / 6;
+    code.forEach((c, i) => { q(`code${i}`).style.opacity = i === 0 || sched ? 1 : .35; });
+    EV.forEach((e) => { const done = f >= e.at, p = clamp((f - e.at) / 0.05);
+      q(`tok_${e.id}`).style.opacity = sched && !done ? 1 : 0;
+      const pl = q(`pl_${e.id}`); pl.style.opacity = done && p < 1 ? 1 - p : 0; pl.setAttribute("r", 10 + 26 * p);
+      q(`row_${e.id}`).style.opacity = done ? 1 : .25;
+      const lb = e.id === "tick" ? q("lbtick") : e.id === "imm" ? q(`lb${CHECK}`) : q(`lb${TIMERS}`);
+      lb.style.opacity = sched ? 1 : 0; lb.textContent = (done ? "✓ " : "● ") + e.name + (done ? " 실행" : " 대기"); });
+  }
+  return { el: s, draw };
+}
+let ticker = 0;
+function play(fig, period) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { fig.draw(0.999); return; }
+  fig.draw(0); if (ticker) return;
+  const t0 = Date.now();
+  const f = () => { const live = document.querySelectorAll("svg.el.live"); if (!live.length) { ticker = 0; return; }
+    live.forEach((sv) => fig.draw(((Date.now() - t0) / period) % 1, sv)); ticker = setTimeout(f, 16); };
+  ticker = setTimeout(f, 16);
+}
+
+LTT.deck({
+  title: "Node.js 이벤트 루프 단계", theme: "terminal",
+  glossary: {
+    "이벤트 루프": "콜백을 단계(phase)별 큐에서 꺼내 한 바퀴씩 돌며 실행하는 Node.js의 반복 구조"
+  },
+  scenes: [{
+    type: "overview", label: "한 장 정리",
+    title: "{{이벤트 루프}}는 여섯 단계를 도는 고리라서, 미루는 도구마다 도착하는 단계가 다르다",
+    figure: (el) => { const f = loop(el); play(f, 14000); return { el: f.el }; },
+    caption: "poll 단계의 readFile 콜백에서 세 가지를 예약하는 예시. 단계 크기는 시간 비례가 아니고, setTimeout(…, 0)은 1ms로 취급된다. <span class=\"ltt-tag\">모델로 그린 예시</span>",
+    basis: "Node.js 공식 가이드 'The Node.js Event Loop, Timers, and process.nextTick()'의 단계 순서(timers → pending callbacks → idle, prepare → poll → check → close callbacks)와 nextTick 처리 시점. I/O 콜백 안에서는 setImmediate가 setTimeout(0)보다 항상 먼저 실행된다고 문서에 명시. 메인 모듈에서는 둘의 순서가 프로세스 성능에 좌우된다.",
+    takeaway: "지금 바로 끝내야 하면 nextTick, 이번 바퀴 I/O 뒤면 setImmediate, 시간을 두고 다음 바퀴면 setTimeout."
+  }]
+});
+</script>
+</body>
+</html>

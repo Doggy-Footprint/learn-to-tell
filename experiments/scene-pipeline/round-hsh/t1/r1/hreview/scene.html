@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B+tree 노드 분할이 루트까지 전파</title>
+<script type="application/json" id="ltt-meta">{"topic": "B+tree 노드 분할", "audience": "백엔드 개발자", "theme": "blueprint", "medium": "DB 내부 구조 도해", "decision": "인덱스 설계와 페이지 크기 이해"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .tree{width:100%;height:auto;display:block;overflow:visible}
+  .tree line{stroke:var(--ltt-line-2);stroke-width:1.6;fill:none;transition:opacity .4s}
+  .tree line.path{stroke:var(--ltt-ink);stroke-width:2.5}
+  .tree line.ghost{stroke:var(--ltt-muted);stroke-dasharray:5 4}
+  .tree line.sib{stroke:var(--ltt-muted);stroke-dasharray:3 3}
+  .tree .node{transition:opacity .4s}
+  .tree .box{fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:1.5}
+  .tree .node.path .box{stroke:var(--ltt-ink);stroke-width:2.5}
+  .tree .node.bad .box{stroke:var(--ltt-bad);stroke-width:2.5;fill:var(--ltt-bad-soft)}
+  .tree .node.new .box{stroke:var(--ltt-accent);stroke-width:2.5;fill:var(--ltt-accent-soft)}
+  .tree .node.chip .box{stroke:var(--ltt-accent);stroke-width:2;fill:var(--ltt-accent-soft)}
+  .tree .node.ghost .box{fill:none;stroke:var(--ltt-muted);stroke-dasharray:5 4}
+  .tree .node text{fill:var(--ltt-ink);text-anchor:middle}
+  .tree .node .k{font-size:14px}
+  .tree .node .st{font-size:13px;fill:var(--ltt-muted)}
+  .tree .node.bad .st{fill:var(--ltt-bad)}
+  .tree .node.new .st,.tree .node.chip .st{fill:var(--ltt-accent)}
+  .tree .node.ghost text{fill:var(--ltt-muted)}
+  .tree .ins{font-size:13px;fill:var(--ltt-accent);text-anchor:middle;transition:opacity .4s}
+  .tree .lvl{font-size:15px;fill:var(--ltt-muted)}
+  @media (prefers-reduced-motion: reduce){.tree .node,.tree line,.tree .ins{transition:none}}
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const W = 136, H = 46;                       // 노드 상자 크기
+const Y = (lv) => 20 + lv * 124;             // 깊이 lv의 윗변 y
+const S = [84, 240, 396, 552, 708, 864];    // 리프 칸 여섯 자리, 왼쪽부터
+const n = (x, lv, k, st = "", c = "", f = "") => ({ x, lv, k, st, c, f });   // f: 이 노드가 갈라져 나온 부모 id
+const leaf = (slot, k, st = "", c = "", f = "") => n(S[slot], 2, k, st, c, f);
+const deep = (o) => Object.fromEntries(Object.entries(o).map(([id, v]) => [id, { ...v, lv: v.lv + 1 }]));
+const ROOT_FULL = "4키 가득";
+
+const LEAF0 = {
+  L0: leaf(0, "10,20,22,28", ROOT_FULL, "path"),
+  L1: leaf(1, "30,40,50"), L2: leaf(2, "60,70"), L3: leaf(3, "80,85"), L4: leaf(4, "90,95"),
+};
+const LEAF_OVER = { ...LEAF0, L0: leaf(0, "10,20,22,25,28", "5키 넘침", "bad") };
+const LEAF_SPLIT = {
+  L0: leaf(0, "10,20,22", "3키"),
+  L0b: leaf(1, "25,28", "새 리프 · 25 복사", "new", "L0"),
+  L1: leaf(2, "30,40,50"), L2: leaf(3, "60,70"), L3: leaf(4, "80,85"), L4: leaf(5, "90,95"),
+};
+const SIB0 = [["L0", "L1"], ["L1", "L2"], ["L2", "L3"], ["L3", "L4"]];
+const SIB_SPLIT = [["L0", "L0b"], ["L0b", "L1"], ["L1", "L2"], ["L2", "L3"], ["L3", "L4"]];
+
+// 단계: n = 그 단계에 있는 노드(위치·글·class), e = 간선, s = 리프 사이 형제 링크
+// 생성 순서: 리프 분할 → 부모 분할 → 루트 분할(200 올라감) → 새 루트 → 전체 깊이 +1
+const STAGES = [
+  { h: 3, ins: true,
+    n: { R: n(630, 0, "100,200,300,400", ROOT_FULL, "path"), N2: n(S[2], 1, "30,60,80,90", ROOT_FULL, "path"),
+         OTH: n(S[5], 1, "나머지 자식", "생략", "ghost"), ...LEAF0 },
+    e: [["R", "N2", "path"], ["R", "OTH", "ghost"], ["N2", "L0", "path"], ["N2", "L1"], ["N2", "L2"], ["N2", "L3"], ["N2", "L4"]],
+    s: SIB0 },
+  { h: 3,
+    n: { R: n(630, 0, "100,200,300,400", ROOT_FULL, "path"), N2: n(S[2], 1, "30,60,80,90", ROOT_FULL, "path"),
+         OTH: n(S[5], 1, "나머지 자식", "생략", "ghost"), ...LEAF_OVER },
+    e: [["R", "N2", "path"], ["R", "OTH", "ghost"], ["N2", "L0", "path"], ["N2", "L1"], ["N2", "L2"], ["N2", "L3"], ["N2", "L4"]],
+    s: SIB0 },
+  { h: 3,
+    n: { R: n(669, 0, "100,200,300,400", ROOT_FULL), N2: n(474, 1, "25,30,60,80,90", "5키 넘침 · 25 받음", "bad"),
+         OTH: n(S[5], 1, "나머지 자식", "생략", "ghost"), ...LEAF_SPLIT },
+    e: [["R", "N2"], ["R", "OTH", "ghost"], ["N2", "L0"], ["N2", "L0b", "path"], ["N2", "L1"], ["N2", "L2"], ["N2", "L3"], ["N2", "L4"]],
+    s: SIB_SPLIT },
+  { h: 3,
+    n: { R: n(552, 0, "60,100,200,300,400", "5키 넘침 · 60 받음", "bad"),
+         N2a: n(S[1], 1, "25,30", "자식 3", "new", "N2"), N2b: n(S[4], 1, "80,90", "자식 3", "new", "N2"),
+         OTH: n(S[5], 1, "나머지 자식", "생략", "ghost"), ...LEAF_SPLIT },
+    e: [["R", "N2a", "path"], ["R", "N2b", "path"], ["R", "OTH", "ghost"], ["N2a", "L0"], ["N2a", "L0b"], ["N2a", "L1"], ["N2b", "L2"], ["N2b", "L3"], ["N2b", "L4"]],
+    s: SIB_SPLIT },
+  { h: 3,
+    n: { RL: n(474, 0, "60,100", "자식 3", "new", "R"), RR: n(S[5], 0, "300,400", "자식 3", "new", "R"),
+         TOP: n(669, 0, "200", "올라가는 키", "chip", "R"),
+         N2a: n(S[1], 1, "25,30", "자식 3"), N2b: n(S[4], 1, "80,90", "자식 3"),
+         OTH: n(S[5], 1, "나머지 자식", "생략", "ghost"), ...LEAF_SPLIT },
+    e: [["RL", "N2a"], ["RL", "N2b"], ["RR", "OTH", "ghost"], ["N2a", "L0"], ["N2a", "L0b"], ["N2a", "L1"], ["N2b", "L2"], ["N2b", "L3"], ["N2b", "L4"]],
+    s: SIB_SPLIT },
+  { h: 4,
+    n: { TOP: n(669, 0, "200", "새 루트 · 자식 2", "new"),
+         RL: n(474, 1, "60,100", "자식 3"), RR: n(S[5], 1, "300,400", "자식 3"),
+         N2a: n(S[1], 2, "25,30", "자식 3"), N2b: n(S[4], 2, "80,90", "자식 3"),
+         OTH: n(S[5], 2, "나머지 자식", "생략", "ghost"), ...deep(LEAF_SPLIT) },
+    e: [["TOP", "RL", "path"], ["TOP", "RR", "path"], ["RL", "N2a"], ["RL", "N2b"], ["RR", "OTH", "ghost"],
+        ["N2a", "L0"], ["N2a", "L0b"], ["N2a", "L1"], ["N2b", "L2"], ["N2b", "L3"], ["N2b", "L4"]],
+    s: SIB_SPLIT },
+];
+
+const CAP = [
+  "25가 들어갈 리프를 루트에서 내려가며 찾는다. 경로의 세 노드 루트·N2·리프가 모두 4키로 가득 찼다.",
+  "① 리프 [10,20,22,28]에 25가 들어가 5키가 되었다. 노드는 4키까지만 담으니 넘쳤다.",
+  "② 리프가 둘로 갈라진다. 25는 새 리프의 첫 키로 복사되어 부모 N2로 올라가고, N2는 5키로 넘친다.",
+  "③ N2가 둘로 갈라진다. 가운데 60은 복사가 아니라 이동해 루트로 올라가고, 루트도 5키로 넘친다.",
+  "④ 루트가 둘로 갈라진다. 가운데 200은 두 노드 어디에도 남지 않고 한 층 위로 올라간다.",
+  "⑤ 올라간 200이 맨 위에 새 루트가 된다. 모든 노드의 깊이가 함께 1 늘어 트리 높이가 3에서 4가 된다.",
+];
+
+const mk = (tag, attrs = {}, parent) => {
+  const e = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+
+const treeFigure = (el) => {
+  const svg = el.appendChild(document.createElementNS(SVG, "svg"));
+  svg.setAttribute("viewBox", "0 0 960 450");
+  svg.setAttribute("class", "tree");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "B+tree 삽입 시 분할이 리프에서 루트까지 번지고 새 루트가 생기는 과정");
+  const lineG = mk("g", {}, svg);
+  const nodeG = mk("g", {}, svg);
+  const ins = mk("text", { x: S[0], y: 332, class: "ins" }, svg);
+  ins.textContent = "▲ 25 삽입";
+  const lvl = mk("text", { x: 16, y: 24, class: "lvl" }, svg);
+
+  // 노드는 id로 이어진다. 단계가 바뀌면 같은 id는 옮겨 가고, 새 id는 부모 자리에서 나온다.
+  const IDS = [...new Set(STAGES.flatMap((s) => Object.keys(s.n)))];
+  const N = {};
+  for (const id of IDS) {
+    const g = mk("g", { class: "node" }, nodeG);
+    g.style.opacity = 0;
+    mk("rect", { x: -W / 2, y: 0, width: W, height: H, rx: 6, class: "box" }, g);
+    const t1 = mk("text", { y: 19, class: "k ltt-mono" }, g);
+    const t2 = mk("text", { y: 36, class: "st" }, g);
+    N[id] = { g, t1, t2, on: false, x: 0, y: 0, sx: 0, sy: 0, tx: 0, ty: 0 };
+  }
+
+  const LN = {};
+  const edge = (key, a, b, sib, cls) => {
+    const L = LN[key] || (LN[key] = { el: mk("line", {}, lineG), a, b, sib });
+    L.el.setAttribute("class", cls);
+    L.el.style.opacity = 1;
+  };
+
+  // 선은 노드 위치를 따라 매 프레임 다시 그린다
+  const place = () => {
+    for (const id of IDS) N[id].g.style.transform = `translate(${N[id].x}px, ${N[id].y}px)`;
+    for (const k in LN) {
+      const { el, a, b, sib } = LN[k], p = N[a], c = N[b];
+      if (sib) {
+        el.setAttribute("x1", p.x + W / 2); el.setAttribute("y1", p.y + H / 2);
+        el.setAttribute("x2", c.x - W / 2); el.setAttribute("y2", c.y + H / 2);
+      } else {
+        el.setAttribute("x1", p.x); el.setAttribute("y1", p.y + H);
+        el.setAttribute("x2", c.x); el.setAttribute("y2", c.y);
+      }
+    }
+  };
+
+  const D = LTT.MOTION_MS ?? 600;
+  let raf = 0;
+  const run = () => {
+    cancelAnimationFrame(raf);
+    const t0 = performance.now();
+    const frame = () => {
+      const p = D ? Math.min(1, (performance.now() - t0) / D) : 1;
+      const e = p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2;
+      for (const id of IDS) {
+        const v = N[id];
+        v.x = v.sx + (v.tx - v.sx) * e;
+        v.y = v.sy + (v.ty - v.sy) * e;
+      }
+      place();
+      if (p < 1) raf = requestAnimationFrame(frame);
+    };
+    frame();
+  };
+
+  const show = (i) => {
+    const st = STAGES[i];
+    const from = Object.fromEntries(IDS.map((id) => [id, { x: N[id].x, y: N[id].y }]));
+    for (const id of IDS) {
+      const v = N[id], s = st.n[id];
+      if (!s) { v.on = false; v.sx = v.tx = v.x; v.sy = v.ty = v.y; v.g.style.opacity = 0; continue; }
+      const ty = Y(s.lv);
+      if (v.on) { v.sx = v.x; v.sy = v.y; }
+      else {
+        const p = s.f ? from[s.f] : { x: s.x, y: ty };
+        v.sx = v.x = p.x; v.sy = v.y = p.y; v.on = true;
+      }
+      v.tx = s.x; v.ty = ty;
+      v.g.setAttribute("class", `node ${s.c}`);
+      v.t1.textContent = s.k;
+      v.t2.textContent = s.st;
+      v.g.style.opacity = 1;
+    }
+    for (const k in LN) LN[k].el.style.opacity = 0;
+    for (const [a, b, cls] of st.e) edge(`${a}>${b}`, a, b, false, cls || "");
+    for (const [a, b] of st.s) edge(`${a}~${b}`, a, b, true, "sib");
+    ins.style.opacity = st.ins ? 1 : 0;
+    lvl.textContent = `트리 높이 ${st.h}`;
+    run();
+  };
+
+  show(0);
+  return { el: svg, show };
+};
+
+const scene = {
+  type: "figure",
+  kicker: "DB · B+tree 삽입",
+  title: "분할은 아래에서 위로 번지고, 루트가 갈라질 때만 트리가 한 층 자란다",
+  en: "A split climbs one level at a time; the tree grows only when the root splits",
+  sub: "삽입 키 25의 경로. 노드는 최대 4키이고, {{리프}}끼리는 오른쪽 형제 링크(점선)로 이어진다.",
+  figure: treeFigure,
+  steps: CAP.map((caption, i) => ({ caption, enter: (k, f) => f.show(i) })),
+  takeaway: "꽉 찬 리프에 키가 들어가면 분할이 한 층씩 위로 번지고, 빈자리가 나오는 층에서 멈춘다. 높이는 루트가 갈라질 때만 1 늘어난다.",
+  recall: "페이지 크기를 4KB에서 8KB로 올리면, 높이 3 트리에 담기는 키는 대략 몇 배가 될까?",
+  basis: "근거: 8KB 페이지, 키와 포인터 약 16B로 둔 근사라 {{팬아웃}} 약 500. 높이 3이면 500³ ≈ 1.25억 키, 4KB면 팬아웃 약 250, 약 1,600만. 노드당 4키는 교육용 단순화다. <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+};
+
+LTT.expect("팬아웃 500일 때 높이 3의 키 수", 500 ** 3, 1.25e8, { tol: 0 });
+
+LTT.deck({
+  title: "B+tree 노드 분할이 루트까지 전파",
+  theme: "blueprint",
+  glossary: {
+    "리프": "키와 값이 실제로 담기는 맨 아래 노드. 리프끼리는 오른쪽 형제 링크로 이어진다.",
+    "팬아웃": "한 노드가 가리키는 자식의 수. 많을수록 트리가 낮아진다.",
+  },
+  scenes: [scene],
+});
+</script>
+</body>
+</html>

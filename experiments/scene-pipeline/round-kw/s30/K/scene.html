@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>컴파일 네 단계</title>
+<script type="application/json" id="ltt-meta">{"topic":"소스→토큰→AST→바이트코드","audience":"컴파일러 입문 개발자","theme":"terminal","medium":"터미널 출력","decision":"컴파일 단계 구분"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.cp-wrap{display:flex;justify-content:center}
+.cp{width:1000px;max-width:100%;height:auto;display:block}
+.cp text{font-family:inherit}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
+const mk = (tag, a, p) => { const n = document.createElementNS(SVG, tag); for (const k in a) n.setAttribute(k, a[k]); p && p.appendChild(n); return n; };
+const clamp = (x, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, x));
+const ease = (x) => x * x * (3 - 2 * x);
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// ---- 진짜로 도는 미니 컴파일러: 화면의 토큰·트리·명령은 전부 여기서 나온다 ----
+const SRC = "x = 3 + 4 * 2";
+function lex(src) {
+  const re = /\s+|[A-Za-z_]\w*|\d+|[=+*]/g, out = []; let m;
+  while ((m = re.exec(src))) { const s = m[0]; if (/^\s/.test(s)) continue;
+    const kind = /^\d/.test(s) ? "NUM" : /^[A-Za-z_]/.test(s) ? "IDENT" : s === "=" ? "EQ" : s === "+" ? "PLUS" : "STAR";
+    out.push({ kind, text: s, at: m.index }); }
+  return out;
+}
+function parse(toks) {
+  let i = 0; const peek = () => toks[i] && toks[i].kind, next = () => toks[i++];
+  const num = () => ({ k: "Num", v: next().text, kids: [] });
+  const term = () => { let n = num(); while (peek() === "STAR") { next(); n = { k: "Mul", v: "*", kids: [n, num()] }; } return n; };
+  const expr = () => { let n = term(); while (peek() === "PLUS") { next(); n = { k: "Add", v: "+", kids: [n, term()] }; } return n; };
+  const id = next(); next();
+  return { k: "Assign", v: "=", kids: [{ k: "Id", v: id.text, kids: [] }, expr()] };
+}
+function gen(ast) {
+  const out = [];
+  const walk = (n) => { if (n.k === "Num") out.push({ op: "PUSH", arg: n.v, node: n }); else { walk(n.kids[0]); walk(n.kids[1]); out.push({ op: n.k.toUpperCase(), node: n }); } };
+  walk(ast.kids[1]); out.push({ op: "STORE", arg: ast.kids[0].v, node: ast });
+  return out;
+}
+function run(code) {
+  const st = [], snaps = [[]], mem = {};
+  for (const c of code) {
+    if (c.op === "PUSH") st.push(+c.arg);
+    else if (c.op === "STORE") mem[c.arg] = st.pop();
+    else { const b = st.pop(), a = st.pop(); st.push(c.op === "MUL" ? a * b : a + b); }
+    snaps.push(st.slice());
+  }
+  return { snaps, mem };
+}
+const TOKS = lex(SRC), AST = parse(TOKS), CODE = gen(AST), RUN = run(CODE);
+const countNodes = (n) => 1 + n.kids.reduce((a, k) => a + countNodes(k), 0);
+
+// 트리 좌표 (손으로 배치)
+const N_X = AST.kids[0], N_ADD = AST.kids[1], N_3 = N_ADD.kids[0], N_MUL = N_ADD.kids[1], N_4 = N_MUL.kids[0], N_2 = N_MUL.kids[1];
+AST.p = [545, 105]; N_X.p = [480, 175]; N_ADD.p = [610, 175]; N_3.p = [555, 245]; N_MUL.p = [665, 245]; N_4.p = [625, 315]; N_2.p = [705, 315];
+const APPEAR = [N_4, N_2, N_MUL, N_3, N_ADD, N_X, AST];
+const EDGES = [[AST, N_X], [AST, N_ADD], [N_ADD, N_3], [N_ADD, N_MUL], [N_MUL, N_4], [N_MUL, N_2]];
+const POST = CODE.map((c) => c.node);
+const ACC = new Set([N_MUL, N_4, N_2]);
+
+function build(host) {
+  const s = mk("svg", { viewBox: "0 0 1000 474", class: "cp", "data-annotate": "" }, host);
+  const tx = (p, x, y, size, w, fill, anchor, mono) => mk("text", { x, y, "text-anchor": anchor || "start",
+    style: `font-size:${size}px;font-weight:${w};fill:${fill}${mono ? ";font-family:" + MONO : ""}` }, p);
+  const INK = "var(--ltt-ink)", INK2 = "var(--ltt-ink-2)", MUT = "var(--ltt-muted)", ACCENT = "var(--ltt-accent)";
+
+  // 칸 틀
+  const PX = [[10, 205], [215, 415], [425, 740], [745, 990]];
+  const NAME = ["① 소스", "② 토큰", "③ AST", "④ 바이트코드"];
+  const WHAT = ["글자 나열", "종류 붙은 조각", "묶음 트리", "실행 명령 열"];
+  const Q = ["", "무슨 단어? (렉서)", "어떻게 묶임? (파서)", "무슨 순서? (코드 생성)"];
+  const DELTA = ["", "사라짐 공백 · 생김 종류 태그", "생김: 묶음(우선순위)", "생김: 실행 순서"];
+  const frames = PX.map(([a, b], i) => { const g = mk("g", {}, s);
+    mk("rect", { x: a, y: 12, width: b - a, height: 450, rx: 12, style: "fill:var(--ltt-card);stroke:var(--ltt-line-2);stroke-width:1.5" }, g);
+    const t = tx(g, a + 14, 40, 18, 700, INK, "start", true); t.textContent = NAME[i];
+    const w = tx(g, a + 14, 62, 14, 400, MUT); w.textContent = WHAT[i];
+    const q = tx(g, a + 14, 62, 14, 700, INK2); q.textContent = Q[i]; q.style.opacity = 0;
+    return { g, w, q }; });
+  const chev = [210, 420, 742.5].map((x) => { const g = mk("g", {}, s);
+    mk("circle", { cx: x, cy: 26, r: 10, style: "fill:var(--ltt-bg);stroke:var(--ltt-line-2);stroke-width:1.5" }, g);
+    mk("path", { d: `M${x - 2.5},${21} L${x + 2.5},${26} L${x - 2.5},${31}`, style: "fill:none;stroke:var(--ltt-ink-2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round" }, g); return g; });
+  const deltas = DELTA.map((d, i) => { if (!i) return null; const t = tx(s, PX[i][0] + 14, 450, 13, 600, INK2); t.textContent = d; return t; });
+  const ghosts = [1, 2, 3].map((i) => { const t = tx(s, (PX[i][0] + PX[i][1]) / 2, 250, 56, 700, "var(--ltt-line-2)", "middle", true); t.textContent = "?"; return t; });
+
+  // ① 소스
+  const CW = 13.2, CX = (i) => 22 + CW * i + CW / 2;
+  const src = [...SRC].map((ch, i) => { const sp = ch === " ";
+    const t = tx(s, CX(i), 110, 22, 700, sp ? MUT : INK, "middle", true); t.textContent = sp ? "·" : ch; if (sp) t.style.opacity = 0; return t; });
+  const spNote = [tx(s, 22, 150, 13, 400, MUT), tx(s, 22, 168, 13, 400, MUT)];
+  spNote[0].textContent = "공백 6칸은"; spNote[1].textContent = "버려진다";
+  tx(s, 22, 212, 13, 400, MUT).textContent = "실행하면 x에 저장되는 값";
+  tx(s, 22, 256, 36, 700, INK, "start", true).textContent = "x = " + RUN.mem.x;
+  tx(s, 22, 284, 13, 400, MUT).textContent = "(3+4)*2 = 14 가 아니다";
+
+  // ② 토큰
+  const gBr = mk("g", {}, s), gTok = mk("g", {}, s);
+  const rowY = (i) => 100 + i * 44;
+  const tokG = TOKS.map((t) => { const g = mk("g", {}, gTok);
+    const box = mk("rect", { x: 0, y: -17, width: 44, height: 34, rx: 7, style: "fill:var(--ltt-card-2);stroke:var(--ltt-ink-2);stroke-width:1.5" }, g);
+    const v = tx(g, 22, 7, 22, 700, INK, "middle", true); v.textContent = t.text;
+    const tag = tx(g, 56, 5, 13, 600, MUT, "start", true); tag.textContent = t.kind;
+    return { g, box, v, tag, t }; });
+  const mkBr = (x, r0, r1, letter) => { const y1 = rowY(r0) - 17, y2 = rowY(r1) + 17, L = 14 + (y2 - y1);
+    const p = mk("path", { d: `M${x - 7},${y1} H${x} V${y2} H${x - 7}`, style: `fill:none;stroke:var(--ltt-ink-2);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:${L}` }, gBr);
+    const l = tx(gBr, x + 1, y1 - 6, 14, 700, INK2, "middle", true); l.textContent = letter; return { p, l, L }; };
+  const brA = mkBr(352, 2, 4, "A"), brB = mkBr(374, 4, 6, "B");
+  const legA = tx(s, 225, 402, 13, 600, INK2, "start", true), legB = tx(s, 225, 422, 13, 600, INK2, "start", true);
+  legA.textContent = "A  (3+4)*2 = " + (3 + 4) * 2; legB.textContent = "B  3+(4*2) = " + (3 + 4 * 2);
+
+  // ③ AST
+  const gE = mk("g", {}, s), gN = mk("g", {}, s);
+  const edges = EDGES.map(([a, b]) => ({ a, el: mk("line", { x1: a.p[0], y1: a.p[1] + 17, x2: b.p[0], y2: b.p[1] - 17, style: "stroke:var(--ltt-ink-2);stroke-width:2" }, gE) }));
+  const leaf = (n) => n.kids.length === 0;
+  const nodeEl = new Map(APPEAR.map((n) => { const g = mk("g", {}, gN), w = leaf(n) ? 44 : 90;
+    const r = mk("rect", { x: -w / 2, y: -17, width: w, height: 34, rx: 8 }, g);
+    const t = tx(g, 0, 6, 16, 700, INK, "middle", true); t.textContent = leaf(n) ? n.v : n.k + " " + n.v;
+    const b = mk("g", {}, g); mk("circle", { cx: w / 2 - 2, cy: -17, r: 10, style: "fill:var(--ltt-ink)" }, b);
+    const bt = tx(b, w / 2 - 2, -12.5, 13, 700, "var(--ltt-bg)", "middle", true); b.style.opacity = 0;
+    return [n, { g, r, t, b, bt }]; }));
+  const decide = tx(s, 440, 405, 15, 700, ACCENT); decide.textContent = "묶음 결정은 여기서 한 번";
+  const dot = mk("circle", { r: 7, style: "fill:var(--ltt-ink);stroke:var(--ltt-bg);stroke-width:3" }, s);
+
+  // ④ 바이트코드
+  const link = mk("path", { d: "M710,245 C735,245 735,232 758,232", style: "fill:none;stroke:var(--ltt-accent);stroke-width:2;stroke-dasharray:5 4" }, s);
+  const rows = CODE.map((c, k) => { const y = rowY(k);
+    mk("rect", { x: 756, y: y - 17, width: 118, height: 34, rx: 7, style: "fill:none;stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:4 4;opacity:.5" }, s);
+    const g = mk("g", {}, s);
+    const r = mk("rect", { x: 756, y: y - 17, width: 118, height: 34, rx: 7 }, g);
+    const n = tx(g, 767, y + 5, 13, 400, MUT, "middle", true); n.textContent = k + 1;
+    const t = tx(g, 782, y + 6, 17, 700, INK, "start", true); t.textContent = c.op + (c.arg ? " " + c.arg : "");
+    return { g, r, t }; });
+  tx(s, 892, 94, 13, 400, MUT).textContent = "스택 깊이";
+  const depthT = tx(s, 892, 134, 36, 700, INK, "start", true);
+  const maxT = tx(s, 892, 160, 13, 400, MUT); maxT.textContent = "최대 " + Math.max(...RUN.snaps.map((a) => a.length));
+  const SLOT_Y = [364, 322, 280];
+  const slots = SLOT_Y.map((y) => { mk("rect", { x: 892, y: y - 17, width: 84, height: 34, rx: 7, style: "fill:none;stroke:var(--ltt-line-2);stroke-width:1.5;stroke-dasharray:4 4;opacity:.5" }, s);
+    const g = mk("g", {}, s), r = mk("rect", { x: 892, y: y - 17, width: 84, height: 34, rx: 7 }, g);
+    const t = tx(g, 934, y + 7, 20, 700, INK, "middle", true); return { g, r, t }; });
+  mk("line", { x1: 886, y1: 385, x2: 982, y2: 385, style: "stroke:var(--ltt-ink-2);stroke-width:2" }, s);
+  tx(s, 892, 405, 13, 400, MUT).textContent = "스택 (위로 쌓임)";
+
+  // ---- 시간 T 하나로 모든 것을 그린다 (0 훅, 1 토큰, 2 모호, 3 AST, 4 바이트코드, 5 회수) ----
+  let T = 0;
+  function draw() {
+    const rcp = clamp(T - 4);
+    frames.forEach((f, i) => { f.g.style.opacity = [1, .4 + .6 * clamp(T * 3), .4 + .6 * clamp(T - 1.7), .4 + .6 * clamp(T - 2.7)][i];
+      f.w.style.opacity = 1 - rcp * (i ? 1 : 0); f.q.style.opacity = rcp; });
+    chev.forEach((c, i) => c.style.opacity = [.4 + .6 * clamp(T * 3), .4 + .6 * clamp(T - 1.7), .4 + .6 * clamp(T - 2.7)][i]);
+    deltas.forEach((d, i) => { if (d) d.style.opacity = clamp(([0, (T - .8) * 5, (T - 2.8) * 5, (T - 3.85) / .15][i])); });
+    ghosts.forEach((g, i) => g.style.opacity = [1 - clamp(T * 4), 1 - clamp((T - 2) * 5), 1 - clamp((T - 3) * 5)][i]);
+
+    // 소스 → 토큰
+    const decided = T > 2.35;
+    src.forEach((t, i) => { if (SRC[i] === " ") t.style.opacity = ease(clamp((T - .1) / .3)) * (1 - ease(clamp((T - .8) / .2))); });
+    spNote.forEach((t) => t.style.opacity = ease(clamp((T - .7) / .3)));
+    tokG.forEach((o, i) => { const m = ease(clamp((T - .05 - i * .11) / .42)), isB = i >= 4;
+      const sx = CX(o.t.at) - 22, sy = 103;
+      o.g.setAttribute("transform", `translate(${lerp(sx, 232, m)},${lerp(sy, rowY(i), m)})`);
+      o.v.style.opacity = m > .001 ? 1 : 0;
+      o.box.style.opacity = clamp((m - .4) / .6); o.tag.style.opacity = clamp((m - .6) / .4);
+      const hot = decided && isB;
+      o.box.style.fill = hot ? "var(--ltt-accent-soft)" : "var(--ltt-card-2)"; o.box.style.stroke = hot ? ACCENT : INK2;
+      src[o.t.at].style.opacity = hot ? 1 : 1 - .65 * m;
+      src[o.t.at].style.fill = hot ? ACCENT : INK; });
+
+    // 모호함: 같은 토큰 열에 두 묶음
+    const pA = ease(clamp((T - 1) / .3)), pB = ease(clamp((T - 1.35) / .3)), fadeA = decided ? 1 - .75 * ease(clamp((T - 2.35) / .3)) : 1;
+    [[brA, pA, 1], [brB, pB, 0]].forEach(([b, p, isA]) => { b.p.style.strokeDashoffset = b.L * (1 - p); b.l.style.opacity = p;
+      b.p.style.opacity = isA ? fadeA : 1; b.l.style.opacity = p * (isA ? fadeA : 1);
+      if (!isA) { b.p.style.stroke = decided ? ACCENT : INK2; b.l.style.fill = decided ? ACCENT : INK2; } });
+    legA.style.opacity = pA * fadeA; legB.style.opacity = pB;
+    legA.style.textDecoration = decided ? "line-through" : "none";
+    legB.style.fill = decided ? ACCENT : INK2;
+
+    // AST
+    const b = clamp(T - 2);
+    const vis = new Map(APPEAR.map((n, i) => [n, ease(clamp((b - i * .12) / .2))]));
+    const c = clamp(T - 3), p = c * 6, e = CODE.map((_, k) => ease(clamp((p - (k + .6)) / .3)));
+    const gi = Math.min(5, Math.max(0, p - .6)), k0 = Math.min(4, Math.floor(gi)), fr = gi - k0;
+    edges.forEach((ed) => ed.el.style.opacity = vis.get(ed.a));
+    APPEAR.forEach((n) => { const o = nodeEl.get(n), v = vis.get(n), k = POST.indexOf(n), seen = k >= 0 ? e[k] : 0;
+      o.g.setAttribute("transform", `translate(${n.p[0]},${n.p[1] + (1 - v) * 12})`); o.g.style.opacity = v;
+      const hot = ACC.has(n);
+      o.r.style.fill = hot ? "var(--ltt-accent-soft)" : seen > .5 ? "var(--ltt-card-2)" : "var(--ltt-card)";
+      o.r.style.stroke = hot ? ACCENT : INK2; o.r.style.strokeWidth = seen > .5 ? 3 : 1.5;
+      o.b.style.opacity = seen; o.bt.textContent = k + 1; });
+    decide.style.opacity = clamp((T - 2.6) / .3);
+
+    // 바이트코드와 스택
+    const [ax, ay] = POST[k0].p, [bx, by] = POST[k0 + 1].p, f = ease(fr);
+    dot.setAttribute("cx", lerp(ax, bx, f)); dot.setAttribute("cy", lerp(ay, by, f));
+    dot.style.opacity = c > 0 ? 1 - clamp((T - 4.05) / .3) : 0;
+    const n = e.filter((v) => v > .5).length;
+    rows.forEach((r, k) => { r.g.style.opacity = e[k]; const isMul = CODE[k].op === "MUL", cur = k === n - 1 && T < 4.05;
+      r.r.style.fill = isMul ? "var(--ltt-accent-soft)" : "var(--ltt-card-2)";
+      r.r.style.stroke = isMul ? ACCENT : INK2; r.r.style.strokeWidth = cur ? 3 : 1.5; });
+    const snap = RUN.snaps[n];
+    slots.forEach((sl, j) => { const has = j < snap.length; sl.g.style.opacity = has ? 1 : 0;
+      if (has) { const v = snap[j], eight = v === 8; sl.t.textContent = v;
+        sl.r.style.fill = eight ? "var(--ltt-accent-soft)" : "var(--ltt-card-2)"; sl.r.style.stroke = eight ? ACCENT : INK2; sl.r.style.strokeWidth = 1.5; } });
+    depthT.textContent = c > 0 ? snap.length : ""; maxT.style.opacity = clamp((T - 3.9) / .1);
+    link.style.opacity = clamp((T - 4.3) / .5);
+  }
+  let raf = 0;
+  function to(i, ms) { cancelAnimationFrame(raf); const from = T, t0 = performance.now();
+    if (!ms || LTT.MOTION_MS === 0) { T = i; draw(); return; }
+    const f = (now) => { const u = clamp((now - t0) / ms); T = from + (i - from) * u; draw(); if (u < 1) raf = requestAnimationFrame(f); };
+    raf = requestAnimationFrame(f); }
+  draw();
+  return { to, stop() { cancelAnimationFrame(raf); }, at: () => T };
+}
+
+const DUR = [0, 1700, 1500, 2600, 5200, 1400];
+const STEPS = (fig) => [
+  { caption: "x = 3 + 4 * 2 를 실행하면 x에는 11이 저장된다. 14가 아니라 11이 되는 결정은 컴파일의 어느 단계에서 내려질까?", hold: 3800 },
+  { caption: "렉서가 글자를 단어로 끊고 종류 태그를 붙인다. 공백은 버려지고, 남는 것은 순서뿐이다. 7개 중 어느 것도 서로를 묶고 있지 않다.", hold: 3600 },
+  { caption: "토큰 열은 평평하다. (3+4)*2 로도 3+(4*2) 로도 읽힌다. 이 단계에는 '누가 먼저'가 없다.", hold: 4200 },
+  { caption: "파서가 * 를 + 보다 강하게 묶는다. 4와 2가 Mul 아래로 먼저 모이고, 그 결과가 Add에서 3과 만난다. 묶음 결정은 이 한 번이다.", hold: 4800 },
+  { caption: "코드 생성이 트리를 후위로 읽는다. 자식 먼저, 연산자 나중이라 3, 4, 2, MUL, ADD, STORE 순서가 된다. 8이 먼저 나오고 11이 나중이다.", hold: 7000 },
+  { caption: "단계마다 답하는 질문이 다르다. 무슨 단어? 어떻게 묶임? 무슨 순서? 묶음은 AST에서, 순서는 바이트코드에서 정해진다.", hold: 4200 },
+].map((st, i) => ({ ...st, enter: () => fig.to(i, i > fig.at() ? DUR[i] : 600) }));
+
+LTT.expect("토큰 수", TOKS.length, 7, { tol: 0 });
+LTT.expect("AST 노드 수", countNodes(AST), 7, { tol: 0 });
+LTT.expect("바이트코드 줄 수", CODE.length, 6, { tol: 0 });
+LTT.expect("x에 저장되는 값", RUN.mem.x, 11, { tol: 0 });
+LTT.expect("+를 먼저 묶었을 때", (3 + 4) * 2, 14, { tol: 0 });
+LTT.expect("최대 스택 깊이", Math.max(...RUN.snaps.map((a) => a.length)), 3, { tol: 0 });
+LTT.expect("끝난 뒤 스택 깊이", RUN.snaps[RUN.snaps.length - 1].length, 0, { tol: 0 });
+LTT.expect("명령 순서 일치(1=일치)", +(CODE.map((c) => c.op + (c.arg ? " " + c.arg : "")).join(",") === "PUSH 3,PUSH 4,PUSH 2,MUL,ADD,STORE x"), 1, { tol: 0 });
+
+LTT.deck({
+  title: "컴파일 네 단계", theme: "terminal",
+  glossary: { "토큰": "소스를 끊어 만든, 종류가 붙은 조각(식별자, 숫자, 연산자 등)",
+    "AST": "추상 구문 트리. 어떤 연산자가 무엇을 묶는지 나무 모양으로 나타낸 구조" },
+  scenes: [{
+    title: "11이 되는 결정은 토큰이 아니라 AST에서 내려진다", en: "source → token → AST → bytecode",
+    sub: "한 줄 소스가 {{토큰}} 열, {{AST}}, 명령 열로 바뀐다. 같은 식이 네 모습을 거친다.",
+    basis: "PUSH·MUL·ADD·STORE는 이 수업용 가상 스택 VM 표기다. 실제 VM마다 명령 이름이 다르다.",
+    takeaway: "컴파일러는 글자를 토큰으로 끊고, 토큰을 AST로 묶고, AST를 명령 열로 펴며, 우선순위 결정은 AST 단계에서 한 번 내려진다.",
+    recall: "토큰 열만 보고 3+4 와 4*2 중 무엇이 먼저인지 정할 수 있을까?",
+    mount(body) {
+      body.innerHTML = '<div class="cp-wrap"></div><div class="cp-step"></div>';
+      const fig = build(body.querySelector(".cp-wrap"));
+      const st = LTT.stepper(body.querySelector(".cp-step"), STEPS(fig), { interval: 3600 });
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      return { enter() { if (reduced) { st.go(5); return; } st.go(0); st.play(); },
+        leave() { st.stop(); fig.stop(); } };
+    }
+  }]
+});
+</script>
+</body>
+</html>

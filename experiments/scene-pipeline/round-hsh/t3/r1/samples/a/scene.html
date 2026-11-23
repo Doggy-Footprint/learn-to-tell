@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의 — 리더 선출과 로그 복제 한 장 정리</title>
+<script type="application/json" id="ltt-meta">{"topic": "Raft 합의", "audience": "분산 시스템 입문 개발자", "theme": "sketch", "medium": "아키텍처 화이트보드", "decision": "합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const ORDER = ["A", "B", "C", "D", "E"];
+const POS = { A: [420, 96], B: [170, 214], C: [670, 214], D: [250, 362], E: [590, 362] };
+const W = 200, H = 96, MOVE_MS = 900, HOLD_MS = 1900;
+
+const cell = (t, c) => ({ t, c }); // c: 1 = 커밋, 0 = 미커밋
+const L0 = [cell(1, 1), cell(1, 1)];
+const L1 = [...L0, cell(2, 0)];
+const L2 = [...L0, cell(2, 1)];
+const fl = (t, l) => ({ r: "팔로워", t, l });
+const DEAD = { r: "응답 없음", t: 1, l: L0, dead: true };
+
+const PH = [
+  { cap: "평시: 리더 A가 heartbeat를 보내고, 팔로워는 조용히 듣는다",
+    nodes: { A: { r: "리더", t: 1, l: L0 }, B: fl(1, L0), C: fl(1, L0), D: fl(1, L0), E: fl(1, L0) },
+    msgs: [["A", "B"], ["A", "C"], ["A", "D"], ["A", "E"]], bar: null },
+  { cap: "A의 heartbeat가 끊기고, B의 election timeout이 먼저 끝난다",
+    nodes: { A: DEAD, B: { r: "팔로워 · timeout", t: 1, l: L0 }, C: fl(1, L0), D: fl(1, L0), E: fl(1, L0) },
+    msgs: [], bar: null },
+  { cap: "B는 term을 2로 올리고 후보가 되어 자기에게 한 표를 준다",
+    nodes: { A: DEAD, B: { r: "후보", t: 2, l: L0 }, C: fl(2, L0), D: fl(2, L0), E: fl(2, L0) },
+    msgs: [], bar: { n: 1, label: "득표 1 / 과반 3" } },
+  { cap: "B가 RequestVote를 나머지 노드에 보낸다",
+    nodes: { A: DEAD, B: { r: "후보", t: 2, l: L0 }, C: fl(2, L0), D: fl(2, L0), E: fl(2, L0) },
+    msgs: [["B", "C"], ["B", "D"], ["B", "E"]], bar: { n: 1, label: "득표 1 / 과반 3" } },
+  { cap: "C와 D가 표를 줘서 B가 3표로 과반을 넘고 새 리더가 된다",
+    nodes: { A: DEAD, B: { r: "리더", t: 2, l: L0 }, C: fl(2, L0), D: fl(2, L0), E: fl(2, L0) },
+    msgs: [["C", "B"], ["D", "B"]], bar: { n: 3, label: "득표 3 / 과반 3" } },
+  { cap: "클라이언트 쓰기 x가 리더 B의 로그에 미커밋으로 붙는다",
+    nodes: { A: DEAD, B: { r: "리더", t: 2, l: L1 }, C: fl(2, L0), D: fl(2, L0), E: fl(2, L0) },
+    msgs: [], bar: { n: 1, label: "저장 1 / 과반 3" } },
+  { cap: "B가 x를 AppendEntries로 C, D에 복제한다",
+    nodes: { A: DEAD, B: { r: "리더", t: 2, l: L1 }, C: fl(2, L1), D: fl(2, L1), E: fl(2, L0) },
+    msgs: [["B", "C"], ["B", "D"]], bar: { n: 1, label: "저장 1 / 과반 3" } },
+  { cap: "C와 D가 저장하면 B 포함 3대가 저장되어 과반, x를 커밋한다",
+    nodes: { A: DEAD, B: { r: "리더", t: 2, l: L2 }, C: fl(2, L1), D: fl(2, L1), E: fl(2, L0) },
+    msgs: [["C", "B"], ["D", "B"]], bar: { n: 3, label: "저장 3 / 과반 3" } },
+  { cap: "커밋은 다음 AppendEntries로 전해져, 늦은 E도 x를 적용한다",
+    nodes: { A: DEAD, B: { r: "리더", t: 2, l: L2 }, C: fl(2, L2), D: fl(2, L2), E: fl(2, L2) },
+    msgs: [["B", "C"], ["B", "D"], ["B", "E"]], bar: { n: 5, label: "적용 5 / 5" } }
+];
+
+const stage = (el) => {
+  const wrap = document.createElement("div");
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("viewBox", "0 0 840 480");
+  svg.style.width = "100%";
+  svg.style.height = "auto";
+  svg.style.display = "block";
+  const lines = E("g"), nodes = E("g"), msgs = E("g"), bars = E("g");
+  svg.append(lines, nodes, msgs, bars);
+  const cap = document.createElement("div");
+  cap.style.cssText = "margin-top:8px;min-height:1.6em;font-size:15px;color:var(--ltt-ink-2)";
+  wrap.append(svg, cap);
+  el.appendChild(wrap);
+
+  ORDER.forEach((a, i) => ORDER.slice(i + 1).forEach((b) => {
+    const [x1, y1] = POS[a], [x2, y2] = POS[b];
+    lines.append(E("line", { x1, y1, x2, y2, "stroke-width": 1 }, { stroke: "var(--ltt-line)", opacity: 0.6 }));
+  }));
+
+  function show(i) {
+    const p = PH[i];
+    nodes.replaceChildren();
+    ORDER.forEach((k) => nodes.append(drawNode(k, p.nodes[k])));
+    drawBar(p.bar);
+    cap.textContent = p.cap;
+  }
+
+  function drawNode(k, n) {
+    const [x, y] = POS[k];
+    const leader = n.r === "리더", cand = n.r === "후보";
+    const g = E("g", {}, { opacity: n.dead ? 0.45 : 1 });
+    g.append(E("rect", { x: x - W / 2, y: y - H / 2, width: W, height: H, rx: 10,
+      "stroke-width": leader ? 2.5 : 1.5 },
+      { fill: "var(--ltt-card)", stroke: leader ? "var(--ltt-accent)" : cand ? "var(--ltt-warn)" : "var(--ltt-line-2)",
+        strokeDasharray: n.dead ? "6 5" : "none" }));
+    g.append(txt(`${k} · ${n.r}`, x - W / 2 + 14, y - 18, { "font-size": 17, "font-weight": 700 }, { fill: "var(--ltt-ink)" }));
+    g.append(txt(`term ${n.t}`, x - W / 2 + 14, y + 2, { "font-size": 14 }, { fill: "var(--ltt-muted)" }));
+    n.l.forEach((e, j) => {
+      const cx = x - W / 2 + 14 + j * 46;
+      g.append(E("rect", { x: cx, y: y + 18, width: 40, height: 26, rx: 4, "stroke-width": 1.5 },
+        e.c ? { fill: "var(--ltt-good-soft)", stroke: "var(--ltt-good)" }
+            : { fill: "none", stroke: "var(--ltt-muted)", strokeDasharray: "4 3" }));
+      g.append(txt(`t${e.t}`, cx + 20, y + 36, { "font-size": 13, "text-anchor": "middle" }, { fill: "var(--ltt-ink)" }));
+    });
+    return g;
+  }
+
+  function drawBar(bar) {
+    bars.replaceChildren();
+    const n = bar ? bar.n : 0;
+    for (let k = 0; k < 5; k++) {
+      bars.append(E("rect", { x: 290 + k * 42, y: 440, width: 34, height: 22, rx: 4, "stroke-width": 1.5 },
+        { fill: k < n ? "var(--ltt-ink-2)" : "none", stroke: "var(--ltt-line-2)" }));
+    }
+    bars.append(E("line", { x1: 412, y1: 430, x2: 412, y2: 468, "stroke-width": 1.5 },
+      { stroke: "var(--ltt-muted)", strokeDasharray: "4 3" }));
+    bars.append(txt("과반선", 412, 426, { "font-size": 12, "text-anchor": "middle" }, { fill: "var(--ltt-muted)" }));
+    bars.append(txt(bar ? bar.label : "과반 = 3 / 5", 512, 456, { "font-size": 15 }, { fill: "var(--ltt-ink-2)" }));
+  }
+
+  function send(a, b) {
+    const dot = E("circle", { r: 6 }, { fill: "var(--ltt-ink)" });
+    msgs.append(dot);
+    const [x0, y0] = POS[a], [x1, y1] = POS[b];
+    const t0 = performance.now();
+    const step = (now) => {
+      const p = Math.min(1, (now - t0) / MOVE_MS);
+      dot.setAttribute("cx", x0 + (x1 - x0) * p);
+      dot.setAttribute("cy", y0 + (y1 - y0) * p);
+      if (p < 1 && dot.isConnected) requestAnimationFrame(step);
+      else dot.remove();
+    };
+    requestAnimationFrame(step);
+  }
+
+  async function play() {
+    for (let n = 0; n < 600 && !wrap.isConnected; n++) await sleep(100);
+    if (!wrap.isConnected) return;
+    if (LTT.MOTION_MS === 0) { show(PH.length - 1); return; }
+    while (wrap.isConnected) {
+      for (let i = 0; i < PH.length && wrap.isConnected; i++) {
+        show(i);
+        PH[i].msgs.forEach(([a, b]) => send(a, b));
+        await sleep(MOVE_MS + HOLD_MS);
+      }
+      await sleep(2400);
+    }
+  }
+
+  show(0);
+  play();
+  return { el: wrap };
+};
+
+const E = (tag, attrs = {}, style = {}) => {
+  const e = document.createElementNS(SVG, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  Object.assign(e.style, style);
+  return e;
+};
+const txt = (s, x, y, attrs = {}, style = {}) => {
+  const t = E("text", { x, y, ...attrs }, style);
+  t.textContent = s;
+  return t;
+};
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const overview = {
+  type: "overview",
+  title: "리더는 과반의 표로 뽑히고, 과반이 저장한 항목만 커밋된다",
+  en: "Raft leader election and log replication",
+  kicker: "분산 시스템 · Raft 합의",
+  sub: "5노드 클러스터. 임기 번호(term)마다 리더는 한 명이고, 선출과 커밋이 같은 {{과반}} 문턱을 쓴다.",
+  figure: stage,
+  caption: "위는 선출, 아래는 복제와 커밋. 점은 메시지, 칸은 로그 항목(점선 칸은 미커밋).",
+  label: "리더 선출 → 로그 복제 → 커밋",
+  takeaway: "선출과 커밋은 같은 {{과반}} 문턱을 쓰므로, 5대 중 3대가 살아 있으면 합의된 값은 남는다.",
+  recall: "노드가 5대일 때 과반은 몇 대이고, 2대가 꺼져도 커밋이 가능한 이유는?",
+  basis: "과반 = floor(N/2)+1 (N=5 → 3, N=4 → 3). 5노드 장면의 수치는 모델로 계산한 예시다."
+};
+
+LTT.deck({
+  title: "Raft 합의 — 리더 선출과 로그 복제 한 장 정리",
+  theme: "sketch",
+  glossary: {
+    "과반": "노드 수의 절반을 넘는 최소 수. 5대면 3대, 4대도 3대다."
+  },
+  scenes: [overview]
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+# stream.jsonl
+
+- 말: 검수 대상 파일을 먼저 한꺼번에 읽겠습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/storyboard.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/direction.md`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/scene.html`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/shots/index.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/shots/scene-audit.txt`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/refs/API.md`
+- 말: 스크린샷 다섯 장을 함께 읽습니다.
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/shots/scene-t1s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/shots/scene-t4s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/shots/scene-t8s.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/shots/scene-knob-r-min.jpg`
+- Read `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/shots/scene-knob-r-max.jpg`
+- 말: 스크린샷과 코드를 대조했습니다. 확인된 결함은 수치 줄 잘림과 첫 화면 넘침 두 가지이고, 나머지 항목은 통과입니다. 검수 결과를 `review.md`에 먼저 기록합니다.
+- Write `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/review.md` (+2360자)
+- 말: 첫 번째 실패 항목은 수치 줄 잘림입니다. 천장 값은 차트 라벨에 이미 있으므로 이 줄에서는 빼서 한 줄 안에 들어가게 합니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/scene.html`
+- Bash `node /Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/audit.mjs scene.html`
+- 말: audit은 고침 0건이어서 반복할 필요가 없습니다. 마지막으로 `review.md`에 `## 고친 것`을 붙입니다.
+- Edit `/Users/hwansu/orca/workspaces/learn-to-tell/sample-correct/experiments/scene-pipeline/gallery/hsh/t5/r3/hreview/review.md`
+- 말: 실패 2건, 고친 것 1건입니다. 고친 것은 수치 줄 잘림(scene.html:135)입니다. 첫 화면 넘침은 900×440 그림과 글 구성을 바꿔야 해서 이번에는 고치지 않았습니다. audit은 고침 0건이었습니다.
+- 결과: success $0.0291 16턴 143s

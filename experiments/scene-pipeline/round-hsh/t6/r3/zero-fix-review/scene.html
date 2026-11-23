@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가비지 컬렉션 방식</title>
+<script type="application/json" id="ltt-meta">{"topic":"가비지 컬렉션 방식","audience":"애플리케이션 개발자","theme":"terminal","medium":"힙 스냅샷·메모리 프로파일러","decision":"메모리 누수 진단"}</script>
+<style>
+.gc{display:flex;flex-direction:column;gap:8px;height:100%}
+.gc-cap{font-size:15px;line-height:1.4;color:var(--ltt-ink);min-height:44px;padding:6px 10px;border-left:3px solid var(--ltt-accent);background:var(--ltt-card-2)}
+.gc-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.gc-col{border:1px solid var(--ltt-line);background:var(--ltt-card);padding:8px 10px;display:flex;flex-direction:column;gap:4px}
+.gc-col h4{margin:0;font-size:14px;color:var(--ltt-ink);display:flex;justify-content:space-between;gap:8px}
+.gc-col h4 span{color:var(--ltt-muted);font-weight:400}
+.gc svg{width:100%;height:auto;display:block}
+.gc svg text{font-family:inherit;fill:var(--ltt-ink)}
+.gc .t-sm{font-size:11px;fill:var(--ltt-muted)}
+.gc .t-md{font-size:12px}
+.gc .t-b{font-size:13px;font-weight:600}
+.gc .fade{transition:opacity .5s ease}
+.gc .node rect{fill:var(--ltt-card-2);stroke:var(--ltt-ink-2);stroke-width:1.5;transition:fill .4s,stroke .4s,opacity .5s,stroke-dasharray .4s}
+.gc .node.warn rect{stroke:var(--ltt-warn);fill:var(--ltt-warn-soft)}
+.gc .node.good rect{stroke:var(--ltt-good);fill:var(--ltt-good-soft)}
+.gc .node.gone rect{stroke:var(--ltt-muted);stroke-dasharray:4 3;fill:none}
+.gc .edge{stroke:var(--ltt-ink-2);stroke-width:1.6;fill:none;transition:opacity .5s}
+.gc .edge.root{stroke:var(--ltt-accent)}
+.gc .line{fill:none;stroke-width:2;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 2.6s linear}
+.gc .line.on{stroke-dashoffset:0}
+.gc .grid{stroke:var(--ltt-line);stroke-width:1}
+.gc table{width:100%;border-collapse:collapse;font-size:12px}
+.gc td,.gc th{padding:2px 6px;border-bottom:1px solid var(--ltt-line);text-align:left;color:var(--ltt-ink)}
+.gc th{color:var(--ltt-muted);font-weight:500}
+.gc .snap{transition:opacity .5s;min-height:62px}
+.gc .ret{font-size:12px;color:var(--ltt-ink-2);margin-top:3px}
+.gc-ctl{display:flex;gap:8px;align-items:center}
+.gc-ctl button{font:inherit;font-size:13px;color:var(--ltt-ink);background:var(--ltt-card);border:1px solid var(--ltt-line-2);padding:3px 12px;cursor:pointer}
+.gc-ctl button:hover{border-color:var(--ltt-accent)}
+.gc-ctl .dots{display:flex;gap:5px;margin-left:8px}
+.gc-ctl .dots i{width:9px;height:9px;border:1px solid var(--ltt-ink-2);display:block;transition:background .3s}
+.gc-ctl .dots i.on{background:var(--ltt-accent);border-color:var(--ltt-accent)}
+.gc-ctl small{color:var(--ltt-muted);margin-left:auto;font-size:12px}
+</style>
+</head>
+<body>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const PAIR_MB = 1;          // 객체 512 KB × 2
+const THRESH = 16;          // GC 임계 16 MB → 약 16쌍마다
+const BASE = 4;
+const ITER = 100;
+
+// 시계열: 카운팅은 쌍마다 +1 MB, mark-and-sweep은 16쌍마다 4 MB로 복귀
+const X0 = 36, X1 = 506, Y0 = 8, Y1 = 98;
+const px = (i) => X0 + (X1 - X0) * i / ITER;
+const py = (mb) => Y1 - (Y1 - Y0) * mb / 100;
+const rcPts = [], msPts = [];
+for (let i = 0; i <= ITER; i++) {
+  rcPts.push([i, i * PAIR_MB]);
+  if (i > 0 && i % THRESH === 0) msPts.push([i, BASE + THRESH]);
+  msPts.push([i, BASE + (i % THRESH) * PAIR_MB]);
+}
+const path = (pts) => "M" + pts.map(([i, v]) => px(i).toFixed(1) + " " + py(v).toFixed(1)).join("L");
+LTT.expect("카운팅 누수(MB)", rcPts[ITER][1], 100, { tol: 1e-9 });
+LTT.expect("mark 100번 뒤 힙(MB)", msPts[msPts.length - 1][1], 8, { tol: 1e-9 });
+
+const CAPS = [
+  "① 코드가 객체 A를 만든다. 지역변수 a가 가리키므로 A를 가리키는 화살표는 1개(rc=1).",
+  "② 객체 B도 만든다. 지역변수 b가 가리켜 rc=1. 아직 A와 B는 서로 모른다.",
+  "③ A.peer = B. 참조를 만든 뒤에야 B로 들어오는 화살표가 늘어 B의 rc=2.",
+  "④ B.peer = A. A로 들어오는 화살표도 늘어 A의 rc=2. 이 순간 순환이 완성된다.",
+  "⑤ 루트가 a, b를 놓는다. 카운팅은 즉시 2→1로 줄고 멈춘다(0이 아님). mark 쪽은 아직 아무 일도 없다.",
+  "⑥ 힙이 임계(16 MB)에 닿아 GC가 돈다. 루트에서 나가는 화살표를 따라가면 A, B에 닿지 못해 표시 없음 → sweep.",
+  "⑦ 같은 코드를 100번 반복. 카운팅은 +1 MB씩 올라 100 MB, mark는 4~20 MB 톱니. 한쪽은 계단식, 한쪽은 톱니.",
+  "⑧ 스냅샷 두 장 비교: 카운팅 쪽은 A·B가 100쌍(200개)으로 늘었고 보유 경로가 서로뿐 — 루트로 가는 길이 없다.",
+  "⑨ 반전: mark 쪽에서도 전역 캐시가 A를 쥐면 루트에서 닿으므로 회수되지 않는다. 누수는 '순환인가'가 아니라 '루트에서 닿는가'."
+];
+
+function side(kind) {
+  const rc = kind === "rc";
+  const col = document.createElement("div");
+  col.className = "gc-col";
+  col.innerHTML = `
+  <h4>${rc ? "참조 카운팅" : "mark-and-sweep"}<span>${rc ? "나를 가리키는 화살표가 몇 개? (들어오는 수)" : "루트에서 나가는 화살표로 닿는가?"}</span></h4>
+  <svg viewBox="0 0 520 176" data-k="${kind}">
+    <defs><marker id="ah-${kind}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" style="fill:var(--ltt-ink-2)"/></marker>
+    <marker id="ar-${kind}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" style="fill:var(--ltt-accent)"/></marker></defs>
+    <g class="node" id="root-${kind}"><rect x="14" y="52" width="104" height="44" rx="4"/><text class="t-b" x="66" y="71" text-anchor="middle">루트</text><text class="t-sm" x="66" y="87" text-anchor="middle">지역변수 a, b</text></g>
+    <g class="node" id="cache-${kind}" style="opacity:0"><rect x="14" y="128" width="104" height="38" rx="4"/><text class="t-b" x="66" y="144" text-anchor="middle">전역 캐시</text><text class="t-sm" x="66" y="158" text-anchor="middle">루트의 일부</text></g>
+    <path class="edge root fade" id="ra-${kind}" d="M118 66L228 38" marker-end="url(#ar-${kind})" style="opacity:0"/>
+    <path class="edge root fade" id="rb-${kind}" d="M118 84L228 138" marker-end="url(#ar-${kind})" style="opacity:0"/>
+    <path class="edge root fade" id="ca-${kind}" d="M118 140L228 50" marker-end="url(#ar-${kind})" style="opacity:0"/>
+    <path class="edge fade" id="ab-${kind}" d="M262 66L262 124" marker-end="url(#ah-${kind})" style="opacity:0"/>
+    <path class="edge fade" id="ba-${kind}" d="M296 124L296 66" marker-end="url(#ah-${kind})" style="opacity:0"/>
+    <text class="t-sm fade" id="lab-ab-${kind}" x="252" y="98" text-anchor="end" style="opacity:0">A.peer</text>
+    <text class="t-sm fade" id="lab-ba-${kind}" x="306" y="98" style="opacity:0">B.peer</text>
+    <g class="node" id="A-${kind}" style="opacity:0"><rect x="228" y="12" width="104" height="54" rx="4"/><text class="t-b" x="280" y="32" text-anchor="middle">객체 A</text><text class="t-sm" x="280" y="48" text-anchor="middle">512 KB</text></g>
+    <g class="node" id="B-${kind}" style="opacity:0"><rect x="228" y="124" width="104" height="48" rx="4"/><text class="t-b" x="280" y="144" text-anchor="middle">객체 B</text><text class="t-sm" x="280" y="160" text-anchor="middle">512 KB</text></g>
+    <text class="t-b fade" id="sA-${kind}" x="344" y="36" style="opacity:0"></text>
+    <text class="t-b fade" id="sB-${kind}" x="344" y="152" style="opacity:0"></text>
+    <text class="t-md fade" id="note-${kind}" x="418" y="100" text-anchor="middle" style="opacity:0"></text>
+  </svg>
+  <svg viewBox="0 0 520 120" data-k="${kind}-tl">
+    <line class="grid" x1="${X0}" x2="${X1}" y1="${py(0)}" y2="${py(0)}"/>
+    <line class="grid" x1="${X0}" x2="${X1}" y1="${py(50)}" y2="${py(50)}"/>
+    <line class="grid" x1="${X0}" x2="${X1}" y1="${py(100)}" y2="${py(100)}"/>
+    <text class="t-sm" x="${X0 - 4}" y="${py(0) + 4}" text-anchor="end">0</text>
+    <text class="t-sm" x="${X0 - 4}" y="${py(50) + 4}" text-anchor="end">50</text>
+    <text class="t-sm" x="${X0 - 4}" y="${py(100) + 4}" text-anchor="end">100</text>
+    <text class="t-sm" x="${X0}" y="117">힙 MB · 반복 0</text>
+    <text class="t-sm" x="${X1}" y="117" text-anchor="end">반복 ${ITER}회</text>
+    <path class="line" id="ln-${kind}" pathLength="1" d="${path(rc ? rcPts : msPts)}" style="stroke:${rc ? "var(--ltt-warn)" : "var(--ltt-good)"}"/>
+    <text class="t-b fade" id="tl-${kind}" x="${rc ? X1 - 6 : X1 - 6}" y="${rc ? py(25) : py(30) - 6}" text-anchor="end" style="opacity:0">${rc ? "계단식 증가 → 100 MB" : "톱니 4~20 MB, 기준선 그대로"}</text>
+  </svg>
+  <div class="snap" id="snap-${kind}" style="opacity:0"></div>`;
+  return col;
+}
+
+function snapHtml(kind, p) {
+  if (kind === "rc") {
+    return `<table><tr><th>스냅샷 클래스</th><th>개수</th><th>크기 합</th></tr>
+      <tr><td>Pair A</td><td>100</td><td>50 MB</td></tr><tr><td>Pair B</td><td>100</td><td>50 MB</td></tr></table>
+      <div class="ret">보유 경로: A ← B.peer ← A.peer … <b>서로뿐, 루트 없음</b> → 카운팅형 누수</div>`;
+  }
+  if (p >= 8) {
+    return `<table><tr><th>스냅샷 클래스</th><th>개수</th><th>크기 합</th></tr>
+      <tr><td>Pair A</td><td>1 (캐시가 쥠)</td><td>0.5 MB</td></tr><tr><td>Pair B</td><td>1 (A가 쥠)</td><td>0.5 MB</td></tr></table>
+      <div class="ret">보유 경로: B ← A.peer ← <b>전역 캐시(루트)</b> → 도달 가능한 진짜 참조 누수</div>`;
+  }
+  return `<table><tr><th>스냅샷 클래스</th><th>개수</th><th>크기 합</th></tr>
+    <tr><td>Pair A</td><td>4</td><td>2 MB</td></tr><tr><td>Pair B</td><td>4</td><td>2 MB</td></tr></table>
+    <div class="ret">보유 경로: 루트 없음 → 최근 4쌍은 다음 GC가 회수</div>`;
+}
+
+function mount(body) {
+  body.innerHTML = `<div class="gc"><div class="gc-cap" id="cap"></div><div class="gc-cols" id="cols"></div>
+    <div class="gc-ctl"><button id="prev">◀ 이전</button><button id="play">⏸ 멈춤</button><button id="next">다음 ▶</button><span class="dots" id="dots"></span>
+    <small>순환 감지기 없는 순수 카운팅 모델 · 모델로 계산한 예시 · 객체 512 KB, 쌍 1 MB, GC 임계 16 MB · CPython은 카운팅에 순환 감지기를 덧붙여 순환도 회수한다</small></div></div>`;
+  const cols = body.querySelector("#cols");
+  cols.append(side("rc"), side("ms"));
+  const $ = (id) => body.querySelector("#" + id);
+  const dots = $("dots");
+  CAPS.forEach(() => dots.appendChild(document.createElement("i")));
+  const show = (el, on) => { if (el) el.style.opacity = on ? 1 : 0; };
+  const cls = (el, c) => { el.setAttribute("class", "node" + (c ? " " + c : "")); };
+  let p = 0, timer = null, playing = true;
+
+  function set(n) {
+    p = Math.max(0, Math.min(CAPS.length - 1, n));
+    $("cap").textContent = CAPS[p];
+    [...dots.children].forEach((d, i) => d.classList.toggle("on", i <= p));
+    for (const k of ["rc", "ms"]) {
+      const rc = k === "rc";
+      const rcA = p >= 4 ? 1 : p >= 3 ? 2 : 1;
+      const rcB = p >= 4 ? 1 : p >= 2 ? 2 : 1;
+      show($("A-" + k), true);
+      show($("B-" + k), p >= 1);
+      show($("ra-" + k), p < 4 || (p >= 8 && false));
+      show($("rb-" + k), p >= 1 && p < 4);
+      show($("ab-" + k), p >= 2);
+      show($("ba-" + k), p >= 3);
+      show($("lab-ab-" + k), p >= 2);
+      show($("lab-ba-" + k), p >= 3);
+      const ra = p < 4;
+      cls($("root-" + k), "");
+      // 상태 글자와 노드 색
+      let sA = "", sB = "", nA = "", nB = "", note = "";
+      if (rc) {
+        sA = "rc = " + rcA; sB = p >= 1 ? "rc = " + rcB : "";
+        if (p >= 4) { nA = nB = "warn"; note = p >= 6 ? "루트 없이 1, 1로 남은 쌍 ×100" : "도달 불가인데 rc = 1, 1"; }
+      } else {
+        sA = p >= 5 ? "" : "도달 가능"; sB = p >= 1 && p < 5 ? "도달 가능" : "";
+        if (p === 4) { sA = sB = "아직 판정 없음"; note = "GC 시점 전: 힙은 그대로"; nA = nB = ""; }
+        if (p === 5) { sA = sB = "표시 없음 → sweep"; nA = nB = "gone"; note = "mark: 루트에서 닿는 것 0개"; }
+        if (p >= 6 && p < 8) { sA = sB = ""; nA = nB = "gone"; note = "GC마다 이 쌍들이 한꺼번에 회수"; }
+        if (p >= 8) { sA = "mark ✓"; sB = "mark ✓"; nA = nB = "good"; note = "캐시 → A → B 로 루트에서 닿음"; }
+      }
+      cls($("A-" + k), nA); cls($("B-" + k), nB);
+      $("A-" + k).style.opacity = 1; $("B-" + k).style.opacity = p >= 1 ? 1 : 0;
+      if (!rc && p >= 5 && p < 8) { $("A-" + k).style.opacity = 0.45; $("B-" + k).style.opacity = 0.45; }
+      $("sA-" + k).textContent = sA; $("sB-" + k).textContent = sB;
+      show($("sA-" + k), !!sA); show($("sB-" + k), !!sB);
+      $("sA-" + k).setAttribute("x", 344); $("sB-" + k).setAttribute("x", 344);
+      $("note-" + k).textContent = note;
+      $("note-" + k).setAttribute("x", 440);
+      $("note-" + k).setAttribute("y", rc ? 100 : 100);
+      show($("note-" + k), !!note);
+      // 캐시 반전은 mark 쪽에서만
+      if (!rc) {
+        show($("cache-ms"), p >= 8);
+        show($("ca-ms"), p >= 8);
+      }
+      // 시계열
+      $("ln-" + k).classList.toggle("on", p >= 6);
+      show($("tl-" + k), p >= 6);
+      // 스냅샷
+      const snap = $("snap-" + k);
+      snap.innerHTML = p >= 7 ? snapHtml(k, p) : "";
+      show(snap, p >= 7);
+    }
+  }
+  function tick() {
+    clearTimeout(timer);
+    if (!playing) return;
+    timer = setTimeout(() => { set(p >= CAPS.length - 1 ? 0 : p + 1); tick(); }, p === 5 || p === 6 ? 4200 : 3200);
+  }
+  $("prev").onclick = () => { playing = false; $("play").textContent = "▶ 재생"; clearTimeout(timer); set(p - 1); };
+  $("next").onclick = () => { playing = false; $("play").textContent = "▶ 재생"; clearTimeout(timer); set(p + 1); };
+  $("play").onclick = () => { playing = !playing; $("play").textContent = playing ? "⏸ 멈춤" : "▶ 재생"; tick(); };
+  set(0);
+  return {
+    enter() {
+      if (LTT.MOTION_MS === 0) { playing = false; $("play").textContent = "▶ 재생"; set(CAPS.length - 1); return; }
+      requestAnimationFrame(() => { set(0); playing = true; tick(); });
+    },
+    leave() { playing = false; clearTimeout(timer); }
+  };
+}
+
+LTT.deck({
+  title: "가비지 컬렉션 방식",
+  theme: "terminal",
+  glossary: {
+    "참조 카운트": "어떤 객체를 가리키는 참조(화살표)가 지금 몇 개인지 세어 둔 숫자. 0이 되면 바로 해제한다.",
+    "루트": "지역변수·전역변수처럼 프로그램이 직접 쥐고 있는 출발점. mark-and-sweep은 여기서 닿는 객체만 살린다."
+  },
+  scenes: [{
+    type: "contrast",
+    title: "같은 순환 쌍도 카운팅은 남기고 mark-and-sweep은 회수한다",
+    en: "Reference counting vs mark-and-sweep",
+    sub: "왼쪽은 {{참조 카운트}}, 오른쪽은 {{루트}}에서 닿는지를 본다. 같은 코드가 힙 프로파일러에서 계단식과 톱니로 갈린다.",
+    layout: "full",
+    mount,
+    takeaway: "누수 여부는 '순환인가'가 아니라 '루트에서 닿는가'로 정해진다. 스냅샷에서 '누가 붙잡고 있나'를 본다.",
+    recall: "스냅샷 보유 경로가 객체끼리 순환뿐이면 무슨 누수인가?"
+  }]
+});
+</script>
+</body>
+</html>

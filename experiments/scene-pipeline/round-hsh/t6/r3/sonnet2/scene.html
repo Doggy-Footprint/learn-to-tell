@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가비지 컬렉션 방식</title>
+<script type="application/json" id="ltt-meta">{"topic": "가비지 컬렉션 방식", "audience": "애플리케이션 개발자", "theme": "terminal", "medium": "힙 스냅샷·메모리 프로파일러", "decision": "메모리 누수 진단"}</script>
+<style>
+  .ct-side { display: grid; gap: 8px; }
+  .ct-svg, .ct-chart { width: 100%; height: auto; display: block; }
+  .ct-snap { font-size: 13px; color: var(--ltt-muted); display: grid; gap: 2px; }
+  .ct-snap b { color: var(--ltt-ink); font-weight: 600; }
+  .ct-btn { font: inherit; font-size: 13px; padding: 6px 10px; border: 1px solid var(--ltt-line-2); background: var(--ltt-card); color: var(--ltt-ink); border-radius: 6px; cursor: pointer; justify-self: start; }
+  .ct-btn[aria-pressed="true"] { border-color: var(--ltt-accent); }
+</style>
+</head>
+<body>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<script>
+const N = 100, PAIR_MS = 100, SETUP_END = 7200, CYCLE = SETUP_END + N * PAIR_MS + 2800;
+const GC_EVERY = 16, BASE = 4, PEAK = BASE + GC_EVERY;
+const C = { ink: "var(--ltt-ink)", muted: "var(--ltt-muted)", line: "var(--ltt-line-2)", acc: "var(--ltt-accent)", bad: "var(--ltt-bad)", warn: "var(--ltt-warn)", card: "var(--ltt-card)" };
+const SVG = "http://www.w3.org/2000/svg";
+const X0 = 44, X1 = 548, Y0 = 12, Y1 = 118;
+const xOf = (i) => X0 + (i / N) * (X1 - X0);
+const yOf = (mb) => Y1 - (mb / 120) * (Y1 - Y0);
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const pairsAt = (t) => (t < SETUP_END ? 1 : Math.min(N, 1 + Math.floor((t - SETUP_END) / PAIR_MS)));
+// 힙 MB: 카운팅(또는 캐시가 쥔 쌍)은 쌍마다 1 MB씩 쌓이고, mark는 16쌍마다 GC로 기준선 4 MB에 돌아간다
+const grows = (mode, cache) => mode === "count" || cache;
+const liveAt = (mode, cache, k) => (grows(mode, cache) ? k : k % GC_EVERY);
+const heapAt = (mode, cache, k) => BASE + liveAt(mode, cache, k);
+const SAY = {
+  count: [[1200, "A 생성 · rc 1 (루트가 쥠)"], [2400, "B 생성 · rc 1 (루트가 쥠)"], [3600, "A.peer = B 연결 → B의 rc 2"], [4800, "B.peer = A 연결 → A의 rc 2 · 순환 완성"], [6000, "루트가 A, B를 놓는다 → 각각 2에서 1로"], [SETUP_END, "카운트 1, 1 → 0이 아니라 해제 안 됨"]],
+  mark: [[1200, "A 생성 · 루트가 쥠"], [2400, "B 생성 · 루트가 쥠"], [3600, "A.peer = B 연결"], [4800, "B.peer = A 연결 · 세지 않고 도달만 본다"], [6000, "루트가 A, B를 놓는다 · 아직 GC가 안 와서 그대로"], [SETUP_END, "루트에서 닿지 않지만 GC가 돌 때까지 남아 있음"]],
+  cache: [[1200, "A 생성 · 루트와 전역 캐시가 쥠"], [2400, "B 생성 · 루트가 쥠"], [3600, "A.peer = B 연결"], [4800, "B.peer = A 연결"], [6000, "루트가 A, B를 놓는다 · 캐시는 A를 쥔 채"], [SETUP_END, "캐시 → A → B 경로가 남아 루트에서 닿는다"]],
+};
+LTT.expect("mark 톱니 최저는 기준선", heapAt("mark", false, GC_EVERY), BASE);
+LTT.expect("카운팅 100쌍 뒤 힙", heapAt("count", false, N), 104);
+
+const mk = (tag, attrs, parent) => {
+  const n = document.createElementNS(SVG, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+};
+const txt = (p, x, y, s, a = {}) => {
+  const n = mk("text", { x, y, "text-anchor": "middle", fill: C.ink, "font-size": 14, ...a }, p);
+  n.textContent = s;
+  return n;
+};
+
+const ST = { count: { cache: false }, mark: { cache: false } };
+
+function build(host, mode) {
+  const count = mode === "count";
+  const st = ST[mode];
+  const wrap = document.createElement("div");
+  wrap.className = "ct-side";
+  host.appendChild(wrap);
+
+  // 그림: 루트 → A, B 와 A↔B 순환 화살표 (+ mark 쪽의 전역 캐시)
+  const svg = mk("svg", { viewBox: "0 0 560 260", class: "ct-svg", role: "img" }, wrap);
+  const defs = mk("defs", {}, svg);
+  const head = mk("marker", { id: `ah-${mode}`, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto" }, defs);
+  mk("path", { d: "M0,0 L10,5 L0,10 z", fill: C.ink }, head);
+  const rootA = mk("line", { x1: 270, y1: 46, x2: 160, y2: 120, stroke: C.muted, "stroke-dasharray": "4 4", "marker-end": `url(#ah-${mode})` }, svg);
+  const rootB = mk("line", { x1: 290, y1: 46, x2: 420, y2: 120, stroke: C.muted, "stroke-dasharray": "4 4", "marker-end": `url(#ah-${mode})` }, svg);
+  const cacheLn = mk("line", { x1: 80, y1: 46, x2: 100, y2: 120, stroke: C.ink, "stroke-width": 2, "marker-end": `url(#ah-${mode})`, opacity: 0 }, svg);
+  const cacheBox = mk("rect", { x: 20, y: 10, width: 120, height: 36, rx: 6, fill: C.card, stroke: C.ink, "stroke-width": 1.5, opacity: 0 }, svg);
+  const cacheTx = txt(svg, 80, 33, "전역 캐시", { "font-size": 13, opacity: 0 });
+  const arr1 = mk("path", { d: "M210,138 Q280,88 350,138", fill: "none", stroke: C.ink, "stroke-width": 2, pathLength: 1, "stroke-dasharray": "1 1" }, svg);
+  const arr2 = mk("path", { d: "M350,172 Q280,222 210,172", fill: "none", stroke: C.ink, "stroke-width": 2, pathLength: 1, "stroke-dasharray": "1 1" }, svg);
+  const lab1 = txt(svg, 280, 98, "A.peer = B", { "font-size": 13, fill: C.muted, opacity: 0 });
+  const lab2 = txt(svg, 280, 212, "B.peer = A", { "font-size": 13, fill: C.muted, opacity: 0 });
+  mk("rect", { x: 215, y: 10, width: 130, height: 36, rx: 6, fill: C.card, stroke: C.ink, "stroke-width": 1.5 }, svg);
+  txt(svg, 280, 33, "루트 (지역변수)", { "font-size": 13 });
+  const boxA = mk("rect", { x: 70, y: 120, width: 140, height: 70, rx: 8, fill: C.card, stroke: C.ink, "stroke-width": 2 }, svg);
+  const boxB = mk("rect", { x: 350, y: 120, width: 140, height: 70, rx: 8, fill: C.card, stroke: C.ink, "stroke-width": 2, opacity: 0 }, svg);
+  txt(svg, 140, 146, "A", { "font-size": 18, "font-weight": 700 });
+  const lblB = txt(svg, 420, 146, "B", { "font-size": 18, "font-weight": 700, opacity: 0 });
+  const tagA = txt(svg, 140, 172, "", { "font-size": 14, "font-weight": 700 });
+  const tagB = txt(svg, 420, 172, "", { "font-size": 14, "font-weight": 700, opacity: 0 });
+  const say = txt(svg, 280, 248, "", { "font-size": 14, fill: C.ink });
+
+  // 프로파일러: 쌍 수에 따른 힙(MB), 두 쪽 같은 축
+  const ch = mk("svg", { viewBox: "0 0 560 150", class: "ct-chart", role: "img" }, wrap);
+  [0, 40, 80, 120].forEach((v) => {
+    mk("line", { x1: X0, x2: X1, y1: yOf(v), y2: yOf(v), stroke: C.line, "stroke-width": 1 }, ch);
+    txt(ch, X0 - 6, yOf(v) + 4, `${v}`, { "text-anchor": "end", "font-size": 12, fill: C.muted });
+  });
+  if (!count) {
+    mk("line", { x1: X0, x2: X1, y1: yOf(PEAK), y2: yOf(PEAK), stroke: C.bad, "stroke-dasharray": "4 4" }, ch);
+    txt(ch, X1, yOf(PEAK) - 6, "GC 시점 20 MB", { "text-anchor": "end", fill: C.bad, "font-size": 12 });
+  }
+  txt(ch, X0 + 2, 26, "힙 MB · 모델로 계산한 예시", { "text-anchor": "start", "font-size": 12, fill: C.muted });
+  const nowTxt = txt(ch, X0 + 2, 44, "", { "text-anchor": "start", "font-size": 16 });
+  const poly = mk("polyline", { fill: "none", stroke: C.acc, "stroke-width": 2 }, ch);
+  txt(ch, (X0 + X1) / 2, 146, "같은 코드를 반복한 쌍 수 (0 → 100)", { "font-size": 12, fill: C.muted });
+
+  const snap = document.createElement("div");
+  snap.className = "ct-snap ltt-mono";
+  const s1 = document.createElement("div"), s2 = document.createElement("div");
+  snap.append(s1, s2);
+  wrap.appendChild(snap);
+
+  let btn = null;
+  const update = (t) => {
+    const cache = st.cache;
+    const k = pairsAt(t);
+    const acc = t >= SETUP_END && k < N;
+    const off = acc ? (t - SETUP_END) % PAIR_MS : Infinity;
+    const g = GC_EVERY * Math.floor(k / GC_EVERY);
+    const gcw = !count && t >= SETUP_END && g > 0 && t - (SETUP_END + (g - 1) * PAIR_MS) < 500;
+    const flash = acc && off < 70 && !gcw;
+    const released = t >= 5400;
+    const rc = { a: 1 + (t >= 3600) - released, b: 1 + (t >= 2400) - released };
+    const live = liveAt(mode, cache, k);
+    const hasB = t >= 1200;
+    const p1 = clamp((t - 2400) / 1200), p2 = clamp((t - 3600) / 1200);
+    const rootOp = clamp(1 - (t - 4800) / 600);
+
+    arr1.setAttribute("stroke-dashoffset", 1 - p1);
+    arr1.setAttribute("marker-end", p1 >= 1 ? `url(#ah-${mode})` : "none");
+    arr2.setAttribute("stroke-dashoffset", 1 - p2);
+    arr2.setAttribute("marker-end", p2 >= 1 ? `url(#ah-${mode})` : "none");
+    lab1.setAttribute("opacity", p1);
+    lab2.setAttribute("opacity", p2);
+    rootA.setAttribute("opacity", rootOp);
+    rootB.setAttribute("opacity", hasB ? rootOp : 0);
+    const cOp = !count && cache ? 1 : 0;
+    cacheLn.setAttribute("opacity", cOp);
+    cacheBox.setAttribute("opacity", cOp);
+    cacheTx.setAttribute("opacity", cOp);
+
+    const dying = gcw && !cache;
+    const style = dying ? { op: 0.25, stroke: C.bad, w: 2 }
+      : gcw || flash ? { op: 1, stroke: C.acc, w: 4 }
+      : { op: 1, stroke: C.ink, w: 2 };
+    let tA, tB;
+    if (count) {
+      tA = `rc = ${rc.a}`; tB = `rc = ${rc.b}`;
+    } else if (t < 4800) {
+      tA = tB = "루트에 닿음";
+    } else if (gcw) {
+      tA = tB = cache ? "mark됨 → 유지" : "mark 안 됨 → 회수";
+    } else if (cache) {
+      tA = "캐시로 닿음"; tB = "A.peer로 닿음";
+    } else {
+      tA = tB = "루트 없음 · GC 전";
+    }
+    const leakFill = count && released ? C.warn : C.ink;
+    boxA.setAttribute("opacity", style.op);
+    boxB.setAttribute("opacity", hasB ? style.op : 0);
+    [boxA, boxB].forEach((b) => { b.setAttribute("stroke", style.stroke); b.setAttribute("stroke-width", style.w); });
+    tagA.textContent = tA; tagB.textContent = tB;
+    tagA.setAttribute("fill", leakFill); tagB.setAttribute("fill", leakFill);
+    tagA.setAttribute("opacity", 1);
+    tagB.setAttribute("opacity", hasB ? 1 : 0);
+    lblB.setAttribute("opacity", hasB ? 1 : 0);
+
+    const lines = SAY[count ? "count" : cache ? "cache" : "mark"];
+    say.textContent = t < SETUP_END
+      ? lines.find(([end]) => t < end)[1]
+      : count ? `쌍 ${k}: 해제 안 됨, 힙이 계속 오른다`
+      : gcw ? (cache ? "GC 시점: 캐시 경로로 닿아 mark됨, 회수 못 함" : "GC 시점: 루트에서 닿지 않는 쌍을 sweep")
+      : cache ? `쌍 ${k}: 캐시가 쥐고 있어 GC가 돌아도 쌓인다`
+      : `쌍 ${k}: GC 시점까지 쌓이는 중`;
+
+    let pts = "";
+    for (let i = 1; i <= k; i++) {
+      if (!grows(mode, cache) && i % GC_EVERY === 0) pts += `${xOf(i)},${yOf(PEAK)} `;
+      pts += `${xOf(i)},${yOf(heapAt(mode, cache, i))} `;
+    }
+    poly.setAttribute("points", pts.trim());
+    nowTxt.textContent = `${heapAt(mode, cache, k)} MB`;
+
+    s1.innerHTML = `Pair 클래스 · <b>A ${live}개 + B ${live}개</b> · retained 약 ${live} MB`;
+    s2.textContent = "보유 경로: " + (!released ? "루트 → A, B"
+      : count ? "A↔B 서로뿐, 루트까지 경로 없음"
+      : cache ? "루트 → 전역 캐시 → A ↔ B (끊을 곳은 캐시)"
+      : "루트 경로 없음 → GC에서 회수");
+  };
+  st.update = update;
+
+  if (!count) {
+    btn = document.createElement("button");
+    btn.className = "ct-btn";
+    btn.type = "button";
+    btn.setAttribute("aria-pressed", "false");
+    btn.textContent = "전역 캐시가 A를 쥐게 한다";
+    btn.onclick = () => {
+      st.cache = !st.cache;
+      btn.setAttribute("aria-pressed", String(st.cache));
+      btn.textContent = st.cache ? "캐시 빼기 (처음부터 다시)" : "전역 캐시가 A를 쥐게 한다";
+      st.T0 = performance.now();
+      if (LTT.MOTION_MS === 0) update(CYCLE - 1);
+    };
+    wrap.appendChild(btn);
+  }
+  return update;
+}
+
+function run(host, mode) {
+  const st = ST[mode];
+  const update = build(host, mode);
+  if (LTT.MOTION_MS === 0) return update(CYCLE - 1);
+  st.T0 = performance.now();
+  let seen = false;
+  const frame = () => {
+    if (host.isConnected) { seen = true; update((performance.now() - st.T0) % CYCLE); }
+    else if (seen) return;
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
+LTT.deck({
+  title: "가비지 컬렉션 방식",
+  theme: "terminal",
+  glossary: {
+    "참조 카운팅": "객체를 가리키는 참조 수를 세고, 0이 되면 바로 해제하는 방식",
+    "mark-and-sweep": "루트에서 닿는 객체를 표시(mark)하고, 표시되지 않은 나머지를 회수(sweep)하는 방식",
+  },
+  scenes: [{
+    type: "contrast",
+    kicker: "런타임 · 순환 참조",
+    title: "누수는 순환이 정하지 않는다: 카운팅은 화살표를 세고, mark는 루트에서 닿는지 본다",
+    en: "Counting asks how many arrows point in; mark-and-sweep asks whether a root reaches the object",
+    sub: "같은 코드, 같은 입력. A와 B가 서로를 가리키고 루트가 둘을 놓은 뒤, 같은 쌍을 100번 반복한다.",
+    narration: "{{참조 카운팅}}은 루트를 놓아도 A와 B가 서로를 쥐어 1, 1로 남고, 쌍마다 1 MB가 쌓인다. {{mark-and-sweep}}은 GC 시점에 루트에서 닿는 것만 표시하므로 같은 쌍이 회수되어 톱니를 그린다. 오른쪽 버튼으로 전역 캐시가 A를 쥐게 하면, mark 쪽도 루트에서 닿아 누수가 된다.",
+    before: {
+      label: "참조 카운팅",
+      note: "카운트 = 나를 가리키는 참조 수. 0이 되어야 해제된다.",
+      visual: (el) => run(el, "count"),
+    },
+    after: {
+      label: "mark-and-sweep",
+      note: "루트에서 나가는 화살표를 따라 표시. 표시되지 않은 것을 회수한다.",
+      visual: (el) => run(el, "mark"),
+    },
+    takeaway: "누수 여부는 순환인가가 아니라 루트에서 닿는가로 정해진다. 스냅샷에서는 누가 붙잡고 있는지(보유 경로)를 본다.",
+    recall: "힙 스냅샷에서 Pair가 계속 늘 때, 보유 경로가 서로뿐이면 어떤 경우이고 루트까지 이어지면 어떤 경우인가?",
+    basis: "범위: 순수 참조 카운팅 모델(순환 감지기 없음). CPython은 gc 모듈의 순환 감지기를 더해 순환을 결국 회수한다. 객체 512 KB, 기준선 4 MB, 16쌍마다 GC는 설명용 가정이다.",
+  }],
+});
+</script>
+</body>
+</html>

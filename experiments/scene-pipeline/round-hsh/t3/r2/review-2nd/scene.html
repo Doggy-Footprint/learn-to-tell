@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 합의: 과반수가 리더를 뽑고 커밋을 만든다</title>
+<script type="application/json" id="ltt-meta">{"topic":"Raft 합의","audience":"분산 시스템 입문 개발자","theme":"sketch","medium":"아키텍처 화이트보드","decision":"합의 기반 저장소 선택"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .rf { width: 100%; }
+  .rf svg { width: 100%; height: auto; display: block; }
+  .rf text { font-family: inherit; fill: var(--ltt-ink); }
+  .rf .mesh { stroke: var(--ltt-line-2); stroke-width: 1.5; opacity: .6; }
+  .rf .panel { fill: var(--ltt-card-2); stroke: var(--ltt-line-2); stroke-width: 1.5; }
+  .rf .box { fill: var(--ltt-card); stroke: var(--ltt-ink-2); stroke-width: 2; transition: stroke .3s; }
+  .rf .srv { transition: opacity .3s; }
+  .rf .srv.leader .box { stroke: var(--ltt-good); stroke-width: 4; }
+  .rf .srv.candidate .box { stroke: var(--ltt-warn); stroke-width: 4; }
+  .rf .srv.down { opacity: .35; }
+  .rf .srv.down .box { stroke-dasharray: 6 5; }
+  .rf .nm { font-size: 20px; font-weight: 700; }
+  .rf .rl { font-size: 14px; font-weight: 600; fill: var(--ltt-muted); text-anchor: end; }
+  .rf .srv.leader .rl { fill: var(--ltt-good); }
+  .rf .srv.candidate .rl { fill: var(--ltt-warn); }
+  .rf .tm { font-size: 13px; fill: var(--ltt-muted); }
+  .rf .cell rect { fill: var(--ltt-card-2); stroke: var(--ltt-line); stroke-width: 1.5; }
+  .rf .cell.pend rect { fill: var(--ltt-card); stroke: var(--ltt-muted); stroke-dasharray: 4 3; }
+  .rf .cell.ok rect { fill: var(--ltt-good-soft); stroke: var(--ltt-good); }
+  .rf .cell text { font-size: 11px; text-anchor: middle; fill: var(--ltt-ink-2); }
+  .rf .pt { font-size: 16px; font-weight: 700; text-anchor: middle; }
+  .rf .dot { fill: var(--ltt-card); stroke: var(--ltt-ink-2); stroke-width: 2; transition: fill .3s; }
+  .rf .dot.on { fill: var(--ltt-good-soft); stroke: var(--ltt-good); stroke-width: 3; }
+  .rf .dl { font-size: 12px; fill: var(--ltt-muted); }
+  .rf .pb { font-size: 30px; font-weight: 700; }
+  .rf .ps { font-size: 14px; fill: var(--ltt-ink-2); }
+  .rf .pk rect { fill: var(--ltt-card); stroke-width: 2; }
+  .rf .pk text { font-size: 12px; text-anchor: middle; }
+  .rf .pk.rv rect { stroke: var(--ltt-warn); }
+  .rf .pk.vote rect { stroke: var(--ltt-good); }
+  .rf .pk.hb rect { stroke: var(--ltt-muted); }
+  .rf .pk.ae rect { stroke: var(--ltt-accent); }
+  .rf .pk.ack rect { stroke: var(--ltt-good); }
+  .rf-cap { min-height: 3em; margin: 10px 0 6px; font-size: 16px; }
+  .rf-btn { font: inherit; padding: 4px 12px; border: 1px solid var(--ltt-line-2); border-radius: 8px; background: var(--ltt-card); color: var(--ltt-ink); cursor: pointer; }
+</style>
+</head>
+<body>
+<script>
+  const NS = "http://www.w3.org/2000/svg";
+  const mk = (tag, attrs, parent) => {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs || {}) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  const MAJ = Math.floor(5 / 2) + 1; // 5대 중 3
+  const SRV = [
+    { id: "S1", x: 500, y: 90 },
+    { id: "S2", x: 830, y: 210 },
+    { id: "S3", x: 720, y: 370 },
+    { id: "S4", x: 280, y: 370 },
+    { id: "S5", x: 170, y: 210 },
+  ];
+  const BW = 176, BH = 118;
+  const at = Object.fromEntries(SRV.map((s) => [s.id, s]));
+  // 두 상자 중심을 잇는 선이 상자 가장자리(12px 바깥)와 만나는 점
+  const edge = (a, b) => {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const tx = dx ? (BW / 2 + 12) / Math.abs(dx) : Infinity;
+    const ty = dy ? (BH / 2 + 12) / Math.abs(dy) : Infinity;
+    const t = Math.min(tx, ty);
+    return { x: a.x + dx * t, y: a.y + dy * t };
+  };
+
+  const figure = (el) => {
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const wrap = document.createElement("div");
+    wrap.className = "rf";
+    el.appendChild(wrap);
+    const svg = mk("svg", { viewBox: "0 0 1000 440", role: "img", "aria-label": "서버 5대의 선출과 복제" }, wrap);
+    const gMesh = mk("g", {}, svg);
+    for (let i = 0; i < SRV.length; i++) for (let j = i + 1; j < SRV.length; j++) {
+      const p = edge(SRV[i], SRV[j]), q = edge(SRV[j], SRV[i]);
+      mk("line", { x1: p.x, y1: p.y, x2: q.x, y2: q.y, class: "mesh" }, gMesh);
+    }
+    const gPn = mk("g", {}, svg);
+    const gPk = mk("g", {}, svg);
+    const gNd = mk("g", {}, svg);
+
+    // 가운데 표·저장 패널
+    mk("rect", { x: 390, y: 160, width: 220, height: 156, rx: 14, class: "panel" }, gPn);
+    const pTitle = mk("text", { x: 500, y: 186, class: "pt" }, gPn);
+    const dots = SRV.map((s, i) => {
+      const x = 430 + i * 40;
+      const c = mk("circle", { cx: x, cy: 216, r: 14, class: "dot" }, gPn);
+      mk("text", { x, y: 246, "text-anchor": "middle", class: "dl" }, gPn).textContent = s.id;
+      return { id: s.id, c };
+    });
+    const pBig = mk("text", { x: 500, y: 282, "text-anchor": "middle", class: "pb" }, gPn);
+    const pSub = mk("text", { x: 500, y: 304, "text-anchor": "middle", class: "ps" }, gPn);
+
+    // 서버 상자: 역할, term, 로그 칸(index 4~7)
+    const nodes = {};
+    for (const s of SRV) {
+      const g = mk("g", { class: "srv", transform: `translate(${s.x - BW / 2},${s.y - BH / 2})` }, gNd);
+      mk("rect", { width: BW, height: BH, rx: 12, class: "box" }, g);
+      mk("text", { x: 16, y: 30, class: "nm" }, g).textContent = s.id;
+      const rl = mk("text", { x: BW - 14, y: 30, class: "rl" }, g);
+      const tm = mk("text", { x: 16, y: 54, class: "tm" }, g);
+      const cells = {};
+      [4, 5, 6, 7].forEach((idx, i) => {
+        const cg = mk("g", { class: "cell none", transform: `translate(${14 + i * 39},66)` }, g);
+        mk("rect", { width: 34, height: 40, rx: 6 }, cg);
+        const a = mk("text", { x: 17, y: 17 }, cg);
+        const b = mk("text", { x: 17, y: 33 }, cg);
+        cells[idx] = { g: cg, a, b };
+      });
+      nodes[s.id] = { g, rl, tm, cells };
+    }
+
+    const ROLE = { follower: "팔로워", candidate: "후보", leader: "리더", down: "멈춤" };
+    const setRole = (id, role, term) => {
+      const n = nodes[id];
+      n.g.setAttribute("class", "srv " + role);
+      n.rl.textContent = ROLE[role];
+      n.tm.textContent = "term " + term;
+    };
+    const setCell = (id, idx, state, term) => {
+      const c = nodes[id].cells[idx];
+      c.g.setAttribute("class", "cell " + state);
+      c.a.textContent = state === "none" ? "" : String(idx);
+      c.b.textContent = state === "none" ? "" : "t" + term;
+    };
+
+    const votes = new Set(), stored = new Set();
+    let mode = "vote";
+    const paint = () => {
+      const vote = mode === "vote";
+      const set = vote ? votes : stored;
+      const n = set.size;
+      pTitle.textContent = vote ? (votes.size ? "선출 표 · term 4" : "선출 표") : "index 7 저장 · 리더 S3";
+      dots.forEach((d) => d.c.setAttribute("class", "dot" + (set.has(d.id) ? " on" : "")));
+      pBig.textContent = `${n} / 5 ${vote ? "표" : "저장"}`;
+      pSub.textContent = n >= MAJ
+        ? (vote ? `과반 ${MAJ}표 → 리더 확정` : `과반 ${MAJ}대 저장 → 커밋`)
+        : (vote ? `과반 ${MAJ}표가 필요하다` : `과반 ${MAJ}대가 저장해야 커밋된다`);
+    };
+
+    // 메시지 한 개: 두 상자 가장자리 사이를 이동하는 라벨
+    const packet = (from, to, label, kind, ms) => new Promise((done) => {
+      const p = edge(at[from], at[to]), q = edge(at[to], at[from]);
+      const g = mk("g", { class: "pk " + kind }, gPk);
+      mk("rect", { x: -40, y: -11, width: 80, height: 22, rx: 11 }, g);
+      mk("text", { y: 4 }, g).textContent = label;
+      const t0 = performance.now(), dur = reduce ? 0 : ms;
+      const tick = (now) => {
+        const k = dur ? Math.min(1, (now - t0) / dur) : 1;
+        g.setAttribute("transform", `translate(${p.x + (q.x - p.x) * k},${p.y + (q.y - p.y) * k})`);
+        if (k < 1) requestAnimationFrame(tick);
+        else { g.remove(); done(); }
+      };
+      requestAnimationFrame(tick);
+    });
+
+    const cap = document.createElement("div");
+    cap.className = "rf-cap";
+    const btn = document.createElement("button");
+    btn.className = "rf-btn";
+    btn.type = "button";
+    btn.textContent = "다시 보기";
+    wrap.append(cap, btn);
+    const say = (text) => { cap.textContent = text; };
+
+    const wait = (ms) => new Promise((r) => setTimeout(r, reduce ? 0 : ms));
+    const reset = () => {
+      while (gPk.firstChild) gPk.removeChild(gPk.firstChild);
+      for (const s of SRV) {
+        setRole(s.id, "follower", 3);
+        setCell(s.id, 4, "ok", 1);
+        setCell(s.id, 5, "ok", 2);
+        setCell(s.id, 6, "ok", 3);
+        setCell(s.id, 7, "none", 0);
+      }
+      setRole("S1", "leader", 3);
+      votes.clear(); stored.clear(); mode = "vote"; paint();
+    };
+
+    let run = 0;
+    const play = async () => {
+      const me = ++run;
+      const alive = () => { if (me !== run || !wrap.isConnected) throw 0; }; // 다시 보기로 밀려난 이전 재생은 멈춘다
+      const beat = async (ms) => { await wait(ms); alive(); };
+      const beats = async (list) => { await Promise.all(list); alive(); };
+      reset();
+      try {
+        say("① 리더 S1이 정상이다. 리더는 생존 신호를 보내 팔로워의 타이머를 되돌린다.");
+        await beats(["S2", "S3", "S4", "S5"].map((t) => packet("S1", t, "생존 신호", "hb", 800)));
+        await beat(600);
+
+        say("② S1이 멈췄다. 생존 신호가 끊기고 팔로워들의 타이머가 돌기 시작한다.");
+        setRole("S1", "down", 3);
+        await beat(1200);
+
+        say("③ 팔로워 S3의 타이머(150~300ms 무작위)가 먼저 끝나 후보가 된다. term을 4로 올리고 자기에게 표를 준다.");
+        setRole("S3", "candidate", 4);
+        votes.add("S3"); paint();
+        await beat(1400);
+
+        say("④ 후보는 나머지 서버에 투표 요청을 보낸다. 서버는 term마다 한 표만, 그리고 후보 로그가 자기보다 최신일 때만 준다.");
+        await beats(["S2", "S4", "S5"].map((t) => packet("S3", t, "투표 요청", "rv", 900)));
+        for (const t of ["S2", "S4", "S5"]) setRole(t, "follower", 4);
+        await beat(300);
+
+        say("⑤ S2가 표를 주고, S4도 표를 준다. 3/5이 되는 순간 S3이 리더가 된다. S1이 멈췄어도 과반은 채워진다.");
+        await packet("S2", "S3", "표 줌", "vote", 700);
+        votes.add("S2"); paint(); alive();
+        await packet("S4", "S3", "표 줌", "vote", 700);
+        votes.add("S4"); setRole("S3", "leader", 4); paint(); alive();
+        await beat(1000);
+
+        say("⑥ 리더는 곧바로 생존 신호를 보내 다른 서버의 타이머를 되돌린다. 나머지는 조용한 팔로워로 남는다.");
+        await beats(["S2", "S4", "S5"].map((t) => packet("S3", t, "생존 신호", "hb", 800)));
+        await beat(400);
+
+        say("⑦ 클라이언트 요청은 리더 S3만 받는다. S3이 자기 로그 끝 index 7(term 4)에 먼저 쓴다. 이 시점에는 미커밋(점선)이다.");
+        setCell("S3", 7, "pend", 4);
+        stored.add("S3"); mode = "store"; paint();
+        await beat(1400);
+
+        say("⑧ 리더가 index 7을 복제 메시지로 보낸다. 받은 서버는 같은 항목을 자기 로그에 쓴다. 아직 점선이다.");
+        await beats(["S2", "S4", "S5"].map((t) => packet("S3", t, "복제", "ae", 900)));
+        for (const t of ["S2", "S4", "S5"]) setCell(t, 7, "pend", 4);
+        await beat(300);
+
+        say("⑨ S2가 저장을 확인하고, S4도 확인한다. 리더 포함 3/5이 저장했으므로 S3이 index 7을 커밋한다.");
+        await packet("S2", "S3", "저장 확인", "ack", 700);
+        stored.add("S2"); paint(); alive();
+        await packet("S4", "S3", "저장 확인", "ack", 700);
+        stored.add("S4"); paint(); alive();
+        setCell("S3", 7, "ok", 4);
+        await beat(1000);
+
+        say("⑩ 커밋은 복제 뒤에 붙는다. 리더는 커밋 위치를 다음 생존 신호에 실어 보내고, 팔로워는 받은 뒤에야 커밋해 상태 기계에 적용한다.");
+        await beats(["S2", "S4", "S5"].map((t) => packet("S3", t, "커밋 7 전달", "hb", 900)));
+        for (const t of ["S2", "S4", "S5"]) setCell(t, 7, "ok", 4);
+
+        say("정리 · 과반수는 두 번 쓰였다. 선출에서 3/5 표가 리더를 만들고, 복제에서 3/5 저장이 커밋을 만든다. S1이 멈춰도 나머지는 같은 순서의 같은 기록을 갖는다.");
+      } catch (e) {
+        if (e !== 0) throw e;
+      }
+    };
+
+    btn.onclick = () => play();
+    play();
+    return { el: wrap, leave() { run++; } };
+  };
+
+  LTT.expect("5대 과반수", MAJ, 3, { tol: 0 });
+
+  LTT.deck({
+    title: "Raft 합의: 과반수가 리더를 뽑고 커밋을 만든다",
+    theme: "sketch",
+    glossary: {
+      "과반수": "전체 서버 수의 절반을 넘는 수. 5대면 3대다.",
+      "리더": "로그를 쓰고 복제를 이끄는 서버. 한 term에 최대 한 명이다.",
+      "커밋": "과반수가 저장해서 더는 사라지지 않는다고 확정한 항목.",
+    },
+    scenes: [{
+      type: "summary",
+      title: "{{과반수}} 규칙 두 개가 이 장면을 끝까지 끌고 간다",
+      cards: [
+        { title: "선출", text: "5대 중 3표를 얻은 서버만 {{리더}}가 된다.", recall: "5대 중 2표만 모이면 리더가 되는가?" },
+        { title: "저장 확정", text: "리더 포함 5대 중 3대가 저장한 항목만 {{커밋}}된다.", recall: "리더 포함 2대만 저장하면 커밋되는가?" },
+      ],
+    }, {
+      type: "overview",
+      kicker: "분산 시스템 · Raft 합의",
+      title: "같은 과반수 규칙이 리더를 뽑고 항목을 커밋한다",
+      en: "One majority elects, one majority commits",
+      sub: "서버 5대 중 3대가 같은 답을 내야 움직인다. {{리더}} 한 명이 로그를 쓰고, {{과반수}}가 저장한 항목만 {{커밋}}된다.",
+      figure,
+      caption: "S1 리더가 멈춘 뒤 S3이 선출되고, 클라이언트 index 7을 커밋하기까지",
+      label: "선출 → 복제 → 커밋",
+      takeaway: "선출도 커밋도 {{과반수}}(5대 중 3대)로 정한다. 5대는 2대가 멈춰도 움직이고, 3대가 멈추면 멈춘다.",
+      recall: "서버 5대 중 3대가 멈추면 리더를 뽑을 수 있는가?",
+      basis: "과반수 = floor(N/2)+1. N=5면 3, 2대 장애까지 견딘다. 시나리오 수치는 모델로 계산한 예시.",
+    }, {
+      type: "keywords",
+      terms: [
+        { ko: "과반수", en: "majority" },
+        { ko: "리더", en: "leader" },
+        { ko: "커밋", en: "commit" },
+      ],
+    }],
+  });
+</script>
+</body>
+</html>

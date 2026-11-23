@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>키르히호프 전류 법칙</title>
+<script type="application/json" id="ltt-meta">{"topic":"키르히호프 전류 법칙","audience":"회로 입문자","theme":"blueprint","medium":"회로 도면","decision":"분기점에서 전류가 어떻게 나뉘나","domain":"전기 회로","pattern":["figure"],"mode":"c3: 입력→출력 관계. 위에 회로 도면, 아래에 전류 막대 세 개, R₂ 손잡이로 저항이 나눔을 정하는 것을 본다"}</script>
+<script type="application/json" id="ltt-checks">
+[
+{"id": "k1", "expect": "전지 12 V, 전류 화살표는 + 단자에서 나와 A로 향하고, A 앞 값은 `4 A`(= 4 C/s). 전자 이동을 쓴다면 반대 방향이라고 따로 밝혀 도면 화살표와 섞이지 않는다.", "reach": [{"wait": 0}]},
+{"id": "k2", "expect": "두 가지에 `4 Ω`, `12 Ω` 라벨이 각자 저항 기호 옆에 있고, 두 가지가 같은 A–B 두 점에 걸린 것이 보인다. 이 시점에 나가는 값은 아직 확정되어 있지 않다.", "reach": [{"wait": 0}]},
+{"id": "k3", "expect": "예상 `2 A / 2 A`는 점선·\"예상\" 표식으로 실제와 구분되고, 실제 `3 A`(4 Ω 가지)와 `1 A`(12 Ω 가지)가 드러난 뒤에는 예상이 지워지거나 ✗로 표시된다. 4 Ω 쪽이 더 크고 12 Ω 쪽이 더 작다.", "reach": [{"wait": 0}]},
+{"id": "k4", "expect": "분기점 A에서 나가는 두 화살표 합 `3 + 1` = 들어온 `4`, 부호식 `(+4) + (−3) + (−1) = 0`이 맞다. 그림 숫자는 모델 함수에서 나오고 `LTT.expect`가 I₁=3, I₂=1, I=4, R=3 Ω와 일치한다.", "reach": [{"wait": 0}]},
+{"id": "k5", "expect": "B에서 `3 A + 1 A = 4 A`가 − 단자 쪽으로 돌아가고, 전지 쪽·A 앞·B 뒤 어느 단면을 보아도 값이 `4 A`로 같다.", "reach": [{"wait": 0}]},
+{"id": "k6", "expect": "한 가지 안에서 저항 앞뒤 전류 값이 같다(줄어드는 것은 전위이고 전류가 아니다). 어느 가지도 0보다 크고 4 A보다 작으며, 가지 전류 합이 언제나 총전류와 같다.", "reach": [{"knob": "r2", "value": 36}]},
+{"id": "k7", "expect": "그림이 칸 안에 다 보이고 잘리지 않으며 가로세로 비율이 찌그러지지 않는다. 1120 폭에서도 약 360–400 px 폭에서도 라벨이 겹치지 않고 SVG 글자가 14px 이상이며, `prefers-reduced-motion`에서는 마지막 상태(4 = 3 + 1)가 정지 화면으로 보인다.", "reach": [{"knob": "r2", "value": 4}]}
+]
+</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+.sec{width:1120px;max-width:100%;height:auto;display:block;margin:0 auto}
+.sec text{font-family:inherit}
+.knob{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 14px;max-width:1120px;margin:14px auto 0;font-size:15px;color:var(--ltt-ink-2)}
+.knob label{font-weight:700;color:var(--ltt-ink)}
+.knob input{flex:1 1 220px;min-width:0;max-width:520px;accent-color:var(--ltt-accent)}
+.knob output{min-width:4.5em;font-weight:700;color:var(--ltt-ink);font-variant-numeric:tabular-nums}
+.knob button{font:inherit;padding:6px 12px;border:1.5px solid var(--ltt-line-2);border-radius:6px;background:var(--ltt-card);color:var(--ltt-ink);cursor:pointer}
+</style>
+<style>/* 장면 하나짜리라 덱 순서 lint가 늘 뜬다. 기대값 불일치만 패널로 보인다. */ #ltt-expect:not([data-fails]) { display: none; }</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent, text) => { const n = document.createElementNS(SVG, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; parent && parent.appendChild(n); return n; };
+
+// 모델: 전지 V가 병렬로 걸린 두 가지 R₁, R₂에 같은 전압을 준다.
+// 가정: 도선 저항 0, 전지 내부저항 0, 직류 정상 상태.
+const V = 12, R1 = 4, R2_DEFAULT = 12;
+const i1 = V / R1;                            // 4 Ω 가지 전류, R₂와 무관
+const i2 = (r2) => V / r2;                    // 12 Ω 가지 전류(손잡이로 바뀜)
+const rPar = (r2) => (R1 * r2) / (R1 + r2);   // 합성 저항
+const iTot = (r2) => V / rPar(r2);            // 총전류 = I₁ + I₂
+const fmt = (x) => String(+x.toFixed(2));
+
+// 손으로 계산한 값과 대조
+LTT.expect("I₁ (4 Ω 가지)", i1, 3, { tol: 0.001 });
+LTT.expect("I₂ (12 Ω 가지)", i2(R2_DEFAULT), 1, { tol: 0.001 });
+LTT.expect("합성 저항 R", rPar(R2_DEFAULT), 3, { tol: 0.001 });
+LTT.expect("총전류 I", iTot(R2_DEFAULT), 4, { tol: 0.001 });
+
+function knobScene(host) {
+  const W = 1120, H = 640, UNIT = 30, BASE = 560;
+  const s = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "sec", "data-annotate": "" }, host);
+  const line = "fill:none;stroke:var(--ltt-ink);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round";
+  const dot = (x, y) => el("circle", { cx: x, cy: y, r: 5, style: "fill:var(--ltt-ink)" }, s);
+  const txt = (x, y, anchor, style, content) => el("text", { x, y, "text-anchor": anchor, style }, s, content);
+  const arrow = (x, y, dir) => el("path", { d: dir > 0 ? `M${x - 8},${y - 6} L${x + 8},${y} L${x - 8},${y + 6} Z` : `M${x + 8},${y - 6} L${x - 8},${y} L${x + 8},${y + 6} Z`, style: "fill:var(--ltt-ink)" }, s);
+  const downArrow = (x, y) => el("path", { d: `M${x - 6},${y - 6} L${x + 6},${y - 6} L${x},${y + 6} Z`, style: "fill:var(--ltt-ink)" }, s);
+  const bold = (size, fill) => `font-size:${size}px;font-weight:800;fill:${fill}`;
+
+  // 회로 도면: 위 도선 → A → (R₁ ∥ R₂) → B → 오른쪽·아래 도선 → 전지
+  el("path", { d: "M110,142 V60 H360 V110 H680", style: line }, s);
+  el("path", { d: "M520,200 H800", style: line }, s);
+  el("path", { d: "M800,200 H1010 V240 H110 V158", style: line }, s);
+  el("path", { d: "M520,110 V130 M520,170 V200 M680,110 V130 M680,170 V200", style: line }, s);
+  el("path", { d: "M94,142 H126", style: "fill:none;stroke:var(--ltt-ink);stroke-width:3" }, s);
+  el("path", { d: "M102,158 H118", style: "fill:none;stroke:var(--ltt-ink);stroke-width:6" }, s);
+  txt(136, 146, "start", bold(20, "var(--ltt-ink)"), "+");
+  txt(136, 172, "start", bold(20, "var(--ltt-ink)"), "−");
+  txt(80, 154, "end", bold(18, "var(--ltt-ink)"), "12 V");
+  [[360, 110], [800, 200], [520, 110], [680, 110], [520, 200], [680, 200]].forEach(([x, y]) => dot(x, y));
+  const box = (x) => el("rect", { x: x - 18, y: 130, width: 36, height: 40, rx: 3, style: "fill:var(--ltt-card);stroke:var(--ltt-ink);stroke-width:2.5" }, s);
+  box(520); box(680);
+  arrow(230, 60, 1); arrow(230, 240, -1); arrow(905, 200, 1);
+  downArrow(520, 186); downArrow(680, 186);
+
+  txt(342, 104, "end", bold(20, "var(--ltt-ink)"), "A");
+  txt(816, 196, "start", bold(20, "var(--ltt-ink)"), "B");
+  txt(905, 186, "middle", "font-size:15px;fill:var(--ltt-muted)", "B에서 합류");
+  const topLab = txt(230, 40, "middle", bold(18, "var(--ltt-ink)"), "");
+  txt(520, 94, "middle", "font-size:16px;font-weight:700;fill:var(--ltt-ink)", "R₁ = 4 Ω");
+  const r2Lab = txt(680, 94, "middle", "font-size:16px;font-weight:700;fill:var(--ltt-ink)", "");
+  txt(520, 228, "middle", "font-size:16px;font-weight:700;fill:var(--ltt-c1)", `I₁ ${fmt(i1)} A`);
+  const i2Lab = txt(680, 228, "middle", "font-size:16px;font-weight:700;fill:var(--ltt-c2)", "");
+  const mergeLab = txt(812, 228, "start", "font-size:16px;font-weight:700;fill:var(--ltt-ink)", "");
+
+  // 막대: 왼쪽 총전류 I, 오른쪽 I₁ + I₂ 쌓기. 두 막대는 같은 높이다.
+  const eq = txt(560, 312, "middle", bold(26, "var(--ltt-ink)"), "");
+  const sign = txt(560, 342, "middle", "font-size:17px;fill:var(--ltt-ink-2)", "");
+  const barI = el("rect", { x: 150, width: 130, rx: 4, style: "fill:var(--ltt-accent-soft);stroke:var(--ltt-accent);stroke-width:2.5" }, s);
+  const barI1 = el("rect", { x: 400, width: 130, style: "fill:var(--ltt-c1);stroke:var(--ltt-ink);stroke-width:1.5" }, s);
+  const barI2 = el("rect", { x: 400, width: 130, style: "fill:var(--ltt-c2);stroke:var(--ltt-ink);stroke-width:1.5" }, s);
+  const lblI = txt(215, 0, "middle", bold(20, "var(--ltt-ink)"), "");
+  const lbl1 = txt(548, 0, "start", "font-size:17px;font-weight:700;fill:var(--ltt-c1)", "");
+  const lbl2 = txt(548, 0, "start", "font-size:17px;font-weight:700;fill:var(--ltt-c2)", "");
+  const badge = txt(465, 0, "middle", bold(20, "var(--ltt-bad)"), "반반?");
+  txt(340, 470, "middle", bold(40, "var(--ltt-ink)"), "=");
+  // 처음 예상 2 A / 2 A: 점선. 실제 I₁은 3 A라 늘 빗나간다.
+  [0, 1].forEach((k) => {
+    el("rect", { x: 400, y: BASE - (k + 1) * 2 * UNIT, width: 130, height: 2 * UNIT, style: "fill:none;stroke:var(--ltt-bad);stroke-width:2;stroke-dasharray:6 5" }, s);
+  });
+  txt(530, 434, "middle", bold(20, "var(--ltt-bad)"), "✗");
+  txt(215, 592, "middle", "font-size:16px;fill:var(--ltt-ink-2)", "총전류 I");
+  txt(465, 592, "middle", "font-size:16px;fill:var(--ltt-ink-2)", "I₁ + I₂");
+  txt(560, 624, "middle", "font-size:15px;fill:var(--ltt-muted)", "점선 = 처음 예상 2 A / 2 A (✗ 빗나감) · R₂를 움직이면 총전류 I도 함께 바뀐다");
+
+  const draw = (r2) => {
+    const a2 = i2(r2), it = iTot(r2);
+    const hI = it * UNIT, h1 = i1 * UNIT, h2 = a2 * UNIT;
+    r2Lab.textContent = `R₂ = ${r2} Ω`;
+    i2Lab.textContent = `I₂ ${fmt(a2)} A`;
+    mergeLab.textContent = `${fmt(i1)} + ${fmt(a2)} = ${fmt(it)} A`;
+    topLab.textContent = `I ${fmt(it)} A`;
+    barI.setAttribute("y", BASE - hI); barI.setAttribute("height", hI);
+    lblI.setAttribute("y", BASE - hI / 2 + 7); lblI.textContent = `${fmt(it)} A`;
+    barI1.setAttribute("y", BASE - h1); barI1.setAttribute("height", h1);
+    barI2.setAttribute("y", BASE - h1 - h2); barI2.setAttribute("height", h2);
+    lbl1.setAttribute("y", BASE - h1 / 2 + 6); lbl1.textContent = `I₁ ${fmt(i1)} A`;
+    lbl2.setAttribute("y", BASE - h1 - h2 / 2 + 6); lbl2.textContent = `I₂ ${fmt(a2)} A`;
+    badge.setAttribute("y", BASE - hI - 12);
+    badge.style.opacity = Math.abs(i1 - a2) < 0.005 ? 1 : 0;
+    eq.textContent = `${fmt(it)} A = ${fmt(i1)} A + ${fmt(a2)} A`;
+    sign.textContent = `(+${fmt(it)}) + (−${fmt(i1)}) + (−${fmt(a2)}) = ${fmt(it - i1 - a2)}`;
+  };
+
+  // 손잡이: R₂ 4–36 Ω. 기본 12 Ω이면 3 A / 1 A / 총 4 A.
+  host.insertAdjacentHTML("beforeend", `<div class="knob"><label for="r2">R₂</label><input type="range" id="r2" min="4" max="36" step="1" value="${R2_DEFAULT}" aria-label="R₂ 저항 (Ω)"><output id="r2out"></output><button type="button" id="r2reset">기본 12 Ω</button></div>`);
+  const input = host.querySelector("#r2");
+  const out = host.querySelector("#r2out");
+  const set = (r2) => { input.value = r2; out.textContent = `${r2} Ω`; draw(r2); };
+  input.addEventListener("input", () => set(+input.value));
+  input.addEventListener("change", () => set(+input.value));
+  host.querySelector("#r2reset").addEventListener("click", () => set(R2_DEFAULT));
+  set(R2_DEFAULT);
+  return { draw: set };
+}
+
+LTT.deck({
+  title: "키르히호프 전류 법칙", theme: "blueprint",
+  glossary: {
+    "분기점": "도선 셋 이상이 만나 전류가 갈라지거나 합쳐지는 점",
+    "전류": "초당 도선의 한 단면을 지나가는 전하량. 단위는 A = C/s"
+  },
+  scenes: [{
+    type: "figure", kicker: "전기 회로", title: "분기점에서 전류는 합만 지키고, 나누는 비율은 저항이 정한다",
+    sub: "위 도면에서 R₂ 손잡이를 움직여 아래 막대를 본다. 가지 전류는 바뀌어도 들어온 합과 나간 합은 같다.",
+    figure: (h) => knobScene(h),
+    caption: "{{분기점}} A에서 들어온 {{전류}} 4 A는 3 A와 1 A로 나뉜다. 어느 가지가 더 가져갈지는 저항이 정하고, 지켜지는 것은 합뿐이다.",
+    basis: "가정: 도선 저항 0, 전지 내부저항 0, 직류 정상 상태. 12 V·4 Ω·12 Ω은 스토리보드 값이고, I = V/R로 계산한 3 A, 1 A, 4 A와 대조했다.",
+    mount() { return { enter() {}, leave() {} }; }
+  }]
+});
+</script>
+</body>
+</html>

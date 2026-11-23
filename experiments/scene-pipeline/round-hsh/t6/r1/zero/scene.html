@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가비지 컬렉션 방식</title>
+<script type="application/json" id="ltt-meta">{"topic":"가비지 컬렉션 방식","audience":"애플리케이션 개발자","theme":"terminal","medium":"힙 스냅샷·메모리 프로파일러","decision":"메모리 누수 진단"}</script>
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .gc-fig { width: 100%; height: auto; display: block; }
+  .gc-fig text { font-family: var(--ltt-mono, ui-monospace, monospace); fill: var(--ltt-ink); }
+  .gc-fig .nd rect { fill: var(--ltt-card); stroke: var(--ltt-line-2); stroke-width: 2; transition: all .5s; }
+  .gc-fig .nd { transition: opacity .6s; }
+  .gc-fig .edge { stroke: var(--ltt-ink-2); stroke-width: 2; fill: none; transition: opacity .5s; }
+  .gc-fig .m { fill: var(--ltt-muted); font-size: 13px; }
+  .gc-fig .cnt { font-size: 18px; font-weight: 700; transition: opacity .4s; }
+  .gc-fig .h { font-size: 15px; font-weight: 700; }
+  .gc-fig .row { font-size: 13px; transition: opacity .4s; }
+  .gc-fig .tag { font-size: 13px; font-weight: 700; transition: opacity .4s; }
+</style>
+</head>
+<body>
+<script>
+const SVG = "http://www.w3.org/2000/svg";
+const mk = (p, n, a = {}, t) => { const e = document.createElementNS(SVG, n); for (const k in a) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; p.appendChild(e); return e; };
+
+function gcFigure(el) {
+  const svg = mk(el, "svg", { viewBox: "0 0 1000 470", class: "gc-fig" });
+  const defs = mk(svg, "defs");
+  const mkr = mk(defs, "marker", { id: "ar", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" });
+  mk(mkr, "path", { d: "M0 0L10 5L0 10z", style: "fill:var(--ltt-ink-2)" });
+  const P = {};
+  const panel = (key, ox, title, sub) => {
+    const o = P[key] = {};
+    mk(svg, "text", { x: ox + 10, y: 26, class: "h" }, title);
+    mk(svg, "text", { x: ox + 10, y: 46, class: "m" }, sub);
+    const node = (id, x, y, label) => {
+      const g = mk(svg, "g", { class: "nd" });
+      const r = mk(g, "rect", { x, y, width: 90, height: 48, rx: 8 });
+      mk(g, "text", { x: x + 45, y: y + 30, "text-anchor": "middle", style: "font-size:17px;font-weight:700" }, label);
+      o[id] = { g, r, x, y };
+    };
+    const ln = (id, x1, y1, x2, y2, d) => { o[id] = mk(svg, "path", { d: d || `M${x1} ${y1}L${x2} ${y2}`, class: "edge", "marker-end": "url(#ar)" }); };
+    node("root", ox + 10, 100, "root"); node("A", ox + 180, 80, "A"); node("B", ox + 350, 80, "B"); node("C", ox + 180, 190, "C");
+    ln("rA", ox + 100, 118, ox + 180, 106);
+    ln("rC", ox + 100, 132, ox + 180, 208);
+    ln("AB", 0, 0, 0, 0, `M${ox + 270} ${95}L${ox + 350} ${95}`);
+    ln("BA", 0, 0, 0, 0, `M${ox + 350} ${118}L${ox + 270} ${118}`);
+    mk(svg, "text", { x: ox + 310, y: 84, class: "m", "text-anchor": "middle" }, "next");
+    mk(svg, "text", { x: ox + 310, y: 140, class: "m", "text-anchor": "middle" }, "prev");
+    o.cut = mk(svg, "text", { x: ox + 125, y: 96, class: "tag", style: "fill:var(--ltt-bad);opacity:0", "text-anchor": "middle" }, "✕ 끊김");
+    // profiler box
+    mk(svg, "rect", { x: ox + 10, y: 285, width: 460, height: 130, rx: 8, style: "fill:var(--ltt-card-2);stroke:var(--ltt-line)" });
+    mk(svg, "text", { x: ox + 24, y: 308, class: "m" }, "힙 스냅샷 · 수거 뒤 남은 객체와 보유 경로");
+    o.rows = [];
+    o.status = mk(svg, "text", { x: ox + 24, y: 440, class: "tag", style: "opacity:0" }, "");
+    return ox;
+  };
+  panel("rc", 0, "참조 카운팅", "객체마다 ‘나를 가리키는 참조 수’를 들고 있다");
+  panel("ms", 520, "mark-and-sweep", "수거 때 root에서 닿는 객체만 mark, 나머지는 sweep");
+  // counts (RC)
+  const cnt = {};
+  [["A", 180 + 60, 74], ["B", 350 + 60, 74], ["C", 180 + 60, 184]].forEach(([k, x, y]) => {
+    cnt[k] = mk(svg, "text", { x: x + 30, y, class: "cnt", style: "opacity:0", "text-anchor": "middle" }, "");
+  });
+  // marks (M&S)
+  const markT = {};
+  [["root", 530, 94], ["C", 700, 184]].forEach(([k, x, y]) => {
+    markT[k] = mk(svg, "text", { x: x + 45, y, class: "tag", style: "opacity:0;fill:var(--ltt-good)", "text-anchor": "middle" }, "mark ✓");
+  });
+  markT.A = mk(svg, "text", { x: 700 + 45, y: 74, class: "tag", style: "opacity:0;fill:var(--ltt-bad)", "text-anchor": "middle" }, "mark 안 됨");
+  markT.B = mk(svg, "text", { x: 870 + 45, y: 74, class: "tag", style: "opacity:0;fill:var(--ltt-bad)", "text-anchor": "middle" }, "mark 안 됨");
+  // profiler rows
+  const rowT = (ox, y, txt, bad) => mk(svg, "text", { x: ox + 24, y, class: "row", style: "opacity:0" + (bad ? ";fill:var(--ltt-bad)" : "") }, txt);
+  const rcRows = [rowT(0, 334, "A  보유자: B.prev  ← 루트 경로 없음", true), rowT(0, 358, "B  보유자: A.next  ← 루트 경로 없음", true), rowT(0, 386, "A ⇄ B 는 서로만 붙들고 있다 → 누수 2개", false)];
+  const msRows = [rowT(520, 334, "C  보유자: root", false), rowT(520, 358, "A, B 는 목록에 없음 (수거됨)", false)];
+  const msWait = rowT(520, 334, "아직 수거 전 — 전부 살아 있다", false);
+  const rcWait = rowT(0, 334, "루트가 끊기기 전 — 전부 정상", false);
+  rcWait.style.opacity = 1; msWait.style.opacity = 1;
+
+  const S = (e, v) => { e.style.opacity = v; };
+  const stroke = (r, c, dash) => { r.style.stroke = c; r.style.strokeDasharray = dash || ""; };
+
+  function set(n) {
+    const rc = P.rc, ms = P.ms;
+    // counts
+    S(cnt.A, n >= 1 ? 1 : 0); S(cnt.B, n >= 1 ? 1 : 0); S(cnt.C, n >= 1 ? 1 : 0);
+    cnt.A.textContent = "참조 " + (n >= 2 ? 1 : 2); cnt.B.textContent = "참조 1"; cnt.C.textContent = "참조 1";
+    [cnt.A, cnt.B, cnt.C].forEach(t => t.style.fill = "var(--ltt-ink)");
+    if (n >= 2) cnt.A.style.fill = "var(--ltt-warn)";
+    // root cut
+    [rc.rA, ms.rA].forEach(e => { e.style.opacity = n >= 2 ? .25 : 1; e.style.strokeDasharray = n >= 2 ? "5 5" : ""; });
+    S(rc.cut, n >= 2 ? 1 : 0); S(ms.cut, n >= 2 ? 1 : 0);
+    // 도달 불가 outline
+    ["A", "B"].forEach(k => {
+      stroke(rc[k].r, n >= 3 ? "var(--ltt-bad)" : n >= 2 ? "var(--ltt-warn)" : "var(--ltt-line-2)", n >= 2 ? "5 4" : "");
+      stroke(ms[k].r, n >= 4 ? "var(--ltt-bad)" : n >= 2 ? "var(--ltt-warn)" : "var(--ltt-line-2)", n >= 2 ? "5 4" : "");
+    });
+    // RC result
+    S(rcWait, n >= 3 ? 0 : 1); rcRows.forEach(r => S(r, n >= 3 ? 1 : 0));
+    S(rc.status, n >= 3 ? 1 : 0); rc.status.textContent = "카운트 1 ≠ 0 → 해제되지 않음"; rc.status.style.fill = "var(--ltt-bad)";
+    // M&S
+    stroke(ms.root.r, n >= 4 ? "var(--ltt-good)" : "var(--ltt-line-2)"); stroke(ms.C.r, n >= 4 ? "var(--ltt-good)" : "var(--ltt-line-2)");
+    S(markT.root, n >= 4 ? 1 : 0); S(markT.C, n >= 4 ? 1 : 0); S(markT.A, n >= 4 ? 1 : 0); S(markT.B, n >= 4 ? 1 : 0);
+    const swept = n >= 5;
+    ["A", "B"].forEach(k => { S(ms[k].g, swept ? .12 : 1); });
+    [ms.AB, ms.BA].forEach(e => S(e, swept ? .1 : 1));
+    S(markT.A, n >= 4 && !swept ? 1 : 0); S(markT.B, n >= 4 && !swept ? 1 : 0);
+    S(msWait, swept ? 0 : 1); msWait.textContent = n >= 4 ? "mark 끝 — sweep 대기 중" : "아직 수거 전 — 전부 살아 있다";
+    msRows.forEach(r => S(r, swept ? 1 : 0));
+    S(ms.status, swept ? 1 : 0); ms.status.textContent = "sweep: A, B 해제 — 누수 0개"; ms.status.style.fill = "var(--ltt-good)";
+  }
+  set(0);
+  return { el: svg, set };
+}
+
+const steps = [
+  { caption: "① 같은 코드가 만든 같은 그래프: root→A, A⇄B, root→C. 지금은 둘 다 전부 살아 있다", enter: (k, f) => f.set(0) },
+  { caption: "② 참조 카운팅은 객체마다 들어오는 참조 수를 센다: A=2(root, B.prev), B=1(A.next), C=1", enter: (k, f) => f.set(1) },
+  { caption: "③ root→A를 끊는다. 프로그램은 A, B에 닿을 수 없다. A의 카운트는 2→1, B는 1", enter: (k, f) => f.set(2) },
+  { caption: "④ 참조 카운팅: A도 B도 0이 아니다. A⇄B가 서로를 붙들어 해제되지 않고, 스냅샷에 루트 경로 없는 객체로 남는다", enter: (k, f) => f.set(3) },
+  { caption: "⑤ mark-and-sweep, 먼저 mark: root에서 따라가면 C만 닿는다. A, B는 mark되지 않는다", enter: (k, f) => f.set(4) },
+  { caption: "⑥ 그다음 sweep: mark 안 된 A, B를 해제. 같은 순환이 여기서는 누수가 아니다", enter: (k, f) => f.set(5) }
+];
+
+LTT.deck({
+  title: "가비지 컬렉션 방식",
+  theme: "terminal",
+  glossary: {},
+  scenes: [{
+    type: "figure",
+    title: "같은 순환 참조가 참조 카운팅에선 누수로 남고, mark-and-sweep에선 수거된다",
+    en: "Reference counting vs mark-and-sweep",
+    kicker: "힙 스냅샷 읽기",
+    sub: "‘카운트가 0인가’와 ‘root에서 닿는가’는 다른 질문이다. 아래 단계를 따라 두 쪽을 비교한다",
+    figure: gcFigure,
+    steps,
+    takeaway: "스냅샷에서 root 경로 없이 서로만 붙든 객체가 남아 있으면 참조 카운팅형 순환 누수를 의심하고, 순환을 끊거나 weak ref로 푼다.",
+    recall: "root를 끊은 뒤 A⇄B가 참조 카운팅에선 남고 mark-and-sweep에선 사라지는 이유는?"
+  }]
+});
+</script>
+</body>
+</html>

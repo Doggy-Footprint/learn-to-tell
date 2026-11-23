@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP 혼잡 제어: 손실 직후 cwnd</title>
+<script type="application/json" id="ltt-meta">{"topic":"TCP 혼잡 제어","audience":"백엔드·네트워크 개발자","theme":"lab","medium":"cwnd 시계열 플롯","decision":"전송 처리량 문제 진단"}</script>
+<link rel="stylesheet" href="/kit/vendor/katex/katex.min.css">
+<script src="/kit/vendor/d3.min.js"></script>
+<script src="/kit/vendor/plot.umd.min.js"></script>
+<script src="/kit/vendor/katex/katex.min.js"></script>
+<script src="/kit/ltt.js"></script>
+<script src="/kit/ltt-parts.js"></script>
+<script src="/kit/ltt-ui.js"></script>
+<script src="/kit/ltt-deck.js"></script>
+<style>
+  .cw { width: 100%; height: auto; display: block; }
+  .cw text { fill: var(--ltt-ink); font-family: inherit; }
+  .cw .m { fill: var(--ltt-muted); }
+  .cw .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: cwdraw 1.4s ease-out forwards; }
+  .cw .late1 { opacity: 0; animation: cwfade .5s ease-out 1.5s forwards; }
+  .cw .late2 { opacity: 0; animation: cwfade .5s ease-out 2.1s forwards; }
+  .cw .late3 { opacity: 0; animation: cwfade .5s ease-out 2.7s forwards; }
+  .cw .late4 { opacity: 0; animation: cwfade .5s ease-out 3.5s forwards; }
+  .cw .path2 { stroke-dasharray: 1; stroke-dashoffset: 1; animation: cwdraw 1.6s ease-out 2.7s forwards; }
+  .cw .path3 { stroke-dasharray: 1; stroke-dashoffset: 1; animation: cwdraw 1.6s ease-out 3.5s forwards; }
+  @keyframes cwdraw { to { stroke-dashoffset: 0; } }
+  @keyframes cwfade { to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .cw .draw, .cw .path2, .cw .path3 { animation: none; stroke-dashoffset: 0; }
+    .cw .late1, .cw .late2, .cw .late3, .cw .late4 { animation: none; opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const L = 60, R = 740, T = 20, B = 318, XMAX = 72, YMAX = 70;
+const X = (v) => L + v / XMAX * (R - L);
+const Y = (v) => B - v / YMAX * (B - T);
+const pts = (a) => a.map(([x, y]) => X(x).toFixed(1) + "," + Y(y).toFixed(1)).join(" ");
+const slow = [0, 1, 2, 3, 4, 5, 6].map((i) => [i, 2 ** i]);
+const dup = [[6, 64], [6, 32], [38, 64], [38, 32], [70, 64]];
+const tout = [[6, 64], [6, 1], [7, 2], [8, 4], [9, 8], [10, 16], [11, 32], [43, 64]];
+
+// 모델: MSS 1460 B, RTT 50 ms, 처리량 = cwnd × MSS × 8 / RTT
+const mbit = (w) => w * 1460 * 8 / 0.05 / 1e6;
+
+function cwndPlot(node, answer) {
+  const t = (x, y, s, cls, anchor) => `<text x="${x}" y="${y}" font-size="14" class="${cls || ""}" text-anchor="${anchor || "start"}">${s}</text>`;
+  let g = "";
+  [0, 16, 32, 48, 64].forEach((v) => { g += `<line x1="${L}" x2="${R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--ltt-line)" stroke-width="1"/>` + t(L - 8, Y(v) + 5, v, "m", "end"); });
+  for (let v = 0; v <= 70; v += 10) g += t(X(v), B + 22, v, "m", "middle");
+  g += t(L - 8, T - 6, "cwnd (MSS)", "m", "start").replace('x="' + (L - 8) + '"', 'x="8"');
+  g += t(R, B + 42, "시간 (RTT 횟수)", "m", "end");
+  // 구간 띠
+  g += `<rect x="${X(0)}" y="${T}" width="${X(6) - X(0)}" height="${B - T}" fill="var(--ltt-accent-soft)" opacity=".55"/>`;
+  g += t((X(0) + X(6)) / 2, B - 8, "slow start", "", "middle");
+  // 병목 한계선
+  g += `<line x1="${L}" x2="${R}" y1="${Y(64)}" y2="${Y(64)}" stroke="var(--ltt-bad)" stroke-width="2" stroke-dasharray="6 5"/>`;
+  g += t(R, Y(64) - 8, "병목 한계 = BDP + 큐 = 64", "", "end");
+  // slow start 곡선
+  g += `<polyline class="draw" pathLength="1" points="${pts(slow)}" fill="none" stroke="var(--ltt-c1)" stroke-width="3"/>`;
+  slow.forEach(([x, y]) => { g += `<circle cx="${X(x)}" cy="${Y(y)}" r="4.5" fill="var(--ltt-c1)"/>`; });
+  g += t(X(3) + 8, Y(8) - 22, "RTT마다 ×2", "");
+  // 손실 표식
+  g += `<g class="late1"><circle cx="${X(6)}" cy="${Y(64)}" r="9" fill="none" stroke="var(--ltt-bad)" stroke-width="3"/>` +
+       t(X(6) - 14, Y(64) + 28, "cwnd = 64에서 손실", "", "end") + `</g>`;
+  if (!answer) {
+    g += `<g class="late2"><line x1="${X(6)}" x2="${X(14)}" y1="${Y(64)}" y2="${Y(64)}" stroke="none"/>` +
+         `<text x="${X(10)}" y="${Y(36)}" font-size="40" text-anchor="middle" style="fill:var(--ltt-accent)">?</text>` +
+         `<line x1="${X(6)}" x2="${X(6)}" y1="${Y(60)}" y2="${Y(8)}" stroke="var(--ltt-accent)" stroke-width="2" stroke-dasharray="4 5"/>` +
+         t(X(6) + 56, Y(36) + 44, "다음 cwnd는?", "") + `</g>`;
+  } else {
+    // 생성 순서: 손실 → ssthresh 갱신 → cwnd 하강
+    g += `<g class="late2"><line x1="${L}" x2="${R}" y1="${Y(32)}" y2="${Y(32)}" stroke="var(--ltt-warn)" stroke-width="2" stroke-dasharray="3 5"/>` +
+         t(R, Y(32) - 8, "ssthresh = 64 ÷ 2 = 32", "", "end") + `</g>`;
+    g += `<polyline class="path2" pathLength="1" points="${pts(dup)}" fill="none" stroke="var(--ltt-good)" stroke-width="3"/>`;
+    g += `<polyline class="path3" pathLength="1" points="${pts(tout)}" fill="none" stroke="var(--ltt-bad)" stroke-width="3" stroke-dasharray="1"/>`;
+    g += `<g class="late3">` + t(X(6) + 10, Y(32) + 24, "중복 ACK: 64 → 32", "") +
+         t(X(20), Y(46) - 4, "+1 MSS/RTT, 32 RTT 걸림", "m") + `</g>`;
+    g += `<g class="late4"><rect x="${X(6) - 3}" y="${Y(1) - 5}" width="10" height="10" fill="var(--ltt-bad)"/>` +
+         t(X(6) + 12, Y(1) - 8, "타임아웃: 64 → 1, 다시 slow start", "") + `</g>`;
+    g += `<g class="late4"><line x1="${X(38)}" x2="${X(70)}" y1="${Y(48)}" y2="${Y(48)}" stroke="var(--ltt-ink)" stroke-width="1.5" stroke-dasharray="2 4"/>` +
+         t(X(70), Y(48) + 20, `평균 48 = 최고점의 75% ≈ ${mbit(48).toFixed(1)} Mbit/s`, "", "end") + `</g>`;
+  }
+  node.innerHTML = `<svg class="cw" viewBox="0 0 760 366" role="img" aria-label="cwnd 시계열">${g}</svg>`;
+}
+
+LTT.expect("최고점 처리량", mbit(64), 14.95, { tol: 0.01 });
+LTT.expect("반감 후 처리량", mbit(32), 7.48, { tol: 0.01 });
+LTT.expect("톱니 평균 처리량", mbit(48), 11.2, { tol: 0.02 });
+
+LTT.deck({
+  title: "TCP 혼잡 제어",
+  theme: "lab",
+  glossary: {},
+  scenes: [{
+    type: "predict",
+    kicker: "예측",
+    title: "손실이 나면 cwnd는 어디로 떨어질까?",
+    sub: "cwnd(ACK 없이 띄울 수 있는 양)가 RTT마다 두 배로 64 MSS에 닿자 큐가 넘쳐 패킷이 버려졌다. 송신자는 중복 ACK 3개로 이를 안다.",
+    question: "중복 ACK로 손실을 알았을 때, 직후 cwnd는?",
+    visual: (n) => cwndPlot(n, false),
+    choices: [{ id: "1", text: "1 MSS로 추락" }, { id: "32", text: "32 MSS로 반감" }, { id: "63", text: "63 MSS로 한 칸만" }],
+    answer: "32",
+    answerVisual: (n) => cwndPlot(n, true),
+    why: "손실 → ssthresh = 64÷2 → cwnd = 32 순서다. 1로 가는 건 RTO(타임아웃)일 때뿐이다. 처리량 64는 14.95, 32는 7.48 Mbit/s(1460 B, 50 ms). <span class=\"ltt-tag\">모델로 계산한 예시</span>",
+    basis: "Reno 기준(RFC 5681). 64 MSS 한계와 RTT 50 ms는 예시 값",
+    takeaway: "중복 ACK 손실은 cwnd를 절반으로만 깎고 +1 MSS/RTT로 오른다. 평균 처리량은 최고점의 약 75%이고, 바닥(1)까지 자주 무너지면 타임아웃이 원인이다.",
+    recall: "같은 64에서 중복 ACK 손실과 타임아웃은 cwnd가 각각 어디로 가나?"
+  }]
+});
+</script>
+</body>
+</html>
